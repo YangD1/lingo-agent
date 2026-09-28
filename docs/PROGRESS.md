@@ -52,11 +52,11 @@
   - [x] 11A.8 聊天消息渲染 Markdown（用户实测反馈 3：`**加粗**` 原样显示——原因是 `message-list.tsx` 直接输出纯文本，前端没有任何 Markdown 渲染）。完成：新增 `components/chat/markdown.tsx`（react-markdown 10 + remark-gfm + `remark-cjk-friendly/parseOnly`；后者解决 CommonMark 在 `这是**“重点”**的意思` 这种 `**` 夹在汉字与标点之间时不认加粗的问题）；不渲染原始 HTML；链接新标签打开并带 `noopener noreferrer`；自定义组件统一去掉 `node` prop；只对 assistant 消息渲染，用户消息保持纯文本 + `whitespace-pre-wrap`。E2E 里取消息的定位改为 `:scope > li`（否则回复里的列表项会被算成消息）。测试：Vitest 5 个（含中文紧挨引号的加粗、原始 HTML 不渲染），E2E 1 个（假模型回显 Markdown，回复加粗、用户消息保持原文）。typecheck、lint、build、Vitest 70、Playwright 15 通过；前端镜像已重建，healthy
 - [ ] 11B. 用户消息多模态输入（用户提出；需先设计：PLAN + ADR，消息内容结构、上传存储、模型能力路由）
   - [~] 11B.1 设计：用户已选定范围为图片 + 语音 + 文档（后续可能做 RAG），处理方式为“两者结合”，存储用 PostgreSQL bytea → ADR 0008 草稿已写（`docs/decisions/0008-multimodal-attachments.md`，状态“提议中”），等用户确认后再同步 PLAN / ADR 0002，并把状态改为“已采纳”
-  - [ ] 11B.2 后端·附件存储与接口：`attachments` 表 + 迁移；上传（按魔数识别类型；Pillow 重新编码、去 EXIF、缩放；各类大小和数量上限）、读取内容、修改派生文本、删除未发送的附件；24 小时孤儿清理；越权一律 404。测试：各格式和上限、伪造类型、解压炸弹、越权
-  - [ ] 11B.3 后端·派生文本：provider 层 `llm.vision` 路由 + `ImageReading` 结构化输出；新增 `asr` 一节 + `get_asr()`（OpenAI 兼容 `/audio/transcriptions`，SSRF 防护客户端）；`llm_usage.audio_seconds`；文档抽取（pypdf、python-docx，限制页数、字数和超时）；`no_vision_model` / `no_asr_model`；`GET /tenant/routes` 包含 vision、asr。测试用 mock transport 和假模型
+  - [ ] 11B.2 后端·附件存储与接口：`attachments` 表 + 迁移；上传（按魔数识别类型；Pillow 重新编码、去 EXIF、缩放；各类大小和数量上限；入库后返回 processing，由进程内后台任务处理，带共享并发上限；重启时把 processing 标为 failed；重试接口）、读取内容、修改派生文本、删除未发送的附件；24 小时孤儿清理；越权一律 404。测试：各格式和上限、伪造类型、解压炸弹、越权
+  - [ ] 11B.3 后端·派生文本：provider 层 `llm.vision` 路由 + `ImageReading` 结构化输出；新增 `asr` 一节 + `get_asr()`（OpenAI 兼容 `/audio/transcriptions`，SSRF 防护客户端）；`llm_usage.audio_seconds`；文档抽取（pypdfium2、python-docx，限制页数、字数和超时；按页判断是否扫描页，扫描页渲染后交给 vision 识别，带进度）；`no_vision_model` / `no_asr_model`；`GET /tenant/routes` 包含 vision、asr。测试用 mock transport 和假模型
   - [ ] 11B.4 后端·对话接入：`MessageIn.attachment_ids`（校验同一会话、ready、未发送）；后端生成 HumanMessage id 并关联附件；tutor 节点组装消息（历史轮次只带派生文本，当前轮带原图并改用 vision 路由，文档每轮有字数上限）；历史接口返回附件；语音消息允许正文为空。集成测试用假模型
-  - [ ] 11B.5 前端·输入与展示：附件按钮 / 粘贴 / 拖拽 / 录音（MediaRecorder）；前端压缩图片；附件卡片（状态、识别结果查看和修改、重试、移除），有附件在识别时不能发送；消息里显示缩略图、音频播放器 + 转写、文档卡片；设置页路由编辑支持 vision、asr；中英文案。Vitest
-  - [ ] 11B.6 E2E 与部署：`fake_llm.py` 支持看图回显和 `/audio/transcriptions`；E2E 覆盖三类附件、未配置 vision 时的引导、识别结果修改；compose 新增 `asr` profile（speaches）并实测内存；重建镜像，交给用户实测
+  - [ ] 11B.5 前端·输入与展示：附件按钮 / 粘贴 / 拖拽 / 录音（MediaRecorder）；前端压缩图片；附件卡片（轮询状态和进度、识别结果查看和修改、重试、移除），有附件在识别时不能发送；消息里显示缩略图、音频播放器 + 转写、文档卡片；设置页路由编辑支持 vision、asr；中英文案。Vitest
+  - [ ] 11B.6 E2E 与部署：`fake_llm.py` 支持看图回显和 `/audio/transcriptions`；E2E 覆盖三类附件（含扫描版 PDF）、未配置 vision 时的引导、识别结果修改；compose 新增 `asr` profile（speaches）并实测内存；重建镜像，交给用户实测
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）
 - [ ] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令
 
