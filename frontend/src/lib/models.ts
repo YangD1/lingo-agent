@@ -5,6 +5,14 @@ export function chatModelIds(models: DiscoveredModel[]): string[] {
   return models.filter((m) => m.category === "chat").map((m) => m.id);
 }
 
+// Transcription models by name; the backend files them under "other" with TTS etc.
+const SPEECH_TO_TEXT = /whisper|transcri|asr|sensevoice|paraformer/i;
+
+/** Model ids that can go in a speech-to-text dropdown. */
+export function speechModelIds(models: DiscoveredModel[]): string[] {
+  return models.filter((m) => m.category !== "embedding" && SPEECH_TO_TEXT.test(m.id)).map((m) => m.id);
+}
+
 /** The model part of "<connection>:<model>" refs, in order. */
 export function modelsOfRefs(refs: string[]): string[] {
   return refs.flatMap((ref) => {

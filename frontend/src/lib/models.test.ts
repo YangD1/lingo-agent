@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { chatModelIds, modelsOfRefs, recommendModel } from "./models";
+import { chatModelIds, modelsOfRefs, recommendModel, speechModelIds } from "./models";
 
 describe("chatModelIds", () => {
   it("keeps only chat models, in order", () => {
@@ -39,5 +39,19 @@ describe("recommendModel", () => {
 
   it("is empty when nothing is available", () => {
     expect(recommendModel([], ["deepseek-chat"])).toBe("");
+  });
+});
+
+describe("speechModelIds", () => {
+  it("keeps transcription models only", () => {
+    expect(
+      speechModelIds([
+        { id: "whisper-large-v3-turbo", category: "other" },
+        { id: "gpt-transcribe", category: "other" },
+        { id: "tts-1", category: "other" },
+        { id: "gpt-5-mini", category: "chat" },
+        { id: "FunAudioLLM/SenseVoiceSmall", category: "other" },
+      ]),
+    ).toEqual(["whisper-large-v3-turbo", "gpt-transcribe", "FunAudioLLM/SenseVoiceSmall"]);
   });
 });

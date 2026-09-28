@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-09-29 · 11B.5 前端附件输入与展示
+
+- **做了什么**：11B.5a–e 全部完成（细节见看板 11B.5 的“完成记录”）。前端：附件按钮 / 粘贴 / 拖拽 / 录音，附件卡片（上传中、识别中带页数进度、失败可重试、查看和修改识别结果、移除），附件未就绪时不能发送，消息里显示图片 / 音频 / 文档；设置页可以编辑 chat、vision、asr 三个路由；中英文案和 17 个新错误码。typecheck、lint、build、Vitest 93、Playwright 15 全部通过。
+- **未完成**：录音、canvas 压缩、粘贴和拖拽只在 jsdom 里测过逻辑，还没有在真实浏览器里跑过。
+- **下一步**：11B.6：`e2e/fake_llm.py` 支持看图回显（能看到 image 块就回显）和 `/audio/transcriptions`；E2E 用 `data-testid="attachment-input"` 的隐藏 file input 调 `setInputFiles` 上传；覆盖图片、文档（含扫描版 PDF）、语音文件（录音可以用 Chromium 的 `--use-fake-device-for-media-stream` + `--use-fake-ui-for-media-stream`）、未配置 vision 时的“去设置”、修改识别结果；compose 加 `asr` profile（speaches）并实测内存；重建镜像交给用户实测。
+- **踩坑**：设置页有多张路由卡片后，E2E 里按名字查找按钮会命中多个元素，要先用 `getByTestId("route-<task>")` 限定范围。
+- **注意**：上次会话因为请求超过 32MB 而中断（对话里累积了太多图片）。做 11B.6 的界面验证时尽量少截图，或者截小图。
+
+---
+
 ## 2026-09-29 · 11B.4 附件接入对话
 
 - **做了什么**：上次会话写完 11B.4 代码和测试后因请求过大中断，本次修复测试（残留的一行乱码；录制假模型的 `calls` 字段被 pydantic 复制导致记录为空）并全量验证：pytest 367、ruff、mypy(app) 通过。细节见看板 11B.4。

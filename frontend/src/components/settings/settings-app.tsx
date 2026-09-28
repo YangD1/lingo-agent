@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { Connection, Presets } from "@/lib/types";
 
-import { ChatRouteSection } from "./chat-route-section";
+import { RouteSection } from "./route-section";
 import { ConnectionsSection } from "./connections-section";
 import { UsageSection } from "./usage-section";
 
@@ -28,7 +28,9 @@ export function SettingsApp() {
               connections={connections}
               onChange={setConnections}
             />
-            <ChatRouteSection connections={connections} />
+            <RouteSection task="chat" connections={connections} />
+            <RouteSection task="vision" connections={connections} />
+            <RouteSection task="asr" connections={connections} />
           </>
         )}
         <UsageSection />

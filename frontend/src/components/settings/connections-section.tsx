@@ -19,7 +19,7 @@ import {
   type TaskRoute,
 } from "@/lib/types";
 
-import { fetchChatModels, modelListFailure } from "./model-catalog";
+import { fetchModels as fetchConnectionModels, modelListFailure } from "./model-catalog";
 import { useDescribeError } from "./use-describe-error";
 
 const CUSTOM = "__custom__";
@@ -115,7 +115,7 @@ function ConnectionItem({
   async function fetchModels() {
     try {
       const [ids, routes] = await Promise.all([
-        fetchChatModels(c.id),
+        fetchConnectionModels(c.id),
         api<TaskRoute[]>("/tenant/routes").catch(() => []),
       ]);
       setCatalog({ state: "ok", ids });

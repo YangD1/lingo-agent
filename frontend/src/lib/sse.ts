@@ -26,12 +26,12 @@ const KNOWN_EVENTS = new Set(["token", "done", "error"]);
 export async function* streamChat(
   conversationId: string,
   content: string,
-  { signal }: { signal?: AbortSignal } = {},
+  { signal, attachmentIds = [] }: { signal?: AbortSignal; attachmentIds?: string[] } = {},
 ): AsyncGenerator<ChatEvent, void, undefined> {
   const response = await apiFetch(`/conversations/${conversationId}/messages`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream" },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, attachment_ids: attachmentIds }),
     signal,
   });
   if (!response.body) throw new Error("response has no body");

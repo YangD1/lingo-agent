@@ -1,10 +1,14 @@
 import { ApiError, api } from "@/lib/api";
-import { chatModelIds } from "@/lib/models";
+import { chatModelIds, speechModelIds } from "@/lib/models";
 import type { ModelList } from "@/lib/types";
 
-/** The chat models a connection serves, as its vendor lists them (ADR 0007 §1). */
-export async function fetchChatModels(connectionId: string): Promise<string[]> {
-  return chatModelIds((await api<ModelList>(`/tenant/connections/${connectionId}/models`)).models);
+/** The chat or speech-to-text models a connection serves, as its vendor lists them (ADR 0007 §1). */
+export async function fetchModels(
+  connectionId: string,
+  use: "chat" | "speech" = "chat",
+): Promise<string[]> {
+  const { models } = await api<ModelList>(`/tenant/connections/${connectionId}/models`);
+  return use === "speech" ? speechModelIds(models) : chatModelIds(models);
 }
 
 /**

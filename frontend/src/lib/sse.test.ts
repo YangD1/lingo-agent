@@ -46,7 +46,7 @@ describe("streamChat", () => {
       ]),
     );
 
-    const events = await collect(streamChat("c1", "hi"));
+    const events = await collect(streamChat("c1", "hi", { attachmentIds: ["a1"] }));
 
     expect(events).toEqual([
       { event: "token", text: "Hello" },
@@ -56,7 +56,7 @@ describe("streamChat", () => {
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("/api/conversations/c1/messages");
     expect(init?.method).toBe("POST");
-    expect(init?.body).toBe('{"content":"hi"}');
+    expect(init?.body).toBe('{"content":"hi","attachment_ids":["a1"]}');
   });
 
   it("ends on an error event", async () => {

@@ -11,17 +11,35 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { api } from "@/lib/api";
 import type { Connection, TaskRoute } from "@/lib/types";
 
-import { fetchChatModels } from "./model-catalog";
+import { fetchModels } from "./model-catalog";
 import { useDescribeError } from "./use-describe-error";
 
 const MAX_ROWS = 5; // the backend's limit on a route's fallback chain
+
+/** The routes the settings page edits: chat, and the two that attachments need (ADR 0008 §5). */
+export type RouteTask = "chat" | "vision" | "asr";
+const SECTION: Record<RouteTask, TaskRoute["section"]> = {
+  chat: "llm",
+  vision: "llm",
+  asr: "asr",
+};
+// The asr section has a single route, stored under the task name "default".
+const TASK_KEY: Record<RouteTask, string> = { chat: "chat", vision: "vision", asr: "default" };
 
 type Row = { key: number; connection: string; model: string };
 // Per connection name: its chat models, or why they aren't there (the user can still type one).
 type Catalogs = Record<string, string[] | "loading" | "failed">;
 
-export function ChatRouteSection({ connections }: { connections: Connection[] }) {
+export function RouteSection({
+  task,
+  connections,
+}: {
+  task: RouteTask;
+  connections: Connection[];
+}) {
   const t = useTranslations("settings.route");
+  const section = SECTION[task];
+  const path = `/tenant/routes/${section}/${TASK_KEY[task]}`;
   const describe = useDescribeError();
   const [route, setRoute] = useState<TaskRoute | null>(null);
   const [rows, setRows] = useState<Row[] | null>(null); // null = not editing
@@ -31,7 +49,8 @@ export function ChatRouteSection({ connections }: { connections: Connection[] })
 
   const load = () =>
     api<TaskRoute[]>("/tenant/routes").then(
-      (all) => setRoute(all.find((r) => r.section === "llm" && r.task === "chat") ?? null),
+      (all) =>
+        setRoute(all.find((r) => r.section === section && r.task === TASK_KEY[task]) ?? null),
       (e: unknown) => setMessage({ ok: false, text: describe(e) }),
     );
   // What runs depends on the connections (and their default models): reload when they change.
@@ -57,14 +76,15 @@ export function ChatRouteSection({ connections }: { connections: Connection[] })
 
   function newRow(): Row {
     const c = connections[0];
-    return row(c?.name ?? "", c?.default_model ?? "");
+    // A connection's default model is a chat model: only a good first guess for chat.
+    return row(c?.name ?? "", task === "chat" ? (c?.default_model ?? "") : "");
   }
 
   function loadCatalog(name: string) {
     const c = connections.find((x) => x.name === name);
     if (!c || catalogs[name]) return;
     setCatalogs((all) => ({ ...all, [name]: "loading" }));
-    fetchChatModels(c.id).then(
+    fetchModels(c.id, task === "asr" ? "speech" : "chat").then(
       (ids) => setCatalogs((all) => ({ ...all, [name]: ids })),
       () => setCatalogs((all) => ({ ...all, [name]: "failed" })),
     );
@@ -90,7 +110,7 @@ export function ChatRouteSection({ connections }: { connections: Connection[] })
     setMessage(null);
     try {
       setRoute(
-        await api<TaskRoute>("/tenant/routes/llm/chat", { method: "PUT", json: { models: refs } }),
+        await api<TaskRoute>(path, { method: "PUT", json: { models: refs } }),
       );
       setRows(null);
       setMessage({ ok: true, text: t("saved") });
@@ -102,7 +122,7 @@ export function ChatRouteSection({ connections }: { connections: Connection[] })
   async function reset() {
     setMessage(null);
     try {
-      await api("/tenant/routes/llm/chat", { method: "DELETE" });
+      await api(path, { method: "DELETE" });
       await load();
       setRows(null);
       setMessage({ ok: true, text: t("resetDone") });
@@ -112,19 +132,24 @@ export function ChatRouteSection({ connections }: { connections: Connection[] })
   }
 
   return (
-    <Card>
+    <Card data-testid={`route-${task}`}>
       <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
+        <CardTitle>{t(`tasks.${task}.title`)}</CardTitle>
+        <CardDescription>{t(`tasks.${task}.description`)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {route && rows === null && (
           <>
-            <p className="text-xs text-muted-foreground" data-testid="route-source">
-              {route.effective_source ? t(`source.${route.effective_source}`) : t("source.none")}
+            <p className="text-xs text-muted-foreground" data-testid={`route-source-${task}`}>
+              {route.effective_source
+                ? t(`source.${route.effective_source}`)
+                : t(`tasks.${task}.none`)}
             </p>
             {route.effective.length > 0 && (
-              <ol className="list-decimal pl-5 font-mono text-sm" aria-label={t("title")}>
+              <ol
+                className="list-decimal pl-5 font-mono text-sm"
+                aria-label={t(`tasks.${task}.title`)}
+              >
                 {route.effective.map((m) => (
                   <li key={m}>{m}</li>
                 ))}
@@ -150,7 +175,10 @@ export function ChatRouteSection({ connections }: { connections: Connection[] })
         {rows !== null && (
           <>
             <p className="text-xs text-muted-foreground">{t("editHint")}</p>
-            <ol className="flex flex-col gap-2" aria-label={t("editLabel")}>
+            <ol
+              className="flex flex-col gap-2"
+              aria-label={t("editLabel", { title: t(`tasks.${task}.title`) })}
+            >
               {rows.map((r, i) => {
                 const catalog = catalogs[r.connection];
                 return (
@@ -161,7 +189,8 @@ export function ChatRouteSection({ connections }: { connections: Connection[] })
                       value={r.connection}
                       onChange={(e) => {
                         const c = connections.find((x) => x.name === e.target.value);
-                        update(r.key, { connection: e.target.value, model: c?.default_model ?? "" });
+                        const model = task === "chat" ? (c?.default_model ?? "") : "";
+                        update(r.key, { connection: e.target.value, model });
                       }}
                       className="w-36"
                     >

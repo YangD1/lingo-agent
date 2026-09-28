@@ -48,7 +48,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
 
   // No route needed: the connection's default model is used automatically.
   const route = page.getByRole("list", { name: "对话模型" }).getByRole("listitem");
-  await expect(page.getByTestId("route-source")).toHaveText(
+  await expect(page.getByTestId("route-source-chat")).toHaveText(
     "自动：按添加连接的先后，使用各连接的默认模型。",
   );
   await expect(route).toHaveText(["fake:fake-tutor"]);
@@ -74,7 +74,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
 
   // Custom order, all with dropdowns: switch row 1 to the mini model, add a fallback
   // (prefilled with the connection's default model), then move it to the top.
-  await page.getByRole("button", { name: "调整顺序" }).click();
+  await page.getByTestId("route-chat").getByRole("button", { name: "调整顺序" }).click();
   const model1 = page.getByLabel("模型 1");
   await expect(page.getByLabel("连接 1")).toHaveValue("fake");
   await expect(model1).toHaveValue("fake-tutor");
@@ -85,17 +85,17 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await page.getByRole("button", { name: "上移" }).nth(1).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect(route).toHaveText(["fake:fake-tutor", "fake:fake-tutor-mini"]);
-  await expect(page.getByTestId("route-source")).toHaveText("正在使用你自定义的顺序。");
+  await expect(page.getByTestId("route-source-chat")).toHaveText("正在使用你自定义的顺序。");
 
   // Reset the route, then delete the connection: nothing is usable any more.
-  await page.getByRole("button", { name: "恢复默认" }).click();
-  await expect(page.getByTestId("route-source")).toHaveText(
+  await page.getByTestId("route-chat").getByRole("button", { name: "恢复默认" }).click();
+  await expect(page.getByTestId("route-source-chat")).toHaveText(
     "自动：按添加连接的先后，使用各连接的默认模型。",
   );
   page.once("dialog", (dialog) => dialog.accept());
   await connection.getByRole("button", { name: "删除" }).click();
   await expect(connection).toHaveCount(0);
-  await expect(page.getByTestId("route-source")).toHaveText(
+  await expect(page.getByTestId("route-source-chat")).toHaveText(
     "还没有可用的对话模型。请添加连接并保存它的默认模型。",
   );
 });
@@ -194,7 +194,7 @@ test("every field of a connection can be edited; renaming keeps custom routes wo
   await expect(renamed.getByRole("status")).toHaveText("连接已更新。");
   const route = page.getByRole("list", { name: "对话模型" }).getByRole("listitem");
   await expect(route).toHaveText(["my-relay:fake-tutor-mini", "my-relay:fake-tutor"]);
-  await expect(page.getByTestId("route-source")).toHaveText("正在使用你自定义的顺序。");
+  await expect(page.getByTestId("route-source-chat")).toHaveText("正在使用你自定义的顺序。");
 
   // Chat still goes through it, so the key survived the rename too.
   await page.getByRole("link", { name: "对话" }).click();

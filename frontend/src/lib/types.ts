@@ -5,7 +5,35 @@ export type Tenant = { id: string; name: string; kind: string };
 export type Me = { user: User; tenant: Tenant };
 
 export type Conversation = { id: string; title: string; created_at: string; updated_at: string };
-export type HistoryMessage = { id: string | null; role: "user" | "assistant"; content: string };
+export type AttachmentKind = "image" | "audio" | "document";
+/** backend/app/api/attachments.py AttachmentOut (ADR 0008). */
+export type Attachment = {
+  id: string;
+  conversation_id: string;
+  kind: AttachmentKind;
+  mime_type: string;
+  filename: string;
+  size_bytes: number;
+  status: "processing" | "ready" | "failed";
+  /** Derived text: the image reading, the transcript or the document's text. */
+  text: string | null;
+  meta: {
+    progress?: { done: number; total: number } | null;
+    error_message?: string;
+    truncated?: boolean;
+    [key: string]: unknown;
+  };
+  /** Failure code, e.g. no_vision_model or processing_failed. */
+  error: string | null;
+  sent: boolean;
+  created_at: string;
+};
+export type HistoryMessage = {
+  id: string | null;
+  role: "user" | "assistant";
+  content: string;
+  attachments: Attachment[];
+};
 
 export const PROVIDER_KINDS = ["deepseek", "anthropic", "openai", "openai_compatible"] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
@@ -32,7 +60,7 @@ export type Connection = {
 };
 export type ConnectionTest = { ok: boolean; error: string | null; latency_ms: number };
 export type TaskRoute = {
-  section: "llm" | "embedding";
+  section: "llm" | "embedding" | "asr";
   task: string;
   models: string[];
   params: Record<string, unknown>;

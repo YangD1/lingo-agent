@@ -50,7 +50,46 @@
     "send": "Send",
     "stop": "Stop",
     "stopped": "Stopped. This partial reply is not saved.",
-    "goToSettings": "Go to Settings"
+    "goToSettings": "Go to Settings",
+    "attachments": {
+      "attach": "Attach images, documents or audio",
+      "record": "Record a voice message",
+      "stopRecording": "Stop recording",
+      "recording": "Recording…",
+      "discardRecording": "Discard",
+      "dropHere": "Drop files to attach them",
+      "waitToSend": "Attachments must finish (or be removed) before you can send.",
+      "label": "Attachments",
+      "uploading": "Uploading…",
+      "ready": {
+        "image": "Image read",
+        "audio": "Transcribed",
+        "document": "Text extracted"
+      },
+      "processing": {
+        "image": "Reading the image…",
+        "audio": "Transcribing…",
+        "document": "Reading the document…"
+      },
+      "progress": "page {done} of {total}",
+      "setUp": "Set up",
+      "retry": "Retry {name}",
+      "edit": "View or correct what was recognized in {name}",
+      "remove": "Remove {name}",
+      "readingLabel": "What the tutor will see in {name}",
+      "transcriptLabel": "Transcript of {name}",
+      "editHint": "Fix anything that was misread. The tutor uses this text, now and later in the conversation.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "too_many_attachments": "A message can carry at most 5 attachments.",
+      "too_many_images": "A message can carry at most 4 images.",
+      "microphone_denied": "Microphone access was denied. Allow it in your browser to record.",
+      "recording_unsupported": "This browser can't record audio.",
+      "openImage": "Open {name}",
+      "voiceMessage": "Voice message",
+      "truncated": "only the beginning was read",
+      "download": "Download"
+    }
   },
   "settings": {
     "connections": {
@@ -97,16 +136,13 @@
       "renamePresetHint": "The server's default routes find this provider by its name. After renaming, chat uses this connection's default model instead (your own routes are updated automatically)."
     },
     "route": {
-      "title": "Chat model",
-      "description": "Models are tried in order; if one fails, the next one takes over.",
       "source": {
         "override": "Using your custom order.",
         "default": "Using the default order from the server configuration.",
-        "auto": "Automatic: each connection's default model, in the order the connections were added.",
-        "none": "No chat model is usable yet. Add a connection and save its default model."
+        "auto": "Automatic: each connection's default model, in the order the connections were added."
       },
       "edit": "Edit order",
-      "editLabel": "Chat models in fallback order",
+      "editLabel": "{title}: models in fallback order",
       "editHint": "Pick a connection and a model for each row. The first one is used; the rest take over if it fails.",
       "connection": "Connection {n}",
       "model": "Model {n}",
@@ -122,7 +158,24 @@
       "cancel": "Cancel",
       "reset": "Reset to default",
       "saved": "Saved.",
-      "resetDone": "Back to the default order."
+      "resetDone": "Back to the default order.",
+      "tasks": {
+        "chat": {
+          "title": "Chat model",
+          "description": "Models are tried in order; if one fails, the next one takes over.",
+          "none": "No chat model is usable yet. Add a connection and save its default model."
+        },
+        "vision": {
+          "title": "Image model (vision)",
+          "description": "Reads images and scanned PDF pages, and answers messages that carry images. Pick models that can see images: chat models are not used for this automatically.",
+          "none": "Not set up: images and scanned PDFs can't be read until you add a model here."
+        },
+        "asr": {
+          "title": "Speech-to-text",
+          "description": "Transcribes voice messages and audio files (an OpenAI-compatible /audio/transcriptions API, e.g. Groq, OpenAI, SiliconFlow or a local speaches server).",
+          "none": "Not set up: voice messages can't be transcribed until you add a model here."
+        }
+      }
     },
     "usage": {
       "title": "Usage",
@@ -161,6 +214,23 @@
     "http_404": "Not found.",
     "http_500": "Something went wrong on the server. Please try again later.",
     "stream_interrupted": "The reply was cut off. Please try again.",
-    "model_list_failed": "Couldn't fetch the model list from the provider."
+    "model_list_failed": "Couldn't fetch the model list from the provider.",
+    "no_vision_model": "No image-capable model is set up. Configure the image (vision) model in Settings.",
+    "no_asr_model": "No speech-to-text model is set up. Configure it in Settings.",
+    "attachment_not_found": "This attachment doesn't exist or was deleted.",
+    "attachment_not_ready": "An attachment is still being processed. Please wait.",
+    "attachment_not_failed": "This attachment didn't fail, so there is nothing to retry.",
+    "attachment_sent": "This attachment was already sent and can't be changed.",
+    "attachment_limit": "Too many unsent attachments in this conversation. Send or remove some first.",
+    "attachment_too_large": "This file is too large (images 5 MB, audio 10 MB, documents 20 MB).",
+    "unsupported_file_type": "This file type isn't supported. Use images, audio, PDF, Word (.docx), .txt or .md.",
+    "invalid_image": "This image can't be opened. It may be damaged or too large.",
+    "invalid_attachments": "The same attachment was added twice.",
+    "too_many_images": "A message can carry at most 4 images.",
+    "too_many_pages": "This PDF has too many pages (at most 50).",
+    "document_encrypted": "This PDF is password-protected.",
+    "document_unreadable": "This document can't be read.",
+    "processing_failed": "Processing failed. Please retry.",
+    "processing_interrupted": "Processing was interrupted. Please retry."
   }
 }

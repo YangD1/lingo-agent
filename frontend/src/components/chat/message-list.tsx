@@ -7,6 +7,7 @@ import { useErrorMessage } from "@/i18n/errors";
 import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
+import { MessageAttachments } from "./message-attachments";
 import type { ChatMessage } from "./use-chat-session";
 
 export function MessageList({ messages }: { messages: ChatMessage[] }) {
@@ -41,6 +42,9 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
                 : "self-start bg-muted",
             )}
           >
+            {m.attachments && m.attachments.length > 0 && (
+              <MessageAttachments attachments={m.attachments} />
+            )}
             {!m.content ? (
               m.status === "streaming" && <span className="animate-pulse">…</span>
             ) : m.role === "assistant" ? (

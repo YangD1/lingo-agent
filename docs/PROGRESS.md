@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 骨架（任务 1–11、11A 完成；下一步：11B.5 前端附件输入与展示；之后任务 12 CI）
+**当前阶段**：P0 骨架（任务 1–11、11A 完成；下一步：11B.6 附件 E2E 与部署；之后任务 12 CI）
 **阻塞项**：无
 
 ## P0 骨架
@@ -60,7 +60,13 @@
     - **附件**：`reading.py`（`ImageReading`，提示词 `prompts/image_reading.md`，强调不纠正错误；持有 `vision_slots` 才调用；失败只返回 HTTP 状态码，不带厂商原文）、`documents.py`（pypdfium2 全局锁；每页非空白字符少于 20 个就当扫描页，按 150dpi 渲染、长边 1600；最多 50 页；识别加密 PDF；DOCX 按文档顺序抽取段落和表格，限制 XML 解压后的大小）、`handlers.py`（image / audio / pdf / docx；扫描页并发识别，带进度，TaskGroup 失败时取出其中的 `ProcessingFailed`；文字最多 200k 字符，超出截断）；`ProcessingJob` 新增 `provider_context()` 和 `vision_slots`。
     - **测试**：单测：文档 11 个（测试里手写有文本层的 PDF，扫描版用 Pillow 存成 PDF）、vision / asr / 结构化输出 11 个；集成：处理函数 12 个、设置接口 2 个。pytest 348、ruff、mypy 通过。**未覆盖**：加密 PDF（没有能加密 PDF 的依赖）
   - [x] 11B.4 后端·对话接入：`MessageIn.attachment_ids`（校验同一会话、ready、未发送）；后端生成 HumanMessage id 并关联附件；tutor 节点组装消息（历史轮次只带派生文本，当前轮带原图并改用 vision 路由，文档每轮有字数上限）；历史接口返回附件；语音消息允许正文为空。集成测试用假模型。完成：`app/attachments/context.py`（`render_turn` 把正文和各附件的派生文本按序号拼接，文档共用每轮 2 万字符预算、超出时告诉模型只给了前 N 字；语音转写与正文相同时不重复；`turn_content` 输出 LangChain 标准 image 块；`DatabaseAttachments` 按会话读取）；`ChatContext.attachments`，tutor 节点只在调用时展开，**checkpoint 里只存学习者原文**，原图只随发送那一轮给模型；`attachments_for_message` 校验（重复 / 不就绪 / 已发送 / 图片超过 4 张），`link_to_message` 用“仍未发送”条件 UPDATE 防止并发重复认领；带图时开流前检查 vision 路由，未配置返回 409 `no_vision_model` 且附件保持未发送；只有语音时用转写作正文，只有图片时用文件名作会话标题；历史接口每条消息带 `attachments`。测试：单测 6 个 + 集成 13 个（文档进模型不进 checkpoint、图片走 vision 且下一轮只带识别文本、无 vision 模型、语音、仅图片、8 种非法附件列表）。踩坑：假模型的 `list` 字段会被 pydantic 复制，录制用的列表要声明为 `Any`。pytest 367、ruff、mypy(app) 通过
-  - [ ] 11B.5 前端·输入与展示：附件按钮 / 粘贴 / 拖拽 / 录音（MediaRecorder）；前端压缩图片；附件卡片（轮询状态和进度、识别结果查看和修改、重试、移除），有附件在识别时不能发送；消息里显示缩略图、音频播放器 + 转写、文档卡片；设置页路由编辑支持 vision、asr；中英文案。Vitest
+  - [x] 11B.5 前端·输入与展示：附件按钮 / 粘贴 / 拖拽 / 录音（MediaRecorder）；前端压缩图片；附件卡片（轮询状态和进度、识别结果查看和修改、重试、移除），有附件在识别时不能发送；消息里显示缩略图、音频播放器 + 转写、文档卡片；设置页路由编辑支持 vision、asr；中英文案。Vitest
+    - [x] 11B.5a 基础：`lib/types.ts` 加 `Attachment`、历史消息带附件；`lib/attachments.ts`（上传 multipart、查询、修改文本、重试、删除；前端压缩图片：canvas 按 EXIF 转正、长边 1600、JPEG 0.85，失败就传原图交给后端）；`streamChat` 带 `attachment_ids`；`useRecorder`（MediaRecorder，点击开始 / 停止，最长 3 分钟自动停止）
+    - [x] 11B.5b 输入框：`useAttachments`（按会话管理待发附件，处理中每秒轮询，切换会话时丢弃不属于新会话的）；附件按钮、粘贴、拖拽、录音；还没有会话时先建会话（`useChatSession.ensureConversation`）；附件卡片（缩略图 / 文件名、上传中 / 识别中带页数进度 / 完成 / 失败 + 重试、查看和修改识别结果、移除）；有附件未就绪或失败时不能发送；发送成功后清空，被拒绝时附件留在输入框
+    - [x] 11B.5c 消息展示：用户消息里显示图片缩略图（点开看原图）、音频播放器（转写已是正文，不重复）、文档卡片（下载、截断提示）；乐观显示时直接用已上传的附件
+    - [x] 11B.5d 设置页：路由编辑组件通用化，编辑 `chat`、`vision`、`asr` 三个任务（vision / asr 没有自动兜底，显示“未配置”）；asr 的模型建议只列语音类模型
+    - [x] 11B.5e 文案与错误：中英文案；新错误码（`no_vision_model`、`no_asr_model`、附件相关 10 个）；`no_vision_model` / `no_asr_model` 显示“去设置”；Vitest（压缩尺寸计算、附件 hook 轮询与发送条件、消息展示、路由组件三种任务）；typecheck、lint、build
+    - 完成记录：新增 `lib/attachments.ts`、`use-attachments.ts`、`use-recorder.ts`、`attachment-tray.tsx`、`message-attachments.tsx`；`chat-route-section.tsx` 改名为 `route-section.tsx`（`task` 取 chat / vision / asr，asr 一节的路由名为 `default`；vision / asr 切换连接时不预填默认模型，因为连接的默认模型是对话模型）。附件区在“建会话期间”不因会话 id 变化而清空（`creatingRef`；已用变异测试确认用例能发现这个问题）；`ensureConversation` 合并并发请求。发送时把附件从输入框取出，被拒绝就连同文字一起放回。`vision_failed` / `transcription_failed` 不做本地化，直接显示后端带厂商原因的原文。设置页三张路由卡片各带 `data-testid="route-<task>"`，E2E 改为限定在 `route-chat` 里查找。验证：typecheck、lint、build 通过；Vitest 93 个（新增 14 个）；现有 Playwright 15 个全部通过。**尚未在真实浏览器验证**：录音（MediaRecorder）、canvas 压缩、粘贴 / 拖拽、轮询时的界面，放到 11B.6 用 E2E 和实测覆盖。已知取舍：在新对话里先加附件就会建会话，如果最后没发送，会留下一个空会话（和 ADR 0008 §3 一致）
   - [ ] 11B.6 E2E 与部署：`fake_llm.py` 支持看图回显和 `/audio/transcriptions`；E2E 覆盖三类附件（含扫描版 PDF）、未配置 vision 时的引导、识别结果修改；compose 新增 `asr` profile（speaches）并实测内存；重建镜像，交给用户实测
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）
 - [ ] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令

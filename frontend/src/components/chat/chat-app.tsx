@@ -2,20 +2,19 @@
 
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { type DragEvent, useCallback, useEffect, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { useErrorMessage } from "@/i18n/errors";
 import { api } from "@/lib/api";
 import type { Conversation } from "@/lib/types";
 
+import { SETTINGS_ERRORS } from "./attachment-tray";
 import { Composer } from "./composer";
 import { ConversationList } from "./conversation-list";
 import { MessageList } from "./message-list";
+import { useAttachments } from "./use-attachments";
 import { useChatSession } from "./use-chat-session";
-
-/** Errors that mean "go configure a model" rather than "try again". */
-const SETTINGS_ERRORS = new Set(["no_llm_configured"]);
 
 // The active conversation lives in `?c=<id>`, updated with the History API so that
 // creating a conversation mid-send doesn't remount the page and cut the stream.
@@ -50,6 +49,16 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
     },
     onTurnFinished: refresh,
   });
+  const tray = useAttachments(activeId, session.ensureConversation);
+  const [dragging, setDragging] = useState(false);
+
+  const hasFiles = (event: DragEvent) => event.dataTransfer.types.includes("Files");
+  function onDrop(event: DragEvent) {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    setDragging(false);
+    if (!session.loading) tray.add(Array.from(event.dataTransfer.files));
+  }
 
   const select = (id: string | null) => {
     setActiveId(id);
@@ -72,7 +81,24 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
         onNew={() => select(null)}
         onDelete={remove}
       />
-      <section className="flex min-w-0 flex-1 flex-col">
+      <section
+        className="relative flex min-w-0 flex-1 flex-col"
+        onDragOver={(e) => {
+          if (!hasFiles(e)) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={(e) => {
+          // Only when leaving the section itself, not moving between its children.
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+        }}
+        onDrop={onDrop}
+      >
+        {dragging && (
+          <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium">
+            {t("attachments.dropHere")}
+          </div>
+        )}
         <MessageList messages={session.messages} />
         {error && (
           <div
@@ -90,6 +116,7 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
         <Composer
           streaming={session.streaming}
           disabled={session.loading}
+          tray={tray}
           onSend={session.send}
           onStop={session.stop}
         />

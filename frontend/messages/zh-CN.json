@@ -50,7 +50,46 @@
     "send": "发送",
     "stop": "停止",
     "stopped": "已停止，这段未完成的回复不会保存。",
-    "goToSettings": "去设置"
+    "goToSettings": "去设置",
+    "attachments": {
+      "attach": "添加图片、文档或音频",
+      "record": "录制语音消息",
+      "stopRecording": "停止录音",
+      "recording": "正在录音…",
+      "discardRecording": "放弃",
+      "dropHere": "松开即可添加附件",
+      "waitToSend": "附件处理完成（或移除）后才能发送。",
+      "label": "附件",
+      "uploading": "上传中…",
+      "ready": {
+        "image": "已识别",
+        "audio": "已转写",
+        "document": "已提取文字"
+      },
+      "processing": {
+        "image": "正在识别图片…",
+        "audio": "正在转写…",
+        "document": "正在读取文档…"
+      },
+      "progress": "第 {done} / {total} 页",
+      "setUp": "去设置",
+      "retry": "重试 {name}",
+      "edit": "查看或修改 {name} 的识别结果",
+      "remove": "移除 {name}",
+      "readingLabel": "导师将看到的 {name} 内容",
+      "transcriptLabel": "{name} 的转写",
+      "editHint": "识别错了的地方可以直接改。导师会用这段文字，这一轮和之后的对话都是。",
+      "save": "保存",
+      "cancel": "取消",
+      "too_many_attachments": "一条消息最多带 5 个附件。",
+      "too_many_images": "一条消息最多带 4 张图片。",
+      "microphone_denied": "麦克风权限被拒绝。请在浏览器里允许后再录音。",
+      "recording_unsupported": "这个浏览器不支持录音。",
+      "openImage": "打开 {name}",
+      "voiceMessage": "语音消息",
+      "truncated": "只读取了开头部分",
+      "download": "下载"
+    }
   },
   "settings": {
     "connections": {
@@ -97,16 +136,13 @@
       "renamePresetHint": "服务器的默认路由是按名称找这个服务商的。改名后，对话会改用这个连接的默认模型（你自定义的路由会自动跟着改名）。"
     },
     "route": {
-      "title": "对话模型",
-      "description": "按顺序尝试，前一个失败时自动换下一个。",
       "source": {
         "override": "正在使用你自定义的顺序。",
         "default": "正在使用服务器配置里的默认顺序。",
-        "auto": "自动：按添加连接的先后，使用各连接的默认模型。",
-        "none": "还没有可用的对话模型。请添加连接并保存它的默认模型。"
+        "auto": "自动：按添加连接的先后，使用各连接的默认模型。"
       },
       "edit": "调整顺序",
-      "editLabel": "按回退顺序排列的对话模型",
+      "editLabel": "{title}：按回退顺序排列的模型",
       "editHint": "每一行选一个连接和模型。优先用第一个，失败时依次换下一个。",
       "connection": "连接 {n}",
       "model": "模型 {n}",
@@ -122,7 +158,24 @@
       "cancel": "取消",
       "reset": "恢复默认",
       "saved": "已保存。",
-      "resetDone": "已恢复默认顺序。"
+      "resetDone": "已恢复默认顺序。",
+      "tasks": {
+        "chat": {
+          "title": "对话模型",
+          "description": "按顺序尝试，前一个失败时由下一个接替。",
+          "none": "还没有可用的对话模型。请添加连接并保存它的默认模型。"
+        },
+        "vision": {
+          "title": "看图模型（vision）",
+          "description": "识别图片和扫描版 PDF 页面，并回复带图片的消息。请选能看图的模型：对话模型不会自动用于这里。",
+          "none": "未配置：添加模型之前，无法识别图片和扫描版 PDF。"
+        },
+        "asr": {
+          "title": "语音转文字",
+          "description": "转写语音消息和音频文件（OpenAI 兼容的 /audio/transcriptions 接口，比如 Groq、OpenAI、SiliconFlow 或本地的 speaches）。",
+          "none": "未配置：添加模型之前，无法转写语音消息。"
+        }
+      }
     },
     "usage": {
       "title": "用量",
@@ -161,6 +214,23 @@
     "http_404": "找不到对应的内容。",
     "http_500": "服务器出错了，请稍后再试。",
     "stream_interrupted": "回复中断了，请重试。",
-    "model_list_failed": "无法从服务商获取模型列表。"
+    "model_list_failed": "无法从服务商获取模型列表。",
+    "no_vision_model": "还没有配置能看图的模型。请在设置页配置图片识别（vision）模型。",
+    "no_asr_model": "还没有配置语音转文字模型。请在设置页配置。",
+    "attachment_not_found": "附件不存在或已被删除。",
+    "attachment_not_ready": "还有附件在处理中，请稍等。",
+    "attachment_not_failed": "这个附件没有失败，不需要重试。",
+    "attachment_sent": "附件已发送，不能再修改。",
+    "attachment_limit": "这个会话里未发送的附件太多了，请先发送或移除一些。",
+    "attachment_too_large": "文件太大（图片 5MB、音频 10MB、文档 20MB）。",
+    "unsupported_file_type": "不支持这种文件。可以用图片、音频、PDF、Word（.docx）、.txt 或 .md。",
+    "invalid_image": "无法打开这张图片，可能已损坏或尺寸过大。",
+    "invalid_attachments": "同一个附件被添加了两次。",
+    "too_many_images": "一条消息最多带 4 张图片。",
+    "too_many_pages": "PDF 页数太多（最多 50 页）。",
+    "document_encrypted": "这个 PDF 有密码保护。",
+    "document_unreadable": "无法读取这个文档。",
+    "processing_failed": "处理失败，请重试。",
+    "processing_interrupted": "处理被中断，请重试。"
   }
 }

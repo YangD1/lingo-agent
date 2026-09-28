@@ -5,12 +5,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiErrorLike } from "@/i18n/errors";
 import { api, ApiError, isAbortError } from "@/lib/api";
 import { streamChat } from "@/lib/sse";
-import type { Conversation, HistoryMessage } from "@/lib/types";
+import type { Attachment, Conversation, HistoryMessage } from "@/lib/types";
 
 export type ChatMessage = {
   key: string;
   role: "user" | "assistant";
   content: string;
+  attachments?: Attachment[];
   /** streaming: tokens still arriving; stopped: user pressed stop; error: see `error`. */
   status?: "streaming" | "stopped" | "error";
   error?: ApiErrorLike;
@@ -36,6 +37,8 @@ export function useChatSession(conversationId: string | null, options: Options) 
   /** An error before any reply was produced (e.g. no_llm_configured); the input is restored. */
   const [error, setError] = useState<ApiErrorLike | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // An in-flight creation, so two early uploads don't create two conversations.
+  const creatingRef = useRef<Promise<string> | null>(null);
   // A conversation we just created mid-send already has its messages on screen.
   const createdIdRef = useRef<string | null>(null);
   const optionsRef = useRef(options);
@@ -50,6 +53,7 @@ export function useChatSession(conversationId: string | null, options: Options) 
       return;
     }
     abortRef.current?.abort();
+    creatingRef.current = null;
     setError(null);
     if (conversationId === null) {
       setMessages([]);
@@ -60,7 +64,14 @@ export function useChatSession(conversationId: string | null, options: Options) 
     api<HistoryMessage[]>(`/conversations/${conversationId}/messages`)
       .then((history) => {
         if (!cancelled) {
-          setMessages(history.map((m) => ({ key: nextKey(), role: m.role, content: m.content })));
+          setMessages(
+            history.map((m) => ({
+              key: nextKey(),
+              role: m.role,
+              content: m.content,
+              attachments: m.attachments,
+            })),
+          );
         }
       })
       .catch((e: unknown) => !cancelled && setError(toApiErrorLike(e)))
@@ -75,9 +86,29 @@ export function useChatSession(conversationId: string | null, options: Options) 
   const updateLast = (patch: (message: ChatMessage) => ChatMessage) =>
     setMessages((all) => [...all.slice(0, -1), patch(all[all.length - 1])]);
 
+  /**
+   * The conversation's id, creating it first if this is a new chat: attachments are
+   * uploaded into a conversation before the message carrying them is sent (ADR 0008 §3).
+   */
+  const ensureConversation = useCallback(async (): Promise<string> => {
+    if (conversationId !== null) return conversationId;
+    creatingRef.current ??= api<Conversation>("/conversations", { method: "POST" }).then(
+      (created) => {
+        createdIdRef.current = created.id;
+        optionsRef.current.onConversationCreated(created);
+        return created.id;
+      },
+      (e: unknown) => {
+        creatingRef.current = null;
+        throw e;
+      },
+    );
+    return creatingRef.current;
+  }, [conversationId]);
+
   /** Returns false if nothing was sent, so the caller keeps the text in the input box. */
   const send = useCallback(
-    async (text: string): Promise<boolean> => {
+    async (text: string, attachments: Attachment[] = []): Promise<boolean> => {
       const controller = new AbortController();
       abortRef.current = controller;
       setError(null);
@@ -85,18 +116,27 @@ export function useChatSession(conversationId: string | null, options: Options) 
       // Optimistic: show the message now, take it back if the backend refuses the turn.
       setMessages((all) => [
         ...all,
-        { key: nextKey(), role: "user", content: text },
+        {
+          key: nextKey(),
+          role: "user",
+          // Like the backend: a voice message sent without typing reads as its transcript.
+          content: text || (attachments.find((a) => a.kind === "audio")?.text ?? ""),
+          attachments,
+        },
         { key: nextKey(), role: "assistant", content: "", status: "streaming" },
       ]);
       let created: Conversation | null = null;
       let accepted = false;
       try {
-        let id = conversationId;
-        if (id === null) {
+        let id = conversationId ?? (await creatingRef.current);
+        if (id == null) {
           created = await api<Conversation>("/conversations", { method: "POST" });
           id = createdIdRef.current = created.id;
         }
-        const stream = streamChat(id, text, { signal: controller.signal });
+        const stream = streamChat(id, text, {
+          signal: controller.signal,
+          attachmentIds: attachments.map((a) => a.id),
+        });
         let step = await stream.next(); // 404/409 throw here, before any reply
         accepted = true;
         if (created) optionsRef.current.onConversationCreated(created);
@@ -141,5 +181,5 @@ export function useChatSession(conversationId: string | null, options: Options) 
 
   const stop = useCallback(() => abortRef.current?.abort(), []);
 
-  return { messages, loading, streaming, error, send, stop };
+  return { messages, loading, streaming, error, send, stop, ensureConversation };
 }

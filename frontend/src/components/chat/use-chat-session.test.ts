@@ -155,4 +155,56 @@ describe("useChatSession", () => {
     await waitFor(() => expect(result.current.messages).toHaveLength(2));
     expect(api).toHaveBeenCalledWith("/conversations/c9/messages");
   });
+
+  it("creates the conversation once when attachments need it before the first send", async () => {
+    let resolve: (c: typeof CONVERSATION) => void = () => {};
+    api.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+    const { result, onConversationCreated } = setup();
+
+    let ids: string[] = [];
+    await act(async () => {
+      const both = Promise.all([
+        result.current.ensureConversation(),
+        result.current.ensureConversation(),
+      ]);
+      resolve(CONVERSATION);
+      ids = await both;
+    });
+
+    expect(ids).toEqual(["c1", "c1"]);
+    expect(api).toHaveBeenCalledOnce();
+    expect(onConversationCreated).toHaveBeenCalledOnce();
+  });
+
+  it("sends attachment ids and shows a voice message as its transcript", async () => {
+    api.mockResolvedValueOnce([]); // the conversation's (empty) history
+    streamChat.mockReturnValue(events({ event: "done", message_id: "m1", usage: {} }));
+    const { result } = setup("c1");
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const voice = {
+      id: "a1",
+      conversation_id: "c1",
+      kind: "audio" as const,
+      mime_type: "audio/webm",
+      filename: "voice.webm",
+      size_bytes: 1,
+      status: "ready" as const,
+      text: "I goed home.",
+      meta: {},
+      error: null,
+      sent: false,
+      created_at: "",
+    };
+
+    await act(async () => {
+      await result.current.send("", [voice]);
+    });
+
+    expect(streamChat.mock.calls[0][2]).toMatchObject({ attachmentIds: ["a1"] });
+    expect(result.current.messages[0]).toMatchObject({
+      role: "user",
+      content: "I goed home.",
+      attachments: [voice],
+    });
+  });
 });
