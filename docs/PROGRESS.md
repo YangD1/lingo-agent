@@ -21,8 +21,8 @@
 - [~] 9. 对话图（通过运行时 context 传 ctx）+ AsyncPostgresSaver + 会话 CRUD + SSE 接口 + 集成测试
   - [x] 9.1 图与 checkpointer：lifespan 里建 `AsyncConnectionPool`（小连接池）和 `AsyncPostgresSaver`；`app/agents/chat_graph.py`（START → tutor → END，`context_schema=ChatContext`，ctx 走运行时 context）；`app/prompts/tutor_system.md`；测试确认 checkpoint 里没有 key
   - [x] 9.2 会话 CRUD：`app/chat/service.py` + `app/api/chat.py`（列表、新建、历史消息、删除时同时 `adelete_thread`）；访问别人的会话一律 404
-  - [~] 9.3 发消息 SSE：`POST /conversations/{id}/messages`，事件为 token / done / error；开流前先检查模型配置；首条消息生成标题并刷新 updated_at；metadata 带 user_id，让 llm_usage 记到人
-  - [ ] 9.4 集成测试（假模型跑图、SSE 事件顺序、历史读回、越权、断开连接）和真实 uvicorn + curl 冒烟；同步 ADR 0003 / P0 计划
+  - [x] 9.3 发消息 SSE：`POST /conversations/{id}/messages`，事件为 token / done / error；开流前先检查模型配置；首条消息生成标题并刷新 updated_at；metadata 带 user_id，让 llm_usage 记到人
+  - [~] 9.4 集成测试（假模型跑图、SSE 事件顺序、历史读回、越权、断开连接）和真实 uvicorn + curl 冒烟；同步 ADR 0003 / P0 计划
 - [ ] 10. frontend：Next 16 + shadcn、登录/注册页、聊天页、模型设置页（含用量表）、SSE 客户端、proxy.ts
 - [ ] 11. docker-compose 全栈 + .env.example + Makefile（gen-key / rotate-credentials）
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）

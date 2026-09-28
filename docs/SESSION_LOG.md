@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-09-28 · P0 任务 9 进行中（9.3 完成）
+
+- **做了什么**：
+  - `app/chat/turn.py`：`TokenEvent` / `DoneEvent` / `ErrorEvent`、`title_from`（空白压缩后取前 40 个字符）、`begin_turn`（设标题并刷新 updated_at，然后 **commit**，流式期间不占数据库事务）、`stream_reply`（只转发 tutor 节点的 AIMessageChunk；累加 usage；异常时发 `llm_unavailable`，不泄漏厂商错误文本；metadata 带 user_id，tags 为 `["chat"]`）。
+  - `app/chat/locks.py`：`ConversationLocks`（进程内非阻塞锁），在 `create_app` 里挂到 `app.state`。
+  - `app/api/chat.py`：`start_turn` yield 依赖（依次做：归属检查返回 404 → 加载 ctx 并解析 chat 路由，失败返回 409 `no_llm_configured` → 加锁，失败返回 409 `conversation_busy` → begin_turn → yield，finally 释放锁）；`send_message` 用 `EventSourceResponse` 输出 SSE，事件名即 event 字段，data 为 JSON。
+  - 新增 `tests/integration/test_chat_send.py`（10 个用例）：token 之后是 done、done.message_id 和历史里的 id 一致、标题和排序、llm_usage 记到 user 和会话、主模型在出第一个 token 前失败时切到备用模型（端到端 usage 两行）、中途失败发 error 事件且只保留用户消息、失败后锁已释放可以重试、未配模型返回 409 且不入库、会话忙返回 409、越权返回 404、长度校验返回 422。
+  - 全部 202 个测试通过，ruff 和 mypy 都干净。
+- **下一步**：9.4，用真实 uvicorn + curl 冒烟（包括客户端中途断开后锁会释放），同步 ADR 0003 / P0 计划（sse-starlette 换成 fastapi.sse、409 的错误码）。
+- **踩坑**：
+  - **FastAPI 内置 SSE 在执行接口体之前就已经发出 200 响应头**（接口体在 producer task 里跑，见 `fastapi/routing.py` 约第 553–612 行），所以 404 和 409 必须在依赖里抛。yield 依赖默认挂在 request 级的 exit stack 上，流结束或断开后才退出，锁放在这里一定会被释放。
+  - 模型按 `(tenant, task, version)` 缓存，测试里中途换假模型后要 `llm.reset_caches()`。
+  - `/auth/me` 的返回结构是 `{user: {...}, tenant: {...}}`。
+
+---
+
 ## 2026-09-28 · P0 任务 9 进行中（9.2 完成）
 
 - **做了什么**：
