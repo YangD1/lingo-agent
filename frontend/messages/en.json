@@ -30,6 +30,7 @@
     "validation_error": "Some fields are invalid. Please check your input.",
     "network_error": "Can't reach the server. Check your connection and try again.",
     "http_404": "Not found.",
-    "http_500": "Something went wrong on the server. Please try again later."
+    "http_500": "Something went wrong on the server. Please try again later.",
+    "stream_interrupted": "The reply was cut off. Please try again."
   }
 }
