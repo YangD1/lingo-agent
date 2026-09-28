@@ -106,6 +106,8 @@ class ProviderConnection(TimestampMixin, Base):
     key_hint: Mapped[str | None] = mapped_column(String(32))
     params: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # Chat model used when no route matches this tenant's connections (ADR 0007).
+    default_model: Mapped[str | None] = mapped_column(String(128))
     last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
 

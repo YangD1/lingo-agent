@@ -25,7 +25,7 @@ from app.providers.config import (
 )
 from app.providers.errors import ProviderConfigError
 from app.providers.llm import build_chat_model
-from app.providers.model_catalog import DiscoveredModel, fetch_models
+from app.providers.model_catalog import DiscoveredModel, categorize, fetch_models
 from app.providers.net_guard import make_async_http_client, validate_base_url
 from app.settings import get_settings
 from app.usage.recorder import UsageLabels, make_recorder
@@ -109,7 +109,9 @@ async def create_connection(
     base_url: str | None,
     api_key: SecretStr | None,
     params: CallParams,
+    default_model: str | None = None,
 ) -> ProviderConnection:
+    default_model = _clean_model(default_model)
     if preset is not None:
         spec = config.presets.get(preset)
         if spec is None:
@@ -117,6 +119,8 @@ async def create_connection(
         kind = kind or spec.kind
         base_url = base_url or spec.base_url
         name = name or preset
+        if default_model is None:  # the preset's recommended chat model
+            default_model = next((m for m in spec.models if categorize(m) == "chat"), None)
     if kind not in PROVIDER_KINDS:
         raise ProviderConfigError(f"kind must be one of {', '.join(PROVIDER_KINDS)}")
     if not name or not base_url:
@@ -131,6 +135,7 @@ async def create_connection(
         kind=kind,
         base_url=await validate_base_url(base_url, allow_private=allow_private),
         params=params.to_dict(),
+        default_model=default_model,
     )
     _set_api_key(conn, api_key, keyring)
     session.add(conn)
@@ -153,8 +158,11 @@ async def update_connection(
     clear_api_key: bool = False,
     params: CallParams | None = None,
     enabled: bool | None = None,
+    default_model: str | None = None,
 ) -> ProviderConnection:
-    """Partial update. The name is immutable: routes reference connections by name."""
+    """Partial update. The name is immutable: routes reference connections by name.
+
+    `default_model=""` clears the default model; None leaves it unchanged."""
     endpoint_changed = False
     if base_url is not None:
         conn.base_url = await validate_base_url(base_url, allow_private=allow_private)
@@ -171,6 +179,8 @@ async def update_connection(
         conn.params = params.to_dict()
     if enabled is not None:
         conn.enabled = enabled
+    if default_model is not None:
+        conn.default_model = _clean_model(default_model)
     if endpoint_changed:  # the previous test result no longer applies
         conn.last_verified_at = None
         conn.last_error = None
@@ -232,6 +242,10 @@ async def verify_connection(
     conn.last_error = error
     await session.commit()
     return error is None, error, latency_ms
+
+
+def _clean_model(model: str | None) -> str | None:
+    return (model or "").strip() or None
 
 
 def _decrypt_key(conn: ProviderConnection, keyring: Keyring) -> SecretStr | None:

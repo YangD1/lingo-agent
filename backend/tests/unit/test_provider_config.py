@@ -1,9 +1,15 @@
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
 
-from app.providers.config import RouteSpec, load_providers_config, resolve_route
+from app.providers.config import (
+    RouteSpec,
+    load_providers_config,
+    resolve_route,
+    resolve_route_with_source,
+)
 from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 from app.settings import REPO_ROOT
 from tests.unit.provider_fixtures import conn, make_config, make_ctx
@@ -119,3 +125,62 @@ def test_api_key_is_secret_in_repr() -> None:
     (model,) = resolve_route(make_config(), ctx, "llm", "chat")
     assert "sk-very-secret" not in repr(model)
     assert "sk-very-secret" not in repr(ctx)
+
+
+# --- ADR 0007 §3: default models as the last resort ---------------------------------------
+
+
+def refs(chain: list[Any]) -> list[str]:
+    return [f"{m.connection}:{m.model}" for m in chain]
+
+
+def test_auto_fallback_uses_default_models_in_creation_order() -> None:
+    ctx = make_ctx(
+        conn("relay-b", "openai_compatible", default_model="model-b"),
+        conn("no-default", "openai_compatible"),
+        conn("relay-a", "openai_compatible", default_model="model-a"),
+    )
+    chain, source = resolve_route_with_source(make_config(), ctx, "llm", "chat")
+    assert source == "auto"
+    assert refs(chain) == ["relay-b:model-b", "relay-a:model-a"]  # insertion = creation order
+    assert chain[0].params["temperature"] == 0.7  # the task's route params still apply
+
+
+def test_matching_yaml_route_is_not_extended_by_default_models() -> None:
+    ctx = make_ctx(
+        conn("relay", "openai_compatible", default_model="relay-model"),
+        conn("openai", default_model="gpt-5-nano"),
+    )
+    chain, source = resolve_route_with_source(make_config(), ctx, "llm", "chat")
+    assert source == "default"
+    assert refs(chain) == ["openai:gpt-5-mini"]  # the YAML route, as written
+
+
+def test_override_is_reported_as_such() -> None:
+    ctx = make_ctx(
+        conn("relay", "openai_compatible", default_model="relay-model"),
+        routes={("llm", "chat"): RouteSpec(models=["relay:other-model"])},
+    )
+    chain, source = resolve_route_with_source(make_config(), ctx, "llm", "chat")
+    assert (refs(chain), source) == (["relay:other-model"], "override")
+
+
+def test_override_matching_nothing_falls_back_to_default_models() -> None:
+    ctx = make_ctx(
+        conn("relay", "openai_compatible", default_model="relay-model"),
+        routes={("llm", "chat"): RouteSpec(models=["deleted:some-model"])},
+    )
+    chain, source = resolve_route_with_source(make_config(), ctx, "llm", "chat")
+    assert (refs(chain), source) == (["relay:relay-model"], "auto")
+
+
+def test_embeddings_never_fall_back_to_chat_models() -> None:
+    ctx = make_ctx(conn("relay", "openai_compatible", default_model="relay-model"))
+    with pytest.raises(NoModelConfiguredError):
+        resolve_route(make_config(), ctx, "embedding", "default")
+
+
+def test_no_default_models_still_means_not_configured() -> None:
+    ctx = make_ctx(conn("relay", "openai_compatible"))
+    with pytest.raises(NoModelConfiguredError):
+        resolve_route(make_config(), ctx, "llm", "chat")

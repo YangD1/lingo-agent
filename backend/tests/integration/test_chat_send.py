@@ -331,3 +331,30 @@ async def test_message_length_is_validated(client: AsyncClient, content: str) ->
     status, _, _ = await send(client, conversation_id, content)
 
     assert status == 422
+
+
+async def test_a_lone_relay_connection_chats_through_its_default_model(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch, usage_records: list[UsageRecord]
+) -> None:
+    """ADR 0007: no route mentions "dd", yet chat works without touching routes."""
+    fake_models(monkeypatch)
+    await login(client)
+    response = await client.post(
+        "/tenant/connections",
+        json={
+            "name": "dd",
+            "kind": "openai_compatible",
+            "base_url": "https://relay.example.com/v1",
+            "api_key": "sk-relay",
+            "default_model": "relay-model",
+        },
+    )
+    assert response.status_code == 201
+    conversation_id = await new_conversation(client)
+
+    status, events, _ = await send(client, conversation_id)
+
+    assert status == 200 and events[-1][0] == "done"
+    assert [(r.connection_name, r.model, r.status) for r in usage_records] == [
+        ("dd", "relay-model", "ok")
+    ]

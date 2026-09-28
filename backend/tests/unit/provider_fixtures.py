@@ -40,6 +40,7 @@ def conn(
     *,
     base_url: str | None = None,
     key: str | None = "sk-test",
+    default_model: str | None = None,
     **params: Any,
 ) -> ConnectionSpec:
     kind = kind or name  # type: ignore[assignment]
@@ -49,6 +50,7 @@ def conn(
         base_url=base_url or f"https://{name}.example.com/v1",
         api_key=SecretStr(key) if key is not None else None,
         params=params,
+        default_model=default_model,
     )
 
 

@@ -22,7 +22,10 @@ async def load_provider_context(
     keyring = keyring or get_keyring()
     connections = (
         await session.scalars(
-            select(ProviderConnection).where(ProviderConnection.tenant_id == tenant_id)
+            select(ProviderConnection)
+            .where(ProviderConnection.tenant_id == tenant_id)
+            # Creation order is the auto-fallback order (ADR 0007 §3).
+            .order_by(ProviderConnection.created_at, ProviderConnection.id)
         )
     ).all()
     routes = (
@@ -50,7 +53,12 @@ async def load_provider_context(
                 continue
         kind: ProviderKind = conn.kind  # type: ignore[assignment]  # DB CHECK constraint
         specs[conn.name] = ConnectionSpec(
-            name=conn.name, kind=kind, base_url=conn.base_url, api_key=api_key, params=conn.params
+            name=conn.name,
+            kind=kind,
+            base_url=conn.base_url,
+            api_key=api_key,
+            params=conn.params,
+            default_model=conn.default_model,
         )
 
     return TenantProviderContext(

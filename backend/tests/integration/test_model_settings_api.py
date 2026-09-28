@@ -367,3 +367,114 @@ async def test_list_models_of_another_tenant_is_404(client: AsyncClient) -> None
     await login(client, "b@example.com")
     response = await client.get(f"/tenant/connections/{conn['id']}/models")
     assert response.status_code == 404
+
+
+# --- default models and the auto fallback (ADR 0007) ------------------------------------
+
+
+async def test_default_model_from_preset_request_and_patch(client: AsyncClient) -> None:
+    await login(client)
+    preset = await create(client, preset="openai", api_key=SECRET)
+    assert preset["default_model"] == "gpt-5-mini"  # the preset's first chat model
+
+    relay = await create(
+        client,
+        name="relay",
+        kind="openai_compatible",
+        base_url="https://relay.example.com/v1",
+        api_key=SECRET,
+        default_model=" some-model ",
+    )
+    assert relay["default_model"] == "some-model"
+
+    url = f"/tenant/connections/{relay['id']}"
+    assert (await client.patch(url, json={"default_model": "other"})).json()[
+        "default_model"
+    ] == "other"
+    assert (await client.patch(url, json={"enabled": True})).json()["default_model"] == "other"
+    assert (await client.patch(url, json={"default_model": ""})).json()["default_model"] is None
+
+
+async def test_test_uses_the_default_model_unless_one_is_given(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tested: list[str] = []
+
+    class FakeModel:
+        async def ainvoke(self, _: Any) -> AIMessage:
+            return AIMessage("OK")
+
+    def fake_build(r: Any, task: str, *, callbacks: list[Any]) -> FakeModel:
+        tested.append(r.model)
+        return FakeModel()
+
+    monkeypatch.setattr(service, "build_chat_model", fake_build)
+    await login(client)
+    conn = await create(
+        client,
+        name="relay",
+        kind="openai_compatible",
+        base_url="https://relay.example.com/v1",
+        default_model="relay-default",
+    )
+    url = f"/tenant/connections/{conn['id']}/test"
+    assert (await client.post(url, json={})).json()["ok"] is True
+    assert (await client.post(url, json={"model": "explicit"})).json()["ok"] is True
+    assert tested == ["relay-default", "explicit"]
+
+    await client.patch(f"/tenant/connections/{conn['id']}", json={"default_model": ""})
+    response = await client.post(url, json={})
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "invalid_provider_config"
+
+
+async def test_routes_report_what_actually_runs(client: AsyncClient) -> None:
+    def chat(routes: list[dict[str, Any]]) -> dict[str, Any]:
+        return next(r for r in routes if r["section"] == "llm" and r["task"] == "chat")
+
+    await login(client)
+    nothing = chat((await client.get("/tenant/routes")).json())
+    assert (nothing["effective"], nothing["effective_source"]) == ([], None)
+
+    # A relay whose name matches no default route still works, via its default model.
+    await create(
+        client,
+        name="dd",
+        kind="openai_compatible",
+        base_url="https://relay.example.com/v1",
+        api_key=SECRET,
+        default_model="relay-model",
+    )
+    auto = chat((await client.get("/tenant/routes")).json())
+    assert (auto["effective"], auto["effective_source"]) == (["dd:relay-model"], "auto")
+    assert auto["overridden"] is False
+
+    # A preset connection makes the YAML route match again, as written.
+    await create(client, preset="openai", api_key=SECRET)
+    default = chat((await client.get("/tenant/routes")).json())
+    assert (default["effective"], default["effective_source"]) == (["openai:gpt-5-mini"], "default")
+
+    put = await client.put("/tenant/routes/llm/chat", json={"models": ["dd:x", "openai:y"]})
+    assert (put.json()["effective"], put.json()["effective_source"]) == (
+        ["dd:x", "openai:y"],
+        "override",
+    )
+
+
+async def test_provider_context_keeps_creation_order(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await login(client)
+    for name in ("zeta", "alpha", "mid"):
+        await create(
+            client,
+            name=name,
+            kind="openai_compatible",
+            base_url=f"https://{name}.example.com/v1",
+            default_model=f"{name}-model",
+        )
+    row = await db_session.scalar(select(ProviderConnection))
+    assert row is not None
+    ctx = await load_provider_context(db_session, row.tenant_id, get_keyring())
+    assert list(ctx.connections) == ["zeta", "alpha", "mid"]
+    assert ctx.connections["alpha"].default_model == "alpha-model"

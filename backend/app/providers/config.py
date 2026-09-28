@@ -126,6 +126,8 @@ class ConnectionSpec:
     base_url: str
     api_key: SecretStr | None
     params: dict[str, Any] = field(default_factory=dict)
+    # The tenant's pick for chat; used when no route matches (ADR 0007 §3).
+    default_model: str | None = None
 
 
 @dataclass(frozen=True)
@@ -133,7 +135,7 @@ class TenantProviderContext:
     """Everything needed to build a tenant's models; loaded once per request."""
 
     tenant_id: uuid.UUID
-    connections: Mapping[str, ConnectionSpec]
+    connections: Mapping[str, ConnectionSpec]  # in creation order (the auto fallback order)
     routes: Mapping[tuple[str, str], RouteSpec]  # (section, task) -> tenant override
     # Changes whenever the tenant's connections or routes change; part of cache keys.
     version: str
@@ -173,11 +175,24 @@ def route_for(
     return spec.route_for(task)
 
 
+# Where a task's effective model chain came from (ADR 0007 §3).
+RouteSource = Literal["override", "default", "auto"]
+
+
 def resolve_route(
     config: ProvidersConfig, ctx: TenantProviderContext, section: Section, task: str
 ) -> list[ResolvedModel]:
     """The task's model chain, limited to connections this tenant has (and enabled)."""
+    return resolve_route_with_source(config, ctx, section, task)[0]
+
+
+def resolve_route_with_source(
+    config: ProvidersConfig, ctx: TenantProviderContext, section: Section, task: str
+) -> tuple[list[ResolvedModel], RouteSource]:
+    """Tenant override > YAML route; if neither matches a connection, each connection's
+    default model in creation order (llm only: default models are chat models)."""
     route = route_for(config, ctx, section, task)
+    source: RouteSource = "override" if (section, task) in ctx.routes else "default"
     resolved: list[ResolvedModel] = []
     for ref in route.models:
         name, _, model = ref.partition(":")
@@ -187,16 +202,27 @@ def resolve_route(
                 "%s.%s: tenant %s has no connection %r", section, task, ctx.tenant_id, name
             )
             continue
-        resolved.append(
-            ResolvedModel(
-                connection=name,
-                kind=conn.kind,
-                model=model,
-                base_url=conn.base_url,
-                api_key=conn.api_key,
-                params={**config.defaults, **conn.params, **route.params},
-            )
-        )
+        resolved.append(_resolved(config, conn, model, route))
+    if not resolved and section == "llm":
+        source = "auto"
+        resolved = [
+            _resolved(config, conn, conn.default_model, route)
+            for conn in ctx.connections.values()
+            if conn.default_model
+        ]
     if not resolved:
         raise NoModelConfiguredError(section, task, route.models)
-    return resolved
+    return resolved, source
+
+
+def _resolved(
+    config: ProvidersConfig, conn: ConnectionSpec, model: str, route: RouteSpec
+) -> ResolvedModel:
+    return ResolvedModel(
+        connection=conn.name,
+        kind=conn.kind,
+        model=model,
+        base_url=conn.base_url,
+        api_key=conn.api_key,
+        params={**config.defaults, **conn.params, **route.params},
+    )

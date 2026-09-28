@@ -13,10 +13,18 @@ from app.credentials.crypto import get_keyring
 from app.credentials.service import CallParams, ConflictError, NotFoundError
 from app.db.models import ProviderConnection
 from app.deps import CurrentTenant, CurrentUser, Manager, SessionDep, SettingsDep
-from app.providers.config import Section
-from app.providers.errors import ProviderConfigError
+from app.providers.config import (
+    ProvidersConfig,
+    RouteSource,
+    RouteSpec,
+    Section,
+    TenantProviderContext,
+    resolve_route_with_source,
+)
+from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 from app.providers.llm import get_providers_config
 from app.providers.model_catalog import ModelCategory, ModelListError
+from app.providers.tenant import load_provider_context
 
 router = APIRouter(tags=["model settings"])
 
@@ -35,6 +43,10 @@ class TaskRouteOut(BaseModel):
     models: list[str]
     params: dict[str, Any]
     overridden: bool
+    # What actually runs for this tenant right now, and which layer it came from
+    # (ADR 0007 §3); empty / None when nothing is usable yet.
+    effective: list[str]
+    effective_source: RouteSource | None
 
 
 class PresetsOut(BaseModel):
@@ -51,6 +63,7 @@ class ConnectionCreate(BaseModel):
     base_url: Annotated[str | None, Field(max_length=500)] = None
     api_key: Annotated[SecretStr | None, Field(max_length=500)] = None
     params: CallParams = CallParams()
+    default_model: Annotated[str | None, Field(max_length=128)] = None
 
 
 class ConnectionPatch(BaseModel):
@@ -61,6 +74,8 @@ class ConnectionPatch(BaseModel):
     clear_api_key: bool = False
     params: CallParams | None = None
     enabled: bool | None = None
+    # "" clears it (the connection then takes no part in the auto fallback)
+    default_model: Annotated[str | None, Field(max_length=128)] = None
 
 
 class ConnectionOut(BaseModel):
@@ -76,6 +91,7 @@ class ConnectionOut(BaseModel):
     key_hint: str | None
     params: dict[str, Any]
     enabled: bool
+    default_model: str | None
     last_verified_at: datetime | None
     last_error: str | None
 
@@ -90,7 +106,8 @@ class ConnectionOut(BaseModel):
 
 
 class TestRequest(BaseModel):
-    model: Annotated[str, Field(min_length=1, max_length=128)]
+    # Defaults to the connection's default model (ADR 0007 §2).
+    model: Annotated[str | None, Field(min_length=1, max_length=128)] = None
 
 
 class TestOut(BaseModel):
@@ -153,6 +170,7 @@ async def create_connection(
             base_url=body.base_url,
             api_key=body.api_key,
             params=body.params,
+            default_model=body.default_model,
         )
     except ProviderConfigError as exc:
         raise _bad_request(exc) from exc
@@ -181,6 +199,7 @@ async def update_connection(
             clear_api_key=body.clear_api_key,
             params=body.params,
             enabled=body.enabled,
+            default_model=body.default_model,
         )
     except NotFoundError as exc:
         raise api_error(status.HTTP_404_NOT_FOUND, "connection_not_found", str(exc)) from exc
@@ -212,8 +231,15 @@ async def verify_connection(
         conn = await service.get_connection(session, tenant.id, connection_id)
     except NotFoundError as exc:
         raise api_error(status.HTTP_404_NOT_FOUND, "connection_not_found", str(exc)) from exc
+    model = body.model or conn.default_model
+    if model is None:
+        raise api_error(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "invalid_provider_config",
+            "choose a model to test: this connection has no default model",
+        )
     ok, error, latency_ms = await service.verify_connection(
-        session, conn, keyring=get_keyring(), model=body.model
+        session, conn, keyring=get_keyring(), model=model
     )
     return TestOut(ok=ok, error=error, latency_ms=latency_ms)
 
@@ -234,27 +260,49 @@ async def list_connection_models(
     return ModelsOut(models=[ModelOut(id=m.id, category=m.category) for m in models])
 
 
+def _task_route_out(
+    config: ProvidersConfig,
+    ctx: TenantProviderContext,
+    section: Section,
+    task: str,
+    route: RouteSpec,
+    *,
+    overridden: bool,
+) -> TaskRouteOut:
+    try:
+        chain, source = resolve_route_with_source(config, ctx, section, task)
+    except NoModelConfiguredError:
+        effective, effective_source = [], None
+    else:
+        effective = [f"{m.connection}:{m.model}" for m in chain]
+        effective_source = source
+    return TaskRouteOut(
+        section=section,
+        task=task,
+        models=route.models,
+        params=route.params,
+        overridden=overridden,
+        effective=effective,
+        effective_source=effective_source,
+    )
+
+
 @router.get("/tenant/routes", dependencies=[Manager])
 async def list_routes(tenant: CurrentTenant, session: SessionDep) -> list[TaskRouteOut]:
-    """Effective route for every known task: the tenant override, or the default."""
+    """Every known task's route (the tenant override, or the default) and what it resolves
+    to with the tenant's current connections."""
     config = get_providers_config()
-    overrides = {
-        (r.section, r.task): r for r in await service.list_route_overrides(session, tenant.id)
-    }
+    ctx = await load_provider_context(session, tenant.id)
     out: list[TaskRouteOut] = []
     for section in ("llm", "embedding"):
         spec = config.section(section)
         if spec is None:
             continue
         for task, default in spec.all_routes().items():
-            override = overrides.get((section, task))
+            override = ctx.routes.get((section, task))
             out.append(
-                TaskRouteOut(
-                    section=section,
-                    task=task,
-                    models=override.models if override else default.models,
-                    params=override.params if override else default.params,
-                    overridden=override is not None,
+                _task_route_out(
+                    config, ctx, section, task, override or default, overridden=bool(override)
                 )
             )
     return out
@@ -264,11 +312,12 @@ async def list_routes(tenant: CurrentTenant, session: SessionDep) -> list[TaskRo
 async def put_route(
     section: Section, task: str, body: RoutePut, tenant: CurrentTenant, session: SessionDep
 ) -> TaskRouteOut:
+    config = get_providers_config()
     try:
-        route = await service.put_route(
+        await service.put_route(
             session,
             tenant_id=tenant.id,
-            config=get_providers_config(),
+            config=config,
             section=section,
             task=task,
             models=body.models,
@@ -276,9 +325,9 @@ async def put_route(
         )
     except ProviderConfigError as exc:
         raise _bad_request(exc) from exc
-    return TaskRouteOut(
-        section=section, task=task, models=route.models, params=route.params, overridden=True
-    )
+    ctx = await load_provider_context(session, tenant.id)
+    route = ctx.routes[(section, task)]
+    return _task_route_out(config, ctx, section, task, route, overridden=True)
 
 
 @router.delete(
