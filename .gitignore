@@ -1,0 +1,33 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# node
+node_modules/
+.next/
+out/
+
+# data / models (never commit)
+data/
+models/
+*.onnx
+*.pt
+*.bin
+
+# local claude settings
+.claude/settings.local.json
+.claude/state/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
