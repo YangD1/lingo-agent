@@ -71,7 +71,6 @@
       "lastVerified": "Last test passed {when}",
       "lastError": "Last test failed: {error}",
       "neverTested": "Not tested yet",
-      "testModel": "Model to test",
       "test": "Test",
       "testOk": "Connected ({ms} ms)",
       "testFailed": "Test failed: {error}",
@@ -79,7 +78,18 @@
       "saveKey": "Replace key",
       "keySaved": "Key replaced.",
       "delete": "Delete",
-      "confirmDelete": "Delete the connection \"{name}\"? Routes using it will skip it."
+      "confirmDelete": "Delete the connection \"{name}\"? Routes using it will skip it.",
+      "defaultModel": "Default chat model",
+      "modelPlaceholder": "Pick from the list or type a model name",
+      "saveModel": "Save model",
+      "modelSaved": "Default model saved.",
+      "modelsLoading": "Fetching the model list…",
+      "modelsFound": "The key works: {count} chat models available.",
+      "modelsFoundNone": "The key works, but no chat models were listed. Type a model name.",
+      "modelsFailed": "Couldn't fetch the model list: {error}. You can still type a model name.",
+      "modelsNoMatch": "No matching model. Your text will be used as-is.",
+      "noDefaultModel": "No default model yet: this connection isn't used for chat until you save one.",
+      "retry": "Retry"
     },
     "route": {
       "title": "Chat model",
@@ -133,6 +143,7 @@
     "network_error": "Can't reach the server. Check your connection and try again.",
     "http_404": "Not found.",
     "http_500": "Something went wrong on the server. Please try again later.",
-    "stream_interrupted": "The reply was cut off. Please try again."
+    "stream_interrupted": "The reply was cut off. Please try again.",
+    "model_list_failed": "Couldn't fetch the model list from the provider."
   }
 }

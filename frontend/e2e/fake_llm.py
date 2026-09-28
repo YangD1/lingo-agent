@@ -84,6 +84,16 @@ async def completions(request: Request) -> StreamingResponse | JSONResponse:
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
+# The model list the settings page fetches (ADR 0007 §1): one embedding model to check that
+# only chat models are offered, and "fake-tutor" first so it's the recommended one.
+MODELS = ["fake-tutor", "fake-embedding", "fake-tutor-mini"]
+
+
+@app.get("/v1/models")
+async def models() -> dict[str, Any]:
+    return {"object": "list", "data": [{"id": m, "object": "model"} for m in MODELS]}
+
+
 @app.get("/healthz")
 async def healthz() -> dict[str, str]:
     return {"status": "ok"}

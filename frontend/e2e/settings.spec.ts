@@ -20,7 +20,23 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await expect(connection).toContainText("密钥 …1234");
   await expect(connection).toContainText("尚未测试");
 
-  await connection.getByLabel("测试用的模型").fill("fake-tutor");
+  // The model list is fetched right away; the first chat model is preselected.
+  await expect(connection.getByTestId("model-list-status")).toHaveText(
+    "密钥可用：共 2 个对话模型可选。",
+  );
+  const model = connection.getByLabel("默认对话模型");
+  await expect(model).toHaveValue("fake-tutor");
+  // The list is searchable and only offers chat models.
+  await model.fill("mini");
+  await expect(page.getByRole("option")).toHaveText(["fake-tutor-mini"]);
+  await model.fill("");
+  await expect(page.getByRole("option")).toHaveText(["fake-tutor", "fake-tutor-mini"]);
+  await page.getByRole("option", { name: "fake-tutor", exact: true }).click();
+  await expect(model).toHaveValue("fake-tutor");
+  await connection.getByRole("button", { name: "保存模型" }).click();
+  await expect(connection.getByRole("status")).toHaveText("默认模型已保存。");
+  await expect(connection.getByRole("button", { name: "保存模型" })).toBeDisabled();
+
   await connection.getByRole("button", { name: "测试" }).click();
   await expect(connection.getByRole("status")).toContainText("连接成功");
   await expect(connection).toContainText("上次测试通过");
@@ -28,7 +44,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   // Route chat to it.
   await page.getByRole("button", { name: "编辑" }).click();
   await page.getByLabel("对话模型，每行一个").fill("fake:fake-tutor");
-  await page.getByRole("button", { name: "保存" }).click();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
   await expect(page.getByRole("list", { name: "对话模型" })).toHaveText(["fake:fake-tutor"]);
   await expect(page.getByText("正在使用你自定义的顺序")).toBeVisible();
 

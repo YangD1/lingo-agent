@@ -71,7 +71,6 @@
       "lastVerified": "上次测试通过：{when}",
       "lastError": "上次测试失败：{error}",
       "neverTested": "尚未测试",
-      "testModel": "测试用的模型",
       "test": "测试",
       "testOk": "连接成功（{ms} 毫秒）",
       "testFailed": "测试失败：{error}",
@@ -79,7 +78,18 @@
       "saveKey": "替换密钥",
       "keySaved": "密钥已替换。",
       "delete": "删除",
-      "confirmDelete": "确定删除连接“{name}”吗？用到它的路由会跳过它。"
+      "confirmDelete": "确定删除连接“{name}”吗？用到它的路由会跳过它。",
+      "defaultModel": "默认对话模型",
+      "modelPlaceholder": "从列表中选择，或直接输入模型名",
+      "saveModel": "保存模型",
+      "modelSaved": "默认模型已保存。",
+      "modelsLoading": "正在获取模型列表…",
+      "modelsFound": "密钥可用：共 {count} 个对话模型可选。",
+      "modelsFoundNone": "密钥可用，但没有列出对话模型，请直接输入模型名。",
+      "modelsFailed": "获取模型列表失败：{error}。你仍然可以直接输入模型名。",
+      "modelsNoMatch": "没有匹配的模型，将按你输入的名称使用。",
+      "noDefaultModel": "还没有默认模型：保存一个之后，这个连接才会用于对话。",
+      "retry": "重试"
     },
     "route": {
       "title": "对话模型",
@@ -133,6 +143,7 @@
     "network_error": "连不上服务器，请检查网络后重试。",
     "http_404": "找不到对应的内容。",
     "http_500": "服务器出错了，请稍后再试。",
-    "stream_interrupted": "回复中断了，请重试。"
+    "stream_interrupted": "回复中断了，请重试。",
+    "model_list_failed": "无法从服务商获取模型列表。"
   }
 }

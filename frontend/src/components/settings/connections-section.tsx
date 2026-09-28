@@ -1,19 +1,23 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
+import { AutocompleteInput } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
+import { chatModelIds, modelsOfRefs, recommendModel } from "@/lib/models";
 import {
   type Connection,
   type ConnectionTest,
+  type ModelList,
   PROVIDER_KINDS,
   type Presets,
+  type TaskRoute,
 } from "@/lib/types";
 
 import { useDescribeError } from "./use-describe-error";
@@ -28,6 +32,7 @@ type Props = {
 
 export function ConnectionsSection({ presets, connections, onChange }: Props) {
   const t = useTranslations("settings.connections");
+  const [justAdded, setJustAdded] = useState<string | null>(null);
   return (
     <Card>
       <CardHeader>
@@ -43,7 +48,8 @@ export function ConnectionsSection({ presets, connections, onChange }: Props) {
               <ConnectionItem
                 key={c.id}
                 connection={c}
-                defaultModel={presets.presets.find((p) => p.name === c.name)?.models[0] ?? ""}
+                presetModels={presets.presets.find((p) => p.name === c.name)?.models ?? []}
+                loadOnMount={c.id === justAdded}
                 onUpdated={(next) => onChange(connections.map((x) => (x.id === next.id ? next : x)))}
                 onDeleted={() => onChange(connections.filter((x) => x.id !== c.id))}
               />
@@ -53,7 +59,11 @@ export function ConnectionsSection({ presets, connections, onChange }: Props) {
         <AddConnectionForm
           presets={presets}
           existing={connections}
-          onCreated={(c) => onChange([...connections, c])}
+          onCreated={(c) => {
+            // Without a default model it can't chat yet: fetch its models to pick one.
+            if (!c.default_model) setJustAdded(c.id);
+            onChange([...connections, c]);
+          }}
         />
       </CardContent>
     </Card>
@@ -62,19 +72,22 @@ export function ConnectionsSection({ presets, connections, onChange }: Props) {
 
 function ConnectionItem({
   connection: c,
-  defaultModel,
+  presetModels,
+  loadOnMount,
   onUpdated,
   onDeleted,
 }: {
   connection: Connection;
-  defaultModel: string;
+  presetModels: string[];
+  loadOnMount: boolean;
   onUpdated: (c: Connection) => void;
   onDeleted: () => void;
 }) {
   const t = useTranslations("settings.connections");
   const format = useFormatter();
   const describe = useDescribeError();
-  const [model, setModel] = useState(defaultModel);
+  const [model, setModel] = useState(c.default_model ?? "");
+  const [catalog, setCatalog] = useState<Catalog>({ state: loadOnMount ? "loading" : "idle" });
   const [newKey, setNewKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
@@ -91,11 +104,51 @@ function ConnectionItem({
     }
   }
 
+  // Listing the models also proves the key works, and costs no tokens (ADR 0007 §1).
+  function loadModels() {
+    setCatalog({ state: "loading" });
+    void fetchModels();
+  }
+  async function fetchModels() {
+    try {
+      const [list, routes] = await Promise.all([
+        api<ModelList>(`/tenant/connections/${c.id}/models`),
+        api<TaskRoute[]>("/tenant/routes").catch(() => []),
+      ]);
+      const ids = chatModelIds(list.models);
+      setCatalog({ state: "ok", ids });
+      if (!c.default_model) {
+        const chat = routes.find((r) => r.section === "llm" && r.task === "chat");
+        const preferred = [...presetModels, ...modelsOfRefs(chat?.models ?? [])];
+        setModel((current) => current || recommendModel(ids, preferred));
+      }
+    } catch (e) {
+      // model_list_failed carries the vendor's own reason (e.g. "HTTP 401: …"), which is
+      // what the user needs; other errors get the usual localized text.
+      const reason = e instanceof ApiError && e.code === "model_list_failed" ? e.message : describe(e);
+      setCatalog({ state: "failed", error: reason });
+    }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, for a just-added connection
+  useEffect(() => void (loadOnMount && fetchModels()), []);
+
+  const saveModel = () =>
+    run(async () => {
+      onUpdated(
+        await api<Connection>(`/tenant/connections/${c.id}`, {
+          method: "PATCH",
+          json: { default_model: model.trim() },
+        }),
+      );
+      setResult({ ok: true, text: t("modelSaved") });
+    });
+
+  // Tests what's in the box, saved or not, so a model can be tried before saving it.
   const test = () =>
     run(async () => {
       const r = await api<ConnectionTest>(`/tenant/connections/${c.id}/test`, {
         method: "POST",
-        json: { model },
+        json: { model: model.trim() },
       });
       setResult(
         r.ok
@@ -118,6 +171,7 @@ function ConnectionItem({
       );
       setNewKey("");
       setResult({ ok: true, text: t("keySaved") });
+      if (catalog.state !== "idle") loadModels(); // the old list may have failed on the old key
     });
 
   const remove = () =>
@@ -127,6 +181,7 @@ function ConnectionItem({
       onDeleted();
     });
 
+  const saved = c.default_model ?? "";
   return (
     <li className="flex flex-col gap-3 rounded-lg border p-3" data-testid={`connection-${c.name}`}>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -144,17 +199,39 @@ function ConnectionItem({
             ? t("lastVerified", { when: format.relativeTime(new Date(c.last_verified_at)) })
             : t("neverTested")}
       </p>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`model-${c.id}`}>{t("defaultModel")}</Label>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-72 max-w-full">
+            <AutocompleteInput
+              id={`model-${c.id}`}
+              value={model}
+              onValueChange={setModel}
+              items={catalog.state === "ok" ? catalog.ids : []}
+              onOpenChange={(open) => {
+                if (open && catalog.state === "idle") loadModels();
+              }}
+              empty={catalog.state === "loading" ? t("modelsLoading") : t("modelsNoMatch")}
+              placeholder={t("modelPlaceholder")}
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono"
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={saveModel}
+            disabled={busy || model.trim() === saved}
+          >
+            {t("saveModel")}
+          </Button>
+          <Button size="sm" variant="outline" onClick={test} disabled={busy || !model.trim()}>
+            {t("test")}
+          </Button>
+        </div>
+        <CatalogStatus catalog={catalog} hasDefault={saved !== ""} onRetry={loadModels} />
+      </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Input
-          aria-label={t("testModel")}
-          placeholder={t("testModel")}
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          className="h-8 w-48"
-        />
-        <Button size="sm" variant="outline" onClick={test} disabled={busy || !model.trim()}>
-          {t("test")}
-        </Button>
         <Input
           type="password"
           aria-label={t("newKey")}
@@ -180,6 +257,48 @@ function ConnectionItem({
         </p>
       )}
     </li>
+  );
+}
+
+type Catalog =
+  | { state: "idle" | "loading" }
+  | { state: "ok"; ids: string[] }
+  | { state: "failed"; error: string };
+
+function CatalogStatus({
+  catalog,
+  hasDefault,
+  onRetry,
+}: {
+  catalog: Catalog;
+  hasDefault: boolean;
+  onRetry: () => void;
+}) {
+  const t = useTranslations("settings.connections");
+  if (catalog.state === "failed") {
+    return (
+      <p className="text-xs text-destructive" data-testid="model-list-status">
+        {t("modelsFailed", { error: catalog.error })}{" "}
+        <button type="button" onClick={onRetry} className="underline underline-offset-2">
+          {t("retry")}
+        </button>
+      </p>
+    );
+  }
+  const text =
+    catalog.state === "loading"
+      ? t("modelsLoading")
+      : catalog.state === "ok"
+        ? catalog.ids.length > 0
+          ? t("modelsFound", { count: catalog.ids.length })
+          : t("modelsFoundNone")
+        : hasDefault
+          ? null
+          : t("noDefaultModel");
+  return text && (
+    <p className="text-xs text-muted-foreground" data-testid="model-list-status">
+      {text}
+    </p>
   );
 }
 

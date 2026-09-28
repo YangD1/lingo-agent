@@ -26,6 +26,7 @@ export type Connection = {
   key_hint: string | null;
   params: Record<string, unknown>;
   enabled: boolean;
+  default_model: string | null;
   last_verified_at: string | null;
   last_error: string | null;
 };
@@ -36,7 +37,12 @@ export type TaskRoute = {
   models: string[];
   params: Record<string, unknown>;
   overridden: boolean;
+  // What actually runs now and which layer it came from (ADR 0007 §3).
+  effective: string[];
+  effective_source: "override" | "default" | "auto" | null;
 };
+export type DiscoveredModel = { id: string; category: "chat" | "embedding" | "other" };
+export type ModelList = { models: DiscoveredModel[] };
 export type UsageRow = {
   day: string;
   connection: string;
