@@ -12,6 +12,7 @@ from app.credentials.crypto import generate_key_entry, get_keyring, parse_keyrin
 from app.credentials.rotate import rotate_credentials
 from app.db.models import ProviderConnection
 from app.providers import net_guard
+from app.providers.model_catalog import DiscoveredModel, ModelListError
 from app.providers.net_guard import IPAddress
 from app.providers.tenant import load_provider_context
 
@@ -30,6 +31,11 @@ def public_dns(monkeypatch: pytest.MonkeyPatch) -> None:
             return [ipaddress.ip_address("93.184.216.34")]
 
     monkeypatch.setattr(net_guard, "resolve", fake_resolve)
+
+
+@pytest.fixture(autouse=True)
+def fresh_model_cache() -> None:
+    service.reset_model_cache()
 
 
 async def login(client: AsyncClient, email: str = "owner@example.com") -> None:
@@ -299,3 +305,65 @@ async def test_key_rotation(client: AsyncClient, db_session: AsyncSession) -> No
     ctx = await load_provider_context(db_session, row.tenant_id, keyring=only_new)
     key = ctx.connections["openai"].api_key
     assert key is not None and key.get_secret_value() == SECRET
+
+
+async def test_list_models_is_cached_until_the_connection_changes(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, str, str | None]] = []
+
+    async def fake_fetch(
+        kind: str, base_url: str, api_key: Any, *, client: Any
+    ) -> list[DiscoveredModel]:
+        calls.append((kind, base_url, api_key.get_secret_value() if api_key else None))
+        return [
+            DiscoveredModel("gpt-5-mini", "chat"),
+            DiscoveredModel("text-embedding-3-small", "embedding"),
+        ]
+
+    monkeypatch.setattr(service, "fetch_models", fake_fetch)
+    await login(client)
+    conn = await create(client, preset="openai", api_key=SECRET)
+    url = f"/tenant/connections/{conn['id']}/models"
+
+    first = await client.get(url)
+    assert first.status_code == 200
+    assert first.json() == {
+        "models": [
+            {"id": "gpt-5-mini", "category": "chat"},
+            {"id": "text-embedding-3-small", "category": "embedding"},
+        ]
+    }
+    await client.get(url)
+    assert calls == [("openai", "https://api.openai.com/v1", SECRET)]  # decrypted key, one call
+
+    await client.patch(
+        f"/tenant/connections/{conn['id']}", json={"api_key": "sk-new-key-0000000000"}
+    )
+    await client.get(url)
+    assert len(calls) == 2 and calls[1][2] == "sk-new-key-0000000000"
+
+
+async def test_list_models_vendor_failure_is_a_502_with_the_reason(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def failing_fetch(*args: Any, **kwargs: Any) -> list[DiscoveredModel]:
+        raise ModelListError("HTTP 401: Incorrect API key provided")
+
+    monkeypatch.setattr(service, "fetch_models", failing_fetch)
+    await login(client)
+    conn = await create(client, preset="openai", api_key=SECRET)
+    response = await client.get(f"/tenant/connections/{conn['id']}/models")
+    assert response.status_code == 502
+    assert response.json() == {
+        "detail": {"code": "model_list_failed", "message": "HTTP 401: Incorrect API key provided"}
+    }
+
+
+async def test_list_models_of_another_tenant_is_404(client: AsyncClient) -> None:
+    await login(client, "a@example.com")
+    conn = await create(client, preset="openai", api_key=SECRET)
+    client.cookies.clear()
+    await login(client, "b@example.com")
+    response = await client.get(f"/tenant/connections/{conn['id']}/models")
+    assert response.status_code == 404

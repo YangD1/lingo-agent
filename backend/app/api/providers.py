@@ -16,6 +16,7 @@ from app.deps import CurrentTenant, CurrentUser, Manager, SessionDep, SettingsDe
 from app.providers.config import Section
 from app.providers.errors import ProviderConfigError
 from app.providers.llm import get_providers_config
+from app.providers.model_catalog import ModelCategory, ModelListError
 
 router = APIRouter(tags=["model settings"])
 
@@ -96,6 +97,15 @@ class TestOut(BaseModel):
     ok: bool
     error: str | None
     latency_ms: int
+
+
+class ModelOut(BaseModel):
+    id: str
+    category: ModelCategory
+
+
+class ModelsOut(BaseModel):
+    models: list[ModelOut]
 
 
 class RoutePut(BaseModel):
@@ -206,6 +216,22 @@ async def verify_connection(
         session, conn, keyring=get_keyring(), model=body.model
     )
     return TestOut(ok=ok, error=error, latency_ms=latency_ms)
+
+
+@router.get("/tenant/connections/{connection_id}/models", dependencies=[Manager])
+async def list_connection_models(
+    connection_id: uuid.UUID, tenant: CurrentTenant, session: SessionDep
+) -> ModelsOut:
+    """Ask the vendor which models this connection serves (ADR 0007 §1). Uses no tokens."""
+    try:
+        conn = await service.get_connection(session, tenant.id, connection_id)
+    except NotFoundError as exc:
+        raise api_error(status.HTTP_404_NOT_FOUND, "connection_not_found", str(exc)) from exc
+    try:
+        models = await service.list_connection_models(conn, keyring=get_keyring())
+    except ModelListError as exc:
+        raise api_error(status.HTTP_502_BAD_GATEWAY, "model_list_failed", str(exc)) from exc
+    return ModelsOut(models=[ModelOut(id=m.id, category=m.category) for m in models])
 
 
 @router.get("/tenant/routes", dependencies=[Manager])

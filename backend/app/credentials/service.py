@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.credentials.crypto import Keyring, connection_aad
 from app.db.models import PROVIDER_KINDS, ProviderConnection, TenantModelRoute
+from app.providers.cache import TTLCache
 from app.providers.config import (
     ProviderKind,
     ProvidersConfig,
@@ -24,7 +25,9 @@ from app.providers.config import (
 )
 from app.providers.errors import ProviderConfigError
 from app.providers.llm import build_chat_model
-from app.providers.net_guard import validate_base_url
+from app.providers.model_catalog import DiscoveredModel, fetch_models
+from app.providers.net_guard import make_async_http_client, validate_base_url
+from app.settings import get_settings
 from app.usage.recorder import UsageLabels, make_recorder
 
 _NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
@@ -198,11 +201,7 @@ async def verify_connection(
     model: str,
 ) -> tuple[bool, str | None, int]:
     """Send one tiny request through the same guarded client real calls use."""
-    api_key = (
-        SecretStr(keyring.decrypt(conn.encrypted_api_key, connection_aad(conn.tenant_id, conn.id)))
-        if conn.encrypted_api_key
-        else None
-    )
+    api_key = _decrypt_key(conn, keyring)
     kind: ProviderKind = conn.kind  # type: ignore[assignment]  # DB CHECK constraint
     resolved = ResolvedModel(
         connection=conn.name,
@@ -233,6 +232,43 @@ async def verify_connection(
     conn.last_error = error
     await session.commit()
     return error is None, error, latency_ms
+
+
+def _decrypt_key(conn: ProviderConnection, keyring: Keyring) -> SecretStr | None:
+    if conn.encrypted_api_key is None:
+        return None
+    return SecretStr(
+        keyring.decrypt(conn.encrypted_api_key, connection_aad(conn.tenant_id, conn.id))
+    )
+
+
+# Model lists change rarely; updated_at in the key refetches after a key or URL change.
+_MODELS_CACHE: TTLCache[tuple[uuid.UUID, datetime], list[DiscoveredModel]] = TTLCache(
+    maxsize=256, ttl_seconds=600
+)
+MODEL_LIST_TIMEOUT_SECONDS = 15.0
+
+
+async def list_connection_models(
+    conn: ProviderConnection, *, keyring: Keyring
+) -> list[DiscoveredModel]:
+    """The connection's models from the vendor (ADR 0007 §1). Raises ModelListError."""
+    cache_key = (conn.id, conn.updated_at)
+    cached = _MODELS_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    kind: ProviderKind = conn.kind  # type: ignore[assignment]  # DB CHECK constraint
+    async with make_async_http_client(
+        allow_private=get_settings().provider_allow_private_networks,
+        timeout=MODEL_LIST_TIMEOUT_SECONDS,
+    ) as client:
+        models = await fetch_models(kind, conn.base_url, _decrypt_key(conn, keyring), client=client)
+    _MODELS_CACHE.put(cache_key, models)
+    return models
+
+
+def reset_model_cache() -> None:
+    _MODELS_CACHE.clear()
 
 
 # --- routes -------------------------------------------------------------------------------

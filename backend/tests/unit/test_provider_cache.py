@@ -33,3 +33,13 @@ def test_lru_eviction() -> None:
     assert len(cache) == 2
     assert cache.get_or_create("a", lambda: "rebuilt") == "a"
     assert cache.get_or_create("b", lambda: "rebuilt") == "rebuilt"
+
+
+def test_get_and_put() -> None:
+    now = [0.0]
+    cache: TTLCache[str, int] = TTLCache(maxsize=2, ttl_seconds=10, clock=lambda: now[0])
+    assert cache.get("a") is None
+    cache.put("a", 1)
+    assert cache.get("a") == 1
+    now[0] = 10.0
+    assert cache.get("a") is None  # expired
