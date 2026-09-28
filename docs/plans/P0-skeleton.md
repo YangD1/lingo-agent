@@ -5,7 +5,7 @@
 
 ## 0. P0 的完成定义（Demo 脚本）
 
-`docker compose up -d` →（首次）`make migrate` → 浏览器打开 `http://localhost:3000`：
+`make env`（首次，生成 `.env` 和密钥）→ `make up`（= `docker compose up -d --build`，迁移在 backend 启动时自动执行）→ 浏览器打开 `http://localhost:3000`：
 
 1. 注册账号 → 自动登录 → 进入聊天页
 2. 发一句英文，回复逐 token 流式出现
@@ -390,3 +390,21 @@ compose 要点：所有服务设 `mem_limit`；postgres 有 healthcheck，backen
 - 统一迁移入口 `python -m app.db.migrate`：先执行 Alembic `upgrade head`，再执行 `AsyncPostgresSaver.setup()`。
 - 迁移文件名格式为 `YYYYMMDD_<rev>_<slug>.py`，生成后自动跑 ruff format 和 ruff check --fix（alembic.ini 里的 post_write_hooks）。
 - 测试的安全阀：库名不以 `_test` 结尾就拒绝运行。`test_models_match_migrations` 用 `compare_metadata` 检查模型改了却没写迁移的情况。
+
+---
+
+## 16. 任务 11 落地记录（2026-09-28）
+
+- **镜像**：`backend/Dockerfile` 两阶段都基于 `python:3.12-slim-bookworm`（uv 二进制从 `ghcr.io/astral-sh/uv` 拷入，仅构建阶段使用），494MB，空闲约 160MiB；`frontend/Dockerfile` 用 Next `output: "standalone"`，386MB，运行约 50MiB。都以非 root 运行，都有 HEALTHCHECK。
+- **迁移**：backend 容器每次启动先跑 `python -m app.db.migrate`（幂等），所以 Demo 不再需要单独 `make migrate`；本地开发仍用 `make migrate`。
+- **`BACKEND_URL`**：前端既在构建时（rewrites）也在运行时（`server-api.ts`）读取，compose 里两处都设为 `http://backend:8000`。
+- **`pnpm start`** 改为 `scripts/start-standalone.mjs`（`next start` 不支持 standalone），E2E 也跑它，测试和镜像用的是同一个产物。
+- **端口**：只有前端对外（`FRONTEND_HOST_PORT`，默认 3000）；postgres、backend、phoenix、neo4j、redis 都只绑 127.0.0.1。
+- **与 §9 的差异**：
+  - `.env.example` 不再有厂商 key（见 §13）；新增 `FRONTEND_HOST_PORT`、`BACKEND_HOST_PORT`、`COMPOSE_OTEL_EXPORTER_OTLP_ENDPOINT`。compose 自己拼出容器之间的地址，`.env` 里的 localhost 地址只给在宿主机上运行时用。
+  - `CREDENTIALS_ENCRYPTION_KEYS` 缺失时由后端拒绝启动，而不是用 compose 的 `${VAR:?}`：compose 会插值整个文件，那样连 `up -d postgres` 也会被拦住。
+  - neo4j（`neo4j:5-community`）、redis（`redis:8-alpine`）放在同名 profile 里（Q3），默认不启动。
+- **Makefile**：`make env` 用 openssl 生成加密 key 和 JWT_SECRET（部署机不需要 Python 工具链），已有 `.env` 时不覆盖；`rotate-credentials` 在 backend 容器里执行。
+- **构建资源**：`next build` 限制 worker 数（`experimental.cpus`，`NEXT_BUILD_CPUS` 默认 4）和堆内存（`--max-old-space-size=2048`），实测峰值约 1.4GiB。
+- **全栈验证**：独立 compose 项目、全新数据卷、经前端 :3300 走完 Demo：注册 → 未配模型时 409 → 建连接和测试 → 设路由 → 两个会话流式回复（40 个 token 分散在 3.9s 内到达）互不串 → `down`/`up` 后重新登录，历史还在 → 主模型连接不可用时降级（usage 里 `errors=1`、`fallbacks=1`）→ `make rotate-credentials`（重新加密 2 条，再跑一次 0 条，去掉旧 key 后测试连接仍 ok）。另外确认容器能通过 `host.docker.internal` 访问宿主机上的服务。
+

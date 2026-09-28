@@ -3,6 +3,26 @@
 > 新记录追加在**最上方**。每条包括：做了什么 / 未完成（精确到文件或函数）/ 下一步 / 踩坑。
 
 ---
+
+## 2026-09-28 · P0 任务 11（docker-compose 全栈、.env.example、Makefile）→ 完成
+
+- **做了什么**（每个子任务单独提交）：
+  - 11.1 `backend/Dockerfile`：启动时迁移、非 root、HEALTHCHECK。
+  - 11.2 `frontend/Dockerfile`：standalone；`BACKEND_URL` 构建时和运行时都注入；`pnpm start` 改为 `scripts/start-standalone.mjs`，E2E 也跑它；限制 `next build` 的 worker 数和堆内存。
+  - 11.3 `docker-compose.yml`：新增 backend、frontend 服务；只有前端对外，其余都只绑 127.0.0.1；neo4j、redis 放进 profile。
+  - 11.4 `Makefile`（`make help` 列出全部目标）+ `.env.example`。
+  - 11.5 独立 compose 项目从零走完 Demo，包括降级、重启后数据还在、密钥轮换、`host.docker.internal`。细节见看板和 P0 计划 §16。
+- **未完成**：无。仍待用户手动：在设置页填真实 key 做一次冒烟（可以直接 `make env && make up` 后在 :3000 上做）。
+- **下一步**：任务 12 GitHub Actions CI。按 P0 计划 §10：backend job（postgres service，`uv sync --locked` → ruff → format check → mypy → pytest）、frontend job（lint、typecheck、Vitest、build）、E2E job（需要 postgres + uv + pnpm + chromium）、docker job（`docker compose build`）。
+- **踩坑**：
+  - **本机做重构建会把 Windows 拖崩**：两次 docker 构建耗尽了 Windows 的提交内存（vmmemWSL 约 10GB + MuMu 模拟器 7.7GB，上限 39.7GB），WSL 和模拟器一起崩溃。WSL 内部的 cgroup 上限和看门狗都没用，因为 vmmem 会随 Linux 页缓存一起涨。用户已设 `.wslconfig`：`memory=8GB`、`swap=4GB`、`autoMemoryReclaim=dropCache`，页面文件改为系统管理。重构建前用 `powershell.exe` 查一下 Windows 可用提交内存（`Win32_OperatingSystem.FreeVirtualMemory`）。证据在 Windows 事件日志 Resource-Exhaustion-Detector 2004。
+  - 崩溃时 pnpm 缓存里留下了写到一半的文件，报 `ERR_PNPM_CMD_SHIM_PARSE_MANIFEST`；用 `docker buildx du --filter type=exec.cachemount` 找到它，再用 `docker buildx prune --filter id=…` 只清这一个。
+  - 不要写 `# syntax=docker/dockerfile:1`：BuildKit 解析它时直连 Docker Hub，本机代理环境下会超时。`docker manifest inspect` 同理；`docker pull` 走守护进程的代理，是通的。
+  - uv 0.11.8 没有 `…-python3.12-bookworm-slim` 组合镜像，改用 `COPY --from=ghcr.io/astral-sh/uv:0.11.8 /uv`。
+  - pnpm 12 不支持 `-s`；zsh 不会把 `$VAR` 按空格拆成多个参数，多步 shell 流程写成 bash 脚本再跑。
+  - `e2e/fake_llm.py` 只监听 127.0.0.1，容器里访问不到；冒烟时在 docker 网络里用 `uvicorn.run(fake_llm.app, host='0.0.0.0')` 启动它。
+
+---
 ## 2026-09-28 · P0 任务 10.5–10.8（聊天页、设置页、E2E、收尾）→ 任务 10 完成
 
 - **做了什么**（每项单独提交）：
