@@ -1,0 +1,56 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
+
+import { useErrorMessage } from "@/i18n/errors";
+import { cn } from "@/lib/utils";
+
+import type { ChatMessage } from "./use-chat-session";
+
+export function MessageList({ messages }: { messages: ChatMessage[] }) {
+  const t = useTranslations("chat");
+  const errorMessage = useErrorMessage();
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [messages]);
+
+  if (messages.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8 text-center text-muted-foreground">
+        {t("empty")}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <ol className="mx-auto flex max-w-3xl flex-col gap-4 p-4" aria-label={t("messages")}>
+        {messages.map((m) => (
+          <li
+            key={m.key}
+            data-role={m.role}
+            data-status={m.status}
+            className={cn(
+              "max-w-[85%] rounded-lg px-4 py-2 whitespace-pre-wrap",
+              m.role === "user" ? "self-end bg-primary text-primary-foreground" : "self-start bg-muted",
+            )}
+          >
+            {m.content || (m.status === "streaming" && <span className="animate-pulse">…</span>)}
+            {m.status === "stopped" && (
+              <p className="mt-1 text-xs text-muted-foreground">{t("stopped")}</p>
+            )}
+            {m.status === "error" && m.error && (
+              <p role="alert" className="mt-1 text-xs text-destructive">
+                {errorMessage(m.error)}
+              </p>
+            )}
+          </li>
+        ))}
+      </ol>
+      <div ref={bottomRef} />
+    </div>
+  );
+}

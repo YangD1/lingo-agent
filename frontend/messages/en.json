@@ -38,6 +38,20 @@
     "settings": "Settings",
     "logout": "Log out"
   },
+  "chat": {
+    "newChat": "New chat",
+    "conversations": "Conversations",
+    "untitled": "New conversation",
+    "delete": "Delete conversation",
+    "confirmDelete": "Delete this conversation? This cannot be undone.",
+    "empty": "Say anything in English - I'll reply and point out mistakes as we go.",
+    "messages": "Messages",
+    "placeholder": "Type a message… (Enter to send, Shift+Enter for a new line)",
+    "send": "Send",
+    "stop": "Stop",
+    "stopped": "Stopped. This partial reply is not saved.",
+    "goToSettings": "Go to Settings"
+  },
   "errors": {
     "not_authenticated": "Please log in to continue.",
     "invalid_credentials": "Incorrect email or password.",

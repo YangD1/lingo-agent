@@ -1,0 +1,99 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+
+import { buttonVariants } from "@/components/ui/button";
+import { useErrorMessage } from "@/i18n/errors";
+import { api } from "@/lib/api";
+import type { Conversation } from "@/lib/types";
+
+import { Composer } from "./composer";
+import { ConversationList } from "./conversation-list";
+import { MessageList } from "./message-list";
+import { useChatSession } from "./use-chat-session";
+
+/** Errors that mean "go configure a model" rather than "try again". */
+const SETTINGS_ERRORS = new Set(["no_llm_configured"]);
+
+// The active conversation lives in `?c=<id>`, updated with the History API so that
+// creating a conversation mid-send doesn't remount the page and cut the stream.
+function setUrl(id: string | null, mode: "push" | "replace" = "push") {
+  const url = id ? `/chat?c=${id}` : "/chat";
+  if (mode === "push") window.history.pushState(null, "", url);
+  else window.history.replaceState(null, "", url);
+}
+
+export function ChatApp({ initialId }: { initialId: string | null }) {
+  const t = useTranslations("chat");
+  const errorMessage = useErrorMessage();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(initialId);
+
+  const refresh = useCallback(() => {
+    api<Conversation[]>("/conversations").then(setConversations, () => {});
+  }, []);
+  useEffect(refresh, [refresh]);
+
+  useEffect(() => {
+    const onPop = () => setActiveId(new URLSearchParams(window.location.search).get("c"));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const session = useChatSession(activeId, {
+    onConversationCreated: (c) => {
+      setActiveId(c.id);
+      setUrl(c.id, "replace");
+      setConversations((all) => [c, ...all]);
+    },
+    onTurnFinished: refresh,
+  });
+
+  const select = (id: string | null) => {
+    setActiveId(id);
+    setUrl(id);
+  };
+
+  async function remove(id: string) {
+    await api(`/conversations/${id}`, { method: "DELETE" }).catch(() => {});
+    setConversations((all) => all.filter((c) => c.id !== id));
+    if (id === activeId) select(null);
+  }
+
+  const error = session.error;
+  return (
+    <>
+      <ConversationList
+        conversations={conversations}
+        activeId={activeId}
+        onSelect={select}
+        onNew={() => select(null)}
+        onDelete={remove}
+      />
+      <section className="flex min-w-0 flex-1 flex-col">
+        <MessageList messages={session.messages} />
+        {error && (
+          <div
+            role="alert"
+            className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 text-sm text-destructive"
+          >
+            <span>{errorMessage(error)}</span>
+            {SETTINGS_ERRORS.has(error.code) && (
+              <Link href="/settings" className={buttonVariants({ size: "sm", variant: "outline" })}>
+                {t("goToSettings")}
+              </Link>
+            )}
+          </div>
+        )}
+        <Composer
+          streaming={session.streaming}
+          disabled={session.loading}
+          onSend={session.send}
+          onStop={session.stop}
+        />
+      </section>
+    </>
+  );
+}

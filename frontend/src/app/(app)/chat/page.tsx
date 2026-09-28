@@ -1,4 +1,6 @@
-// Filled in by task 10.5.
-export default function ChatPage() {
-  return <div className="flex-1 p-4" />;
+import { ChatApp } from "@/components/chat/chat-app";
+
+export default async function ChatPage({ searchParams }: PageProps<"/chat">) {
+  const { c } = await searchParams;
+  return <ChatApp initialId={typeof c === "string" ? c : null} />;
 }

@@ -38,6 +38,20 @@
     "settings": "设置",
     "logout": "退出登录"
   },
+  "chat": {
+    "newChat": "新对话",
+    "conversations": "会话列表",
+    "untitled": "新会话",
+    "delete": "删除会话",
+    "confirmDelete": "确定删除这个会话吗？删除后无法恢复。",
+    "empty": "用英语随便说点什么，我会回复你，并顺便指出错误。",
+    "messages": "消息",
+    "placeholder": "输入消息…（Enter 发送，Shift+Enter 换行）",
+    "send": "发送",
+    "stop": "停止",
+    "stopped": "已停止，这段未完成的回复不会保存。",
+    "goToSettings": "去设置"
+  },
   "errors": {
     "not_authenticated": "请先登录。",
     "invalid_credentials": "邮箱或密码不正确。",
