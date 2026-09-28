@@ -41,12 +41,12 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await expect(connection.getByRole("status")).toContainText("连接成功");
   await expect(connection).toContainText("上次测试通过");
 
-  // Route chat to it.
-  await page.getByRole("button", { name: "编辑" }).click();
-  await page.getByLabel("对话模型，每行一个").fill("fake:fake-tutor");
-  await page.getByRole("button", { name: "保存", exact: true }).click();
-  await expect(page.getByRole("list", { name: "对话模型" })).toHaveText(["fake:fake-tutor"]);
-  await expect(page.getByText("正在使用你自定义的顺序")).toBeVisible();
+  // No route needed: the connection's default model is used automatically.
+  const route = page.getByRole("list", { name: "对话模型" }).getByRole("listitem");
+  await expect(page.getByTestId("route-source")).toHaveText(
+    "自动：按添加连接的先后，使用各连接的默认模型。",
+  );
+  await expect(route).toHaveText(["fake:fake-tutor"]);
 
   // Chat works now.
   await page.getByRole("link", { name: "对话" }).click();
@@ -67,12 +67,57 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await expect(usage.locator("tbody tr td").nth(1)).toHaveText("fake:fake-tutor");
   await expect(usage.locator("tbody tr td").nth(3)).toHaveText("84"); // 42 prompt tokens x 2
 
-  // Reset the route and delete the connection.
+  // Custom order, all with dropdowns: switch row 1 to the mini model, add a fallback
+  // (prefilled with the connection's default model), then move it to the top.
+  await page.getByRole("button", { name: "调整顺序" }).click();
+  const model1 = page.getByLabel("模型 1");
+  await expect(page.getByLabel("连接 1")).toHaveValue("fake");
+  await expect(model1).toHaveValue("fake-tutor");
+  await model1.fill("mini");
+  await page.getByRole("option", { name: "fake-tutor-mini" }).click();
+  await page.getByRole("button", { name: "+ 添加备用模型" }).click();
+  await expect(page.getByLabel("模型 2")).toHaveValue("fake-tutor");
+  await page.getByRole("button", { name: "上移" }).nth(1).click();
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(route).toHaveText(["fake:fake-tutor", "fake:fake-tutor-mini"]);
+  await expect(page.getByTestId("route-source")).toHaveText("正在使用你自定义的顺序。");
+
+  // Reset the route, then delete the connection: nothing is usable any more.
   await page.getByRole("button", { name: "恢复默认" }).click();
-  await expect(page.getByText("正在使用服务器配置里的默认顺序")).toBeVisible();
+  await expect(page.getByTestId("route-source")).toHaveText(
+    "自动：按添加连接的先后，使用各连接的默认模型。",
+  );
   page.once("dialog", (dialog) => dialog.accept());
   await connection.getByRole("button", { name: "删除" }).click();
   await expect(connection).toHaveCount(0);
+  await expect(page.getByTestId("route-source")).toHaveText(
+    "还没有可用的对话模型。请添加连接并保存它的默认模型。",
+  );
+});
+
+test("when the model list can't be fetched, the reason is shown and a name can be typed", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail());
+  await page.goto("/settings");
+
+  // The fake server has no /v1/nope/models: the vendor's 404 is what the user sees.
+  await page.getByLabel("服务商").selectOption({ label: "自定义（OpenAI 兼容等）" });
+  await page.getByLabel("名称").fill("relay");
+  await page.getByLabel("Base URL").fill(`${FAKE_LLM_URL}/nope`);
+  await page.locator("#api_key").fill("sk-fake-5678");
+  await page.getByRole("button", { name: "添加连接" }).click();
+
+  const connection = page.getByTestId("connection-relay");
+  await expect(connection.getByTestId("model-list-status")).toContainText("获取模型列表失败：");
+  await expect(connection.getByTestId("model-list-status")).toContainText("404");
+  await connection.getByLabel("默认对话模型").fill("my-model");
+  await connection.getByLabel("默认对话模型").press("Tab"); // close the (empty) suggestion popup
+  await connection.getByRole("button", { name: "保存模型" }).click();
+  await expect(connection.getByRole("status")).toHaveText("默认模型已保存。");
+  await expect(
+    page.getByRole("list", { name: "对话模型" }).getByRole("listitem"),
+  ).toHaveText(["relay:my-model"]);
 });
 
 test("adding a preset only needs a key, and bad input is explained", async ({ page }) => {

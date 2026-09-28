@@ -28,7 +28,7 @@ export function SettingsApp() {
               connections={connections}
               onChange={setConnections}
             />
-            <ChatRouteSection presets={presets} connections={connections} />
+            <ChatRouteSection connections={connections} />
           </>
         )}
         <UsageSection />

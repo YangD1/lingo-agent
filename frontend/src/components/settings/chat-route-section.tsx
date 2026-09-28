@@ -1,51 +1,98 @@
 "use client";
 
+import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { AutocompleteInput } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
 import { api } from "@/lib/api";
-import type { Connection, Presets, TaskRoute } from "@/lib/types";
+import type { Connection, TaskRoute } from "@/lib/types";
 
+import { fetchChatModels } from "./model-catalog";
 import { useDescribeError } from "./use-describe-error";
 
-const MODEL_REF = /^[a-z0-9][a-z0-9_-]*:\S+$/; // "<connection>:<model>"
+const MAX_ROWS = 5; // the backend's limit on a route's fallback chain
 
-export function ChatRouteSection({
-  presets,
-  connections,
-}: {
-  presets: Presets;
-  connections: Connection[];
-}) {
+type Row = { key: number; connection: string; model: string };
+// Per connection name: its chat models, or why they aren't there (the user can still type one).
+type Catalogs = Record<string, string[] | "loading" | "failed">;
+
+export function ChatRouteSection({ connections }: { connections: Connection[] }) {
   const t = useTranslations("settings.route");
   const describe = useDescribeError();
   const [route, setRoute] = useState<TaskRoute | null>(null);
-  const [draft, setDraft] = useState<string | null>(null); // null = not editing
+  const [rows, setRows] = useState<Row[] | null>(null); // null = not editing
+  const [catalogs, setCatalogs] = useState<Catalogs>({});
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const nextKey = useRef(0);
 
   const load = () =>
     api<TaskRoute[]>("/tenant/routes").then(
       (all) => setRoute(all.find((r) => r.section === "llm" && r.task === "chat") ?? null),
       (e: unknown) => setMessage({ ok: false, text: describe(e) }),
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- load once
-  useEffect(() => void load(), []);
+  // What runs depends on the connections (and their default models): reload when they change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable in effect
+  useEffect(() => void load(), [connections]);
 
-  // Models the tenant can route to: every connection x the models its preset lists.
-  const suggestions = connections.flatMap((c) =>
-    (presets.presets.find((p) => p.name === c.name)?.models ?? []).map((m) => `${c.name}:${m}`),
-  );
-  const models = (draft ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
-  const invalid = models.filter((m) => !MODEL_REF.test(m));
+  const row = (connection: string, model: string): Row => ({
+    key: nextKey.current++,
+    connection,
+    model,
+  });
+
+  function startEditing() {
+    if (!route) return;
+    setMessage(null);
+    // Start from what runs now, so editing is "adjust this", never a blank page.
+    const initial = route.effective.flatMap((ref) => {
+      const i = ref.indexOf(":");
+      return i > 0 ? [row(ref.slice(0, i), ref.slice(i + 1))] : [];
+    });
+    setRows(initial.length > 0 ? initial : [newRow()]);
+  }
+
+  function newRow(): Row {
+    const c = connections[0];
+    return row(c?.name ?? "", c?.default_model ?? "");
+  }
+
+  function loadCatalog(name: string) {
+    const c = connections.find((x) => x.name === name);
+    if (!c || catalogs[name]) return;
+    setCatalogs((all) => ({ ...all, [name]: "loading" }));
+    fetchChatModels(c.id).then(
+      (ids) => setCatalogs((all) => ({ ...all, [name]: ids })),
+      () => setCatalogs((all) => ({ ...all, [name]: "failed" })),
+    );
+  }
+
+  const update = (key: number, patch: Partial<Row>) =>
+    setRows((rs) => rs && rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+
+  function move(index: number, by: -1 | 1) {
+    setRows((rs) => {
+      if (!rs) return rs;
+      const next = [...rs];
+      [next[index], next[index + by]] = [next[index + by], next[index]];
+      return next;
+    });
+  }
+
+  const refs = (rows ?? []).map((r) => `${r.connection}:${r.model.trim()}`);
+  const incomplete = (rows ?? []).some((r) => !r.connection || !r.model.trim());
+  const duplicate = new Set(refs).size !== refs.length;
 
   async function save() {
     setMessage(null);
     try {
-      setRoute(await api<TaskRoute>("/tenant/routes/llm/chat", { method: "PUT", json: { models } }));
-      setDraft(null);
+      setRoute(
+        await api<TaskRoute>("/tenant/routes/llm/chat", { method: "PUT", json: { models: refs } }),
+      );
+      setRows(null);
       setMessage({ ok: true, text: t("saved") });
     } catch (e) {
       setMessage({ ok: false, text: describe(e) });
@@ -57,7 +104,7 @@ export function ChatRouteSection({
     try {
       await api("/tenant/routes/llm/chat", { method: "DELETE" });
       await load();
-      setDraft(null);
+      setRows(null);
       setMessage({ ok: true, text: t("resetDone") });
     } catch (e) {
       setMessage({ ok: false, text: describe(e) });
@@ -71,25 +118,25 @@ export function ChatRouteSection({
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {route && draft === null && (
+        {route && rows === null && (
           <>
-            <p className="text-xs text-muted-foreground">
-              {route.overridden ? t("custom") : t("default")}
+            <p className="text-xs text-muted-foreground" data-testid="route-source">
+              {route.effective_source ? t(`source.${route.effective_source}`) : t("source.none")}
             </p>
-            <ol className="list-decimal pl-5 font-mono text-sm" aria-label={t("title")}>
-              {route.models.map((m) => (
-                <li key={m}>
-                  {m}
-                  {!connections.some((c) => m.startsWith(`${c.name}:`)) && (
-                    <span className="ml-2 font-sans text-xs text-muted-foreground">
-                      {t("skipped")}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ol>
+            {route.effective.length > 0 && (
+              <ol className="list-decimal pl-5 font-mono text-sm" aria-label={t("title")}>
+                {route.effective.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+              </ol>
+            )}
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setDraft(route.models.join("\n"))}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={startEditing}
+                disabled={connections.length === 0}
+              >
                 {t("edit")}
               </Button>
               {route.overridden && (
@@ -100,40 +147,104 @@ export function ChatRouteSection({
             </div>
           </>
         )}
-        {draft !== null && (
+        {rows !== null && (
           <>
-            <Textarea
-              aria-label={t("editLabel")}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              rows={4}
-              className="font-mono text-sm"
-            />
             <p className="text-xs text-muted-foreground">{t("editHint")}</p>
-            {suggestions.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {suggestions.map((s) => (
-                  <Button
-                    key={s}
-                    size="xs"
-                    variant="secondary"
-                    onClick={() => setDraft((d) => (d?.trim() ? `${d.trim()}\n${s}` : s))}
-                  >
-                    + {s}
-                  </Button>
-                ))}
-              </div>
-            )}
-            {invalid.length > 0 && (
+            <ol className="flex flex-col gap-2" aria-label={t("editLabel")}>
+              {rows.map((r, i) => {
+                const catalog = catalogs[r.connection];
+                return (
+                  <li key={r.key} className="flex flex-wrap items-center gap-2">
+                    <span className="w-4 text-right text-xs text-muted-foreground">{i + 1}</span>
+                    <NativeSelect
+                      aria-label={t("connection", { n: i + 1 })}
+                      value={r.connection}
+                      onChange={(e) => {
+                        const c = connections.find((x) => x.name === e.target.value);
+                        update(r.key, { connection: e.target.value, model: c?.default_model ?? "" });
+                      }}
+                      className="w-36"
+                    >
+                      {/* A route may name a connection that was since deleted. */}
+                      {!connections.some((c) => c.name === r.connection) && (
+                        <option value={r.connection}>{r.connection}</option>
+                      )}
+                      {connections.map((c) => (
+                        <option key={c.id} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                    <div className="w-64 max-w-full">
+                      <AutocompleteInput
+                        aria-label={t("model", { n: i + 1 })}
+                        value={r.model}
+                        onValueChange={(model) => update(r.key, { model })}
+                        items={Array.isArray(catalog) ? catalog : []}
+                        onOpenChange={(open) => open && loadCatalog(r.connection)}
+                        empty={
+                          catalog === "loading"
+                            ? t("modelsLoading")
+                            : catalog === "failed"
+                              ? t("modelsFailed")
+                              : t("modelsNoMatch")
+                        }
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="font-mono"
+                      />
+                    </div>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={t("moveUp")}
+                      disabled={i === 0}
+                      onClick={() => move(i, -1)}
+                    >
+                      <ArrowUp />
+                    </Button>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={t("moveDown")}
+                      disabled={i === rows.length - 1}
+                      onClick={() => move(i, 1)}
+                    >
+                      <ArrowDown />
+                    </Button>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={t("remove")}
+                      disabled={rows.length === 1}
+                      onClick={() => setRows(rows.filter((x) => x.key !== r.key))}
+                    >
+                      <X />
+                    </Button>
+                  </li>
+                );
+              })}
+            </ol>
+            <div>
+              <Button
+                size="xs"
+                variant="secondary"
+                disabled={rows.length >= MAX_ROWS}
+                onClick={() => setRows([...rows, newRow()])}
+              >
+                {t("addRow")}
+              </Button>
+            </div>
+            {duplicate && (
               <p role="alert" className="text-sm text-destructive">
-                {t("invalid", { refs: invalid.join(", ") })}
+                {t("duplicate")}
               </p>
             )}
             <div className="flex gap-2">
-              <Button size="sm" onClick={save} disabled={models.length === 0 || invalid.length > 0}>
+              <Button size="sm" onClick={save} disabled={incomplete || duplicate}>
                 {t("save")}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>
+              <Button size="sm" variant="ghost" onClick={() => setRows(null)}>
                 {t("cancel")}
               </Button>
             </div>

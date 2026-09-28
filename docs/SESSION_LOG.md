@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-09-28 · P0 任务 11A.4–11A.5（前端：建连接选默认模型、路由下拉编辑）
+
+- **做了什么**（每项单独提交）：
+  - 11A.4 连接卡片：新建连接后自动拉取模型列表，预选推荐模型，可搜索，失败时显示厂商原因并可手填；测试按钮直接测框里的模型。新增 `ui/autocomplete.tsx`（Base UI **Autocomplete**，值就是输入框的文字）、`lib/models.ts`（+单测）；`fake_llm.py` 加 `/v1/models`。
+  - 11A.5 `chat-route-section.tsx` 重写：显示实际生效的链和来源；编辑改为每行“连接下拉 + 模型搜索”，可增删、调顺序。`settings/model-catalog.ts` 共用。E2E 改为不设路由就能聊天，新增拉取失败的用例。
+- **未完成**：11A.6 收尾——全量 `make test`/`make lint`，重建镜像 `make up`，请用户用自己的中转站实测。
+- **下一步**：11A.6，然后任务 12 CI。
+- **踩坑**：
+  - Base UI 弹层打开时会把页面其余部分设为 `aria-hidden`，Playwright 按角色定位会找不到按钮：手填后先按 Tab 关掉弹层。
+  - Playwright 对整个 `list` 用数组形式的 `toHaveText`，只有列表里恰好一项时才成立；多项要对 `getByRole("listitem")` 断言。
+  - 前端没有装 prettier，`pnpm exec prettier` 会找不到命令（之前一次还卡住了）；格式只靠 eslint。
+  - Playwright 的 `reuseExistingServer` 会复用端口上已有的旧 fake_llm（没有 `/v1/models`），跑 E2E 前先 `fuser 8100/tcp 8101/tcp 3100/tcp` 确认端口空闲。
+
+---
 ## 2026-09-28 · P0 任务 11（docker-compose 全栈、.env.example、Makefile）→ 完成
 
 - **做了什么**（每个子任务单独提交）：

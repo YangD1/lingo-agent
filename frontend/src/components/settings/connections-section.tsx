@@ -9,17 +9,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { ApiError, api } from "@/lib/api";
-import { chatModelIds, modelsOfRefs, recommendModel } from "@/lib/models";
+import { api } from "@/lib/api";
+import { modelsOfRefs, recommendModel } from "@/lib/models";
 import {
   type Connection,
   type ConnectionTest,
-  type ModelList,
   PROVIDER_KINDS,
   type Presets,
   type TaskRoute,
 } from "@/lib/types";
 
+import { fetchChatModels, modelListFailure } from "./model-catalog";
 import { useDescribeError } from "./use-describe-error";
 
 const CUSTOM = "__custom__";
@@ -111,11 +111,10 @@ function ConnectionItem({
   }
   async function fetchModels() {
     try {
-      const [list, routes] = await Promise.all([
-        api<ModelList>(`/tenant/connections/${c.id}/models`),
+      const [ids, routes] = await Promise.all([
+        fetchChatModels(c.id),
         api<TaskRoute[]>("/tenant/routes").catch(() => []),
       ]);
-      const ids = chatModelIds(list.models);
       setCatalog({ state: "ok", ids });
       if (!c.default_model) {
         const chat = routes.find((r) => r.section === "llm" && r.task === "chat");
@@ -123,10 +122,7 @@ function ConnectionItem({
         setModel((current) => current || recommendModel(ids, preferred));
       }
     } catch (e) {
-      // model_list_failed carries the vendor's own reason (e.g. "HTTP 401: …"), which is
-      // what the user needs; other errors get the usual localized text.
-      const reason = e instanceof ApiError && e.code === "model_list_failed" ? e.message : describe(e);
-      setCatalog({ state: "failed", error: reason });
+      setCatalog({ state: "failed", error: modelListFailure(e, describe) });
     }
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- once, for a just-added connection
