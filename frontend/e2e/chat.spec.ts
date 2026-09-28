@@ -5,7 +5,7 @@ import { register, uniqueEmail, useFakeModel } from "./helpers";
 test.use({ locale: "zh-CN" });
 
 const input = (page: Page) => page.getByRole("textbox", { name: /输入消息/ });
-const messages = (page: Page) => page.getByRole("list", { name: "消息" }).locator("li");
+const messages = (page: Page) => page.getByRole("list", { name: "消息" }).locator(":scope > li");
 const conversations = (page: Page) => page.getByRole("list", { name: "会话列表" }).locator("li");
 
 async function send(page: Page, text: string) {
@@ -23,6 +23,20 @@ test("without a model, sending guides the user to settings and keeps the text", 
   await expect(input(page)).toHaveValue("Hello there");
   await expect(conversations(page)).toHaveCount(0); // the empty conversation was cleaned up
   await expect(messages(page)).toHaveCount(0);
+});
+
+test("assistant replies render Markdown; the user's own text stays literal", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+
+  // The fake model echoes the message, so the reply contains the same Markdown.
+  await send(page, "这是**“重点”**\n\n- one\n- two");
+  const reply = messages(page).nth(1);
+  await expect(reply.locator("strong")).toHaveText("“重点”");
+  await expect(reply.locator("li")).toHaveCount(2);
+  await expect(reply).not.toContainText("**");
+  await expect(messages(page)).toHaveCount(2); // list items inside the reply aren't messages
+  await expect(messages(page).nth(0)).toContainText("**“重点”**");
 });
 
 test("streams a reply, keeps history, and stops a long reply", async ({ page }) => {

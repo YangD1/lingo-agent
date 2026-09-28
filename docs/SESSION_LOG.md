@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-09-28 · 11A.8 聊天消息渲染 Markdown
+
+- **做了什么**：用户反馈模型回复里的 `**加粗**` 原样显示。原因是 `message-list.tsx` 直接输出纯文本。新增 `frontend/src/components/chat/markdown.tsx`（react-markdown + remark-gfm + remark-cjk-friendly/parseOnly），只用于 assistant 消息；单测 5 个 + E2E 1 个；前端镜像已重建。
+- **未完成**：11A.6 仍在等用户用中转站实测。用户提出“用户消息支持多模态输入”，已记为看板任务 11B，需要先设计（PLAN + ADR：消息内容结构、上传存储、模型能力路由），还没开始。
+- **下一步**：等用户确认 11A.6 → 11B 设计 或 任务 12 CI（由用户定顺序）。
+- **踩坑**：
+  - react-markdown 会给自定义组件传 `node` prop，直接 `{...props}` 展开会变成 DOM 属性，要先去掉（`markdown.tsx` 的 `styled()`）。
+  - 回复里有列表后，E2E 的 `locator("li")` 会把列表项也算成消息，改用 `:scope > li`。
+  - 用户消息仍需 `whitespace-pre-wrap`；assistant 消息不能加，否则块元素之间的 `\n` 会多出空行。
+
+---
+
 ## 2026-09-28 · P0 任务 11A.4–11A.5（前端：建连接选默认模型、路由下拉编辑）
 
 - **做了什么**（每项单独提交）：

@@ -49,6 +49,8 @@
   - [x] 11A.7 连接的全部字段都可修改（用户实测反馈 2）：见 ADR 0007 §4
     - [x] 后端：PATCH 支持 `name`、`kind`；改名在同一事务里改写该租户手动路由中的 `旧名:` 引用，重名 409；改为需要 key 的类型时必须已有或同时提供 key；改名称、类型、地址、key 后清掉测试结果；测试：改名改写路由、重名、类型与 key 校验、改名后仍能解密和聊天。完成：`service.update_connection` 新增 `name`/`kind`，`_rename` 在同一事务改写手动路由（改写成新列表，让 JSONB 列变化能被检测到）；key 必需的检查放到类型和 key 都处理完之后，所以“改类型 + 同时给 key”可以在一个请求里完成；重名 409（IntegrityError 回滚，同一请求里其他字段的修改也不生效）。测试 3 个（改名改写路由（含 `dd:c:free` 这种模型名里带冒号的）、改名后 key 仍能解密；重名或非法名称时什么都不变；改类型的 key 校验）。ruff、mypy、pytest 251 通过
     - [x] 前端：连接卡片“编辑”表单（名称、API 类型、Base URL、新 key 留空不改），“替换密钥”并入；E2E：改名后路由跟着改、改地址。完成：`EditConnectionForm` 只发送改动过的字段；从预设建的连接改名时提示“默认路由按名称匹配，改名后改用默认模型”；改了类型、地址或 key 且模型列表拉过时，重新拉取。E2E 新增 1 个（改名 → 手动路由变成 `my-relay:…` → 照样能聊天，说明 key 仍可解密；预设改名出现提示；取消）。typecheck、lint、Vitest 65、Playwright 14 通过；前后端镜像已重建，服务 healthy
+  - [x] 11A.8 聊天消息渲染 Markdown（用户实测反馈 3：`**加粗**` 原样显示——原因是 `message-list.tsx` 直接输出纯文本，前端没有任何 Markdown 渲染）。完成：新增 `components/chat/markdown.tsx`（react-markdown 10 + remark-gfm + `remark-cjk-friendly/parseOnly`；后者解决 CommonMark 在 `这是**“重点”**的意思` 这种 `**` 夹在汉字与标点之间时不认加粗的问题）；不渲染原始 HTML；链接新标签打开并带 `noopener noreferrer`；自定义组件统一去掉 `node` prop；只对 assistant 消息渲染，用户消息保持纯文本 + `whitespace-pre-wrap`。E2E 里取消息的定位改为 `:scope > li`（否则回复里的列表项会被算成消息）。测试：Vitest 5 个（含中文紧挨引号的加粗、原始 HTML 不渲染），E2E 1 个（假模型回显 Markdown，回复加粗、用户消息保持原文）。typecheck、lint、build、Vitest 70、Playwright 15 通过；前端镜像已重建，healthy
+- [ ] 11B. 用户消息多模态输入（用户提出；需先设计：PLAN + ADR，消息内容结构、上传存储、模型能力路由）
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）
 - [ ] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令
 

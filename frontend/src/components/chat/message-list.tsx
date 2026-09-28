@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { useErrorMessage } from "@/i18n/errors";
 import { cn } from "@/lib/utils";
 
+import { Markdown } from "./markdown";
 import type { ChatMessage } from "./use-chat-session";
 
 export function MessageList({ messages }: { messages: ChatMessage[] }) {
@@ -34,11 +35,19 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
             data-role={m.role}
             data-status={m.status}
             className={cn(
-              "max-w-[85%] rounded-lg px-4 py-2 whitespace-pre-wrap",
-              m.role === "user" ? "self-end bg-primary text-primary-foreground" : "self-start bg-muted",
+              "max-w-[85%] rounded-lg px-4 py-2",
+              m.role === "user"
+                ? "self-end bg-primary whitespace-pre-wrap text-primary-foreground"
+                : "self-start bg-muted",
             )}
           >
-            {m.content || (m.status === "streaming" && <span className="animate-pulse">…</span>)}
+            {!m.content ? (
+              m.status === "streaming" && <span className="animate-pulse">…</span>
+            ) : m.role === "assistant" ? (
+              <Markdown>{m.content}</Markdown>
+            ) : (
+              m.content
+            )}
             {m.status === "stopped" && (
               <p className="mt-1 text-xs text-muted-foreground">{t("stopped")}</p>
             )}

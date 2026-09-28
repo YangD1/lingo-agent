@@ -57,7 +57,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await page.getByRole("link", { name: "对话" }).click();
   await page.getByRole("textbox", { name: /输入消息/ }).fill("I has a cat");
   await page.getByRole("textbox", { name: /输入消息/ }).press("Enter");
-  await expect(page.getByRole("list", { name: "消息" }).locator("li").nth(1)).toHaveText(
+  await expect(page.getByRole("list", { name: "消息" }).locator(":scope > li").nth(1)).toHaveText(
     "Nice try! You said: I has a cat",
   );
 
@@ -200,7 +200,7 @@ test("every field of a connection can be edited; renaming keeps custom routes wo
   await page.getByRole("link", { name: "对话" }).click();
   await page.getByRole("textbox", { name: /输入消息/ }).fill("hello");
   await page.getByRole("textbox", { name: /输入消息/ }).press("Enter");
-  await expect(page.getByRole("list", { name: "消息" }).locator("li").nth(1)).toHaveText(
+  await expect(page.getByRole("list", { name: "消息" }).locator(":scope > li").nth(1)).toHaveText(
     "Nice try! You said: hello",
   );
 

@@ -45,7 +45,7 @@ test.describe("inside the app", () => {
     const input = page.getByRole("textbox", { name: /Type a message/ });
     await input.fill("hello");
     await input.press("Enter");
-    await expect(page.getByRole("list", { name: "Messages" }).locator("li").nth(1)).toContainText(
+    await expect(page.getByRole("list", { name: "Messages" }).locator(":scope > li").nth(1)).toContainText(
       "You said: hello",
     );
     const url = page.url();
@@ -54,7 +54,7 @@ test.describe("inside the app", () => {
 
     await expect(page.getByRole("link", { name: "设置" })).toBeVisible(); // server layout
     await expect(page.getByRole("button", { name: "新对话" })).toBeVisible(); // client component
-    await expect(page.getByRole("list", { name: "消息" }).locator("li")).toHaveCount(2);
+    await expect(page.getByRole("list", { name: "消息" }).locator(":scope > li")).toHaveCount(2);
     expect(page.url()).toBe(url);
 
     await page.getByRole("link", { name: "设置" }).click();
