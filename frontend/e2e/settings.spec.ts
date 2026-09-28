@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { FAKE_LLM_URL, register, uniqueEmail } from "./helpers";
+import { FAKE_LLM_URL, register, uniqueEmail, useFakeModel } from "./helpers";
 
 test.use({ locale: "zh-CN" });
 
@@ -26,11 +26,16 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   );
   const model = connection.getByLabel("默认对话模型");
   await expect(model).toHaveValue("fake-tutor");
-  // The list is searchable and only offers chat models.
+  // Opening the list offers every chat model, not just the ones matching the current value.
+  await model.fill("fake-tutor-mini");
+  await model.press("Tab");
+  await model.click();
+  await expect(page.getByRole("listbox").getByRole("option")).toHaveText(["fake-tutor", "fake-tutor-mini"]);
+  // Typing filters it; embedding models are never offered.
   await model.fill("mini");
-  await expect(page.getByRole("option")).toHaveText(["fake-tutor-mini"]);
+  await expect(page.getByRole("listbox").getByRole("option")).toHaveText(["fake-tutor-mini"]);
   await model.fill("");
-  await expect(page.getByRole("option")).toHaveText(["fake-tutor", "fake-tutor-mini"]);
+  await expect(page.getByRole("listbox").getByRole("option")).toHaveText(["fake-tutor", "fake-tutor-mini"]);
   await page.getByRole("option", { name: "fake-tutor", exact: true }).click();
   await expect(model).toHaveValue("fake-tutor");
   await connection.getByRole("button", { name: "保存模型" }).click();
@@ -142,4 +147,27 @@ test("adding a preset only needs a key, and bad input is explained", async ({ pa
   await expect(page.getByRole("form", { name: "添加连接" }).getByRole("alert")).toContainText(
     "模型配置无效。 (openai connections need an API key)",
   );
+});
+
+test("an existing connection's model list offers everything, and typing filters it", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page); // saved with default model "fake-tutor"
+  await page.goto("/settings");
+  const model = page.getByTestId("connection-fake").getByLabel("默认对话模型");
+  const options = page.getByRole("listbox").getByRole("option");
+
+  // The current value doesn't filter the list: every other model is one click away.
+  await model.click();
+  await expect(options).toHaveText(["fake-tutor", "fake-tutor-mini"]);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+
+  // Typing (which reopens the list) filters from the first key.
+  await page.keyboard.press("End");
+  await page.keyboard.type("-m");
+  await expect(options).toHaveText(["fake-tutor-mini"]);
+  await options.first().click();
+  await expect(model).toHaveValue("fake-tutor-mini");
 });

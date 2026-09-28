@@ -1,14 +1,17 @@
 "use client";
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
 type Props = Omit<ComponentProps<"input">, "value" | "defaultValue" | "onChange"> & {
   value: string;
   onValueChange: (value: string) => void;
-  /** Suggestions, filtered by what's typed. Any other text is still a valid value. */
+  /**
+   * Suggestions, filtered by what's typed since the list opened (so an input that already
+   * holds a value still offers every option). Any other text is still a valid value.
+   */
   items: readonly string[];
   onOpenChange?: (open: boolean) => void;
   /** Shown in the popup when nothing matches (or while `items` is still loading). */
@@ -25,12 +28,22 @@ export function AutocompleteInput({
   className,
   ...inputProps
 }: Props) {
+  const [typing, setTyping] = useState(false);
+  const query = value.trim().toLowerCase();
+  const shown = typing && query ? items.filter((i) => i.toLowerCase().includes(query)) : items;
   return (
     <Autocomplete.Root
       items={items}
+      filteredItems={shown}
       value={value}
-      onValueChange={(v) => onValueChange(v)}
-      onOpenChange={(open) => onOpenChange?.(open)}
+      onValueChange={(v, details) => {
+        if (details.reason === "input-change") setTyping(true);
+        onValueChange(v);
+      }}
+      onOpenChange={(open) => {
+        if (open) setTyping(false);
+        onOpenChange?.(open);
+      }}
       openOnInputClick
     >
       <Autocomplete.Input
