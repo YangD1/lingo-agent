@@ -3,6 +3,29 @@
 > 新记录追加在**最上方**。每条包括：做了什么 / 未完成（精确到文件或函数）/ 下一步 / 踩坑。
 
 ---
+## 2026-09-28 · P0 任务 10.1–10.4（前端脚手架、i18n、API/SSE 客户端、鉴权）
+
+- **做了什么**（每项单独提交）：
+  - 10.1 Next 16.3.6 脚手架 + shadcn（base-nova）+ Vitest + Playwright。**实测 SSE 经过 Next rewrites 时会被 gzip 缓冲**（dev 和 start 都会），后端 `start_turn` 追加 `Cache-Control: no-transform` 后修复（`fix(chat)`），不需要走备选方案；abort 能经过代理传到后端。
+  - 按用户决定，把后端**所有**错误统一为 `{detail:{code,message}}`（`app/api/errors.py`，包括全局 handler），ADR 0003 §3。
+  - 10.2 i18n：next-intl，语言存在 cookie 里，不做 URL 前缀（ADR 0006）。和原计划不同：语言协商放在 `request.ts` 里，proxy 只负责鉴权。
+  - 10.3 `lib/api.ts`、`lib/sse.ts`（async generator）。
+  - 10.4 登录和注册页、`proxy.ts`（乐观检查）+ `(app)` 布局用 `/auth/me` 做权威校验 + `/session-expired`（防止重定向死循环）。E2E 基础设施：`frontend/e2e/run_backend.py` + Playwright 双 webServer。
+- **未完成**：10.5 聊天页（`src/app/(app)/chat/page.tsx` 现在是占位）、10.6 设置页（`(app)/settings/page.tsx` 占位）、10.7 剩下的部分（`e2e/fake_llm.py` 和聊天/设置的 E2E 用例）、10.8 收尾。
+- **下一步**：10.5 聊天页，用 `streamChat()`；409 `no_llm_configured` 引导去 /settings。
+- **踩坑**：
+  - 在 Bash 工具里用 `pkill -f <模式>` 或 `pgrep -f` 会匹配到**当前 shell 自己的命令行**，把自己杀掉（exit 144）。改用 `fuser -k <port>/tcp`。
+  - FastAPI 的 SSE 接口体在响应头发出之后才运行，所以响应头只能在依赖里设置；而且是 `raw.extend` 追加，不是覆盖。
+  - Next 16.3 自带文档写的是 `unstable_doesProxyMatch`，但实际导出的只有 `unstable_doesMiddlewareMatch`。
+  - `PageProps<"/login">` 这类路由类型要先运行 `next typegen`，所以 typecheck 脚本改成了 `next typegen && tsc --noEmit`。
+  - Next 的路由播报器（`__next-route-announcer__`）也是 `role=alert`，E2E 要把定位范围限定在表单内。
+  - `pnpm add` 遇到带构建脚本的新依赖时，会往 `pnpm-workspace.yaml` 的 allowBuilds 里写占位值 `set this to true or false`，要手动改成 true 或 false。
+  - 在一个测试文件里 import 另一个 `*.test.ts`，会把那个文件的测试重复注册一遍；公共的测试辅助函数放在 `src/test/`。
+  - `frontend/` 目录下的 .py 文件要用 `--config ../backend/pyproject.toml` 跑 ruff。
+  - 这个环境访问不了 GitHub 和 next-intl.dev，查文档就直接读 `node_modules` 里的 README、类型定义和源码。
+
+---
+
 
 ## 2026-09-28 · P0 任务 9 完成（9.4 冒烟与两个断开相关的修复）
 
