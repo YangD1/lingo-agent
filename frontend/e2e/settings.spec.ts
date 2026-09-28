@@ -171,3 +171,50 @@ test("an existing connection's model list offers everything, and typing filters 
   await options.first().click();
   await expect(model).toHaveValue("fake-tutor-mini");
 });
+
+test("every field of a connection can be edited; renaming keeps custom routes working", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  const put = await page.request.put("/api/tenant/routes/llm/chat", {
+    data: { models: ["fake:fake-tutor-mini", "fake:fake-tutor"] },
+  });
+  expect(put.ok()).toBe(true);
+  await page.goto("/settings");
+
+  const connection = page.getByTestId("connection-fake");
+  await connection.getByRole("button", { name: "编辑" }).click();
+  const form = connection.getByRole("form", { name: "编辑 fake" });
+  await expect(form.getByLabel("API 类型")).toHaveValue("openai_compatible");
+  await form.getByLabel("名称").fill("my-relay");
+  await form.getByRole("button", { name: "保存修改" }).click();
+
+  const renamed = page.getByTestId("connection-my-relay");
+  await expect(renamed.getByRole("status")).toHaveText("连接已更新。");
+  const route = page.getByRole("list", { name: "对话模型" }).getByRole("listitem");
+  await expect(route).toHaveText(["my-relay:fake-tutor-mini", "my-relay:fake-tutor"]);
+  await expect(page.getByTestId("route-source")).toHaveText("正在使用你自定义的顺序。");
+
+  // Chat still goes through it, so the key survived the rename too.
+  await page.getByRole("link", { name: "对话" }).click();
+  await page.getByRole("textbox", { name: /输入消息/ }).fill("hello");
+  await page.getByRole("textbox", { name: /输入消息/ }).press("Enter");
+  await expect(page.getByRole("list", { name: "消息" }).locator("li").nth(1)).toHaveText(
+    "Nice try! You said: hello",
+  );
+
+  // A preset connection warns before a rename: the default routes find it by name.
+  await page.getByRole("link", { name: "设置" }).click();
+  await page.getByLabel("服务商").selectOption({ label: "DeepSeek" });
+  await page.locator("#api_key").fill("sk-not-a-real-key-9876");
+  await page.getByRole("button", { name: "添加连接" }).click();
+  const deepseek = page.getByTestId("connection-deepseek");
+  await deepseek.getByRole("button", { name: "编辑" }).click();
+  const presetForm = deepseek.getByRole("form", { name: "编辑 deepseek" });
+  await expect(presetForm).not.toContainText("默认路由是按名称");
+  await presetForm.getByLabel("名称").fill("ds");
+  await expect(presetForm).toContainText("默认路由是按名称找这个服务商的");
+  await presetForm.getByRole("button", { name: "取消" }).click();
+  await expect(presetForm).toHaveCount(0);
+});

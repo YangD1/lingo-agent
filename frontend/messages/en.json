@@ -75,8 +75,6 @@
       "testOk": "Connected ({ms} ms)",
       "testFailed": "Test failed: {error}",
       "newKey": "New API key",
-      "saveKey": "Replace key",
-      "keySaved": "Key replaced.",
       "delete": "Delete",
       "confirmDelete": "Delete the connection \"{name}\"? Routes using it will skip it.",
       "defaultModel": "Default chat model",
@@ -89,7 +87,14 @@
       "modelsFailed": "Couldn't fetch the model list: {error}. You can still type a model name.",
       "modelsNoMatch": "No matching model. Your text will be used as-is.",
       "noDefaultModel": "No default model yet: this connection isn't used for chat until you save one.",
-      "retry": "Retry"
+      "retry": "Retry",
+      "edit": "Edit",
+      "editTitle": "Edit {name}",
+      "newKeyPlaceholder": "Leave empty to keep the current key",
+      "saveEdit": "Save changes",
+      "cancel": "Cancel",
+      "edited": "Connection updated.",
+      "renamePresetHint": "The server's default routes find this provider by its name. After renaming, chat uses this connection's default model instead (your own routes are updated automatically)."
     },
     "route": {
       "title": "Chat model",

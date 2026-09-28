@@ -49,6 +49,7 @@ export function ConnectionsSection({ presets, connections, onChange }: Props) {
                 key={c.id}
                 connection={c}
                 presetModels={presets.presets.find((p) => p.name === c.name)?.models ?? []}
+                isPreset={presets.presets.some((p) => p.name === c.name)}
                 loadOnMount={c.id === justAdded}
                 onUpdated={(next) => onChange(connections.map((x) => (x.id === next.id ? next : x)))}
                 onDeleted={() => onChange(connections.filter((x) => x.id !== c.id))}
@@ -73,12 +74,14 @@ export function ConnectionsSection({ presets, connections, onChange }: Props) {
 function ConnectionItem({
   connection: c,
   presetModels,
+  isPreset,
   loadOnMount,
   onUpdated,
   onDeleted,
 }: {
   connection: Connection;
   presetModels: string[];
+  isPreset: boolean;
   loadOnMount: boolean;
   onUpdated: (c: Connection) => void;
   onDeleted: () => void;
@@ -88,7 +91,7 @@ function ConnectionItem({
   const describe = useDescribeError();
   const [model, setModel] = useState(c.default_model ?? "");
   const [catalog, setCatalog] = useState<Catalog>({ state: loadOnMount ? "loading" : "idle" });
-  const [newKey, setNewKey] = useState("");
+  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -157,17 +160,17 @@ function ConnectionItem({
       if (updated) onUpdated(updated);
     });
 
-  const saveKey = () =>
+  const saveEdit = (patch: ConnectionPatch) =>
     run(async () => {
       onUpdated(
-        await api<Connection>(`/tenant/connections/${c.id}`, {
-          method: "PATCH",
-          json: { api_key: newKey },
-        }),
+        await api<Connection>(`/tenant/connections/${c.id}`, { method: "PATCH", json: patch }),
       );
-      setNewKey("");
-      setResult({ ok: true, text: t("keySaved") });
-      if (catalog.state !== "idle") loadModels(); // the old list may have failed on the old key
+      setEditing(false);
+      setResult({ ok: true, text: t("edited") });
+      // A new endpoint or key may list different models (or list them at all, now).
+      if (catalog.state !== "idle" && (patch.kind || patch.base_url || patch.api_key)) {
+        loadModels();
+      }
     });
 
   const remove = () =>
@@ -227,23 +230,24 @@ function ConnectionItem({
         </div>
         <CatalogStatus catalog={catalog} hasDefault={saved !== ""} onRetry={loadModels} />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          type="password"
-          aria-label={t("newKey")}
-          placeholder={t("newKey")}
-          value={newKey}
-          onChange={(e) => setNewKey(e.target.value)}
-          autoComplete="off"
-          className="h-8 w-48"
+      {editing ? (
+        <EditConnectionForm
+          connection={c}
+          isPreset={isPreset}
+          busy={busy}
+          onSave={saveEdit}
+          onCancel={() => setEditing(false)}
         />
-        <Button size="sm" variant="outline" onClick={saveKey} disabled={busy || !newKey.trim()}>
-          {t("saveKey")}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={remove} disabled={busy} className="ml-auto">
-          {t("delete")}
-        </Button>
-      </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setEditing(true)} disabled={busy}>
+            {t("edit")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={remove} disabled={busy} className="ml-auto">
+            {t("delete")}
+          </Button>
+        </div>
+      )}
       {result && (
         <p
           role="status"
@@ -253,6 +257,106 @@ function ConnectionItem({
         </p>
       )}
     </li>
+  );
+}
+
+type ConnectionPatch = { name?: string; kind?: string; base_url?: string; api_key?: string };
+
+/** Edits every field; only what changed is sent (ADR 0007 §4). */
+function EditConnectionForm({
+  connection: c,
+  isPreset,
+  busy,
+  onSave,
+  onCancel,
+}: {
+  connection: Connection;
+  isPreset: boolean;
+  busy: boolean;
+  onSave: (patch: ConnectionPatch) => void;
+  onCancel: () => void;
+}) {
+  const t = useTranslations("settings.connections");
+  const [name, setName] = useState(c.name);
+  const [kind, setKind] = useState<string>(c.kind);
+  const [baseUrl, setBaseUrl] = useState(c.base_url);
+  const [apiKey, setApiKey] = useState("");
+  const id = (field: string) => `edit-${c.id}-${field}`;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const patch: ConnectionPatch = {};
+    if (name.trim() !== c.name) patch.name = name.trim();
+    if (kind !== c.kind) patch.kind = kind;
+    if (baseUrl.trim() !== c.base_url) patch.base_url = baseUrl.trim();
+    if (apiKey) patch.api_key = apiKey;
+    if (Object.keys(patch).length === 0) onCancel();
+    else onSave(patch);
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      className="flex flex-col gap-3 rounded-md bg-muted/40 p-3"
+      aria-label={t("editTitle", { name: c.name })}
+    >
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={id("name")}>{t("name")}</Label>
+          <Input
+            id={id("name")}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            pattern="[a-z0-9][a-z0-9_\-]{0,63}"
+            maxLength={64}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={id("kind")}>{t("kind")}</Label>
+          <NativeSelect id={id("kind")} value={kind} onChange={(e) => setKind(e.target.value)}>
+            {PROVIDER_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={id("base-url")}>{t("baseUrl")}</Label>
+          <Input
+            id={id("base-url")}
+            type="url"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            required
+          />
+        </div>
+      </div>
+      {isPreset && name.trim() !== c.name && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">{t("renamePresetHint")}</p>
+      )}
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={id("key")}>{t("newKey")}</Label>
+        <Input
+          id={id("key")}
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder={t("newKeyPlaceholder")}
+          autoComplete="off"
+          className="w-96 max-w-full"
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={busy}>
+          {t("saveEdit")}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
+          {t("cancel")}
+        </Button>
+      </div>
+    </form>
   );
 }
 
