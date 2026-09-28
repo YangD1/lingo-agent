@@ -40,11 +40,14 @@ P0 的聊天只能收纯文本。用户希望消息里可以带：
 2. `POST /conversations/{id}/attachments`（multipart）。后端**同步**完成校验、入库后立即返回 `processing`；派生文本由**进程内的后台 asyncio 任务**生成（不引入 Celery 或 Redis），前端轮询 `GET /attachments/{id}` 查看状态和进度（扫描版 PDF 显示“第 x / y 页”）。
    - 后台任务：每个进程共用一个信号量，限制同时调用看图模型的次数（初定 4），扫描版 PDF 的多个页面也受这个限制。任务会用到租户的 provider 上下文，这个上下文在任务开始时重新加载，不从请求里带过去。
    - 进程重启时，还在 `processing` 的附件会被标为 `failed`（原因是“处理被中断”），用户点重试即可。
-   - **校验时不信任客户端声明的类型**：按文件头的魔数判断真实类型。图片用 Pillow 解码并重新编码：限制最大像素数、去掉 EXIF、长边超过 1600px 时缩小。音频只识别容器格式，不解码也不转码。文档限制页数和字符数，解析超时就失败。
+   - **校验时不信任客户端声明的类型**：按文件头的魔数判断真实类型。图片用 Pillow 解码并重新编码：限制最大像素数、先按 EXIF 方向转正再去掉 EXIF、长边超过 1600px 时缩小，统一输出 JPEG（各家看图接口都支持；WebP 不是每个 OpenAI 兼容中转都支持）。JPEG 用 `draft()` 按缩小后的尺寸解码，4800 万像素的照片处理时内存峰值约 20MB（完整解码约 164MB）。bytea 列设为 `STORAGE EXTERNAL`，因为内容已经压缩过，不必让 PostgreSQL 再压缩一次。音频只识别容器格式，不解码也不转码。文档限制页数和字符数，解析超时就失败。
    - **扫描版 PDF 的判断按页进行**：某一页抽出的文字少于 20 个非空白字符，就当作扫描页，用 pypdfium2 按 150 DPI 渲染（长边限制在 1600px），交给 `vision` 识别。所以文字页和扫描页混排的 PDF 也能处理。渲染出的页面图片只在处理时用，不保存。
    - 需要的路由解析不出来时，返回 409：图片是 `no_vision_model`，语音是 `no_asr_model`。扫描版 PDF 要到抽取时才能发现，这时附件标为 `failed`，原因同样是 `no_vision_model`。前端引导用户去设置页。
    - 调用模型失败时，附件标为 `failed` 并带上原因，用户可以重试或移除。
-3. `PATCH /attachments/{id}`：修正派生文本（图片识别结果、语音转写）。
+3. `PATCH /attachments/{id}`：修正派生文本（图片识别结果、语音转写）。`POST /attachments/{id}/retry`：失败后重试。
+   - **修改和删除都只允许在发送前进行**，发送后返回 409 `attachment_sent`：已发送的附件是历史的一部分，改了等于偷偷改写导师已经回答过的内容。
+   - 错误码：`unsupported_file_type`（415）、`attachment_too_large`（413）、`invalid_image`（422）、`attachment_limit`（409，同一会话里未发送的附件最多 10 个）、`attachment_not_ready` / `attachment_not_failed` / `attachment_sent`（409）、`attachment_not_found`（404）。处理失败时 `error` 字段存错误码（`no_vision_model`、`processing_failed`、`processing_interrupted` 等），给人看的英文原因放在 `meta.error_message`。
+   - 音频时长上限（3 分钟）只在前端录音时限制；后端只限制大小，因为判断时长要解码音频。
 4. `GET /attachments/{id}/content`：必须登录，只能访问自己的附件，否则一律 404。`Content-Type` 取后端校验出的类型，带 `X-Content-Type-Options: nosniff`；图片和音频用 `inline`，文档用 `attachment` 下载。`DELETE /attachments/{id}` 只能删还没发送的附件。
 5. 发消息：`MessageIn` 增加 `attachment_ids`。只接受属于同一会话、状态为 `ready`、还没发送过的附件。另外，语音消息的正文可以为空，这时直接用转写结果作为正文。
 

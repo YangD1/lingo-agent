@@ -13,13 +13,14 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, deferred, mapped_column
 
 from app.db.base import Base, TimestampMixin
 
@@ -30,6 +31,8 @@ MEMBER_ROLES = ("owner", "admin", "member")
 PROVIDER_KINDS = ("deepseek", "anthropic", "openai", "openai_compatible")
 ROUTE_SECTIONS = ("llm", "embedding")
 USAGE_STATUSES = ("ok", "error")
+ATTACHMENT_KINDS = ("image", "audio", "document")
+ATTACHMENT_STATUSES = ("processing", "ready", "failed")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -155,3 +158,48 @@ class LLMUsage(Base):
     is_fallback: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     error_code: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Attachment(TimestampMixin, Base):
+    """A file sent with a chat message (ADR 0008).
+
+    Every attachment gets a plain-text rendering (`text`): image reading, audio
+    transcript or extracted document text. The conversation, memory and RAG read that;
+    the original bytes are only sent to a model on the turn they were attached to.
+    """
+
+    __tablename__ = "attachments"
+    __table_args__ = (
+        CheckConstraint(_in("kind", ATTACHMENT_KINDS), name="kind"),
+        CheckConstraint(_in("status", ATTACHMENT_STATUSES), name="status"),
+        Index("ix_attachments_conversation_id_created_at", "conversation_id", "created_at"),
+        Index("ix_attachments_message_id", "message_id"),
+        # Finds uploads that were never sent (the 24h cleanup).
+        Index(
+            "ix_attachments_unsent_created_at",
+            "created_at",
+            postgresql_where="message_id IS NULL",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE")
+    )
+    # Id of the HumanMessage in the LangGraph checkpoint; NULL until the message is sent.
+    message_id: Mapped[str | None] = mapped_column(String(64))
+    kind: Mapped[str] = mapped_column(String(20))
+    # Detected from the content, never taken from the client.
+    mime_type: Mapped[str] = mapped_column(String(100))
+    filename: Mapped[str] = mapped_column(String(255))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    # Deferred: listing attachments must not pull megabytes of bytes.
+    data: Mapped[bytes] = deferred(mapped_column(LargeBinary, nullable=False))
+    status: Mapped[str] = mapped_column(String(20), default="processing")
+    text: Mapped[str | None] = mapped_column(Text)
+    meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    # User-safe reason; details stay in the server log.
+    error: Mapped[str | None] = mapped_column(Text)

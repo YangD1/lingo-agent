@@ -25,12 +25,15 @@ os.environ["CREDENTIALS_ENCRYPTION_KEYS"] = "test:" + "A" * 43 + "="
 
 # Imported after the environment is prepared.
 from app.agents.chat_graph import build_chat_graph  # noqa: E402
+from app.attachments.handlers import default_handlers  # noqa: E402
+from app.attachments.processor import AttachmentProcessor  # noqa: E402
 from app.db.migrate import alembic_config, setup_checkpointer  # noqa: E402
 from app.db.session import create_engine, create_sessionmaker  # noqa: E402
 from app.db.urls import to_psycopg_conninfo  # noqa: E402
 from app.main import create_app  # noqa: E402
 
 BUSINESS_TABLES = (
+    "attachments",
     "llm_usage",
     "tenant_model_routes",
     "provider_connections",
@@ -98,11 +101,13 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
     app = create_app()
     app.state.engine = db_engine
     app.state.sessionmaker = create_sessionmaker(db_engine)
+    app.state.attachment_processor = AttachmentProcessor(app.state.sessionmaker, default_handlers())
     async with AsyncPostgresSaver.from_conn_string(
         to_psycopg_conninfo(TEST_DATABASE_URL)
     ) as checkpointer:
         app.state.chat_graph = build_chat_graph(checkpointer)
         yield app
+        await app.state.attachment_processor.stop()
 
 
 @pytest.fixture

@@ -7,8 +7,10 @@ from fastapi import FastAPI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.agents.chat_graph import build_chat_graph
-from app.api import auth, chat, health, providers, usage
+from app.api import attachments, auth, chat, health, providers, usage
 from app.api.errors import install_error_handlers
+from app.attachments.handlers import default_handlers
+from app.attachments.processor import AttachmentProcessor, fail_interrupted
 from app.chat.locks import ConversationLocks
 from app.credentials.crypto import get_keyring
 from app.db.migrate import create_checkpointer_pool
@@ -26,6 +28,7 @@ def init_state(app: FastAPI, settings: Settings) -> None:
     """Create process-wide resources on app.state (also used directly by tests)."""
     app.state.engine = create_engine(settings.database_url)
     app.state.sessionmaker = create_sessionmaker(app.state.engine)
+    app.state.attachment_processor = AttachmentProcessor(app.state.sessionmaker, default_handlers())
 
 
 @asynccontextmanager
@@ -36,6 +39,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     get_providers_config()  # refuse to start with an invalid providers.*.yaml
     tracer_provider = setup_tracing(settings)
     init_state(app, settings)
+    interrupted = await fail_interrupted(app.state.sessionmaker)
+    if interrupted:
+        logger.warning("%d attachments were mid-processing at the last shutdown", interrupted)
     # Checkpoint tables are created by `python -m app.db.migrate`, not at startup.
     checkpoint_pool = create_checkpointer_pool(
         settings.database_url, settings.checkpoint_pool_max_size
@@ -48,6 +54,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        try:
+            async with asyncio.timeout(5):
+                await app.state.attachment_processor.stop()
+        except TimeoutError:
+            logger.warning("attachment processing did not stop within 5s")
         set_usage_sink(None)
         try:
             async with asyncio.timeout(5):
@@ -68,6 +79,7 @@ def create_app() -> FastAPI:
     app.include_router(providers.router)
     app.include_router(usage.router)
     app.include_router(chat.router)
+    app.include_router(attachments.router)
     return app
 
 

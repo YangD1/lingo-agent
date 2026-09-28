@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-09-29 · 11A 收尾，11B.1 设计，11B.2 附件存储与接口
+
+- **做了什么**：
+  - 用户实测 11A 通过。
+  - 11B 设计：ADR 0008 已采纳（图片 + 语音 + 文档（含扫描版 PDF），“两者结合”，PostgreSQL bytea，进程内后台处理 + 轮询），PLAN 已同步。
+  - 11B.2 后端附件：`backend/app/attachments/`（sniff、images、processor、handlers、service）+ `app/api/attachments.py` + 迁移；app.state 上有 `attachment_processor`（`main.py` 的 `init_state` 创建，lifespan 启动时执行 `fail_interrupted`，退出时 `stop`）；测试夹具同步。
+- **未完成**：11B.3 派生文本。在 `app/attachments/handlers.py` 的 `default_handlers()` 里加 image / audio / pdf / docx 处理函数，需要：provider 层的 `llm.vision` 路由 + `ImageReading`，`asr` 一节 + `get_asr()`，`llm_usage.audio_seconds`，pypdfium2 + python-docx。处理函数运行在后台任务里，需要**自己加载租户的 provider 上下文**（`load_provider_context(session, job.tenant_id)`），调用看图模型时要持有 `processor.vision_slots`，所以处理函数需要能拿到 processor（可以用闭包或工厂函数注入）。
+- **下一步**：11B.3 → 11B.4 对话接入 → 11B.5 前端 → 11B.6 E2E 与部署。
+- **踩坑**：
+  - `deferred(mapped_column(LargeBinary))` 会让 autogenerate 生成 nullable=True，要显式写 `nullable=False`。
+  - MP3 帧同步只看 11 位的话，UTF-16 BOM（FF FE）也能匹配上，要加 Layer III 判断。
+  - Pillow `draft()` 要求返回的尺寸在**两条边**上都不小于请求值，要按原图比例算请求尺寸，不能传正方形。
+  - 测内存峰值要在新进程里测，否则前面造数据时的峰值会掩盖结果。
+  - 迁移还没在开发库（:3000 那套）上执行：11B.6 重建镜像时，后端启动会自动执行。
+
+---
+
 ## 2026-09-28 · 11A.8 聊天消息渲染 Markdown
 
 - **做了什么**：用户反馈模型回复里的 `**加粗**` 原样显示。原因是 `message-list.tsx` 直接输出纯文本。新增 `frontend/src/components/chat/markdown.tsx`（react-markdown + remark-gfm + remark-cjk-friendly/parseOnly），只用于 assistant 消息；单测 5 个 + E2E 1 个；前端镜像已重建。
