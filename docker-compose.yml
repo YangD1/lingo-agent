@@ -1,5 +1,12 @@
 # lingo-agent services. Default `docker compose up` starts only what the app needs;
 # optional services live behind profiles (e.g. `--profile observability`).
+#
+# Settings come from `.env` (see .env.example; `make env` creates one). Addresses
+# between containers (database, backend, trace collector) are fixed here, so the
+# localhost URLs in .env stay valid for running the backend on the host.
+#
+# Only the frontend is published on all interfaces; everything else binds to
+# 127.0.0.1 so a server doesn't expose its database or API by accident.
 name: lingo-agent
 
 services:
@@ -11,7 +18,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-lingo}
     ports:
       # Host port defaults to 5433 to avoid clashing with a locally installed Postgres.
-      - "${POSTGRES_HOST_PORT:-5433}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -23,6 +30,53 @@ services:
     mem_limit: 512m
     restart: unless-stopped
 
+  # Runs migrations on start, then serves the API (backend/Dockerfile).
+  # Refuses to start without CREDENTIALS_ENCRYPTION_KEYS; `make env` generates one.
+  backend:
+    build: ./backend
+    image: lingo-agent-backend
+    environment:
+      APP_ENV: ${APP_ENV:-dev}
+      PROVIDERS_CONFIG: ${PROVIDERS_CONFIG:-config/providers.dev.yaml}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-lingo}:${POSTGRES_PASSWORD:-lingo}@postgres:5432/${POSTGRES_DB:-lingo}
+      CHECKPOINT_POOL_MAX_SIZE: ${CHECKPOINT_POOL_MAX_SIZE:-4}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-10080}
+      CREDENTIALS_ENCRYPTION_KEYS: ${CREDENTIALS_ENCRYPTION_KEYS:-}
+      PROVIDER_ALLOW_PRIVATE_NETWORKS: ${PROVIDER_ALLOW_PRIVATE_NETWORKS:-false}
+      OTEL_TRACING_ENABLED: ${OTEL_TRACING_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${COMPOSE_OTEL_EXPORTER_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}
+    volumes:
+      - ./config:/app/config:ro
+    ports:
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8000}:8000"
+    extra_hosts:
+      # Lets tenants reach a model server on the host (e.g. Ollama) via
+      # http://host.docker.internal:11434/v1 (needs PROVIDER_ALLOW_PRIVATE_NETWORKS=true).
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 768m
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the /api rewrites at build time (frontend/Dockerfile).
+        BACKEND_URL: http://backend:8000
+    image: lingo-agent-frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    mem_limit: 384m
+    restart: unless-stopped
+
   # Local trace viewer for OpenTelemetry (ADR 0005). Dev-only, opt-in.
   # UI: http://localhost:6006  OTLP/HTTP: http://localhost:6006/v1/traces
   # Phoenix server is ELv2-licensed; it runs as a separate container and is not
@@ -31,7 +85,8 @@ services:
     image: arizephoenix/phoenix:version-20.16.0
     profiles: [observability]
     ports:
-      - "6006:6006"
+      # Traces carry full conversation content: never expose beyond localhost.
+      - "127.0.0.1:6006:6006"
     environment:
       PHOENIX_WORKING_DIR: /data
     volumes:
@@ -39,6 +94,34 @@ services:
     mem_limit: 1g
     restart: unless-stopped
 
+  # Reserved for later phases (grammar GraphRAG in P2, caching); no P0 code uses them.
+  neo4j:
+    image: neo4j:5-community
+    profiles: [neo4j]
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-}
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4j-data:/data
+    mem_limit: 1g
+    restart: unless-stopped
+
+  redis:
+    image: redis:8-alpine
+    profiles: [redis]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    mem_limit: 128m
+    restart: unless-stopped
+
 volumes:
   pgdata:
   phoenix-data:
+  neo4j-data:
+  redis-data:
