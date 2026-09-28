@@ -1,0 +1,39 @@
+# Provider presets and default routes for production. Selected via PROVIDERS_CONFIG.
+# Semantics: docs/decisions/0002-provider-layer.md and 0004-tenant-credentials.md
+# No API keys here: tenants configure their own connections in the app.
+
+presets:
+  deepseek:
+    kind: deepseek
+    label: DeepSeek
+    base_url: https://api.deepseek.com/v1
+    models: [deepseek-chat, deepseek-reasoner]
+  anthropic:
+    kind: anthropic
+    label: Anthropic Claude
+    base_url: https://api.anthropic.com
+    models: [claude-sonnet-5, claude-haiku-4-5]
+  openai:
+    kind: openai
+    label: OpenAI
+    base_url: https://api.openai.com/v1
+    models: [gpt-5-mini, text-embedding-3-small]
+  qwen:
+    kind: openai_compatible
+    label: Qwen (DashScope)
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    models: [qwen-plus]
+
+defaults:
+  timeout: 30
+  max_retries: 1
+
+llm:
+  default: [deepseek:deepseek-chat, qwen:qwen-plus, openai:gpt-5-mini]
+  routes:
+    chat:
+      models: [deepseek:deepseek-chat, anthropic:claude-sonnet-5, qwen:qwen-plus]
+      temperature: 0.7
+
+embedding:
+  default: openai:text-embedding-3-small

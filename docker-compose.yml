@@ -1,0 +1,44 @@
+# lingo-agent services. Default `docker compose up` starts only what the app needs;
+# optional services live behind profiles (e.g. `--profile observability`).
+name: lingo-agent
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lingo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lingo}
+      POSTGRES_DB: ${POSTGRES_DB:-lingo}
+    ports:
+      # Host port defaults to 5433 to avoid clashing with a locally installed Postgres.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+    restart: unless-stopped
+
+  # Local trace viewer for OpenTelemetry (ADR 0005). Dev-only, opt-in.
+  # UI: http://localhost:6006  OTLP/HTTP: http://localhost:6006/v1/traces
+  # Phoenix server is ELv2-licensed; it runs as a separate container and is not
+  # a dependency of this project's code.
+  phoenix:
+    image: arizephoenix/phoenix:version-20.16.0
+    profiles: [observability]
+    ports:
+      - "6006:6006"
+    environment:
+      PHOENIX_WORKING_DIR: /data
+    volumes:
+      - phoenix-data:/data
+    mem_limit: 1g
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  phoenix-data:

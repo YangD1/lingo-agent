@@ -1,0 +1,67 @@
+"""Application settings loaded from environment variables and the repo-root `.env`."""
+
+from functools import lru_cache
+from pathlib import Path
+from typing import Literal, Self
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_JWT_SECRET = "change-me"
+MIN_JWT_SECRET_BYTES = 32
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    app_env: Literal["dev", "prod", "test"] = "dev"
+    providers_config: Path = Path("config/providers.dev.yaml")
+
+    database_url: str = "postgresql+psycopg://lingo:lingo@localhost:5433/lingo"
+    # LangGraph checkpointer pool; small because the target server is low on memory.
+    checkpoint_pool_max_size: int = 4
+
+    jwt_secret: str = DEFAULT_JWT_SECRET
+    jwt_expire_minutes: int = 60 * 24 * 7
+
+    # Tenant credential encryption keys, "id:base64key[,...]" (ADR 0004 §3). Validated at
+    # app startup rather than here, so tools like `app.db.migrate` run without it.
+    credentials_encryption_keys: str = ""
+    # Allow tenant base_urls on loopback/private networks (e.g. a local Ollama).
+    provider_allow_private_networks: bool = False
+
+    # Observability (ADR 0005). Off by default: traces carry full conversation content.
+    otel_tracing_enabled: bool = False
+    otel_exporter_otlp_endpoint: str = "http://localhost:6006/v1/traces"
+    otel_service_name: str = "lingo-agent-backend"
+
+    @model_validator(mode="after")
+    def _check_prod_secrets(self) -> Self:
+        if self.app_env == "prod":
+            if self.jwt_secret in ("", DEFAULT_JWT_SECRET):
+                raise ValueError("JWT_SECRET must be set to a non-default value when APP_ENV=prod")
+            # RFC 7518 §3.2: HS256 keys must be at least 256 bits.
+            if len(self.jwt_secret.encode()) < MIN_JWT_SECRET_BYTES:
+                raise ValueError(f"JWT_SECRET must be at least {MIN_JWT_SECRET_BYTES} bytes")
+        return self
+
+    @property
+    def cookie_secure(self) -> bool:
+        """Auth cookie is HTTPS-only in prod; dev runs on plain http://localhost."""
+        return self.app_env == "prod"
+
+    @property
+    def providers_config_path(self) -> Path:
+        """Relative paths are resolved against the repo root, not the process cwd."""
+        path = self.providers_config
+        return path if path.is_absolute() else REPO_ROOT / path
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
