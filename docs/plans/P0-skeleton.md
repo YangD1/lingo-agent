@@ -347,6 +347,7 @@ compose 要点：所有服务设 `mem_limit`；postgres 有 healthcheck，backen
 | 9 | 对话图（通过运行时 context 传 ctx）、AsyncPostgresSaver、会话 CRUD、SSE 接口 | 集成测试；确认 checkpoint 里没有 key；没配模型时返回 `no_llm_configured` |
 | 10 | 前端：登录和注册页、聊天页、**模型设置页**（连接列表、新增/替换 key、测试连接、chat 路由编辑、用量表）、未配置模型时的引导、中英 i18n | lint、tsc、build、Vitest、Playwright E2E 通过；经 Next 代理 curl 冒烟 SSE 逐块到达 |
 | 11 | docker-compose 全栈、`.env.example`、Makefile（含 `gen-key`、`rotate-credentials`） | `docker compose up` 后走通 Demo |
+| 11A | 模型设置易用性：模型发现、连接默认模型、路由兜底、路由下拉编辑（ADR 0007，来自用户实测反馈） | 只建一个自定义连接、不设路由就能聊天；E2E 覆盖 |
 | 12 | GitHub Actions CI | CI 全绿 |
 | 13 | README（英文 + zh-CN）；补充 CLAUDE.md 的常用命令 | 照着 README 能从零跑起来 |
 

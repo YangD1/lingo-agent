@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 骨架（任务 1–11 完成；下一步：任务 12 GitHub Actions CI）
+**当前阶段**：P0 骨架（任务 1–11 完成；下一步：任务 11A 模型设置易用性，之后任务 12 CI）
 **阻塞项**：无（待用户手动：在设置页填自己的真实 key 做一次冒烟，代码和 E2E 已就绪）
 
 ## P0 骨架
@@ -39,6 +39,13 @@
   - [x] 11.3 `docker-compose.yml`：新增 backend（`build: ./backend`，`config/` 只读挂载，容器内 `DATABASE_URL` 由 `POSTGRES_*` 拼出、指向 `postgres:5432`，OTel 默认发往 `phoenix:6006`，可用 `COMPOSE_OTEL_EXPORTER_OTLP_ENDPOINT` 覆盖；`extra_hosts: host.docker.internal:host-gateway` 方便连宿主机的 Ollama；mem_limit 768m）、frontend（`BACKEND_URL=http://backend:8000` 同时作为 build arg 和 env；mem_limit 384m）；依赖链 postgres → backend → frontend，都等 `service_healthy`。**宿主机端口：只有前端对外（3000），postgres、backend、phoenix 都只绑 127.0.0.1**；neo4j（`neo4j:5-community`）、redis（`redis:8-alpine`）分别放在同名 profile 里，默认不启动。**与计划不同**：不用 `${CREDENTIALS_ENCRYPTION_KEYS:?}`，因为 compose 会对整个文件插值，连 `docker compose up -d postgres` 也会被拦；改为由后端拒绝启动并提示 `make gen-key`。验证：`compose config` 在没有 `.env` 和打开全部 profile 时都通过；用临时 env 文件执行 `up -d --build`，三个服务都 healthy，内存 postgres 29MiB、backend 167MiB、frontend 46MiB；经前端代理访问 `/api/readyz` 返回 ok。踩坑：第一次崩溃留下的 pnpm 缓存里有半截写入的文件（`vite/package.json` 为空）→ `ERR_PNPM_CMD_SHIM_PARSE_MANIFEST`；用 `docker buildx prune --filter id=<pnpm 缓存 id>` 只清掉那一个缓存后恢复正常
   - [x] 11.4 `.env.example`：补 `POSTGRES_USER/PASSWORD/DB`、`FRONTEND_HOST_PORT`、`BACKEND_HOST_PORT`、`BACKEND_URL`、`COMPOSE_OTEL_EXPORTER_OTLP_ENDPOINT`，并说明同一份 `.env` 在 compose 和在宿主机运行两种方式下的用法（compose 忽略其中的 `DATABASE_URL`、`BACKEND_URL`）、APP_ENV=prod 需要 HTTPS、容器里怎么连宿主机的 Ollama。`Makefile`：`help`（自动列出带 `##` 注释的目标）、`env`（从 example 生成，openssl 生成加密 key 和 64 位 hex 的 JWT_SECRET，文件权限 600，已存在就不覆盖；`ENV_FILE` 可改路径）、`gen-key`（和 Python CLI 格式一致，不依赖 uv）、`up/down/build/logs/ps`、`rotate-credentials`（在 backend 容器里执行，注释写了四步流程）、`dev-db/migrate/dev-backend/dev-frontend/install`、`test/test-backend/test-frontend/e2e/lint/fmt`；`PNPM`、`COMPOSE` 可覆盖。`dev-frontend` 从根 `.env` 读取 `BACKEND_URL`（Next 只读 `frontend/` 下的 env 文件），优先级：环境变量 > .env > 默认 :8000。验证：`make env` 生成的 key 能被后端解析器接受、加解密往返成功，JWT_SECRET 通过 prod 校验，第二次执行不覆盖；`make lint` 全过；`make test` 212 + 60 个通过；dev-frontend 的三种取值都正确
   - [x] 11.5 从零验证：独立 compose 项目 `lingo-smoke`（全新数据卷，端口 3300/8300/5533，临时 env 由 `make env ENV_FILE=/tmp/…` 生成；假模型放在同一 docker 网络里，监听 0.0.0.0），经前端代理走完 Demo：注册 201 → 未配模型时发消息 409 `no_llm_configured` → 建连接 201 / 测试 ok / 设路由 200 → 会话 A 40 个 token 分散在 3.9s 内到达、以 done 结束，会话 B 的历史独立 → `down`（不加 -v）再 `up` 后重新登录 200，3 个会话、历史都在，能继续聊，usage 计数没有丢 → 主连接不可用时降级（broken `errors=1`，fake `fallbacks=1`）→ `make rotate-credentials`：重新加密 2 条，再跑一次 0 条（幂等），去掉旧 key 后测试连接仍 ok → 容器经 `host.docker.internal`（172.17.0.1）能访问宿主机服务（`.env.example` 补了 `OLLAMA_HOST=0.0.0.0` 的说明）。运行内存：postgres 28MiB、backend 157MiB、frontend 54MiB。同步 P0 计划 §0（`make env` → `make up`）并新增 §16 任务 11 落地记录。冒烟环境、重复镜像、`lingo-capped` 构建器都已清理
+- [ ] 11A. 模型设置易用性（用户实测反馈：自定义连接无法测试——测试按钮要先手填模型名；中转站连接不在默认路由里，要手写 `连接名:模型`，一直 409）
+  - [x] 11A.1 ADR 0007（模型发现、连接默认模型、路由兜底，修订 ADR 0004 的路由规则）+ 同步 PLAN / P0 计划。已写 `docs/decisions/0007-model-discovery-and-default-models.md`；ADR 0004 §2 加修订注记；PLAN.md、P0 计划任务表同步
+  - [~] 11A.2 后端·模型发现：`app/providers/model_catalog.py`，通过同一个 SSRF 防护客户端请求各厂商的 models 接口（OpenAI 类为 `{base_url}/models`，Anthropic 为 `{base_url}/v1/models`，要翻页）；按模型名归类为 chat / embedding / other（语音、图像、审核等）；按连接缓存 10 分钟；`GET /tenant/connections/{id}/models`，失败时返回 `model_list_failed` 并附厂商原因。测试：用注入的 mock transport 覆盖两种接口格式、分页、归类、401、SSRF 拦截
+  - [ ] 11A.3 后端·默认模型与路由兜底：`provider_connections.default_model`（可为空，Alembic 迁移），创建和 PATCH 时可设置；测试接口的 `model` 改为可选，不传就用默认模型；`resolve_route` 在“手动路由 > YAML 默认路由”都匹配不上时，按连接创建顺序使用各连接的默认模型；`GET /tenant/routes` 返回每个任务**实际生效**的模型链，以及它来自哪一层。测试：兜底顺序、手动路由优先、禁用或解不开的连接被跳过
+  - [ ] 11A.4 前端·连接流程：建连接后自动拉取模型列表（成功即说明 key 有效）→ 可搜索地选择默认对话模型（预选推荐项；拉取失败时可手填）；连接卡片显示并可修改默认模型，测试按钮直接可点；`e2e/fake_llm.py` 加 `/v1/models`；中英文案
+  - [ ] 11A.5 前端·路由编辑改为下拉：每行“选连接 → 选该连接下的模型”，可以增删、调顺序；显示当前实际生效的模型链和来源（手动 / 默认 / 自动）；保留“恢复默认”
+  - [ ] 11A.6 收尾：Vitest、E2E（改写 settings 用例：只建一个自定义连接、不设路由就能聊天）、lint、typecheck、pytest；重新 `make up`，用户用自己的中转站连接实测
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）
 - [ ] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令
 

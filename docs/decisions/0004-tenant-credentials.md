@@ -28,6 +28,8 @@ YAML 删除 `api_key_env` 字段，不再包含任何 key。
 
 默认路由中的 `"<名字>:<模型>"`，按**同名的租户连接**去找。租户从预设创建连接时，连接名默认就是预设名，所以只要填上 key，默认路由就能直接用。租户还没建的连接会被跳过。整条链都没有可用模型时，接口返回错误码 `no_llm_configured`，前端据此引导用户去设置页。
 
+> **2026-09-28 修订（ADR 0007）**：前两层都匹配不上时，再按连接创建顺序使用各连接的 `default_model`（只对 `llm` 生效）；新增 `GET /tenant/connections/{id}/models`（模型发现），测试接口的 `model` 变为可选。
+
 ### 3. key 加密
 - 算法用 **AES-256-GCM**（`cryptography` 库）。每次加密生成随机 12 字节 nonce。**AAD 设为 `tenant_id:connection_id`**：把密文绑定到它所在的那一行，即使有人能直接改数据库，把 A 租户的密文复制到 B 租户的行里也解不开。
 - 密文格式为 `v1:<key_id>:<nonce>:<ciphertext>`。主密钥放在环境变量 `CREDENTIALS_ENCRYPTION_KEYS`，形式是 `id1:base64key,id2:...`，第一个用于加密，全部都可用于解密。轮换主密钥的步骤：新增一个 key 放到最前面，执行 `make rotate-credentials` 把所有记录重新加密，然后删掉旧 key。
