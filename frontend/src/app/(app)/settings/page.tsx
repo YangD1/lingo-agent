@@ -1,4 +1,5 @@
-// Filled in by task 10.6.
+import { SettingsApp } from "@/components/settings/settings-app";
+
 export default function SettingsPage() {
-  return <div className="flex-1 p-4" />;
+  return <SettingsApp />;
 }

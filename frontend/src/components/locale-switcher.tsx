@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { setLocale } from "@/i18n/actions";
 import { locales } from "@/i18n/config";
 
@@ -12,7 +13,7 @@ export function LocaleSwitcher() {
   const [pending, startTransition] = useTransition();
 
   return (
-    <select
+    <NativeSelect
       aria-label={t("label")}
       value={locale}
       disabled={pending}
@@ -21,13 +22,12 @@ export function LocaleSwitcher() {
         // Setting the cookie in a Server Action re-renders the page in the new language.
         startTransition(() => setLocale(next));
       }}
-      className="h-8 rounded-md border border-input bg-background px-2 text-sm"
     >
       {locales.map((value) => (
         <option key={value} value={value}>
           {t(value)}
         </option>
       ))}
-    </select>
+    </NativeSelect>
   );
 }
