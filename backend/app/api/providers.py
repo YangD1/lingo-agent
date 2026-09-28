@@ -76,6 +76,9 @@ class ConnectionPatch(BaseModel):
     enabled: bool | None = None
     # "" clears it (the connection then takes no part in the auto fallback)
     default_model: Annotated[str | None, Field(max_length=128)] = None
+    # Renaming also rewrites the tenant's routes that use the old name (ADR 0007 §4).
+    name: Annotated[str | None, Field(max_length=64)] = None
+    kind: str | None = None
 
 
 class ConnectionOut(BaseModel):
@@ -200,11 +203,15 @@ async def update_connection(
             params=body.params,
             enabled=body.enabled,
             default_model=body.default_model,
+            name=body.name,
+            kind=body.kind,
         )
     except NotFoundError as exc:
         raise api_error(status.HTTP_404_NOT_FOUND, "connection_not_found", str(exc)) from exc
     except ProviderConfigError as exc:
         raise _bad_request(exc) from exc
+    except ConflictError as exc:
+        raise api_error(status.HTTP_409_CONFLICT, "connection_name_taken", str(exc)) from exc
     return ConnectionOut.of(conn)
 
 

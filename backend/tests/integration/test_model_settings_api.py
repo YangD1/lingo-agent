@@ -478,3 +478,92 @@ async def test_provider_context_keeps_creation_order(
     ctx = await load_provider_context(db_session, row.tenant_id, get_keyring())
     assert list(ctx.connections) == ["zeta", "alpha", "mid"]
     assert ctx.connections["alpha"].default_model == "alpha-model"
+
+
+# --- editing every field (ADR 0007 §4) ---------------------------------------------------
+
+
+def _chat_route(routes: list[dict[str, Any]]) -> dict[str, Any]:
+    return next(r for r in routes if r["section"] == "llm" and r["task"] == "chat")
+
+
+async def test_rename_rewrites_route_overrides_and_keeps_the_key(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await login(client)
+    relay = await create(
+        client,
+        name="dd",
+        kind="openai_compatible",
+        base_url="https://relay.example.com/v1",
+        api_key=SECRET,
+        default_model="m",
+    )
+    other = await create(client, preset="openai", api_key=SECRET)
+    put = await client.put(
+        "/tenant/routes/llm/chat", json={"models": ["dd:a", "openai:b", "dd:c:free"]}
+    )
+    assert put.status_code == 200
+    row = await db_session.get(ProviderConnection, uuid.UUID(relay["id"]))
+    assert row is not None
+    row.last_verified_at = row.created_at
+    await db_session.commit()
+
+    response = await client.patch(f"/tenant/connections/{relay['id']}", json={"name": "relay"})
+    assert response.status_code == 200, response.text
+    assert response.json()["name"] == "relay"
+    assert response.json()["last_verified_at"] is None
+    route = _chat_route((await client.get("/tenant/routes")).json())
+    assert route["models"] == ["relay:a", "openai:b", "relay:c:free"]
+    assert route["effective"] == ["relay:a", "openai:b", "relay:c:free"]
+
+    # The key is bound to the connection id, not its name: it still decrypts.
+    tenant_id = row.tenant_id
+    db_session.expire_all()
+    ctx = await load_provider_context(db_session, tenant_id)
+    assert ctx.connections["relay"].api_key is not None
+    assert ctx.connections["relay"].api_key.get_secret_value() == SECRET
+    assert "dd" not in ctx.connections and "openai" in ctx.connections
+    assert other["name"] == "openai"
+
+
+async def test_rename_to_a_taken_or_invalid_name_changes_nothing(client: AsyncClient) -> None:
+    await login(client)
+    relay = await create(
+        client, name="dd", kind="openai_compatible", base_url="https://relay.example.com/v1"
+    )
+    await create(client, preset="openai", api_key=SECRET)
+    await client.put("/tenant/routes/llm/chat", json={"models": ["dd:a"]})
+    url = f"/tenant/connections/{relay['id']}"
+
+    taken = await client.patch(url, json={"name": "openai", "base_url": "https://x.example.com"})
+    assert taken.status_code == 409
+    assert taken.json()["detail"]["code"] == "connection_name_taken"
+    bad = await client.patch(url, json={"name": "Bad Name"})
+    assert bad.status_code == 422
+    assert bad.json()["detail"]["code"] == "invalid_provider_config"
+
+    [conn] = [c for c in (await client.get("/tenant/connections")).json() if c["id"] == relay["id"]]
+    assert (conn["name"], conn["base_url"]) == ("dd", "https://relay.example.com/v1")
+    assert _chat_route((await client.get("/tenant/routes")).json())["models"] == ["dd:a"]
+
+
+async def test_change_kind_needs_a_key_for_official_apis(client: AsyncClient) -> None:
+    await login(client)
+    keyless = await create(
+        client, name="local", kind="openai_compatible", base_url="https://llm.example.com/v1"
+    )
+    url = f"/tenant/connections/{keyless['id']}"
+
+    refused = await client.patch(url, json={"kind": "openai"})
+    assert refused.status_code == 422
+    assert "need an API key" in refused.json()["detail"]["message"]
+    bogus = await client.patch(url, json={"kind": "nope"})
+    assert bogus.status_code == 422
+
+    # Switching kind and supplying the key together is fine.
+    ok = await client.patch(url, json={"kind": "openai", "api_key": SECRET})
+    assert ok.status_code == 200, ok.text
+    assert (ok.json()["kind"], ok.json()["has_api_key"]) == ("openai", True)
+    back = await client.patch(url, json={"kind": "openai_compatible"})
+    assert back.json()["kind"] == "openai_compatible"

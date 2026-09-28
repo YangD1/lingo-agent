@@ -159,11 +159,19 @@ async def update_connection(
     params: CallParams | None = None,
     enabled: bool | None = None,
     default_model: str | None = None,
+    name: str | None = None,
+    kind: str | None = None,
 ) -> ProviderConnection:
-    """Partial update. The name is immutable: routes reference connections by name.
+    """Partial update of any field (ADR 0007 §4).
 
-    `default_model=""` clears the default model; None leaves it unchanged."""
+    Renaming rewrites the tenant's route overrides that reference the old name, in the same
+    transaction. `default_model=""` clears the default model; None leaves it unchanged."""
     endpoint_changed = False
+    if kind is not None and kind != conn.kind:
+        if kind not in PROVIDER_KINDS:
+            raise ProviderConfigError(f"kind must be one of {', '.join(PROVIDER_KINDS)}")
+        conn.kind = kind
+        endpoint_changed = True
     if base_url is not None:
         conn.base_url = await validate_base_url(base_url, allow_private=allow_private)
         endpoint_changed = True
@@ -181,11 +189,39 @@ async def update_connection(
         conn.enabled = enabled
     if default_model is not None:
         conn.default_model = _clean_model(default_model)
+    # Checked after both kind and key may have changed, so switching to a key-requiring
+    # kind and supplying its key can happen in one request.
+    if conn.kind in _KEY_REQUIRED and conn.encrypted_api_key is None:
+        raise ProviderConfigError(f"{conn.kind} connections need an API key")
+    if name is not None and name != conn.name:
+        await _rename(session, conn, _check_name(name))
+        endpoint_changed = True
     if endpoint_changed:  # the previous test result no longer applies
         conn.last_verified_at = None
         conn.last_error = None
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        raise ConflictError(f"a connection named {name!r} already exists") from exc
     return conn
+
+
+async def _rename(session: AsyncSession, conn: ProviderConnection, new_name: str) -> None:
+    """Point the tenant's route overrides at the new name. Usage history keeps the old one:
+    it records what was called at the time."""
+    old_prefix, new_prefix = f"{conn.name}:", f"{new_name}:"
+    routes = await session.scalars(
+        select(TenantModelRoute).where(TenantModelRoute.tenant_id == conn.tenant_id)
+    )
+    for route in routes:
+        if any(ref.startswith(old_prefix) for ref in route.models):
+            # A new list, so SQLAlchemy sees the JSONB column change.
+            route.models = [
+                new_prefix + ref[len(old_prefix) :] if ref.startswith(old_prefix) else ref
+                for ref in route.models
+            ]
+    conn.name = new_name
 
 
 async def delete_connection(session: AsyncSession, conn: ProviderConnection) -> None:
