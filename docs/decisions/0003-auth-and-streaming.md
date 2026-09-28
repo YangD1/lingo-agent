@@ -37,8 +37,9 @@ P0 需要多用户登录，对话回复要逐 token 流式输出。有两件事�
   - FastAPI 内置 SSE 在执行接口体**之前**就发出 200 响应头（接口体在一个 producer task 里跑），所以上面的 404 和 409 检查都放在 yield 依赖 `start_turn` 里。会话锁在它的 finally 里释放；yield 依赖挂在 request 级的 exit stack 上，流结束或客户端断开之后才退出。
   - 客户端断开时，FastAPI 通过 anyio cancel scope 取消 producer。这种取消是电平触发的，会连 LangGraph 自己的清理 await 一起打断，使节点 task 被遗弃、上游继续生成（冒烟时实测跑满了整段回复）。所以 `stream_reply` 把图放在独立的 asyncio task 里跑，断开时显式 cancel，并在 shield 的 scope 里等它清理完。
   - 断开后 LangGraph 只保存已完成的节点：用户消息保留，半截回复不保留。
+- **经 Next rewrites 代理时的缓冲问题**（任务 10.1 验证，Next 16.3.6）：`next dev` 和 `next start` 都通过内置的 `compression` 中间件对 `text/event-stream` 做 gzip，**整段回复被缓冲到结束才一次发出**。浏览器总会带 `Accept-Encoding: gzip`，所以这个问题必然出现。`compression` 遇到 `Cache-Control: no-transform` 会跳过压缩（RFC 9111 也规定中间层不得改写这类响应），因此后端在 `start_turn` 里追加 `Cache-Control: no-transform`，最终响应里是两行 Cache-Control：FastAPI 自带的 `no-cache` 和新加的这一行。加上之后 dev 和 start 都能逐块到达，并且整站其他响应的压缩不受影响，所以**不需要走“浏览器直连后端 + CORS”的备选方案**。同时验证了：客户端 abort 会经过代理传到后端，后端的 producer 会收到取消，“停止生成”在代理下同样有效。
 - 浏览器原生的 `EventSource` 只能发 GET，也不能带自定义请求体。所以前端改用 `fetch` 发 POST，拿到 `response.body` 后用 `eventsource-parser` 解析，用 `AbortController` 实现“停止生成”。
 
 ## 取舍
-- **cookie 与 localStorage + Bearer 的比较**：cookie 方案更安全，代价是必须经过同源代理。已知的风险是 Next rewrites 在代理 SSE 时可能缓冲输出，开了压缩时更明显。任务 7/8 时要先验证这一点。如果真的会缓冲，就只让 SSE 这一个接口由浏览器直连后端，走带凭据的 CORS，其余接口不变。
+- **cookie 与 localStorage + Bearer 的比较**：cookie 方案更安全，代价是必须经过同源代理。Next rewrites 代理 SSE 时的缓冲问题已在任务 10.1 实测确认，并用 `no-transform` 解决（见上文）；备选方案（只让 SSE 接口由浏览器直连后端、走带凭据的 CORS）不再需要。
 - **自定义 SSE 与 Vercel AI SDK 协议的比较**：AI SDK 的 `useChat` 能省掉前端代码，但后端必须按它的协议格式输出，而且要跟着它的版本升级。自定义事件协议很小，前后端各写大约 50 行就够，也方便在文档里讲清楚原理。以后如果要支持工具调用过程、引用来源这类富事件，只需在这个协议里加新的事件类型。

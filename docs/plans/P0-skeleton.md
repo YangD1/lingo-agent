@@ -269,6 +269,7 @@ event: error   data: {"code": "llm_unavailable", "message": "..."}
 - 用 `graph.astream(..., stream_mode="messages")` 取 token，只转发 `tutor` 节点的 AI 消息 chunk。
 - 调用时的 `config`：`configurable.thread_id`、`metadata={user_id, conversation_id}`、`tags=["chat"]`，LangSmith 自动带上。
 - 客户端断开：图在独立 task 里运行，断开时显式取消，确保上游生成真正停止（仅靠 anyio 的取消传播不够，见 ADR 0003 的实现细节）；checkpointer 只记录已完成的节点，不会存半截回复。
+- 响应头追加 `Cache-Control: no-transform`，否则 Next rewrites 代理会把 SSE gzip 压缩并缓冲整段回复（任务 10.1 实测，见 ADR 0003）。
 - 首条消息后用消息前 40 个字符做会话标题（不额外调 LLM）。
 
 ---

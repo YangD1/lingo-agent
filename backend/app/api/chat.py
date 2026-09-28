@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from pydantic import BaseModel, ConfigDict, Field
@@ -105,6 +105,7 @@ async def start_turn(
     conversation_id: uuid.UUID,
     body: MessageIn,
     request: Request,
+    response: Response,
     user: CurrentUser,
     tenant: CurrentTenant,
     session: SessionDep,
@@ -115,6 +116,10 @@ async def start_turn(
     404/409 must be raised here. Being a yield dependency on the request scope, the
     lock is released only after the stream ends - including client disconnects.
     """
+    # Appended to FastAPI's own "no-cache". Without no-transform, Next's rewrite proxy
+    # gzips the stream and buffers the whole reply (ADR 0003). Set here because the
+    # endpoint body runs only after the headers are sent.
+    response.headers["Cache-Control"] = "no-transform"
     conversation = await _owned(session, user, conversation_id)
     providers = await load_provider_context(session, tenant.id)
     try:

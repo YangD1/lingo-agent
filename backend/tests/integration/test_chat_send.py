@@ -176,6 +176,26 @@ async def test_reply_streams_as_tokens_then_done(
     assert done["message_id"] == messages[-1]["id"]
 
 
+async def test_stream_forbids_proxy_transforms(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Next's rewrite proxy gzips text/event-stream and buffers the whole reply
+    # unless Cache-Control carries no-transform (ADR 0003).
+    fake_models(monkeypatch)
+    await login(client)
+    await connect(client, "deepseek")
+    conversation_id = await new_conversation(client)
+
+    response = await client.post(
+        f"/conversations/{conversation_id}/messages", json={"content": "Hi"}
+    )
+
+    directives = {
+        d.strip() for value in response.headers.get_list("cache-control") for d in value.split(",")
+    }
+    assert {"no-cache", "no-transform"} <= directives
+
+
 async def test_first_message_titles_the_conversation_and_bumps_it(
     client: AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
