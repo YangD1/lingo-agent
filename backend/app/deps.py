@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.agents.chat_graph import ChatGraph
 from app.auth.security import InvalidTokenError, decode_access_token
 from app.auth.service import get_personal_tenant
 from app.db.models import Tenant, TenantMember, User
@@ -25,6 +26,14 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+def get_chat_graph(request: Request) -> ChatGraph:
+    graph: ChatGraph = request.app.state.chat_graph
+    return graph
+
+
+ChatGraphDep = Annotated[ChatGraph, Depends(get_chat_graph)]
 
 
 def _unauthorized() -> HTTPException:

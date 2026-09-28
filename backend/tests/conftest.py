@@ -3,7 +3,9 @@ from collections.abc import AsyncIterator
 
 import pytest
 from alembic import command
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from sqlalchemy import Connection, make_url, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -22,8 +24,10 @@ os.environ["JWT_SECRET"] = "test-secret-" + "x" * 32
 os.environ["CREDENTIALS_ENCRYPTION_KEYS"] = "test:" + "A" * 43 + "="
 
 # Imported after the environment is prepared.
+from app.agents.chat_graph import build_chat_graph  # noqa: E402
 from app.db.migrate import alembic_config, setup_checkpointer  # noqa: E402
 from app.db.session import create_engine, create_sessionmaker  # noqa: E402
+from app.db.urls import to_psycopg_conninfo  # noqa: E402
 from app.main import create_app  # noqa: E402
 
 BUSINESS_TABLES = (
@@ -86,13 +90,22 @@ async def db_session(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 
 
 @pytest.fixture
-async def client(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
-    """HTTP client against the app wired to the test DB (tables truncated after each test).
+async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator[FastAPI]:
+    """The app wired to the test DB (tables truncated after each test).
 
     ASGITransport doesn't run the lifespan, so app.state is set up here directly.
     """
     app = create_app()
     app.state.engine = db_engine
     app.state.sessionmaker = create_sessionmaker(db_engine)
+    async with AsyncPostgresSaver.from_conn_string(
+        to_psycopg_conninfo(TEST_DATABASE_URL)
+    ) as checkpointer:
+        app.state.chat_graph = build_chat_graph(checkpointer)
+        yield app
+
+
+@pytest.fixture
+async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c

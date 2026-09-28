@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-09-28 · P0 任务 9 进行中（9.2 完成）
+
+- **做了什么**：
+  - `app/chat/service.py`：`ConversationNotFoundError`（不存在和不是自己的会话不作区分）、`thread_config`、`list_conversations`（按 updated_at 倒序）、`create_conversation`、`get_owned_conversation`、`to_chat_messages`（只返回 user 和 assistant 消息，内容用 `.text` 拍平成纯文本）、`get_history`、`delete_conversation`（先删 checkpoint，再删行）。
+  - `app/api/chat.py`：`GET/POST /conversations`、`GET /conversations/{id}/messages`、`DELETE /conversations/{id}`；访问别人的会话一律返回 404。
+  - `app/deps.py` 新增 `ChatGraphDep`。
+  - conftest 拆出 `app` fixture（带真实的 Postgres checkpointer），`client` 基于它建。
+  - 新增 `tests/integration/test_chat_api.py`，共 7 个用例。全部 192 个测试通过，ruff 和 mypy 都干净。
+- **下一步**：9.3 发消息 SSE。
+- **踩坑**：删除用户时，会话行会级联删掉，但 **checkpoint 里的消息会变成孤儿**（和“个人租户变孤儿”是同一类问题）。以后做“注销账号”时，要先逐个会话调 `adelete_thread`。
+
+---
+
 ## 2026-09-28 · P0 任务 9 进行中（9.1 完成）
 
 - **已确认的决定**：SSE 用 FastAPI 0.141 内置的 `fastapi.sse.EventSourceResponse`（支持 POST，自带 keepalive），不再引入 sse-starlette；没配模型时在开流前返回 409 `no_llm_configured`；同一会话正在生成时再发送返回 409 `conversation_busy`，用进程内锁，多 worker 时改用 advisory lock，放到 P4。

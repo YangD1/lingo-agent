@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.agents.chat_graph import build_chat_graph
-from app.api import auth, health, providers, usage
+from app.api import auth, chat, health, providers, usage
 from app.credentials.crypto import get_keyring
 from app.db.migrate import create_checkpointer_pool
 from app.db.session import create_engine, create_sessionmaker
@@ -63,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(providers.router)
     app.include_router(usage.router)
+    app.include_router(chat.router)
     return app
 
 
