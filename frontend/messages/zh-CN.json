@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "title": "Lingo Agent",
+    "description": "开源的 AI 英语私教，会记住你。"
+  },
+  "home": {
+    "tagline": "你的 AI 英语私教：记得你会什么，也记得你总在哪里出错。",
+    "login": "登录",
+    "register": "注册"
+  },
+  "localeSwitcher": {
+    "label": "语言",
+    "en": "English",
+    "zh-CN": "简体中文"
+  },
+  "errors": {
+    "not_authenticated": "请先登录。",
+    "invalid_credentials": "邮箱或密码不正确。",
+    "email_taken": "这个邮箱已经注册过了。",
+    "forbidden": "你没有权限执行这个操作。",
+    "tenant_missing": "账号数据不完整，请联系管理员。",
+    "conversation_not_found": "这个会话不存在或已被删除。",
+    "connection_not_found": "这个模型连接不存在或已被删除。",
+    "route_not_found": "这个任务没有自定义模型设置。",
+    "connection_name_taken": "已经有同名的连接了。",
+    "invalid_provider_config": "模型配置无效。",
+    "no_llm_configured": "还没有配置聊天模型，请先到设置页添加模型连接。",
+    "conversation_busy": "上一条回复还在生成，请稍等。",
+    "llm_unavailable": "模型暂时不可用，请稍后再试。",
+    "validation_error": "有字段填写不正确，请检查后重试。",
+    "network_error": "连不上服务器，请检查网络后重试。",
+    "http_404": "找不到对应的内容。",
+    "http_500": "服务器出错了，请稍后再试。"
+  }
+}

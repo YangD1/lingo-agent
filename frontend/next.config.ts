@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 // Browser -> Next (same origin) -> backend, so the httpOnly auth cookie is sent
 // automatically and no CORS is needed (ADR 0003). Rewrites are resolved at
@@ -11,4 +12,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Reads src/i18n/request.ts (ADR 0006).
+export default createNextIntlPlugin()(nextConfig);

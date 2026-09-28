@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "title": "Lingo Agent",
+    "description": "An open-source AI English tutor that remembers you."
+  },
+  "home": {
+    "tagline": "Your AI English tutor. It remembers what you know and what you keep getting wrong.",
+    "login": "Log in",
+    "register": "Create account"
+  },
+  "localeSwitcher": {
+    "label": "Language",
+    "en": "English",
+    "zh-CN": "简体中文"
+  },
+  "errors": {
+    "not_authenticated": "Please log in to continue.",
+    "invalid_credentials": "Incorrect email or password.",
+    "email_taken": "This email is already registered.",
+    "forbidden": "You don't have permission to do this.",
+    "tenant_missing": "Your account is incomplete. Please contact the administrator.",
+    "conversation_not_found": "This conversation doesn't exist or was deleted.",
+    "connection_not_found": "This model connection doesn't exist or was deleted.",
+    "route_not_found": "There is no custom model setting for this task.",
+    "connection_name_taken": "A connection with this name already exists.",
+    "invalid_provider_config": "The model configuration is invalid.",
+    "no_llm_configured": "No chat model is set up yet. Add a model connection in Settings.",
+    "conversation_busy": "A reply is still being generated. Please wait.",
+    "llm_unavailable": "The model is unavailable right now. Please try again later.",
+    "validation_error": "Some fields are invalid. Please check your input.",
+    "network_error": "Can't reach the server. Check your connection and try again.",
+    "http_404": "Not found.",
+    "http_500": "Something went wrong on the server. Please try again later."
+  }
+}
