@@ -48,11 +48,14 @@
 | 包 | 版本 | 说明 |
 |---|---|---|
 | next | 16.3 | App Router |
-| react / react-dom | 19.3 | |
+| react / react-dom | 19.2 | create-next-app 实际装的版本 |
 | tailwindcss | 4.3 | v4，CSS-first 配置 |
-| shadcn（CLI） | 4.21 | button / input / card / scroll-area / sonner |
+| shadcn（CLI） | 4.21 | 预设 base-nova（底层 Base UI）；button / input / label / card / scroll-area / sonner / textarea |
+| next-intl | 4.14 | 中英 i18n，不做 URL 语言前缀，语言存在 cookie 里（ADR 0006） |
+| vitest / @testing-library/react | 5.0 / 16.3 | 单测，jsdom 环境 |
+| @playwright/test | 1.63 | E2E，只装 chromium |
 | eventsource-parser | 4.1 | 解析 POST 返回的 SSE 流（浏览器原生 `EventSource` 只支持 GET、不能带自定义头） |
-| typescript | **5.x**（见待确认 Q4） | npm 最新已是 7.0（Go 原生编译器），Next 16 工具链兼容性未验证 |
+| typescript | **5.9** | npm 最新已是 7.0（Go 原生编译器），Next 16 工具链兼容性未验证 |
 | eslint | 以 `create-next-app` 生成的为准 | |
 
 ### 基础设施镜像
