@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agents.chat_graph import ChatGraph
+from app.api.errors import api_error
 from app.auth.security import InvalidTokenError, decode_access_token
 from app.auth.service import get_personal_tenant
 from app.db.models import Tenant, TenantMember, User
@@ -37,9 +38,10 @@ ChatGraphDep = Annotated[ChatGraph, Depends(get_chat_graph)]
 
 
 def _unauthorized() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="not authenticated",
+    return api_error(
+        status.HTTP_401_UNAUTHORIZED,
+        "not_authenticated",
+        "not authenticated",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -70,7 +72,9 @@ async def get_current_tenant(user: CurrentUser, session: SessionDep) -> Tenant:
     """P0: every user acts in their personal tenant (ADR 0004)."""
     tenant = await get_personal_tenant(session, user.id)
     if tenant is None:  # registration creates it atomically, so this is data corruption
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "personal tenant missing")
+        raise api_error(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, "tenant_missing", "personal tenant missing"
+        )
     return tenant
 
 
@@ -82,7 +86,9 @@ async def require_tenant_manager(
 ) -> None:
     member = await session.get(TenantMember, (tenant.id, user.id))
     if member is None or member.role not in ("owner", "admin"):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "only tenant owners/admins can do this")
+        raise api_error(
+            status.HTTP_403_FORBIDDEN, "forbidden", "only tenant owners/admins can do this"
+        )
 
 
 # Route dependency: `dependencies=[Manager]`.

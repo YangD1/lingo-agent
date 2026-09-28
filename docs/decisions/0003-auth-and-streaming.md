@@ -40,6 +40,12 @@ P0 需要多用户登录，对话回复要逐 token 流式输出。有两件事�
 - **经 Next rewrites 代理时的缓冲问题**（任务 10.1 验证，Next 16.3.6）：`next dev` 和 `next start` 都通过内置的 `compression` 中间件对 `text/event-stream` 做 gzip，**整段回复被缓冲到结束才一次发出**。浏览器总会带 `Accept-Encoding: gzip`，所以这个问题必然出现。`compression` 遇到 `Cache-Control: no-transform` 会跳过压缩（RFC 9111 也规定中间层不得改写这类响应），因此后端在 `start_turn` 里追加 `Cache-Control: no-transform`，最终响应里是两行 Cache-Control：FastAPI 自带的 `no-cache` 和新加的这一行。加上之后 dev 和 start 都能逐块到达，并且整站其他响应的压缩不受影响，所以**不需要走“浏览器直连后端 + CORS”的备选方案**。同时验证了：客户端 abort 会经过代理传到后端，后端的 producer 会收到取消，“停止生成”在代理下同样有效。
 - 浏览器原生的 `EventSource` 只能发 GET，也不能带自定义请求体。所以前端改用 `fetch` 发 POST，拿到 `response.body` 后用 `eventsource-parser` 解析，用 `AbortController` 实现“停止生成”。
 
+### 3. 错误响应格式（任务 10.2 补充）
+- **所有**错误响应都是 `{"detail": {"code", "message"}}`。`code` 是稳定的机器可读标识，前端按它查找本地化文案；`message` 是英文，给 curl 用户、日志看，前端找不到对应文案时也用它兜底。
+- 业务错误用 `app/api/errors.py` 的 `api_error(status, code, message)` 抛出。现有的 code：`not_authenticated`、`invalid_credentials`、`email_taken`、`forbidden`、`tenant_missing`、`conversation_not_found`、`connection_not_found`、`route_not_found`、`connection_name_taken`、`invalid_provider_config`、`no_llm_configured`、`conversation_busy`；SSE 流内的 `error` 事件用 `llm_unavailable`。
+- 全局 handler 兜底：框架自己抛的错误（未知路由、方法不对等）包装成 `code=http_<status>`；请求校验失败统一为 422 `code=validation_error`，另带 `errors` 字段，内容是 FastAPI 原有的逐字段明细，方便表单标出出错的字段。
+- 新增错误时必须给 code，并在前端两份文案里加翻译。
+
 ## 取舍
 - **cookie 与 localStorage + Bearer 的比较**：cookie 方案更安全，代价是必须经过同源代理。Next rewrites 代理 SSE 时的缓冲问题已在任务 10.1 实测确认，并用 `no-transform` 解决（见上文）；备选方案（只让 SSE 接口由浏览器直连后端、走带凭据的 CORS）不再需要。
 - **自定义 SSE 与 Vercel AI SDK 协议的比较**：AI SDK 的 `useChat` 能省掉前端代码，但后端必须按它的协议格式输出，而且要跟着它的版本升级。自定义事件协议很小，前后端各写大约 50 行就够，也方便在文档里讲清楚原理。以后如果要支持工具调用过程、引用来源这类富事件，只需在这个协议里加新的事件类型。

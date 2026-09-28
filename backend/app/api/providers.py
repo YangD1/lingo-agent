@@ -7,6 +7,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
+from app.api.errors import api_error
 from app.credentials import service
 from app.credentials.crypto import get_keyring
 from app.credentials.service import CallParams, ConflictError, NotFoundError
@@ -105,7 +106,7 @@ class RoutePut(BaseModel):
 
 
 def _bad_request(exc: Exception) -> HTTPException:
-    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc))
+    return api_error(status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_provider_config", str(exc))
 
 
 @router.get("/provider-presets")
@@ -146,7 +147,7 @@ async def create_connection(
     except ProviderConfigError as exc:
         raise _bad_request(exc) from exc
     except ConflictError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+        raise api_error(status.HTTP_409_CONFLICT, "connection_name_taken", str(exc)) from exc
     return ConnectionOut.of(conn)
 
 
@@ -172,7 +173,7 @@ async def update_connection(
             enabled=body.enabled,
         )
     except NotFoundError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "connection_not_found", str(exc)) from exc
     except ProviderConfigError as exc:
         raise _bad_request(exc) from exc
     return ConnectionOut.of(conn)
@@ -189,7 +190,7 @@ async def delete_connection(
     try:
         conn = await service.get_connection(session, tenant.id, connection_id)
     except NotFoundError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "connection_not_found", str(exc)) from exc
     await service.delete_connection(session, conn)
 
 
@@ -200,7 +201,7 @@ async def verify_connection(
     try:
         conn = await service.get_connection(session, tenant.id, connection_id)
     except NotFoundError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "connection_not_found", str(exc)) from exc
     ok, error, latency_ms = await service.verify_connection(
         session, conn, keyring=get_keyring(), model=body.model
     )
@@ -265,4 +266,4 @@ async def delete_route(
     try:
         await service.delete_route(session, tenant_id=tenant.id, section=section, task=task)
     except NotFoundError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "route_not_found", str(exc)) from exc

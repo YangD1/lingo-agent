@@ -1,10 +1,11 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.api.errors import api_error
 from app.auth.security import create_access_token
 from app.auth.service import EmailTakenError, authenticate, register_user
 from app.db.models import User
@@ -54,10 +55,9 @@ class TokenOut(BaseModel):
     token_type: str = "bearer"
 
 
-_INVALID_CREDENTIALS = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    # Same message for unknown email and wrong password: don't reveal which emails exist.
-    detail="invalid email or password",
+# Same error for unknown email and wrong password: don't reveal which emails exist.
+_INVALID_CREDENTIALS = api_error(
+    status.HTTP_401_UNAUTHORIZED, "invalid_credentials", "invalid email or password"
 )
 
 
@@ -80,7 +80,9 @@ async def register(
     try:
         user = await register_user(session, body.email, body.password, body.display_name)
     except EmailTakenError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, "email already registered") from exc
+        raise api_error(
+            status.HTTP_409_CONFLICT, "email_taken", "email already registered"
+        ) from exc
     _set_auth_cookie(response, user, settings)
     return UserOut.model_validate(user)
 

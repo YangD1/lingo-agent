@@ -8,6 +8,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.agents.chat_graph import build_chat_graph
 from app.api import auth, chat, health, providers, usage
+from app.api.errors import install_error_handlers
 from app.chat.locks import ConversationLocks
 from app.credentials.crypto import get_keyring
 from app.db.migrate import create_checkpointer_pool
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(title="lingo-agent", version="0.1.0", lifespan=lifespan)
     app.state.conversation_locks = ConversationLocks()
+    install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(providers.router)

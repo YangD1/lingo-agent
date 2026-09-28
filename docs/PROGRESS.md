@@ -25,7 +25,7 @@
   - [x] 9.4 集成测试（假模型跑图、SSE 事件顺序、历史读回、越权、断开连接）和真实 uvicorn + curl 冒烟；同步 ADR 0003 / P0 计划
 - [~] 10. frontend：Next 16 + shadcn、登录/注册页、聊天页、模型设置页（含用量表）、SSE 客户端、proxy.ts
   - [x] 10.1 脚手架与代理验证：Next 16.3.6 + React 19.2 + Tailwind 4.3 + shadcn（base-nova，底层 Base UI）+ Vitest 5 + Playwright 1.63（chromium）；`/api/*` rewrite 到 `BACKEND_URL`（**构建时**确定）。**SSE 实测结论**：dev 和 `next start` 都会 gzip `text/event-stream`，并把整段回复缓冲到最后一次发出 → 后端 `start_turn` 追加 `Cache-Control: no-transform` 修复（单独提交 fix(chat)），不需要备选方案；abort 能经过代理传到后端。typecheck、lint、build、Vitest、Playwright 冒烟全部通过
-  - [~] 10.2 i18n（ADR 0006）：next-intl 4，**不做 URL 语言前缀**，语言存在 `NEXT_LOCALE` cookie 里，`getRequestConfig` 读取；首次访问时由 `proxy.ts` 按 Accept-Language 在 en / zh-CN 中选一个并写 cookie；`messages/en.json` 和 `messages/zh-CN.json`；语言切换器（Server Action 写 cookie 后刷新）；后端错误按 `code` 映射到文案，找不到就显示后端的 message；单测检查两份文案的 key 完全一致
+  - [~] 10.2 i18n（ADR 0006）：**前置**：后端所有错误统一为 `{detail:{code,message}}`（原来只有聊天 409 带 code），422 由全局 handler 转成 `validation_error`（已完成，单独提交）；next-intl 4，**不做 URL 语言前缀**，语言存在 `NEXT_LOCALE` cookie 里，`getRequestConfig` 读取；首次访问时由 `proxy.ts` 按 Accept-Language 在 en / zh-CN 中选一个并写 cookie；`messages/en.json` 和 `messages/zh-CN.json`；语言切换器（Server Action 写 cookie 后刷新）；后端错误按 `code` 映射到文案，找不到就显示后端的 message；单测检查两份文案的 key 完全一致
   - [ ] 10.3 `lib/api.ts`（fetch 封装，统一解析 `{detail:{code,message}}` 错误）+ `lib/sse.ts`（`streamChat`：fetch POST + eventsource-parser + AbortController）及其 Vitest 单测
   - [ ] 10.4 登录和注册页、`proxy.ts` 鉴权（没有 cookie 就跳 /login，和 10.2 的语言检测放在同一个 proxy 里）、登出
   - [ ] 10.5 聊天页：会话列表、消息区、输入框、流式渲染、停止生成；409 的两个错误码给出引导（跳到设置页）

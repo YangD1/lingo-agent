@@ -268,6 +268,7 @@ event: token   data: {"text": "lo!"}
 event: done    data: {"message_id": "...", "usage": {...}}
 event: error   data: {"code": "llm_unavailable", "message": "..."}
 ```
+- 所有接口的错误响应统一为 `{"detail": {"code", "message"}}`，前端按 code 做本地化（任务 10.2 补充，见 ADR 0003 §3）。
 - 开流前的错误走 HTTP：404（会话不存在或越权）、409 `no_llm_configured`、409 `conversation_busy`（同一会话同时只允许一个回复在生成，进程内锁；多 worker 时换成 advisory lock，放到 P4）。
 - 用 `graph.astream(..., stream_mode="messages")` 取 token，只转发 `tutor` 节点的 AI 消息 chunk。
 - 调用时的 `config`：`configurable.thread_id`、`metadata={user_id, conversation_id}`、`tags=["chat"]`，LangSmith 自动带上。

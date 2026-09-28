@@ -12,6 +12,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.errors import api_error
 from app.chat import service
 from app.chat.locks import ConversationLocks
 from app.chat.service import ConversationNotFoundError
@@ -47,7 +48,9 @@ async def _owned(
     try:
         return await service.get_owned_conversation(session, user.id, conversation_id)
     except ConversationNotFoundError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "conversation not found") from exc
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "conversation_not_found", "conversation not found"
+        ) from exc
 
 
 @router.get("")
@@ -98,7 +101,7 @@ class Turn:
 
 
 def _conflict(code: str, message: str) -> HTTPException:
-    return HTTPException(status.HTTP_409_CONFLICT, {"code": code, "message": message})
+    return api_error(status.HTTP_409_CONFLICT, code, message)
 
 
 async def start_turn(
