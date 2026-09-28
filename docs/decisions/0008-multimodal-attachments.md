@@ -1,6 +1,6 @@
 # 0008 · 用户消息的多模态输入：图片、语音、文档
 
-- **状态**：提议中（待用户确认）
+- **状态**：已采纳
 - **日期**：2026-09-29（同日修订：支持扫描版 PDF，处理改为后台任务）
 - **影响**：新增 `attachments` 表和附件接口；provider 层新增 `llm.vision` 任务和 `asr` 一节（ADR 0002 的 `speech.asr` 改为走租户连接，与 ADR 0004 “语音相关的 key 也由租户配置”一致）；PLAN 的 P3 中 “dev 本地 faster-whisper” 改为 “本地 OpenAI 兼容语音服务（speaches）”。其他 ADR 不变。
 

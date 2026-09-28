@@ -23,6 +23,7 @@
 | **阅读** | 定时/即时爬新闻 | 来源用 RSS（BBC / VOA Learning English / NPR / Guardian API 等）+ 正文抽取；**按用户 CEFR 等级分级改写**、生词自动标注并一键加入词本、阅读理解题、长难句拆解 |
 | **背单词** | 类墨墨记忆曲线 | 墨墨算法闭源 → 用开源 **FSRS**（Anki 新版在用，可讲清 DSR 记忆模型：难度/稳定性/可提取性）；词从阅读、对话中自动收集；AI 生成个性化例句（结合用户兴趣）；拼写、听音辨词、释义多题型 |
 | **语音** | 朗读、对话 | ASR + TTS 双 provider（本地/API 可切）；跟读 + **发音评测**（音素级打分）；情景口语角色扮演（面试、点餐、会议） |
+| **多模态输入**（新增，ADR 0008） | — | 消息可带图片、语音、文档（含扫描版 PDF）；每个附件生成一份派生文本（看图识别 / 语音转写 / 文字抽取），对话、记忆、错题、以后的文档 RAG 都读它；原图只在发送的那一轮随消息发给 `vision` 路由的模型 |
 | **写作**（新增） | — | 作文/邮件批改：错误标注、改写、分数；错误回写到学习者模型 |
 | **主动 Agent**（新增） | — | 每日学习计划生成（需用户确认，展示 human-in-the-loop）、复习到期提醒、周报 |
 | **企业级要素**（新增） | — | 多租户（个人租户，预留组织）+ 租户自配模型凭据（加密存储、SSRF 防护）、多用户鉴权、OpenTelemetry 链路追踪（默认关闭，开发时用本地 Phoenix）与**离线评估集**（批改准确率/分级准确率/幻觉率，pytest 驱动）、租户可见的 token 用量统计（`llm_usage`）、模型路由（便宜模型做分类，强模型做讲解）、限流、提示词版本管理、Docker 一键部署、CI |
@@ -51,7 +52,7 @@ FastAPI (Python 3.12, uv)
 ```
 
 ### “provider” 解释
-provider = 模型供应商适配层（配置格式、路由与降级语义见 ADR 0002；**key 由租户在应用内配置并加密存库，租户可自定义 base_url、模型和路由，见 ADR 0004；连接可自动发现模型、设默认模型，路由匹配不上时自动用默认模型兜底，见 ADR 0007**）。代码只调用统一接口（`get_llm("tutor")`），实际用哪家由 YAML/环境变量决定。LangChain 的 `init_chat_model` + OpenAI 兼容 `base_url` 可以覆盖 DeepSeek / Claude / OpenAI / 通义 / GLM / Ollama。再按**任务**配置模型：
+provider = 模型供应商适配层（配置格式、路由与降级语义见 ADR 0002；**key 由租户在应用内配置并加密存库，租户可自定义 base_url、模型和路由，见 ADR 0004；连接可自动发现模型、设默认模型，路由匹配不上时自动用默认模型兜底，见 ADR 0007；看图用 `llm.vision` 路由、语音转写用 `asr` 一节，都走租户连接且不自动兜底，见 ADR 0008**）。代码只调用统一接口（`get_llm("tutor")`），实际用哪家由 YAML/环境变量决定。LangChain 的 `init_chat_model` + OpenAI 兼容 `base_url` 可以覆盖 DeepSeek / Claude / OpenAI / 通义 / GLM / Ollama。再按**任务**配置模型：
 ```yaml
 llm:
   default: deepseek:deepseek-chat
@@ -59,8 +60,10 @@ llm:
     router: deepseek:deepseek-chat         # 意图分类，便宜
     tutor: anthropic:claude-sonnet-5         # 讲解质量
     memory_extract: openai:gpt-4o-mini
+    vision: anthropic:claude-sonnet-5       # 读图、回复带图的那一轮（ADR 0008）
+asr:                                        # OpenAI 兼容 /audio/transcriptions，走租户连接（ADR 0008）
+  default: groq:whisper-large-v3-turbo      # dev 可改为本地 speaches 连接
 speech:
-  asr: local_faster_whisper   # dev；prod: groq_whisper / siliconflow_sensevoice
   tts: local_kokoro           # dev；prod: edge_tts（免费）
   pronunciation: azure        # 免费档 F0 每月 5 小时；本地方案后置
   realtime: gemini_live       # 端到端语音对话；可选 openai_realtime / disabled
@@ -125,6 +128,7 @@ speech:
 - `word_books`（exam tag）、`user_word_book`（选中的词书、进度）、`word_enrichment_cache`（例句、记忆法）
 - `articles`（source, url, raw, level_versions JSONB）、`reading_sessions`
 - `feed_subscriptions`（user, topics, schedule cron）
+- `attachments`（conversation, message_id, kind[image/audio/document], mime, data bytea, status, text 派生文本, meta JSONB；见 ADR 0008）；以后做文档 RAG 时加 `attachment_chunks`（pgvector）
 - `speaking_sessions`, `pronunciation_scores`
 - LangGraph 自带：checkpoints 表、store 表（记忆）
 
@@ -142,7 +146,7 @@ LangGraph Supervisor 主图、记忆读写闭环（可视化“AI 记住了你�
 语法知识图谱构建；诊断 Agent（根因分析）；选题规划 + 练习生成与 critic 校验 + 多题型练习页；新闻 RSS 抓取 + 分级改写 + 自动收词；APScheduler 定时订阅任务；写作批改回写学习者模型；每日学习计划（interrupt 确认）。
 
 **P3 语音（双模式，配置切换）**
-- **模式 A · 级联管线**（默认，便宜、完全可控）：ASR → LangGraph（完整记忆/工具/trace）→ TTS。本地 faster-whisper + Kokoro，线上 Groq/SiliconFlow + edge-tts。用于朗读、跟读、半双工口语练习。
+- **模式 A · 级联管线**（默认，便宜、完全可控）：ASR → LangGraph（完整记忆/工具/trace）→ TTS。本地用 speaches 容器（faster-whisper，OpenAI 兼容接口，作为租户连接接入，见 ADR 0008）+ Kokoro，线上 Groq/SiliconFlow + edge-tts。语音消息的转写在 11B 已经实现，P3 在此基础上做朗读、跟读和口语。用于朗读、跟读、半双工口语练习。
 - **模式 B · 端到端实时语音**（像 ChatGPT 语音模式：低延迟、可打断、有语气）：`speech.realtime` provider 支持 Gemini Live（有免费档，首选）和 OpenAI gpt-realtime（-mini 更便宜）。浏览器通过 WebRTC/WebSocket 直连厂商，后端只签发临时 token，所以低配服务器也扛得住。
   - 和 Agent 体系的衔接：开会话时把用户画像、CEFR 等级、情景设定注入 system instructions；查词、记生词等能力用 realtime 的 function calling 回调后端；会话结束后，把转写文本送进 LangGraph 的 `reflect_memory` 节点，写回长期记忆和学习者模型。
   - 端到端模型不输出音素级分数，所以发音评测仍然走独立 provider（Azure 免费档）。
