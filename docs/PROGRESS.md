@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 骨架（任务 1–9 完成；任务 10 进行中：10.7 E2E 补缺）
+**当前阶段**：P0 骨架（任务 1–9 完成；任务 10 进行中：10.8 收尾）
 **阻塞项**：无（真实 key 冒烟测试改为任务 10 后在设置页里做）
 
 ## P0 骨架
@@ -30,8 +30,8 @@
   - [x] 10.4 登录和注册页（共用 `AuthForm`，错误按 code 显示对应文案）；`src/proxy.ts` 只做乐观检查（cookie 是否存在、JWT 的 exp 是否过期，不验签）：没登录访问 /chat、/settings 会跳到 `/login?next=…`（`safeNextPath` 防止开放重定向），已登录访问 /、/login、/register 会跳到 /chat；`(app)` 布局在服务端带 cookie 调后端 `/auth/me` 做权威校验，401 时跳到 `/session-expired` 清掉 cookie（否则签名无效但没过期的 token 会导致重定向死循环）；登出按钮。**提前完成了 10.7 的基础设施**：`e2e/run_backend.py`（每次重建 `lingo_e2e` 库，迁移后启动 uvicorn :8100）+ Playwright 的 webServer 同时拉起后端和前端。验证：Vitest 55 个、Playwright 5 个（含冷启动）、typecheck、lint 全部通过
   - [x] 10.5 聊天页：会话 id 放在 `/chat?c=<id>`，用 History API 同步（新建会话时页面不会重新挂载，流不会被打断；浏览器后退可用）；会话延迟创建，第一次发送时才建，开流前被拒绝（比如 409）就删掉空会话、撤回乐观显示的消息、把文字还回输入框；`no_llm_configured` 显示“去设置”按钮；停止生成后标注“未保存”（和后端只保存用户消息的行为一致）；Enter 发送，Shift+Enter 换行，输入法组字时按 Enter 不发送。核心逻辑在 `useChatSession`（5 个单测）。E2E 3 个（未配置模型时的引导、流式输出 + 刷新后历史还在 + 停止生成、切换和删除会话），用 `e2e/fake_llm.py`（10.7 的一部分，提前完成）
   - [x] 10.6 模型设置页：连接管理（选预设只需填 key；也可自定义 base_url；测试连接显示延迟；替换 key；删除）；chat 路由覆盖（按顺序填 `连接名:模型`，前端先校验格式，给出可选连接的建议，可恢复默认）；用量表（7/30/90 天，带合计行，手动刷新，因为用量是异步写入的）。`invalid_provider_config` 和 `validation_error` 会附上后端给的具体原因。新增 `ui/native-select.tsx`（原生 select，语言切换器也改用它）。E2E 2 个（全程在 UI 里配置假模型 → 聊天 → 用量表有数据；预设只需填 key，错误输入有提示）；typecheck、lint、Vitest 60 个、Playwright 共 10 个全部通过
-  - [~] 10.7 Playwright E2E：`frontend/e2e/fake_llm.py` 是一个假 OpenAI 兼容服务（逐字流式输出，带 usage），用 uv 运行；后端以 `PROVIDER_ALLOW_PRIVATE_NETWORKS=true` 启动并使用独立测试库。用例：注册 → 未配置模型时的引导 → 在设置页建连接（base_url 指向假服务）→ 流式对话 → 停止生成 → 刷新后历史还在 → 用量表有数据 → 切换语言 → 登出后访问受保护页会跳 /login
-  - [ ] 10.8 收尾：typecheck、lint、build、Vitest、Playwright 全部通过；经 Next 代理用 curl 端到端冒烟；同步 ADR 0003、P0 计划和看板
+  - [x] 10.7 Playwright E2E：基础设施在 10.4/10.5 已提前完成——`e2e/fake_llm.py`（假 OpenAI 兼容服务，流式 + 非流式，带 usage；消息含 “long” 时慢速逐字输出，用来测停止生成）、`e2e/run_backend.py`（独立 `lingo_e2e` 库、`PROVIDER_ALLOW_PRIVATE_NETWORKS=true`）、三个 webServer（假模型 :8101、后端 :8100、Next 生产构建 :3100）。用例共 11 个：auth 3（含登出后访问受保护页跳 /login、坏 token 不死循环）、chat 3、settings 2（UI 建连接 → 聊天 → 用量表）、i18n 3（本次补上：登录后在应用内切换语言，服务端布局和客户端组件都切换，会话和 URL 保持不变）。全部通过
+  - [~] 10.8 收尾：typecheck、lint、build、Vitest、Playwright 全部通过；经 Next 代理用 curl 端到端冒烟；同步 ADR 0003、P0 计划和看板
 - [ ] 11. docker-compose 全栈 + .env.example + Makefile（gen-key / rotate-credentials）
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）
 - [ ] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令
