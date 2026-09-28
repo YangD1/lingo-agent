@@ -10,6 +10,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -29,7 +30,7 @@ from app.db.base import Base, TimestampMixin
 TENANT_KINDS = ("personal", "org")
 MEMBER_ROLES = ("owner", "admin", "member")
 PROVIDER_KINDS = ("deepseek", "anthropic", "openai", "openai_compatible")
-ROUTE_SECTIONS = ("llm", "embedding")
+ROUTE_SECTIONS = ("llm", "embedding", "asr")
 USAGE_STATUSES = ("ok", "error")
 ATTACHMENT_KINDS = ("image", "audio", "document")
 ATTACHMENT_STATUSES = ("processing", "ready", "failed")
@@ -157,6 +158,9 @@ class LLMUsage(Base):
     # True when this model served the call because an earlier model in the chain failed.
     is_fallback: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     error_code: Mapped[str | None] = mapped_column(String(64))
+    # Speech-to-text is billed by audio length, not tokens; NULL when the vendor
+    # doesn't report it (ADR 0008 §5).
+    audio_seconds: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

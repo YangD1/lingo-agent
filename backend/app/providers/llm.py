@@ -64,7 +64,8 @@ def build_chat_model(
         **params,
         # Always explicit: otherwise SDKs read OPENAI_BASE_URL / DEEPSEEK_API_BASE / ...
         "base_url": resolved.base_url,
-        "tags": [f"task:{task}", f"connection:{resolved.connection}"],
+        # Also read back by get_structured_llm (the kind picks the structured-output method).
+        "tags": [f"task:{task}", f"connection:{resolved.connection}", f"kind:{resolved.kind}"],
         "callbacks": callbacks,
     }
     if resolved.api_key is not None:
@@ -134,7 +135,14 @@ def get_structured_llm[T: BaseModel](
     # langchain-core annotates the result as `dict | BaseModel` regardless of schema;
     # with a Pydantic schema (and include_raw=False) it is always an instance of `schema`.
     bound = [
-        cast(Runnable[LanguageModelInput, T], model.with_structured_output(schema))
+        cast(
+            Runnable[LanguageModelInput, T],
+            # ChatOpenAI defaults to OpenAI's `json_schema` response format, which most
+            # OpenAI-compatible servers and relays reject; tool calling is near-universal.
+            model.with_structured_output(schema, method="function_calling")
+            if "kind:openai_compatible" in (model.tags or [])
+            else model.with_structured_output(schema),
+        )
         for model in get_chat_models(ctx, task)
     ]
     return chain_with_fallbacks(bound)

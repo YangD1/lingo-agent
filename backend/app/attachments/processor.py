@@ -19,6 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import undefer
 
 from app.db.models import Attachment
+from app.providers.config import TenantProviderContext
+from app.providers.tenant import load_provider_context
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,11 @@ class ProcessingJob:
     data: bytes
     # (done, total), e.g. pages of a scanned PDF; shown by the UI while it polls.
     report_progress: Callable[[int, int], Awaitable[None]]
+    # The tenant's connections and routes, loaded when first needed (the request that
+    # uploaded the file is long gone, and a background job must not keep its session).
+    provider_context: Callable[[], Awaitable[TenantProviderContext]]
+    # Hold one slot per vision call: shared by every attachment in the process.
+    vision_slots: asyncio.Semaphore
 
 
 @dataclass(frozen=True)
@@ -131,8 +138,14 @@ class AttachmentProcessor:
     def _job(self, attachment: Attachment) -> ProcessingJob:
         attachment_id = attachment.id
 
+        tenant_id = attachment.tenant_id
+
         async def report_progress(done: int, total: int) -> None:
             await self._merge_meta(attachment_id, {"progress": {"done": done, "total": total}})
+
+        async def provider_context() -> TenantProviderContext:
+            async with self._sessionmaker() as session:
+                return await load_provider_context(session, tenant_id)
 
         return ProcessingJob(
             attachment_id=attachment.id,
@@ -144,6 +157,8 @@ class AttachmentProcessor:
             filename=attachment.filename,
             data=attachment.data,
             report_progress=report_progress,
+            provider_context=provider_context,
+            vision_slots=self.vision_slots,
         )
 
     async def _merge_meta(self, attachment_id: uuid.UUID, meta: dict[str, Any]) -> None:

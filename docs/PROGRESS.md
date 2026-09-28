@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 骨架（任务 1–11、11A 完成；进行中：11B.3 附件派生文本（vision / asr / 文档抽取）；之后任务 12 CI）
+**当前阶段**：P0 骨架（任务 1–11、11A 完成；进行中：11B.4 附件接入对话；之后任务 12 CI）
 **阻塞项**：无
 
 ## P0 骨架
@@ -53,8 +53,13 @@
 - [ ] 11B. 用户消息多模态输入（用户提出；需先设计：PLAN + ADR，消息内容结构、上传存储、模型能力路由）
   - [x] 11B.1 设计：ADR 0008 已采纳（用户选定：图片 + 语音 + 文档，文档含扫描版 PDF；“两者结合”；PostgreSQL bytea；附件处理用进程内后台任务 + 轮询），PLAN 已同步（需求表、provider 说明、YAML 示例、数据模型、P3 本地 ASR 改为 speaches）
   - [x] 11B.2 后端·附件存储与接口。完成：`Attachment` 模型 + 迁移 `…_attachments`（bytea 列 `STORAGE EXTERNAL`，未发送附件用部分索引）；`app/attachments/`：`sniff.py`（按魔数识别，MP3 帧头要求 Layer III，避免把 UTF-16 BOM 当成音频；DOCX 要求 zip 里有 `word/document.xml`；txt/md 必须是不含 NUL 的 UTF-8）、`images.py`（Pillow：先按 EXIF 转正再去 EXIF、长边 1600、统一 JPEG、透明背景铺白、GIF 取第一帧、5000 万像素上限；JPEG 用 `draft()` 缩小解码，4800 万像素的照片内存峰值从 164MB 降到 20MB）、`processor.py`（每个附件一个 asyncio 任务；处理函数按 MIME / 类型查找；`vision_slots` 信号量；进度 merge 到 `meta.progress`；取消时标 `processing_interrupted`；启动时 `fail_interrupted`）、`handlers.py`（目前只有 txt/md，其他类型到 11B.3 之前都失败为 `unsupported_file_type`）、`service.py`（按类型限大小 5/10/20MB、同一会话未发送附件最多 10 个、上传时顺带清理超过 24 小时未发送的附件、修改和删除只允许发送前）；`api/attachments.py`（上传 / 查询 / 内容（nosniff、文档用 attachment 下载、RFC 5987 文件名）/ PATCH 文本 / 重试 / 删除）。ADR 0008 §3 补充了错误码和“发送后不能改”。测试：单测 40 个（各格式识别、伪造类型、EXIF、方向、透明、解压炸弹、文件名清洗）+ 集成 21 个（上传到就绪、上限、越权 404、修改 / 重试 / 删除的状态、会话级联删除、24 小时清理、处理器进度 / 失败 / 中断 / 启动恢复）。pytest 312、ruff、mypy 通过
-  - [~] 11B.3 后端·派生文本：provider 层 `llm.vision` 路由 + `ImageReading` 结构化输出；新增 `asr` 一节 + `get_asr()`（OpenAI 兼容 `/audio/transcriptions`，SSRF 防护客户端）；`llm_usage.audio_seconds`；文档抽取（pypdfium2、python-docx，限制页数、字数和超时；按页判断是否扫描页，扫描页渲染后交给 vision 识别，带进度）；`no_vision_model` / `no_asr_model`；`GET /tenant/routes` 包含 vision、asr。测试用 mock transport 和假模型
-  - [ ] 11B.4 后端·对话接入：`MessageIn.attachment_ids`（校验同一会话、ready、未发送）；后端生成 HumanMessage id 并关联附件；tutor 节点组装消息（历史轮次只带派生文本，当前轮带原图并改用 vision 路由，文档每轮有字数上限）；历史接口返回附件；语音消息允许正文为空。集成测试用假模型
+  - [x] 11B.3 后端·派生文本。完成：
+    - **provider 层**：`Section` 加 `asr`（只允许 openai / openai_compatible，允许备用链）；`CAPABILITY_TASKS={("llm","vision")}`，不借用 default 路由，也不走 ADR 0007 的自动兜底；错误码 `no_vision_model` / `no_asr_model`；`app/providers/asr.py`（OpenAI SDK + SSRF 防护客户端，`response_format=json`，逐个模型降级，每次尝试都记 `llm_usage`，`audio_seconds` 取自 `usage.seconds` 或 `duration`）；openai_compatible 的结构化输出改用 `function_calling`（读模型的 `kind:` 标签）。
+    - **迁移**：`llm_usage.audio_seconds`，路由 section 的 CHECK 约束加上 `asr`（CHECK 约束不会被 autogenerate 检测到，手写，名字要用 `op.f()`）。
+    - **YAML（dev/prod）**：`llm.routes.vision`、`asr` 一节，新增 `groq` 预设，dev 另有 `speaches` 预设。
+    - **附件**：`reading.py`（`ImageReading`，提示词 `prompts/image_reading.md`，强调不纠正错误；持有 `vision_slots` 才调用；失败只返回 HTTP 状态码，不带厂商原文）、`documents.py`（pypdfium2 全局锁；每页非空白字符少于 20 个就当扫描页，按 150dpi 渲染、长边 1600；最多 50 页；识别加密 PDF；DOCX 按文档顺序抽取段落和表格，限制 XML 解压后的大小）、`handlers.py`（image / audio / pdf / docx；扫描页并发识别，带进度，TaskGroup 失败时取出其中的 `ProcessingFailed`；文字最多 200k 字符，超出截断）；`ProcessingJob` 新增 `provider_context()` 和 `vision_slots`。
+    - **测试**：单测：文档 11 个（测试里手写有文本层的 PDF，扫描版用 Pillow 存成 PDF）、vision / asr / 结构化输出 11 个；集成：处理函数 12 个、设置接口 2 个。pytest 348、ruff、mypy 通过。**未覆盖**：加密 PDF（没有能加密 PDF 的依赖）
+  - [~] 11B.4 后端·对话接入：`MessageIn.attachment_ids`（校验同一会话、ready、未发送）；后端生成 HumanMessage id 并关联附件；tutor 节点组装消息（历史轮次只带派生文本，当前轮带原图并改用 vision 路由，文档每轮有字数上限）；历史接口返回附件；语音消息允许正文为空。集成测试用假模型
   - [ ] 11B.5 前端·输入与展示：附件按钮 / 粘贴 / 拖拽 / 录音（MediaRecorder）；前端压缩图片；附件卡片（轮询状态和进度、识别结果查看和修改、重试、移除），有附件在识别时不能发送；消息里显示缩略图、音频播放器 + 转写、文档卡片；设置页路由编辑支持 vision、asr；中英文案。Vitest
   - [ ] 11B.6 E2E 与部署：`fake_llm.py` 支持看图回显和 `/audio/transcriptions`；E2E 覆盖三类附件（含扫描版 PDF）、未配置 vision 时的引导、识别结果修改；compose 新增 `asr` profile（speaches）并实测内存；重建镜像，交给用户实测
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）

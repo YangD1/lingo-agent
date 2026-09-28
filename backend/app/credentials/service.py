@@ -21,6 +21,7 @@ from app.providers.config import (
     ResolvedModel,
     RouteSpec,
     Section,
+    check_asr_route,
     check_embedding_route,
 )
 from app.providers.errors import ProviderConfigError
@@ -358,9 +359,10 @@ async def put_route(
     for ref in route.models:
         if ref.partition(":")[0] not in connections:
             raise ProviderConfigError(f"no connection named {ref.partition(':')[0]!r}")
-    if section == "embedding":
+    checks = {"embedding": check_embedding_route, "asr": check_asr_route}
+    if section in checks:
         try:
-            check_embedding_route(route, lambda n: connections[n].kind)
+            checks[section](route, lambda n: connections[n].kind)
         except ValueError as exc:
             raise ProviderConfigError(str(exc)) from exc
 

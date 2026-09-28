@@ -64,6 +64,11 @@ P0 的聊天只能收纯文本。用户希望消息里可以带：
 - 新增 `asr` 一节（和 `embedding` 一样是单独的一节，也不走自动兜底）。provider 层新增 `get_asr(ctx)`，调用 OpenAI 兼容的 `POST {base_url}/audio/transcriptions`（multipart），同样走 SSRF 防护客户端。支持这个接口的有 OpenAI、Groq（`whisper-large-v3-turbo`，接受 webm）、SiliconFlow，以及本地的 speaches（faster-whisper）。
 - **dev 环境的本地 ASR** 改为 compose profile `asr` 里的 speaches 容器，在设置页里把它加成一个连接。后端进程里不跑 whisper，所以 prod 和 dev 走同一条代码路径，唯一的区别是连接的地址。
 - 设置页的路由编辑（11A.5）从只能编辑 `chat` 扩展到 `chat`、`vision`、`asr` 三个任务。
+- **实现补充**：
+  - YAML 里的 `vision` 路由只写 Claude 和 GPT。`asr` 默认用 `groq:whisper-large-v3-turbo`，备用 `openai:gpt-transcribe`：OpenAI 现在推荐 `gpt-transcribe`，`whisper-1` 和 `gpt-4o(-mini)-transcribe` 已宣布在 2027-02 下线。
+  - 转写请求一律用 `response_format=json`，因为 `verbose_json` 只有 whisper 系支持。
+  - 新增预设 `groq`，以及只在 dev 使用的 `speaches`。
+  - 结构化输出（`ImageReading`）：openai_compatible 连接改用 `method="function_calling"`，因为 `ChatOpenAI` 默认的 `json_schema` 很多中转和非 OpenAI 模型不支持。连接类型通过模型的 `kind:<类型>` 标签传给 `get_structured_llm`。
 - 用量：读图调用照常记入 `llm_usage`（task=`vision`）。ASR 也记一条，`task=asr`，token 为 0；新增可为空的列 `audio_seconds`，厂商返回了时长就填上。
 
 ### 6. 前端

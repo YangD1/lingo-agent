@@ -57,6 +57,7 @@ class UsageRecord:
     status: str  # "ok" | "error"
     is_fallback: bool
     error_code: str | None
+    audio_seconds: float | None = None
 
 
 UsageSink = Callable[[UsageRecord], None]

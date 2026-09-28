@@ -21,7 +21,7 @@ presets:
     kind: openai
     label: OpenAI
     base_url: https://api.openai.com/v1
-    models: [gpt-5-mini, text-embedding-3-small]
+    models: [gpt-5-mini, text-embedding-3-small, gpt-transcribe]
   qwen:
     kind: openai_compatible
     label: Qwen (DashScope)
@@ -32,6 +32,16 @@ presets:
     label: Ollama (local; needs PROVIDER_ALLOW_PRIVATE_NETWORKS=true)
     base_url: http://localhost:11434/v1
     models: [qwen3]
+  groq:
+    kind: openai_compatible
+    label: Groq (speech-to-text)
+    base_url: https://api.groq.com/openai/v1
+    models: [whisper-large-v3-turbo]
+  speaches:
+    kind: openai_compatible
+    label: Speaches (local speech-to-text; compose profile `asr`, needs PROVIDER_ALLOW_PRIVATE_NETWORKS=true)
+    base_url: http://localhost:8200/v1
+    models: [Systran/faster-whisper-small]
 
 defaults:
   timeout: 30
@@ -43,6 +53,14 @@ llm:
     chat:
       models: [deepseek:deepseek-chat, anthropic:claude-sonnet-5, openai:gpt-5-mini]
       temperature: 0.7
+    # Reads images and answers the turn they were sent with (ADR 0008 §5). Only models
+    # known to accept images: this task never falls back to the default route.
+    vision:
+      models: [anthropic:claude-sonnet-5, openai:gpt-5-mini]
 
 embedding:
   default: openai:text-embedding-3-small
+
+# Speech-to-text over OpenAI's /audio/transcriptions (ADR 0008 §5); fallbacks allowed.
+asr:
+  default: [groq:whisper-large-v3-turbo, openai:gpt-transcribe]

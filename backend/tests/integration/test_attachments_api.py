@@ -242,11 +242,11 @@ async def test_unsent_attachment_can_be_deleted(client: AsyncClient) -> None:
 async def test_failed_attachment_can_be_retried(client: AsyncClient, app: FastAPI) -> None:
     await login(client)
     conversation = await new_conversation(client)
-    # No PDF handler until task 11B.3: processing fails with a code the UI can show.
+    # A PDF header with nothing behind it: processing fails with a code the UI can show.
     created = await uploaded(client, conversation["id"], b"%PDF-1.7\n", "a.pdf")
     failed = await settled(client, app, created["id"])
     assert failed["status"] == "failed"
-    assert failed["error"] == "unsupported_file_type"
+    assert failed["error"] == "document_unreadable"
     assert failed["meta"]["error_message"]
 
     retried = await client.post(f"/attachments/{created['id']}/retry")

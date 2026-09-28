@@ -567,3 +567,48 @@ async def test_change_kind_needs_a_key_for_official_apis(client: AsyncClient) ->
     assert (ok.json()["kind"], ok.json()["has_api_key"]) == ("openai", True)
     back = await client.patch(url, json={"kind": "openai_compatible"})
     assert back.json()["kind"] == "openai_compatible"
+
+
+def _route(routes: list[dict[str, Any]], section: str, task: str) -> dict[str, Any]:
+    return next(r for r in routes if (r["section"], r["task"]) == (section, task))
+
+
+async def test_vision_and_speech_routes_are_listed_and_never_guessed(client: AsyncClient) -> None:
+    await login(client)
+    # A chat-only relay: chat falls back to its default model (ADR 0007), but vision and
+    # speech-to-text must stay unconfigured rather than guess (ADR 0008 §5).
+    await create(
+        client,
+        name="relay",
+        kind="openai_compatible",
+        base_url="https://relay.example.com/v1",
+        api_key="sk-relay",
+        default_model="chat-model",
+    )
+
+    routes = (await client.get("/tenant/routes")).json()
+
+    assert _route(routes, "llm", "chat")["effective"] == ["relay:chat-model"]
+    for section, task in (("llm", "vision"), ("asr", "default")):
+        route = _route(routes, section, task)
+        assert (route["effective"], route["effective_source"]) == ([], None)
+
+    response = await client.put("/tenant/routes/llm/vision", json={"models": ["relay:qwen-vl-max"]})
+    assert response.status_code == 200, response.text
+    assert response.json()["effective"] == ["relay:qwen-vl-max"]
+    response = await client.put("/tenant/routes/asr/default", json={"models": ["relay:whisper-1"]})
+    assert response.status_code == 200, response.text
+    assert response.json()["effective_source"] == "override"
+
+
+async def test_speech_routes_need_a_transcription_api(client: AsyncClient) -> None:
+    await login(client)
+    await create(client, preset="deepseek", api_key="sk-deepseek")
+
+    response = await client.put(
+        "/tenant/routes/asr/default", json={"models": ["deepseek:deepseek-chat"]}
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "invalid_provider_config"
+    assert "speech-to-text" in response.json()["detail"]["message"]

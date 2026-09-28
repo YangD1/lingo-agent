@@ -15,9 +15,17 @@ from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 logger = logging.getLogger(__name__)
 
 ProviderKind = Literal["deepseek", "anthropic", "openai", "openai_compatible"]
-Section = Literal["llm", "embedding"]
+Section = Literal["llm", "embedding", "asr"]
+SECTIONS: tuple[Section, ...] = ("llm", "embedding", "asr")
 # Kinds whose SDK offers an embeddings API.
 EMBEDDING_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible"})
+# Kinds that can serve OpenAI's /audio/transcriptions (OpenAI, Groq, speaches, ...).
+ASR_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible"})
+# Tasks needing a capability that can't be inferred from a model's name (ADR 0008 §5):
+# they run only on models configured for them explicitly - never on the section's
+# default route nor on the connections' default chat models - because a model that
+# can't see images would invent what they show.
+CAPABILITY_TASKS: frozenset[tuple[str, str]] = frozenset({("llm", "vision")})
 
 
 class PresetSpec(BaseModel):
@@ -84,10 +92,11 @@ class ProvidersConfig(BaseModel):
     defaults: dict[str, Any] = {}
     llm: SectionSpec
     embedding: SectionSpec | None = None
+    asr: SectionSpec | None = None
 
     @model_validator(mode="after")
     def _check_refs(self) -> Self:
-        for section_name in ("llm", "embedding"):
+        for section_name in SECTIONS:
             section: SectionSpec | None = getattr(self, section_name)
             if section is None:
                 continue
@@ -101,10 +110,13 @@ class ProvidersConfig(BaseModel):
                         )
                 if section_name == "embedding":
                     check_embedding_route(route, lambda n: self.presets[n].kind)
+                if section_name == "asr":
+                    check_asr_route(route, lambda n: self.presets[n].kind)
         return self
 
     def section(self, name: Section) -> SectionSpec | None:
-        return self.llm if name == "llm" else self.embedding
+        spec: SectionSpec | None = getattr(self, name)
+        return spec
 
 
 def check_embedding_route(route: RouteSpec, kind_of: Any) -> None:
@@ -115,6 +127,13 @@ def check_embedding_route(route: RouteSpec, kind_of: Any) -> None:
     name = route.models[0].partition(":")[0]
     if kind_of(name) not in EMBEDDING_KINDS:
         raise ValueError(f"connection {name!r} does not support embeddings")
+
+
+def check_asr_route(route: RouteSpec, kind_of: Any) -> None:
+    for ref in route.models:
+        name = ref.partition(":")[0]
+        if kind_of(name) not in ASR_KINDS:
+            raise ValueError(f"connection {name!r} has no speech-to-text API")
 
 
 @dataclass(frozen=True)
@@ -171,7 +190,11 @@ def route_for(
         return override
     spec = config.section(section)
     if spec is None:
+        if section == "asr":  # optional: deployments may leave speech out entirely
+            raise NoModelConfiguredError(section, task, [])
         raise ProviderConfigError(f"no '{section}' section in providers config")
+    if (section, task) in CAPABILITY_TASKS and task not in spec.routes:
+        raise NoModelConfiguredError(section, task, [])
     return spec.route_for(task)
 
 
@@ -203,7 +226,7 @@ def resolve_route_with_source(
             )
             continue
         resolved.append(_resolved(config, conn, model, route))
-    if not resolved and section == "llm":
+    if not resolved and section == "llm" and (section, task) not in CAPABILITY_TASKS:
         source = "auto"
         resolved = [
             _resolved(config, conn, conn.default_model, route)

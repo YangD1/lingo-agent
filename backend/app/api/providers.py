@@ -14,6 +14,7 @@ from app.credentials.service import CallParams, ConflictError, NotFoundError
 from app.db.models import ProviderConnection
 from app.deps import CurrentTenant, CurrentUser, Manager, SessionDep, SettingsDep
 from app.providers.config import (
+    SECTIONS,
     ProvidersConfig,
     RouteSource,
     RouteSpec,
@@ -301,7 +302,7 @@ async def list_routes(tenant: CurrentTenant, session: SessionDep) -> list[TaskRo
     config = get_providers_config()
     ctx = await load_provider_context(session, tenant.id)
     out: list[TaskRouteOut] = []
-    for section in ("llm", "embedding"):
+    for section in SECTIONS:
         spec = config.section(section)
         if spec is None:
             continue

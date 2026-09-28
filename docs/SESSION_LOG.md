@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-09-29 · 11B.3 附件派生文本
+
+- **做了什么**：vision 路由（只认显式配置）、`asr` 一节 + `get_asr()`、图片 / 语音 / PDF（含扫描页）/ DOCX 的处理函数，以及对应测试。细节见看板 11B.3。
+- **未完成**：11B.4 对话接入：
+  - `app/api/chat.py` 的 `MessageIn` 加 `attachment_ids`，在 `start_turn` 里校验：附件属于同一会话、状态为 ready、还没发送；单条消息最多 5 个，其中图片最多 4 张；正文为空时必须有语音附件。
+  - `app/chat/turn.py` 由后端生成 HumanMessage 的 id，并写入 `attachments.message_id`。
+  - `app/agents/chat_graph.py` 的 tutor 节点组装附件：通过 ChatContext 传一个附件读取器，按消息 id 查附件；当前轮带图片时改用 `vision` 路由。
+  - `get_history` 返回附件信息。
+- **下一步**：11B.4 → 11B.5 前端 → 11B.6 E2E、speaches compose、重建镜像。
+- **踩坑**：
+  - 手写 PDF 时，`io.BytesIO(初始内容)` 的写入位置在 0，后续写入会覆盖文件头。
+  - alembic 的 `op.drop_constraint` / `create_check_constraint` 也会套用 naming convention，名字要包在 `op.f()` 里，否则会变成 `ck_表_ck_表_列`。
+  - TaskGroup 抛出的是 ExceptionGroup，处理器只认 `ProcessingFailed`，所以要先从组里取出来。
+  - OpenAI 已推荐改用 `gpt-transcribe`，`whisper-1` 等将在 2027-02 下线（第三方站点报道，OpenAI 文档确认了推荐模型）。
+
+---
+
 ## 2026-09-29 · 11A 收尾，11B.1 设计，11B.2 附件存储与接口
 
 - **做了什么**：

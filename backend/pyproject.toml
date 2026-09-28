@@ -27,6 +27,8 @@ dependencies = [
     "pydantic>=2.13,<3",
     "pydantic-settings>=2.15,<3",
     "pyjwt>=2.15,<3",
+    "pypdfium2>=5.13,<6",
+    "python-docx>=1.2,<2",
     "python-multipart>=0.0.20",
     "pyyaml>=6,<7",
     "sqlalchemy[asyncio]>=2.1,<2.2",
@@ -54,6 +56,11 @@ select = ["E", "F", "I", "B", "UP", "ASYNC", "RUF"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# Ships no type information (no py.typed); only used in app/attachments/documents.py.
+module = ["pypdfium2", "pypdfium2.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

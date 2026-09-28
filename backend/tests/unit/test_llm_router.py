@@ -173,7 +173,7 @@ def resolved(kind: Any, connection: str, model: str, **extra: Any) -> ResolvedMo
 def test_build_chat_model_picks_integration(kind: str, cls: type[BaseChatModel]) -> None:
     model = llm.build_chat_model(resolved(kind, kind, "some-model"), task="chat")
     assert type(model) is cls
-    assert model.tags == ["task:chat", f"connection:{kind}"]
+    assert model.tags == ["task:chat", f"connection:{kind}", f"kind:{kind}"]
 
 
 def test_openai_family_gets_guarded_async_and_blocked_sync_clients() -> None:
