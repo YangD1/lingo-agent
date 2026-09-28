@@ -26,12 +26,17 @@ P0 需要多用户登录，对话回复要逐 token 流式输出。有两件事�
     所以 P0 不另外加 CSRF token；以后如果有跨站嵌入的需求再重新评估。
 
 ### 2. 流式协议：自定义 SSE 事件
-- 发消息的接口是 `POST /conversations/{id}/messages`，响应格式为 `text/event-stream`，由 `sse-starlette` 生成。
+- 发消息的接口是 `POST /conversations/{id}/messages`，响应格式为 `text/event-stream`，用 FastAPI 0.141 内置的 `fastapi.sse.EventSourceResponse` 生成（支持 POST，空闲时自动发 keepalive 注释），不再引入 sse-starlette。
 - 事件类型：
   - `token {text}`：一段增量文本
   - `done {message_id, usage}`：回复结束
   - `error {code, message}`：出错
 - 后端用 `graph.astream(stream_mode="messages")` 拿 token，只转发 tutor 节点的 AI 消息。
+- 开流前能判定的错误用 HTTP 状态码返回，body 为 `{"detail": {"code", "message"}}`：会话不存在或不属于当前用户返回 404；租户没配聊天模型返回 409 `no_llm_configured`；同一会话已有回复在生成时返回 409 `conversation_busy`。开流之后出的错只能用 `error` 事件表达（`llm_unavailable`，文案固定，不转发厂商错误文本）。
+- **实现细节**（P0 任务 9）：
+  - FastAPI 内置 SSE 在执行接口体**之前**就发出 200 响应头（接口体在一个 producer task 里跑），所以上面的 404 和 409 检查都放在 yield 依赖 `start_turn` 里。会话锁在它的 finally 里释放；yield 依赖挂在 request 级的 exit stack 上，流结束或客户端断开之后才退出。
+  - 客户端断开时，FastAPI 通过 anyio cancel scope 取消 producer。这种取消是电平触发的，会连 LangGraph 自己的清理 await 一起打断，使节点 task 被遗弃、上游继续生成（冒烟时实测跑满了整段回复）。所以 `stream_reply` 把图放在独立的 asyncio task 里跑，断开时显式 cancel，并在 shield 的 scope 里等它清理完。
+  - 断开后 LangGraph 只保存已完成的节点：用户消息保留，半截回复不保留。
 - 浏览器原生的 `EventSource` 只能发 GET，也不能带自定义请求体。所以前端改用 `fetch` 发 POST，拿到 `response.body` 后用 `eventsource-parser` 解析，用 `AbortController` 实现“停止生成”。
 
 ## 取舍

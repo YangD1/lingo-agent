@@ -4,6 +4,27 @@
 
 ---
 
+## 2026-09-28 · P0 任务 9 完成（9.4 冒烟与两个断开相关的修复）
+
+- **做了什么**：
+  - 真实 uvicorn + 本地假 OpenAI 兼容服务（逐字慢速流式输出，支持 `stream_options.include_usage`）+ curl 端到端冒烟。走的是真实的 openai SDK、SSRF 防护过的传输层、stream_usage 和用量回调。验证了：注册 → 未配模型时返回 409 → 建连接和路由 → 流式回复（usage 42/16）→ 客户端中途断开 → 立即重发返回 200 → 历史 → `/tenant/usage`。
+  - **发现并修复两个 bug**（各自单独提交，都带修复前失败的回归测试）：
+    1. `fix(usage)`：被取消的调用漏记。`UsageRecorder` 改为同步 handler，并设 `run_inline=True`。
+    2. `fix(chat)`：客户端断开后，**上游模型仍然生成完整回复**（租户白付费）。`stream_reply` 改为在独立 task 里跑图，断开时显式 cancel，并在 shield 的 scope 里等它清理完；tutor 节点改用 astream 再合并 chunk，让取消能通知到回调。
+  - 同步了 ADR 0003（改用 fastapi.sse、开流前返回的 404 和 409 错误码、断开的实现细节）、ADR 0005（被取消的调用怎么记的两个条件）、P0 计划（sse-starlette 标为不再使用、§6.3）。
+  - 全部 208 个测试通过，ruff 和 mypy strict 都干净。
+- **未完成**：无。Next rewrites 转发 SSE 时是否会缓冲，留到任务 10 验证（ADR 0003 里的已知风险）。
+- **下一步**：任务 10 frontend（Next 16 + shadcn、登录和注册、聊天页、模型设置页含用量表、SSE 客户端、proxy.ts）。开工前先拆分子任务，和用户确认。
+- **踩坑**：
+  - **anyio 的取消是电平触发的**：在已取消的 scope 里，每一个会挂起的 await 都会再被取消一次。第三方库 finally 里的清理 await（比如 LangGraph 取消节点 task 的那部分）也会被打断，所以要自己管理子 task 的生命周期。普通 asyncio 的 `task.cancel()` 是边沿触发的，没有这个问题。进程内对照实验的脚本思路：anyio.move_on_after 与 task.cancel() 各跑一次，看模型是否中止。
+  - `ainvoke` 被取消时不会调用 `on_llm_error`（内部 gather 直接抛出），只有 `astream` 会。以后可能被用户取消的模型调用都用 astream。
+  - pydantic 模型的 `list[str]` 字段会在校验时被复制，测试想观察的可变对象要声明成 `Any`。
+  - 冒烟和测试共用 `lingo_test`：跑一次全量测试就会 TRUNCATE 冒烟数据，冒烟要在测试之后重新注册。
+  - zsh 不会对未加引号的变量做分词，`-H $J` 这种写法会把整个 header 当成一个参数，要写成 `-H "$CT"`。
+  - 清空一个正被别的进程写入的日志（`: > file`）后，文件前面会变成一段空字节，grep 会把它当二进制文件跳过，要用 `strings` 看。
+
+---
+
 ## 2026-09-28 · P0 任务 9 进行中（9.3 完成）
 
 - **做了什么**：

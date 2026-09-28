@@ -40,7 +40,7 @@
 | pgvector | 0.5 | SQLAlchemy 的 Vector 类型（P0 只建扩展，不建向量列） |
 | pyjwt | 2.15 | JWT |
 | pwdlib[argon2] | 0.3 | 密码哈希（FastAPI 官方教程现推荐，替代 passlib） |
-| sse-starlette | 3.4 | SSE 响应 |
+| ~~sse-starlette~~ | — | 不再使用：FastAPI 0.141 内置 `fastapi.sse`（任务 9 决定，见 ADR 0003） |
 | pyyaml | 6.x | 读 providers.yaml |
 | dev：pytest 9.1、pytest-asyncio 1.4、httpx 0.28、ruff 0.16、mypy 2.3 | | |
 
@@ -265,9 +265,10 @@ event: token   data: {"text": "lo!"}
 event: done    data: {"message_id": "...", "usage": {...}}
 event: error   data: {"code": "llm_unavailable", "message": "..."}
 ```
+- 开流前的错误走 HTTP：404（会话不存在或越权）、409 `no_llm_configured`、409 `conversation_busy`（同一会话同时只允许一个回复在生成，进程内锁；多 worker 时换成 advisory lock，放到 P4）。
 - 用 `graph.astream(..., stream_mode="messages")` 取 token，只转发 `tutor` 节点的 AI 消息 chunk。
 - 调用时的 `config`：`configurable.thread_id`、`metadata={user_id, conversation_id}`、`tags=["chat"]`，LangSmith 自动带上。
-- 客户端断开：sse-starlette 会取消生成任务；checkpointer 只记录已完成的节点，不会存半截回复。
+- 客户端断开：图在独立 task 里运行，断开时显式取消，确保上游生成真正停止（仅靠 anyio 的取消传播不够，见 ADR 0003 的实现细节）；checkpointer 只记录已完成的节点，不会存半截回复。
 - 首条消息后用消息前 40 个字符做会话标题（不额外调 LLM）。
 
 ---

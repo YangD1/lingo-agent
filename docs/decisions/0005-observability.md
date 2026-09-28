@@ -15,14 +15,17 @@
 
 ### A. 自建用量记录（必做，P0）
 - 新建 `llm_usage` 表，每次模型调用记一行：tenant_id、user_id、conversation_id、task、connection、model、输入/输出 token、耗时、状态（`status`：ok / error）、是否为 fallback（`is_fallback`：主模型失败后由备用模型完成的调用）、错误码、时间。
-- 通过 LangChain 回调（`AsyncCallbackHandler.on_llm_end` / `on_llm_error`）采集，数据来源是 `usage_metadata`。在后台批量写入，不阻塞回复。
+- 通过 LangChain 回调（`on_chat_model_start` / `on_llm_end` / `on_llm_error`）采集，数据来源是 `usage_metadata`。在后台批量写入，不阻塞回复。
 - **只记录元数据，不记录 prompt 和回复内容。**
 - 租户能在设置页看到自己的用量（P0 只做按天和按模型的汇总表格，图表放到 P4）。
 - 不在代码里内置价格表去换算金额：各厂商价格经常变，而且租户可能走中转代理，价格未必相同。只记 token 数；是否展示金额，以后作为租户可配置项再决定。
 - **实现细节**（P0 任务 8 第 5 步）：
   - 构建模型时，`get_chat_models` 给 fallback 链里的每个模型挂一个 `UsageRecorder`（`app/usage/recorder.py`）。tenant、task、connection、model 和链中位置（`is_fallback`）在构建时就确定了。
   - 模型按租户缓存、同一租户所有用户共用，所以 `user_id` 和 `conversation_id` 在调用时通过 `RunnableConfig.metadata` 传入。metadata 会传给所有子调用；LangGraph 还会把 `configurable.thread_id` 自动复制进 metadata，所以会话 id 取 `conversation_id`，没有时取 `thread_id`。缺失或格式不对就记为 NULL，不报错，因为后台任务本来就没有这两个 id。
-  - 错误只记异常类名，不记异常消息（消息里可能回显请求内容）。流被取消也会记一行 error（`CancelledError` / `GeneratorExit`），因为 langchain-core 的 `astream` 捕获的是 `BaseException`。
+  - 错误只记异常类名，不记异常消息（消息里可能回显请求内容）。
+  - **被取消的调用也要记**（客户端断开时，厂商已经为生成的 token 计费）。要做到这一点需要满足两个条件，都是冒烟时踩出来的：
+    1. recorder 是同步的 `BaseCallbackHandler`，并设 `run_inline = True`。langchain-core 先同步调用 inline handler，再 `asyncio.gather` 其余 handler；在 anyio 电平触发的取消下，gather 会先被取消，异步 handler 就跑不到。
+    2. 调模型用 `astream`，不用 `ainvoke`。`astream` 用 `except BaseException` 通知 `on_llm_error`；`ainvoke` 内部的 `await asyncio.gather(...)` 被取消时直接抛出，回调永远收不到。tutor 节点因此改为 astream 再合并 chunk。以后新增的节点只要可能被用户取消，都要这样写。
   - `stream_usage` 显式设为开启：我们总是自己传入 `base_url` 和 http client，ChatOpenAI 就不会自动开启它，流式调用会拿不到 token 数。个别服务不支持 `stream_options`，租户可以在连接参数里关掉。
   - `UsageWriter`（`app/usage/writer.py`）：用 asyncio 队列，攒满 50 行或每 2 秒批量写一次库。队列满了就丢弃并计数，写库失败只打日志，都不影响回复。lifespan 关闭时会把队列写完（最多等 5 秒）。
   - 连接的 `/test` 调用的也是租户的真实账户，所以同样会记录，task 为 `connection_test`。
