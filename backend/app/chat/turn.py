@@ -1,5 +1,6 @@
 """One conversation turn: the learner's message in, a streamed tutor reply out."""
 
+import asyncio
 import logging
 import re
 import uuid
@@ -7,6 +8,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Literal
 
+import anyio
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,6 +62,10 @@ async def begin_turn(session: AsyncSession, conversation: Conversation, text: st
     await session.commit()
 
 
+# Upper bound on waiting for LangGraph to unwind a cancelled run.
+_CANCEL_GRACE_SECONDS = 5.0
+
+
 async def stream_reply(
     graph: ChatGraph,
     *,
@@ -70,9 +76,53 @@ async def stream_reply(
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
-    If the client disconnects the run is cancelled; LangGraph only checkpoints finished
-    nodes, so the learner's message is kept but no half-written reply is.
+    The graph runs in a task of its own. When the consumer goes away (the client
+    disconnected and FastAPI cancelled the SSE producer), that task is cancelled
+    explicitly. Relying on the cancellation to propagate is not enough: FastAPI cancels
+    through an anyio cancel scope, which is level-triggered, so LangGraph's own cleanup
+    awaits get cancelled too and its node task - with the provider still streaming,
+    and billing - would be left running.
+
+    LangGraph only checkpoints finished nodes, so after a disconnect the learner's
+    message is kept but no half-written reply is.
     """
+    queue: asyncio.Queue[TurnEvent | None] = asyncio.Queue()  # None marks the end
+
+    async def produce() -> None:
+        try:
+            async for event in _run_graph(
+                graph,
+                conversation_id=conversation_id,
+                user_id=user_id,
+                providers=providers,
+                text=text,
+            ):
+                queue.put_nowait(event)
+        finally:
+            queue.put_nowait(None)
+
+    task = asyncio.create_task(produce(), name=f"chat-turn-{conversation_id}")
+    try:
+        while (event := await queue.get()) is not None:
+            yield event
+    finally:
+        if not task.done():
+            task.cancel()
+        # Shielded: under a cancelled anyio scope every unshielded await is cancelled.
+        with anyio.CancelScope(shield=True), anyio.move_on_after(_CANCEL_GRACE_SECONDS):
+            await asyncio.wait({task})
+        if task.done() and not task.cancelled() and task.exception() is not None:
+            logger.error("chat turn task failed", exc_info=task.exception())
+
+
+async def _run_graph(
+    graph: ChatGraph,
+    *,
+    conversation_id: uuid.UUID,
+    user_id: uuid.UUID,
+    providers: TenantProviderContext,
+    text: str,
+) -> AsyncIterator[TurnEvent]:
     message_id: str | None = None
     usage = {"input_tokens": 0, "output_tokens": 0}
     try:

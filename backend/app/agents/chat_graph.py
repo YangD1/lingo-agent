@@ -18,7 +18,12 @@ context carries decrypted API keys that must never be persisted (ADR 0004).
 from dataclasses import dataclass
 from typing import Any
 
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import (
+    BaseMessage,
+    BaseMessageChunk,
+    SystemMessage,
+    message_chunk_to_message,
+)
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -43,8 +48,22 @@ async def tutor(state: MessagesState, runtime: Runtime[ChatContext]) -> dict[str
     # The system prompt is prepended per call rather than stored in the thread, so
     # prompt edits apply to existing conversations too.
     llm = get_llm(runtime.context.providers, "chat")
-    reply = await llm.ainvoke([SystemMessage(load_prompt("tutor_system")), *state["messages"]])
-    return {"messages": [reply]}
+    messages = [SystemMessage(load_prompt("tutor_system")), *state["messages"]]
+    # astream, not ainvoke: if the learner disconnects, the run is cancelled, and only
+    # astream reports that to callbacks (ainvoke's internal gather is cancelled before
+    # on_llm_error runs), so llm_usage would miss a call the provider still bills for.
+    reply: BaseMessage | None = None
+    async for part in llm.astream(messages):
+        # Streaming models yield chunks to merge; others yield one complete message.
+        if reply is None:
+            reply = part
+        elif isinstance(reply, BaseMessageChunk) and isinstance(part, BaseMessageChunk):
+            reply = reply + part
+        else:
+            raise TypeError(f"cannot merge {type(part).__name__} into a streamed reply")
+    if reply is None:
+        raise ValueError("chat model returned no output")
+    return {"messages": [message_chunk_to_message(reply)]}
 
 
 def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
