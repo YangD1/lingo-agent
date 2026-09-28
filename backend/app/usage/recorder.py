@@ -20,7 +20,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from langchain_core.callbacks import AsyncCallbackHandler
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 
@@ -88,13 +88,25 @@ def _token_counts(response: LLMResult) -> tuple[int, int]:
     return 0, 0
 
 
-class UsageRecorder(AsyncCallbackHandler):
+class UsageRecorder(BaseCallbackHandler):
+    """Synchronous and inline on purpose.
+
+    langchain-core's async dispatch calls inline sync handlers directly, *before* it
+    `asyncio.gather`s the rest. A client disconnect cancels the SSE producer through
+    an anyio cancel scope, which is level-triggered: that gather is cancelled before
+    any async handler runs, so an async recorder silently loses cancelled calls - the
+    ones the provider still bills for. The work here is CPU-only (no I/O), so running
+    inline costs nothing.
+    """
+
+    run_inline = True
+
     def __init__(self, labels: UsageLabels, sink: UsageSink) -> None:
         self.labels = labels
         self._sink = sink
         self._pending: dict[uuid.UUID, _PendingRun] = {}
 
-    async def on_chat_model_start(
+    def on_chat_model_start(
         self,
         serialized: dict[str, Any],
         messages: list[list[BaseMessage]],
@@ -115,7 +127,7 @@ class UsageRecorder(AsyncCallbackHandler):
             conversation_id=_as_uuid(meta.get("conversation_id") or meta.get("thread_id")),
         )
 
-    async def on_llm_end(
+    def on_llm_end(
         self,
         response: LLMResult,
         *,
@@ -127,7 +139,7 @@ class UsageRecorder(AsyncCallbackHandler):
         input_tokens, output_tokens = _token_counts(response)
         self._finish(run_id, "ok", None, input_tokens, output_tokens)
 
-    async def on_llm_error(
+    def on_llm_error(
         self,
         error: BaseException,
         *,

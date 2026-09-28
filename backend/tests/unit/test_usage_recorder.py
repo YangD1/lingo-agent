@@ -1,7 +1,9 @@
+import asyncio
 import uuid
 from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
+import anyio
 import pytest
 from langchain_core.callbacks import AsyncCallbackManagerForLLMRun, CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel
@@ -150,6 +152,52 @@ async def test_error_records_class_name_but_no_content() -> None:
     assert (record.status, record.error_code) == ("error", "ProviderDown")
     assert (record.input_tokens, record.output_tokens) == (0, 0)
     assert PROMPT not in repr(record)
+
+
+class StallingChatModel(BaseChatModel):
+    """Streams one chunk, then stalls (a slow provider) until cancelled."""
+
+    @property
+    def _llm_type(self) -> str:
+        return "stalling"
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        raise NotImplementedError
+
+    async def _astream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: AsyncCallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[ChatGenerationChunk]:
+        yield ChatGenerationChunk(message=AIMessageChunk(content="Hel"))
+        await asyncio.sleep(10)
+        yield ChatGenerationChunk(message=AIMessageChunk(content="lo"))
+
+
+async def test_cancelled_stream_is_recorded_under_anyio_cancellation() -> None:
+    """A client disconnect cancels the SSE producer through an anyio cancel scope.
+
+    anyio cancellation is level-triggered: every await that suspends inside the
+    cancelled scope raises again, including langchain-core's `asyncio.gather` over
+    non-inline handlers in its `on_llm_error` dispatch. The recorder must still run.
+    """
+    records: list[UsageRecord] = []
+    labels = UsageLabels(TENANT, "chat", "openai", "m1")
+    model = StallingChatModel(callbacks=[UsageRecorder(labels, records.append)])
+
+    with anyio.move_on_after(0.05):
+        async for _ in model.astream([HumanMessage(PROMPT)]):
+            pass
+
+    assert [(r.status, r.error_code) for r in records] == [("error", "CancelledError")]
 
 
 async def test_fallback_chain_records_failure_and_backup() -> None:
