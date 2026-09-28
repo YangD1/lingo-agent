@@ -13,6 +13,31 @@
     "en": "English",
     "zh-CN": "简体中文"
   },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "displayName": "Name (optional)",
+    "passwordHint": "At least 8 characters.",
+    "login": {
+      "title": "Log in",
+      "description": "Welcome back. Pick up where you left off.",
+      "submit": "Log in",
+      "switchPrompt": "Don't have an account?",
+      "switchLink": "Create one"
+    },
+    "register": {
+      "title": "Create an account",
+      "description": "Start practicing English with your AI tutor.",
+      "submit": "Create account",
+      "switchPrompt": "Already have an account?",
+      "switchLink": "Log in"
+    }
+  },
+  "nav": {
+    "chat": "Chat",
+    "settings": "Settings",
+    "logout": "Log out"
+  },
   "errors": {
     "not_authenticated": "Please log in to continue.",
     "invalid_credentials": "Incorrect email or password.",
