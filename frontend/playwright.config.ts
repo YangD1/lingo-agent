@@ -35,9 +35,10 @@ export default defineConfig({
     },
     {
       // Rewrites are baked in at build time, so build against the e2e backend.
-      command: `pnpm build && pnpm start -p ${port}`,
+      // `pnpm start` runs the standalone server, the same artifact as the Docker image.
+      command: "pnpm build && pnpm start",
       url: `http://localhost:${port}`,
-      env: { BACKEND_URL: `http://127.0.0.1:${backendPort}` },
+      env: { BACKEND_URL: `http://127.0.0.1:${backendPort}`, PORT: String(port), HOSTNAME: "127.0.0.1" },
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
     },

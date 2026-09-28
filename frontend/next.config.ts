@@ -7,6 +7,14 @@ import createNextIntlPlugin from "next-intl/plugin";
 const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 const nextConfig: NextConfig = {
+  // Self-contained server (.next/standalone) for the Docker image: only the traced
+  // node_modules are copied, keeping the image and its memory footprint small.
+  output: "standalone",
+  experimental: {
+    // Build workers default to one per host core; cap them so `next build` fits on
+    // small servers and doesn't balloon memory on many-core dev machines.
+    cpus: Number(process.env.NEXT_BUILD_CPUS ?? 4),
+  },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${backendUrl}/:path*` }];
   },
