@@ -3,6 +3,23 @@
 > 新记录追加在**最上方**。每条包括：做了什么 / 未完成（精确到文件或函数）/ 下一步 / 踩坑。
 
 ---
+## 2026-09-28 · P0 任务 10.5–10.8（聊天页、设置页、E2E、收尾）→ 任务 10 完成
+
+- **做了什么**（每项单独提交）：
+  - 10.5 聊天页：`/chat?c=<id>`（History API，新建会话不重新挂载）；会话延迟创建，开流前被拒绝就删掉空会话并把文字还回输入框；`no_llm_configured` 引导去设置；停止生成标注“未保存”。核心在 `components/chat/use-chat-session.ts`。
+  - 10.6 设置页 `components/settings/`：连接（预设/自定义、测试、替换 key、删除）、chat 路由（fallback 链，可恢复默认）、用量表（7/30/90 天，手动刷新）。新增 `ui/native-select.tsx`。
+  - 10.7 E2E 共 11 个（auth 3、chat 3、settings 2、i18n 3），本次补了“登录后在应用内切换语言”。
+  - 10.8 全量检查 + 经 Next 代理的 curl 全栈冒烟（SSE 逐块到达）；P0 计划 §8/§10/任务表已同步。
+- **未完成**：无（任务 10 已 `[x]`）。待用户手动做一次真实 key 冒烟（设置页填 key → 聊天）。
+- **下一步**：任务 11 docker-compose 全栈 + `.env.example` + Makefile（`gen-key` / `rotate-credentials`）。前端 Dockerfile 要把 `BACKEND_URL` 作为 **build arg**（rewrites 在构建时确定），并用 `output: "standalone"`（`next.config.ts` 现在还没加）。
+- **踩坑**：
+  - Next 的 rewrites 目标在 `next build` 时写死：手动起生产服务冒烟时忘了带 `BACKEND_URL` 构建，结果代理指向了 :8000。
+  - 在 `( … &)` 子 shell 里调 `pnpm` 会命中 zsh profile 里的 nvm 懒加载函数（`_load_nvm` not found），要用绝对路径 `~/.nvm/versions/node/v24.14.0/bin/pnpm`。
+  - shadcn base-nova 的 `CardTitle` 是 `div` 不是 heading，E2E 用 `getByText` 定位。
+  - WSL 里的 headless chromium 没有中文字体，中文截图显示方框，只是环境问题。
+  - 后端历史接口里 assistant 消息的 id 是 LangChain 的 run id（`lc_run--…`），不是 UUID；前端只把它当不透明的 key，暂不影响。
+
+---
 ## 2026-09-28 · P0 任务 10.1–10.4（前端脚手架、i18n、API/SSE 客户端、鉴权）
 
 - **做了什么**（每项单独提交）：

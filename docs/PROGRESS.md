@@ -3,8 +3,8 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 骨架（任务 1–9 完成；任务 10 进行中：10.8 收尾）
-**阻塞项**：无（真实 key 冒烟测试改为任务 10 后在设置页里做）
+**当前阶段**：P0 骨架（任务 1–10 完成；下一步：任务 11 docker-compose 全栈）
+**阻塞项**：无（待用户手动：在设置页填自己的真实 key 做一次冒烟，代码和 E2E 已就绪）
 
 ## P0 骨架
 - [x] 方案设计确认（docs/PLAN.md）
@@ -23,7 +23,7 @@
   - [x] 9.2 会话 CRUD：`app/chat/service.py` + `app/api/chat.py`（列表、新建、历史消息、删除时同时 `adelete_thread`）；访问别人的会话一律 404
   - [x] 9.3 发消息 SSE：`POST /conversations/{id}/messages`，事件为 token / done / error；开流前先检查模型配置；首条消息生成标题并刷新 updated_at；metadata 带 user_id，让 llm_usage 记到人
   - [x] 9.4 集成测试（假模型跑图、SSE 事件顺序、历史读回、越权、断开连接）和真实 uvicorn + curl 冒烟；同步 ADR 0003 / P0 计划
-- [~] 10. frontend：Next 16 + shadcn、登录/注册页、聊天页、模型设置页（含用量表）、SSE 客户端、proxy.ts
+- [x] 10. frontend：Next 16 + shadcn、登录/注册页、聊天页、模型设置页（含用量表）、SSE 客户端、proxy.ts
   - [x] 10.1 脚手架与代理验证：Next 16.3.6 + React 19.2 + Tailwind 4.3 + shadcn（base-nova，底层 Base UI）+ Vitest 5 + Playwright 1.63（chromium）；`/api/*` rewrite 到 `BACKEND_URL`（**构建时**确定）。**SSE 实测结论**：dev 和 `next start` 都会 gzip `text/event-stream`，并把整段回复缓冲到最后一次发出 → 后端 `start_turn` 追加 `Cache-Control: no-transform` 修复（单独提交 fix(chat)），不需要备选方案；abort 能经过代理传到后端。typecheck、lint、build、Vitest、Playwright 冒烟全部通过
   - [x] 10.2 i18n（ADR 0006）：next-intl 4.14，不做 URL 语言前缀；`getRequestConfig` 按 `NEXT_LOCALE` cookie → Accept-Language → en 的顺序确定语言（**与原计划不同**：不在 proxy 里写 cookie，cookie 只在用户主动切换时由 Server Action 写入）；`messages/en.json` 和 `zh-CN.json`，`global.ts` 让 key 带类型检查；`useErrorMessage()` 按 code 查文案，找不到就显示后端的 message。**前置**：后端所有错误统一为 `{detail:{code,message}}`，422 转成 `validation_error`（单独提交）。验证：Vitest 17 个测试（语言协商、两份文案的 key 和占位符一致、错误映射）+ Playwright i18n E2E 2 个；typecheck、lint、build 都通过
   - [x] 10.3 `lib/api.ts`（`api<T>()` / `apiFetch()` / `ApiError{status,code,message,issues}`；非 JSON 错误归为 `http_<status>`，断网归为 `network_error`，abort 原样抛出）+ `lib/sse.ts`（`streamChat()` 是 async generator：fetch POST → TextDecoderStream → EventSourceParserStream；开流前的错误抛 ApiError；保证以 done 或 error 结束，流意外断开时补一个 `stream_interrupted`；忽略未知事件）。13 个单测，其中一个用真实 Node HTTP 服务验证：中途 abort 会抛 AbortError，并且服务端看到连接关闭
@@ -31,7 +31,7 @@
   - [x] 10.5 聊天页：会话 id 放在 `/chat?c=<id>`，用 History API 同步（新建会话时页面不会重新挂载，流不会被打断；浏览器后退可用）；会话延迟创建，第一次发送时才建，开流前被拒绝（比如 409）就删掉空会话、撤回乐观显示的消息、把文字还回输入框；`no_llm_configured` 显示“去设置”按钮；停止生成后标注“未保存”（和后端只保存用户消息的行为一致）；Enter 发送，Shift+Enter 换行，输入法组字时按 Enter 不发送。核心逻辑在 `useChatSession`（5 个单测）。E2E 3 个（未配置模型时的引导、流式输出 + 刷新后历史还在 + 停止生成、切换和删除会话），用 `e2e/fake_llm.py`（10.7 的一部分，提前完成）
   - [x] 10.6 模型设置页：连接管理（选预设只需填 key；也可自定义 base_url；测试连接显示延迟；替换 key；删除）；chat 路由覆盖（按顺序填 `连接名:模型`，前端先校验格式，给出可选连接的建议，可恢复默认）；用量表（7/30/90 天，带合计行，手动刷新，因为用量是异步写入的）。`invalid_provider_config` 和 `validation_error` 会附上后端给的具体原因。新增 `ui/native-select.tsx`（原生 select，语言切换器也改用它）。E2E 2 个（全程在 UI 里配置假模型 → 聊天 → 用量表有数据；预设只需填 key，错误输入有提示）；typecheck、lint、Vitest 60 个、Playwright 共 10 个全部通过
   - [x] 10.7 Playwright E2E：基础设施在 10.4/10.5 已提前完成——`e2e/fake_llm.py`（假 OpenAI 兼容服务，流式 + 非流式，带 usage；消息含 “long” 时慢速逐字输出，用来测停止生成）、`e2e/run_backend.py`（独立 `lingo_e2e` 库、`PROVIDER_ALLOW_PRIVATE_NETWORKS=true`）、三个 webServer（假模型 :8101、后端 :8100、Next 生产构建 :3100）。用例共 11 个：auth 3（含登出后访问受保护页跳 /login、坏 token 不死循环）、chat 3、settings 2（UI 建连接 → 聊天 → 用量表）、i18n 3（本次补上：登录后在应用内切换语言，服务端布局和客户端组件都切换，会话和 URL 保持不变）。全部通过
-  - [~] 10.8 收尾：typecheck、lint、build、Vitest、Playwright 全部通过；经 Next 代理用 curl 端到端冒烟；同步 ADR 0003、P0 计划和看板
+  - [x] 10.8 收尾：typecheck、lint、build、Vitest 60 个、Playwright 11 个全部通过；Next 生产构建 + 后端 + 假模型全栈 curl 冒烟（注册 → 建连接 → 设路由 → 建会话 → 流式）：token 每 0.1s 逐块到达，响应无 content-encoding、带 `no-transform`，历史已保存，404 为统一错误格式；同步 P0 计划 §8（`/chat?c=`、async generator、两层鉴权、i18n、`BACKEND_URL` 构建时确定）、§10 CI 前端 job、任务 10 验收标准；ADR 0003 此前已同步
 - [ ] 11. docker-compose 全栈 + .env.example + Makefile（gen-key / rotate-credentials）
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）
 - [ ] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令

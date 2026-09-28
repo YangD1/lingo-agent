@@ -288,11 +288,14 @@ event: error   data: {"code": "llm_unavailable", "message": "..."}
 
 ## 8. 前端
 
-- `create-next-app`（TS strict、Tailwind、ESLint、App Router、`src/`）→ `shadcn init` → 加 button / input / card / scroll-area / sonner。
-- 页面：`/login`、`/register`、`/chat`（左侧会话列表 + 右侧消息区，`/chat/[id]` 打开指定会话）。
-- 流式：`lib/sse.ts` 里 `fetch` POST → `response.body` → `eventsource-parser` → 回调 `onToken/onDone/onError`；支持 `AbortController` 停止生成。
+- `create-next-app`（TS strict、Tailwind、ESLint、App Router、`src/`）→ `shadcn init`（base-nova）→ button / input / label / textarea / card / scroll-area / sonner，另有自写的 `ui/native-select.tsx`。
+- 页面：`/`（落地页）、`/login`、`/register`、`/chat`（左侧会话列表 + 右侧消息区；**会话 id 放在查询参数 `/chat?c=<id>`**，用 History API 同步，新建会话时页面不重新挂载，流不会被打断）、`/settings`（模型连接、chat 路由、用量表）。
+- 流式：`lib/sse.ts` 的 `streamChat()` 是 **async generator**（fetch POST → `TextDecoderStream` → `EventSourceParserStream`），逐个 yield 事件，保证以 `done`/`error` 结束；`AbortController` 停止生成。状态管理在 `components/chat/use-chat-session.ts`。
 - 消息渲染 P0 用纯文本 + 换行，Markdown 渲染放 P1。
-- `proxy.ts`：没有 cookie 的请求访问 `/chat` 跳 `/login`（只看 cookie 在不在，真正校验在后端）。
+- 鉴权两层：`proxy.ts` 乐观检查（cookie 在不在、JWT exp 过没过期，不验签）；`(app)` 布局在服务端调 `/auth/me` 做权威校验，401 跳 `/session-expired` 清 cookie（防重定向死循环）。
+- i18n：next-intl，中英双语，语言存在 cookie 里、不做 URL 前缀（ADR 0006）；后端错误按 `code` 本地化。
+- 测试：Vitest（纯逻辑和 hook）+ Playwright E2E（`e2e/fake_llm.py` 假模型 + `e2e/run_backend.py` 独立测试库 + Next 生产构建，三个 webServer）。
+- **注意**：rewrites 的目标在 `next build` 时确定，`BACKEND_URL` 必须在构建时设置（任务 11 的 Dockerfile 要用 build arg）。
 
 ---
 
@@ -322,7 +325,7 @@ compose 要点：所有服务设 `mem_limit`；postgres 有 healthcheck，backen
 - **测试里不调用真实 LLM API**：provider 层提供测试注入点（conftest 里覆盖 `get_llm`），并且设置假的 API key，防止误调。
 - **CI**（`.github/workflows/ci.yml`）：
   - backend job：`uv sync --locked` → `ruff check` → `ruff format --check` → `mypy app` → `alembic upgrade head` → `pytest`
-  - frontend job：`pnpm install --frozen-lockfile` → `lint` → `tsc --noEmit` → `build`
+  - frontend job：`pnpm install --frozen-lockfile` → `lint` → `typecheck`（`next typegen && tsc --noEmit`）→ `test`（Vitest）→ `build`；E2E（Playwright，需要 postgres service + uv）可以单独一个 job
   - docker job：`docker compose build`（只验证能构建）
 
 ---
@@ -342,7 +345,7 @@ compose 要点：所有服务设 `mem_limit`；postgres 有 healthcheck，backen
 | 7 | 鉴权：注册时自动建个人租户和 owner 成员关系；实现 `get_current_user` 和 `get_current_tenant` | auth 测试通过 |
 | 8 | 凭据与 provider 层 v2：`crypto.py`（AES-GCM、AAD、主密钥轮换）；`net_guard.py`（保存时检查 URL，连接时检查 IP，ChatAnthropic 子类）；`TenantProviderContext` 和按租户的 LRU 缓存；连接和路由的 CRUD 以及 `/test` 接口 | 加密测试、SSRF 测试（私网、IPv6、rebinding 模拟）、路由解析测试、repr 和序列化结果不含 key |
 | 9 | 对话图（通过运行时 context 传 ctx）、AsyncPostgresSaver、会话 CRUD、SSE 接口 | 集成测试；确认 checkpoint 里没有 key；没配模型时返回 `no_llm_configured` |
-| 10 | 前端：登录和注册页、聊天页、**模型设置页**（连接列表、新增/编辑、测试连接、各任务路由编辑）、未配置模型时的引导 | lint、tsc、build 通过；浏览器里走通 Demo |
+| 10 | 前端：登录和注册页、聊天页、**模型设置页**（连接列表、新增/替换 key、测试连接、chat 路由编辑、用量表）、未配置模型时的引导、中英 i18n | lint、tsc、build、Vitest、Playwright E2E 通过；经 Next 代理 curl 冒烟 SSE 逐块到达 |
 | 11 | docker-compose 全栈、`.env.example`、Makefile（含 `gen-key`、`rotate-credentials`） | `docker compose up` 后走通 Demo |
 | 12 | GitHub Actions CI | CI 全绿 |
 | 13 | README（英文 + zh-CN）；补充 CLAUDE.md 的常用命令 | 照着 README 能从零跑起来 |
