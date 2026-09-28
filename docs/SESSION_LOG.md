@@ -1,0 +1,230 @@
+# 会话交接日志
+
+> 新记录追加在**最上方**。每条包括：做了什么 / 未完成（精确到文件或函数）/ 下一步 / 踩坑。
+
+---
+
+## 2026-09-28 · P0 任务 9 进行中（9.1 完成）
+
+- **已确认的决定**：SSE 用 FastAPI 0.141 内置的 `fastapi.sse.EventSourceResponse`（支持 POST，自带 keepalive），不再引入 sse-starlette；没配模型时在开流前返回 409 `no_llm_configured`；同一会话正在生成时再发送返回 409 `conversation_busy`，用进程内锁，多 worker 时改用 advisory lock，放到 P4。
+- **做了什么（9.1）**：
+  - `app/agents/chat_graph.py`：`ChatContext(providers)`、`tutor` 节点、`build_chat_graph(checkpointer)`、`ChatGraph` 类型别名。system prompt 每次调用时拼在最前面，不存进会话，所以改提示词对老会话也生效。
+  - `app/prompts/__init__.py`（`load_prompt`）和 `tutor_system.md`。
+  - `app/db/migrate.py` 新增 `create_checkpointer_pool`（autocommit、dict_row、prepare_threshold=0）。settings 和 `.env.example` 新增 `CHECKPOINT_POOL_MAX_SIZE=4`。
+  - lifespan 负责打开连接池，建好 `app.state.chat_graph`，关闭时关连接池；checkpoint 表仍由 migrate 创建。
+  - conftest 在每个测试后同时 TRUNCATE checkpoint 表（保留 `checkpoint_migrations`）。
+  - `tests/integration/test_chat_graph.py` 共 4 个用例：多轮对话按 thread 累积；system prompt 发给模型但不入库；token 来自 tutor 节点；**checkpoint 三张表（包括解码后的 blob）里都没有 key**。
+  - 全部 185 个测试通过，ruff 和 mypy 都干净；用真实 lifespan 冒烟通过。
+- **下一步**：9.2 会话 CRUD（`app/chat/service.py`、`app/api/chat.py`）。
+- **踩坑**：
+  - **反向验证**：把 key 放进 `configurable` 后，“key 不入 checkpoint”的测试会失败，因为 LangGraph 会把 configurable 写进 checkpoint 的 metadata。这印证了 ADR 0004 的判断：ctx 只能走运行时 context。
+  - PreToolUse 钩子会拦截 `sk-live-...` 这种形状的测试值，改用不像厂商 key 格式的标记串。
+  - `graph.astream` 的返回类型覆盖了所有 stream_mode，在 messages 模式下要用 isinstance 把 metadata 收窄成 dict，mypy 才能通过。
+  - 用户要求按关键节点提交，方便事后 review 和学习。任务 1–8 是事后按主题拆成 8 个提交补上的，中间的提交不保证能单独运行；从 9.1 开始，每个子任务单独提交一次。
+
+---
+
+## 2026-09-28 · P0 任务 8 完成（第 5 步 llm_usage）
+
+- **做了什么**：
+  - `app/usage/recorder.py`：
+    - `UsageLabels`、`UsageRecord`、`UsageRecorder`：`on_chat_model_start` 按 run_id 记下开始时间和从 metadata 取到的 id；`on_llm_end` 从 `usage_metadata` 取 token 数；`on_llm_error` 只记异常类名。
+    - `set_usage_sink`、`submit_usage`、`make_recorder`。
+    - 方案按用户确认的 A：缺少 `user_id` 或 `conversation_id` 时照常记录，该列留空；会话 id 也可以从 LangGraph 的 `thread_id` 取。
+  - `app/usage/writer.py`：`UsageWriter`（`submit`、`start`、`stop`、`flush`），攒满或定时批量写库；队列满时丢弃并计数；写库失败时 writer 继续运行。
+  - `app/usage/service.py`：`summarize_usage`；`app/api/usage.py`：`GET /tenant/usage`。
+  - `llm.py`：`build_chat_model` 新增 `callbacks` 参数，默认 `stream_usage=True`；`get_chat_models` 给每个模型挂 recorder，并按链中位置标 `is_fallback`。`CallParams` 白名单加了 `stream_usage`。
+  - 连接的 `/test` 也会记录用量（task 为 `connection_test`）。
+  - `require_tenant_manager` 和 `Manager` 从 `api/providers.py` 移到 `app/deps.py`。
+  - lifespan 负责启动 writer、安装 sink；关闭时先卸载 sink，再在 5 秒内把队列写完。
+  - ADR 0005 A 节：状态改为 `status` 加 `is_fallback`，补了实现细节。
+  - 新增 `tests/unit/test_usage_recorder.py`（15 个用例）和 `tests/integration/test_usage.py`（10 个用例）。全部 181 个测试通过，用量相关测试连跑 3 次都稳定；ruff 和 mypy strict（app 和 tests）都干净。另外用脚本在测试库上跑了真实 lifespan，确认关闭时会把队列写完。
+- **未完成**：无。Makefile 的 `rotate-credentials` 和 `gen-key` 按原计划放在任务 11。
+- **下一步**：任务 9，对话图。调用时要传 `config={"configurable": {"thread_id": str(conversation.id)}, "metadata": {"user_id": str(user.id)}}`，用量记录就能拿到这两个 id。
+- **踩坑**：
+  - P0 里每个用户都是自己个人租户的 owner，而 `get_current_tenant` 按“owner 身份加个人租户”查找，所以通过 HTTP 走不到 403 这条路径。如果把角色降成 member，接口会直接返回 500（找不到个人租户）。目前的测试是直接调用 `require_tenant_manager`。做组织租户时，要改 `get_current_tenant` 的查找方式。
+  - 用系统代理或设置了 `no_proxy` 时，langchain-openai 会打印一条“injected a custom httpx transport”警告。**这是误报**：它在检查我们是否自带 client 之前就打印了（`langchain_openai/chat_models/base.py:1496`），实际用的仍然是我们防护过的 client，已有测试覆盖。
+  - 测试里 monkeypatch 了 `get_providers_config` 后，不要在测试函数体里调 `llm.reset_caches()`，因为这时它已被替换成普通函数，没有 `cache_clear`。应该用 autouse fixture，在 monkeypatch 还原之后再清理。
+
+---
+
+## 2026-09-28 · P0 任务 8 进行中（第 4 步完成，补记）
+
+- **说明**：上一会话写完第 4 步后没来得及写交接记录，本条是新会话按代码实际状态补记的。
+- **做了什么**：
+  - `app/credentials/service.py`：连接的增删改查（`create_connection` / `update_connection` / `delete_connection`、`key_hint`），保存时用 `validate_base_url` 检查 URL；`verify_connection`；路由覆盖的 `list_route_overrides` / `put_route` / `delete_route`、`known_tasks`。
+  - `app/api/providers.py`：`/provider-presets`、`/tenant/connections`（CRUD 与 `/{id}/test`）、`/tenant/routes`（GET、PUT、DELETE `/{section}/{task}`）。除 presets 外都要求 owner/admin（`require_tenant_manager`）。
+  - `app/credentials/rotate.py`：`rotate_credentials`，以及命令行 `python -m app.credentials.rotate`。Makefile 入口放到任务 11。
+  - `tests/integration/test_model_settings_api.py` 共 14 个用例。全部 156 个测试通过，ruff 和 mypy strict 都干净（本会话复核过）。
+- **下一步**：第 5 步 llm_usage，方案待用户确认。
+- **踩坑（本会话发现）**：因为我们显式传了 `base_url` 和 `http_async_client`，ChatOpenAI **不会自动开启 `stream_usage`**（`langchain_openai/chat_models/base.py:1431-1450`），流式调用拿不到 token 数。第 5 步要显式处理。
+
+---
+
+## 2026-09-28 · P0 任务 8 进行中（第 3 步完成）
+
+- **做了什么**：
+  - YAML 改为 `presets`（kind、base_url、label、推荐模型）加默认路由，已经不含任何 key。
+  - `config.py` 改写：新增 `PresetSpec`、`ConnectionSpec`、`TenantProviderContext`、`ResolvedModel`、`route_for`、`resolve_route(config, ctx, section, task)`、`check_embedding_route`。
+  - `errors.py` 新增 `NoModelConfiguredError`，带 `code` 字段（`no_llm_configured` / `no_embedding_configured`）。
+  - `cache.py` 实现 `TTLCache`。
+  - `tenant.py` 实现 `load_provider_context`：解密 key；已停用或解密失败的连接直接跳过；version 由各行的 updated_at 算指纹。
+  - `llm.py` 改写：`build_chat_model` 注入防护过的 httpx2 client，显式传 base_url；anthropic 改用 `GuardedChatAnthropic`；`get_llm`、`get_structured_llm`、`get_chat_model`、`get_chat_models` 都改成 `(ctx, task)` 参数，缓存键为 `(tenant, task, version)`。
+  - `embedding.py` 同样改成 ctx 版本。
+  - lifespan 启动时不再校验路由，改为调用 `get_providers_config()`，只检查 YAML 结构。
+  - 新迁移 `fe27d411cdcc`：`provider_connections.base_url` 改为 NOT NULL。
+  - 新增 `app/db/schema_filter.py`，让 Alembic 忽略 LangGraph 的表；测试库现在也会建 checkpoint 表。
+  - 共 131 个测试全部通过。
+- **下一步**：第 4 步是连接和路由的 CRUD 接口，外加 `/provider-presets`、`/test` 和 `make rotate-credentials`；第 5 步是 llm_usage。
+- **踩坑**：**Alembic autogenerate 差点生成 DROP LangGraph checkpoint 表的迁移**（会删掉所有对话历史）。已经用 `include_object` 过滤，并加了回归测试 `test_autogenerate_never_drops_langgraph_tables`。以后每次 autogenerate 后都要审一遍生成的迁移文件。
+
+---
+
+## 2026-09-28 · P0 任务 8 进行中（第 1–2 步完成）
+
+- **做了什么**：
+  - 第 1 步：`app/credentials/crypto.py` 实现了 `Keyring`（encrypt、decrypt、needs_rotation）、`parse_keyring`、`get_keyring`、`connection_aad`、`generate_key_entry`，以及命令行 `python -m app.credentials.crypto gen-key`。settings 新增 `credentials_encryption_keys` 和 `provider_allow_private_networks`；lifespan 启动时调 `get_keyring()`，没有主密钥就拒绝启动（放在 lifespan 而不是 Settings 校验里，这样迁移命令不需要密钥）。conftest 里设置了测试专用的密钥。
+  - 第 2 步：`app/providers/net_guard.py` 实现了 `is_forbidden_ip`（专门处理了 IPv4-mapped 和 NAT64）、`resolve`（测试可替换）、`validate_base_url`、`GuardedNetworkBackend`、`make_async_http_client`（替换连接池的 `_network_backend`；不跟随重定向；trust_env=False）、`make_blocked_sync_client`。`app/providers/clients.py` 实现了 `GuardedChatAnthropic`，覆盖 `_async_client`，同步调用直接抛错。
+  - 新增 `tests/unit/test_crypto.py` 和 `tests/unit/test_net_guard.py`。
+- **未完成**：第 3–5 步：YAML 改为“预设 + 默认路由”并加上 TenantProviderContext 和缓存；连接和路由的 CRUD 以及 /test；llm_usage。
+- **下一步**：第 3 步。`build_chat_model` 需要：对 openai 和 deepseek 传 `http_async_client=make_async_http_client(...)` 和 `http_client=make_blocked_sync_client()`；anthropic 改用 `GuardedChatAnthropic(...).with_http_client(...)`；**base_url 必须显式传入**，否则 SDK 会去读 OPENAI_BASE_URL / ANTHROPIC_BASE_URL 环境变量。
+- **踩坑**：
+  - **openai 3.19 和 anthropic 1.8 这两个 SDK 已经从 httpx 换成了 `httpx2` / `httpcore2`（API 完全相同的分支），并会对 http_client 做 isinstance 检查，传原版 httpx 的 client 会被拒收**。所以防护代码必须基于 httpx2，已加为显式依赖，也有测试 `test_sdks_accept_our_http_client_type` 覆盖。
+  - Python 的 `ipaddress` 把 NAT64 地址（64:ff9b::/96）判为 is_global=True，即使它里面嵌的是 127.0.0.1。
+  - ruff 的 ASYNC109 规则在实现 httpcore 接口时属于误报，已加带原因的 noqa。
+
+---
+
+## 2026-09-28 · P0 任务 7（鉴权）
+
+- **做了什么**：
+  - `app/auth/security.py`：`hash_password`、`verify_password`（返回 `(ok, new_hash)`，参数升级后会给出新哈希）、`burn_verify_time`、`create_access_token`、`decode_access_token`（限定算法为 HS256，要求 sub、exp、iat 三个声明，并检查 type 为 access）。
+  - `app/auth/service.py`：`register_user`（同一事务里建 user、个人 tenant 和 owner 成员关系；邮箱是否重复以唯一索引为准）、`authenticate`、`get_personal_tenant`、`normalize_email`。
+  - `app/api/auth.py`：register、login、token、logout、me 五个接口。
+  - `app/deps.py`：`AUTH_COOKIE`、`get_current_user`（先看 Bearer，再看 cookie）、`get_current_tenant`，以及 `SessionDep`、`SettingsDep`、`CurrentUser`、`CurrentTenant` 几个类型别名。
+  - settings：prod 下 JWT 密钥至少 32 字节；新增 `cookie_secure` 属性。
+  - 新增 `tests/unit/test_security.py` 和 `tests/integration/test_auth_api.py`，conftest 里加了 `client` fixture，并设置了测试用的 JWT_SECRET。共 63 个测试全部通过，重复执行也稳定；ruff 和 mypy strict 都干净。
+  - 用真实 uvicorn 和 curl 走了一遍完整流程：readyz、注册、cookie、me（cookie 和 Bearer 两种方式）、登出。ADR 0003 补了实现细节和 CSRF 的分析。
+- **未完成**：无。
+- **下一步**：任务 8（最大的一项），建议按这个顺序拆开做：
+  1. `app/credentials/crypto.py`（AES-GCM，AAD 用 `tenant_id:connection_id`，密钥 id 加轮换）和 `make gen-key`；
+  2. `app/providers/net_guard.py`（保存时检查 URL；连接时用自定义 `httpcore.AsyncNetworkBackend` 检查 IP；ChatAnthropic 子类）；
+  3. YAML 改为“预设 + 默认路由”，`config.py` 和 `llm.py` 改成用 `TenantProviderContext`，缓存改成 LRU + TTL，键为 `(tenant_id, task, version)`，删掉启动时的 `validate_llm_routes`；
+  4. 连接和路由的 CRUD 接口，以及 `/test`；
+  5. `llm_usage` 回调和用量查询接口。
+- **踩坑**：
+  - conftest 设置了 `JWT_SECRET` 环境变量，依赖默认值的 settings 测试要显式传参。
+  - 删除用户时只会级联删掉 tenant_members，**个人租户会变成孤儿**。以后做“注销账号”时要同时删除个人租户（P1 前补上）。
+  - `pkill -f` 又杀掉了执行它的 shell，清理命令要分开跑。
+
+---
+
+## 2026-09-28 · P0 任务 6（数据库）
+
+- **做了什么**：
+  - compose 加了 postgres（`pgvector/pgvector:pg16`，实际版本 16.15，pgvector 0.8.6），宿主机端口默认 5433；init 脚本会建 `lingo_test` 库。
+  - `app/db/`：
+    - `base.py`：命名约定、`TimestampMixin`。
+    - `models.py`：Tenant、User、TenantMember、Conversation、ProviderConnection、TenantModelRoute、LLMUsage。
+    - `session.py`：`create_engine`、`create_sessionmaker`。
+    - `urls.py`：`to_psycopg_conninfo`。
+    - `migrate.py`：`alembic_config`、`setup_checkpointer`、`main`。
+    - Alembic async 的 `env.py`：支持通过 `config.attributes` 注入 URL 或现成的连接。
+    - 首个迁移 `20260928_0849934f390e_initial_schema.py`，包含 vector 扩展。
+  - `app/api/health.py` 新增 `/readyz`；`app/deps.py` 新增 `get_session`；`main.py` 新增 `init_state`，lifespan 负责创建和释放 engine。
+  - `tests/conftest.py`：`db_engine`（session 级，每次先降级到 base 再升级到 head）、`db_session`（每个测试结束后 TRUNCATE），以及只允许 `_test` 库的安全阀。
+  - 新增测试：迁移往返、模型与迁移是否一致、唯一约束、CHECK 约束、级联删除、删除用户后用量记录保留（user_id 置空）、readyz 的 200 和 503。共 45 个测试全部通过，重复执行也稳定；ruff 和 mypy strict 都干净。
+  - `python -m app.db.migrate` 已在开发库上跑过，8 张业务表和 4 张 checkpoint 表都已创建。
+- **未完成**：`/readyz` 只用 ASGI 测试验证过，没用 uvicorn 实际起服务验证，因为 lifespan 里的 `validate_llm_routes()` 在没有厂商 key 的环境变量时会失败，这个过渡状态要到任务 8 才解决。Makefile 放在任务 11。
+- **下一步**：任务 7（鉴权）：`uv add` pyjwt 和 `pwdlib[argon2]`；写 `app/auth/security.py`（`hash_password`、`verify_password`、`create_token`、`decode_token`）、`app/auth/service.py`（`register_user` 在同一个事务里建 user、个人 tenant 和 owner 成员关系；`authenticate`）、`app/api/auth.py`（register、login、logout、me，cookie 加 Bearer）；`deps.py` 加 `get_current_user` 和 `get_current_tenant`。
+- **踩坑**：
+  - 本机 5432 端口被别的项目的容器 `docker-db-1` 占着，不要去动它，本项目用 5433。
+  - Alembic 的 post_write_hooks 必须先跑 format 再跑 check，否则会误报 E501。
+  - 在已经运行的事件循环里跑 Alembic，要用 `conn.run_sync(run_alembic, ...)` 并通过 `config.attributes["connection"]` 传入连接，不能调用 `asyncio.run`。
+  - `alembic init` 不支持 `-q` 参数。
+
+---
+
+## 2026-09-28 · P0 任务 5（可选 OTel tracing）
+
+- **做了什么**：
+  - `app/settings.py` 新增 `otel_tracing_enabled`（默认 False）、`otel_exporter_otlp_endpoint`、`otel_service_name`。
+  - `app/observability.py`：`setup_tracing(settings, span_processor=None)` 和 `shutdown_tracing(provider)`。TracerProvider 显式传给 LangChainInstrumentor，不修改 OTel 的全局 provider。lifespan 里接好了初始化和关闭。
+  - `docker-compose.yml` 首次创建，目前只有 phoenix 服务（profile `observability`，镜像 `version-20.16.0`，mem_limit 1g）。
+  - `tests/unit/test_observability.py`：用内存 exporter 验证 LangGraph 根图、节点和模型调用都会生成 span、带上 metadata、属于同一条 trace。
+  - 手动端到端验证：真实 OTLP 导出到 Phoenix，用 REST API 能查回三个 span。测试共 36 个全部通过；ruff 和 mypy 都干净。
+- **未完成**：Makefile 还没写（任务 11），目前启动 Phoenix 的命令是 `docker compose --profile observability up -d`。
+- **下一步**：任务 6：在 compose 里加 postgres（pgvector/pgvector:pg16）；`uv add` sqlalchemy[asyncio]、alembic、psycopg[binary,pool]；写 `app/db/{base,session,models}.py` 和 Alembic async 迁移，建 users、tenants、tenant_members、conversations、provider_connections、tenant_model_routes、llm_usage 七张表；实现 `/readyz`。
+- **踩坑**：
+  - `docker manifest inspect` 在这台机器上总是失败，要确认镜像 tag 是否存在，直接 `docker pull`。Phoenix 的 tag 格式是 `version-X.Y.Z`，镜像约 1.5GB。
+  - 在 backend 目录外跑脚本时需要 `PYTHONPATH=.`。
+  - OpenInference 的实现方式是包装 `BaseCallbackManager.__init__`，是全局 monkeypatch。测试结束后必须调用 `shutdown_tracing` 撤销，否则会影响后面的测试。
+
+---
+
+## 2026-09-28 · 设计变更：可观测性去 LangSmith；任务 4 完成
+
+- **做了什么**：
+  - 用户确认：语音 key 同样由租户配置；不用 LangSmith（它是闭源 SaaS，自托管需要企业版授权），采用 A+B 方案。
+  - 写了 ADR 0005：A 是自建 `llm_usage` 用量表，租户可见；B 是可选的 OTel tracing，默认关闭，dev 用本地 Phoenix。
+  - ADR 0004 改为“已采纳”。ADR 0002 被取代的部分用删除线标出；ADR 0001 也加了指向新 ADR 的说明。
+  - 同步了 PLAN.md、CLAUDE.md、README 和 P0 计划 §14。`.env.example` 重写：只留部署方配置，新增 CREDENTIALS_ENCRYPTION_KEYS、PROVIDER_ALLOW_PRIVATE_NETWORKS、OTEL_*，删除所有厂商 key 和 LANGSMITH_*。
+  - conftest 中强制关闭 OTel 和 LangSmith 的上报。
+- **未完成**：`config/providers.*.yaml` 仍然带 `api_key_env`，`app/providers/config.py` 仍然从环境变量解析 key，`main.py` 仍在启动时调 `validate_llm_routes()`。这些都在任务 8 统一改。现在服务在没有厂商 key 的环境变量时启动不了，这是预期中的过渡状态。
+- **下一步**：任务 5：`uv add` openinference-instrumentation-langchain、opentelemetry-sdk、opentelemetry-exporter-otlp-proto-http；写 `app/observability.py` 的 `setup_tracing(settings)`；compose 里加 phoenix 服务（profile `observability`）；实测 LangGraph 节点能不能产生 span。
+- **踩坑**：已核实的许可证：openinference-instrumentation-langchain 0.1.76、opentelemetry-sdk 1.45 和 OTLP HTTP 导出器 1.45 都是 Apache-2.0。Phoenix 服务端是 ELv2，只作为独立容器按需运行。
+
+---
+
+## 2026-09-28 · 设计变更：多租户凭据
+
+- **做了什么**：用户决定：模型厂商的 key 不放在配置里，由租户自己配置。具体是个人租户（预留组织）、只用租户自己的 key、租户可以自定义 base_url、模型和路由，在 P0 做完最小闭环。据此写了 ADR 0004（状态：提议），修订了 `docs/plans/P0-skeleton.md` 的 §11 和 §13，同步了 PLAN.md、CLAUDE.md 和看板（任务重新编号为 1–13）。原来的 3b“真实 key 冒烟”已删除。
+- **未完成**：ADR 0004 等用户确认。代码还没改：`app/providers/config.py` 仍有 `api_key_env`，`main.py` 仍在启动时调 `validate_llm_routes()`，`.env.example` 里还有厂商 key。这些都在任务 4 和任务 8 里改。
+- **下一步**：用户确认 ADR 0004 后，执行任务 4：ADR 0004 改为“已采纳”，改写 ADR 0002 被取代的部分，YAML 改为“预设 + 默认路由”，从 `.env.example` 删除厂商 key。
+- **踩坑**：ChatAnthropic 没有 `http_async_client` 字段，它在私有 cached_property `_async_client` 里自己构造 httpx client；要做 SSRF 防护只能写子类覆盖它。ChatOpenAI 和 ChatDeepSeek 可以直接传 `http_async_client`。httpcore 的 `AsyncConnectionPool` 支持 `network_backend` 参数，可以用它在连接时检查 IP。
+
+---
+
+## 2026-09-28 · P0 任务 3（provider 层）
+
+- **做了什么**：
+  - `app/providers/config.py`：`ProvidersConfig`、`RouteSpec`（路由可写成字符串、列表或对象）、`load_providers_config`、`resolve_route`（跳过没有 key 的模型并打 warning；整条链都不可用时抛 `ProviderConfigError`）。
+  - `app/providers/llm.py`：`build_chat_model`、`get_chat_models`（有缓存）、`get_llm`、`get_structured_llm`（先给每个模型绑定 schema，再串降级链）、`get_chat_model`、`validate_llm_routes`、`reset_caches`。
+  - `app/providers/embedding.py`：`get_embeddings`，只允许单模型、不做降级链。
+  - `config/providers.{dev,prod}.yaml`；`.env.example` 新增 APP_ENV、PROVIDERS_CONFIG、DASHSCOPE_API_KEY。
+  - `main.py` 的 lifespan 在启动时校验所有 LLM 路由。ADR 0002 补了两条：embedding 不做降级链、embedding 延迟校验。
+  - 测试共 34 个，全部通过；ruff 和 mypy strict 都干净。
+- **未完成**：3b 真实 key 冒烟测试（需要 `.env`）；YAML 里的模型名（`deepseek-chat`、`claude-sonnet-5`、`gpt-5-mini`、`qwen-plus`）还没用真实 API 核对过。
+- **下一步**：用户建好 `.env` 后跑冒烟测试：`cd backend && uv run python -c "import asyncio; from app.providers.llm import get_llm; print(asyncio.run(get_llm('chat').ainvoke('Say hi in 3 words')).content)"`。之后做任务 4（`app/observability.py`）。
+- **踩坑**：
+  - langchain-core 1.6 在每个流末尾都会多发一个 content 为空的 chunk。任务 7 的 SSE 转发必须过滤掉空 chunk。
+  - `with_structured_output` 的类型注解写的是返回 `dict | BaseModel`，所以用 `cast` 标注成具体类型，代码注释里写了原因。
+  - 现在服务启动时要求至少有一个 LLM key，没有 `.env` 时 uvicorn 起不来（这是 ADR 0002 规定的行为）。用 ASGITransport 跑测试不会触发 lifespan，不受影响。
+  - 用 heredoc 写的 .py 文件不会触发 PostToolUse 的 ruff format 钩子，要手动跑 `ruff format`。
+
+---
+
+## 2026-09-28 · P0 任务 1–2
+
+- **做了什么**：任务 1：写了 ADR 0002（provider 层）和 0003（鉴权与流式），同步修改了 PLAN.md 和 CLAUDE.md 里的配置文件名。任务 2：完成 backend 脚手架，包括 `backend/pyproject.toml`（uv；ruff、mypy strict、pytest 的配置）、`app/settings.py`（`Settings`、`get_settings`；APP_ENV=prod 时如果 JWT_SECRET 还是默认值就拒绝启动；PROVIDERS_CONFIG 用相对路径时按仓库根目录解析）、`app/main.py`（`create_app`、lifespan）、`app/api/health.py`（`/healthz`），另有 6 个测试。ruff、mypy、pytest 全部通过，用 uvicorn 实际起服务、curl `/healthz` 也验证过。
+- **未完成**：任务 3 provider 层还没开始写。
+- **下一步**：`uv add` langchain、langchain-openai、langchain-anthropic、langchain-deepseek；写 `app/providers/{config,llm,embedding,errors}.py` 和 `config/providers.{dev,prod}.yaml`，再按计划 §10 写单测。
+- **踩坑**：`pkill -f` 的匹配模式会连同执行它的 shell 一起匹配上，导致退出码是 144，这个退出码可以忽略。依赖只在用到它的那个任务里 `uv add`，不提前一次性装齐。
+
+---
+
+## 2026-09-28 · P0 详细实施计划
+
+- **做了什么**：写出 `docs/plans/P0-skeleton.md`（依赖版本、目录结构、provider 配置格式与接口、DB/鉴权/SSE 设计、compose、测试与 CI、11 个任务的顺序与验证方式）；PROGRESS.md 的 P0 拆成 11 个任务。依赖版本是当天从 PyPI / npm 查的。
+- **未完成**：计划 §12 的 Q1–Q6 等用户确认；还没有写代码。
+- **下一步**：~~用户确认后开始任务 1~~ → 已确认（Q1–Q6 全部按推荐），任务 1 完成：ADR 0002（provider 层）、0003（鉴权与流式）已写，PLAN.md / CLAUDE.md 的配置文件名同步为 providers.{dev,prod}.yaml。接下来做任务 2（backend 脚手架）。
+- **踩坑**：①`RunnableWithFallbacks.__getattr__` 会把 `bind_tools` / `with_structured_output` 转发到每个 fallback，但要靠 `typing.get_type_hints` 解析返回类型，对部分模型会抛 NameError → provider 层要显式包装。②fallback 流式只在第一个 chunk 前切换模型。③npm 最新 TypeScript 是 7.0，先跟随 create-next-app 的版本。④`langgraph-checkpoint-postgres` 只支持 psycopg3，全项目统一用这个驱动。
+
+---
+
+## 2026-09-28 · 项目立项
+
+- **做了什么**：确认整体方案（docs/PLAN.md）；初始化仓库；建立会话记忆协议（CLAUDE.md、PROGRESS.md、本文件、ADR 0001）。
+- **未完成**：还没有写业务代码。
+- **下一步**：输出 P0 详细实施计划（目录结构、依赖版本、provider 接口定义、compose 服务配置），确认后开始实现。
+- **踩坑**：无。
