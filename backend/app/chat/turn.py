@@ -14,8 +14,10 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph
+from app.attachments.context import AttachmentSource
+from app.attachments.service import link_to_message
 from app.chat.service import thread_config
-from app.db.models import Conversation
+from app.db.models import Attachment, Conversation
 from app.providers.config import TenantProviderContext
 
 logger = logging.getLogger(__name__)
@@ -51,13 +53,34 @@ def title_from(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()[:TITLE_LENGTH]
 
 
-async def begin_turn(session: AsyncSession, conversation: Conversation, text: str) -> None:
-    """Title the conversation on its first message and move it to the top of the list.
+def new_message_id() -> str:
+    """Id of the learner's HumanMessage; attachments point at it (ADR 0008 §4)."""
+    return str(uuid.uuid4())
+
+
+async def begin_turn(
+    session: AsyncSession,
+    conversation: Conversation,
+    text: str,
+    *,
+    message_id: str | None = None,
+    attachments: list[Attachment] | None = None,
+) -> None:
+    """Title the conversation on its first message, mark the message's attachments as
+    sent and move the conversation to the top of the list.
 
     Commits, so no transaction (and pooled connection) is held while the reply streams.
+    Raises AttachmentStateError if an attachment was sent by a concurrent request.
     """
+    attachments = attachments or []
     if not conversation.title:
-        conversation.title = title_from(text)
+        # An image-only message titles the conversation with the file's name.
+        conversation.title = title_from(text) or (
+            title_from(attachments[0].filename) if attachments else ""
+        )
+    if attachments:
+        assert message_id is not None
+        await link_to_message(session, attachments, message_id)
     conversation.updated_at = func.now()
     await session.commit()
 
@@ -73,6 +96,8 @@ async def stream_reply(
     user_id: uuid.UUID,
     providers: TenantProviderContext,
     text: str,
+    message_id: str | None = None,
+    attachments: AttachmentSource | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -96,6 +121,8 @@ async def stream_reply(
                 user_id=user_id,
                 providers=providers,
                 text=text,
+                message_id=message_id,
+                attachments=attachments,
             ):
                 queue.put_nowait(event)
         finally:
@@ -122,19 +149,21 @@ async def _run_graph(
     user_id: uuid.UUID,
     providers: TenantProviderContext,
     text: str,
+    message_id: str | None,
+    attachments: AttachmentSource | None,
 ) -> AsyncIterator[TurnEvent]:
-    message_id: str | None = None
+    reply_id: str | None = None
     usage = {"input_tokens": 0, "output_tokens": 0}
     try:
         async for chunk, metadata in graph.astream(
-            {"messages": [HumanMessage(text)]},
+            {"messages": [HumanMessage(text, id=message_id)]},
             {
                 **thread_config(conversation_id),
                 # llm_usage reads user_id here; conversation_id comes from thread_id.
                 "metadata": {"user_id": str(user_id)},
                 "tags": ["chat"],
             },
-            context=ChatContext(providers),
+            context=ChatContext(providers, attachments),
             stream_mode="messages",
         ):
             if not (
@@ -143,7 +172,7 @@ async def _run_graph(
                 and metadata.get("langgraph_node") == TUTOR_NODE
             ):
                 continue
-            message_id = message_id or chunk.id
+            reply_id = reply_id or chunk.id
             if chunk.usage_metadata:
                 usage["input_tokens"] += chunk.usage_metadata["input_tokens"]
                 usage["output_tokens"] += chunk.usage_metadata["output_tokens"]
@@ -157,4 +186,4 @@ async def _run_graph(
             message="The tutor could not reply right now. Please try again.",
         )
         return
-    yield DoneEvent(message_id=message_id, usage=usage)
+    yield DoneEvent(message_id=reply_id, usage=usage)

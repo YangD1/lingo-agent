@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat_graph import ChatGraph
-from app.db.models import Conversation
+from app.db.models import Attachment, Conversation
 
 
 class ConversationNotFoundError(Exception):
@@ -73,6 +73,24 @@ def to_chat_messages(messages: list[BaseMessage]) -> list[ChatMessage]:
 async def get_history(graph: ChatGraph, conversation: Conversation) -> list[ChatMessage]:
     state = await graph.aget_state(thread_config(conversation.id))
     return to_chat_messages(state.values.get("messages", []))
+
+
+async def attachments_by_message(
+    session: AsyncSession, conversation: Conversation, history: list[ChatMessage]
+) -> dict[str, list[Attachment]]:
+    """Sent attachments of the learner's messages, keyed by message id."""
+    ids = [m.id for m in history if m.role == "user" and m.id]
+    if not ids:
+        return {}
+    rows = await session.scalars(
+        select(Attachment)
+        .where(Attachment.conversation_id == conversation.id, Attachment.message_id.in_(ids))
+        .order_by(Attachment.created_at, Attachment.id)
+    )
+    found: dict[str, list[Attachment]] = {}
+    for row in rows:
+        found.setdefault(row.message_id or "", []).append(row)
+    return found
 
 
 async def delete_conversation(

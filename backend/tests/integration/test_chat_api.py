@@ -80,9 +80,9 @@ async def test_history_is_read_back_from_the_checkpoint(client: AsyncClient, app
     response = await client.get(f"/conversations/{conversation['id']}/messages")
 
     assert response.json() == [
-        {"id": "m1", "role": "user", "content": "I goed to school."},
+        {"id": "m1", "role": "user", "content": "I goed to school.", "attachments": []},
         # Content blocks (e.g. from Anthropic) are flattened to plain text.
-        {"id": "m2", "role": "assistant", "content": "Nice! Say *went*."},
+        {"id": "m2", "role": "assistant", "content": "Nice! Say *went*.", "attachments": []},
         # System messages are internal and never returned.
     ]
 

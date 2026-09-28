@@ -5,9 +5,10 @@ import re
 import unicodedata
 import uuid
 from datetime import timedelta
+from typing import Any
 
 import anyio
-from sqlalchemy import delete, func, select
+from sqlalchemy import CursorResult, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
@@ -22,6 +23,9 @@ MAX_UPLOAD_BYTES = max(MAX_BYTES.values())
 # Uploaded but not yet sent, per conversation: bounds what an idle composer can hold.
 MAX_PENDING_PER_CONVERSATION = 10
 UNSENT_TTL = timedelta(hours=24)
+# Per message (ADR 0008 §2); the API model caps the total at MAX_PER_MESSAGE.
+MAX_PER_MESSAGE = 5
+MAX_IMAGES_PER_MESSAGE = 4
 
 
 class AttachmentNotFoundError(Exception):
@@ -155,3 +159,61 @@ async def delete_attachment(session: AsyncSession, attachment: Attachment) -> No
     _require_unsent(attachment)
     await session.delete(attachment)
     await session.commit()
+
+
+async def attachments_for_message(
+    session: AsyncSession, conversation: Conversation, attachment_ids: list[uuid.UUID]
+) -> list[Attachment]:
+    """The attachments a new message may carry, in the order given.
+
+    Raises AttachmentNotFoundError (not in this conversation, or not the learner's) or
+    AttachmentStateError (duplicate, not ready, already sent, too many images).
+    """
+    if not attachment_ids:
+        return []
+    if len(set(attachment_ids)) != len(attachment_ids):
+        raise AttachmentStateError("invalid_attachments", "an attachment is listed twice")
+    rows = {
+        a.id: a
+        for a in await session.scalars(
+            select(Attachment).where(
+                Attachment.id.in_(attachment_ids),
+                Attachment.conversation_id == conversation.id,
+            )
+        )
+    }
+    if len(rows) != len(attachment_ids):
+        raise AttachmentNotFoundError
+    attachments = [rows[i] for i in attachment_ids]
+    for attachment in attachments:
+        _require_unsent(attachment)
+        if attachment.status != "ready":
+            raise AttachmentStateError("attachment_not_ready", "an attachment is not ready yet")
+    if sum(a.kind == "image" for a in attachments) > MAX_IMAGES_PER_MESSAGE:
+        raise AttachmentStateError(
+            "too_many_images", f"a message can carry at most {MAX_IMAGES_PER_MESSAGE} images"
+        )
+    return attachments
+
+
+async def link_to_message(
+    session: AsyncSession, attachments: list[Attachment], message_id: str
+) -> None:
+    """Mark attachments as sent with `message_id`, in the caller's transaction.
+
+    Conditional on still being unsent, so two requests can never claim the same file.
+    """
+    if not attachments:
+        return
+    result: CursorResult[Any] = await session.execute(  # type: ignore[assignment]
+        update(Attachment)
+        .where(
+            Attachment.id.in_([a.id for a in attachments]),
+            Attachment.message_id.is_(None),
+        )
+        .values(message_id=message_id)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != len(attachments):
+        await session.rollback()
+        raise AttachmentStateError("attachment_sent", "the attachment was already sent")

@@ -10,14 +10,18 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from langgraph.checkpoint.base import BaseCheckpointSaver
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.api.attachments import AttachmentOut
 from app.api.errors import api_error
+from app.attachments import service as attachment_service
+from app.attachments.context import DatabaseAttachments
+from app.attachments.service import AttachmentNotFoundError, AttachmentStateError
 from app.chat import service
 from app.chat.locks import ConversationLocks
 from app.chat.service import ConversationNotFoundError
-from app.chat.turn import begin_turn, stream_reply
-from app.db.models import Conversation
+from app.chat.turn import begin_turn, new_message_id, stream_reply
+from app.db.models import Attachment, Conversation
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
@@ -40,6 +44,7 @@ class MessageOut(BaseModel):
     id: str | None
     role: Literal["user", "assistant"]
     content: str
+    attachments: list[AttachmentOut] = []
 
 
 async def _owned(
@@ -73,7 +78,16 @@ async def get_messages(
 ) -> list[MessageOut]:
     conversation = await _owned(session, user, conversation_id)
     history = await service.get_history(graph, conversation)
-    return [MessageOut(id=m.id, role=m.role, content=m.content) for m in history]
+    attached = await service.attachments_by_message(session, conversation, history)
+    return [
+        MessageOut(
+            id=m.id,
+            role=m.role,
+            content=m.content,
+            attachments=[AttachmentOut.of(a) for a in attached.get(m.id or "", [])],
+        )
+        for m in history
+    ]
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -90,7 +104,17 @@ async def delete_conversation(
 class MessageIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    content: Annotated[str, Field(min_length=1, max_length=4000)]
+    content: Annotated[str, Field(max_length=4000)] = ""
+    # Uploaded and ready attachments of this conversation (ADR 0008 §3).
+    attachment_ids: Annotated[
+        list[uuid.UUID], Field(max_length=attachment_service.MAX_PER_MESSAGE)
+    ] = []
+
+    @model_validator(mode="after")
+    def _not_empty(self) -> "MessageIn":
+        if not self.content.strip() and not self.attachment_ids:
+            raise ValueError("a message needs text or an attachment")
+        return self
 
 
 @dataclass(frozen=True)
@@ -98,6 +122,7 @@ class Turn:
     conversation_id: uuid.UUID
     providers: TenantProviderContext
     text: str
+    message_id: str
 
 
 def _conflict(code: str, message: str) -> HTTPException:
@@ -124,30 +149,69 @@ async def start_turn(
     # endpoint body runs only after the headers are sent.
     response.headers["Cache-Control"] = "no-transform"
     conversation = await _owned(session, user, conversation_id)
+    attachments = await _message_attachments(session, conversation, body.attachment_ids)
+    # A turn with images is answered by the vision route (ADR 0008 §4).
+    task = "vision" if any(a.kind == "image" for a in attachments) else "chat"
     providers = await load_provider_context(session, tenant.id)
     try:
-        get_chat_models(providers, "chat")  # resolves the route (and warms the cache)
+        get_chat_models(providers, task)  # resolves the route (and warms the cache)
     except NoModelConfiguredError as exc:
-        raise _conflict(
-            exc.code, "No chat model is configured. Add a model connection in Settings."
-        ) from exc
+        what = "image-capable" if task == "vision" else "chat"
+        raise _conflict(exc.code, f"No {what} model is configured. Add one in Settings.") from exc
+    # A voice message may come without typed text: its transcript is the text.
+    text = body.content.strip() or next(
+        (a.text or "" for a in attachments if a.kind == "audio"), ""
+    )
     locks: ConversationLocks = request.app.state.conversation_locks
     if not locks.acquire(conversation.id):
         raise _conflict("conversation_busy", "A reply is still being generated.")
     try:
-        await begin_turn(session, conversation, body.content)
-        yield Turn(conversation.id, providers, body.content)
+        message_id = new_message_id()
+        try:
+            await begin_turn(
+                session, conversation, text, message_id=message_id, attachments=attachments
+            )
+        except AttachmentStateError as exc:
+            raise _conflict(exc.code, exc.message) from exc
+        yield Turn(conversation.id, providers, text, message_id)
     finally:
         locks.release(conversation.id)
+
+
+async def _message_attachments(
+    session: SessionDep, conversation: Conversation, attachment_ids: list[uuid.UUID]
+) -> list[Attachment]:
+    try:
+        return await attachment_service.attachments_for_message(
+            session, conversation, attachment_ids
+        )
+    except AttachmentNotFoundError as exc:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "attachment_not_found", "attachment not found"
+        ) from exc
+    except AttachmentStateError as exc:
+        if exc.code in ("invalid_attachments", "too_many_images"):
+            raise api_error(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.code, exc.message) from exc
+        raise _conflict(exc.code, exc.message) from exc
 
 
 @router.post(
     "/{conversation_id}/messages",
     response_class=EventSourceResponse,
-    responses={409: {"description": "no_llm_configured or conversation_busy"}},
+    responses={
+        404: {"description": "conversation_not_found or attachment_not_found"},
+        409: {
+            "description": "no_llm_configured, no_vision_model, conversation_busy, "
+            "attachment_not_ready or attachment_sent"
+        },
+        422: {"description": "validation_error, invalid_attachments or too_many_images"},
+    },
 )
 async def send_message(
-    turn: Annotated[Turn, Depends(start_turn)], user: CurrentUser, graph: ChatGraphDep
+    turn: Annotated[Turn, Depends(start_turn)],
+    request: Request,
+    user: CurrentUser,
+    graph: ChatGraphDep,
 ) -> AsyncIterator[ServerSentEvent]:
     """Stream the tutor's reply: `token`* then `done`, or `error` (ADR 0003)."""
     async for event in stream_reply(
@@ -156,6 +220,8 @@ async def send_message(
         user_id=user.id,
         providers=turn.providers,
         text=turn.text,
+        message_id=turn.message_id,
+        attachments=DatabaseAttachments(request.app.state.sessionmaker, turn.conversation_id),
     ):
         data = dataclasses.asdict(event)
         yield ServerSentEvent(event=data.pop("event"), data=data)

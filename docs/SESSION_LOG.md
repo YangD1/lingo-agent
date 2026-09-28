@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-09-29 · 11B.4 附件接入对话
+
+- **做了什么**：上次会话写完 11B.4 代码和测试后因请求过大中断，本次修复测试（残留的一行乱码；录制假模型的 `calls` 字段被 pydantic 复制导致记录为空）并全量验证：pytest 367、ruff、mypy(app) 通过。细节见看板 11B.4。
+- **未完成**：无（11B.4 已完成）。`tests/unit/test_vision_and_asr.py:129` 有之前就存在的 mypy 报错（`make lint` 只检查 app，不影响）。
+- **下一步**：11B.5 前端（附件按钮 / 粘贴 / 拖拽 / 录音、附件卡片轮询、消息内展示、设置页 vision/asr 路由、中英文案）。发送接口：`POST /conversations/{id}/messages` 的 body 为 `{content, attachment_ids}`；错误码 404 `attachment_not_found`，409 `no_vision_model` / `attachment_not_ready` / `attachment_sent`，422 `invalid_attachments` / `too_many_images`；历史接口每条消息带 `attachments`（AttachmentOut）。
+- **踩坑**：pydantic 模型（包括 BaseChatModel 子类）的 `list` 字段会在校验时复制，想共享可变对象要用 `Any`。
+
+---
+
 ## 2026-09-29 · 11B.3 附件派生文本
 
 - **做了什么**：vision 路由（只认显式配置）、`asr` 一节 + `get_asr()`、图片 / 语音 / PDF（含扫描页）/ DOCX 的处理函数，以及对应测试。细节见看板 11B.3。
