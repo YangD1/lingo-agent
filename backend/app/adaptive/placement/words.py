@@ -14,13 +14,14 @@ rank list also holds forms of other words, names and fragments, which are left o
 Each band's count of words kept is what the size estimate counts (`vocab_size`).
 """
 
+import asyncio
 import random
 import re
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive.placement.vocab_size import Band, band_of, bands
 from app.adaptive.rules import PlacementVocabRules
@@ -106,3 +107,26 @@ async def load_pool(session: AsyncSession, rules: PlacementVocabRules) -> WordPo
         )
     )
     return build_pool([(r.id, r.word, r.frq, r.exchange) for r in rows], rules)
+
+
+class DatabaseWords:
+    """The pool from the words table, loaded on first use and kept for the process: a
+    re-import of ECDICT shows up after a restart. An empty pool (words not imported
+    yet) is not kept, so importing without a restart still works."""
+
+    def __init__(self, sessionmaker: async_sessionmaker[AsyncSession], rules: PlacementVocabRules):
+        self._sessionmaker = sessionmaker
+        self._rules = rules
+        self._pool: WordPool | None = None
+        self._lock = asyncio.Lock()
+
+    async def pool(self) -> WordPool:
+        if self._pool is None:
+            async with self._lock:
+                if self._pool is None:
+                    async with self._sessionmaker() as session:
+                        pool = await load_pool(session, self._rules)
+                    if not any(pool.bands):
+                        return pool
+                    self._pool = pool
+        return self._pool

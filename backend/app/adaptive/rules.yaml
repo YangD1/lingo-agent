@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-09-29.5"
+version: "2026-09-30.1"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -142,6 +142,21 @@ placement:
     # When the learner says yes to at least this share of pseudo-words, the result
     # is shown as unreliable.
     unreliable_false_alarm: 0.4
+    # Offered after the test: mark the book's words up to the rank the learner knows
+    # with at least this probability as known, if they confirm.
+    mark_known_p: 0.9
+    # Reference CEFR level for the vocabulary part only (the overall level is the
+    # grammar level): lowest count of known words among the `basis` most frequent
+    # ranks, from Milton (2010), X-Lex over the 5,000 most frequent lemmas, Greek EFL
+    # learners. Rough: shown as a reference, never used to place the learner.
+    cefr_reference:
+      basis: 5000
+      thresholds:
+        A2: 1500
+        B1: 2500
+        B2: 3250
+        C1: 3750
+        C2: 4500
   # Grammar test: four-option items from placement/items.yaml, picked adaptively.
   grammar:
     # Next item: the unanswered one whose predicted chance of a correct answer
@@ -159,6 +174,10 @@ placement:
     stop_se: 0.55
     # Prior on ability: normal around elo.initial_ability with this spread.
     prior_sd: 1.5
+    # Item difficulties are re-estimated after each finished test (ADR 0012 §3); the
+    # test uses the re-estimated value only once an item has this many answers, until
+    # then its rubric prior.
+    calibrated_min_attempts: 30
     # Lowest ability for each level; below A2 is A1. Set near the median difficulty
     # of each level's items: at the cut, a learner has an even chance (before
     # guessing) on a typical item of that level. Tune from real results later.

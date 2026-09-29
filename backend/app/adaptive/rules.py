@@ -121,6 +121,21 @@ class VocabRules(_Strict):
     screening: ScreeningRules
 
 
+class VocabCefrReference(_Strict):
+    basis: int = Field(ge=1)
+    thresholds: dict[CefrLevel, int]
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        levels = CEFR_LEVELS[1:]
+        if set(self.thresholds) != set(levels):
+            raise ValueError(f"cefr_reference.thresholds needs exactly {list(levels)}")
+        counts = [self.thresholds[level] for level in levels]
+        if counts != sorted(counts) or counts[-1] > self.basis:
+            raise ValueError("cefr_reference.thresholds must rise from A2 to C2, within basis")
+        return self
+
+
 class PlacementVocabRules(_Strict):
     band_size: int = Field(ge=1)
     max_rank: int = Field(ge=1)
@@ -130,11 +145,16 @@ class PlacementVocabRules(_Strict):
     prior_median: float = Field(gt=0)
     prior_log_sd: float = Field(gt=0)
     unreliable_false_alarm: OpenProbability
+    mark_known_p: OpenProbability = 0.9
+    cefr_reference: VocabCefrReference | None = None
 
     @model_validator(mode="after")
     def _check(self) -> Self:
         if self.max_rank % self.band_size:
             raise ValueError("placement.vocab.max_rank must be a multiple of band_size")
+        ref = self.cefr_reference
+        if ref is not None and (ref.basis % self.band_size or ref.basis > self.max_rank):
+            raise ValueError("cefr_reference.basis must be whole bands within max_rank")
         return self
 
 
@@ -146,6 +166,7 @@ class PlacementGrammarRules(_Strict):
     stop_se: float = Field(gt=0)
     prior_sd: float = Field(gt=0)
     cefr_cutpoints: dict[CefrLevel, float]
+    calibrated_min_attempts: int = Field(default=30, ge=1)
 
     @model_validator(mode="after")
     def _check(self) -> Self:
