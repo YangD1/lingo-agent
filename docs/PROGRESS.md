@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），下一步是任务 6（语法 KC 清单，P1b 学习者模型）。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6（语法 KC 清单）进行中：加载校验和 118 个 KC 的初稿已提交，等用户审核。
 **阻塞项**：无
 
 ## P0 骨架
@@ -105,7 +105,7 @@
 - [~] 6. 语法 KC 清单（LLM 起草 → 用户审核）+ 加载校验。用户确认（2026-09-29）：`error_type` 用全局小枚举（omission / addition / wrong_form / wrong_choice / word_order），每个 KC 的 `common_errors` 只是给打标模型的提示、不入库；清单只收语法，搭配 / 选词 / 拼写错误不设 KC（任务 8 按单词处理）；初稿在会话里直接起草，不写脚本
   - [x] 6.1 schema + 加载校验：`app/adaptive/kc/catalog.py`（`GrammarKC`：`id`（`g.<snake_case>`）、`name_en`、`name_zh`、`cefr`、`description`（一句英文，给反思 prompt 用）、`prerequisites`、`common_errors`；`GrammarCatalog` 校验 id 唯一、前置存在且不指向自己、前置等级不高于自身、无环（报出环路径），`in` / `get()` 查询；`ErrorType` / `ERROR_TYPES`、`CEFR_LEVELS`；`load_grammar_catalog()`、带缓存的 `get_grammar_catalog()`）。lifespan 启动时加载，清单有错就启动失败。YAML 用列表而不是以 id 为键的映射：映射里重复的键会被 YAML 静默覆盖。单测 15 个（`tests/unit/test_kc_catalog.py`，含仓库清单能通过校验、数量在 80–120、六个等级都有）。pytest 437、ruff、mypy 通过
   - [x] 6.2 起草 `app/adaptive/kc/grammar.yaml`：118 个（A1 23、A2 26、B1 30、B2 20、C1 14、C2 5），措辞自己写。初稿 126 个超出计划上限，合并了重叠项（现在进行时表安排并入将来时选择、名词性物主代词并入物主代词、would 表习惯并入 used to、as if 并入 wish、两个情态完成式合一），删掉了很少作为错误出现的三项（委婉过去式、强调 do、独立主格）
-  - [~] 6.3 用户审核：按等级分组生成审核页（名称、说明、前置、常见错误），按反馈修改后提交
+  - [~] 6.3 用户审核：审核页已生成（本地文件 `.claude/state/kc-review.html`，已 gitignore；逐条标记通过 / 修改 / 删除 + 理由，补充缺少的语法点，一键复制审核意见；标记只存在浏览器 localStorage）。等用户把审核意见贴回对话，按意见改 `grammar.yaml` 后提交，任务 6 才算完成
 - [ ] 7. BKT / Elo 纯函数 + `kc_mastery`、`mistakes`、`skill_estimates` 表
 - [ ] 8. reflect 加 mistakes、used_correctly → 证据去重 → BKT 更新
 - [ ] 9. 学习者模型接口 + `/learner` 页面

@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-09-29 · P1b 任务 6：语法 KC 清单初稿与加载校验
+
+- **做了什么**：任务 6 拆成 6.1–6.3，三个设计问题用户都选了推荐项（`error_type` 用全局五类枚举；清单只收语法；初稿在会话里直接起草）。6.1 `app/adaptive/kc/catalog.py` + lifespan 启动时加载 + 15 个单测；6.2 `app/adaptive/kc/grammar.yaml` 118 个 KC。提交 `c1bf757`。pytest 437、ruff、mypy 通过。
+- **未完成**：6.3 用户审核。审核页是本地文件 `.claude/state/kc-review.html`（数据由 `.claude/state/kcs.json` 嵌入，模板 `kc-review.tpl.html`；清单改了之后要重新导出并生成）。没能发布成 Artifact：本会话用 `ANTHROPIC_AUTH_TOKEN` 鉴权，Artifact 需要 claude.ai 登录。
+- **下一步**：用户把审核意见（页面“复制审核意见”生成的文本）贴回来 → 改 `grammar.yaml` → 跑 `tests/unit/test_kc_catalog.py` → 提交，任务 6 标 `[x]`；然后任务 7（BKT / Elo 纯函数 + 三张表）。反思 prompt 用的 KC 清单渲染（id + description）留到任务 8 再写。
+- **踩坑**：KC 清单用列表而不是以 id 为键的映射，因为 YAML 会静默覆盖重复键，唯一性校验就失效了。
+
+---
+
 ## 2026-09-29 · P1a 任务 5：记忆/画像接口与 `/memory` 页面
 
 - **做了什么**：任务 5 完成，P1a（长期记忆）全部完成。后端 `app/api/memory.py` + `tests/integration/test_memory_api.py`（提交 `e975e59`）；前端 `/memory` 页面（`src/components/memory/{memory-app,profile-section,memory-list-section}.tsx`、`src/lib/profile.ts`）、导航、`proxy.ts` 匹配 `/memory`、设置页 `RouteSection` 加入 `reflect`；中英文案；E2E 假模型支持记忆（`e2e/fake_llm.py` 的 `reflection`、`remembered_facts`）和 `e2e/memory.spec.ts`。详见看板完成记录。
