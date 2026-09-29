@@ -122,7 +122,7 @@ speech:
 - `skill_estimates`（user, skill[listening/speaking/reading/writing/grammar/vocab], rating, uncertainty, updated_at）, `placement_sessions`（入学测子图的 thread 和状态）
 - `learning_advice`（每人一行：看板上的 AI 建议缓存，见 `docs/plans/P1-mvp.md` §7.5）
 - `words`（词库：ECDICT 开源词典导入）、`user_cards`（FSRS 状态：stability, difficulty, due, reps, lapses, state）、`review_logs`
-- `grammar_points`（与 Neo4j 节点同 id）、`mistakes`（user, kc_id, error_type, source, original, correction, severity）
+- `grammar_points`（与 Neo4j 节点同 id）、`kc_evidence`（所有观测只追加，错误行带 error_type、original、correction、severity；掌握度由它重放得出，见 ADR 0012）
 - `kc_mastery`（user, kc_id, kind[word/grammar/skill], p_mastery, recog_correct, produce_correct, formats_passed, fsrs_state）
 - `exercises`（kc_ids, format, content, answer, difficulty, critic_passed）、`attempts`（user, exercise_id, correct, latency, feedback）
 - `diagnoses`（user, period, root_causes JSONB, evidence_refs）

@@ -2,7 +2,9 @@
 
 - **状态**：已采纳（2026-09-29，`docs/plans/P1-mvp.md` Q5、Q6、Q8 按推荐确认）
 - **日期**：2026-09-29
-- **影响**：新增 `kc_mastery`、`mistakes`、`skill_estimates`、`placement_sessions` 表；新增语法 KC 清单和入学测题库（YAML，进仓库）；PLAN 第二·五节的“BKT 或 Elo”定为两者分工使用。
+- **影响**：新增 `kc_mastery`、`mistakes`（ADR 0012 改为 `kc_evidence`）、`skill_estimates`、`placement_sessions` 表；新增语法 KC 清单和入学测题库（YAML，进仓库）；PLAN 第二·五节的“BKT 或 Elo”定为两者分工使用。
+
+> 参数、先验、证据策略已移到 `rules.yaml`，掌握度改为由证据重放得出，题目难度的分工见 ADR 0012。
 
 ## 背景
 PLAN 的原则是“LLM 负责理解和生成，算法负责记账和调度”：LLM 不直接给掌握度打分，掌握度由算法根据证据更新。P1 要落地的是第一版：把对话里的错误打上知识点（KC）标签，更新掌握度；加上入学测。需要确定：KC 用什么 id、用哪种掌握度模型、入学测的题从哪来。
@@ -13,7 +15,7 @@ PLAN 的原则是“LLM 负责理解和生成，算法负责记账和调度”�
 - **语法 KC** 写在 `backend/app/adaptive/kc/grammar.yaml`：稳定的 id（`g.<snake_case>`）、中英文名、CEFR 等级、前置 KC、常见错误提示。启动时加载并校验（id 唯一、前置 KC 存在、前置等级不高于自身、无环），清单有错就拒绝启动。P2 的 Neo4j 语法图谱沿用同一套 id。
 - 内容按 CEFR 等级自己编写，不照抄有版权的清单（如 English Grammar Profile）。初稿由 LLM 起草，人工审核后提交。
 - **一个 KC 只对应一种技能，一种错误只归一个 KC**：BKT 假设同一 KC 下的证据测的是同一种能力，同一种错误挂在几个 KC 下，证据就被摊薄。所以多个结构共用的形式规则单独成 KC（`g.modal_forms` 情态动词 + 动词原形、`g.past_participle_forms` 过去分词形式），时态类 KC 只管用法；各 KC 的 `common_errors` 互不重叠（测试检查引号里的例句不在两个 KC 下重复出现）。清单只收语法点，搭配、选词、拼写错误按单词处理。
-- **`mistakes.error_type` 用全局五类**：omission / addition / wrong_form / wrong_choice / word_order，跨 KC 可统计；`common_errors` 只是给打标模型的提示，不入库。
+- **错误类型 `error_type` 用全局五类**：omission / addition / wrong_form / wrong_choice / word_order，跨 KC 可统计；`common_errors` 只是给打标模型的提示，不入库。
 - **单词 KC** 为 `w.<lemma>`，对应 `words` 表（ADR 0011）。
 
 ### 2. 掌握度：三种模型分工

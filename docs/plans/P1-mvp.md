@@ -28,7 +28,7 @@ P1 拆成五个子阶段，每个子阶段结束都能单独演示（Q1）：
 | 子阶段 | 内容 | 依赖 | 对应 Demo |
 |---|---|---|---|
 | **P1a** 记忆 | 主图改造（load_context → tutor → END）+ 后台反思（reflect）+ 长期记忆（事实记忆、会话摘要）+ 学习者画像 + “AI 记住了你什么”页面 | P0 对话图 | 3、6 |
-| **P1b** 学习者模型 | 语法 KC 清单 + 反思里的错误打标 → `mistakes` → BKT 更新 `kc_mastery` + 学习者模型页 | P1a 的 reflect | 4 |
+| **P1b** 学习者模型 | 语法 KC 清单 + 反思里的错误打标 → `kc_evidence` → BKT 更新 `kc_mastery` + 学习者模型页 | P1a 的 reflect | 4 |
 | **P1c** 背单词 | ECDICT 导入、词书、熟词筛选、FSRS 复习页、生词本（含对话自动收词） | P1a 的 reflect（只影响自动收词） | 2、5 |
 | **P1d** 入学测 | 词汇量测试 + 语法/阅读自适应测试（LangGraph 子图 + interrupt）、结果写画像和 `skill_estimates`、为 KC 掌握度设先验 | P1b 的 KC 清单、P1c 的词库 | 1 |
 | **P1e** 能力看板 | 能力看板页（图表）+ AI 学习建议（算法出候选、LLM 写理由）+ 直达学习（含针对语法点的练习对话） | P1a–P1d 的全部数据 | 6 |
@@ -83,7 +83,7 @@ START → load_context → tutor → END
 ### 3.3 测试
 
 - 图：假模型跑 `load_context → tutor`，断言 system prompt 里有学习者上下文、checkpoint 里没有。
-- reflect：假结构化模型返回固定 `Reflection`，断言记忆增删改、`mistakes` 入库、非法 kc_id 被丢弃、`reflected_message_id` 前移；worker 串行和补做逻辑单测。
+- reflect：假结构化模型返回固定 `Reflection`，断言记忆增删改、`kc_evidence` 入库、非法 kc_id 被丢弃、`reflected_message_id` 前移；worker 串行和补做逻辑单测。
 - SSE 集成测试：`done` 事件在反思完成之前发出（反思用一个会阻塞的假模型）。
 
 ---
@@ -119,12 +119,13 @@ PLAN §二·五 第 7 条的“学会”判定（≥3 种题型、跨 ≥2 天�
 ### 4.4 表
 
 - `kc_mastery`（user_id、kc_id、kind[word/grammar]、p_mastery、observations、recog_correct、produce_correct、last_evidence_at；唯一键 user_id + kc_id）
-- `mistakes`（user_id、kc_id、error_type、source[chat/placement]、conversation_id（可空，会话删除时置空）、original、correction、severity、created_at）
-- `skill_estimates`（user_id、skill、rating、uncertainty、updated_at）
+- `kc_evidence`（只追加，ADR 0012）：user_id、kc_id、correct、evidence[recognition/production]、source[chat/placement]、conversation_id（可空，会话删除时置空）、message_id、created_at；错误行另有 error_type、severity[low/medium/high]、original、correction、l1_transfer
+- `kc_mastery` 另存 `rules_version`，可由证据重放重算
+- `skill_estimates`（user_id、skill、rating、attempts、updated_at；不确定度由 attempts 现算）
 
 ### 4.5 测试
 
-BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K 衰减）；证据去重；reflect → mistakes → kc_mastery 的集成测试。
+BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K 衰减）；证据去重；reflect → kc_evidence → kc_mastery 的集成测试。
 
 ---
 
@@ -173,7 +174,7 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 
 - `placement` 子图：`pick_item → ask（interrupt，等作答）→ update_estimate → 结束判定 → (pick_item | finish)`。每次作答用 `Command(resume=answer)` 恢复。选题和更新都是纯函数，图只负责编排和断点续做（关掉页面再回来能接着做）。
 - 独立接口 `POST /placement`（开始或继续）、`POST /placement/{id}/answer`、`GET /placement/{id}/result`，不走聊天 SSE。
-- 结果写入：`user_profile.cefr_level`、`skill_estimates`（vocab、grammar）、按等级给语法 KC 设 BKT 先验（等级以下的 KC 先验高）、`mistakes`（source=placement，答错的题）。词汇量结果只用来建议熟词筛选从哪个频段开始，不自动把词标成已认识。
+- 结果写入：`user_profile.cefr_level`、`skill_estimates`（vocab、grammar）、按等级给语法 KC 设 BKT 先验（等级以下的 KC 先验高）、`kc_evidence`（source=placement，每道题一条识别证据）。词汇量结果只用来建议熟词筛选从哪个频段开始，不自动把词标成已认识。
 - CEFR 映射：Elo 能力值 → CEFR 的分界点写在配置里，初值按题库难度标定，之后再调。
 
 ### 6.3 页面
@@ -189,7 +190,7 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
   1. **画像**：表单，可编辑
   2. **事实记忆**：列表，可编辑、删除、全部清空；显示来源会话和时间
   3. **会话摘要**：列表，可删除
-- `/learner`（学习者模型）：语法 KC 按掌握度排序，展开看证据（`mistakes`）；技能估计；“删除所有学习记录”。
+- `/learner`（学习者模型）：语法 KC 按掌握度排序，展开看证据（`kc_evidence` 里的错误）；技能估计；“删除所有学习记录”。
 - 删除是真删除（隐私要求），不做软删除。
 
 ---
@@ -206,7 +207,7 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 | 词书进度 | 当前词书中 已掌握 / 学习中 / 未学 / 熟词跳过 的数量 | **环形图**（部分占整体） |
 | 语法掌握 | 按 CEFR 等级（A1–C2）统计语法点的 已掌握（p≥0.95）/ 学习中 / 薄弱（p<0.4）/ 未接触 | 横向堆叠条形图 |
 | 技能估计 | `skill_estimates` 里**有数据的**维度（P1 只有词汇、语法），其余显示“未评估”和对应入口 | 带 CEFR 刻度的条形图 |
-| 常错语法点 | 最近 30 天 `mistakes` 按 KC 计数的前 5 个，点击进入 `/learner` 对应条目 | 条形图 |
+| 常错语法点 | 最近 30 天 `kc_evidence` 里的错误按 KC 计数的前 5 个，点击进入 `/learner` 对应条目 | 条形图 |
 | 学习打卡 | 最近 12 周每天的复习数 + 对话轮数 | 日历热力图 |
 
 - P1 **不做六维雷达图**：听、说、读、写要到 P2/P3 才有数据，只有两个维度有值的雷达图会误导。等维度齐了再换成雷达图。
@@ -246,7 +247,7 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 
 ## 8. 表汇总与迁移
 
-新增：`user_profile`、`memories`、`kc_mastery`、`mistakes`、`skill_estimates`、`words`、`word_books`、`user_word_book`、`user_cards`、`review_logs`、`placement_sessions`（placement 子图的 thread 和状态）、`learning_advice`（每人一行：建议 JSON、生成时间、生成时的证据计数）。`conversations` 加 `reflected_message_id`、`focus_kc_id`。
+新增：`user_profile`、`memories`、`kc_mastery`、`kc_evidence`、`skill_estimates`、`words`、`word_books`、`user_word_book`、`user_cards`、`review_logs`、`placement_sessions`（placement 子图的 thread 和状态）、`learning_advice`（每人一行：建议 JSON、生成时间、生成时的证据计数）。`conversations` 加 `reflected_message_id`、`focus_kc_id`。
 
 - 每个子阶段一个迁移，不一次建完。
 - 所有用户数据表都有 `user_id` FK（级联删除），查询一律带 user_id 过滤；`words`、`word_books` 是全局只读数据。
@@ -269,7 +270,7 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 | 5 | 记忆和画像接口 + `/memory` 页面（i18n）+ 设置页路由编辑器加入 `reflect`（“后台整理模型”） | Vitest + E2E：聊天 → 记忆出现 → 删除 → 新会话不再使用 |
 | **P1b** | | |
 | 6 | 语法 KC 清单（LLM 起草 → 用户审核）+ 加载和校验（id 唯一、前置 KC 存在、无环） | 单测 |
-| 7 | BKT / Elo 纯函数 + `kc_mastery`、`mistakes`、`skill_estimates` 表 | 单测 |
+| 7 | BKT / Elo 纯函数 + `rules.yaml` + `kc_mastery`、`kc_evidence`、`skill_estimates` 表 | 单测 |
 | 8 | reflect 加上 mistakes、used_correctly → 证据去重 → BKT 更新 | 集成测试 |
 | 9 | 学习者模型接口 + `/learner` 页面 | Vitest + E2E |
 | **P1c** | | |

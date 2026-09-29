@@ -1,0 +1,97 @@
+# Adaptive-engine rules (ADR 0012). Every number the mastery and difficulty
+# algorithms use lives here, so a rule change is a YAML edit, not a code change.
+#
+# Bump `version` on ANY change: kc_mastery rows record the version they were computed
+# with, and rows from an older version are rebuilt by replaying kc_evidence.
+
+version: "2026-09-29.1"
+
+bkt:
+  # Chance of moving from "not learned" to "learned" at each counted observation.
+  p_learn: 0.1
+  # Chance of getting it wrong while knowing it.
+  p_slip: 0.1
+  # Chance of getting it right without knowing it. Production (using a structure
+  # correctly in free speech or writing) is much harder to fake than recognition
+  # (picking the right option in a test item).
+  p_guess:
+    recognition: 0.2
+    production: 0.05
+  # p_mastery at or above this counts as mastered.
+  mastered: 0.95
+  # Initial p_mastery when the learner's CEFR level is known, by
+  # gap = learner level - KC level (in levels). Keys must be consecutive integers;
+  # gaps beyond either end use the nearest key.
+  prior_by_gap:
+    2: 0.9
+    1: 0.7
+    0: 0.4
+    -1: 0.15
+  # Initial p_mastery before placement, by KC level alone.
+  prior_unknown_learner:
+    A1: 0.6
+    A2: 0.5
+    B1: 0.35
+    B2: 0.25
+    C1: 0.15
+    C2: 0.1
+
+evidence:
+  # Mistakes of other severities are stored but not fed to BKT.
+  # low: a slip that does not look systematic; medium: a clear error, meaning intact;
+  # high: the error gets in the way of understanding.
+  counted_severities: [medium, high]
+  # Observations counted per KC per learner turn, so repeating one error in one
+  # message is not punished several times. Errors are counted before successes.
+  max_per_turn: 1
+
+elo:
+  # Ratings are on a logit scale: ability - difficulty = 0 means a 50% chance
+  # before guessing. K(n) = alpha / (1 + beta * n), n = answers so far
+  # (Pelanek 2016); K(n) also serves as the uncertainty of the estimate.
+  learner:
+    alpha: 1.0
+    beta: 0.05
+  item:
+    alpha: 0.8
+    beta: 0.05
+  initial_ability: 0.0
+  # Floor on the chance of a correct answer from blind guessing, by item format.
+  guess_by_format:
+    choice4: 0.25
+
+# Prior difficulty of a test or practice item (ADR 0012 §3). The model picks one
+# level per dimension; difficulty = cefr_anchor[target KC level] + sum of offsets.
+difficulty:
+  cefr_anchor:
+    A1: -2.5
+    A2: -1.5
+    B1: -0.5
+    B2: 0.5
+    C1: 1.5
+    C2: 2.5
+  dimensions:
+    vocabulary:
+      description: The hardest words in the item other than the tested structure.
+      levels:
+        below_target: {offset: -0.3, description: "All words are well below the target level."}
+        at_target: {offset: 0.0, description: "Some words are at the target level."}
+        above_target: {offset: 0.4, description: "Some words are above the target level."}
+    syntax:
+      description: Sentence length and embedding around the tested structure.
+      levels:
+        simple: {offset: -0.2, description: "One short clause."}
+        moderate: {offset: 0.0, description: "Two clauses or a longer sentence."}
+        complex: {offset: 0.4, description: "Several clauses or heavy embedding."}
+    cues:
+      description: How much the context signals the answer (e.g. "yesterday" for a past tense).
+      levels:
+        explicit: {offset: -0.4, description: "A word in the item points straight to the answer."}
+        partial: {offset: 0.0, description: "The context helps but needs interpretation."}
+        none: {offset: 0.3, description: "Only knowledge of the rule gives the answer."}
+    distractors:
+      description: How attractive the wrong options are to a learner who lacks the rule.
+      levels:
+        weak: {offset: -0.4, description: "Wrong options are obviously wrong."}
+        one_plausible: {offset: 0.0, description: "One wrong option is tempting."}
+        several_plausible: {offset: 0.4, description: "Several wrong options are tempting, e.g. common transfer errors."}

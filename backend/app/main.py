@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.rules import get_rules
 from app.agents.chat_graph import build_chat_graph
 from app.api import attachments, auth, chat, health, memory, providers, usage
 from app.api.errors import install_error_handlers
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     get_keyring()  # refuse to start without valid credential encryption keys
     get_providers_config()  # refuse to start with an invalid providers.*.yaml
     get_grammar_catalog()  # refuse to start with a broken grammar KC catalog
+    get_rules()  # refuse to start with invalid adaptive rules
     tracer_provider = setup_tracing(settings)
     init_state(app, settings)
     interrupted = await fail_interrupted(app.state.sessionmaker)
