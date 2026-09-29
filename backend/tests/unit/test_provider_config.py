@@ -49,6 +49,35 @@ def test_api_key_env_is_no_longer_accepted() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("env_value", "expected"),
+    [
+        (None, "http://host:1/v1"),
+        ("", "http://host:1/v1"),
+        ("http://asr:8000/v1", "http://asr:8000/v1"),
+    ],
+)
+def test_preset_base_url_env_overrides_when_set(
+    monkeypatch: pytest.MonkeyPatch, env_value: str | None, expected: str
+) -> None:
+    if env_value is None:
+        monkeypatch.delenv("LOCAL_ASR_URL", raising=False)
+    else:
+        monkeypatch.setenv("LOCAL_ASR_URL", env_value)
+    config = make_config(
+        presets={
+            "openai": {"kind": "openai", "base_url": "https://api.openai.com/v1"},
+            "local": {
+                "kind": "openai_compatible",
+                "base_url": "http://host:1/v1",
+                "base_url_env": "LOCAL_ASR_URL",
+            },
+        },
+        llm={"default": "openai:gpt-5-mini"},
+    )
+    assert config.presets["local"].base_url == expected
+
+
 def test_malformed_model_ref_rejected() -> None:
     with pytest.raises(ValueError, match="<connection>:<model>"):
         make_config(llm={"default": "deepseek"})

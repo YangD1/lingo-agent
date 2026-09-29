@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认（全部按推荐），ADR 0009–0011 已采纳。追加的能力看板（子阶段 P1e，任务 17–19）的 Q11–Q14 待用户确认，不影响前面的任务。正在做任务 0。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板（P1e）的 Q11–Q14 待用户确认。下一个：任务 2（P1a 记忆：`user_profile`、`memories` 表 + 服务层）。
 **阻塞项**：无
 
 ## P0 骨架
@@ -76,8 +76,8 @@
 - [ ] 11C. 11B 实测记下的体验问题（暂缓：用户选了先进 P1；第 3、4 条较小，可在 P1 前顺手修，需确认）
   - [ ] 录音静音检测：录音时显示音量条；几乎是静音时提示“没录到声音”，不上传（实测：-60 dB 的录音被 Whisper 转成一串“ლ”）
   - [ ] 转写时开 VAD / 空结果报错：减少 Whisper 在静音上编造文字
-  - [ ] 语音转文字的“测试”按钮：按转写来测（发一小段内置音频），接口 404 时提示“这个连接不支持语音转写”（实测：中转站没有 `/audio/transcriptions`，用户只看到“未配置”）
-  - [ ] Speaches 预设的默认地址：Docker 里要用 `http://asr:8000/v1`，预设写的是 `localhost:8200`（实测踩到 ConnectError）
+  - [x] 语音转文字的“测试”按钮：按转写来测（发一小段内置音频），接口 404 时提示“这个连接不支持语音转写”（实测：中转站没有 `/audio/transcriptions`，用户只看到“未配置”）
+  - [x] Speaches 预设的默认地址：Docker 里要用 `http://asr:8000/v1`，预设写的是 `localhost:8200`（实测踩到 ConnectError）
   - [ ] 只做转写 / 看图的连接卡片仍写“默认对话模型”，“测试”也按聊天来测
 - [x] 12. GitHub Actions CI（backend / frontend / docker build）。已推送到 `git@github.com:YangD1/lingo-agent.git`（公开）；第四次运行（run 36517131577）四个 job 全绿：backend 81s、frontend 48s、docker 17s（有缓存）、e2e 149s
   - [x] 12.1 `.github/workflows/ci.yml`（用户选 A：四个 job 每次推送和 PR 都跑）：backend（postgres service，`POSTGRES_DB=lingo_test`，端口映射到 5433，这样测试的默认连接不用改；uv sync --locked → ruff → ruff format --check → mypy app → pytest）、frontend（pnpm install --frozen-lockfile → lint → typecheck → Vitest → build）、docker（compose build，只验证能构建，用 GHA 缓存）、e2e（postgres service + uv + Chromium → playwright，失败时上传 trace）。同一分支上新的一次推送会取消还在跑的旧运行；权限只读
@@ -94,7 +94,7 @@
 ## P1 MVP：私教对话 + 长期记忆 + 背单词 + 入学测 + 自适应引擎 v1
 - [x] P1 详细实施计划（`docs/plans/P1-mvp.md`，Q1–Q10 全部按推荐确认）+ ADR 0009（长期记忆）、0010（学习者模型）、0011（词库与 FSRS）
 - [ ] P1e 能力看板追加设计（计划 §7.5）：等用户确认 Q11–Q14
-- [~] 0. 11C 第 3、4 条（Q10）：转写连接按转写来测；Speaches 预设在 Docker 下的默认地址
+- [x] 0. 11C 第 3、4 条（Q10）：转写连接按转写来测；Speaches 预设在 Docker 下的默认地址。完成记录：预设新增可选 `base_url_env`，compose 给 backend 设 `SPEACHES_BASE_URL=http://asr:8000/v1`（宿主机上跑的 backend 仍是 `localhost:8200`）；`POST /tenant/connections/{id}/test` 新增可选 `purpose`，不传时按模型名或租户语音转写路由自动判断，语音转写就发内置 0.5 秒静音 WAV（`asr.silent_clip()`），404 返回 `error_code=asr_not_supported`，前端给出明确提示；响应带 `purpose`。backend 378 个测试、前端 Vitest 93 个、E2E 21 个全过，ruff / mypy / eslint / tsc 干净。没有在真实中转站和 Docker 里手动点一次
 - [x] 1. ADR 0009–0011 定稿；PLAN 同步（Supervisor 移到 P2、长期记忆一行、BKT/Elo 分工、数据模型、P1 加能力看板）
 - **P1a 记忆**
 - [ ] 2. `user_profile`、`memories` 表 + 记忆服务层 + 检索（有 embedding 按向量，否则按时间）

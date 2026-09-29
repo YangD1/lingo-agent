@@ -44,6 +44,8 @@ services:
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-10080}
       CREDENTIALS_ENCRYPTION_KEYS: ${CREDENTIALS_ENCRYPTION_KEYS:-}
       PROVIDER_ALLOW_PRIVATE_NETWORKS: ${PROVIDER_ALLOW_PRIVATE_NETWORKS:-false}
+      # Address of the `asr` service below as seen from this container (speaches preset).
+      SPEACHES_BASE_URL: http://asr:8000/v1
       OTEL_TRACING_ENABLED: ${OTEL_TRACING_ENABLED:-false}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${COMPOSE_OTEL_EXPORTER_OTLP_ENDPOINT:-http://phoenix:6006/v1/traces}
     volumes:
@@ -122,8 +124,9 @@ services:
 
   # Local speech-to-text for dev (ADR 0008 §5): an OpenAI-compatible /audio/transcriptions
   # server (faster-whisper). Add it in Settings as a connection from the `speaches` preset
-  # (base URL http://localhost:8200/v1 for a backend on the host, http://asr:8000/v1 for
-  # the compose backend) and put it on the speech-to-text route. The image is ~3.4GB, so
+  # (its base URL is http://localhost:8200/v1 for a backend on the host and, through
+  # SPEACHES_BASE_URL, http://asr:8000/v1 for the compose backend) and put it on the
+  # speech-to-text route. The image is ~3.4GB, so
   # it stays behind a profile; prod uses a hosted API instead.
   asr:
     image: ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cpu

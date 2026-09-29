@@ -112,6 +112,8 @@
       "neverTested": "Not tested yet",
       "test": "Test",
       "testOk": "Connected ({ms} ms)",
+      "testOkAsr": "Speech-to-text works ({ms} ms)",
+      "asrNotSupported": "This connection does not support speech-to-text (its server has no /audio/transcriptions endpoint). Use a speech-to-text provider such as SiliconFlow, Groq, OpenAI or local Speaches.",
       "testFailed": "Test failed: {error}",
       "newKey": "New API key",
       "delete": "Delete",

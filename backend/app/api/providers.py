@@ -10,21 +10,23 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from app.api.errors import api_error
 from app.credentials import service
 from app.credentials.crypto import get_keyring
-from app.credentials.service import CallParams, ConflictError, NotFoundError
+from app.credentials.service import CallParams, ConflictError, NotFoundError, TestPurpose
 from app.db.models import ProviderConnection
 from app.deps import CurrentTenant, CurrentUser, Manager, SessionDep, SettingsDep
 from app.providers.config import (
+    ASR_KINDS,
     SECTIONS,
     ProvidersConfig,
     RouteSource,
     RouteSpec,
     Section,
     TenantProviderContext,
+    resolve_route,
     resolve_route_with_source,
 )
 from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 from app.providers.llm import get_providers_config
-from app.providers.model_catalog import ModelCategory, ModelListError
+from app.providers.model_catalog import ModelCategory, ModelListError, looks_like_speech_to_text
 from app.providers.tenant import load_provider_context
 
 router = APIRouter(tags=["model settings"])
@@ -112,12 +114,16 @@ class ConnectionOut(BaseModel):
 class TestRequest(BaseModel):
     # Defaults to the connection's default model (ADR 0007 §2).
     model: Annotated[str | None, Field(min_length=1, max_length=128)] = None
+    # What to test the model as; guessed when omitted (see _test_purpose).
+    purpose: TestPurpose | None = None
 
 
 class TestOut(BaseModel):
     ok: bool
     error: str | None
+    error_code: str | None
     latency_ms: int
+    purpose: TestPurpose
 
 
 class ModelOut(BaseModel):
@@ -246,10 +252,35 @@ async def verify_connection(
             "invalid_provider_config",
             "choose a model to test: this connection has no default model",
         )
-    ok, error, latency_ms = await service.verify_connection(
-        session, conn, keyring=get_keyring(), model=model
+    purpose = body.purpose or await _test_purpose(session, tenant.id, conn, model)
+    result = await service.verify_connection(
+        session, conn, keyring=get_keyring(), model=model, purpose=purpose
     )
-    return TestOut(ok=ok, error=error, latency_ms=latency_ms)
+    return TestOut(
+        ok=result.ok,
+        error=result.error,
+        error_code=result.error_code,
+        latency_ms=result.latency_ms,
+        purpose=purpose,
+    )
+
+
+async def _test_purpose(
+    session: SessionDep, tenant_id: uuid.UUID, conn: ProviderConnection, model: str
+) -> TestPurpose:
+    """Speech-to-text when the model's name says so or the tenant's speech-to-text route
+    uses it: a chat message would fail on such a model, and pass on a relay that has no
+    /audio/transcriptions at all."""
+    if conn.kind not in ASR_KINDS:
+        return "chat"
+    if looks_like_speech_to_text(model):
+        return "asr"
+    ctx = await load_provider_context(session, tenant_id)
+    try:
+        chain = resolve_route(get_providers_config(), ctx, "asr", "default")
+    except NoModelConfiguredError:
+        return "chat"
+    return "asr" if any((m.connection, m.model) == (conn.name, model) for m in chain) else "chat"
 
 
 @router.get("/tenant/connections/{connection_id}/models", dependencies=[Manager])

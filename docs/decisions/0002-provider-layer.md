@@ -11,7 +11,7 @@ PLAN.md 要求所有模型调用都走配置驱动的 provider 层：按任务�
 ### 1. 配置文件
 - 按环境分成两份**完整的** YAML：`config/providers.dev.yaml`、`config/providers.prod.yaml`，用环境变量 `PROVIDERS_CONFIG` 选择，默认用 dev。两份文件不做深合并。
 - 文件分四段：
-  - `providers`：厂商**预设**，包括 `kind`（`deepseek` / `anthropic` / `openai` / `openai_compatible`）和默认 `base_url`。~~`api_key_env`~~：已删除，key 由租户在应用内配置（ADR 0004）。
+  - `providers`：厂商**预设**，包括 `kind`（`deepseek` / `anthropic` / `openai` / `openai_compatible`）和默认 `base_url`。~~`api_key_env`~~：已删除，key 由租户在应用内配置（ADR 0004）。可选的 `base_url_env`：该环境变量有值时替换默认 `base_url`（2026-09-29 加入：本地 speaches 从 compose 里的 backend 访问是 `http://asr:8000/v1`，从宿主机访问是 `localhost:8200`，compose 为 backend 设置 `SPEACHES_BASE_URL`）。
   - `defaults`：共享的调用参数（`timeout`、`max_retries`）。
   - `llm`：`default` 加上 `routes.<task>`。
   - `embedding`：同上。

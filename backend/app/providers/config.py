@@ -1,6 +1,7 @@
 """Presets, default routes and per-tenant route resolution (ADR 0002 + ADR 0004)."""
 
 import logging
+import os
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -35,8 +36,17 @@ class PresetSpec(BaseModel):
 
     kind: ProviderKind
     base_url: str
+    # Environment variable that replaces `base_url` when set: the same local server is
+    # reached at a different address from the compose backend than from one on the host.
+    base_url_env: str | None = None
     label: str | None = None
     models: list[str] = []  # suggestions for the UI, not an allow-list
+
+    @model_validator(mode="after")
+    def _base_url_from_env(self) -> Self:
+        if self.base_url_env and (value := os.environ.get(self.base_url_env, "").strip()):
+            self.base_url = value
+        return self
 
 
 class RouteSpec(BaseModel):

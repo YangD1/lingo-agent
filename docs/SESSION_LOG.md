@@ -10,8 +10,9 @@
 - **调研结论**（2026-09-29 查 PyPI / GitHub）：py-fsrs 6.3.2 实现 FSRS-6，核心只依赖 typing-extensions，不装 `[optimizer]`；ECDICT 77 万条、66 MB，没有现成小子集，标签词数写在 ADR 0011；LangGraph `AsyncPostgresStore` 在 langgraph-checkpoint-postgres 3.1 里，但语义索引在创建时固定 embedding 函数和维度，和租户各自配置 embedding 冲突，所以推荐自建 `memories` 表；LangMem 自 2025-10 的 0.0.30 后没有新版本，不引入；pyBKT 依赖 numpy / sklearn / pandas，BKT 和 Elo 自己写。
 - **确认结果**：用户确认 Q1–Q10 全部按推荐；ADR 0009–0011 改为已采纳，PLAN 已同步。用户同时追加需求“个人能力看板（图表）+ AI 建议 + 直达学习”，写成计划 §7.5 和子阶段 P1e（任务 17–19，原 Demo 实测顺延为 20），Q11–Q14 待确认。
 - **未完成**：Q11–Q14（看板图表组合、建议生成方式、首页、图表库）等用户确认。
-- **下一步**：任务 0（11C 第 3、4 条）。
-- **踩坑**：无。
+- **任务 0 完成**：11C 第 3、4 条（详见看板完成记录）。
+- **下一步**：任务 2（`user_profile`、`memories` 表和迁移、记忆服务层），等 Q11–Q14 的回复不影响 P1a–P1d。
+- **踩坑**：工具函数别以 `test_` 开头（`test_clip` 被测试模块导入后会被 pytest 当成测试收集），已改名 `silent_clip`。
 
 ---
 

@@ -58,7 +58,15 @@ export type Connection = {
   last_verified_at: string | null;
   last_error: string | null;
 };
-export type ConnectionTest = { ok: boolean; error: string | null; latency_ms: number };
+export type ConnectionTest = {
+  ok: boolean;
+  error: string | null;
+  // Set when the UI can explain the failure itself, e.g. "asr_not_supported".
+  error_code: string | null;
+  latency_ms: number;
+  // A speech-to-text model is tested by transcribing a short clip, not by chatting.
+  purpose: "chat" | "asr";
+};
 export type TaskRoute = {
   section: "llm" | "embedding" | "asr";
   task: string;

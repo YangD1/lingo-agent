@@ -1,9 +1,11 @@
 import uuid
 from typing import Any
 
+import httpx2
 import pytest
 from httpx import AsyncClient
 from langchain_core.messages import AIMessage
+from openai import AsyncOpenAI
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +13,7 @@ from app.credentials import service
 from app.credentials.crypto import generate_key_entry, get_keyring, parse_keyring
 from app.credentials.rotate import rotate_credentials
 from app.db.models import ProviderConnection
-from app.providers import net_guard
+from app.providers import asr, net_guard
 from app.providers.model_catalog import DiscoveredModel, ModelListError
 from app.providers.net_guard import IPAddress
 from app.providers.tenant import load_provider_context
@@ -214,6 +216,110 @@ async def test_verify_connection_records_result(
     assert [(r.labels.task, r.labels.connection, r.labels.model) for r in recorders] == [
         ("connection_test", conn["name"], "m")
     ] * 2
+
+
+def serve_transcriptions(
+    monkeypatch: pytest.MonkeyPatch, status: int, body: dict[str, Any]
+) -> list[httpx2.Request]:
+    seen: list[httpx2.Request] = []
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        return httpx2.Response(status, json=body)
+
+    def fake_client(model: Any) -> AsyncOpenAI:
+        transport = httpx2.MockTransport(handle)
+        return AsyncOpenAI(
+            api_key="k",
+            base_url=model.base_url,
+            http_client=httpx2.AsyncClient(transport=transport),
+        )
+
+    monkeypatch.setattr(asr, "_client", fake_client)
+    return seen
+
+
+async def test_speech_model_is_tested_by_transcribing(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = serve_transcriptions(monkeypatch, 200, {"text": ""})
+    await login(client)
+    conn = await create(
+        client, name="local", kind="openai_compatible", base_url="https://stt.example.com/v1"
+    )
+    url = f"/tenant/connections/{conn['id']}/test"
+
+    result = (await client.post(url, json={"model": "Systran/faster-whisper-small"})).json()
+
+    assert (result["ok"], result["purpose"], result["error_code"]) == (True, "asr", None)
+    (request,) = seen
+    assert request.url.path == "/v1/audio/transcriptions"
+    assert b"RIFF" in request.read()  # the built-in WAV clip
+
+
+async def test_relay_without_transcriptions_is_reported_as_such(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    serve_transcriptions(monkeypatch, 404, {"error": {"message": "Invalid URL"}})
+    await login(client)
+    conn = await create(
+        client, name="relay", kind="openai_compatible", base_url="https://relay.example.com/v1"
+    )
+    url = f"/tenant/connections/{conn['id']}/test"
+
+    result = (await client.post(url, json={"model": "whisper-1"})).json()
+
+    assert (result["ok"], result["purpose"]) == (False, "asr")
+    assert result["error_code"] == "asr_not_supported"
+    assert result["error"].startswith("NotFoundError")
+    listed = (await client.get("/tenant/connections")).json()[0]
+    assert listed["last_error"] == result["error"]
+
+
+async def test_model_on_the_speech_route_is_tested_by_transcribing(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = serve_transcriptions(monkeypatch, 200, {"text": ""})
+    chats: list[str] = []
+
+    class FakeModel:
+        async def ainvoke(self, _: Any) -> AIMessage:
+            return AIMessage("OK")
+
+    def fake_build(r: Any, task: str, *, callbacks: list[Any]) -> FakeModel:
+        chats.append(r.model)
+        return FakeModel()
+
+    monkeypatch.setattr(service, "build_chat_model", fake_build)
+    await login(client)
+    conn = await create(
+        client, name="local", kind="openai_compatible", base_url="https://stt.example.com/v1"
+    )
+    url = f"/tenant/connections/{conn['id']}/test"
+    # Nothing in the name says speech-to-text: tested as chat until the route uses it.
+    assert (await client.post(url, json={"model": "my-stt"})).json()["purpose"] == "chat"
+    put = await client.put("/tenant/routes/asr/default", json={"models": ["local:my-stt"]})
+    assert put.status_code == 200
+
+    assert (await client.post(url, json={"model": "my-stt"})).json()["purpose"] == "asr"
+    # An explicit purpose wins over the guess.
+    explicit = {"model": "my-stt", "purpose": "chat"}
+    assert (await client.post(url, json=explicit)).json()["purpose"] == "chat"
+    assert chats == ["my-stt", "my-stt"] and len(seen) == 1
+
+
+async def test_anthropic_is_always_tested_as_chat(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FakeModel:
+        async def ainvoke(self, _: Any) -> AIMessage:
+            return AIMessage("OK")
+
+    monkeypatch.setattr(service, "build_chat_model", lambda *a, **k: FakeModel())
+    await login(client)
+    conn = await create(client, preset="anthropic", api_key=SECRET)
+    url = f"/tenant/connections/{conn['id']}/test"
+    assert (await client.post(url, json={"model": "whisper-lookalike"})).json()["purpose"] == "chat"
 
 
 # --- routes -----------------------------------------------------------------------------

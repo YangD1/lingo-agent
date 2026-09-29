@@ -35,6 +35,10 @@ _OTHER = re.compile(
 )
 
 
+# Speech-to-text models, whose connection test sends audio instead of a chat message.
+_SPEECH_TO_TEXT = re.compile(r"whisper|transcri|sensevoice|paraformer", re.IGNORECASE)
+
+
 @dataclass(frozen=True)
 class DiscoveredModel:
     id: str
@@ -51,6 +55,10 @@ def categorize(model_id: str) -> ModelCategory:
     if _OTHER.search(model_id):
         return "other"
     return "chat"
+
+
+def looks_like_speech_to_text(model_id: str) -> bool:
+    return _SPEECH_TO_TEXT.search(model_id) is not None
 
 
 async def fetch_models(

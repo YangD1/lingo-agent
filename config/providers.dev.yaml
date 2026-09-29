@@ -48,6 +48,7 @@ presets:
     kind: openai_compatible
     label: Speaches (local speech-to-text; compose profile `asr`, needs PROVIDER_ALLOW_PRIVATE_NETWORKS=true)
     base_url: http://localhost:8200/v1
+    base_url_env: SPEACHES_BASE_URL   # docker-compose.yml sets http://asr:8000/v1 for its backend
     models: [Systran/faster-whisper-small]
 
 defaults:

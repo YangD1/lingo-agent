@@ -94,3 +94,6 @@ P0 的聊天只能收纯文本。用户希望消息里可以带：
 - **PostgreSQL bytea 而不是文件卷或对象存储**：单个附件已经压缩并有上限，数据量可控；换来的是少一个服务、备份和删除逻辑都简单。
 - **PDF 用 pypdfium2**（BSD-3 / Apache-2.0，wheel 约 3.6MB）：一个库同时负责抽取文字和渲染页面。不用 PyMuPDF，因为它是 AGPL 许可；也不再单独引入 pypdf。
 - **不把 PDF 原文件直接发给模型**：Anthropic、OpenAI 等厂商支持直接收 PDF，但没法判断某个模型或中转站是否支持（和看图同样的问题），而且原文件每一轮都要重发。统一转成派生文本更可控。
+
+## 补充（2026-09-29，11C）
+连接的“测试”按用途测：模型名像语音转写模型（whisper / transcribe / SenseVoice / Paraformer），或者租户的语音转写路由用到了这个连接和模型，就发送一段内置的 0.5 秒静音 WAV 去调 `/audio/transcriptions`，而不是发一条聊天消息；请求里也可以用 `purpose` 显式指定。服务器返回 404（常见于只转发聊天接口的中转站）时返回 `error_code=asr_not_supported`，前端提示“这个连接不支持语音转写”。Anthropic 连接总是按聊天测。

@@ -3,9 +3,11 @@
 import re
 import time
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
+import openai
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from sqlalchemy import select
@@ -14,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.credentials.crypto import Keyring, connection_aad
 from app.db.models import PROVIDER_KINDS, ProviderConnection, TenantModelRoute
+from app.providers.asr import SpeechToText, TranscriptionError, silent_clip
 from app.providers.cache import TTLCache
 from app.providers.config import (
     ProviderKind,
@@ -34,6 +37,9 @@ from app.usage.recorder import UsageLabels, make_recorder
 _NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 # Kinds whose official APIs always need a key; openai_compatible may be keyless (Ollama).
 _KEY_REQUIRED: frozenset[str] = frozenset({"deepseek", "anthropic", "openai"})
+
+
+type TestPurpose = Literal["chat", "asr"]
 
 
 class NotFoundError(Exception):
@@ -240,14 +246,25 @@ def _set_api_key(conn: ProviderConnection, api_key: SecretStr | None, keyring: K
     conn.key_hint = key_hint(secret)
 
 
+@dataclass(frozen=True)
+class TestResult:
+    ok: bool
+    error: str | None
+    # Set when the failure has a cause the UI explains itself.
+    error_code: str | None
+    latency_ms: int
+
+
 async def verify_connection(
     session: AsyncSession,
     conn: ProviderConnection,
     *,
     keyring: Keyring,
     model: str,
-) -> tuple[bool, str | None, int]:
-    """Send one tiny request through the same guarded client real calls use."""
+    purpose: TestPurpose = "chat",
+) -> TestResult:
+    """Send one tiny request through the same guarded client real calls use: a chat
+    message, or for speech-to-text a short built-in clip."""
     api_key = _decrypt_key(conn, keyring)
     kind: ProviderKind = conn.kind  # type: ignore[assignment]  # DB CHECK constraint
     resolved = ResolvedModel(
@@ -264,21 +281,32 @@ async def verify_connection(
     )
     started = time.monotonic()
     error: str | None = None
+    error_code: str | None = None
+    # The test hits the tenant's real account, so it shows up in their usage too.
     try:
-        # The test hits the tenant's real account, so it shows up in their usage too.
-        recorder = make_recorder(UsageLabels(conn.tenant_id, "connection_test", conn.name, model))
-        await build_chat_model(resolved, task="connection_test", callbacks=[recorder]).ainvoke(
-            [HumanMessage("Reply with the single word OK.")]
-        )
+        if purpose == "asr":
+            stt = SpeechToText(conn.tenant_id, (resolved,), task="connection_test")
+            await stt.transcribe(silent_clip(), filename="test.wav", mime_type="audio/wav")
+        else:
+            recorder = make_recorder(
+                UsageLabels(conn.tenant_id, "connection_test", conn.name, model)
+            )
+            await build_chat_model(resolved, task="connection_test", callbacks=[recorder]).ainvoke(
+                [HumanMessage("Reply with the single word OK.")]
+            )
     except Exception as exc:  # any vendor/network failure is a test result, not a 500
-        error = f"{type(exc).__name__}: {exc}"[:500]
+        cause = exc.__cause__ if isinstance(exc, TranscriptionError) and exc.__cause__ else exc
+        error = f"{type(cause).__name__}: {cause}"[:500]
+        # A server without /audio/transcriptions (a chat-only relay) answers 404.
+        if purpose == "asr" and isinstance(cause, openai.NotFoundError):
+            error_code = "asr_not_supported"
     latency_ms = int((time.monotonic() - started) * 1000)
 
     if error is None:
         conn.last_verified_at = datetime.now(UTC)
     conn.last_error = error
     await session.commit()
-    return error is None, error, latency_ms
+    return TestResult(error is None, error, error_code, latency_ms)
 
 
 def _clean_model(model: str | None) -> str | None:

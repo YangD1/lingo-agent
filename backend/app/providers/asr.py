@@ -9,9 +9,12 @@ container, so one client covers prod APIs and dev's local model alike:
 Models in the route are tried in order; each attempt is written to llm_usage.
 """
 
+import io
 import time
 import uuid
+import wave
 from dataclasses import dataclass
+from functools import cache
 
 from openai import AsyncOpenAI
 from openai.types.audio import Transcription, TranscriptionDiarized, TranscriptionVerbose
@@ -45,6 +48,7 @@ class TranscriptionError(Exception):
 class SpeechToText:
     tenant_id: uuid.UUID
     models: tuple[ResolvedModel, ...]
+    task: str = "asr"  # llm_usage label; connection tests use their own
 
     async def transcribe(
         self,
@@ -103,7 +107,7 @@ class SpeechToText:
                 tenant_id=self.tenant_id,
                 user_id=user_id,
                 conversation_id=conversation_id,
-                task="asr",
+                task=self.task,
                 connection_name=model.connection,
                 model=model.model,
                 input_tokens=tokens[0],
@@ -145,6 +149,22 @@ def _transcript(result: AnyTranscription) -> Transcript:
         language=language if isinstance(language, str) else None,
         duration_seconds=duration,
     )
+
+
+@cache
+def silent_clip() -> bytes:
+    """Half a second of 16 kHz mono silence as WAV, for testing a connection.
+
+    Only whether the server accepts a transcription request matters, not the text
+    (whisper may even invent some for silence).
+    """
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as clip:
+        clip.setnchannels(1)
+        clip.setsampwidth(2)
+        clip.setframerate(16_000)
+        clip.writeframes(b"\x00\x00" * 8_000)
+    return buffer.getvalue()
 
 
 def get_asr(ctx: TenantProviderContext) -> SpeechToText:

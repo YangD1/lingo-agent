@@ -112,6 +112,8 @@
       "neverTested": "尚未测试",
       "test": "测试",
       "testOk": "连接成功（{ms} 毫秒）",
+      "testOkAsr": "语音转写可用（{ms} 毫秒）",
+      "asrNotSupported": "这个连接不支持语音转写（服务器没有 /audio/transcriptions 接口）。请改用支持语音转写的服务，比如硅基流动、Groq、OpenAI 或本地 Speaches。",
       "testFailed": "测试失败：{error}",
       "newKey": "新的 API 密钥",
       "delete": "删除",

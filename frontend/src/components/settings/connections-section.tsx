@@ -151,8 +151,14 @@ function ConnectionItem({
       });
       setResult(
         r.ok
-          ? { ok: true, text: t("testOk", { ms: r.latency_ms }) }
-          : { ok: false, text: t("testFailed", { error: r.error ?? "" }) },
+          ? { ok: true, text: t(r.purpose === "asr" ? "testOkAsr" : "testOk", { ms: r.latency_ms }) }
+          : {
+              ok: false,
+              text:
+                r.error_code === "asr_not_supported"
+                  ? t("asrNotSupported")
+                  : t("testFailed", { error: r.error ?? "" }),
+            },
       );
       // The backend recorded last_verified_at / last_error; show them.
       const all = await api<Connection[]>("/tenant/connections");
