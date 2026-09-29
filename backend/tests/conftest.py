@@ -55,6 +55,7 @@ BUSINESS_TABLES = (
     "tenant_members",
     "users",
     "tenants",
+    "words",
 )
 
 # LangGraph's tables (checkpoint_migrations is kept: it records the applied schema).

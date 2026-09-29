@@ -63,6 +63,8 @@ For speech-to-text, the Groq and SiliconFlow presets are the easiest start. Groq
 
 **Local speech-to-text (optional, for development).** `make asr-up` starts [speaches](https://github.com/speaches-ai/speaches) (faster-whisper) on port 8200; the first start downloads the model. It needs about 1.4 GB of RAM while transcribing. Then, with private networks allowed, add a connection from the **Speaches** preset (base URL `http://asr:8000/v1` from the Docker stack, `http://localhost:8200/v1` from a host-run backend) and put `speaches:Systran/faster-whisper-small` on the speech-to-text route. See the comments in [`.env.example`](.env.example).
 
+**Word list (for the vocabulary features).** Run `make vocab-import` once (on the host, needs [uv](https://docs.astral.sh/uv/)). It downloads [ECDICT](https://github.com/skywind3000/ECDICT) (MIT, 66 MB, pinned to one commit and checked by sha256) into `data/` and imports about 38,000 words — exam lists, Oxford 3000, Collins-starred and the 30,000 most frequent — into the `DATABASE_URL` database; the Docker stack uses the same Postgres on 127.0.0.1:5433. It takes about 15 seconds and can be run again. If GitHub is unreachable, set `ECDICT_URL` to a mirror of the same file, or pass a local copy with `make vocab-import CSV=path/to/ecdict.csv`. Without uv on the host: download the file, then `docker compose cp ecdict.csv backend:/tmp/` and `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`.
+
 ## Development
 
 Besides Docker you need [uv](https://docs.astral.sh/uv/) (it installs Python 3.12 for you), Node.js 24 and pnpm (`corepack enable` gives you the version pinned in `frontend/package.json`).

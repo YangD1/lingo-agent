@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7、8、8b、9 完成（P1b 学习者模型全部完成：KC 清单、规则文件与 BKT/Elo、反思打标 → 证据 → 掌握度、agent 活动公示、`/learner` 页面），下一步是 P1c 任务 10（`words` 表 + ECDICT 导入），开工前拆子任务、和用户确认。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7、8、8b、9 完成（P1b 学习者模型全部完成：KC 清单、规则文件与 BKT/Elo、反思打标 → 证据 → 掌握度、agent 活动公示、`/learner` 页面），任务 10 完成（ECDICT 词库导入，38,243 条）；下一步是任务 11（词书、`user_cards`、`review_logs` + FSRS 调度 + 每日队列），开工前拆子任务、和用户确认。
 **阻塞项**：无
 
 ## P0 骨架
@@ -131,7 +131,11 @@
   - [x] 9.3 前端 `/learner`：导航“学习者模型”、`proxy.ts` 保护；语法点列表（默认薄弱在前，可按等级、状态筛选；掌握度条带文字，不只靠颜色）；展开懒加载证据、会话链接、删单条；技能估计区块（没有数据时显示“未评估”）；“删除所有学习记录”二次确认；`/learner?kc=<id>` 直达并展开；聊天“私教做了什么”里的语法点链到它；中英文案。Vitest。完成记录：`lib/learner.ts`（类型、请求函数、`filterKcs`、`kcName`、`learnerHref`）；`components/learner/learner-app.tsx`（语法掌握度卡片：各等级“接触 seen/total”、等级 / 状态筛选、空状态引导；技能估计卡片（入学测前为空）；“删除所有学习记录”卡片，`window.confirm` 二次确认）、`kc-item.tsx`（名称 + 等级 + 掌握度条（`role=meter`）+ 百分比和状态文字；展开时才请求证据：原文 → 改正、错误类型、严重度、受母语影响、未计入掌握度、时间、来源会话链接 / “会话已删除”；删单条后重新加载整页数据）；`app/(app)/learner/page.tsx` 从 `searchParams.kc` 取直达项并展开、滚到中间；导航加“学习者模型”，`proxy.ts` 保护 `/learner`；聊天“私教做了什么”里错误的语法点名称链到 `/learner?kc=`，底部加“查看学习者模型”；中英文案（含 `kc_not_found`、`evidence_not_found`）。Vitest 新增 5 个（共 118），eslint、tsc 干净
   - [x] 9.4 E2E + 文档。完成记录：`e2e/learner.spec.ts`（空状态 → 聊天里写错一句、写对一句 → 从“私教做了什么”的语法点链接直达 `/learner?kc=` 并已展开 → 两条依据、原文划线、会话链接、计数 → 删掉错误那条，计数变为错误 0 次，回到聊天第一轮不再显示语法错误 → 删除所有学习记录后回到空状态，聊天里“用对”也消失）。文档：`docs/agent-tools.md`（`grammar_tagging` 摘要随删除同步）、ADR 0012 §2（学习者可删证据、`bkt.weak` 只用于展示）、P1 计划 §7（`/learner` 的实际范围和接口）。验证：pytest 530、Vitest 118、E2E 25 全过；ruff、`mypy app`、eslint、tsc 干净
 - **P1c 背单词**
-- [ ] 10. `words` 表 + ECDICT 导入脚本 + `make vocab-import`
+- [x] 10. `words` 表 + ECDICT 导入脚本 + `make vocab-import`
+  - 用户确认（2026-09-29）：下载地址固定到 ECDICT 提交 `bc015ed`（2025-03-28）并校验 sha256，缓存在 `data/`，`ECDICT_URL` 可换镜像，`--csv` 可指定本地文件；`make vocab-import` 在宿主机用 uv 跑（开发和 compose 共用 127.0.0.1:5433 的 postgres），README 另写容器里的做法（宿主机下载后 `docker compose cp` 进去，用 `--csv` 导入）
+  - [x] 10.1 `words` 表 + 迁移 `b50a63a12ed3`：`Word`（id、`word` 唯一保留大小写、phonetic、translation、definition、collins（CHECK 0–5）、oxford、`tags` text[]（GIN 索引）、bnc、frq（索引）、exchange）。**与计划不同**：不存 `pos`（ECDICT 里这一列全为空）。开发库已 `make migrate` 到最新（顺带应用了 8b 的 `4b93dd7c1f27`）；`tests/conftest.py` 的清表列表加 `words`
+  - [x] 10.2 导入模块 `app/services/vocab/import_ecdict.py`：`to_row` / `read_subset`（`csv.DictReader` 流式；过滤按 ADR 0011；`\n` 转成真换行；标签只留 8 个考试标签并排序；排名 0 视为无；同一个词只取第一条）；`load_words`（`CREATE TEMP TABLE … AS SELECT … WITH NO DATA`，这样不会消耗 `words` 的 id 序列；psycopg `COPY … FROM STDIN` 写数组列正常；`INSERT … SELECT … ON CONFLICT (word) DO UPDATE … WHERE` 有列变化，返回实际新增或改动的行数）；`download`（固定提交 `bc015ed` 的 raw 地址，sha256 校验，先写 `.part` 再改名，本地已有且校验通过就不重下；可注入 transport 便于测试）；`Settings.ecdict_url`（`.env.example` 加 `ECDICT_URL`）。测试：单测 3 个（`tests/fixtures/ecdict_sample.csv`：27 行真实数据 + 重复的 go + 没有释义的词）、集成 2 个（导入 18 条，重复导入 0 条变化、id 不变，改过的行被刷新、文件里没有的词保留；下载缓存、sha256 不符不留文件、HTTP 404）。pytest 535、ruff、`mypy app` 通过
+  - [x] 10.3 `make vocab-import`（`CSV=` 导入本地文件）+ README 中英（宿主机做法、镜像、没有 uv 时 `docker compose cp` + `--csv` 的容器做法）+ ADR 0011、P1 计划 §5.1 落地记录。**真实导入**（开发库）：读 770,611 行，导入 38,243 条（ADR 估计 2–3 万；多出来的主要是只靠词频入选的专名和屈折形式）；首次含下载 12 秒，再次 2.6 秒且 0 条变化；进程内存峰值约 80 MB；`words` 共 13 MB（数据 9.2 MB）；各考试标签词数与 ADR 核实的一致（中考 1603 … GRE 7504）。**没有实测容器里的做法**（运行中的后端镜像是旧代码，没有这个模块）
 - [ ] 11. 词书、`user_cards`、`review_logs` + FSRS 调度 + 每日队列
 - [ ] 12. 背词接口 + `/vocab`（选书、筛选、复习、生词本）页面
 - [ ] 13. 自动收词（reflect 的 vocab_candidates）+ 聊天里选词加入生词本

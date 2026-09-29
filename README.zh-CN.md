@@ -63,6 +63,8 @@ API key 不放在 `.env` 或 YAML 文件里，由每个用户在 **设置** 里�
 
 **本地语音转写（可选，开发用）**：`make asr-up` 会在 8200 端口启动 [speaches](https://github.com/speaches-ai/speaches)（faster-whisper），第一次启动会下载模型，转写时约占 1.4 GB 内存。然后在允许私有网络的前提下，用 **Speaches** 预设添加连接（Docker 里的后端用 `http://asr:8000/v1`，宿主机上的后端用 `http://localhost:8200/v1`），把 `speaches:Systran/faster-whisper-small` 放进“语音转文字”的模型顺序。详见 [`.env.example`](.env.example) 里的注释。
 
+**词库（背单词功能用）**：执行一次 `make vocab-import`（在宿主机上运行，需要 [uv](https://docs.astral.sh/uv/)）。它会把 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT 许可，66 MB，固定到某个提交并校验 sha256）下载到 `data/`，再把其中约 3.8 万个词（考试词表、牛津 3000、柯林斯星级词和词频前 3 万的词）导入 `DATABASE_URL` 指向的数据库；Docker 全栈用的也是 127.0.0.1:5433 上的同一个 Postgres。大约 15 秒，可以重复执行。访问不了 GitHub 时，把 `ECDICT_URL` 设为同一文件的镜像地址，或者用 `make vocab-import CSV=path/to/ecdict.csv` 导入本地文件。宿主机上没有 uv 时：先下载文件，再 `docker compose cp ecdict.csv backend:/tmp/`，然后 `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`。
+
 ## 本地开发
 
 除了 Docker，还需要 [uv](https://docs.astral.sh/uv/)（会自动安装 Python 3.12）、Node.js 24 和 pnpm（执行 `corepack enable` 即可得到 `frontend/package.json` 里固定的版本）。

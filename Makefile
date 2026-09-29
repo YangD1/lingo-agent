@@ -84,6 +84,10 @@ dev-db: ## Start only postgres (host port 5433)
 migrate: ## Apply database migrations to DATABASE_URL (from .env)
 	cd backend && uv run python -m app.db.migrate
 
+.PHONY: vocab-import
+vocab-import: ## Import the ECDICT word list into DATABASE_URL (downloads to data/; CSV=path to use a local copy)
+	cd backend && uv run python -m app.services.vocab.import_ecdict $(if $(CSV),--csv $(abspath $(CSV)))
+
 .PHONY: dev-backend
 dev-backend: ## Run the API with auto-reload on :8000
 	cd backend && uv run uvicorn app.main:app --reload --port 8000

@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-09-29 · P1c 任务 10：`words` 表 + ECDICT 导入
+
+- **做了什么**：用户确认下载固定到 ECDICT 提交 `bc015ed` 并校验 sha256、在宿主机用 uv 跑。`Word` 模型 + 迁移 `b50a63a12ed3`；`app/services/vocab/import_ecdict.py`（流式过滤 → COPY 临时表 → upsert）；`make vocab-import`；`Settings.ecdict_url` / `.env.example`；README 中英、ADR 0011、P1 计划。开发库已导入 38,243 条。测试：单测 3、集成 2，pytest 535。
+- **未完成**：无。容器里的导入做法（`docker compose cp` + `--csv`）写进了 README，但没实测。
+- **下一步**：任务 11：词书（按 tag 的虚拟分组）、`user_cards`、`review_logs` + py-fsrs 调度 + 每日队列。开工前拆子任务、和用户确认；要 `uv add fsrs`（不带 optimizer）。
+- **踩坑**：
+  - 临时表用 `LIKE words INCLUDING DEFAULTS` 会带上 id 的序列默认值，每次导入白白消耗 3.8 万个 id；改用 `CREATE TEMP TABLE … AS SELECT <列> FROM words WITH NO DATA`。
+  - ruff 的 ASYNC240 不允许在 async 函数里调用 pathlib 的阻塞方法：下载用 `anyio.Path`，校验缓存放进 `asyncio.to_thread`；测试里的 glob 也要用 `anyio.Path`。
+  - 运行时的 HTTP 库是 `httpx2`（`httpx` 只是 dev 依赖）。
+  - ECDICT 的 `pos` 列全为空；`went`、`ran` 这类屈折形式大多没有排名，不在子集里，`held` 有排名所以在。
+
+---
+
 ## 2026-09-29 · P1b 任务 9：学习者模型接口 + `/learner` 页面
 
 - **做了什么**：拆成 9.1–9.4，用户确认三点：“删除所有学习记录”连同 `grammar_tagging` 活动一起删；支持删单条证据并同步改活动摘要；列表只显示接触过的 KC。后端 `app/adaptive/learner.py` + `app/api/learner.py`（`GET /learner`、`GET /learner/kcs/{kc_id}/evidence`、`DELETE /learner/evidence/{id}`、`DELETE /learner`），`activity.untag` / `forget_grammar_tags`；`rules.yaml` 加 `bkt.weak`（版本 `2026-09-29.2`）。前端 `/learner`（筛选、掌握度条 + 文字、懒加载证据、删单条 / 全部、`?kc=` 直达），导航和 `proxy.ts`，聊天活动里的语法点链到 `/learner?kc=`。测试：集成 3、Vitest 5、E2E 1。提交 ab9d0ae、aafe471 和本次文档提交，未推送。

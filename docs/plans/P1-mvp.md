@@ -135,7 +135,7 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 
 - **来源**：ECDICT（MIT）。`ecdict.csv` 66 MB、约 77 万条，其中绝大多数是短语和生僻词。
 - **导入子集**（Q7）：有考试标签（zk/gk/cet4/cet6/ky/toefl/ielts/gre）、或 `oxford=1`、或 `collins>0`、或 `bnc`/`frq` 排名在前 30000 的行，预计约 2–3 万条。只导入需要的列：word、phonetic、translation、definition、pos、collins、oxford、tag、bnc、frq、exchange。
-- **导入方式**：`make vocab-import` → `python -m app.services.vocab.import_ecdict`：下载 CSV 到 `data/`（已 gitignore），流式逐行过滤（不整份读进内存），`COPY` 写入 `words` 表；可重复执行（按 word upsert）。Docker 里用 `docker compose exec backend ...`。测试用仓库里的一份几十行的小 CSV。
+- **导入方式**：`make vocab-import`（在宿主机用 uv 运行）→ `python -m app.services.vocab.import_ecdict`：下载固定提交的 CSV 到 `data/`（已 gitignore）并校验 sha256，流式逐行过滤（不整份读进内存），`COPY` 进临时表后按 word upsert 到 `words`，可重复执行，不删旧词。`ECDICT_URL` 可换镜像，`CSV=` 可导入本地文件；没有 uv 的部署环境把文件 `docker compose cp` 进后端容器后用 `--csv` 导入。测试用 `tests/fixtures/ecdict_sample.csv`（27 行真实数据 + 2 行构造数据）。实际导入 38,243 条，表 13 MB。`pos` 列在 ECDICT 里全为空，不导入。
 - `lemma.en.txt` 暂不导入；词形还原用 `exchange` 字段（如 `went` → `0:go`）。
 - **词书**：由 `tag` 生成的虚拟词书（`word_books` 只存 id、名称、tag），不复制词表。
 

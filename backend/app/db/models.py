@@ -16,6 +16,7 @@ from sqlalchemy import (
     Index,
     Integer,
     LargeBinary,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -424,3 +425,40 @@ class AgentActivity(Base):
     duration_ms: Mapped[int | None] = mapped_column(Integer)
     summary: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Word(Base):
+    """A dictionary entry: global read-only data imported from ECDICT (ADR 0011).
+
+    Not per tenant or user; learners' cards point here. Rows are only added or
+    updated by the importer, never deleted, since cards may refer to them.
+    """
+
+    __tablename__ = "words"
+    __table_args__ = (
+        CheckConstraint("collins BETWEEN 0 AND 5", name="collins"),
+        # Word books are the words carrying a tag (task 11).
+        Index("ix_words_tags", "tags", postgresql_using="gin"),
+        # New words come in order of frequency.
+        Index("ix_words_frq", "frq"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # Case kept: ECDICT lists "US" and "us" separately.
+    word: Mapped[str] = mapped_column(String(100), unique=True)
+    phonetic: Mapped[str | None] = mapped_column(String(100))
+    # Chinese glosses, one part of speech per line.
+    translation: Mapped[str] = mapped_column(Text)
+    # English definitions (WordNet), when present.
+    definition: Mapped[str | None] = mapped_column(Text)
+    # Collins stars, 0 = none.
+    collins: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+    # In the Oxford 3000 core vocabulary.
+    oxford: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Exam lists: zk gk cet4 cet6 ky toefl ielts gre.
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String(10)), default=list, server_default="{}")
+    # Frequency ranks (British National Corpus, contemporary corpus); None = unranked.
+    bnc: Mapped[int | None] = mapped_column(Integer)
+    frq: Mapped[int | None] = mapped_column(Integer)
+    # Inflections as ECDICT writes them, e.g. "p:went/d:gone/0:go"; "0:" is the lemma.
+    exchange: Mapped[str | None] = mapped_column(String(300))
