@@ -67,4 +67,12 @@ config/        providers.dev.yaml / providers.prod.yaml（由 PROVIDERS_CONFIG �
 
 ## 常用命令
 
-（P0 完成后补充：启动、测试、lint、数据库迁移、compose）
+以 `Makefile` 为准（`make help` 列出全部）。
+
+- **首次**：`make env`（生成 `.env`，含加密主密钥和 JWT 密钥，不覆盖已有文件）→ `make install`
+- **全栈（Docker）**：`make up`（构建 + 启动，后端启动时自动迁移）/ `make down` / `make ps` / `make logs`；可选本地语音转写 `make asr-up`
+- **热重载开发**：`make dev-db`（只起 postgres，5433）→ `make migrate` → `make dev-backend`（:8000）+ `make dev-frontend`（:3000，`/api` 代理到后端）
+- **测试**（都要先 `make dev-db`）：`make test`（pytest + Vitest）、`make e2e`（Playwright，自带后端、前端和假模型）；单个后端测试：`cd backend && uv run pytest tests/path::name`
+- **检查**：`make lint`（ruff + mypy、eslint + tsc）、`make fmt`；推送前 `make ci`（和 GitHub Actions 同样的步骤）
+- **新迁移**：`cd backend && uv run alembic revision --autogenerate -m "..."`，然后 `make migrate`
+- **CI 结果**：`gh run list`、`gh run view <id> --log-failed`
