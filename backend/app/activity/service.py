@@ -214,6 +214,24 @@ def parse_summary(row: AgentActivity) -> Summary:
     return STEPS[row.name].summary.model_validate(row.summary)
 
 
+def memory_refs(summary: Summary) -> list[uuid.UUID]:
+    """The memories a summary refers to, to be shown with their current content."""
+    match summary:
+        case ContextRead():
+            return [*summary.facts, *summary.episodes]
+        case MemoryChanges():
+            return [*summary.added, *summary.updated]
+        case SummaryUpdate(episode_id=uuid.UUID() as episode_id):
+            return [episode_id]
+    return []
+
+
+def kc_refs(summary: Summary) -> list[str]:
+    if isinstance(summary, GrammarTags):
+        return [m.kc_id for m in summary.mistakes] + summary.used_correctly
+    return []
+
+
 class Stopwatch:
     ms: int | None = None
 

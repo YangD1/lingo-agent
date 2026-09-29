@@ -126,6 +126,11 @@ class ReflectionWorker:
             self.schedule(conversation_id)
         return len(ids)
 
+    def is_busy(self, conversation_id: uuid.UUID) -> bool:
+        """Reflection on this conversation is queued or running (the learner-facing
+        activity of its latest turn may still be coming)."""
+        return conversation_id in self._tasks or conversation_id in self._pending
+
     async def wait_idle(self) -> None:
         """Wait for all scheduled work (tests; shutdown uses `stop`)."""
         while self._tasks:
