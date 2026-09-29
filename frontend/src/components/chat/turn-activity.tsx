@@ -49,7 +49,7 @@ export function TurnActivity({ activities, memories, kcs, waiting }: Props) {
   ].filter((p): p is string => typeof p === "string");
 
   return (
-    <div className="mt-2 border-t border-border/60 pt-1 text-xs text-muted-foreground">
+    <div className="mt-1 px-1 text-xs text-muted-foreground">
       <button
         type="button"
         aria-expanded={open}

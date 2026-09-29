@@ -9,7 +9,7 @@ test.use({ locale: "zh-CN" });
 const FACT = "My cat is called Mochi.";
 
 const input = (page: Page) => page.getByRole("textbox", { name: /输入消息/ });
-const messages = (page: Page) => page.getByRole("list", { name: "消息" }).locator(":scope > li");
+const messages = (page: Page) => page.getByRole("list", { name: "消息" }).locator(':scope > li > [data-slot="message"]');
 const facts = (page: Page) => page.getByRole("list", { name: "私教记住的事" }).locator("li");
 
 /**

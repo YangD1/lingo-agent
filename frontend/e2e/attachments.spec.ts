@@ -19,7 +19,7 @@ const IMAGE_TEXT = "I goed to the park yesterday.";
 const TRANSCRIPT = "I goed home yesterday.";
 
 const input = (page: Page) => page.getByRole("textbox", { name: /输入消息/ });
-const messages = (page: Page) => page.getByRole("list", { name: "消息" }).locator(":scope > li");
+const messages = (page: Page) => page.getByRole("list", { name: "消息" }).locator(':scope > li > [data-slot="message"]');
 const tray = (page: Page) => page.getByRole("list", { name: "附件" }).locator(":scope > li");
 const sendButton = (page: Page) => page.getByRole("button", { name: "发送", exact: true });
 

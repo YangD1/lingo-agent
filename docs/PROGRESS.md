@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7、8 完成（KC 清单、规则文件与 BKT/Elo、反思打标 → 证据 → 掌握度），下一步是任务 8b（agent 活动公示，ADR 0013）。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7、8、8b 完成（KC 清单、规则文件与 BKT/Elo、反思打标 → 证据 → 掌握度、agent 活动公示），下一步是任务 9（学习者模型接口 + `/learner` 页面）。
 **阻塞项**：无
 
 ## P0 骨架
@@ -116,14 +116,14 @@
   - [x] 8.2 校验和写入：`reflection.tagged_evidence`（未知消息 / 未知 KC / 空原文丢弃；同一消息同一 KC 同一原文去重；每条消息最多 10 个错误、3 个用对；同一消息里既错又对的 KC 只留错误）；`adaptive/evidence.py` `record_chat_evidence`：按学习者消息 id **先删后写**，返回证据有变化的 KC（包括被删掉的）。证据和掌握度在同一个事务里提交（记忆操作仍各自提交）
   - [x] 8.3 `adaptive/mastery.py`：`refresh`（重放受影响的语法 KC，先验取 KC 等级 + 画像里的 CEFR；没有证据的 KC 删行；`w.` 开头的单词 KC 跳过，留给 FSRS）、`rebuild`（该用户全部 KC，入学测改等级后也用它）、`ensure_current`（发现旧版本的行就重建）。worker 的 `_record_evidence` 在记忆操作之后执行
   - [x] 8.4 测试：单测 5 个（短 id、prompt 带整份清单、各种丢弃和上限）；集成 4 个（先删后写幂等、按画像等级的先验重放、证据删光后删行、旧规则版本重建、从发消息到掌握度的完整链路）；E2E 假模型：学习者行的正则改为兼容 `[u1]`（否则记忆 E2E 会失效），“he/she/it like”返回第三人称单数错误。pytest 508、ruff、mypy、E2E（chat + memory 6 个）通过
-- [ ] 8b. agent 活动公示（ADR 0013，2026-09-29 追加需求，已确认）：活动记录表；`load_context`、反思写入活动；SSE 推送对话中的步骤，回复完成后前端再取一次后台结果；每条私教回复下默认收起一行摘要、点开看明细（链到记忆页、学习者模型页）；设置里可隐藏（只影响显示）。开工前拆子任务
+- [x] 8b. agent 活动公示（ADR 0013，2026-09-29 追加需求，已确认）：活动记录表；`load_context`、反思写入活动；SSE 推送对话中的步骤，回复完成后前端再取一次后台结果；每条私教回复下默认收起一行摘要、点开看明细（链到记忆页、学习者模型页）；设置里可隐藏（只影响显示）。开工前拆子任务
   - 用户确认（2026-09-29）：活动里的记忆只存引用（id + 操作），展示时取当前内容，已删的显示“已删除”，不留副本；隐藏开关存浏览器 localStorage（不改后端）；后台结果用短轮询（有结果或 60 秒即停）。“一轮”的键 = 学习者消息 id（发送前就生成，打标证据也按它记）；反思一批覆盖多轮时，记忆类活动挂在这批最后一条学习者消息上，语法打标挂在各自的消息上
   - [x] 8b.1 `agent_activities` 表 + 迁移 + `app/activity/`（写入服务；摘要按步骤名用 Pydantic 校验，只收白名单字段）；删会话、删用户级联。完成记录：迁移 `4b93dd7c1f27`；唯一键 (conversation_id, turn_id, name, call_id)，`record` 用 upsert，重写同一步骤即覆盖（`call_id` 给 P2 同一轮多次调用同一工具预留，固定步骤为空串）；`app/activity/service.py`：`STEPS` 登记步骤名 → 类型 + 摘要 schema（`ContextRead`、`MemoryChanges`、`GrammarTags`、`SummaryUpdate`），摘要类型不符直接报错，failed / skipped 不存摘要；`list_activities`（按用户、会话、可选轮次，跳过未登记的步骤名）、`parse_summary`、`timed()`。集成测试 7 个；pytest 515、ruff、`mypy app` 通过
   - [x] 8b.2 `load_context` 记活动（读了几条事实、几条摘要、画像字段）+ 流式图改用 `messages` + `custom` 两种模式，SSE 新增 `activity` 事件；失败也记（status=failed，无错误原文）。完成记录：`ChatContext.activity`（`ActivitySink` 协议，`DatabaseActivity` 绑定用户、会话、轮次，图里拿不到这些 id）；`chat_graph.report()` 先写库再 `runtime.stream_writer`，写库失败只记日志、不影响回复；`ContextRead` 只记真正进了 prompt 的事实（`context.facts_shown()` 和渲染共用同一预算），画像只记项数（`profile_items`）；`LearnerContext` 加 `fact_ids`、`episode_ids`；`turn.py` 订阅 `messages` + `custom`，`ActivityEvent`；`done` 加 `turn_id`。ADR 0003 §2 同步。测试：SSE 协议 2 个改为新顺序并检查活动内容，图层新增 3 个（只记进了 prompt 的记忆 + custom 事件、读取失败记 failed、活动写入失败不影响回复）。pytest 518、ruff、`mypy app` 通过
   - [x] 8b.3 反思写活动：记忆增删改、画像字段、语法打标（KC、错误类型、原文片段）、会话摘要；反思失败 / 没配模型 / 关闭时记 failed / skipped，前端据此停止轮询。完成记录：`Applied` 改为带记忆 id（`added`、`updated`）；`_twice` 不再吞掉 `NoModelConfiguredError`，调用方记为 skipped；`_record_evidence` 返回写入的条目；`_record_reflection_activity`（`reflect_memory` 挂这批最后一条学习者消息，`grammar_tagging` 每条学习者消息一行，没有错误也写空行，前端据此知道反思已完成）；`_summarize` 写 `summarize`（摘要为空时不记）；活动写入失败只记日志，不影响游标。`Summary` 基类改为公开名。集成测试 5 个（`tests/integration/test_reflection_activity.py`）。pytest 523、ruff、`mypy app` 通过
   - [x] 8b.4 接口：`GET /conversations/{id}/activity`（可按轮过滤，越权 404；记忆引用在这里解析成当前内容）。完成记录：`app/api/activity.py`：返回 `activities`（字段与 SSE 事件相同，加 `created_at`）、`memories`（引用到且仍存在的记忆的当前内容，按用户过滤）、`kcs`（涉及的语法点名称和等级）、`pending`（`ReflectionWorker.is_busy`：该会话的反思在排队或运行）；`?turn=` 可重复，最多 50 个；读不出的摘要跳过并记日志。`service.memory_refs` / `kc_refs`。集成测试 3 个（完整链路 + 按轮过滤 + 下一轮读到上一轮写的事实 + 删记忆后不再引用；反思进行中 pending；越权 404）。pytest 526、ruff、`mypy app` 通过
   - [x] 8b.5 前端：每条私教回复下的收起摘要 + 展开明细（链到 `/memory`；`/learner` 等任务 9）；`done` 后轮询后台结果（有结果或超时即停）；设置里的开关；中英文案。完成记录：`lib/activity.ts`（类型、`fetchActivity`、`mergeActivities` 按步骤名 + call_id 覆盖、`digest` 汇总一行）；`lib/sse.ts` 认 `activity` 事件，读到 `done` / `error` 才结束（原来遇到第一个非 token 事件就停），`done` 带 `turn_id`；`use-chat-session` 给回复记 `turnId`（历史里取前一条用户消息的 id），`onActivity`、`onReplyDone` 回调；`use-activity.ts`（打开会话取全部；实时事件合并；`done` 后按 2/4/8/15/25/40/60 秒轮询这一轮，`pending` 为 false 或到 60 秒那次即停；按会话 id 丢弃过期结果，不在切换时清定时器，因为新会话的回复可能在 id 到位前就结束；状态里记着所属会话，切换时不用在 effect 里重置）；`turn-activity.tsx`（收起一行 + 展开明细：读取 / 记下的记忆当前内容，已删的显示“已删除”，语法错误原文 → 改正 + KC 名称和等级，失败 / 跳过的步骤，链到 `/memory`、`/settings#display`）；`lib/preferences.ts` `useShowActivity`（localStorage + 跨标签同步，存储不可用时本页内存兜底）；设置页“显示”区块；中英文案。`/learner` 链接等任务 9 再加。Vitest 新增 13 个（共 113），eslint、tsc 干净
-  - [~] 8b.6 测试（单测、集成、E2E）+ `docs/agent-tools.md`、ADR 0013 补充
+  - [x] 8b.6 测试（单测、集成、E2E）+ `docs/agent-tools.md`、ADR 0013 补充。完成记录：E2E `activity.spec.ts`（打标 + 记忆 → 收起一行 → 展开明细 → 下一轮读到 → 刷新后仍在 → 设置里隐藏后不显示、记忆页照常 → 恢复）；消息气泡移到 `li > [data-slot=message]`，活动摘要放在气泡下方，原有 E2E 的消息选择器随之改为指向气泡；`docs/agent-tools.md` 加“活动记录”一节和各步骤的公示位置；ADR 0013 加第 4 节（实现）；PLAN 数据模型加 `agent_activities`。E2E 24 个全过
 - [ ] 9. 学习者模型接口 + `/learner` 页面
 - **P1c 背单词**
 - [ ] 10. `words` 表 + ECDICT 导入脚本 + `make vocab-import`

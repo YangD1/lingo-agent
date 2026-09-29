@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-09-29 · P1b 任务 8b：agent 活动公示（ADR 0013 §3）
+
+- **做了什么**：拆成 8b.1–8b.6，用户确认了三点：记忆只存引用、隐藏开关存 localStorage、后台结果用短轮询。完成：`agent_activities` 表和 `app/activity/`；`load_context` 记活动并通过 SSE `activity` 事件推送，`done` 带 `turn_id`；反思记 `reflect_memory` / `grammar_tagging` / `summarize`（失败记 failed，没配模型记 skipped）；`GET /conversations/{id}/activity`（记忆解析成当前内容、KC 名称、`pending`）；前端每条回复下的“私教做了什么”（收起一行 / 展开明细）、`done` 后 60 秒内轮询、设置页“显示”开关；E2E。明细见看板。
+- **未完成**：无。明细里的 `/learner` 链接等任务 9 做出页面后再加（`frontend/src/components/chat/turn-activity.tsx` 的 grammar_tagging 分支）。
+- **下一步**：任务 9：学习者模型接口 + `/learner` 页面。开工前拆子任务、和用户确认。
+- **踩坑**：
+  - `streamChat` 原来遇到第一个非 token 事件就结束，加了 `activity` 事件后必须改成读到 done / error 才停。
+  - 活动摘要放在消息 `<li>` 里，会破坏 E2E 对整条消息的 `toHaveText` 和正则匹配。现在气泡是 `li > [data-slot=message]`，E2E 的消息选择器都指向它；以后在消息下面加东西，也放在气泡外面。
+  - 新建会话时回复可能在会话 id 切换之前就结束，所以 `use-activity` 不在切换时清定时器，而是按会话 id 丢弃过期结果。
+  - React lint 不允许在 effect 里直接 setState，所以状态里记着它属于哪个会话，切换时视为空状态。
+  - 测试里 `expire_all()` 之后再读 ORM 对象的属性会触发同步懒加载报错（MissingGreenlet），要先把 id 取到局部变量。
+  - `mypy` 只检查 `app`（与 CI 一致），`tests/` 里有几个历史遗留的类型错误，不在 CI 检查范围内。
+  - 无头 Chromium 没有中文字体，截图里中文是方块，和应用无关。
+
+---
+
 ## 2026-09-29 · P1b 任务 8：反思打标 → 证据 → 掌握度；ADR 0013
 
 - **做了什么**：用户要求记住 agent 工具调用的特性、公示 agent 用到的工具 / MCP：写了 ADR 0013（工具调用规范 + 界面公示）、`docs/agent-tools.md`（公开清单）、CLAUDE.md 约束一条、长期记忆一条；界面公示排为任务 8b（每条回复下默认收起、可展开，设置里可隐藏）。任务 8 完成，明细见看板。
