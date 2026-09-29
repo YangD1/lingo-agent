@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-09-29.4"
+version: "2026-09-29.5"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -142,3 +142,29 @@ placement:
     # When the learner says yes to at least this share of pseudo-words, the result
     # is shown as unreliable.
     unreliable_false_alarm: 0.4
+  # Grammar test: four-option items from placement/items.yaml, picked adaptively.
+  grammar:
+    # Next item: the unanswered one whose predicted chance of a correct answer
+    # (guessing included) is nearest this, preferring KCs not yet tested.
+    target_p: 0.55
+    # Among items within this distance of the best predicted chance, one is drawn at
+    # random, so a retest does not repeat the same sequence.
+    pick_tolerance: 0.05
+    min_items: 8
+    max_items: 20
+    # Stop early once the ability's standard error drops below this (logits). With
+    # four-option items (guessing floor 0.25) 20 answers only get it to about
+    # 0.55-0.65, so in practice everyone answers max_items; simulated learners are
+    # then placed at their level 52-72% of the time and within one level 93-100%.
+    stop_se: 0.55
+    # Prior on ability: normal around elo.initial_ability with this spread.
+    prior_sd: 1.5
+    # Lowest ability for each level; below A2 is A1. Set near the median difficulty
+    # of each level's items: at the cut, a learner has an even chance (before
+    # guessing) on a typical item of that level. Tune from real results later.
+    cefr_cutpoints:
+      A2: -1.8
+      B1: -0.8
+      B2: 0.4
+      C1: 1.2
+      C2: 2.4

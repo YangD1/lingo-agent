@@ -54,6 +54,13 @@ def _set(data: dict[str, Any], path: str, value: Any) -> None:
         ("difficulty.cefr_anchor.C2", -9.0, "must not decrease"),
         ("placement.vocab.max_rank", 20500, "multiple of band_size"),
         ("placement.vocab.pseudo_share", 1.0, "less than 1"),
+        ("placement.grammar.min_items", 50, "must not exceed max_items"),
+        ("placement.grammar.cefr_cutpoints", {"A2": 0.0}, "needs exactly"),
+        (
+            "placement.grammar.cefr_cutpoints",
+            {"A2": 0.0, "B1": -1.0, "B2": 1.0, "C1": 2.0, "C2": 3.0},
+            "must rise",
+        ),
         ("version", None, "version"),
         ("elo.unknown", 1, "Extra inputs"),
     ],

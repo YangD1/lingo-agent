@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-09-30 · P1d 任务 14：语法题库 + 假词 + 词汇量估计 + 语法选题定级
+
+- **做了什么**：用户确认 3 点：题库授权按教师标准自审；第二部分只考语法；假词离线生成静态清单。新增 `app/adaptive/placement/`：`items.py` + `items.yaml`（90 题，难度由四个维度分现算，启动时校验）、`pseudowords.py` + `pseudowords.txt`（4 元组模型，对照完整 ECDICT 过滤，300 个）、`vocab_size.py`（对数逻辑模型 + 误报率写进似然 + 最大后验拟合 + 就近频段选题）、`grammar_test.py`（最大后验拟合能力 + 标准误、选题、结束判定、CEFR 分界）。`rules.yaml` 加 `placement.vocab` / `placement.grammar`，版本号升到 `2026-09-29.5`。ADR 0010 / 0012、P1 计划 §6.1、PLAN 第二·五节加落地记录。提交 39e40f4、c958afb、c69da84 和本次。pytest 全量 647 通过（单测 407），ruff、mypy 干净。
+- **未完成**：无。
+- **下一步**：任务 15（placement 子图：`pick_item → ask（interrupt）→ update_estimate → 结束判定`；`POST /placement`、`/placement/{id}/answer`、`GET /placement/{id}/result`；`placement_sessions` 表、题目统计表（测后用最终能力回算难度，ADR 0012 §3）；结果写 `user_profile.cefr_level`、`skill_estimates`、BKT 先验、`kc_evidence(source=placement)`）。需要决定的点：真词从 `words` 表按 `frq` 取时排除屈折形式（`exchange` 含 `0:`）和专有名词；语法测试的先验均值是否用画像里已有的 CEFR；词汇量结果怎样建议熟词筛选的起点。开工前拆子任务、和用户确认。
+- **踩坑**：
+  - 起草语法题时最常见的问题是“干扰项在某种语境下也对”（美式英语过去式代替现在完成时、`There's a lot of students`、`while I had a bath`、英式 `recommended that he stops`）。审核标准写在 `items.yaml` 文件头，扩充题库时照着查。
+  - 四选一题有 0.25 的猜测下限，20 题的标准误降不到 0.55 以下，“不确定度足够小就提前结束”实际不会触发；要缩短测试只能加题型（非选择题）或放宽标准误。
+  - 三元组模型生成的假词不像英语（`chm`、`chf` 开头），改成 4 元组才像样。假词清单不要手改：`tests/unit/test_pseudowords.py` 在本机有 `data/ecdict.csv` 时会重新生成并比对。
+  - `float ** float` 在 mypy 里是 `Any`，用 `math.pow`。
+
+---
+
 ## 2026-09-29 · P1c 任务 13：自动收词 + 聊天里选词加入生词本
 
 - **做了什么**：用户确认 4 点：已有卡片的词自动收词不改动（只记“已在学”）；回复明细里直接放“移出”；只能从私教回复里选单个词；不记出处句子。后端：`Reflection.vocab_candidates`（消息短 id + 原形）+ `prompts/reflect.md` 新一节；`reflection.asked_words` 校验；`mine.collect`（只为没有卡片的词建 `auto` 卡）、`mine.on_list`；worker `_collect_words`（打标之后执行，失败记 `failed`）；活动 `vocab_collect`；活动接口加 `words_on_list`。前端：`use-activity` 的 `wordsOnList` / `removeWord`，`turn-activity` 的收词明细，`select-to-add.tsx`（选词浮出按钮）。E2E 假模型认 `what does "X" mean`。提交 5640a33、b110fdf、14d50ac 和本次。pytest 567、Vitest 142、Playwright 29。

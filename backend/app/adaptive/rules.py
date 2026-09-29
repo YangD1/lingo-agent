@@ -138,8 +138,31 @@ class PlacementVocabRules(_Strict):
         return self
 
 
+class PlacementGrammarRules(_Strict):
+    target_p: OpenProbability
+    pick_tolerance: Annotated[float, Field(ge=0.0, lt=1.0)]
+    min_items: int = Field(ge=1)
+    max_items: int = Field(ge=1, le=100)
+    stop_se: float = Field(gt=0)
+    prior_sd: float = Field(gt=0)
+    cefr_cutpoints: dict[CefrLevel, float]
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.min_items > self.max_items:
+            raise ValueError("placement.grammar.min_items must not exceed max_items")
+        levels = CEFR_LEVELS[1:]
+        if set(self.cefr_cutpoints) != set(levels):
+            raise ValueError(f"cefr_cutpoints needs exactly {list(levels)}")
+        cuts = [self.cefr_cutpoints[level] for level in levels]
+        if cuts != sorted(cuts):
+            raise ValueError("cefr_cutpoints must rise from A2 to C2")
+        return self
+
+
 class PlacementRules(_Strict):
     vocab: PlacementVocabRules
+    grammar: PlacementGrammarRules
 
 
 class Rules(_Strict):
