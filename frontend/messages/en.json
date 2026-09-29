@@ -37,7 +37,8 @@
     "chat": "Chat",
     "settings": "Settings",
     "logout": "Log out",
-    "memory": "Memory"
+    "memory": "Memory",
+    "learner": "Learner model"
   },
   "chat": {
     "newChat": "New chat",
@@ -123,7 +124,8 @@
       "kc": "{name} ({cefr})",
       "listSeparator": ", ",
       "manageMemory": "Manage memories",
-      "hide": "Hide this"
+      "hide": "Hide this",
+      "learnerModel": "Learner model"
     }
   },
   "memory": {
@@ -189,6 +191,71 @@
       "clear": "Delete all summaries",
       "confirmDelete": "Delete this summary? This can't be undone.",
       "confirmClear": "Delete every conversation summary? This can't be undone."
+    }
+  },
+  "learner": {
+    "grammar": {
+      "title": "Grammar mastery",
+      "description": "Worked out from your mistakes and correct uses in conversation: {mastered}% or more counts as mastered, below {weak}% as weak. Open one to see why; if a tag is wrong, delete it and the mastery is recomputed.",
+      "empty": "Nothing yet. Write a few sentences in English in a conversation and the tutor will note the grammar you get wrong and right here.",
+      "coverage": "{level} met {seen}/{total}",
+      "filterLevel": "Filter by level",
+      "filterState": "Filter by state",
+      "allLevels": "All levels",
+      "allStates": "All states",
+      "noMatch": "No grammar points match."
+    },
+    "kc": {
+      "mastery": "Mastery",
+      "states": {
+        "weak": "Weak",
+        "learning": "Learning",
+        "mastered": "Mastered"
+      },
+      "counts": "{mistakes} mistakes · used correctly {produced} times in your own words · {recognized} right answers in tests",
+      "evidence": "Evidence",
+      "noEvidence": "No records.",
+      "usedCorrectly": "Used correctly",
+      "errorTypes": {
+        "omission": "Missing",
+        "addition": "Extra",
+        "wrong_form": "Wrong form",
+        "wrong_choice": "Wrong choice",
+        "word_order": "Word order"
+      },
+      "severity": {
+        "low": "Slip",
+        "medium": "Clear error",
+        "high": "Hurts understanding"
+      },
+      "l1Transfer": "Native-language influence",
+      "notCounted": "Not counted towards mastery",
+      "from": "From “{title}”",
+      "untitled": "Untitled conversation",
+      "conversationDeleted": "Conversation deleted",
+      "delete": "Delete this record",
+      "confirmDelete": "Delete this record? If it was tagged wrongly, the mastery is recomputed without it. This cannot be undone.",
+      "olderHidden": "{n} older records are not shown."
+    },
+    "skills": {
+      "title": "Skill estimates",
+      "description": "Your ability in each skill, from the placement test and practice.",
+      "empty": "No skill estimates yet. They appear here after the placement test.",
+      "row": "{skill}: ability {rating} ({attempts} answers)",
+      "names": {
+        "listening": "Listening",
+        "speaking": "Speaking",
+        "reading": "Reading",
+        "writing": "Writing",
+        "grammar": "Grammar",
+        "vocab": "Vocabulary"
+      }
+    },
+    "clear": {
+      "title": "Delete all learning records",
+      "description": "Deletes all grammar evidence, mastery and skill estimates, and the grammar tags under “What the tutor did” in conversations. Memories and conversations stay.",
+      "button": "Delete all learning records",
+      "confirm": "Delete all learning records? This cannot be undone."
     }
   },
   "settings": {
@@ -346,6 +413,8 @@
     "processing_failed": "Processing failed. Please retry.",
     "processing_interrupted": "Processing was interrupted. Please retry.",
     "memory_not_found": "This memory doesn't exist or was already deleted.",
-    "invalid_memory": "A memory needs some text, at most 1000 characters."
+    "invalid_memory": "A memory needs some text, at most 1000 characters.",
+    "kc_not_found": "There is no such grammar point.",
+    "evidence_not_found": "This record does not exist or was already deleted."
   }
 }

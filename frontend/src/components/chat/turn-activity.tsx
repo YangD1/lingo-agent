@@ -14,6 +14,7 @@ import {
   type MemoryChanges,
   type MemoryRef,
 } from "@/lib/activity";
+import { learnerHref } from "@/lib/learner";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -68,6 +69,9 @@ export function TurnActivity({ activities, memories, kcs, waiting }: Props) {
           <p className="flex gap-3">
             <Link href="/memory" className="underline hover:text-foreground">
               {t("manageMemory")}
+            </Link>
+            <Link href="/learner" className="underline hover:text-foreground">
+              {t("learnerModel")}
             </Link>
             <Link href="/settings#display" className="underline hover:text-foreground">
               {t("hide")}
@@ -168,7 +172,13 @@ function Step({
                   <li key={i}>
                     <span className="line-through">{m.original}</span>
                     {m.correction && <> → {m.correction}</>}
-                    <span className="text-muted-foreground/80"> · {kcName(m.kc_id)}</span>
+                    {" · "}
+                    <Link
+                      href={learnerHref(m.kc_id)}
+                      className="text-muted-foreground/80 underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      {kcName(m.kc_id)}
+                    </Link>
                   </li>
                 ))}
               </ul>

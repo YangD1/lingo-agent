@@ -66,7 +66,11 @@ describe("TurnActivity", () => {
     expect(screen.getByText("(this memory was deleted)")).toBeInTheDocument();
     expect(screen.getByText("Has a sister.")).toBeInTheDocument();
     expect(screen.getByText("she like")).toHaveClass("line-through");
-    expect(screen.getByText(/Third person -s \(A1\)/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Third person -s (A1)" })).toHaveAttribute(
+      "href",
+      "/learner?kc=g.third",
+    );
+    expect(screen.getByRole("link", { name: "Learner model" })).toHaveAttribute("href", "/learner");
     expect(screen.getByRole("link", { name: "Manage memories" })).toHaveAttribute("href", "/memory");
   });
 
