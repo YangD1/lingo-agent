@@ -50,6 +50,11 @@ def json_response(body: Any, status: int = 200) -> httpx2.Response:
         ("gpt-4o-mini-transcribe", "other"),
         ("gpt-realtime", "other"),
         ("dall-e-3", "other"),
+        # A local speaches server also lists VAD and TTS models.
+        ("silero_vad_v5", "other"),
+        ("speaches-ai/Kokoro-82M-v1.0-ONNX", "other"),
+        ("rhasspy/piper-voices", "other"),
+        ("Systran/faster-whisper-small", "other"),
         ("gpt-image-1", "other"),
         ("omni-moderation-latest", "other"),
         ("davinci-002", "other"),

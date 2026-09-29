@@ -120,8 +120,33 @@ services:
     mem_limit: 128m
     restart: unless-stopped
 
+  # Local speech-to-text for dev (ADR 0008 §5): an OpenAI-compatible /audio/transcriptions
+  # server (faster-whisper). Add it in Settings as a connection from the `speaches` preset
+  # (base URL http://localhost:8200/v1 for a backend on the host, http://asr:8000/v1 for
+  # the compose backend) and put it on the speech-to-text route. The image is ~3.4GB, so
+  # it stays behind a profile; prod uses a hosted API instead.
+  asr:
+    image: ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cpu
+    profiles: [asr]
+    ports:
+      - "127.0.0.1:${ASR_HOST_PORT:-8200}:8000"
+    environment:
+      # Downloaded on first start into the volume below (startup fails if it can't be).
+      PRELOAD_MODELS: '["${ASR_MODEL:-Systran/faster-whisper-small}"]'
+      # Where models come from; set ASR_HF_ENDPOINT=https://hf-mirror.com where
+      # huggingface.co is unreachable (the container doesn't use the host's proxy).
+      HF_ENDPOINT: ${ASR_HF_ENDPOINT:-https://huggingface.co}
+      WHISPER__COMPUTE_TYPE: int8
+      # Unload the model after 5 idle minutes; the next request loads it again (~seconds).
+      STT_MODEL_TTL: "300"
+    volumes:
+      - asr-models:/home/ubuntu/.cache/huggingface/hub
+    mem_limit: 2g
+    restart: unless-stopped
+
 volumes:
   pgdata:
   phoenix-data:
   neo4j-data:
   redis-data:
+  asr-models:

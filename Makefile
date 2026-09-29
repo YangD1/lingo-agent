@@ -51,6 +51,14 @@ down: ## Stop the stack (data volumes are kept)
 build: ## Build the backend and frontend images
 	$(COMPOSE) build
 
+.PHONY: asr-up
+asr-up: ## Start local speech-to-text (speaches, dev only; first start downloads the model)
+	$(COMPOSE) --profile asr up -d asr
+
+.PHONY: asr-down
+asr-down: ## Stop local speech-to-text (the downloaded model is kept)
+	$(COMPOSE) --profile asr stop asr
+
 .PHONY: logs
 logs: ## Follow logs of all services
 	$(COMPOSE) logs -f

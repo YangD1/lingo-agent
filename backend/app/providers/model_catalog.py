@@ -26,10 +26,11 @@ _ANTHROPIC_PAGE_SIZE = 1000
 _MAX_PAGES = 10
 
 _EMBEDDING = re.compile(r"embed|^bge-|^e5-|^gte-", re.IGNORECASE)
-# Speech, images, moderation, reranking, realtime audio and legacy completion models.
+# Speech, images, moderation, reranking, realtime audio and legacy completion models, plus
+# what a local speaches server lists besides whisper (voice activity detection, TTS voices).
 _OTHER = re.compile(
     r"whisper|tts|transcri|speech|audio|realtime|dall-e|image|sora|moderation|rerank"
-    r"|^(babbage|davinci)",
+    r"|silero|kokoro|piper|^(babbage|davinci)",
     re.IGNORECASE,
 )
 

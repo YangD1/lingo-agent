@@ -70,8 +70,8 @@
   - [ ] 11B.6 E2E 与部署：`fake_llm.py` 支持看图回显和 `/audio/transcriptions`；E2E 覆盖三类附件（含扫描版 PDF）、未配置 vision 时的引导、识别结果修改；compose 新增 `asr` profile（speaches）并实测内存；重建镜像，交给用户实测
     - [x] 11B.6a 假模型：`fake_llm.py` 支持 function calling（看图的结构化输出返回固定的 `ImageReading`）、对话里看到 image 块时回复“我看到了 N 张图”、`POST /v1/audio/transcriptions` 返回固定转写；模型列表加 `fake-vision`、`fake-whisper`。E2E 夹具（PNG、只有图片没有文字的扫描版 PDF、WAV）用脚本生成后提交
     - [x] 11B.6b E2E `attachments.spec.ts`：未配置 vision 时图片卡片失败并显示“去设置”；配置 vision / asr 路由后：图片识别 → 修改识别结果 → 发送 → 回复确认看到图片 → 刷新后历史里有缩略图；文本文档 + 扫描版 PDF；语音文件只发语音不打字；真实录音（Chromium 假麦克风）；粘贴和拖拽；大图上传前被压缩成 JPEG。完成：6 个用例全部通过，完整 E2E 套件 21 个通过。**真实浏览器里验证了**：MediaRecorder 录音（Chromium 假麦克风，录出 webm 后经转写变成语音附件）、canvas 压缩（粘贴 3000×2000 的 PNG，服务端收到的文件名是 `big-photo.jpg`，说明浏览器重新编码过）、粘贴和拖拽、刷新后经鉴权的内容接口加载缩略图。vision 路由用 `fake-tutor`（假模型不看模型名，另加一个 `fake-vision` 会打乱设置页模型列表的断言）。踩坑：Playwright 拿不到由 Blob 组成的 multipart 请求体，改为检查响应；名字以 `use` 开头的辅助函数会被 eslint 的 hooks 规则当成 React hook
-    - [~] 11B.6c compose `asr` profile（speaches，CPU 镜像），在设置页把它加成连接并实测转写和内存；`.env.example` / Makefile 说明
-    - [ ] 11B.6d 重建镜像，全栈冒烟后交给用户实测
+    - [x] 11B.6c compose `asr` profile（speaches，CPU 镜像），在设置页把它加成连接并实测转写和内存；`.env.example` / Makefile 说明。完成：compose 服务 `asr`（`ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cpu`，镜像 3.37GB；`PRELOAD_MODELS` 默认 `Systran/faster-whisper-small`，int8，空闲 5 分钟卸载模型，mem_limit 2g，模型放在 `asr-models` 卷里；只绑定 127.0.0.1:8200）；`make asr-up` / `asr-down`；`.env.example` 加 `ASR_HOST_PORT`、`ASR_MODEL`、`ASR_HF_ENDPOINT`。**实测**：宿主机上的后端 → 用 speaches 预设建连接（模型发现正常）→ asr 路由 → 上传 11 秒英语语音（JFK 样本，转成 webm/opus）→ 转写一字不差，首次 5.3s（包含加载模型），第二次 4.0s；speaches 空闲约 260MiB，转写时峰值 1.38GiB；`llm_usage` 记了 `task=asr` 的调用（`audio_seconds` 为空，因为 json 格式不返回时长，符合 ADR）。顺带修复：speaches 列出的 `silero_vad_v5` 被归成对话模型，把 silero / kokoro / piper 加入“其他”类。踩坑：容器用不了宿主机只监听 127.0.0.1 的代理，访问不了 huggingface.co 时设 `ASR_HF_ENDPOINT=https://hf-mirror.com`（用 huggingface_hub 验证可用；直接用 urllib 请求会被返回 403）
+    - [~] 11B.6d 重建镜像，全栈冒烟后交给用户实测
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）
 - [ ] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令
 
