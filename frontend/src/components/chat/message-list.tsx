@@ -8,9 +8,18 @@ import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
 import { MessageAttachments } from "./message-attachments";
+import { TurnActivity } from "./turn-activity";
+import type { ActivityState } from "./use-activity";
 import type { ChatMessage } from "./use-chat-session";
 
-export function MessageList({ messages }: { messages: ChatMessage[] }) {
+export function MessageList({
+  messages,
+  activity,
+}: {
+  messages: ChatMessage[];
+  /** What the tutor did per turn; absent when the learner hid it. */
+  activity?: ActivityState;
+}) {
   const t = useTranslations("chat");
   const errorMessage = useErrorMessage();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -59,6 +68,14 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
               <p role="alert" className="mt-1 text-xs text-destructive">
                 {errorMessage(m.error)}
               </p>
+            )}
+            {activity && m.role === "assistant" && m.turnId && m.status !== "streaming" && (
+              <TurnActivity
+                activities={activity.byTurn[m.turnId] ?? []}
+                memories={activity.memories}
+                kcs={activity.kcs}
+                waiting={activity.waiting.has(m.turnId)}
+              />
             )}
           </li>
         ))}

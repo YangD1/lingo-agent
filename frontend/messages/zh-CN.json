@@ -90,6 +90,40 @@
       "voiceMessage": "语音消息",
       "truncated": "只读取了开头部分",
       "download": "下载"
+    },
+    "activity": {
+      "line": "私教做了什么：{parts}",
+      "nothing": "这一轮没有读写记忆",
+      "read": "读取 {n} 条记忆",
+      "saved": "记下 {n} 条",
+      "deleted": "删除 {n} 条记忆",
+      "profileUpdated": "更新了画像",
+      "mistakes": "标记 {n} 个语法错误",
+      "usedCorrectly": "用对 {n} 个语法点",
+      "summaryUpdated": "更新了会话摘要",
+      "someFailed": "有步骤没完成",
+      "waiting": "正在整理…",
+      "steps": {
+        "load_context": "读取记忆",
+        "reflect_memory": "整理记忆",
+        "grammar_tagging": "语法标注",
+        "summarize": "会话摘要"
+      },
+      "failed": "{step}失败了，这一轮先跳过。",
+      "skipped": "{step}已跳过：还没有配置后台整理模型。",
+      "goToSettings": "去设置",
+      "readHeading": "读取了 {n} 条记忆",
+      "readNone": "没有可读取的记忆",
+      "profileRead": "画像 {n} 项",
+      "memoryDeleted": "（这条记忆已删除）",
+      "savedHeading": "记下或更新了 {n} 条",
+      "profileFields": "更新了画像：{fields}",
+      "mistakesHeading": "标记了 {n} 个语法错误",
+      "usedCorrectlyList": "用对了：{kcs}",
+      "kc": "{name}（{cefr}）",
+      "listSeparator": "、",
+      "manageMemory": "管理记忆",
+      "hide": "不再显示"
     }
   },
   "memory": {
@@ -266,6 +300,12 @@
       "fallbacks": "回退",
       "avg_latency_ms": "平均延迟（毫秒）",
       "total": "合计"
+    },
+    "display": {
+      "title": "显示",
+      "description": "只影响这个浏览器里的显示。",
+      "showActivity": "在私教回复下显示“私教做了什么”",
+      "showActivityHint": "读取和记下的记忆、标记的语法错误。隐藏后记录照常保存，记忆页仍能看到全部内容。"
     }
   },
   "errors": {

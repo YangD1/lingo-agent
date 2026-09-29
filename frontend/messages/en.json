@@ -90,6 +90,40 @@
       "voiceMessage": "Voice message",
       "truncated": "only the beginning was read",
       "download": "Download"
+    },
+    "activity": {
+      "line": "What the tutor did: {parts}",
+      "nothing": "no memories read or saved this turn",
+      "read": "read {n, plural, one {# memory} other {# memories}}",
+      "saved": "saved {n}",
+      "deleted": "deleted {n, plural, one {# memory} other {# memories}}",
+      "profileUpdated": "updated your profile",
+      "mistakes": "marked {n, plural, one {# grammar mistake} other {# grammar mistakes}}",
+      "usedCorrectly": "{n, plural, one {# grammar point} other {# grammar points}} used correctly",
+      "summaryUpdated": "updated the conversation summary",
+      "someFailed": "some steps didn't finish",
+      "waiting": "working on it…",
+      "steps": {
+        "load_context": "Reading memories",
+        "reflect_memory": "Updating memories",
+        "grammar_tagging": "Grammar tagging",
+        "summarize": "Conversation summary"
+      },
+      "failed": "{step} failed; this turn was skipped.",
+      "skipped": "{step} was skipped: no background model is set up yet.",
+      "goToSettings": "Go to Settings",
+      "readHeading": "Read {n, plural, one {# memory} other {# memories}}",
+      "readNone": "No memories to read",
+      "profileRead": "{n, plural, one {# profile item} other {# profile items}}",
+      "memoryDeleted": "(this memory was deleted)",
+      "savedHeading": "Saved or updated {n, plural, one {# memory} other {# memories}}",
+      "profileFields": "Updated your profile: {fields}",
+      "mistakesHeading": "Marked {n, plural, one {# grammar mistake} other {# grammar mistakes}}",
+      "usedCorrectlyList": "Used correctly: {kcs}",
+      "kc": "{name} ({cefr})",
+      "listSeparator": ", ",
+      "manageMemory": "Manage memories",
+      "hide": "Hide this"
     }
   },
   "memory": {
@@ -266,6 +300,12 @@
       "fallbacks": "Fallbacks",
       "avg_latency_ms": "Avg latency (ms)",
       "total": "Total"
+    },
+    "display": {
+      "title": "Display",
+      "description": "Applies to this browser only.",
+      "showActivity": "Show “What the tutor did” under replies",
+      "showActivityHint": "Memories read and saved, grammar mistakes marked. Hiding it changes the display only: everything is still recorded, and the Memory page still shows it all."
     }
   },
   "errors": {

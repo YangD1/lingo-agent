@@ -7,6 +7,7 @@ import type { Connection, Presets } from "@/lib/types";
 
 import { RouteSection } from "./route-section";
 import { ConnectionsSection } from "./connections-section";
+import { DisplaySection } from "./display-section";
 import { UsageSection } from "./usage-section";
 
 export function SettingsApp() {
@@ -34,6 +35,7 @@ export function SettingsApp() {
             <RouteSection task="asr" connections={connections} />
           </>
         )}
+        <DisplaySection />
         <UsageSection />
       </div>
     </div>

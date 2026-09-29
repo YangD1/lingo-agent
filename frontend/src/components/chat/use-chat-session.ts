@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ApiErrorLike } from "@/i18n/errors";
+import type { Activity } from "@/lib/activity";
 import { api, ApiError, isAbortError } from "@/lib/api";
 import { streamChat } from "@/lib/sse";
 import type { Attachment, Conversation, HistoryMessage } from "@/lib/types";
@@ -15,6 +16,8 @@ export type ChatMessage = {
   /** streaming: tokens still arriving; stopped: user pressed stop; error: see `error`. */
   status?: "streaming" | "stopped" | "error";
   error?: ApiErrorLike;
+  /** On replies: the learner message they answer, which their activity is filed under. */
+  turnId?: string;
 };
 
 type Options = {
@@ -22,6 +25,10 @@ type Options = {
   onConversationCreated: (conversation: Conversation) => void;
   /** Called after a reply finishes (the backend retitled/bumped the conversation). */
   onTurnFinished: () => void;
+  /** A step of the turn, streamed while the reply is generated (ADR 0013 §3). */
+  onActivity?: (activity: Activity) => void;
+  /** The reply was saved; its background activity follows under `turnId`. */
+  onReplyDone?: (conversationId: string, turnId: string) => void;
 };
 
 const toApiErrorLike = (error: unknown): ApiErrorLike =>
@@ -65,11 +72,15 @@ export function useChatSession(conversationId: string | null, options: Options) 
       .then((history) => {
         if (!cancelled) {
           setMessages(
-            history.map((m) => ({
+            history.map((m, i) => ({
               key: nextKey(),
               role: m.role,
               content: m.content,
               attachments: m.attachments,
+              turnId:
+                m.role === "assistant" && history[i - 1]?.role === "user"
+                  ? (history[i - 1].id ?? undefined)
+                  : undefined,
             })),
           );
         }
@@ -144,8 +155,13 @@ export function useChatSession(conversationId: string | null, options: Options) 
           const event = step.value;
           if (event.event === "token") {
             updateLast((m) => ({ ...m, content: m.content + event.text }));
+          } else if (event.event === "activity") {
+            updateLast((m) => ({ ...m, turnId: event.turn_id }));
+            optionsRef.current.onActivity?.(event);
           } else if (event.event === "done") {
-            updateLast((m) => ({ ...m, status: undefined }));
+            const turnId = event.turn_id ?? undefined;
+            updateLast((m) => ({ ...m, status: undefined, turnId: turnId ?? m.turnId }));
+            if (turnId) optionsRef.current.onReplyDone?.(id, turnId);
           } else {
             updateLast((m) => ({ ...m, status: "error", error: event }));
           }

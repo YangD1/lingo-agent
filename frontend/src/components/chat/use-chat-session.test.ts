@@ -23,11 +23,14 @@ async function* events(...items: ChatEvent[]) {
 function setup(conversationId: string | null = null) {
   const onConversationCreated = vi.fn();
   const onTurnFinished = vi.fn();
+  const onActivity = vi.fn();
+  const onReplyDone = vi.fn();
   const hook = renderHook(
-    ({ id }: { id: string | null }) => useChatSession(id, { onConversationCreated, onTurnFinished }),
+    ({ id }: { id: string | null }) =>
+      useChatSession(id, { onConversationCreated, onTurnFinished, onActivity, onReplyDone }),
     { initialProps: { id: conversationId } },
   );
-  return { ...hook, onConversationCreated, onTurnFinished };
+  return { ...hook, onConversationCreated, onTurnFinished, onActivity, onReplyDone };
 }
 
 beforeEach(() => {
@@ -38,14 +41,25 @@ beforeEach(() => {
 describe("useChatSession", () => {
   it("creates the conversation lazily and streams the reply", async () => {
     api.mockResolvedValueOnce(CONVERSATION);
+    const read = {
+      turn_id: "u1",
+      name: "load_context",
+      kind: "step" as const,
+      call_id: "",
+      status: "ok" as const,
+      duration_ms: 3,
+      summary: { facts: ["f1"], episodes: [], profile_items: 0 },
+    };
     streamChat.mockReturnValue(
       events(
+        { event: "activity", ...read },
         { event: "token", text: "Hel" },
         { event: "token", text: "lo" },
-        { event: "done", message_id: "m1", usage: {} },
+        { event: "done", message_id: "m1", turn_id: "u1", usage: {} },
       ),
     );
-    const { result, onConversationCreated, onTurnFinished, rerender } = setup();
+    const { result, onConversationCreated, onTurnFinished, onActivity, onReplyDone, rerender } =
+      setup();
 
     let sent: boolean | undefined;
     await act(async () => {
@@ -61,6 +75,9 @@ describe("useChatSession", () => {
       ["user", "Hi", undefined],
       ["assistant", "Hello", undefined],
     ]);
+    expect(onActivity).toHaveBeenCalledWith(expect.objectContaining(read));
+    expect(onReplyDone).toHaveBeenCalledWith("c1", "u1");
+    expect(result.current.messages[1].turnId).toBe("u1");
 
     // The page then switches to the new id: the on-screen turn must not be reloaded.
     rerender({ id: "c1" });
@@ -154,6 +171,8 @@ describe("useChatSession", () => {
 
     await waitFor(() => expect(result.current.messages).toHaveLength(2));
     expect(api).toHaveBeenCalledWith("/conversations/c9/messages");
+    // A reply's activity is filed under the learner message it answers.
+    expect(result.current.messages.map((m) => m.turnId)).toEqual([undefined, "1"]);
   });
 
   it("creates the conversation once when attachments need it before the first send", async () => {
@@ -178,7 +197,9 @@ describe("useChatSession", () => {
 
   it("sends attachment ids and shows a voice message as its transcript", async () => {
     api.mockResolvedValueOnce([]); // the conversation's (empty) history
-    streamChat.mockReturnValue(events({ event: "done", message_id: "m1", usage: {} }));
+    streamChat.mockReturnValue(
+      events({ event: "done", message_id: "m1", turn_id: "u1", usage: {} }),
+    );
     const { result } = setup("c1");
     await waitFor(() => expect(result.current.loading).toBe(false));
     const voice = {

@@ -7,12 +7,14 @@ import { type DragEvent, useCallback, useEffect, useState } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { useErrorMessage } from "@/i18n/errors";
 import { api } from "@/lib/api";
+import { useShowActivity } from "@/lib/preferences";
 import type { Conversation } from "@/lib/types";
 
 import { SETTINGS_ERRORS } from "./attachment-tray";
 import { Composer } from "./composer";
 import { ConversationList } from "./conversation-list";
 import { MessageList } from "./message-list";
+import { useActivity } from "./use-activity";
 import { useAttachments } from "./use-attachments";
 import { useChatSession } from "./use-chat-session";
 
@@ -41,6 +43,8 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  const [showActivity] = useShowActivity();
+  const activity = useActivity(activeId, showActivity);
   const session = useChatSession(activeId, {
     onConversationCreated: (c) => {
       setActiveId(c.id);
@@ -48,6 +52,8 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
       setConversations((all) => [c, ...all]);
     },
     onTurnFinished: refresh,
+    onActivity: activity.addLive,
+    onReplyDone: activity.turnFinished,
   });
   const tray = useAttachments(activeId, session.ensureConversation);
   const [dragging, setDragging] = useState(false);
@@ -99,7 +105,7 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
             {t("attachments.dropHere")}
           </div>
         )}
-        <MessageList messages={session.messages} />
+        <MessageList messages={session.messages} activity={showActivity ? activity : undefined} />
         {error && (
           <div
             role="alert"

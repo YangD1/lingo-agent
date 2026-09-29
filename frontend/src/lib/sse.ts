@@ -1,18 +1,23 @@
 import { EventSourceParserStream } from "eventsource-parser/stream";
 
+import type { Activity } from "./activity";
 import { apiFetch } from "./api";
 
 /** The chat SSE protocol (ADR 0003 §2). */
 export type ChatEvent =
   | { event: "token"; text: string }
+  /** A step of this turn as it happens (ADR 0013 §3). */
+  | ({ event: "activity" } & Omit<Activity, "created_at">)
   | {
       event: "done";
       message_id: string | null;
+      /** The learner message's id: background activity of this turn is filed under it. */
+      turn_id: string | null;
       usage: { input_tokens?: number; output_tokens?: number };
     }
   | { event: "error"; code: string; message: string };
 
-const KNOWN_EVENTS = new Set(["token", "done", "error"]);
+const KNOWN_EVENTS = new Set(["token", "activity", "done", "error"]);
 
 /**
  * Send a message and yield the reply's events. POST + fetch because EventSource can't
@@ -47,7 +52,7 @@ export async function* streamChat(
       if (!KNOWN_EVENTS.has(value.event ?? "")) continue; // forward-compatible
       const event = { event: value.event, ...JSON.parse(value.data) } as ChatEvent;
       yield event;
-      if (event.event !== "token") return;
+      if (event.event === "done" || event.event === "error") return;
     }
   } finally {
     reader.releaseLock();
