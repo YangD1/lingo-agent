@@ -190,7 +190,7 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
   1. **画像**：表单，可编辑
   2. **事实记忆**：列表，可编辑、删除、全部清空；显示来源会话和时间
   3. **会话摘要**：列表，可删除
-- `/learner`（学习者模型）：语法 KC 按掌握度排序，展开看证据（`kc_evidence` 里的错误）；技能估计；“删除所有学习记录”。
+- `/learner`（学习者模型）：只列接触过的语法 KC（有证据的），薄弱在前，可按等级、状态（已掌握 ≥ `bkt.mastered` / 学习中 / 薄弱 < `bkt.weak`）筛选，每个等级显示“接触 seen/total”；展开看证据（错误和用对，标出是否计入 BKT、来源会话），可删单条（重算该 KC，并从对应消息的 `grammar_tagging` 活动里去掉）；技能估计；“删除所有学习记录”（证据、掌握度、技能估计和全部 `grammar_tagging` 活动，不动画像里的 CEFR 等级）。`/learner?kc=<id>` 直达并展开。接口：`GET /learner`、`GET /learner/kcs/{kc_id}/evidence`、`DELETE /learner/evidence/{id}`、`DELETE /learner`。
 - 删除是真删除（隐私要求），不做软删除。
 
 ---

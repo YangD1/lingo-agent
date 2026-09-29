@@ -25,6 +25,8 @@ ADR 0010 定了 BKT、Elo 的分工和默认参数，但这些参数、先验、
 - **`kc_evidence`**（只追加）：每条观测一行，包括对话里的错误和用对、入学测作答。字段：user_id、kc_id、`correct`、`evidence`（recognition / production）、`source`（chat / placement）、conversation_id（会话删除时置空）、message_id、created_at；错误行另有 error_type、severity、original、correction、l1_transfer。**看板和学习者模型页的“错误”就是 `correct = false` 的行**。
 - **`kc_mastery`**：每人每 KC 一行，存 p_mastery、观测计数、`rules_version`。它可以由证据按时间顺序重放算出：规则版本变了，就用新规则重放该用户的证据（重放是纯函数，任务 8 接入触发时机）。
 - 严重度过滤、每轮去重这些规则在**重放时**生效，而不是在写入时丢弃证据，所以改了这些规则，旧证据也能按新规则重新计算。
+- **学习者可以删除证据**（任务 9，`/learner`）：“只追加”是对系统而言，学习者删一条（比如打标模型判错了）就重放该 KC，删全部就连同掌握度、技能估计一起删。页面上每条证据标出是否计入了 BKT（低严重度、同一轮重复的不计入），让学习者看得懂掌握度从哪里来。
+- 页面和看板用的“薄弱”阈值 `bkt.weak` 也放在 `rules.yaml`，只用于展示，BKT 本身不用。
 
 ### 3. 题目难度：LLM 给先验，算法做校准
 难度分成两部分，按“理解 vs 记账”划界：

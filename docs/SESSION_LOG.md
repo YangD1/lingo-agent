@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-09-29 · P1b 任务 9：学习者模型接口 + `/learner` 页面
+
+- **做了什么**：拆成 9.1–9.4，用户确认三点：“删除所有学习记录”连同 `grammar_tagging` 活动一起删；支持删单条证据并同步改活动摘要；列表只显示接触过的 KC。后端 `app/adaptive/learner.py` + `app/api/learner.py`（`GET /learner`、`GET /learner/kcs/{kc_id}/evidence`、`DELETE /learner/evidence/{id}`、`DELETE /learner`），`activity.untag` / `forget_grammar_tags`；`rules.yaml` 加 `bkt.weak`（版本 `2026-09-29.2`）。前端 `/learner`（筛选、掌握度条 + 文字、懒加载证据、删单条 / 全部、`?kc=` 直达），导航和 `proxy.ts`，聊天活动里的语法点链到 `/learner?kc=`。测试：集成 3、Vitest 5、E2E 1。提交 ab9d0ae、aafe471 和本次文档提交，未推送。
+- **未完成**：无。
+- **下一步**：P1c 任务 10：`words` 表 + ECDICT 导入脚本 + `make vocab-import`。开工前拆子任务、和用户确认。
+- **踩坑**：
+  - `session.scalars()` 的结果没取完就执行下一条查询，会报 `'ChunkedIteratorResult' object is not subscriptable`（看起来像 `dict()` 出错），先 `.all()`。另外 SQLAlchemy 2.1 里 `Result.tuples()` 已弃用。
+  - 证据“是否计入 BKT”要对该 KC 的完整历史跑 `bkt.counted`（每轮上限看同一轮的其他证据），不能只看当前页。`Observation` 是可比较的 frozen dataclass，内容相同的两条会相等，所以用 `id()` 判断是否被保留。
+  - E2E 里按 `hasText: "She like"` 筛证据会连会话标题“She like music.”一起匹配，要用 `has: getByText(..., { exact: true })`。
+  - 改了 `rules.yaml` 版本号：开发库里已有的掌握度会在下一次读取 `/learner` 或反思时按新版本重建（预期行为）。开发库还需要 `make migrate` 应用 8b 的 `4b93dd7c1f27`（本任务没有新迁移）。
+
+---
+
 ## 2026-09-29 · P1b 任务 8b：agent 活动公示（ADR 0013 §3）
 
 - **做了什么**：拆成 8b.1–8b.6，用户确认了三点：记忆只存引用、隐藏开关存 localStorage、后台结果用短轮询。完成：`agent_activities` 表和 `app/activity/`；`load_context` 记活动并通过 SSE `activity` 事件推送，`done` 带 `turn_id`；反思记 `reflect_memory` / `grammar_tagging` / `summarize`（失败记 failed，没配模型记 skipped）；`GET /conversations/{id}/activity`（记忆解析成当前内容、KC 名称、`pending`）；前端每条回复下的“私教做了什么”（收起一行 / 展开明细）、`done` 后 60 秒内轮询、设置页“显示”开关；E2E。明细见看板。
