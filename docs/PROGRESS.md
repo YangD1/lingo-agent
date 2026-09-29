@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 骨架任务 1–13、11A、11B 全部完成并经用户实测；CI 全绿。下一步待用户选择：先做 11B 实测记下的 5 个体验问题，还是直接规划 P1
+**当前阶段**：P0 完成（任务 1–13、11A、11B 已实测，CI 全绿）。**用户已选定下一步：进入 P1**。开工前先写 `docs/plans/P1-*.md` 阶段计划和相关 ADR（记忆存储与抽取、掌握度模型、词库来源等），拆任务写进本看板，经用户确认后再写代码。11C 暂缓（建议在 P1 前顺手修第 3、4 条，需用户确认）
 **阻塞项**：无
 
 ## P0 骨架
@@ -73,7 +73,7 @@
     - [x] 11B.6c compose `asr` profile（speaches，CPU 镜像），在设置页把它加成连接并实测转写和内存；`.env.example` / Makefile 说明。完成：compose 服务 `asr`（`ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cpu`，镜像 3.37GB；`PRELOAD_MODELS` 默认 `Systran/faster-whisper-small`，int8，空闲 5 分钟卸载模型，mem_limit 2g，模型放在 `asr-models` 卷里；只绑定 127.0.0.1:8200）；`make asr-up` / `asr-down`；`.env.example` 加 `ASR_HOST_PORT`、`ASR_MODEL`、`ASR_HF_ENDPOINT`。**实测**：宿主机上的后端 → 用 speaches 预设建连接（模型发现正常）→ asr 路由 → 上传 11 秒英语语音（JFK 样本，转成 webm/opus）→ 转写一字不差，首次 5.3s（包含加载模型），第二次 4.0s；speaches 空闲约 260MiB，转写时峰值 1.38GiB；`llm_usage` 记了 `task=asr` 的调用（`audio_seconds` 为空，因为 json 格式不返回时长，符合 ADR）。顺带修复：speaches 列出的 `silero_vad_v5` 被归成对话模型，把 silero / kokoro / piper 加入“其他”类。踩坑：容器用不了宿主机只监听 127.0.0.1 的代理，访问不了 huggingface.co 时设 `ASR_HF_ENDPOINT=https://hf-mirror.com`（用 huggingface_hub 验证可用；直接用 urllib 请求会被返回 403）
     - [x] 11B.6d 重建镜像，全栈冒烟后交给用户实测。完成：重建镜像（77s，构建期间内存正常）；旧镜像读不了新 YAML 的 `asr` 一节，会一直重启，重建后恢复。全栈冒烟（经前端代理 :3000/api；假对话模型放在同一 docker 网络，语音转写用真实 speaches，连接地址 `http://asr:8000/v1`；只在这一条命令上临时设置 `PROVIDER_ALLOW_PRIVATE_NETWORKS=true`，结束后 backend 已恢复成按 `.env` 运行）：未配置路由时分别失败为 `no_asr_model` / `no_vision_model` → 配置后语音 3.7s 转写正确，只发语音时正文就是转写 → 图片、扫描版 PDF 识别，带图那一轮由 vision 路由回复 → 历史带附件，内容接口经代理可访问，文档以下载方式返回。内存：backend 187MiB、frontend 56MiB、postgres 94MiB、speaches 1.0GiB（模型已加载）。冒烟在开发库里留下了一个 `smoke-*@example.com` 测试账号。**待用户实测**
   - [x] 11B.7 用户实测反馈：新增硅基流动（SiliconFlow）语音转写预设。原因：Groq 按地区屏蔽大陆 IP（不带 key 直连 403、经代理 401），OpenAI 也不支持大陆，而后端有意不走代理（防 SSRF）；硅基流动从容器直连可达（401 Token is invalid），接口兼容 OpenAI `/audio/transcriptions`，模型 `FunAudioLLM/SenseVoiceSmall`。改动：两份 YAML 加预设 `siliconflow`，asr 默认顺序 groq → siliconflow → openai；同步 ADR 0008 §5、PLAN、README。已完成：配置、文档；后端已重启加载新 YAML。顺带修了一个测试问题：后端 Settings 会读仓库根目录的 `.env`，用户把 `PROVIDER_ALLOW_PRIVATE_NETWORKS` 改成 true 后 `test_model_settings_api` 有 3 个用例失败；`tests/conftest.py` 改为 `Settings.model_config["env_file"] = None`，测试不再受开发者本地 `.env` 影响（pytest 371、ruff、mypy 通过）。**用户实测通过（2026-09-29）**：用户选了硅基流动的 `XingChenAGI/XingChenASR-V3.2-Ultra`（模型列表实时拉取），中文“天气怎么样？”、英文 “What can I see?” 都转写正确；看图（中转站 gpt-6-sol）、PDF 提取也通过。11B 实测完成。实测中记下 5 个体验问题，见下方待办
-- [ ] 11C. 11B 实测记下的体验问题（待用户决定做不做）
+- [ ] 11C. 11B 实测记下的体验问题（暂缓：用户选了先进 P1；第 3、4 条较小，可在 P1 前顺手修，需确认）
   - [ ] 录音静音检测：录音时显示音量条；几乎是静音时提示“没录到声音”，不上传（实测：-60 dB 的录音被 Whisper 转成一串“ლ”）
   - [ ] 转写时开 VAD / 空结果报错：减少 Whisper 在静音上编造文字
   - [ ] 语音转文字的“测试”按钮：按转写来测（发一小段内置音频），接口 404 时提示“这个连接不支持语音转写”（实测：中转站没有 `/audio/transcriptions`，用户只看到“未配置”）
