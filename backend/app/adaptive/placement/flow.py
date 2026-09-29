@@ -11,7 +11,7 @@ places the learner (Q15d); the vocabulary part gives a size and a reference leve
 """
 
 import random
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Literal, NotRequired, TypedDict
 
 from app.adaptive.kc.catalog import CEFR_LEVELS, CefrLevel
@@ -244,12 +244,17 @@ class GrammarResultDict(TypedDict):
     answered: int
 
 
+class Answers(TypedDict):
+    vocab: list[VocabRecord]
+    grammar: list[GrammarRecord]
+
+
 class PlacementResult(TypedDict):
     cefr: CefrLevel  # overall: the grammar level (Q15d)
     vocab: VocabResult
     grammar: GrammarResultDict
     # The answers, kept for re-estimating item difficulties and for the record.
-    answers: dict[str, Sequence[object]]
+    answers: Answers
 
 
 def summarize(progress: Progress, pool: WordPool, bank: ItemBank, rules: Rules) -> PlacementResult:
