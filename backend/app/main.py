@@ -8,8 +8,10 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.placement.items import get_item_bank
+from app.adaptive.placement.words import DatabaseWords
 from app.adaptive.rules import get_rules
 from app.agents.chat_graph import build_chat_graph
+from app.agents.placement_graph import build_placement_graph
 from app.api import (
     activity,
     attachments,
@@ -18,6 +20,7 @@ from app.api import (
     health,
     learner,
     memory,
+    placement,
     providers,
     usage,
     vocab,
@@ -31,6 +34,7 @@ from app.db.migrate import create_checkpointer_pool
 from app.db.session import create_engine, create_sessionmaker
 from app.memory.worker import ReflectionWorker
 from app.observability import setup_tracing, shutdown_tracing
+from app.placement.service import PlacementRuntime
 from app.providers.llm import get_providers_config
 from app.settings import Settings, get_settings
 from app.usage.recorder import set_usage_sink
@@ -65,7 +69,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.database_url, settings.checkpoint_pool_max_size
     )
     await checkpoint_pool.open()
-    app.state.chat_graph = build_chat_graph(AsyncPostgresSaver(checkpoint_pool))
+    checkpointer = AsyncPostgresSaver(checkpoint_pool)
+    app.state.chat_graph = build_chat_graph(checkpointer)
+    app.state.placement = PlacementRuntime(
+        graph=build_placement_graph(checkpointer),
+        checkpointer=checkpointer,
+        sessionmaker=app.state.sessionmaker,
+        words=DatabaseWords(app.state.sessionmaker, get_rules().placement.vocab),
+    )
     app.state.reflection_worker = ReflectionWorker(
         app.state.sessionmaker,
         app.state.chat_graph,
@@ -114,6 +125,7 @@ def create_app() -> FastAPI:
     app.include_router(activity.router)
     app.include_router(learner.router)
     app.include_router(vocab.router)
+    app.include_router(placement.router)
     return app
 
 

@@ -31,7 +31,10 @@ from app.settings import Settings  # noqa: E402
 Settings.model_config["env_file"] = None
 
 # Imported after the environment is prepared.
+from app.adaptive.placement.words import DatabaseWords  # noqa: E402
+from app.adaptive.rules import get_rules  # noqa: E402
 from app.agents.chat_graph import build_chat_graph  # noqa: E402
+from app.agents.placement_graph import build_placement_graph  # noqa: E402
 from app.attachments.handlers import default_handlers  # noqa: E402
 from app.attachments.processor import AttachmentProcessor  # noqa: E402
 from app.db.migrate import alembic_config, setup_checkpointer  # noqa: E402
@@ -39,6 +42,7 @@ from app.db.session import create_engine, create_sessionmaker  # noqa: E402
 from app.db.urls import to_psycopg_conninfo  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.memory.worker import ReflectionWorker  # noqa: E402
+from app.placement.service import PlacementRuntime  # noqa: E402
 from app.providers import net_guard  # noqa: E402
 
 BUSINESS_TABLES = (
@@ -147,6 +151,12 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         to_psycopg_conninfo(TEST_DATABASE_URL)
     ) as checkpointer:
         app.state.chat_graph = build_chat_graph(checkpointer)
+        app.state.placement = PlacementRuntime(
+            graph=build_placement_graph(checkpointer),
+            checkpointer=checkpointer,
+            sessionmaker=app.state.sessionmaker,
+            words=DatabaseWords(app.state.sessionmaker, get_rules().placement.vocab),
+        )
         # Off by default: most tests' fake models can't do structured output, and would
         # add llm_usage rows. Reflection tests switch it on (`enabled = True`).
         app.state.reflection_worker = ReflectionWorker(
