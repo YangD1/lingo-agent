@@ -323,10 +323,13 @@ compose 要点：所有服务设 `mem_limit`；postgres 有 healthcheck，backen
   - `integration/test_auth_api.py`：注册 → 登录 → /me → 重复注册 409 → 错误密码 401
   - `integration/test_chat.py`：假模型（`GenericFakeChatModel`）跑图；SSE 事件顺序 token…done；历史可读回；越权访问别人会话 404
 - **测试里不调用真实 LLM API**：provider 层提供测试注入点（conftest 里覆盖 `get_llm`），并且设置假的 API key，防止误调。
-- **CI**（`.github/workflows/ci.yml`）：
-  - backend job：`uv sync --locked` → `ruff check` → `ruff format --check` → `mypy app` → `alembic upgrade head` → `pytest`
-  - frontend job：`pnpm install --frozen-lockfile` → `lint` → `typecheck`（`next typegen && tsc --noEmit`）→ `test`（Vitest）→ `build`；E2E（Playwright，需要 postgres service + uv）可以单独一个 job
-  - docker job：`docker compose build`（只验证能构建）
+- **CI**（`.github/workflows/ci.yml`；2026-09-29 落地，用户选定四个 job 在每次推送 main 和每个 PR 时都跑）：
+  - backend job：`uv sync --locked` → `ruff check` → `ruff format --check` → `mypy app` → `pytest`。**没有单独的 `alembic upgrade head` 步骤**：测试会话开始时 conftest 已经在空库上执行 downgrade base → upgrade head，迁移双向都覆盖了。postgres 用 service container，`POSTGRES_DB=lingo_test`（本地由 `docker/postgres/init` 创建，service container 挂载不了仓库），映射到宿主机 5433，测试的默认连接不用改
+  - frontend job：`pnpm install --frozen-lockfile` → `lint` → `typecheck`（`next typegen && tsc --noEmit`）→ `test`（Vitest）→ `build`；pnpm 版本取自 `package.json` 的 `packageManager`，Node 24
+  - e2e job：postgres service + uv + `playwright install --with-deps chromium` → `pnpm e2e`（`CI=true`：不复用已有服务、失败重试 1 次、GitHub 注解）；失败时上传 `test-results/` 里的 trace，保留 7 天
+  - docker job：用 `docker/build-push-action` 构建 backend、frontend 两个镜像，只验证能构建，不推送；用 GHA 缓存（与 `docker compose build` 等价，构建参数取 Dockerfile 里和 compose 一致的默认值）
+  - 同一分支上新的一次推送会取消旧的运行；`permissions: contents: read`；不需要任何 secret
+  - 本地按同样的顺序跑：`make ci`
 
 ---
 

@@ -10,13 +10,15 @@ import sys
 import psycopg
 
 PORT = os.environ.get("E2E_BACKEND_PORT", "8100")
+# The server to test against, via its maintenance database; lingo_e2e is created next to it.
 ADMIN_URL = os.environ.get("E2E_ADMIN_DB", "postgresql://lingo:lingo@localhost:5433/postgres")
 DB_NAME = "lingo_e2e"
+SERVER = ADMIN_URL.split("://", 1)[1].rsplit("/", 1)[0]  # user:password@host:port
 
 # Throwaway values for a local test database only - never used anywhere else.
 os.environ.update(
     APP_ENV="dev",
-    DATABASE_URL=f"postgresql+psycopg://lingo:lingo@localhost:5433/{DB_NAME}",
+    DATABASE_URL=f"postgresql+psycopg://{SERVER}/{DB_NAME}",
     JWT_SECRET="e2e-only-jwt-secret-not-for-production-use",
     CREDENTIALS_ENCRYPTION_KEYS="e2e:" + "A" * 43 + "=",
     # The fake LLM server listens on localhost.

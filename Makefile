@@ -116,6 +116,14 @@ test-frontend: ## Vitest
 e2e: ## Playwright end-to-end tests (needs dev-db; starts its own backend, fake model and frontend)
 	cd frontend && $(PNPM) e2e
 
+.PHONY: ci
+ci: ## Run what CI runs, in the same order (needs dev-db; the docker job is `make build`)
+	cd backend && uv sync --locked && uv run ruff check . && uv run ruff format --check . \
+		&& uv run mypy app && uv run pytest
+	cd frontend && $(PNPM) install --frozen-lockfile && $(PNPM) lint && $(PNPM) typecheck \
+		&& $(PNPM) test && $(PNPM) build
+	cd frontend && CI=true $(PNPM) e2e
+
 .PHONY: lint
 lint: ## ruff + mypy (backend), eslint + typecheck (frontend)
 	cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy app

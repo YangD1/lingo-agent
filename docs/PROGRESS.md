@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 骨架（任务 1–11、11A、11B 完成（11B 待用户实测）；下一步：任务 12 CI）
+**当前阶段**：P0 骨架（任务 1–11、11A、11B 完成（11B 待用户实测）；任务 12 CI 已写好、本地验证通过，等推送到 GitHub；下一步：任务 13 README）
 **阻塞项**：无
 
 ## P0 骨架
@@ -72,7 +72,11 @@
     - [x] 11B.6b E2E `attachments.spec.ts`：未配置 vision 时图片卡片失败并显示“去设置”；配置 vision / asr 路由后：图片识别 → 修改识别结果 → 发送 → 回复确认看到图片 → 刷新后历史里有缩略图；文本文档 + 扫描版 PDF；语音文件只发语音不打字；真实录音（Chromium 假麦克风）；粘贴和拖拽；大图上传前被压缩成 JPEG。完成：6 个用例全部通过，完整 E2E 套件 21 个通过。**真实浏览器里验证了**：MediaRecorder 录音（Chromium 假麦克风，录出 webm 后经转写变成语音附件）、canvas 压缩（粘贴 3000×2000 的 PNG，服务端收到的文件名是 `big-photo.jpg`，说明浏览器重新编码过）、粘贴和拖拽、刷新后经鉴权的内容接口加载缩略图。vision 路由用 `fake-tutor`（假模型不看模型名，另加一个 `fake-vision` 会打乱设置页模型列表的断言）。踩坑：Playwright 拿不到由 Blob 组成的 multipart 请求体，改为检查响应；名字以 `use` 开头的辅助函数会被 eslint 的 hooks 规则当成 React hook
     - [x] 11B.6c compose `asr` profile（speaches，CPU 镜像），在设置页把它加成连接并实测转写和内存；`.env.example` / Makefile 说明。完成：compose 服务 `asr`（`ghcr.io/speaches-ai/speaches:0.9.0-rc.3-cpu`，镜像 3.37GB；`PRELOAD_MODELS` 默认 `Systran/faster-whisper-small`，int8，空闲 5 分钟卸载模型，mem_limit 2g，模型放在 `asr-models` 卷里；只绑定 127.0.0.1:8200）；`make asr-up` / `asr-down`；`.env.example` 加 `ASR_HOST_PORT`、`ASR_MODEL`、`ASR_HF_ENDPOINT`。**实测**：宿主机上的后端 → 用 speaches 预设建连接（模型发现正常）→ asr 路由 → 上传 11 秒英语语音（JFK 样本，转成 webm/opus）→ 转写一字不差，首次 5.3s（包含加载模型），第二次 4.0s；speaches 空闲约 260MiB，转写时峰值 1.38GiB；`llm_usage` 记了 `task=asr` 的调用（`audio_seconds` 为空，因为 json 格式不返回时长，符合 ADR）。顺带修复：speaches 列出的 `silero_vad_v5` 被归成对话模型，把 silero / kokoro / piper 加入“其他”类。踩坑：容器用不了宿主机只监听 127.0.0.1 的代理，访问不了 huggingface.co 时设 `ASR_HF_ENDPOINT=https://hf-mirror.com`（用 huggingface_hub 验证可用；直接用 urllib 请求会被返回 403）
     - [x] 11B.6d 重建镜像，全栈冒烟后交给用户实测。完成：重建镜像（77s，构建期间内存正常）；旧镜像读不了新 YAML 的 `asr` 一节，会一直重启，重建后恢复。全栈冒烟（经前端代理 :3000/api；假对话模型放在同一 docker 网络，语音转写用真实 speaches，连接地址 `http://asr:8000/v1`；只在这一条命令上临时设置 `PROVIDER_ALLOW_PRIVATE_NETWORKS=true`，结束后 backend 已恢复成按 `.env` 运行）：未配置路由时分别失败为 `no_asr_model` / `no_vision_model` → 配置后语音 3.7s 转写正确，只发语音时正文就是转写 → 图片、扫描版 PDF 识别，带图那一轮由 vision 路由回复 → 历史带附件，内容接口经代理可访问，文档以下载方式返回。内存：backend 187MiB、frontend 56MiB、postgres 94MiB、speaches 1.0GiB（模型已加载）。冒烟在开发库里留下了一个 `smoke-*@example.com` 测试账号。**待用户实测**
-- [ ] 12. GitHub Actions CI（backend / frontend / docker build）
+- [!] 12. GitHub Actions CI（backend / frontend / docker build）。**阻塞**：验收标准是“CI 全绿”，要等用户建好 GitHub 仓库并推送后才能在 GitHub 上实际运行；本地能做的验证都已完成
+  - [x] 12.1 `.github/workflows/ci.yml`（用户选 A：四个 job 每次推送和 PR 都跑）：backend（postgres service，`POSTGRES_DB=lingo_test`，端口映射到 5433，这样测试的默认连接不用改；uv sync --locked → ruff → ruff format --check → mypy app → pytest）、frontend（pnpm install --frozen-lockfile → lint → typecheck → Vitest → build）、docker（compose build，只验证能构建，用 GHA 缓存）、e2e（postgres service + uv + Chromium → playwright，失败时上传 trace）。同一分支上新的一次推送会取消还在跑的旧运行；权限只读
+  - [x] 12.2 本地验证：按 workflow 里的命令在干净环境里实跑（新 clone 的仓库 + 全新的 postgres 容器，端口和 CI 一致），`actionlint` 静态检查；E2E 在 `CI=true` 下跑（不复用已有服务，失败重试 1 次）
+  - [x] 12.3 同步 P0 计划 §10（CI 没有单独的 alembic 步骤：conftest 已经在空库上执行 downgrade base → upgrade head）、Makefile `ci` 目标（本地按 CI 的顺序跑一遍）
+  - 完成记录：actionlint（官方 docker 镜像，含 shellcheck）0 个错误。Action 版本：checkout@v7、setup-node@v7、pnpm/action-setup@v6、setup-uv@v10（uv 固定为 0.11.8，与 Dockerfile 一致）、setup-buildx@v4、build-push@v7、upload-artifact@v7（由子代理查 releases 页得到，没有逐个人工核对）。**本地模拟 CI**：新 clone 的仓库，两个全新的 pgvector 容器（5434 / 5435，不动开发栈的 5433）——backend job 66s（ruff、mypy、pytest 371）、frontend job 20s（lint、typecheck、Vitest 93、build）、e2e job 44s（`CI=true`，21 个全部通过，`lingo_e2e` 建在新库里）；docker job 没有再跑，因为 11B.6d 已用同样的 Dockerfile 构建过。为了本地能指向别的端口，`e2e/run_backend.py` 的 `DATABASE_URL` 改为从 `E2E_ADMIN_DB` 推导（默认值不变）。踩坑：zsh 里 `pnpm` 是懒加载 nvm 的函数，模拟时要先 `unset -f pnpm`，再用 `whence -p pnpm` 取到的绝对路径调用
 - [ ] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令
 
 ## P1 MVP：私教对话 + 长期记忆 + 背单词 + 入学测 + 自适应引擎 v1

@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-09-29 · 任务 12 GitHub Actions CI
+
+- **做了什么**：`.github/workflows/ci.yml`，四个 job（backend / frontend / docker / e2e），每次推送 main 和每个 PR 都跑（用户选 A）；`make ci`；P0 计划 §10 已同步；`e2e/run_backend.py` 的数据库地址改为从 `E2E_ADMIN_DB` 推导。actionlint 通过；在新 clone 的仓库和全新数据库上模拟了 backend、frontend、e2e 三个 job，全部通过。
+- **未完成**：GitHub 上的实际运行。仓库还没有 remote，要用户建仓库并推送。第一次运行时注意：Action 版本号来自子代理查询；GHA 的 docker 缓存第一次是冷的；e2e 在 GitHub runner 上的耗时还不知道。
+- **下一步**：任务 13 README（英文 + zh-CN）+ CLAUDE.md 的“常用命令”。
+- **踩坑**：zsh 里 `pnpm` 是懒加载 nvm 的函数，设了 PATH 也会递归调用，要先 `unset -f pnpm`；`timeout` 后面不能接 shell 内建的 `command`。
+
+---
+
 ## 2026-09-29 · 11B.6 附件 E2E、speaches、全栈冒烟（11B 完成）
 
 - **做了什么**：
