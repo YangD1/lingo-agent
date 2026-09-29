@@ -121,6 +121,27 @@ class VocabRules(_Strict):
     screening: ScreeningRules
 
 
+class PlacementVocabRules(_Strict):
+    band_size: int = Field(ge=1)
+    max_rank: int = Field(ge=1)
+    questions: int = Field(ge=1, le=200)
+    pseudo_share: Annotated[float, Field(ge=0.0, lt=1.0)]
+    steepness: float = Field(gt=0)
+    prior_median: float = Field(gt=0)
+    prior_log_sd: float = Field(gt=0)
+    unreliable_false_alarm: OpenProbability
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.max_rank % self.band_size:
+            raise ValueError("placement.vocab.max_rank must be a multiple of band_size")
+        return self
+
+
+class PlacementRules(_Strict):
+    vocab: PlacementVocabRules
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
@@ -128,6 +149,7 @@ class Rules(_Strict):
     elo: EloRules
     difficulty: DifficultyRules
     vocab: VocabRules
+    placement: PlacementRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:

@@ -52,6 +52,8 @@ def _set(data: dict[str, Any], path: str, value: Any) -> None:
         ("evidence.max_per_turn", 0, "greater than or equal to 1"),
         ("elo.learner.alpha", 0, "greater than 0"),
         ("difficulty.cefr_anchor.C2", -9.0, "must not decrease"),
+        ("placement.vocab.max_rank", 20500, "multiple of band_size"),
+        ("placement.vocab.pseudo_share", 1.0, "less than 1"),
         ("version", None, "version"),
         ("elo.unknown", 1, "Extra inputs"),
     ],

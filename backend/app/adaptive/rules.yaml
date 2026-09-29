@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-09-29.3"
+version: "2026-09-29.4"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -119,3 +119,26 @@ vocab:
     # When at least this share of a batch is known, the next batch also skips one
     # more window, among rarer words.
     skip_ratio: 0.8
+
+# Placement test (ADR 0010 §4, P1 plan §6).
+placement:
+  # Vocabulary-size test: "do you know this word?" over real words sampled by
+  # contemporary frequency rank (ECDICT frq) and pseudo-words.
+  vocab:
+    # Real words come from bands of this many ranks, up to max_rank; the estimate
+    # counts words up to max_rank only.
+    band_size: 1000
+    max_rank: 20000
+    questions: 40
+    # Share of the questions that are pseudo-words.
+    pseudo_share: 0.25
+    # Chance of knowing a word of rank r: 1 / (1 + (r / V)^steepness), V being the
+    # rank at which the learner knows half the words. Higher = sharper drop-off.
+    steepness: 3.0
+    # Weak prior on V (log-normal), so all-yes or all-no answers give a finite
+    # estimate: median and the standard deviation of ln V.
+    prior_median: 3000
+    prior_log_sd: 1.5
+    # When the learner says yes to at least this share of pseudo-words, the result
+    # is shown as unreliable.
+    unreliable_false_alarm: 0.4
