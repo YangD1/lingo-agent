@@ -6,10 +6,10 @@
 
 ## 2026-09-29 · 任务 12 推送到 GitHub，修 CI
 
-- **做了什么**：用户确认保留提交邮箱和文档里的环境细节后，添加 remote `git@github.com:YangD1/lingo-agent.git`（公开仓库）并推送 main。第一次 CI：frontend、docker 通过，backend、e2e 在 Set up job 失败（`astral-sh/setup-uv@v10` 不存在），改为 `@v10.2.0`。第二次运行只有 backend 的 pytest 失败；本地去掉代理变量、TZ=UTC 重跑，复现出测试在做真实 DNS 解析（`test_chat_attachments.py` 没有 DNS 桩），改为在 `tests/conftest.py` 全局加 `public_dns`。
+- **做了什么**：用户确认保留提交邮箱和文档里的环境细节后，添加 remote `git@github.com:YangD1/lingo-agent.git`（公开仓库）并推送 main。第一次 CI：frontend、docker 通过，backend、e2e 在 Set up job 失败（`astral-sh/setup-uv@v10` 不存在），改为 `@v10.2.0`。第二次运行只有 backend 的 pytest 失败；本地去掉代理变量、TZ=UTC 重跑，复现出测试在做真实 DNS 解析（`test_chat_attachments.py` 没有 DNS 桩），改为在 `tests/conftest.py` 全局加 `public_dns`。但第三次仍失败；装 gh（官方二进制放到 `~/.local/bin`）并登录后读日志，真正原因是 `test_chat_attachments.py` 的 `not_ready` 用例在和后台处理任务赛跑，已改成确定性写法。
 - **未完成**：第二次 CI 运行的结果；backend 和 e2e 的测试步骤在 GitHub 上还没真正跑过。
 - **下一步**：CI 全绿后把任务 12 标 `[x]`，然后做任务 13 README。
-- **踩坑**：全局 autouse fixture 不要依赖 `monkeypatch`，否则会改变各模块 fixture 的撤销顺序（`_clear_caches` 报 `cache_clear` 不存在）。本机 gh 不可用，但仓库公开，可以不带认证调用 `api.github.com/repos/.../actions/runs` 和 `check-runs/<job id>/annotations` 查状态和失败原因（日志下载需要认证）。setup-uv 从 v8 起没有浮动的主版本标签，要写完整版本号。
+- **踩坑**：CI 失败先读日志再猜——`gh run view <id> --log-failed`。全局 autouse fixture 不要依赖 `monkeypatch`，否则会改变各模块 fixture 的撤销顺序（`_clear_caches` 报 `cache_clear` 不存在）。本机 gh 不可用，但仓库公开，可以不带认证调用 `api.github.com/repos/.../actions/runs` 和 `check-runs/<job id>/annotations` 查状态和失败原因（日志下载需要认证）。setup-uv 从 v8 起没有浮动的主版本标签，要写完整版本号。
 
 ---
 

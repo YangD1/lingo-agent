@@ -244,8 +244,13 @@ async def test_invalid_attachment_lists_are_refused(
     elif case == "unknown":
         ids = [str(uuid.uuid4())]
     elif case == "not_ready":
-        created = await uploaded(client, conversation, b"text", "a.txt")
-        ids = [created["id"]]  # not settled yet
+        # Put it back to processing after it settles: racing the processor is flaky,
+        # since a fast machine finishes a text file before the send arrives.
+        ids = [await doc()]
+        await db_session.execute(
+            update(Attachment).where(Attachment.id == uuid.UUID(ids[0])).values(status="processing")
+        )
+        await db_session.commit()
     elif case == "already_sent":
         ids = [await doc()]
         assert (await send_with(client, conversation, "first", *ids)).status_code == 200
