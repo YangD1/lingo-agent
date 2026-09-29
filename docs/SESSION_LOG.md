@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-09-29 · 11B.6 附件 E2E、speaches、全栈冒烟（11B 完成）
+
+- **做了什么**：
+  - 假模型支持看图识别（function calling）、回复中说明看到几张图、`/audio/transcriptions`。
+  - E2E `attachments.spec.ts` 6 个用例，完整套件 21 个全部通过；录音、canvas 压缩、粘贴 / 拖拽这次在真实 Chromium 里验证了。
+  - compose profile `asr`（speaches）+ `make asr-up/asr-down`，真实语音转写测试通过。
+  - 重建镜像，全栈冒烟通过。细节见看板 11B.6a–d。
+- **未完成**：用户实测。用户要在 `.env` 里设 `PROVIDER_ALLOW_PRIVATE_NETWORKS=true`（compose 里的后端要访问 `http://asr:8000/v1`），访问不了 huggingface.co 时再设 `ASR_HF_ENDPOINT=https://hf-mirror.com`，然后 `make up`。
+- **下一步**：任务 12 GitHub Actions CI（backend / frontend / docker build）。E2E 进 CI 时注意：Playwright 的 webServer 用 `uv run --project ../backend` 拉起假模型和后端，需要 postgres 服务；附件用例用 Chromium 假麦克风参数。
+- **踩坑**：
+  - 容器用不了宿主机只监听 127.0.0.1 的代理（Clash 7890），HF 只能走镜像站。
+  - 旧 backend 镜像配新 YAML 会因为 `extra_forbidden` 一直重启：改了 YAML 结构后要重建镜像。
+  - Playwright 拿不到由 Blob 组成的 multipart 请求体。
+  - eslint 的 hooks 规则会把 `use*` 名字的 E2E 辅助函数当成 React hook。
+  - zsh 不会对 `$C` 这类变量做分词，复杂的 curl 流程改用 Python 脚本写。
+
+---
+
 ## 2026-09-29 · 11B.5 前端附件输入与展示
 
 - **做了什么**：11B.5a–e 全部完成（细节见看板 11B.5 的“完成记录”）。前端：附件按钮 / 粘贴 / 拖拽 / 录音，附件卡片（上传中、识别中带页数进度、失败可重试、查看和修改识别结果、移除），附件未就绪时不能发送，消息里显示图片 / 音频 / 文档；设置页可以编辑 chat、vision、asr 三个路由；中英文案和 17 个新错误码。typecheck、lint、build、Vitest 93、Playwright 15 全部通过。
