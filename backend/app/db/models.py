@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -20,7 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, deferred, mapped_column
 
 from app.db.base import Base, TimestampMixin
@@ -34,6 +35,9 @@ ROUTE_SECTIONS = ("llm", "embedding", "asr")
 USAGE_STATUSES = ("ok", "error")
 ATTACHMENT_KINDS = ("image", "audio", "document")
 ATTACHMENT_STATUSES = ("processing", "ready", "failed")
+MEMORY_KINDS = ("fact", "episode")
+CEFR_LEVELS = ("A1", "A2", "B1", "B2", "C1", "C2")
+EXPLANATION_LANGUAGES = ("zh", "en")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -207,3 +211,80 @@ class Attachment(TimestampMixin, Base):
     meta: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     # User-safe reason; details stay in the server log.
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class UserProfile(TimestampMixin, Base):
+    """What the tutor knows about a learner, as structured fields (ADR 0009 §1).
+
+    Filled by the learner in the memory page and by post-turn reflection; reflection
+    never overwrites a field listed in `manual_fields` (the learner's own edits win).
+    """
+
+    __tablename__ = "user_profiles"
+    __table_args__ = (
+        CheckConstraint(
+            f"cefr_level IS NULL OR {_in('cefr_level', CEFR_LEVELS)}", name="cefr_level"
+        ),
+        CheckConstraint(
+            _in("explanation_language", EXPLANATION_LANGUAGES), name="explanation_language"
+        ),
+        CheckConstraint(
+            "daily_minutes IS NULL OR daily_minutes BETWEEN 1 AND 600", name="daily_minutes"
+        ),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    native_language: Mapped[str | None] = mapped_column(String(50))
+    occupation: Mapped[str | None] = mapped_column(String(200))
+    goal: Mapped[str | None] = mapped_column(Text)
+    # e.g. "cet4", "ielts": the word book tags of ADR 0011.
+    target_exam: Mapped[str | None] = mapped_column(String(20))
+    interests: Mapped[list[str]] = mapped_column(
+        ARRAY(String(100)), default=list, server_default="{}"
+    )
+    daily_minutes: Mapped[int | None] = mapped_column(Integer)
+    explanation_language: Mapped[str] = mapped_column(String(5), default="zh", server_default="zh")
+    cefr_level: Mapped[str | None] = mapped_column(String(2))
+    # IANA name; "today" for word reviews is cut in this zone.
+    timezone: Mapped[str | None] = mapped_column(String(64))
+    manual_fields: Mapped[list[str]] = mapped_column(
+        ARRAY(String(50)), default=list, server_default="{}"
+    )
+
+
+class Memory(TimestampMixin, Base):
+    """A long-term memory about a learner (ADR 0009 §1).
+
+    `fact`: something true about the learner, all injected into the tutor's prompt.
+    `episode`: the running summary of one conversation, retrieved by relevance.
+    """
+
+    __tablename__ = "memories"
+    __table_args__ = (
+        CheckConstraint(_in("kind", MEMORY_KINDS), name="kind"),
+        Index("ix_memories_user_id_kind_updated_at", "user_id", "kind", "updated_at"),
+        # One running summary per conversation.
+        Index(
+            "uq_memories_episode_source_conversation_id",
+            "source_conversation_id",
+            unique=True,
+            postgresql_where="kind = 'episode'",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(20))
+    content: Mapped[str] = mapped_column(Text)
+    # Kept when the conversation is deleted: the memory is the learner's to delete.
+    source_conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL")
+    )
+    # No fixed dimension: tenants pick their own embedding model. Rows are compared only
+    # with vectors of the same `embedding_model` ("<connection>:<model>"); each learner
+    # has few enough memories that an exact scan needs no ANN index.
+    embedding: Mapped[list[float] | None] = deferred(mapped_column(Vector()))
+    embedding_model: Mapped[str | None] = mapped_column(String(200))

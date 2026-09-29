@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板（P1e）的 Q11–Q14 待用户确认。下一个：任务 2（P1a 记忆：`user_profile`、`memories` 表 + 服务层）。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2 完成，正在做任务 3（`load_context` 节点 + 主图改造）。
 **阻塞项**：无
 
 ## P0 骨架
@@ -93,12 +93,12 @@
 
 ## P1 MVP：私教对话 + 长期记忆 + 背单词 + 入学测 + 自适应引擎 v1
 - [x] P1 详细实施计划（`docs/plans/P1-mvp.md`，Q1–Q10 全部按推荐确认）+ ADR 0009（长期记忆）、0010（学习者模型）、0011（词库与 FSRS）
-- [ ] P1e 能力看板追加设计（计划 §7.5）：等用户确认 Q11–Q14
+- [x] P1e 能力看板追加设计（计划 §7.5，Q11–Q14 按推荐确认）
 - [x] 0. 11C 第 3、4 条（Q10）：转写连接按转写来测；Speaches 预设在 Docker 下的默认地址。完成记录：预设新增可选 `base_url_env`，compose 给 backend 设 `SPEACHES_BASE_URL=http://asr:8000/v1`（宿主机上跑的 backend 仍是 `localhost:8200`）；`POST /tenant/connections/{id}/test` 新增可选 `purpose`，不传时按模型名或租户语音转写路由自动判断，语音转写就发内置 0.5 秒静音 WAV（`asr.silent_clip()`），404 返回 `error_code=asr_not_supported`，前端给出明确提示；响应带 `purpose`。backend 378 个测试、前端 Vitest 93 个、E2E 21 个全过，ruff / mypy / eslint / tsc 干净。没有在真实中转站和 Docker 里手动点一次
 - [x] 1. ADR 0009–0011 定稿；PLAN 同步（Supervisor 移到 P2、长期记忆一行、BKT/Elo 分工、数据模型、P1 加能力看板）
 - **P1a 记忆**
-- [ ] 2. `user_profile`、`memories` 表 + 记忆服务层 + 检索（有 embedding 按向量，否则按时间）
-- [ ] 3. `load_context` 节点 + 主图改造（学习者上下文只进 prompt、不进 checkpoint）
+- [x] 2. `user_profile`、`memories` 表 + 记忆服务层 + 检索（有 embedding 按向量，否则按时间）。完成记录：表名 `user_profiles`（和其他表一样用复数）、`memories`（迁移 `bfdce3bfd67d`；`embedding` 是不带维度的 `vector` 列，deferred 加载；每个会话一条摘要由部分唯一索引保证）；新依赖 `pgvector` 0.5（已核实不再依赖 numpy）；`app/memory/embedding.py`（`memory_embedder(ctx)`，embedding 路由 task 名 `memory`，没配时返回 None；调用失败返回 None、照常保存）；`app/memory/service.py`（画像更新区分学习者/反思，`manual_fields` 保护；记忆增删改查按用户隔离；`upsert_episode`；`facts_for_context` 最多 40 条；`relevant_episodes` 同模型向量按余弦距离排，不够再按时间补；`backfill_embeddings` 不在事务里调厂商）。`tests/integration/test_memory_service.py` 13 个；backend 共 391 个通过，ruff / mypy 干净
+- [~] 3. `load_context` 节点 + 主图改造（学习者上下文只进 prompt、不进 checkpoint）
 - [ ] 4. `ReflectionWorker` + `reflect`（memory_ops、profile_updates）+ 会话摘要 + `reflected_message_id` 补做
 - [ ] 5. 记忆/画像接口 + `/memory` 页面
 - **P1b 学习者模型**
@@ -115,7 +115,7 @@
 - [ ] 14. 语法题库（LLM 起草 → 用户审核）+ 假词生成 + 词汇量估计
 - [ ] 15. placement 子图（interrupt / resume）+ 接口 + 结果写回
 - [ ] 16. `/placement` 页面 + 聊天页引导条
-- **P1e 能力看板**（2026-09-29 追加需求，Q11–Q14 待确认）
+- **P1e 能力看板**（2026-09-29 追加需求，已确认）
 - [ ] 17. `GET /dashboard` 聚合接口 + `/dashboard` 页面（图表、空状态、导航，登录后首页改为看板）
 - [ ] 18. 建议候选算法 + `advice` 结构化调用 + `learning_advice` 缓存与后台刷新 + 模板兜底
 - [ ] 19. 针对语法点的练习对话（`focus_kc_id`）+ 建议卡片直达

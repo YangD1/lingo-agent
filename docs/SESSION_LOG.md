@@ -11,8 +11,10 @@
 - **确认结果**：用户确认 Q1–Q10 全部按推荐；ADR 0009–0011 改为已采纳，PLAN 已同步。用户同时追加需求“个人能力看板（图表）+ AI 建议 + 直达学习”，写成计划 §7.5 和子阶段 P1e（任务 17–19，原 Demo 实测顺延为 20），Q11–Q14 待确认。
 - **未完成**：Q11–Q14（看板图表组合、建议生成方式、首页、图表库）等用户确认。
 - **任务 0 完成**：11C 第 3、4 条（详见看板完成记录）。
-- **下一步**：任务 2（`user_profile`、`memories` 表和迁移、记忆服务层），等 Q11–Q14 的回复不影响 P1a–P1d。
-- **踩坑**：工具函数别以 `test_` 开头（`test_clip` 被测试模块导入后会被 pytest 当成测试收集），已改名 `silent_clip`。
+- **Q11–Q14**：用户确认全部按推荐。
+- **任务 2 完成**：画像表、记忆表、记忆服务层（详见看板完成记录）。
+- **下一步**：任务 3，`app/agents/chat_graph.py` 加 `load_context` 节点：用 `app/memory/service.py` 的 `get_profile`、`facts_for_context`、`relevant_episodes` 拼学习者上下文，只进本次调用的 system prompt，不写 checkpoint。`ChatContext` 需要能拿到数据库 session（sessionmaker）和 user_id。
+- **踩坑**：工具函数别以 `test_` 开头（`test_clip` 被测试模块导入后会被 pytest 当成测试收集），已改名 `silent_clip`。pgvector 的 alembic autogenerate 会写出 `pgvector.sqlalchemy.vector.VECTOR()` 却不加 import，要手动改成 `from pgvector.sqlalchemy import Vector`。
 
 ---
 

@@ -41,6 +41,8 @@ from app.main import create_app  # noqa: E402
 from app.providers import net_guard  # noqa: E402
 
 BUSINESS_TABLES = (
+    "memories",
+    "user_profiles",
     "attachments",
     "llm_usage",
     "tenant_model_routes",
