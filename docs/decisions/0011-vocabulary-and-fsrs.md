@@ -2,7 +2,7 @@
 
 - **状态**：已采纳（2026-09-29，`docs/plans/P1-mvp.md` Q7、Q9 按推荐确认）
 - **日期**：2026-09-29
-- **影响**：新增依赖 `fsrs`；新增 `words`、`word_books`、`user_word_book`、`user_cards`、`review_logs` 表和 `make vocab-import`。
+- **影响**：新增依赖 `fsrs`；新增 `words`、`user_word_book`、`user_cards`、`review_logs` 表和 `make vocab-import`（原计划的 `word_books` 表改为代码常量，见决定 3）。
 
 ## 背景
 PLAN 定了“词表做骨架 + LLM 做个性化”、调度用 FSRS。落地前要确定：导入多少词、FSRS 自己写还是用库、线上低配服务器能不能承受。
@@ -16,9 +16,12 @@ PLAN 定了“词表做骨架 + LLM 做个性化”、调度用 FSRS。落地前
 2. **导入脚本**：`make vocab-import` 下载 CSV 到 `data/`（不进仓库），流式逐行过滤，用 `COPY` 写入 `words`，可重复执行。测试用仓库里几十行的小 CSV。
    - 落地（任务 10，2026-09-29）：下载固定到 ECDICT 提交 `bc015ed`（2025-03-28）并校验 sha256，`ECDICT_URL` 可换镜像、`--csv` 可导入本地文件；在宿主机用 uv 运行（后端容器用不了宿主机上只监听 127.0.0.1 的代理）。实际导入 **38,243 条**（比估计多，主要是只靠词频入选的专名和屈折形式，如 `held`，任务 13 词形还原时用得上）；表 13 MB；首次含下载约 12 秒，再次 2.6 秒，进程内存峰值约 80 MB。`pos` 列在 ECDICT 里全为空，不导入；按 word upsert，不删除旧词（以后会有卡片引用）。
 3. **词书是按 tag 的虚拟分组**，不复制词表；进度 = 该 tag 下 `user_cards` 为 known / learning / review 的比例。
+   - 落地（任务 11，用户确认）：词书定义在代码里（`app/services/vocab/books.py`），不建 `word_books` 表；共 9 本：8 个考试词表 + “牛津 3000 核心词”（`oxford=1`，给不备考的学习者）。一次学一本，`user_word_book` 每人一行，换书不丢进度（卡片按词记）。书里的词**第一次评分或筛选时才建卡**，不为整本书预建行。
 4. **调度用 py-fsrs 的 `Scheduler`**（不装 `[optimizer]`），`desired_retention=0.9`；FSRS 状态展开成 `user_cards` 的列，而不是存 JSON，这样“今天到期”可以直接走索引查询。每次复习写 `review_logs`（含前后状态），以后要按用户拟合参数时有数据。
 5. **熟词筛选**：“认识”的词标记为 `known`，不进复习队列；不为它们伪造 FSRS 状态。
+   - 落地：每批从书里按词频的下一段（`window` 个还没见过的词）里均匀取 `batch_size` 个，下一批从这段之后开始，所以同一个词不会出现两次；没勾“认识”的词不建卡，之后按词频作为新词出现；一批里认识的比例 ≥ `skip_ratio` 时再多跳一段。参数在 `rules.yaml` 的 `vocab.screening`。
 6. **每日队列**：到期复习 → 生词本新词 → 词书新词（按词频）；新词每日上限默认 15。
+   - 落地：学习阶段（间隔几分钟）的卡片在 20 分钟内到期的也提前给出；“今天已开始的新词”按 `user_cards.first_reviewed_at` 在学习者时区的自然日里计数；背词参数都在 `rules.yaml` 的 `vocab` 一节。
 7. P1 只做翻卡片（回想 → 自评四档）。发音用浏览器的 `speechSynthesis`，不经过后端。
 
 ## 取舍

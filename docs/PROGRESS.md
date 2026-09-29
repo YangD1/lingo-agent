@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7、8、8b、9 完成（P1b 学习者模型全部完成：KC 清单、规则文件与 BKT/Elo、反思打标 → 证据 → 掌握度、agent 活动公示、`/learner` 页面），任务 10 完成（ECDICT 词库导入，38,243 条）；任务 11 进行中。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7、8、8b、9 完成（P1b 学习者模型全部完成：KC 清单、规则文件与 BKT/Elo、反思打标 → 证据 → 掌握度、agent 活动公示、`/learner` 页面），任务 10、11 完成（ECDICT 词库导入 38,243 条；词书、卡片、FSRS 调度、每日队列、熟词筛选的服务层）；下一步是任务 12（背词接口 + `/vocab` 页面），开工前拆子任务、和用户确认。
 **阻塞项**：无
 
 ## P0 骨架
@@ -136,12 +136,12 @@
   - [x] 10.1 `words` 表 + 迁移 `b50a63a12ed3`：`Word`（id、`word` 唯一保留大小写、phonetic、translation、definition、collins（CHECK 0–5）、oxford、`tags` text[]（GIN 索引）、bnc、frq（索引）、exchange）。**与计划不同**：不存 `pos`（ECDICT 里这一列全为空）。开发库已 `make migrate` 到最新（顺带应用了 8b 的 `4b93dd7c1f27`）；`tests/conftest.py` 的清表列表加 `words`
   - [x] 10.2 导入模块 `app/services/vocab/import_ecdict.py`：`to_row` / `read_subset`（`csv.DictReader` 流式；过滤按 ADR 0011；`\n` 转成真换行；标签只留 8 个考试标签并排序；排名 0 视为无；同一个词只取第一条）；`load_words`（`CREATE TEMP TABLE … AS SELECT … WITH NO DATA`，这样不会消耗 `words` 的 id 序列；psycopg `COPY … FROM STDIN` 写数组列正常；`INSERT … SELECT … ON CONFLICT (word) DO UPDATE … WHERE` 有列变化，返回实际新增或改动的行数）；`download`（固定提交 `bc015ed` 的 raw 地址，sha256 校验，先写 `.part` 再改名，本地已有且校验通过就不重下；可注入 transport 便于测试）；`Settings.ecdict_url`（`.env.example` 加 `ECDICT_URL`）。测试：单测 3 个（`tests/fixtures/ecdict_sample.csv`：27 行真实数据 + 重复的 go + 没有释义的词）、集成 2 个（导入 18 条，重复导入 0 条变化、id 不变，改过的行被刷新、文件里没有的词保留；下载缓存、sha256 不符不留文件、HTTP 404）。pytest 535、ruff、`mypy app` 通过
   - [x] 10.3 `make vocab-import`（`CSV=` 导入本地文件）+ README 中英（宿主机做法、镜像、没有 uv 时 `docker compose cp` + `--csv` 的容器做法）+ ADR 0011、P1 计划 §5.1 落地记录。**真实导入**（开发库）：读 770,611 行，导入 38,243 条（ADR 估计 2–3 万；多出来的主要是只靠词频入选的专名和屈折形式）；首次含下载 12 秒，再次 2.6 秒且 0 条变化；进程内存峰值约 80 MB；`words` 共 13 MB（数据 9.2 MB）；各考试标签词数与 ADR 核实的一致（中考 1603 … GRE 7504）。**没有实测容器里的做法**（运行中的后端镜像是旧代码，没有这个模块）
-- [~] 11. 词书、`user_cards`、`review_logs` + FSRS 调度 + 每日队列
+- [x] 11. 词书、`user_cards`、`review_logs` + FSRS 调度 + 每日队列
   - 用户确认（2026-09-29）：词书是代码里的常量，9 本（8 个考试词表 + 牛津 3000 核心词），不建 `word_books` 表；一次学一本，`user_word_book` 每人一行，换书不丢进度；单词掌握度不写 `kc_mastery`，需要时由 `user_cards` 的 FSRS 状态现算（ADR 0010、0011 同步修改）
   - [x] 11.1 依赖和表。完成记录：`fsrs` 6.3.2；迁移 `92cbcc17eefe`：`user_cards`（CHECK source / status / state 1–3 / learning 必有 due；唯一键 user_id + word_id；部分索引 `(user_id, due) WHERE status='learning'`；另加 `first_reviewed_at` 列和索引，“今天开始学的新词”直接按它查）、`review_logs`（card 级联、user_id、rating CHECK 1–4、`card_before` / `card_after` JSONB）、`user_word_book`（主键 user_id、book_id、`daily_new` 可空 = 用规则默认值、`screen_offset`）；`rules.yaml` 加 `vocab` 一节（desired_retention、daily_new、learn_ahead_minutes、screening.batch_size / window / skip_ratio），版本 `2026-09-29.3`。测试：表约束集成 5 个、规则校验 2 个。开发库已迁移。pytest 542、ruff、`mypy app` 通过
   - [x] 11.2 词书 + 调度。完成记录：`app/services/vocab/books.py`（`BOOKS` 9 本，`Book.words()` 给出 WHERE 条件：考试词书用 `tags @> [tag]`（能用 GIN 索引），牛津 3000 用 `oxford`）；`scheduler.py`：`to_fsrs`（没复习过的卡是全新的 `fsrs.Card`）、`review()`（`INSERT … ON CONFLICT DO NOTHING` 再 `SELECT … FOR UPDATE`，并发的第一次评分不会建两张卡；known / suspended 的词被复习就回到 learning；记 `first_reviewed_at`；`review_logs` 存前后状态，没复习过时只有 `{status}`）、`retrievability()`（单词掌握度，现算不存）、`learner_zone()`（画像时区 → 浏览器时区 → UTC，非法时区名忽略）、`day_bounds()`（按学习者时区的自然日，DST 当天 23 / 25 小时）。测试：单测 4 个、集成 4 个
   - [x] 11.3 每日队列 `app/services/vocab/queue.py`：`daily_queue()` 返回 `reviews`（status=learning 且 due ≤ 现在 + 提前窗口，按 due 排序；**每次最多返回 100 条**，`reviews_due` 给总数，剩下的下次请求再取）、`new`（生词本 status=new 的 auto / manual 卡先加的先学 → 当前词书里还没有卡片的词，按 frq、bnc 升序，没有排名的最后）、`new_limit`（`user_word_book.daily_new` 或规则默认 15）、`new_started`（今天按 `first_reviewed_at` 在学习者时区的自然日里计数）、`book_id`。没选词书时只出生词本。集成测试 3 个（顺序与跳过 known / 别的书；按时区算今天已开始的新词；到期、提前窗口、suspended 不出现）
-  - [~] 11.4 熟词筛选服务：每批 50 个书里还没有卡片的词，按词频分段均匀取（跨度大）；“认识”的建卡 status=known，不进复习；一批里认识的比例 ≥ 80% 时，下一批从更低频的位置开始。集成测试
+  - [x] 11.4 熟词筛选 `app/services/vocab/screening.py`：`next_batch`（书里按词频排位（`row_number`），从 `screen_offset` 之后取 `window`=500 个还没有卡片的词，均匀取 `batch_size`=50 个）、`submit`（认识的建 known 卡；生词本里 status=new 的也改为 known，正在学的不动；认识的词必须在本批里、本批的词必须在书里；**每批之后起点都移到本批最后一个词之后**，这样没勾的词不会再出现，之后按词频作为新词进入复习；认识比例 ≥ 80% 时再多跳一个窗口）。**与计划的差别**：原计划只说“比例高时跳到更低频”，实现时发现不前移起点的话没勾的词会被反复展示，所以每批都前移。集成测试 4 个（批次推进和跳段、之后的新词队列、生词本 / 学习中卡片的处理、非法提交）。文档：ADR 0010（单词掌握度不存）、ADR 0011（词书在代码里、懒建卡、筛选和队列的落地细节）、P1 计划 §4.2 / §5 / §8、PLAN。pytest 557、ruff、`mypy app` 通过
 - [ ] 12. 背词接口 + `/vocab`（选书、筛选、复习、生词本）页面
 - [ ] 13. 自动收词（reflect 的 vocab_candidates）+ 聊天里选词加入生词本
 - **P1d 入学测**

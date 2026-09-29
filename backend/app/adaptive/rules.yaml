@@ -113,9 +113,9 @@ vocab:
   # Known-word screening: the learner marks the words they already know.
   screening:
     batch_size: 50
-    # Each batch is spread over this many not-yet-seen words of the book, in
-    # frequency order.
+    # Each batch is spread over the next this-many not-yet-seen words of the book,
+    # in frequency order; the next batch starts after them.
     window: 500
-    # When at least this share of a batch is known, the next batch starts after
-    # the window, among rarer words.
+    # When at least this share of a batch is known, the next batch also skips one
+    # more window, among rarer words.
     skip_ratio: 0.8

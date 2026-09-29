@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-09-29 · P1c 任务 11：词书、卡片、FSRS 调度、每日队列、熟词筛选
+
+- **做了什么**：用户确认词书写在代码里（9 本，含牛津 3000）、一次一本、单词掌握度不写 `kc_mastery`。`fsrs` 6.3.2；迁移 `92cbcc17eefe`（`user_cards`、`review_logs`、`user_word_book`）；`rules.yaml` 的 `vocab` 一节（版本 `2026-09-29.3`）；`app/services/vocab/` 下 `books.py`、`scheduler.py`（`review`、`retrievability`、`learner_zone`、`day_bounds`）、`queue.py`（`daily_queue`）、`screening.py`（`next_batch`、`submit`）。只有服务层，还没有接口和页面。提交 25be313、df51caa、686a874 和本次。测试新增 22 个，pytest 557。
+- **未完成**：无。
+- **下一步**：任务 12：背词接口（选书、队列、评分、筛选、生词本增删）+ `/vocab`、`/vocab/screen`、`/vocab/review`、`/vocab/mine` 页面。开工前拆子任务、和用户确认。浏览器时区要由前端传给队列接口（画像里没有时区时用）。
+- **踩坑**：
+  - FSRS 6 没有 New 状态：新卡就是 `State.Learning` 且 stability 为空。“新词”用 `user_cards.status` 表示，没复习过的卡 FSRS 列全为空。
+  - `fsrs.Card.to_dict()` 返回 TypedDict，不能直接 `pop("card_id")`（mypy 报错），先转成普通 dict。
+  - 熟词筛选如果只在“认识比例高”时前移起点，没勾的词会被反复展示；改为每批都前移。
+  - 测试日界时注意方向：上海比 UTC 快 8 小时，“上海是今天、UTC 还是昨天”的时刻是 UTC 前一天 16:00 之后。
+  - `select … FOR UPDATE` 要加 `populate_existing`，否则同一 session 里已加载的对象不会刷新成锁定后的值。
+
+---
+
 ## 2026-09-29 · P1c 任务 10：`words` 表 + ECDICT 导入
 
 - **做了什么**：用户确认下载固定到 ECDICT 提交 `bc015ed` 并校验 sha256、在宿主机用 uv 跑。`Word` 模型 + 迁移 `b50a63a12ed3`；`app/services/vocab/import_ecdict.py`（流式过滤 → COPY 临时表 → upsert）；`make vocab-import`；`Settings.ecdict_url` / `.env.example`；README 中英、ADR 0011、P1 计划。开发库已导入 38,243 条。测试：单测 3、集成 2，pytest 535。

@@ -101,7 +101,7 @@ START → load_context → tutor → END
 
 - **语法 KC 的掌握度用 BKT**：可解释的“学会的概率”，`p_mastery ≥ 0.95` 有清楚的含义。参数先用全局默认值（`p_init` 按 KC 的 CEFR 等级和学习者等级给，`p_learn=0.1`、`p_guess=0.2`、`p_slip=0.1`），P4 有了数据再离线用 pyBKT 拟合。
 - **入学测和技能估计用 Elo**（Pelánek 2016，K 随作答次数衰减：`K(n) = α / (1 + β·n)`）：同时估计学习者能力和题目难度，冷启动好，适合入学测的自适应选题。
-- **单词不用 BKT**：单词的“记住没有”由 FSRS 的可提取性（retrievability）表示，`kc_mastery` 里单词行的 `p_mastery` 直接取 FSRS 的值，避免两套模型打架。
+- **单词不用 BKT**：单词的“记住没有”由 FSRS 的可提取性（retrievability）表示，单词不写进 `kc_mastery`（任务 11 修订：可提取性随时间下降，需要时由 `user_cards` 现算），避免两套模型打架。
 - **LLM 只提供证据，不打分**：LLM 输出“这句话错在哪个 KC”，掌握度由 BKT 根据证据计算。
 
 ### 4.3 证据权重
@@ -137,16 +137,16 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 - **导入子集**（Q7）：有考试标签（zk/gk/cet4/cet6/ky/toefl/ielts/gre）、或 `oxford=1`、或 `collins>0`、或 `bnc`/`frq` 排名在前 30000 的行，预计约 2–3 万条。只导入需要的列：word、phonetic、translation、definition、pos、collins、oxford、tag、bnc、frq、exchange。
 - **导入方式**：`make vocab-import`（在宿主机用 uv 运行）→ `python -m app.services.vocab.import_ecdict`：下载固定提交的 CSV 到 `data/`（已 gitignore）并校验 sha256，流式逐行过滤（不整份读进内存），`COPY` 进临时表后按 word upsert 到 `words`，可重复执行，不删旧词。`ECDICT_URL` 可换镜像，`CSV=` 可导入本地文件；没有 uv 的部署环境把文件 `docker compose cp` 进后端容器后用 `--csv` 导入。测试用 `tests/fixtures/ecdict_sample.csv`（27 行真实数据 + 2 行构造数据）。实际导入 38,243 条，表 13 MB。`pos` 列在 ECDICT 里全为空，不导入。
 - `lemma.en.txt` 暂不导入；词形还原用 `exchange` 字段（如 `went` → `0:go`）。
-- **词书**：由 `tag` 生成的虚拟词书（`word_books` 只存 id、名称、tag），不复制词表。
+- **词书**：由 `tag`（或 `oxford`）生成的虚拟词书，定义在代码里（`app/services/vocab/books.py`，9 本：8 个考试词表 + 牛津 3000），不建表、不复制词表。
 
 ### 5.2 调度
 
 - `user_cards`：user_id、word_id、source[book/auto/manual]、status[new/learning/known/suspended]、FSRS 状态（state、step、stability、difficulty、due、last_review，对应 `fsrs.Card.to_dict()` 的字段），唯一键 user_id + word_id。
 - `review_logs`：card_id、rating、reviewed_at、review_duration_ms、调度前后的状态快照（以后拟合参数用）。
-- `user_word_book`：user_id、book_id、daily_new（默认 15）、created_at。
+- `user_word_book`：每人一行（一次学一本）：user_id、book_id、daily_new（空 = 规则默认 15）、screen_offset（熟词筛选进度）。`user_cards` 另有 `first_reviewed_at`（算“今天已开始的新词”）；书里的词第一次评分或筛选时才建卡。
 - **每日队列**：到期复习（按 due 排序）→ 生词本里的新词（source=auto/manual，优先）→ 词书新词（按 `frq` 排名升序，跳过 known）。新词数受 `daily_new` 限制，复习不限。
 - `desired_retention=0.9`，时间一律 UTC，“今天”按用户时区切分（用户画像里存时区，默认取浏览器上报的值）。
-- **熟词筛选**：一次给 50 个词（按词频从高到低，跨度大），选“认识”的记为 `known`，不进复习队列；认识比例高时自动跳到更低频的词段。筛选可以随时再做。
+- **熟词筛选**：一次给 50 个词（在接下来 500 个没见过的词里均匀取，跨度大），选“认识”的记为 `known`，不进复习队列；下一批从这段之后开始，认识比例 ≥ 80% 时再多跳 500 个。筛选可以随时再做。
 
 ### 5.3 页面
 
@@ -247,10 +247,10 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 
 ## 8. 表汇总与迁移
 
-新增：`user_profile`、`memories`、`kc_mastery`、`kc_evidence`、`skill_estimates`、`words`、`word_books`、`user_word_book`、`user_cards`、`review_logs`、`placement_sessions`（placement 子图的 thread 和状态）、`learning_advice`（每人一行：建议 JSON、生成时间、生成时的证据计数）。`conversations` 加 `reflected_message_id`、`focus_kc_id`。
+新增：`user_profile`、`memories`、`kc_mastery`、`kc_evidence`、`skill_estimates`、`words`、`user_word_book`、`user_cards`、`review_logs`、`placement_sessions`（placement 子图的 thread 和状态）、`learning_advice`（每人一行：建议 JSON、生成时间、生成时的证据计数）。`conversations` 加 `reflected_message_id`、`focus_kc_id`。
 
 - 每个子阶段一个迁移，不一次建完。
-- 所有用户数据表都有 `user_id` FK（级联删除），查询一律带 user_id 过滤；`words`、`word_books` 是全局只读数据。
+- 所有用户数据表都有 `user_id` FK（级联删除），查询一律带 user_id 过滤；`words` 是全局只读数据。
 - `memories.embedding` 用不带维度的 `vector` 列（可空），另存 `embedding_model`；每个用户的记忆只有几十到几百条，直接按用户过滤后精确计算距离，不建 ANN 索引（ADR 0009）。
 
 ---
