@@ -116,6 +116,7 @@
   - [ ] 8.2 校验和写入：kc_id 不在清单、消息 id 不存在的丢弃并记日志；同一条学习者消息的证据**先删后写**，反思重试或崩溃后重做都不会重复；和记忆操作在同一个事务里
   - [ ] 8.3 `app/adaptive/mastery.py`：`refresh(session, user_id, kc_ids)` 从 `kc_evidence` 重放受影响的 KC，先验取 KC 等级 + `user_profiles.cefr_level`，写回 `kc_mastery`（带 rules_version）；规则版本变化时的重建。单测 + 集成测试
   - [ ] 8.4 集成测试（假结构化模型：证据入库、非法 id 丢弃、重做幂等、掌握度更新）+ E2E 假模型的反思输出补上 mistakes
+- [ ] 8b. agent 活动公示（ADR 0013，2026-09-29 追加需求，已确认）：活动记录表；`load_context`、反思写入活动；SSE 推送对话中的步骤，回复完成后前端再取一次后台结果；每条私教回复下默认收起一行摘要、点开看明细（链到记忆页、学习者模型页）；设置里可隐藏（只影响显示）。开工前拆子任务
 - [ ] 9. 学习者模型接口 + `/learner` 页面
 - **P1c 背单词**
 - [ ] 10. `words` 表 + ECDICT 导入脚本 + `make vocab-import`

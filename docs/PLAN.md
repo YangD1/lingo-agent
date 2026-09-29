@@ -141,7 +141,7 @@ speech:
 monorepo（`backend/` uv + FastAPI，`frontend/` Next.js，`docker-compose.yml`）；provider 层 + 配置；多租户凭据（租户自配 key / base_url / 路由）；llm_usage 用量记录 + 可选 OTel tracing；用户注册登录（JWT）；最简对话流式输出。
 
 **P1 MVP：私教对话 + 长期记忆 + 背单词 + 入学测 + 能力看板**（详见 `docs/plans/P1-mvp.md`）
-主图加 load_context 与后台反思、记忆读写闭环（可视化“AI 记住了你什么”页面）；FSRS 背单词（ECDICT 导入、词书选择、熟词筛选、复习页）；CEFR 自适应入学测子图；**自适应引擎第一版：错误打标 + kc_mastery 更新**；**个人能力看板**（图表 + AI 学习建议，建议由算法出候选、LLM 写理由，点击直达复习、入学测或针对语法点的练习对话）。
+主图加 load_context 与后台反思、记忆读写闭环（可视化“AI 记住了你什么”页面）；FSRS 背单词（ECDICT 导入、词书选择、熟词筛选、复习页）；CEFR 自适应入学测子图；**自适应引擎第一版：错误打标 + kc_mastery 更新**；**agent 活动公示**（每条回复下可展开“私教做了什么”：读取的记忆、调用的工具、回复后记下的内容，见 ADR 0013 和 `docs/agent-tools.md`）；**个人能力看板**（图表 + AI 学习建议，建议由算法出候选、LLM 写理由，点击直达复习、入学测或针对语法点的练习对话）。
 
 **P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作**
 LangGraph Supervisor 主图（意图路由到各 coach，从 P1 移来）；语法知识图谱构建；诊断 Agent（根因分析）；选题规划 + 练习生成与 critic 校验 + 多题型练习页；新闻 RSS 抓取 + 分级改写 + 自动收词；APScheduler 定时订阅任务；写作批改回写学习者模型；每日学习计划（interrupt 确认）。

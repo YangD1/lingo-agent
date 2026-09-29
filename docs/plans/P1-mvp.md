@@ -272,6 +272,7 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 | 6 | 语法 KC 清单（LLM 起草 → 用户审核）+ 加载和校验（id 唯一、前置 KC 存在、无环） | 单测 |
 | 7 | BKT / Elo 纯函数 + `rules.yaml` + `kc_mastery`、`kc_evidence`、`skill_estimates` 表 | 单测 |
 | 8 | reflect 加上 mistakes、used_correctly → 证据去重 → BKT 更新 | 集成测试 |
+| 8b | agent 活动公示（ADR 0013）：活动记录表 + 对话步骤和后台反思写入 + SSE 推送 + 每条回复下可展开的“私教做了什么” + 设置里可隐藏 | 集成测试 + Vitest + E2E |
 | 9 | 学习者模型接口 + `/learner` 页面 | Vitest + E2E |
 | **P1c** | | |
 | 10 | `words` 表 + ECDICT 导入脚本 + `make vocab-import` | 小 CSV 单测；真实数据导入一次，记录条数、耗时、库大小 |
