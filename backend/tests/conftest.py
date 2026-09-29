@@ -1,5 +1,6 @@
+import ipaddress
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 
 import pytest
 from alembic import command
@@ -31,6 +32,7 @@ from app.db.migrate import alembic_config, setup_checkpointer  # noqa: E402
 from app.db.session import create_engine, create_sessionmaker  # noqa: E402
 from app.db.urls import to_psycopg_conninfo  # noqa: E402
 from app.main import create_app  # noqa: E402
+from app.providers import net_guard  # noqa: E402
 
 BUSINESS_TABLES = (
     "attachments",
@@ -62,6 +64,27 @@ def run_alembic(connection: Connection, revision: str, *, downgrade: bool = Fals
         command.downgrade(config, revision)
     else:
         command.upgrade(config, revision)
+
+
+@pytest.fixture(autouse=True)
+def public_dns() -> Iterator[None]:
+    """Hostnames resolve to a public address without real DNS: results would otherwise
+    depend on the machine (a fake-ip proxy answers with private addresses, and CI may
+    have no DNS at all). IP literals resolve to themselves. Modules that need other
+    answers patch `net_guard.resolve` again in their own fixtures, which run later.
+    Deliberately not built on `monkeypatch`: requesting it here would set it up before
+    every module's fixtures and so undo module patches only after their teardowns ran."""
+
+    async def fake_resolve(host: str, port: int) -> list[net_guard.IPAddress]:
+        try:
+            return [ipaddress.ip_address(host)]
+        except ValueError:
+            return [ipaddress.ip_address("93.184.216.34")]
+
+    real = net_guard.resolve
+    net_guard.resolve = fake_resolve
+    yield
+    net_guard.resolve = real
 
 
 @pytest.fixture(scope="session")
