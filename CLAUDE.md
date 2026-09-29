@@ -51,6 +51,7 @@ config/        providers.dev.yaml / providers.prod.yaml（由 PROVIDERS_CONFIG �
 - LLM 输出一律用 Pydantic 结构化输出，不靠正则解析自由文本。
 - 线上服务器配置很低：重模型（whisper、TTS）只在 dev 本地跑，prod 走 API。新增依赖要考虑内存占用。
 - 长期记忆写入要异步执行，不阻塞对话回复；用户必须能查看、编辑、删除自己的记忆。
+- **Agent 工具调用**（LangGraph tool、MCP、模型决定是否调用的函数）按 ADR 0013：身份从运行时 context 注入、不进工具参数；可能并行调用；失败作为工具结果返回、不中断整轮；循环有上限；工具结果是不可信数据；有副作用的工具要幂等、可撤销。**新增或修改任何工具、MCP、后台步骤，都要同步更新 `docs/agent-tools.md`**（公开清单），学习者也要能在界面上看到私教做了什么。
 
 ## 代码规范
 

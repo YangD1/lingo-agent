@@ -111,7 +111,11 @@
   - [x] 7.2 `app/adaptive/bkt.py`：`update(p, correct, evidence, rules)`（先按观测求后验，再加学习转移；识别 / 产出用不同 p_guess）、`prior(kc_cefr, learner_cefr, rules)`、`replay(observations, p_init, rules)`（严重度过滤、同一轮同一 KC 去重都在这里生效）。单测：[0,1]、连续答对收敛、答错下降、与手算值一致、产出比识别涨得多、low 不计入、同轮去重。完成：`Observation`、`Mastery`、`update`、`prior`、`is_mastered`、`counted`、`replay`；单测 29 个（参数在测试里固定，调 rules.yaml 不影响单测）。踩坑：连续答对后浮点数会算出正好 1.0，之后答错也降不下来，`update` 的结果限制在 [1e-4, 1-1e-4]（数值保护，不属于可调规则）
   - [x] 7.3 `app/adaptive/elo.py`：`expected`（四选一带猜测下限）、`k_factor(n)`、`update_ability`、`update_item`、`uncertainty(n)`、`prior_difficulty(维度分, rules)`。单测：K 衰减、升降方向、猜测下限、强者答简单题几乎不涨、维度分换算。完成：另有 `guess_for(format)`；K(n) 同时作为不确定度，不单设函数；`update_item` 要求传入已稳定的能力值（测后回算）；`prior_difficulty` 拒绝缺少、多出或未知的维度等级。单测 8 个
   - [x] 7.4 表和迁移：`kc_evidence`（只追加；error_type / severity / evidence / source 用 CHECK；conversation_id 置空；索引 user_id + created_at、user_id + kc_id）、`kc_mastery`（唯一键 user_id + kc_id；`rules_version`）、`skill_estimates`（唯一键 user_id + skill；rating、attempts）。只挂 user_id，删用户级联。迁移在空库上 upgrade / downgrade 通过。完成：迁移 `612ac223409b`；模型 `KCEvidence`（自增 BigInteger 主键；CHECK `mistake_fields` 保证错误行必有 error_type 和 severity、用对的行必然没有）、`KCMastery`（主键 user_id + kc_id）、`SkillEstimate`（主键 user_id + skill）；CHECK 的取值直接引用 `ERROR_TYPES`、`EVIDENCE_KINDS`、`SEVERITIES`，不重复定义。集成测试 10 个（各 CHECK、删除会话后证据保留、删除用户级联）。pytest 499、ruff、mypy 通过
-- [ ] 8. reflect 加 mistakes、used_correctly → 证据去重 → BKT 更新
+- [ ] 8. reflect 加 mistakes、used_correctly → 证据去重 → BKT 更新（子任务待用户确认）
+  - [ ] 8.1 反思 schema 和 prompt：`TaggedMistake`（message、kc_id、error_type、severity、original、correction、l1_transfer）、`UsedCorrectly`（message、kc_id）；学习者消息在输入里用短 id（u1、u2……，和记忆的 m1 同一思路，模型编不出别的消息）；KC 清单渲染进 system prompt（固定前缀，利于厂商前缀缓存）；`reflect.md` 加打标规则（严重度定义、只标语法、词汇错误不标）
+  - [ ] 8.2 校验和写入：kc_id 不在清单、消息 id 不存在的丢弃并记日志；同一条学习者消息的证据**先删后写**，反思重试或崩溃后重做都不会重复；和记忆操作在同一个事务里
+  - [ ] 8.3 `app/adaptive/mastery.py`：`refresh(session, user_id, kc_ids)` 从 `kc_evidence` 重放受影响的 KC，先验取 KC 等级 + `user_profiles.cefr_level`，写回 `kc_mastery`（带 rules_version）；规则版本变化时的重建。单测 + 集成测试
+  - [ ] 8.4 集成测试（假结构化模型：证据入库、非法 id 丢弃、重做幂等、掌握度更新）+ E2E 假模型的反思输出补上 mistakes
 - [ ] 9. 学习者模型接口 + `/learner` 页面
 - **P1c 背单词**
 - [ ] 10. `words` 表 + ECDICT 导入脚本 + `make vocab-import`
