@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph, build_chat_graph
 from app.db.urls import to_psycopg_conninfo
+from app.memory.context import LearnerContext
 from app.providers import llm
 from app.providers.config import TenantProviderContext
 from tests.conftest import CHECKPOINT_TABLES, TEST_DATABASE_URL
@@ -149,6 +150,83 @@ async def test_tokens_stream_from_the_tutor_node(
     assert "".join(text for _, text in chunks) == "Hello there friend"
 
 
+MEMORY_MARKER = "learner-memory-marker-that-must-not-be-persisted-7"
+
+
+class FakeLearner:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.queries: list[str] = []
+
+    async def load(self, query: str) -> LearnerContext:
+        self.queries.append(query)
+        if self.fail:
+            raise RuntimeError("database down")
+        return LearnerContext(profile={"Occupation": "nurse"}, facts=[MEMORY_MARKER])
+
+
+async def test_learner_context_is_sent_but_never_checkpointed(
+    graph: ChatGraph,
+    providers: TenantProviderContext,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    model = RecordingChatModel()
+    use_model(monkeypatch, model)
+    learner = FakeLearner()
+    thread_id = uuid.uuid4()
+    context = ChatContext(providers, learner=learner)
+
+    await graph.ainvoke({"messages": [HumanMessage("Hi")]}, thread(thread_id), context=context)
+    await graph.ainvoke({"messages": [HumanMessage("Again")]}, thread(thread_id), context=context)
+
+    assert learner.queries == ["Hi", "Again"]  # the latest message picks related episodes
+    for sent in model.seen:
+        assert MEMORY_MARKER in str(sent[0].content) and "Occupation: nurse" in str(sent[0].content)
+    state = await graph.aget_state(thread(thread_id))
+    assert set(state.values) == {"messages"}
+    everything = await dump_checkpoints(db_session, thread_id)
+    assert MEMORY_MARKER not in everything
+    assert MEMORY_MARKER.encode().hex() not in everything
+
+
+async def test_learner_context_failure_does_not_stop_the_reply(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = RecordingChatModel()
+    use_model(monkeypatch, model)
+
+    result = await graph.ainvoke(
+        {"messages": [HumanMessage("Hi")]},
+        thread(uuid.uuid4()),
+        context=ChatContext(providers, learner=FakeLearner(fail=True)),
+    )
+
+    assert result["messages"][-1].content == "Nice to meet you!"
+    [sent] = model.seen
+    assert "About this learner" not in str(sent[0].content)
+
+
+async def dump_checkpoints(session: AsyncSession, thread_id: uuid.UUID) -> str:
+    """Every row LangGraph persisted for the thread, as text (blobs decoded)."""
+    dumped: list[str] = []
+    for table in CHECKPOINT_TABLES:
+        rows = await session.execute(
+            text(f"SELECT t::text FROM {table} t WHERE thread_id = :tid"), {"tid": str(thread_id)}
+        )
+        dumped.extend(row[0] for row in rows)
+    assert dumped, "expected checkpoint rows for the thread"
+    blobs = await session.execute(
+        text(
+            "SELECT blob FROM checkpoint_blobs WHERE thread_id = :tid AND blob IS NOT NULL "
+            "UNION ALL SELECT blob FROM checkpoint_writes WHERE thread_id = :tid"
+        ),
+        {"tid": str(thread_id)},
+    )
+    dumped.extend(bytes(row[0]).decode("utf-8", "replace") for row in blobs)
+    return "\n".join(dumped)
+
+
 async def test_provider_keys_never_reach_the_checkpoint(
     graph: ChatGraph,
     providers: TenantProviderContext,
@@ -167,21 +245,6 @@ async def test_provider_keys_never_reach_the_checkpoint(
     api_key = used.connections["openai"].api_key
     assert api_key is not None and api_key.get_secret_value() == KEY_MARKER
     # ...and nothing LangGraph persisted contains it (rows dumped as text, blobs decoded).
-    dumped: list[str] = []
-    for table in CHECKPOINT_TABLES:
-        rows = await db_session.execute(
-            text(f"SELECT t::text FROM {table} t WHERE thread_id = :tid"), {"tid": str(thread_id)}
-        )
-        dumped.extend(row[0] for row in rows)
-    assert dumped, "expected checkpoint rows for the thread"
-    blobs = await db_session.execute(
-        text(
-            "SELECT blob FROM checkpoint_blobs WHERE thread_id = :tid AND blob IS NOT NULL "
-            "UNION ALL SELECT blob FROM checkpoint_writes WHERE thread_id = :tid"
-        ),
-        {"tid": str(thread_id)},
-    )
-    dumped.extend(bytes(row[0]).decode("utf-8", "replace") for row in blobs)
-    everything = "\n".join(dumped)
+    everything = await dump_checkpoints(db_session, thread_id)
     assert KEY_MARKER not in everything
     assert KEY_MARKER.encode().hex() not in everything  # bytea renders as \x<hex>

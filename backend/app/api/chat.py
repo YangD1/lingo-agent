@@ -23,6 +23,8 @@ from app.chat.service import ConversationNotFoundError
 from app.chat.turn import begin_turn, new_message_id, stream_reply
 from app.db.models import Attachment, Conversation
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
+from app.memory.context import DatabaseLearner
+from app.memory.embedding import memory_embedder
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.providers.llm import get_chat_models
@@ -222,6 +224,12 @@ async def send_message(
         text=turn.text,
         message_id=turn.message_id,
         attachments=DatabaseAttachments(request.app.state.sessionmaker, turn.conversation_id),
+        learner=DatabaseLearner(
+            request.app.state.sessionmaker,
+            user.id,
+            turn.conversation_id,
+            memory_embedder(turn.providers),
+        ),
     ):
         data = dataclasses.asdict(event)
         yield ServerSentEvent(event=data.pop("event"), data=data)

@@ -39,3 +39,9 @@ PLAN 把记忆分成三类：画像、情景记忆、结构化学习者模型（
 - 每轮多一次 LLM 调用。反思用单独的路由 task，租户可以给它配便宜模型。
 - 事实记忆全部注入会占 prompt 长度。设了条数上限；以后记忆多了，再改为“画像全部注入 + 事实按相关性检索”。
 - 反思在进程内执行，多 worker 部署时需要换成外部队列或数据库锁，和 P0 的会话锁一起放到 P4。
+
+## 落地记录（2026-09-29，任务 2、3）
+- 表名用 `user_profiles`（和其他表一样用复数）。`explanation_language` 可为空、没有默认值：只有学习者或反思明确设置过才写进 prompt，否则分不清“选了中文”和“没设置”。
+- embedding 路由的 task 名是 `memory`（没配时按 embedding 默认路由）。检索时情景记忆不超过需要的条数就直接返回，不调 embedding，避免每轮首字前多一次网络请求。
+- 学习者上下文放在图状态的 `learner_context` 字段里，通道类型是 LangGraph 的 `UntrackedValue`：写入不进 checkpoint，也不进 pending writes（`langgraph/pregel/_loop.py` 里按通道类型过滤），测试直接扫描 checkpoint 三张表确认没有残留。图的输入/输出 schema 仍是 `MessagesState`，调用方看不到这个字段。
+- 读取记忆失败只记日志，本轮照常回复（不带学习者上下文）。

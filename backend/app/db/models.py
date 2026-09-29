@@ -226,7 +226,8 @@ class UserProfile(TimestampMixin, Base):
             f"cefr_level IS NULL OR {_in('cefr_level', CEFR_LEVELS)}", name="cefr_level"
         ),
         CheckConstraint(
-            _in("explanation_language", EXPLANATION_LANGUAGES), name="explanation_language"
+            f"explanation_language IS NULL OR {_in('explanation_language', EXPLANATION_LANGUAGES)}",
+            name="explanation_language",
         ),
         CheckConstraint(
             "daily_minutes IS NULL OR daily_minutes BETWEEN 1 AND 600", name="daily_minutes"
@@ -245,7 +246,8 @@ class UserProfile(TimestampMixin, Base):
         ARRAY(String(100)), default=list, server_default="{}"
     )
     daily_minutes: Mapped[int | None] = mapped_column(Integer)
-    explanation_language: Mapped[str] = mapped_column(String(5), default="zh", server_default="zh")
+    # Language for grammar explanations; NULL until the learner (or reflection) says.
+    explanation_language: Mapped[str | None] = mapped_column(String(5))
     cefr_level: Mapped[str | None] = mapped_column(String(2))
     # IANA name; "today" for word reviews is cut in this zone.
     timezone: Mapped[str | None] = mapped_column(String(64))

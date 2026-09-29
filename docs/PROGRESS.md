@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2 完成，正在做任务 3（`load_context` 节点 + 主图改造）。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2、3 完成，正在做任务 4（`ReflectionWorker` + 反思调用）。
 **阻塞项**：无
 
 ## P0 骨架
@@ -98,8 +98,8 @@
 - [x] 1. ADR 0009–0011 定稿；PLAN 同步（Supervisor 移到 P2、长期记忆一行、BKT/Elo 分工、数据模型、P1 加能力看板）
 - **P1a 记忆**
 - [x] 2. `user_profile`、`memories` 表 + 记忆服务层 + 检索（有 embedding 按向量，否则按时间）。完成记录：表名 `user_profiles`（和其他表一样用复数）、`memories`（迁移 `bfdce3bfd67d`；`embedding` 是不带维度的 `vector` 列，deferred 加载；每个会话一条摘要由部分唯一索引保证）；新依赖 `pgvector` 0.5（已核实不再依赖 numpy）；`app/memory/embedding.py`（`memory_embedder(ctx)`，embedding 路由 task 名 `memory`，没配时返回 None；调用失败返回 None、照常保存）；`app/memory/service.py`（画像更新区分学习者/反思，`manual_fields` 保护；记忆增删改查按用户隔离；`upsert_episode`；`facts_for_context` 最多 40 条；`relevant_episodes` 同模型向量按余弦距离排，不够再按时间补；`backfill_embeddings` 不在事务里调厂商）。`tests/integration/test_memory_service.py` 13 个；backend 共 391 个通过，ruff / mypy 干净
-- [~] 3. `load_context` 节点 + 主图改造（学习者上下文只进 prompt、不进 checkpoint）
-- [ ] 4. `ReflectionWorker` + `reflect`（memory_ops、profile_updates）+ 会话摘要 + `reflected_message_id` 补做
+- [x] 3. `load_context` 节点 + 主图改造（学习者上下文只进 prompt、不进 checkpoint）。完成记录：图为 `START → load_context → tutor → END`，内部状态 `ChatState` 的 `learner_context` 用 `UntrackedValue` 通道（不进 checkpoint，输入/输出 schema 仍是 `MessagesState`）；`app/memory/context.py`（`LearnerSource` 协议、`DatabaseLearner`、`render_learner_context`，事实 3000 字符、每条摘要 600 字符的预算）；`prompts/learner_context.md`；发消息接口传入 `DatabaseLearner`（embedding 可选）。顺带：`explanation_language` 改为可空无默认值（直接改了任务 2 的迁移，尚未推送），情景记忆条数不超过 limit 时不调 embedding。新增测试：渲染 4 个、图 2 个（上下文进了 prompt、checkpoint 三张表里扫不到；读取失败照常回复）、接口 2 个（新会话用到事实、删除后下一轮不再出现；别人的记忆不串）。backend 400 个、E2E 21 个通过，ruff / mypy 干净
+- [~] 4. `ReflectionWorker` + `reflect`（memory_ops、profile_updates）+ 会话摘要 + `reflected_message_id` 补做
 - [ ] 5. 记忆/画像接口 + `/memory` 页面
 - **P1b 学习者模型**
 - [ ] 6. 语法 KC 清单（LLM 起草 → 用户审核）+ 加载校验

@@ -13,8 +13,9 @@
 - **任务 0 完成**：11C 第 3、4 条（详见看板完成记录）。
 - **Q11–Q14**：用户确认全部按推荐。
 - **任务 2 完成**：画像表、记忆表、记忆服务层（详见看板完成记录）。
-- **下一步**：任务 3，`app/agents/chat_graph.py` 加 `load_context` 节点：用 `app/memory/service.py` 的 `get_profile`、`facts_for_context`、`relevant_episodes` 拼学习者上下文，只进本次调用的 system prompt，不写 checkpoint。`ChatContext` 需要能拿到数据库 session（sessionmaker）和 user_id。
-- **踩坑**：工具函数别以 `test_` 开头（`test_clip` 被测试模块导入后会被 pytest 当成测试收集），已改名 `silent_clip`。pgvector 的 alembic autogenerate 会写出 `pgvector.sqlalchemy.vector.VECTOR()` 却不加 import，要手动改成 `from pgvector.sqlalchemy import Vector`。
+- **任务 3 完成**：`load_context` 节点，学习者上下文走 `UntrackedValue` 通道，不进 checkpoint（详见看板和 ADR 0009 落地记录）。
+- **下一步**：任务 4，`ReflectionWorker`（仿照 `app/attachments/processor.py`：进程内 task、同一会话串行、全局信号量 2）+ `reflect` 结构化调用（这一步先只做 memory_ops、profile_updates）+ 每 6 轮的会话摘要（`reflect_summary`）+ `conversations.reflected_message_id` 补做；在 `app/chat/turn.py` 的 `done` 之后触发。
+- **踩坑**：工具函数别以 `test_` 开头（`test_clip` 被测试模块导入后会被 pytest 当成测试收集），已改名 `silent_clip`。pgvector 的 alembic autogenerate 会写出 `pgvector.sqlalchemy.vector.VECTOR()` 却不加 import，要手动改成 `from pgvector.sqlalchemy import Vector`。LangGraph 状态里有不想持久化的中间值时用 `Annotated[T, UntrackedValue(T)]`；图的 input/output schema 要另设为 `MessagesState`，否则调用方的类型要求带上这个字段。
 
 ---
 

@@ -73,7 +73,7 @@ async def test_profile_created_on_first_update_and_learner_edits_win(
     )
     assert profile.occupation == "backend developer"
     assert profile.manual_fields == ["occupation"]
-    assert (profile.interests, profile.explanation_language) == ([], "zh")
+    assert (profile.interests, profile.explanation_language) == ([], None)
 
     # Reflection may fill other fields but never overwrites the learner's own words.
     profile = await service.update_profile(
@@ -201,6 +201,7 @@ async def test_relevant_episodes_rank_by_meaning_then_recency(db_session: AsyncS
     await add_episode(db_session, user, tenant_id, "Grammar questions", emb)
     # Embedded by a model the tenant no longer uses: never compared, only a top-up.
     await add_episode(db_session, user, tenant_id, "Interview (old model)", embedder("old:m"))
+    await add_episode(db_session, user, tenant_id, "Small talk (no vector)", None)
 
     found = await service.relevant_episodes(
         db_session, user.id, "help me prepare my interview", embedder=emb, limit=1
@@ -211,7 +212,7 @@ async def test_relevant_episodes_rank_by_meaning_then_recency(db_session: AsyncS
         db_session, user.id, "help me prepare my interview", embedder=emb, limit=4
     )
     assert contents(found)[0] == "Mock interview practice"
-    assert contents(found)[3] == "Interview (old model)"
+    assert contents(found)[3] == "Small talk (no vector)"  # the newest of the rest
 
     found = await service.relevant_episodes(
         db_session,
@@ -221,7 +222,7 @@ async def test_relevant_episodes_rank_by_meaning_then_recency(db_session: AsyncS
         limit=4,
         exclude_conversation_id=interview.source_conversation_id,
     )
-    assert len(found) == 3 and "Mock interview practice" not in contents(found)
+    assert len(found) == 4 and "Mock interview practice" not in contents(found)
 
 
 async def test_relevant_episodes_without_embeddings_are_the_most_recent(
@@ -232,6 +233,18 @@ async def test_relevant_episodes_without_embeddings_are_the_most_recent(
         await add_episode(db_session, user, tenant_id, text, None)
     found = await service.relevant_episodes(db_session, user.id, "anything", embedder=None, limit=2)
     assert contents(found) == ["third", "second"]
+
+
+async def test_few_episodes_are_returned_without_an_embedding_call(
+    db_session: AsyncSession,
+) -> None:
+    user, tenant_id = await new_user(db_session)
+    for text in ("first", "second"):
+        await add_episode(db_session, user, tenant_id, text, None)
+    emb = embedder()
+    found = await service.relevant_episodes(db_session, user.id, "anything", embedder=emb, limit=3)
+    assert contents(found) == ["second", "first"]
+    assert isinstance(emb.embeddings, TopicEmbeddings) and emb.embeddings.calls == []
 
 
 async def test_failed_embedding_still_saves_and_backfill_fills_it(

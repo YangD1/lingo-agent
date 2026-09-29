@@ -18,6 +18,7 @@ from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
 from app.chat.service import thread_config
 from app.db.models import Attachment, Conversation
+from app.memory.context import LearnerSource
 from app.providers.config import TenantProviderContext
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,7 @@ async def stream_reply(
     text: str,
     message_id: str | None = None,
     attachments: AttachmentSource | None = None,
+    learner: LearnerSource | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -123,6 +125,7 @@ async def stream_reply(
                 text=text,
                 message_id=message_id,
                 attachments=attachments,
+                learner=learner,
             ):
                 queue.put_nowait(event)
         finally:
@@ -151,6 +154,7 @@ async def _run_graph(
     text: str,
     message_id: str | None,
     attachments: AttachmentSource | None,
+    learner: LearnerSource | None,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     usage = {"input_tokens": 0, "output_tokens": 0}
@@ -163,7 +167,7 @@ async def _run_graph(
                 "metadata": {"user_id": str(user_id)},
                 "tags": ["chat"],
             },
-            context=ChatContext(providers, attachments),
+            context=ChatContext(providers, attachments, learner),
             stream_mode="messages",
         ):
             if not (

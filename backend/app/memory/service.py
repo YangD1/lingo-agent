@@ -246,11 +246,17 @@ async def relevant_episodes(
 
     With an embedding model: nearest by cosine distance among vectors from that same
     model, then topped up with the most recent ones (rows embedded by another model, or
-    not at all). Without one: the most recent.
+    not at all). Without one, or when there are no more than `limit` anyway: the most
+    recent.
     """
     base = select(Memory).where(Memory.user_id == user_id, Memory.kind == "episode")
     if exclude_conversation_id is not None:
         base = base.where(Memory.source_conversation_id.is_distinct_from(exclude_conversation_id))
+    recent = list(
+        await session.scalars(base.order_by(Memory.updated_at.desc(), Memory.id).limit(limit + 1))
+    )
+    if len(recent) <= limit:
+        return recent  # all of them anyway: skip the embedding call and its latency
     picked: list[Memory] = []
     vector = await embedder.embed(query) if embedder and query.strip() else None
     if embedder is not None and vector is not None:
@@ -262,10 +268,10 @@ async def relevant_episodes(
         picked = list(nearest)
     if len(picked) < limit:
         rest = base.where(Memory.id.not_in([m.id for m in picked])) if picked else base
-        recent = await session.scalars(
+        newest = await session.scalars(
             rest.order_by(Memory.updated_at.desc(), Memory.id).limit(limit - len(picked))
         )
-        picked.extend(recent)
+        picked.extend(newest)
     return picked
 
 

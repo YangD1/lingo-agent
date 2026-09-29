@@ -37,7 +37,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("daily_minutes", sa.Integer(), nullable=True),
-        sa.Column("explanation_language", sa.String(length=5), server_default="zh", nullable=False),
+        sa.Column("explanation_language", sa.String(length=5), nullable=True),
         sa.Column("cefr_level", sa.String(length=2), nullable=True),
         sa.Column("timezone", sa.String(length=64), nullable=True),
         sa.Column(
@@ -63,7 +63,7 @@ def upgrade() -> None:
             name=op.f("ck_user_profiles_cefr_level"),
         ),
         sa.CheckConstraint(
-            "explanation_language IN ('zh', 'en')",
+            "explanation_language IS NULL OR explanation_language IN ('zh', 'en')",
             name=op.f("ck_user_profiles_explanation_language"),
         ),
         sa.CheckConstraint(
