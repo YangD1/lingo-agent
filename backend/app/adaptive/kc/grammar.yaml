@@ -8,38 +8,43 @@
 # sentence, shown to the reflection model), prerequisites (KC ids at the same or a lower
 # level), common_errors (short hints for tagging, not stored anywhere).
 #
+# One skill per KC, one owner per error pattern: a form rule shared by many
+# structures (modal + bare verb, past participle forms) is its own KC, and each
+# common_errors pattern appears under exactly one KC, so a tagged mistake is
+# evidence about one skill rather than split across several.
+#
 # Original content organised by CEFR level; it does not reproduce any published
 # grammar inventory.
 
 kcs:
   # ---------------------------------------------------------------- A1
   - id: g.word_order_svo
-    name_en: Basic word order (subject-verb-object)
-    name_zh: 基本语序（主谓宾）
+    name_en: Basic sentence structure (subject + verb)
+    name_zh: 基本句子结构（主语 + 谓语）
     cefr: A1
-    description: Statements put the subject before the verb and the object after it, and every clause has a subject.
+    description: Every clause except an imperative has an explicit subject and a finite verb, in subject-verb order.
     common_errors:
-      - dropping the subject ("Is very good" for "It is very good")
-      - putting a time or place phrase between the verb and its object
+      - "dropping a subject that the context makes obvious (\"Yesterday went to the park\")"
+      - "a clause with no verb (\"He every day football\")"
 
   - id: g.be_present
     name_en: "Present of 'be' (am / is / are)"
     name_zh: be 动词现在时（am / is / are）
     cefr: A1
-    description: "Choosing am, is or are to match the subject, including in negatives and questions."
+    description: Choosing am, is or are to match the subject, including in negatives and questions.
     common_errors:
-      - leaving out be before an adjective or noun ("She very busy")
-      - using be together with a main verb ("I am agree")
-      - wrong form for the subject ("They is")
+      - "leaving out be before an adjective, noun or place (\"She very busy\", \"He in Beijing\")"
+      - "be used together with a main verb (\"I am agree\", \"I am live in Beijing\")"
+      - "wrong form for the subject (\"They is\")"
 
   - id: g.subject_pronouns
     name_en: Subject pronouns
     name_zh: 主格代词
     cefr: A1
-    description: Using I, you, he, she, it, we and they as subjects, with he/she chosen by the person's gender.
+    description: "Using I, you, he, she, it, we and they as subjects, with he/she chosen by the person's gender."
     common_errors:
-      - mixing up he and she
-      - repeating the subject with a pronoun ("My sister she works")
+      - mixing up he and she (or him/her) for the same person
+      - "repeating the subject with a pronoun (\"My sister she works\")"
 
   - id: g.object_pronouns
     name_en: Object pronouns
@@ -48,18 +53,18 @@ kcs:
     description: Using me, you, him, her, it, us and them after verbs and prepositions.
     prerequisites: [g.subject_pronouns]
     common_errors:
-      - subject form in object position ("between you and I", "help she")
+      - "subject form in object position (\"between you and I\", \"help she\")"
 
-  - id: g.possessive_determiners
+  - id: g.possessive_adjectives_pronouns
     name_en: Possessives (my / mine, your / yours ...)
     name_zh: 物主代词（my / mine, your / yours ...）
     cefr: A1
     description: Putting my, your, his, her, its, our or their before a noun, and using mine, yours, hers, ours or theirs on their own.
     prerequisites: [g.subject_pronouns]
     common_errors:
-      - his/her chosen by the noun instead of the owner
+      - his/her mixed up for the same owner
       - "determiner form alone (\"This book is my\")"
-      - "confusing its and it's, their and they're; apostrophe in yours/hers (\"your's\")"
+      - "confusing its/it's and their/they're; apostrophe in yours/hers (\"your's\")"
 
   - id: g.possessive_s
     name_en: "Possessive 's"
@@ -76,8 +81,8 @@ kcs:
     cefr: A1
     description: Forming regular and common irregular plurals and using a plural noun after numbers above one.
     common_errors:
-      - no plural -s after a number or "many" ("three book")
-      - regularising irregular plurals ("childs", "mans")
+      - "no plural -s after a number or \"many\" (\"three book\")"
+      - "regularising irregular plurals (\"childs\", \"mans\")"
 
   - id: g.articles_basic
     name_en: "Articles: a / an / the"
@@ -86,12 +91,11 @@ kcs:
     description: Using a/an for one unspecified countable thing and the for something already known or unique.
     prerequisites: [g.plural_nouns]
     common_errors:
-      - leaving out a/an before a singular countable noun ("He is teacher")
-      - a instead of an before a vowel sound
-      - using a/an with a plural or uncountable noun
+      - "leaving out a/an before a singular countable noun (\"He is teacher\", \"I have car\")"
+      - "a instead of an before a vowel sound, or an before a consonant sound (\"an university\")"
 
   - id: g.demonstratives
-    name_en: "this / that / these / those"
+    name_en: this / that / these / those
     name_zh: 指示代词 this / that / these / those
     cefr: A1
     description: Choosing this/these for near things and that/those for far things, matching singular or plural.
@@ -100,74 +104,66 @@ kcs:
       - "this/that with a plural noun (\"this books\")"
 
   - id: g.there_is_are
-    name_en: "there is / there are"
+    name_en: there is / there are
     name_zh: there be 句型
     cefr: A1
-    description: "Using there is/there are to say that something exists or is somewhere."
+    description: Using there is/there are to say that something exists or is somewhere.
     prerequisites: [g.be_present, g.plural_nouns]
     common_errors:
-      - "'have' for existence (\"There have many people\", \"In the park has a lake\")"
-      - is/are not matching the first noun
-
-  - id: g.have_possession
-    name_en: "have / have got for possession"
-    name_zh: have / have got 表示拥有
-    cefr: A1
-    description: Using have (or have got) to talk about possession, family and features.
-    common_errors:
-      - "'has' after I/you/we/they, or 'have' after he/she/it"
-      - "using be for possession (\"I am two brothers\")"
-
-  - id: g.present_simple
-    name_en: Present simple (affirmative)
-    name_zh: 一般现在时（肯定句）
-    cefr: A1
-    description: Using the present simple for habits, routines, facts and permanent states.
-    prerequisites: [g.word_order_svo]
-    common_errors:
-      - using the present continuous for habits ("I am going to school every day")
-      - adding be before the verb ("I am live in Beijing")
+      - "have for existence (\"There have many people\", \"In the park has a lake\")"
+      - "is/are not matching the first noun (\"There is many problems\")"
 
   - id: g.present_simple_third_person
-    name_en: "Present simple third-person -s"
+    name_en: Present simple third-person -s
     name_zh: 一般现在时第三人称单数 -s
     cefr: A1
-    description: "Adding -s/-es to the verb after he, she, it or a singular noun."
-    prerequisites: [g.present_simple]
+    description: Adding -s/-es to the verb after he, she, it or a singular noun.
+    prerequisites: [g.word_order_svo]
     common_errors:
-      - "missing -s (\"She like music\")"
-      - "-s after I/you/we/they or after a modal (\"He can swims\")"
+      - "missing -s (\"She like music\", \"My father work in a bank\")"
+      - "-s after I/you/we/they (\"They lives\")"
+      - "has/have mismatch (\"He have two sons\")"
       - "spelling of -es/-ies (\"watchs\", \"studys\")"
 
   - id: g.present_simple_questions_negatives
-    name_en: "Present simple questions and negatives (do / does)"
+    name_en: Present simple questions and negatives (do / does)
     name_zh: 一般现在时的疑问和否定（do / does）
     cefr: A1
-    description: "Forming questions and negatives with do/does + base verb."
+    description: Forming questions and negatives with do/does + base verb.
     prerequisites: [g.present_simple_third_person]
     common_errors:
-      - "keeping -s after does/doesn't (\"Does she likes\")"
-      - "no auxiliary in questions (\"You like coffee?\" as a written question, \"Where you live?\")"
-      - "'not' without do (\"I not like\")"
+      - "keeping -s after does/doesn't (\"Does she likes\", \"He doesn't works\")"
+      - "not without do (\"I not like it\", \"She no have time\")"
 
   - id: g.present_continuous
     name_en: Present continuous
     name_zh: 现在进行时
     cefr: A1
-    description: "Using am/is/are + -ing for actions happening now or around now."
+    description: Using am/is/are + -ing for actions happening now or around now.
     prerequisites: [g.be_present]
     common_errors:
       - "leaving out be (\"I going\")"
       - "-ing spelling (\"writeing\", \"siting\")"
 
+  - id: g.modal_forms
+    name_en: Modal verb form
+    name_zh: 情态动词的形式
+    cefr: A1
+    description: After can, could, will, would, should, must, may and might, using the bare verb, with no -s on the modal or the verb, no to, and no do in questions or negatives.
+    prerequisites: [g.word_order_svo]
+    common_errors:
+      - "to after a modal (\"I can to swim\", \"You should to rest\")"
+      - "-s on the modal or the verb (\"She cans\", \"He can speaks\", \"will goes\")"
+      - "do with a modal (\"Do you can help?\", \"I don't can\")"
+
   - id: g.can_ability
     name_en: "can / can't for ability and permission"
     name_zh: can / can't 表示能力和许可
     cefr: A1
-    description: Using can + base verb for ability and permission, with no -s and no to.
+    description: "Using can/can't for ability and permission, and could for general past ability."
+    prerequisites: [g.modal_forms]
     common_errors:
-      - "'to' after can (\"I can to swim\")"
-      - "-s on can or the main verb (\"She cans\", \"He can speaks\")"
+      - "could for a single past achievement where was able to/managed to is needed (\"I could pass the exam yesterday\")"
 
   - id: g.imperatives
     name_en: Imperatives
@@ -177,15 +173,16 @@ kcs:
     common_errors:
       - "'No' or 'Not' instead of Don't (\"No touch\", \"Not go\")"
 
-  - id: g.wh_questions
-    name_en: Wh- questions
-    name_zh: 特殊疑问句
+  - id: g.question_formation
+    name_en: Question formation (auxiliary and word order)
+    name_zh: 疑问句的构成（助动词与语序）
     cefr: A1
-    description: "Asking what, where, when, who, why and how questions with correct auxiliary-subject order."
+    description: Forming yes/no and wh- questions with an auxiliary (or do-support) before the subject; subject questions (Who called?) take no do.
     prerequisites: [g.be_present, g.present_simple_questions_negatives]
     common_errors:
-      - "statement order in questions (\"Where you are from?\")"
-      - "missing auxiliary (\"Why you said that?\")"
+      - "statement order in a question (\"Where you are from?\")"
+      - "no auxiliary (\"Why you said that?\", \"You have been there?\" in writing)"
+      - "do in a subject question (\"Who did call you?\")"
 
   - id: g.prepositions_place
     name_en: Prepositions of place
@@ -196,7 +193,7 @@ kcs:
       - "in/on/at confused (\"on the room\", \"in the bus stop\")"
 
   - id: g.prepositions_time
-    name_en: "Prepositions of time (at / on / in)"
+    name_en: Prepositions of time (at / on / in)
     name_zh: 时间介词（at / on / in）
     cefr: A1
     description: Using at for clock times, on for days and dates, in for months, years and parts of the day.
@@ -215,7 +212,7 @@ kcs:
       - "adjective after the noun (\"a car red\")"
 
   - id: g.conjunctions_basic
-    name_en: "and / but / or"
+    name_en: and / but / or
     name_zh: 并列连词 and / but / or
     cefr: A1
     description: Joining words and clauses with and, but and or.
@@ -226,8 +223,8 @@ kcs:
     name_en: Adverbs of frequency and their position
     name_zh: 频度副词及其位置
     cefr: A1
-    description: "Placing always, usually, often, sometimes and never before the main verb but after be."
-    prerequisites: [g.present_simple]
+    description: Placing always, usually, often, sometimes and never before the main verb but after be.
+    prerequisites: [g.present_simple_third_person]
     common_errors:
       - "after the main verb (\"I go always\")"
       - "before be (\"She always is late\")"
@@ -237,7 +234,7 @@ kcs:
     name_en: "Past simple of 'be' (was / were)"
     name_zh: be 动词过去时（was / were）
     cefr: A2
-    description: "Using was/were to match the subject when talking about the past."
+    description: Using was/were to match the subject when talking about the past.
     prerequisites: [g.be_present]
     common_errors:
       - "was after you/we/they (\"They was\")"
@@ -247,8 +244,8 @@ kcs:
     name_en: Past simple regular verbs
     name_zh: 一般过去时（规则动词）
     cefr: A2
-    description: "Adding -ed to regular verbs for finished actions at a past time."
-    prerequisites: [g.present_simple]
+    description: Adding -ed to regular verbs for finished actions at a past time.
+    prerequisites: [g.present_simple_third_person]
     common_errors:
       - "present form for past events (\"Last week I visit my aunt\")"
       - "-ed spelling (\"stoped\", \"studyed\")"
@@ -264,7 +261,7 @@ kcs:
       - "past participle instead of past simple (\"I seen\", \"she done\")"
 
   - id: g.past_simple_questions_negatives
-    name_en: "Past simple questions and negatives (did)"
+    name_en: Past simple questions and negatives (did)
     name_zh: 一般过去时的疑问和否定（did）
     cefr: A2
     description: "Forming past questions and negatives with did/didn't + base verb."
@@ -272,11 +269,21 @@ kcs:
     common_errors:
       - "past form after did (\"Did you went\", \"I didn't saw\")"
 
+  - id: g.past_participle_forms
+    name_en: Past participle forms
+    name_zh: 过去分词的形式
+    cefr: A2
+    description: Using the correct past participle (gone, seen, written, taken) after have and be, distinct from the past simple form.
+    prerequisites: [g.past_simple_irregular]
+    common_errors:
+      - "past simple form as participle (\"I have went\", \"has been wrote\", \"should have ate\")"
+      - "base form as participle (\"has been build\", \"was choose\")"
+
   - id: g.past_continuous
     name_en: Past continuous
     name_zh: 过去进行时
     cefr: A2
-    description: "Using was/were + -ing for an action in progress at a past moment or interrupted by another event."
+    description: Using was/were + -ing for an action in progress at a past moment or interrupted by another event.
     prerequisites: [g.past_simple_be, g.present_continuous]
     common_errors:
       - "past continuous for the short interrupting action (\"I cooked when the phone was ringing\")"
@@ -292,32 +299,30 @@ kcs:
       - "simple for something happening now (\"Look, it rains\")"
 
   - id: g.going_to_future
-    name_en: "be going to for plans and predictions"
+    name_en: be going to for plans and predictions
     name_zh: be going to 表示计划和有依据的预测
     cefr: A2
-    description: "Using am/is/are going to + base verb for intentions and predictions based on present evidence."
+    description: Using am/is/are going to + base verb for intentions and predictions based on present evidence.
     prerequisites: [g.be_present]
     common_errors:
       - "leaving out be (\"I going to study\")"
       - "-ing after going to (\"going to visiting\")"
 
   - id: g.will_future
-    name_en: "will for predictions, offers and decisions"
+    name_en: will for predictions, offers and decisions
     name_zh: will 表示预测、提议和临时决定
     cefr: A2
-    description: "Using will + base verb for predictions, promises, offers and decisions made while speaking."
+    description: Using will + base verb for predictions, promises, offers and decisions made while speaking.
+    prerequisites: [g.modal_forms]
     common_errors:
-      - "'to' or -s after will (\"will to go\", \"will goes\")"
+      - "will left out in a prediction (\"Tomorrow it rain\")"
 
   - id: g.present_perfect_experience
-    name_en: "Present perfect for experience (ever / never)"
+    name_en: Present perfect for experience (ever / never)
     name_zh: 现在完成时表示经历（ever / never）
     cefr: A2
-    description: "Using have/has + past participle to talk about life experience without a specific time."
-    prerequisites: [g.past_simple_irregular]
-    common_errors:
-      - "past simple form as the participle (\"I have went\", \"have saw\")"
-      - "has/have not matching the subject"
+    description: Using have/has + past participle for life experience with no stated time, often with ever and never.
+    prerequisites: [g.past_participle_forms]
 
   - id: g.countable_uncountable
     name_en: Countable and uncountable nouns
@@ -327,10 +332,10 @@ kcs:
     prerequisites: [g.plural_nouns, g.articles_basic]
     common_errors:
       - "plural uncountable nouns (\"informations\", \"advices\", \"homeworks\")"
-      - "a/an with an uncountable noun (\"a good news\")"
+      - "a/an with an uncountable noun (\"a good news\", \"an advice\")"
 
   - id: g.quantifiers_basic
-    name_en: "some / any / much / many / a lot of"
+    name_en: some / any / much / many / a lot of
     name_zh: 数量词 some / any / much / many / a lot of
     cefr: A2
     description: Choosing quantifiers by countability and by statement, negative or question.
@@ -343,7 +348,7 @@ kcs:
     name_en: Comparative adjectives
     name_zh: 形容词比较级
     cefr: A2
-    description: "Forming comparatives with -er or more, followed by than."
+    description: Forming comparatives with -er or more, followed by than.
     prerequisites: [g.adjective_position]
     common_errors:
       - "double comparatives (\"more bigger\")"
@@ -354,7 +359,7 @@ kcs:
     name_en: Superlative adjectives
     name_zh: 形容词最高级
     cefr: A2
-    description: "Forming superlatives with the + -est or the most."
+    description: Forming superlatives with the + -est or the most.
     prerequisites: [g.comparatives]
     common_errors:
       - "leaving out the (\"She is best student\")"
@@ -373,10 +378,10 @@ kcs:
     name_en: Reflexive pronouns
     name_zh: 反身代词
     cefr: A2
-    description: "Using myself, yourself and the others when subject and object are the same person, or for emphasis."
+    description: Using myself, yourself and the others when subject and object are the same person, or for emphasis.
     prerequisites: [g.object_pronouns]
     common_errors:
-      - "hisself / theirselves"
+      - hisself / theirselves
       - "reflexive after verbs that don't take one in English (\"relax myself\")"
 
   - id: g.modals_obligation
@@ -384,35 +389,33 @@ kcs:
     name_zh: 表示义务的 must / have to / don't have to / mustn't
     cefr: A2
     description: "Expressing obligation, prohibition and lack of obligation, noting that mustn't and don't have to differ."
-    prerequisites: [g.can_ability]
+    prerequisites: [g.modal_forms]
     common_errors:
       - "mustn't used to mean 'not necessary'"
-      - "'to' after must (\"must to go\")"
+      - "must for past obligation where had to is needed (\"Yesterday I must work late\")"
 
   - id: g.should_advice
-    name_en: "should for advice"
+    name_en: should for advice
     name_zh: should 表示建议
     cefr: A2
     description: "Giving advice with should/shouldn't + base verb."
-    prerequisites: [g.can_ability]
-    common_errors:
-      - "'to' after should (\"You should to rest\")"
+    prerequisites: [g.modal_forms]
 
   - id: g.polite_requests
-    name_en: "Polite requests and offers (Could you ...? / Would you like ...?)"
+    name_en: Polite requests and offers (Could you ...? / Would you like ...?)
     name_zh: 礼貌请求与提议（Could you ...? / Would you like ...?）
     cefr: A2
-    description: "Making requests with can/could/would you and offers or wishes with would like."
-    prerequisites: [g.can_ability]
+    description: Making requests with can/could/would you and offers or wishes with would like.
+    prerequisites: [g.modal_forms]
     common_errors:
       - "'like' for a polite wish (\"I like a coffee\" meaning \"I'd like\")"
       - "-ing after would like (\"Would you like going\")"
 
   - id: g.verb_patterns_basic
-    name_en: "Basic verb patterns (want to do / like doing)"
+    name_en: Basic verb patterns (want to do / like doing)
     name_zh: 基本动词搭配（want to do / like doing）
     cefr: A2
-    description: "Using to-infinitive after verbs like want, need and decide, and -ing after enjoy, finish and mind."
+    description: Using to-infinitive after verbs like want, need and decide, and -ing after enjoy, finish and mind.
     common_errors:
       - "base verb after want/need (\"I want go\")"
       - "to-infinitive after enjoy/finish (\"enjoy to swim\")"
@@ -421,23 +424,22 @@ kcs:
     name_en: Infinitive of purpose
     name_zh: 不定式表示目的
     cefr: A2
-    description: "Using to + base verb to explain why someone does something."
+    description: Using to + base verb to explain why someone does something.
     prerequisites: [g.verb_patterns_basic]
     common_errors:
       - "'for' + verb (\"I went there for buy milk\")"
 
   - id: g.conjunctions_because_so
-    name_en: "because / so"
+    name_en: because / so
     name_zh: 因果连词 because / so
     cefr: A2
     description: Using because for a reason and so for a result, but not both in one sentence.
     prerequisites: [g.conjunctions_basic]
     common_errors:
       - "because and so together (\"Because it rained, so we stayed\")"
-      - "a because-clause standing alone as a sentence"
 
   - id: g.time_clauses
-    name_en: "Time clauses (when / before / after / while)"
+    name_en: Time clauses (when / before / after / while)
     name_zh: 时间状语从句（when / before / after / while）
     cefr: A2
     description: Linking two events with when, before, after, while or until.
@@ -447,7 +449,7 @@ kcs:
     name_en: Zero conditional
     name_zh: 零条件句
     cefr: A2
-    description: "Using if + present, present for things that are always true."
+    description: Using if + present, present for things that are always true.
     prerequisites: [g.present_simple_third_person]
 
   - id: g.dummy_it
@@ -457,13 +459,14 @@ kcs:
     description: "Using it as an empty subject for weather, time, distance and 'It is + adjective + to do'."
     prerequisites: [g.word_order_svo, g.be_present]
     common_errors:
-      - "leaving out it (\"Is raining\", \"Is important to study\")"
+      - "leaving out empty it (\"Is raining\", \"Is important to study\")"
+      - "there or this in place of empty it (\"This is important to study\")"
 
   - id: g.too_enough
-    name_en: "too / enough"
+    name_en: too / enough
     name_zh: too / enough 的用法
     cefr: A2
-    description: "Putting too before an adjective, enough after an adjective and before a noun."
+    description: Putting too before an adjective, enough after an adjective and before a noun.
     prerequisites: [g.adjective_position]
     common_errors:
       - "enough before an adjective (\"enough big\")"
@@ -487,34 +490,34 @@ kcs:
     description: Using the past simple with a finished time and the present perfect for an unfinished period or present result.
     prerequisites: [g.present_perfect_experience, g.past_simple_questions_negatives]
     common_errors:
-      - "present perfect with a finished time (\"I have seen him yesterday\")"
-      - "past simple for news with a present result where perfect is expected"
+      - "present perfect with a finished time (\"I have seen him yesterday\", \"I have graduated in 2019\")"
+      - "past simple for an unfinished period (\"I lived here since 2020\")"
 
   - id: g.present_perfect_for_since
-    name_en: "Present perfect with for / since"
+    name_en: Present perfect with for / since
     name_zh: 现在完成时与 for / since
     cefr: B1
-    description: "Using the present perfect with for (a period) and since (a starting point) for states continuing until now."
+    description: Using the present perfect with for (a period) and since (a starting point) for states continuing until now.
     prerequisites: [g.present_perfect_experience]
     common_errors:
       - "present simple for duration up to now (\"I live here for five years\")"
       - "for/since confused (\"since three years\")"
 
   - id: g.present_perfect_just_already_yet
-    name_en: "Present perfect with just / already / yet"
+    name_en: Present perfect with just / already / yet
     name_zh: 现在完成时与 just / already / yet
     cefr: B1
-    description: "Using just and already in mid position and yet at the end of questions and negatives."
+    description: Using just and already in mid position and yet at the end of questions and negatives.
     prerequisites: [g.present_perfect_experience]
     common_errors:
-      - "yet in affirmative statements"
-      - "already/just at the end of the sentence"
+      - yet in affirmative statements
+      - already/just at the end of the sentence
 
   - id: g.present_perfect_continuous
     name_en: Present perfect continuous
     name_zh: 现在完成进行时
     cefr: B1
-    description: "Using have/has been + -ing for an activity that started in the past and is still going on or has just stopped."
+    description: Using have/has been + -ing for an activity that started in the past and is still going on or has just stopped.
     prerequisites: [g.present_perfect_for_since, g.present_continuous]
     common_errors:
       - "continuous with state verbs (\"I have been knowing her\")"
@@ -523,21 +526,21 @@ kcs:
     name_en: Past perfect
     name_zh: 过去完成时
     cefr: B1
-    description: "Using had + past participle for an event that happened before another past event."
-    prerequisites: [g.past_simple_irregular, g.present_perfect_experience]
+    description: Using had + past participle for an event that happened before another past event.
+    prerequisites: [g.past_simple_irregular, g.past_participle_forms]
     common_errors:
-      - "past perfect where the order is already clear or for a single past event"
+      - past perfect where the order is already clear or for a single past event
 
   - id: g.used_to
-    name_en: "used to / would for past habits"
+    name_en: used to / would for past habits
     name_zh: used to / would 表示过去的习惯
     cefr: B1
-    description: "Using used to + base verb for past habits and states that are no longer true, and would for repeated past actions but not states."
+    description: Using used to + base verb for past habits and states that are no longer true, and would for repeated past actions but not states.
     prerequisites: [g.past_simple_questions_negatives]
     common_errors:
-      - "\"use to\" in affirmatives or \"used to\" after did"
-      - "used to for present habits (\"I used to get up early\" meaning \"usually\")"
-      - "would with state verbs (\"I would have long hair\")"
+      - "\"use to\" in affirmatives, or \"used to\" after did"
+      - "used to for present habits (\"I used to get up early\" meaning \"I usually\")"
+      - "would with past states (\"I would have long hair\")"
 
   - id: g.stative_verbs
     name_en: Stative verbs
@@ -548,18 +551,21 @@ kcs:
     common_errors:
       - "\"I am knowing\", \"She is wanting\""
 
-  - id: g.will_vs_going_to
+  - id: g.future_forms
     name_en: "Future forms: will / going to / present continuous"
     name_zh: 将来时的选择：will / be going to / 现在进行时
     cefr: B1
     description: Choosing going to for intentions and evidence, the present continuous for fixed arrangements, and will for spontaneous decisions, offers and general predictions.
     prerequisites: [g.will_future, g.going_to_future, g.present_continuous]
+    common_errors:
+      - "will for a plan already made (\"I will meet Tom tonight, we arranged it\")"
+      - going to for a decision made while speaking
 
   - id: g.future_time_clauses
     name_en: Future time and conditional clauses
     name_zh: 将来时间状语从句中用现在时
     cefr: B1
-    description: "Using a present tense, not will, after when, as soon as, before, after and if when talking about the future."
+    description: Using a present tense, not will, after when, as soon as, before, after and until when the main clause is about the future.
     prerequisites: [g.time_clauses, g.will_future]
     common_errors:
       - "will in the time clause (\"When I will arrive, I will call you\")"
@@ -568,8 +574,8 @@ kcs:
     name_en: First conditional
     name_zh: 第一条件句
     cefr: B1
-    description: "Using if + present, will + base verb for likely future situations."
-    prerequisites: [g.zero_conditional, g.future_time_clauses]
+    description: Using if + present, will + base verb for likely future situations.
+    prerequisites: [g.zero_conditional, g.will_future]
     common_errors:
       - "will in the if-clause (\"If it will rain\")"
 
@@ -577,32 +583,33 @@ kcs:
     name_en: Second conditional
     name_zh: 第二条件句
     cefr: B1
-    description: "Using if + past, would + base verb for unreal or unlikely present and future situations."
+    description: Using if + past, would + base verb for unreal or unlikely present and future situations.
     prerequisites: [g.first_conditional, g.past_simple_irregular]
     common_errors:
       - "would in the if-clause (\"If I would have money\")"
-      - "will instead of would in the result clause"
+      - will instead of would in the result clause
 
   - id: g.passive_basic
-    name_en: "Passive voice (present and past simple)"
+    name_en: Passive voice (present and past simple)
     name_zh: 被动语态（一般现在时和一般过去时）
     cefr: B1
-    description: "Forming is/are/was/were + past participle when the action matters more than who did it."
-    prerequisites: [g.past_simple_irregular, g.be_present]
+    description: Forming is/are/was/were + past participle when the action matters more than who did it.
+    prerequisites: [g.past_participle_forms, g.past_simple_be]
     common_errors:
       - "leaving out be (\"The window broken yesterday\")"
-      - "passive with intransitive verbs (\"It was happened\")"
+      - "passive of an intransitive verb (\"It was happened\", \"He was died\")"
       - "active form where passive is needed (\"The book wrote in 1990\")"
 
   - id: g.defining_relative_clauses
     name_en: Defining relative clauses
     name_zh: 限制性定语从句
     cefr: B1
-    description: "Identifying people and things with who, which, that, whose and where, and omitting object pronouns."
+    description: Identifying people and things with who, which, that, whose and where, and omitting object pronouns.
     prerequisites: [g.subject_pronouns]
     common_errors:
       - "an extra pronoun inside the clause (\"the man who I met him\")"
-      - "which for people or who for things"
+      - "subject relative pronoun left out (\"There are many people want to help\")"
+      - which for people or who for things
 
   - id: g.reported_statements
     name_en: Reported statements
@@ -612,14 +619,14 @@ kcs:
     prerequisites: [g.past_simple_irregular, g.object_pronouns]
     common_errors:
       - "tell without a person / say with a person (\"She told that\", \"He said me\")"
-      - "no backshift after a past reporting verb when the situation changed"
+      - no backshift after a past reporting verb when the situation changed
 
   - id: g.indirect_questions
     name_en: Indirect questions
     name_zh: 间接疑问句
     cefr: B1
-    description: "Using statement word order after phrases like Do you know / Could you tell me / I wonder."
-    prerequisites: [g.wh_questions]
+    description: Using statement word order after phrases like Do you know / Could you tell me / I wonder.
+    prerequisites: [g.question_formation]
     common_errors:
       - "question order inside (\"Can you tell me where is the station?\")"
       - "do/does kept inside (\"I don't know what does he want\")"
@@ -628,7 +635,7 @@ kcs:
     name_en: "might / may / could / must / can't for possibility"
     name_zh: 表示可能性和推测的情态动词
     cefr: B1
-    description: Expressing how certain you are about the present or future with might, may, could, must and can't.
+    description: "Expressing how certain you are about the present or future with might, may, could, must and can't."
     prerequisites: [g.modals_obligation]
     common_errors:
       - "mustn't for logical impossibility (\"He mustn't be at home\" for \"can't be\")"
@@ -642,13 +649,13 @@ kcs:
     prerequisites: [g.verb_patterns_basic]
     common_errors:
       - "\"suggest to do\", \"avoid to go\", \"consider to buy\""
-      - "stop/remember/try with the wrong form for the meaning"
+      - stop/remember/try with the wrong form for the meaning
 
   - id: g.verb_object_patterns
-    name_en: "Verb + object + infinitive (want sb to / make sb do)"
+    name_en: Verb + object + infinitive (want sb to / make sb do)
     name_zh: 动词 + 宾语 + 不定式（want sb to do / make sb do）
     cefr: B1
-    description: "Using want/ask/tell/allow + object + to-infinitive, and make/let + object + base verb."
+    description: Using want/ask/tell/allow + object + to-infinitive, and make/let + object + base verb.
     prerequisites: [g.verb_patterns_basic, g.object_pronouns]
     common_errors:
       - "that-clause after want (\"I want that you come\")"
@@ -658,11 +665,20 @@ kcs:
     name_en: "-ing after prepositions"
     name_zh: 介词后接动名词
     cefr: B1
-    description: "Using the -ing form after prepositions, including the 'to' in look forward to, be used to and object to."
+    description: "Using the -ing form after prepositions, including the 'to' of look forward to, object to and be committed to."
     prerequisites: [g.verb_patterns_basic]
     common_errors:
       - "\"look forward to see you\""
-      - "base verb after a preposition (\"interested in learn\", \"before go\")"
+      - "base verb after a preposition (\"interested in learn\", \"before go\", \"without say\")"
+
+  - id: g.gerund_infinitive_subject
+    name_en: "-ing and to-infinitive as subject"
+    name_zh: 动名词和不定式作主语
+    cefr: B1
+    description: Using an -ing form (or it + to-infinitive) when an action is the subject of a sentence.
+    prerequisites: [g.verb_patterns_basic, g.dummy_it]
+    common_errors:
+      - "bare verb as subject (\"Learn English is hard\", \"Play games is fun\")"
 
   - id: g.dependent_prepositions
     name_en: Dependent prepositions
@@ -693,50 +709,50 @@ kcs:
       - "\"I am boring\" meaning \"I am bored\""
 
   - id: g.so_such
-    name_en: "so / such"
+    name_en: so / such
     name_zh: so 与 such 的区别
     cefr: B1
-    description: "Using so + adjective/adverb and such (a) + adjective + noun, optionally followed by a that-clause."
+    description: Using so + adjective/adverb and such (a) + adjective + noun, optionally followed by a that-clause.
     prerequisites: [g.articles_basic]
     common_errors:
       - "\"so a nice day\", \"such beautiful\" before a bare adjective"
 
   - id: g.linkers_contrast
-    name_en: "although / however / despite"
+    name_en: although / however / despite
     name_zh: 表示转折和让步的连接词
     cefr: B1
-    description: "Using although + clause, despite/in spite of + noun or -ing, and however between sentences."
+    description: Using although + clause, despite/in spite of + noun or -ing, and however between sentences.
     prerequisites: [g.conjunctions_because_so]
     common_errors:
       - "although and but together (\"Although it was late, but we stayed\")"
-      - "despite + clause (\"despite it was raining\")"
-      - "however joining two clauses with only a comma"
+      - "despite + clause (\"despite it was raining\", \"despite of\")"
 
   - id: g.quantifiers_all_both_each
-    name_en: "all / both / each / every / none"
+    name_en: all / both / each / every / none
     name_zh: 全部与个体的限定词 all / both / each / every / none
     cefr: B1
-    description: "Choosing all, both, each, every and none, with the right noun and verb number."
+    description: Choosing all, both, each, every and none, with the right noun and verb number.
     prerequisites: [g.quantifiers_basic]
     common_errors:
-      - "every with a plural noun (\"every students\")"
-      - "plural verb after each/every (\"Every student have\")"
+      - "every/each with a plural noun (\"every students\")"
+      - "plural verb after each/every + noun (\"Every student have\")"
+      - "all + singular countable (\"all the student\")"
 
   - id: g.subject_verb_agreement
     name_en: Subject-verb agreement
     name_zh: 主谓一致
     cefr: B1
-    description: Matching the verb to the real subject, including after long subjects, everyone/nobody and there is/are.
-    prerequisites: [g.present_simple_third_person, g.quantifiers_all_both_each]
+    description: Matching the verb to the real subject, including after long subjects, -ing and to-infinitive subjects, and everyone/nobody.
+    prerequisites: [g.present_simple_third_person]
     common_errors:
       - "verb agreeing with the nearest noun (\"The price of the rooms are\")"
-      - "plural verb after everyone/somebody"
+      - plural verb after everyone/somebody/nobody
 
   - id: g.articles_generic
-    name_en: "Zero article and generic use"
+    name_en: Zero article and generic use
     name_zh: 零冠词与泛指
     cefr: B1
-    description: "Leaving out the article for general plurals and uncountables, and with meals, most countries, and school/work/bed."
+    description: Leaving out the article for general plurals and uncountables, and with meals, most countries, and school/work/bed.
     prerequisites: [g.articles_basic, g.countable_uncountable]
     common_errors:
       - "the with general statements (\"The life is hard\", \"I like the music\")"
@@ -749,73 +765,94 @@ kcs:
     description: Keeping one time frame in a story or report and shifting tense only when the time actually changes.
     prerequisites: [g.past_simple_irregular, g.past_continuous]
     common_errors:
-      - "jumping between present and past within one story"
+      - jumping between present and past within one story
 
   - id: g.sentence_boundaries
-    name_en: "Sentence boundaries (run-ons and fragments)"
+    name_en: Sentence boundaries (run-ons and fragments)
     name_zh: 句子边界（连写句与残缺句）
     cefr: B1
     description: Ending or linking complete clauses properly instead of joining them with commas or leaving fragments.
     prerequisites: [g.conjunctions_because_so]
     common_errors:
-      - "comma splice (\"I was tired, I went to bed\")"
-      - "subordinate clause written as a full sentence"
+      - "comma splice, including before however/therefore (\"I was tired, I went to bed\", \"It rained, however we went out\")"
+      - "a because/although/which clause written as a full sentence (\"Because I was tired.\")"
 
   - id: g.so_neither_agreement
-    name_en: "So do I / Neither do I"
+    name_en: So do I / Neither do I
     name_zh: So do I / Neither do I 附和
     cefr: B1
-    description: "Agreeing with so/neither + auxiliary + subject, matching the auxiliary of the first sentence."
+    description: Agreeing with so/neither + auxiliary + subject, matching the auxiliary of the first sentence.
     prerequisites: [g.present_simple_questions_negatives]
     common_errors:
       - "wrong auxiliary (\"I went there. - So am I\")"
-      - "\"Me too\" after a negative sentence"
+      - "\"Me too\" after a negative sentence (\"Me neither\")"
+
+  - id: g.question_tags
+    name_en: Question tags and answers to negative questions
+    name_zh: 反意疑问句及否定疑问句的回答
+    cefr: B1
+    description: Adding a tag with the matching auxiliary and opposite polarity, and answering yes/no by the facts, not by agreement with the question.
+    prerequisites: [g.so_neither_agreement]
+    common_errors:
+      - "\"isn't it\" as a universal tag (\"You are coming, isn't it?\")"
+      - "yes/no chosen by agreement (\"Don't you like it? - Yes, I don't\")"
+
+  - id: g.adverb_placement
+    name_en: Adverb placement and very/much
+    name_zh: 副词的位置与 very / much 的用法
+    cefr: B1
+    description: Keeping the verb next to its object, putting manner, place and time adverbials after it, placing also/probably/only in mid position, and using really or very much (not very) with verbs.
+    prerequisites: [g.adverbs_of_frequency, g.adverbs_of_manner]
+    common_errors:
+      - "very modifying a verb (\"I very like it\")"
+      - "adverbial between verb and object (\"I like very much tea\", \"I met yesterday my friend\")"
 
   # ---------------------------------------------------------------- B2
   - id: g.third_conditional
     name_en: Third conditional
     name_zh: 第三条件句
     cefr: B2
-    description: "Using if + past perfect, would have + past participle for imagined past situations."
+    description: Using if + past perfect, would have + past participle for imagined past situations.
     prerequisites: [g.second_conditional, g.past_perfect]
     common_errors:
       - "would have in the if-clause (\"If I would have known\")"
-      - "past simple instead of past perfect in the if-clause"
+      - past simple instead of past perfect in the if-clause
 
-  - id: g.wish_if_only
-    name_en: "wish / if only / as if"
+  - id: g.wish_unreal_past
+    name_en: wish / if only / as if
     name_zh: wish / if only / as if 与非真实过去式
     cefr: B2
-    description: "Using wish or if only + past for present wishes and + past perfect for past regrets, wish + would for annoyance, and as if + past form for unreal comparisons."
+    description: Using wish or if only + past for present wishes and + past perfect for past regrets, wish + would for annoyance, and as if + past form for unreal comparisons.
     prerequisites: [g.second_conditional, g.past_perfect]
     common_errors:
       - "present tense after wish (\"I wish I have more time\")"
+      - "will after wish or if only (\"I wish it will stop raining\")"
 
   - id: g.unless_and_alternatives
-    name_en: "unless / as long as / provided that / in case"
+    name_en: unless / as long as / provided that / in case
     name_zh: 条件连词 unless / as long as / provided that / in case
     cefr: B2
-    description: "Expressing conditions with unless, as long as, provided that and in case, each with its own meaning."
+    description: Expressing conditions with unless, as long as, provided that and in case, each with its own meaning.
     prerequisites: [g.first_conditional]
     common_errors:
       - "unless with a negative verb (\"unless you don't hurry\")"
-      - "in case used as if"
+      - in case used as if
 
   - id: g.passive_advanced
-    name_en: "Passive in all tenses and with modals"
+    name_en: Passive in all tenses and with modals
     name_zh: 各时态及情态动词的被动语态
     cefr: B2
-    description: "Forming passives with perfect and continuous tenses and after modals (has been done, is being done, can be done)."
-    prerequisites: [g.passive_basic, g.present_perfect_vs_past_simple]
+    description: Forming passives with perfect and continuous tenses and after modals (has been done, is being done, can be done).
+    prerequisites: [g.passive_basic, g.present_perfect_vs_past_simple, g.modal_forms]
     common_errors:
-      - "\"has been build\", \"is being repair\""
-      - "\"should be do\""
+      - "being left out of continuous passives (\"The road is repairing\")"
+      - "been left out of perfect passives (\"The work has done\")"
 
   - id: g.causative_have_get
-    name_en: "Causative have / get something done"
+    name_en: Causative have / get something done
     name_zh: 使役结构 have / get something done
     cefr: B2
-    description: "Using have/get + object + past participle for services done by someone else."
+    description: Using have/get + object + past participle for services done by someone else.
     prerequisites: [g.passive_basic]
     common_errors:
       - "\"I cut my hair\" meaning a hairdresser did it"
@@ -828,14 +865,14 @@ kcs:
     description: Adding extra information with commas and who, which or whose, never that, including which referring to a whole clause.
     prerequisites: [g.defining_relative_clauses]
     common_errors:
-      - "that in a non-defining clause"
-      - "missing commas"
+      - that in a non-defining clause
+      - missing commas
 
   - id: g.reported_questions_commands
     name_en: Reported questions and commands
     name_zh: 间接引语（疑问句和祈使句）
     cefr: B2
-    description: "Reporting questions with if/whether and statement order, and commands with tell/ask + object + to-infinitive."
+    description: Reporting questions with if/whether and statement order, and commands with tell/ask + object + to-infinitive.
     prerequisites: [g.reported_statements, g.indirect_questions, g.verb_object_patterns]
     common_errors:
       - "question order kept (\"She asked where was I going\")"
@@ -851,107 +888,107 @@ kcs:
       - "\"He suggested me to go\""
       - "\"She denied to take it\""
 
-  - id: g.modals_past_deduction
-    name_en: "Modal perfect (must have / might have / should have)"
+  - id: g.modal_perfect
+    name_en: Modal perfect (must have / might have / should have)
     name_zh: 情态动词完成式（must have / might have / should have）
     cefr: B2
     description: "Using modal + have + past participle for deductions about the past (must/might/can't have) and for regret, criticism or unnecessary actions (should/could/needn't have)."
-    prerequisites: [g.modals_possibility, g.should_advice, g.present_perfect_experience]
+    prerequisites: [g.modals_possibility, g.should_advice, g.past_participle_forms]
     common_errors:
-      - "\"must had\", \"should have went\", \"might went\""
-      - "mustn't have for impossibility"
-      - "needn't have vs didn't need to confused"
+      - "must had / should went: modal + past form instead of have + participle (\"He must had left\", \"I should went\")"
+      - "mustn't have for past impossibility (can't have)"
+      - "needn't have (did it, unnecessarily) confused with didn't need to"
 
   - id: g.past_perfect_continuous
     name_en: Past perfect continuous
     name_zh: 过去完成进行时
     cefr: B2
-    description: "Using had been + -ing for an activity continuing up to a point in the past."
+    description: Using had been + -ing for an activity continuing up to a point in the past.
     prerequisites: [g.past_perfect, g.present_perfect_continuous]
 
   - id: g.future_continuous_perfect
-    name_en: "Future continuous and future perfect"
+    name_en: Future continuous and future perfect
     name_zh: 将来进行时与将来完成时
     cefr: B2
-    description: "Using will be + -ing for actions in progress at a future time and will have + past participle for actions finished by then."
-    prerequisites: [g.will_vs_going_to, g.present_perfect_experience]
+    description: Using will be + -ing for actions in progress at a future time and will have + past participle for actions finished by then.
+    prerequisites: [g.future_forms, g.present_perfect_experience]
     common_errors:
       - "simple future where completion by a deadline is meant (\"By 2030 I will finish\")"
 
   - id: g.future_in_the_past
-    name_en: "Future in the past (was going to / would)"
+    name_en: Future in the past (was going to / would)
     name_zh: 过去将来时（was going to / would）
     cefr: B2
-    description: "Using was going to, would and was about to to talk about the future from a past viewpoint."
-    prerequisites: [g.will_vs_going_to, g.reported_statements]
+    description: Using was going to, would and was about to to talk about the future from a past viewpoint.
+    prerequisites: [g.future_forms, g.reported_statements]
 
   - id: g.be_get_used_to
-    name_en: "be used to / get used to"
+    name_en: be used to / get used to
     name_zh: be used to / get used to
     cefr: B2
-    description: "Using be/get used to + noun or -ing for being or becoming accustomed, distinct from used to + base verb."
+    description: Using be/get used to + noun or -ing for being or becoming accustomed, distinct from used to + base verb.
     prerequisites: [g.used_to, g.gerund_after_prepositions]
     common_errors:
       - "\"I am used to get up early\""
 
-  - id: g.question_tags
-    name_en: Question tags
-    name_zh: 反意疑问句
-    cefr: B2
-    description: "Adding a tag with the matching auxiliary and opposite polarity (isn't it?, did you?)."
-    prerequisites: [g.so_neither_agreement]
-    common_errors:
-      - "\"isn't it\" as a universal tag"
-      - "same polarity by mistake"
-
   - id: g.purpose_clauses
-    name_en: "so that / in order to / so as not to"
+    name_en: so that / in order to / so as not to
     name_zh: 目的状语（so that / in order to / so as not to）
     cefr: B2
-    description: "Expressing purpose with in order (not) to, so as (not) to, and so that + clause with a modal."
+    description: Expressing purpose with in order (not) to, so as (not) to, and so that + clause with a modal.
     prerequisites: [g.infinitive_of_purpose]
     common_errors:
       - "\"in order to not\" in formal writing, \"for to\""
       - "so that + infinitive (\"so that to pass\")"
 
   - id: g.comparatives_advanced
-    name_en: "Advanced comparison (the more ... the more / as ... as / far more)"
+    name_en: Advanced comparison (the more ... the more / as ... as / far more)
     name_zh: 比较结构进阶（the more ... the more / as ... as / far more）
     cefr: B2
-    description: "Using double comparatives, as ... as, not as ... as, and modifiers such as far, much, slightly and a bit."
+    description: Using double comparatives, as ... as, not as ... as, and modifiers such as far, much, slightly and a bit.
     prerequisites: [g.superlatives]
     common_errors:
       - "\"very more\" (\"very better\")"
       - "\"The more you practise, you become better\""
 
   - id: g.either_neither
-    name_en: "either / neither / either ... or / neither ... nor"
+    name_en: either / neither / either ... or / neither ... nor
     name_zh: either / neither 及其并列结构
     cefr: B2
-    description: "Using either and neither for two things, and either ... or / neither ... nor with correct verb agreement."
+    description: Using either and neither for two things, and either ... or / neither ... nor with correct verb agreement.
     prerequisites: [g.quantifiers_all_both_each]
     common_errors:
       - "double negative with neither (\"Neither of them didn't\")"
       - "\"too\" after a negative (\"I don't like it too\")"
 
   - id: g.noun_clauses
-    name_en: "Noun clauses (that / what / whether)"
+    name_en: Noun clauses (that / what / whether)
     name_zh: 名词性从句（that / what / whether）
     cefr: B2
-    description: "Using that-, wh- and whether-clauses as subjects, objects and complements."
+    description: Using that-, wh- and whether-clauses as subjects, objects and complements.
     prerequisites: [g.indirect_questions]
     common_errors:
       - "which or that where what is needed (\"That he said is true\", \"I understand which you mean\")"
 
+  - id: g.parallel_structure
+    name_en: Parallel structure
+    name_zh: 平行结构
+    cefr: B2
+    description: Giving items joined by and, or, but, both...and and not only...but also the same grammatical form.
+    prerequisites: [g.conjunctions_basic, g.gerund_infinitive]
+    common_errors:
+      - "mixed forms in a list (\"I like swimming, to read and dance\")"
+      - "unbalanced correlatives (\"not only to save money but also saving time\")"
+
   - id: g.articles_specific
-    name_en: "Articles with specific reference and abstract nouns"
+    name_en: Articles with specific reference and abstract nouns
     name_zh: 冠词进阶：特指与抽象名词
     cefr: B2
-    description: "Using the when an abstract or general noun is made specific (the education I received), and choosing a/the for first vs shared reference in longer texts."
+    description: Using the when an abstract or general noun is made specific (the education I received), and choosing a/the for first vs shared reference in longer texts.
     prerequisites: [g.articles_generic]
     common_errors:
-      - "zero article before a noun made specific by an of-phrase or clause"
-      - "the before a noun mentioned for the first time"
+      - zero article before a noun made specific by an of-phrase or clause
+      - the before a noun mentioned for the first time
 
   - id: g.would_rather_had_better
     name_en: "would rather / had better / it's time"
@@ -971,10 +1008,10 @@ kcs:
     prerequisites: [g.third_conditional]
 
   - id: g.inverted_conditionals
-    name_en: "Inverted conditionals (Had I known ... / Should you ...)"
+    name_en: Inverted conditionals (Had I known ... / Should you ...)
     name_zh: 省略 if 的倒装条件句
     cefr: C1
-    description: "Replacing if with inversion using had, should or were in formal conditionals."
+    description: Replacing if with inversion using had, should or were in formal conditionals.
     prerequisites: [g.third_conditional]
     common_errors:
       - "keeping if with the inversion (\"If had I known\")"
@@ -983,41 +1020,34 @@ kcs:
     name_en: Inversion after negative adverbials
     name_zh: 否定副词开头的倒装
     cefr: C1
-    description: "Inverting subject and auxiliary after fronted never, rarely, not only, no sooner, hardly and only when."
+    description: Inverting subject and auxiliary after fronted never, rarely, not only, no sooner, hardly and only when.
     prerequisites: [g.present_perfect_vs_past_simple, g.past_perfect]
     common_errors:
       - "no inversion (\"Never I have seen\")"
       - "no auxiliary (\"Not only he speaks\")"
 
   - id: g.cleft_sentences
-    name_en: "Cleft sentences (It was ... that / What ... is)"
+    name_en: Cleft sentences (It was ... that / What ... is)
     name_zh: 强调句与分裂句
     cefr: C1
-    description: "Focusing information with It is/was ... that/who and What ... is/was."
+    description: Focusing information with It is/was ... that/who and What ... is/was.
     prerequisites: [g.noun_clauses, g.defining_relative_clauses]
     common_errors:
       - "an extra pronoun after the what-clause (\"What I need it is\")"
       - "the verb after It is/was not matching the focus (\"It is the teachers who knows\")"
 
   - id: g.participle_clauses
-    name_en: Participle clauses
-    name_zh: 分词短语作状语
+    name_en: Participle clauses (adverbial and reduced relative)
+    name_zh: 分词短语（作状语与作定语）
     cefr: C1
-    description: "Using -ing, -ed and having done clauses for time, reason and result, sharing the subject of the main clause."
-    prerequisites: [g.non_defining_relative_clauses, g.passive_advanced]
+    description: Using -ing, -ed and having done clauses in place of full adverbial or relative clauses (Walking home, I...; the man standing there; the book written by...), with the right active or passive form and a shared subject.
+    prerequisites: [g.defining_relative_clauses, g.passive_advanced]
     common_errors:
       - "dangling participle (\"Walking home, the rain started\")"
-      - "-ing for a passive meaning (\"Building in 1900, the house...\")"
-
-  - id: g.reduced_relative_clauses
-    name_en: Reduced relative clauses
-    name_zh: 省略的定语从句（分词作定语）
-    cefr: C1
-    description: "Shortening relative clauses to -ing or past participle phrases (the man standing there, the book written by)."
-    prerequisites: [g.defining_relative_clauses, g.passive_basic]
+      - "-ing for a passive meaning (\"Building in 1900, the house...\", \"the problem discussing yesterday\")"
 
   - id: g.relative_clauses_advanced
-    name_en: "Advanced relative clauses (preposition + which / whereby / whose)"
+    name_en: Advanced relative clauses (preposition + which / whereby / whose)
     name_zh: 定语从句进阶（介词 + which / whereby / whose）
     cefr: C1
     description: Using preposition + which/whom, quantifier + of which/whom, whereby and whose for things.
@@ -1027,38 +1057,39 @@ kcs:
       - "\"most of them\" instead of \"most of whom\" joining clauses"
 
   - id: g.passive_reporting
-    name_en: "Impersonal passive (It is said that / He is thought to)"
+    name_en: Impersonal passive (It is said that / He is thought to)
     name_zh: 非人称被动（It is said that / He is thought to）
     cefr: C1
-    description: "Reporting beliefs with It is said/thought that and subject + passive + to (have) done."
+    description: Reporting beliefs with It is said/thought that and subject + passive + to (have) done.
     prerequisites: [g.passive_advanced, g.reporting_verbs]
     common_errors:
       - "\"He is said that he is rich\""
 
   - id: g.subjunctive
-    name_en: "Mandative subjunctive (insist that he be)"
+    name_en: Mandative subjunctive (insist that he be)
     name_zh: 虚拟语气（insist / suggest that + 动词原形）
     cefr: C1
-    description: "Using the base form after suggest, insist, recommend, demand and it is essential that."
+    description: Using the base form after suggest, insist, recommend, demand and it is essential that.
     prerequisites: [g.reporting_verbs, g.noun_clauses]
     common_errors:
-      - "\"I suggest that he goes\" in formal contexts where the base form is expected"
+      - "past or will form after demand/insist/recommend that (\"They demanded that he left\")"
+      - "object + to-infinitive after suggest/insist (\"I insist him to come\")"
 
   - id: g.ellipsis_substitution
     name_en: Ellipsis and substitution
     name_zh: 省略与替代
     cefr: C1
-    description: "Avoiding repetition with so, not, do, one(s) and by leaving out words after auxiliaries."
+    description: Avoiding repetition with so, not, do, one(s) and by leaving out words after auxiliaries.
     prerequisites: [g.so_neither_agreement]
     common_errors:
       - "\"I think it\" for \"I think so\""
-      - "repeating the whole verb phrase unnaturally"
+      - repeating the whole verb phrase unnaturally
 
   - id: g.nominalisation
     name_en: Nominalisation
     name_zh: 名词化
     cefr: C1
-    description: "Turning verbs and adjectives into nouns for a more formal, academic style (decide -> the decision to)."
+    description: Turning verbs and adjectives into nouns for a more formal, academic style (decide -> the decision to).
     prerequisites: [g.dependent_prepositions]
     common_errors:
       - "wrong preposition or verb form after the noun (\"the decision of going\" for \"the decision to go\")"
@@ -1067,49 +1098,39 @@ kcs:
     name_en: Hedging and cautious language
     name_zh: 模糊限制语（委婉、谨慎的表达）
     cefr: C1
-    description: "Softening claims with tend to, appear to, may well, it seems that and similar structures."
+    description: Softening claims with tend to, appear to, may well, it seems that and similar structures.
     prerequisites: [g.modals_possibility, g.dummy_it]
 
   - id: g.discourse_markers
     name_en: Discourse markers and cohesion
     name_zh: 语篇标记与衔接
     cefr: C1
-    description: "Linking ideas across sentences with markers such as furthermore, nevertheless, as a result and on the other hand, with correct punctuation."
+    description: Linking ideas across sentences with markers such as furthermore, nevertheless, as a result and on the other hand, with correct punctuation.
     prerequisites: [g.linkers_contrast, g.sentence_boundaries]
     common_errors:
-      - "\"on the other hand\" without a first hand, \"besides\" for \"in addition\" in formal writing"
-      - "marker joining two clauses with only a comma"
-
-  - id: g.adverb_placement
-    name_en: Adverb and adverbial placement
-    name_zh: 副词与状语的位置
-    cefr: C1
-    description: Placing focusing, sentence and degree adverbs (only, even, also, probably) where they give the intended meaning.
-    prerequisites: [g.adverbs_of_frequency, g.adverbs_of_manner]
-    common_errors:
-      - "adverb between verb and object (\"I like very much tea\")"
-      - "only/even in a position that changes the meaning"
+      - "on the contrary used for \"on the other hand\""
+      - "in a word / in one word used for \"in short\" or \"overall\""
 
   # ---------------------------------------------------------------- C2
   - id: g.inversion_advanced
-    name_en: "Advanced inversion (So ... that / Such was / Little did)"
+    name_en: Advanced inversion (So ... that / Such was / Little did)
     name_zh: 高级倒装（So ... that / Such was / Little did）
     cefr: C2
-    description: "Using inversion after so/such + adjective, little, only then and in no way for emphasis."
+    description: Using inversion after so/such + adjective, little, only then and in no way for emphasis.
     prerequisites: [g.negative_inversion, g.so_such]
 
   - id: g.fixed_subjunctive
-    name_en: "Fixed subjunctive and formulaic expressions"
+    name_en: Fixed subjunctive and formulaic expressions
     name_zh: 固定虚拟表达（were it not for / be that as it may）
     cefr: C2
-    description: "Using formulaic subjunctive and inverted forms such as were it not for, be that as it may, come what may and so be it."
+    description: Using formulaic subjunctive and inverted forms such as were it not for, be that as it may, come what may and so be it.
     prerequisites: [g.subjunctive, g.inverted_conditionals]
 
   - id: g.concessive_clauses
-    name_en: "Advanced concession (much as / however + adjective / whatever)"
+    name_en: Advanced concession (much as / however + adjective / whatever)
     name_zh: 高级让步结构（much as / however + 形容词 / whatever）
     cefr: C2
-    description: "Expressing concession with much as, however + adjective, whatever/whoever, adjective + as/though + clause and even so."
+    description: Expressing concession with much as, however + adjective, whatever/whoever, adjective + as/though + clause and even so.
     prerequisites: [g.linkers_contrast, g.discourse_markers]
     common_errors:
       - "\"However hard he tries, but he fails\""
@@ -1119,13 +1140,11 @@ kcs:
     name_zh: 复杂名词短语
     cefr: C2
     description: Packing information into noun phrases with pre-modifiers, compound nouns and post-modifying phrases, as in academic writing.
-    prerequisites: [g.nominalisation, g.reduced_relative_clauses]
+    prerequisites: [g.nominalisation, g.participle_clauses]
 
   - id: g.information_structure
-    name_en: "Information structure (fronting, end-weight, extraposition)"
+    name_en: Information structure (fronting, end-weight, extraposition)
     name_zh: 信息结构（前置、尾重、外置）
     cefr: C2
-    description: "Ordering a sentence so that known information comes first and long, new information comes last, using fronting and it-extraposition."
+    description: Ordering a sentence so that known information comes first and long, new information comes last, using fronting and it-extraposition.
     prerequisites: [g.cleft_sentences, g.dummy_it]
-    common_errors:
-      - "very long subject clause before a short verb where it-extraposition is natural"

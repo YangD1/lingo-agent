@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Any
 
@@ -98,3 +99,12 @@ def test_shipped_catalog_is_valid() -> None:
     # Every level has KCs, so placement can set priors across the whole range.
     assert {k.cefr for k in catalog.kcs} == set(CEFR_LEVELS)
     assert isinstance(catalog, GrammarCatalog)
+
+
+def test_shipped_error_examples_have_one_owner() -> None:
+    # A quoted learner sentence listed under two KCs would split its evidence.
+    owners: dict[str, str] = {}
+    for k in load_grammar_catalog().kcs:
+        for hint in k.common_errors:
+            for example in re.findall(r'"([^"]+)"', hint):
+                assert owners.setdefault(example, k.id) == k.id, (example, owners[example], k.id)

@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-09-29 · P1b 任务 6 完成：KC 清单审核
+
+- **做了什么**：用户不逐条审核，授权按英语教师的专业标准自审。按“一个 KC 只对应一种技能、一种错误只归一个 KC”重构清单，得到 119 个 KC，改动明细见看板 6.3。ADR 0010 §1 补上规则和 `error_type` 五类枚举。新增例句唯一性测试。
+- **未完成**：无。`.claude/state/kc-review.html` 审核页已经过时（还是 118 个的初稿），没用了。
+- **下一步**：任务 7：BKT / Elo 纯函数（`app/adaptive/`，只用标准库）+ `kc_mastery`、`mistakes`、`skill_estimates` 表和迁移。开工前先拆子任务、和用户确认。
+- **踩坑**：初稿里同一种错误常常挂在好几个 KC 下（如“He can speaks”同时在第三人称和 can 下、逗号连写同时在三个 KC 下），打标时会把证据摊薄；以后改清单时，`test_shipped_error_examples_have_one_owner` 只能查出重复的引号例句，语义上的重叠还要人看。
+
+---
+
 ## 2026-09-29 · P1b 任务 6：语法 KC 清单初稿与加载校验
 
 - **做了什么**：任务 6 拆成 6.1–6.3，三个设计问题用户都选了推荐项（`error_type` 用全局五类枚举；清单只收语法；初稿在会话里直接起草）。6.1 `app/adaptive/kc/catalog.py` + lifespan 启动时加载 + 15 个单测；6.2 `app/adaptive/kc/grammar.yaml` 118 个 KC。提交 `c1bf757`。pytest 437、ruff、mypy 通过。

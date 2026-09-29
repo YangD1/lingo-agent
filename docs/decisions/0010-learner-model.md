@@ -10,8 +10,10 @@ PLAN 的原则是“LLM 负责理解和生成，算法负责记账和调度”�
 ## 决定
 
 ### 1. KC 清单
-- **语法 KC** 写在 `backend/app/adaptive/kc/grammar.yaml`：稳定的 id（`g.<snake_case>`）、中英文名、CEFR 等级、前置 KC、常见错误类型。启动时加载并校验（id 唯一、前置 KC 存在、无环）。P2 的 Neo4j 语法图谱沿用同一套 id。
+- **语法 KC** 写在 `backend/app/adaptive/kc/grammar.yaml`：稳定的 id（`g.<snake_case>`）、中英文名、CEFR 等级、前置 KC、常见错误提示。启动时加载并校验（id 唯一、前置 KC 存在、前置等级不高于自身、无环），清单有错就拒绝启动。P2 的 Neo4j 语法图谱沿用同一套 id。
 - 内容按 CEFR 等级自己编写，不照抄有版权的清单（如 English Grammar Profile）。初稿由 LLM 起草，人工审核后提交。
+- **一个 KC 只对应一种技能，一种错误只归一个 KC**：BKT 假设同一 KC 下的证据测的是同一种能力，同一种错误挂在几个 KC 下，证据就被摊薄。所以多个结构共用的形式规则单独成 KC（`g.modal_forms` 情态动词 + 动词原形、`g.past_participle_forms` 过去分词形式），时态类 KC 只管用法；各 KC 的 `common_errors` 互不重叠（测试检查引号里的例句不在两个 KC 下重复出现）。清单只收语法点，搭配、选词、拼写错误按单词处理。
+- **`mistakes.error_type` 用全局五类**：omission / addition / wrong_form / wrong_choice / word_order，跨 KC 可统计；`common_errors` 只是给打标模型的提示，不入库。
 - **单词 KC** 为 `w.<lemma>`，对应 `words` 表（ADR 0011）。
 
 ### 2. 掌握度：三种模型分工
