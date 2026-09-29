@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
 import { MessageAttachments } from "./message-attachments";
+import { SelectToAdd } from "./select-to-add";
 import { TurnActivity } from "./turn-activity";
 import type { ActivityView } from "./use-activity";
 import type { ChatMessage } from "./use-chat-session";
@@ -23,6 +24,7 @@ export function MessageList({
   const t = useTranslations("chat");
   const errorMessage = useErrorMessage();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -38,7 +40,11 @@ export function MessageList({
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <ol className="mx-auto flex max-w-3xl flex-col gap-4 p-4" aria-label={t("messages")}>
+      <ol
+        ref={listRef}
+        className="mx-auto flex max-w-3xl flex-col gap-4 p-4"
+        aria-label={t("messages")}
+      >
         {messages.map((m) => (
           <li
             key={m.key}
@@ -89,6 +95,7 @@ export function MessageList({
         ))}
       </ol>
       <div ref={bottomRef} />
+      <SelectToAdd container={listRef} />
     </div>
   );
 }

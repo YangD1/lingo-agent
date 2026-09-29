@@ -93,6 +93,7 @@
       "truncated": "only the beginning was read",
       "download": "Download"
     },
+    "addWord": "Add {word} to my words",
     "activity": {
       "line": "What the tutor did: {parts}",
       "nothing": "no memories read or saved this turn",

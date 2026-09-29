@@ -155,8 +155,8 @@
   - [x] 13.2 后端·收词：`vocab_collect(...)`：`mine.lookup` 匹配（查不到丢弃）、去重、每批上限 5；**已有卡片的词不动**（只记“已在学”），只为没有卡片的词建 `source="auto"` 卡，这样“移出”能精确撤销；worker 在记忆、打标之后执行，失败只记日志
   - [x] 13.3 后端·活动：`STEPS` 登记 `vocab_collect`（background，摘要 `added` / `existing`：word_id + 拼写）；挂在词出现的那条学习者消息上；集成测试（假结构化模型：加入、原形还原、查不到丢弃、已有卡不动、上限、关闭反思时不执行）。完成记录：`reflection.asked_words`（单词正则校验、未知消息丢弃、忽略大小写去重、每次反思最多 5 个）；`mine.collect`（批量 `INSERT … ON CONFLICT DO NOTHING RETURNING`，已有卡不动）、`mine.on_list`；worker `_collect_words` 在打标之后执行，`went` 和 `go` 同一词只记在第一条问的消息下，失败记 `failed`；`STEPS` 加 `vocab_collect`（`WordsCollected{added, existing}`，查不到的词不显示）；活动接口加 `words_on_list`（仍在生词本里的收词 id，前端据此显示“已移出”）。E2E 假模型：`what does "X" mean` 产出候选词。测试：单测 3 个、集成 4 个；pytest 567、ruff、mypy 通过
   - [x] 13.4 前端·活动明细：回复下展开显示“收进生词本：go、…”，链到 `/vocab/mine`，每个词一个“移出”按钮（`DELETE /vocab/mine/{id}`，已移出的显示“已移出”）；中英文案；Vitest。完成记录：`lib/activity.ts` 加 `WordsCollected`、`words_on_list`、摘要行“收进生词本 N 个词”；`use-activity` 记 `wordsOnList`（按每次取到的 `words_on_list` 更新），`removeWord` 调 `removeMine`，404（已在生词本页删过）也算移出；`turn-activity` 新增 `vocab_collect` 明细（移出失败就地提示，“已在学：…”）。Vitest 新增 4 个，eslint、typecheck 通过
-  - [~] 13.5 前端·选词加入：在私教回复里选中一个单词（桌面鼠标、手机长按都走 `selectionchange`）→ 选区旁浮出“加入生词本”→ `POST /vocab/mine`（`source=manual`，复用任务 12 的匹配规则）→ 轻提示结果（新加入 / 已还原原形 / 已在生词本 / 查不到）；选中多个词时按钮不出现；Vitest
-  - [ ] 13.6 E2E（对话 → 回复下看到收词 → 移出；选词加入 → `/vocab/mine` 里出现）+ `docs/agent-tools.md`、P1 计划 §3.2、ADR 0011 落地记录、交接记录
+  - [x] 13.5 前端·选词加入：在私教回复里选中一个单词（桌面鼠标、手机长按都走 `selectionchange`）→ 选区旁浮出“加入生词本”→ `POST /vocab/mine`（`source=manual`，复用任务 12 的匹配规则）→ 轻提示结果（新加入 / 已还原原形 / 已在生词本 / 查不到）；选中多个词时按钮不出现；Vitest。完成记录：`components/chat/select-to-add.tsx`（`pickedWord`：选区两端都在同一条私教回复气泡里、是单个英文词；按钮 `position: fixed` 放在选区下方，滚动和改窗口大小时重算；`mousedown` 阻止默认以保留选区；结果替换按钮显示 3 秒，文案复用 `vocab.mine`）；挂在 `MessageList`。项目里没有挂 Toaster，所以没用 sonner。Vitest 4 个（共 142），eslint、typecheck 通过
+  - [~] 13.6 E2E（对话 → 回复下看到收词 → 移出；选词加入 → `/vocab/mine` 里出现）+ `docs/agent-tools.md`、P1 计划 §3.2、ADR 0011 落地记录、交接记录
 - **P1d 入学测**
 - [ ] 14. 语法题库（LLM 起草 → 用户审核）+ 假词生成 + 词汇量估计
 - [ ] 15. placement 子图（interrupt / resume）+ 接口 + 结果写回

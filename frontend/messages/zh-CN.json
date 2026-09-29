@@ -93,6 +93,7 @@
       "truncated": "只读取了开头部分",
       "download": "下载"
     },
+    "addWord": "把 {word} 加入生词本",
     "activity": {
       "line": "私教做了什么：{parts}",
       "nothing": "这一轮没有读写记忆",
