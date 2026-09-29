@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.agents.chat_graph import build_chat_graph
-from app.api import attachments, auth, chat, health, providers, usage
+from app.api import attachments, auth, chat, health, memory, providers, usage
 from app.api.errors import install_error_handlers
 from app.attachments.handlers import default_handlers
 from app.attachments.processor import AttachmentProcessor, fail_interrupted
@@ -93,6 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(usage.router)
     app.include_router(chat.router)
     app.include_router(attachments.router)
+    app.include_router(memory.router)
     return app
 
 
