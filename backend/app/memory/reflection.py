@@ -118,8 +118,8 @@ class KnownFact:
 
 @dataclass(frozen=True)
 class Applied:
-    added: int = 0
-    updated: int = 0
+    added: tuple[uuid.UUID, ...] = ()
+    updated: tuple[uuid.UUID, ...] = ()
     deleted: int = 0
     profile_fields: tuple[str, ...] = ()
 
@@ -232,17 +232,19 @@ async def apply_reflection(
     """Carry out the operations; `facts` must be the list the model was shown."""
     ids = fact_ids(facts)
     known = {_normalized(f.content) for f in facts}
-    added = updated = deleted = 0
+    added: list[uuid.UUID] = []
+    updated: list[uuid.UUID] = []
+    deleted = 0
     touched: set[uuid.UUID] = set()
     for op in reflection.memory_ops:
         try:
             if op.action == "add":
-                if added >= MAX_ADDS_PER_TURN or len(facts) + added >= MAX_FACTS:
+                if len(added) >= MAX_ADDS_PER_TURN or len(facts) + len(added) >= MAX_FACTS:
                     continue
                 if _normalized(op.content or "") in known:
                     continue
                 known.add(_normalized(op.content or ""))
-                await service.add_memory(
+                memory = await service.add_memory(
                     session,
                     tenant_id=tenant_id,
                     user_id=user_id,
@@ -251,7 +253,7 @@ async def apply_reflection(
                     source_conversation_id=conversation_id,
                     embedder=embedder,
                 )
-                added += 1
+                added.append(memory.id)
                 continue
             memory_id = ids.get(op.id or "")
             if memory_id is None or memory_id in touched:
@@ -262,7 +264,7 @@ async def apply_reflection(
                 await service.update_memory(
                     session, user_id, memory_id, op.content or "", embedder=embedder
                 )
-                updated += 1
+                updated.append(memory_id)
             else:
                 await service.delete_memory(session, user_id, memory_id)
                 deleted += 1
@@ -273,7 +275,7 @@ async def apply_reflection(
     changes = profile_changes(reflection.profile_updates)
     if changes:
         await service.update_profile(session, user_id, changes, by_learner=False)
-    return Applied(added, updated, deleted, tuple(sorted(changes)))
+    return Applied(tuple(added), tuple(updated), deleted, tuple(sorted(changes)))
 
 
 def _normalized(text: str) -> str:

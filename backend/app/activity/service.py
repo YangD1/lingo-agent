@@ -26,11 +26,11 @@ type ActivityKind = Literal["step", "tool", "mcp", "background"]
 type ActivityStatus = Literal["ok", "failed", "skipped"]
 
 
-class _Summary(BaseModel):
+class Summary(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-class ContextRead(_Summary):
+class ContextRead(Summary):
     """`load_context`: what the tutor was told about the learner this turn."""
 
     facts: list[uuid.UUID] = []
@@ -38,7 +38,7 @@ class ContextRead(_Summary):
     profile_items: int = 0
 
 
-class MemoryChanges(_Summary):
+class MemoryChanges(Summary):
     """`reflect_memory`: facts and profile fields reflection changed.
 
     Deleted facts are only counted: their content is gone, and so is their id's use.
@@ -50,7 +50,7 @@ class MemoryChanges(_Summary):
     profile_fields: list[str] = []
 
 
-class GrammarMistake(_Summary):
+class GrammarMistake(Summary):
     kc_id: str
     error_type: ErrorType
     severity: Severity
@@ -58,14 +58,14 @@ class GrammarMistake(_Summary):
     correction: str | None = None
 
 
-class GrammarTags(_Summary):
+class GrammarTags(Summary):
     """`grammar_tagging`: one learner message's tagged mistakes and successes."""
 
     mistakes: list[GrammarMistake] = []
     used_correctly: list[str] = []
 
 
-class SummaryUpdate(_Summary):
+class SummaryUpdate(Summary):
     """`summarize`: the conversation summary was rewritten."""
 
     episode_id: uuid.UUID | None = None
@@ -74,7 +74,7 @@ class SummaryUpdate(_Summary):
 @dataclass(frozen=True)
 class StepSpec:
     kind: ActivityKind
-    summary: type[_Summary]
+    summary: type[Summary]
 
 
 STEPS: dict[str, StepSpec] = {
@@ -91,7 +91,7 @@ class Step:
 
     name: str
     status: ActivityStatus = "ok"
-    summary: _Summary | None = None
+    summary: Summary | None = None
     duration_ms: int | None = None
     call_id: str = ""
 
@@ -154,7 +154,7 @@ async def record(
     turn_id: str,
     name: str,
     status: ActivityStatus = "ok",
-    summary: _Summary | None = None,
+    summary: Summary | None = None,
     duration_ms: int | None = None,
     call_id: str = "",
 ) -> None:
@@ -181,7 +181,7 @@ async def record(
     )
 
 
-def _summary_json(name: str, status: ActivityStatus, summary: _Summary | None) -> dict[str, Any]:
+def _summary_json(name: str, status: ActivityStatus, summary: Summary | None) -> dict[str, Any]:
     expected = STEPS[name].summary
     if summary is not None and not isinstance(summary, expected):
         raise TypeError(f"{name} takes a {expected.__name__}, not {type(summary).__name__}")
@@ -210,7 +210,7 @@ async def list_activities(
     return rows.all()
 
 
-def parse_summary(row: AgentActivity) -> _Summary:
+def parse_summary(row: AgentActivity) -> Summary:
     return STEPS[row.name].summary.model_validate(row.summary)
 
 

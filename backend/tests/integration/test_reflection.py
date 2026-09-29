@@ -273,7 +273,7 @@ async def test_operations_only_touch_the_facts_the_model_was_shown(
         embedder=None,
     )
 
-    assert (applied.added, applied.updated, applied.deleted) == (5, 1, 1)
+    assert (len(applied.added), len(applied.updated), applied.deleted) == (5, 1, 1)
     contents = {m.content for m in await service.list_memories(db_session, user.id, "fact")}
     assert {"Lives in Berlin.", "Has a cat."} <= contents
     assert "Likes jazz." not in contents and len(contents) == 7
