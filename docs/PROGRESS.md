@@ -117,6 +117,13 @@
   - [x] 8.3 `adaptive/mastery.py`：`refresh`（重放受影响的语法 KC，先验取 KC 等级 + 画像里的 CEFR；没有证据的 KC 删行；`w.` 开头的单词 KC 跳过，留给 FSRS）、`rebuild`（该用户全部 KC，入学测改等级后也用它）、`ensure_current`（发现旧版本的行就重建）。worker 的 `_record_evidence` 在记忆操作之后执行
   - [x] 8.4 测试：单测 5 个（短 id、prompt 带整份清单、各种丢弃和上限）；集成 4 个（先删后写幂等、按画像等级的先验重放、证据删光后删行、旧规则版本重建、从发消息到掌握度的完整链路）；E2E 假模型：学习者行的正则改为兼容 `[u1]`（否则记忆 E2E 会失效），“he/she/it like”返回第三人称单数错误。pytest 508、ruff、mypy、E2E（chat + memory 6 个）通过
 - [ ] 8b. agent 活动公示（ADR 0013，2026-09-29 追加需求，已确认）：活动记录表；`load_context`、反思写入活动；SSE 推送对话中的步骤，回复完成后前端再取一次后台结果；每条私教回复下默认收起一行摘要、点开看明细（链到记忆页、学习者模型页）；设置里可隐藏（只影响显示）。开工前拆子任务
+  - 用户确认（2026-09-29）：活动里的记忆只存引用（id + 操作），展示时取当前内容，已删的显示“已删除”，不留副本；隐藏开关存浏览器 localStorage（不改后端）；后台结果用短轮询（有结果或 60 秒即停）。“一轮”的键 = 学习者消息 id（发送前就生成，打标证据也按它记）；反思一批覆盖多轮时，记忆类活动挂在这批最后一条学习者消息上，语法打标挂在各自的消息上
+  - [x] 8b.1 `agent_activities` 表 + 迁移 + `app/activity/`（写入服务；摘要按步骤名用 Pydantic 校验，只收白名单字段）；删会话、删用户级联。完成记录：迁移 `4b93dd7c1f27`；唯一键 (conversation_id, turn_id, name, call_id)，`record` 用 upsert，重写同一步骤即覆盖（`call_id` 给 P2 同一轮多次调用同一工具预留，固定步骤为空串）；`app/activity/service.py`：`STEPS` 登记步骤名 → 类型 + 摘要 schema（`ContextRead`、`MemoryChanges`、`GrammarTags`、`SummaryUpdate`），摘要类型不符直接报错，failed / skipped 不存摘要；`list_activities`（按用户、会话、可选轮次，跳过未登记的步骤名）、`parse_summary`、`timed()`。集成测试 7 个；pytest 515、ruff、`mypy app` 通过
+  - [~] 8b.2 `load_context` 记活动（读了几条事实、几条摘要、画像字段）+ 流式图改用 `messages` + `custom` 两种模式，SSE 新增 `activity` 事件；失败也记（status=failed，无错误原文）
+  - [ ] 8b.3 反思写活动：记忆增删改、画像字段、语法打标（KC、错误类型、原文片段）、会话摘要；反思失败 / 没配模型 / 关闭时记 failed / skipped，前端据此停止轮询
+  - [ ] 8b.4 接口：`GET /conversations/{id}/activity`（可按轮过滤，越权 404；记忆引用在这里解析成当前内容）
+  - [ ] 8b.5 前端：每条私教回复下的收起摘要 + 展开明细（链到 `/memory`；`/learner` 等任务 9）；`done` 后轮询后台结果（有结果或超时即停）；设置里的开关；中英文案
+  - [ ] 8b.6 测试（单测、集成、E2E）+ `docs/agent-tools.md`、ADR 0013 补充
 - [ ] 9. 学习者模型接口 + `/learner` 页面
 - **P1c 背单词**
 - [ ] 10. `words` 表 + ECDICT 导入脚本 + `make vocab-import`

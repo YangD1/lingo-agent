@@ -43,6 +43,8 @@ EXPLANATION_LANGUAGES = ("zh", "en")
 KC_KINDS = ("grammar", "word")
 EVIDENCE_SOURCES = ("chat", "placement")
 SKILLS = ("listening", "speaking", "reading", "writing", "grammar", "vocab")
+ACTIVITY_KINDS = ("step", "tool", "mcp", "background")
+ACTIVITY_STATUSES = ("ok", "failed", "skipped")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -389,3 +391,36 @@ class SkillEstimate(TimestampMixin, Base):
     skill: Mapped[str] = mapped_column(String(20), primary_key=True)
     rating: Mapped[float] = mapped_column(Float)
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class AgentActivity(Base):
+    """One thing the tutor did on a turn, shown to the learner (ADR 0013 §3).
+
+    A turn is keyed by the learner message that started it. Writing the same step again
+    (a retried reflection) replaces its row. `summary` holds only the whitelisted fields
+    of `app.activity` - counts, KC ids, memory ids - never prompts or model output, and
+    memories by reference, so one the learner deletes leaves no copy here.
+    """
+
+    __tablename__ = "agent_activities"
+    __table_args__ = (
+        CheckConstraint(_in("kind", ACTIVITY_KINDS), name="kind"),
+        CheckConstraint(_in("status", ACTIVITY_STATUSES), name="status"),
+        UniqueConstraint("conversation_id", "turn_id", "name", "call_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # Deleted with the conversation: summaries quote the learner's own messages.
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE")
+    )
+    turn_id: Mapped[str] = mapped_column(String(64))
+    kind: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str] = mapped_column(String(50))
+    # Tells apart repeated calls of one tool in a turn; empty for fixed steps.
+    call_id: Mapped[str] = mapped_column(String(100), default="", server_default="")
+    status: Mapped[str] = mapped_column(String(10))
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    summary: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
