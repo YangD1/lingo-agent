@@ -179,6 +179,7 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 - 独立接口 `POST /placement`（开始或继续）、`POST /placement/{id}/answer`、`GET /placement/{id}/result`，不走聊天 SSE。
 - 结果写入：`user_profile.cefr_level`、`skill_estimates`（vocab、grammar）、按等级给语法 KC 设 BKT 先验（等级以下的 KC 先验高）、`kc_evidence`（source=placement，每道题一条识别证据）。词汇量结果只用来建议熟词筛选从哪个频段开始，不自动把词标成已认识。
 - CEFR 映射：Elo 能力值 → CEFR 的分界点写在配置里，初值按题库难度标定，之后再调。
+- **落地记录（任务 15，2026-09-30，Q15a–Q15d 按推荐确认）**：接口改为 `POST /placement`（`restart` 可放弃旧的）、`POST /placement/{id}/answer`、`GET /placement/{id}`（状态 + 当前题 + 结果，代替 `/result`）、`GET /placement/latest`。熟词建议是 `GET/POST/DELETE /vocab/placement-known`：学习者确认后批量标熟，可整批撤销，不移动 `screen_offset`。总体等级取语法等级，词汇只给参考等级。细节见 ADR 0010 §4 落地记录和 `docs/agent-tools.md`“入学测”一节。
 
 ### 6.3 页面
 

@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-09-30 · P1d 任务 15：placement 子图 + 接口 + 结果写回 + 批量标熟
+
+- **做了什么**：用户确认 Q15a–Q15d 均按推荐（真词精确过滤、词汇量按词计数；语法测试中性起点；学习者确认后批量标熟、可撤销；总体等级 = 语法等级）。15.1 迁移 `347f8448994f`（`placement_sessions`、`placement_item_stats`、`user_cards.source` 加 `placement`）；15.2 `placement/words.py`；15.3 `placement/flow.py`（纯函数）+ `agents/placement_graph.py`；15.4 `placement/writeback.py`；15.5 `app/placement/service.py` + `app/api/placement.py`；15.6 `services/vocab/placement_known.py` + `/vocab/placement-known`；15.7 文档。`rules.yaml` 升到 `2026-09-30.1`。提交 b03d454、cdf1989、86e3bdb、428d1b5、b799a11 和本次。后端全量 695 通过，ruff、mypy 干净。
+- **未完成**：无。前端没有改动。
+- **下一步**：任务 16（`/placement` 页面 + 聊天页引导条），开工前拆子任务、和用户确认。已知要一起处理的界面问题：
+  - `/learner` 的技能列表直接显示 `rating`，vocab 存的是 ln V（约 8），要改成显示估计词汇量；`GET /learner` 可能需要带上最近一次入学测的词汇结果。
+  - `/learner` 证据列表对 `source=placement` 没有来源标签（`components/learner/kc-item.tsx` 只处理了 chat），要加“入学测”。
+  - 新错误码的中英文文案：`words_not_imported`、`stale_question`（前端收到后重新 `GET /placement/{id}`）、`invalid_answer`、`placement_not_in_progress`、`placement_not_found`。
+  - 结果页和筛选页接 `GET/POST/DELETE /vocab/placement-known`；`unavailable` 有 `no_placement` / `unreliable` / `no_book` 三种。
+  - 引导条用 `GET /placement/latest`（返回 null 表示从没测过）。
+- **踩坑**：
+  - ECDICT 的 `exchange` 里有 `0:` 不代表是屈折形式：number 被记成 numb 的比较级、better 记成 good 的比较级。要看这个词自己有没有其他变形（`words.is_testable`）。
+  - 函数名以 `test` 开头（`testable`）会被 pytest 当成测试收集，已改名为 `is_testable`。
+  - 同一场测试的串行化用 `pg_advisory_xact_lock`，不能用 `SELECT … FOR UPDATE`：图的 `finish` 会在另一个连接里给同一行加 `FOR UPDATE`，请求所在的事务还没结束，两边会互相等待。
+  - `start` 要持锁跑到出第一题再提交；先提交的话，并发的第二个请求会读到已经存在、但还没有题目的测试。
+  - Alembic autogenerate 检测不到 CHECK 约束的变更，`user_cards.source` 是手写迁移。
+  - 测试库的 `words` 是空的，所以词池不做进程级缓存（`DatabaseWords` 空池不缓存），由 context 注入；`placement_item_stats` 没有外键，已加进 `tests/conftest.py` 的清理列表。
+
+---
+
 ## 2026-09-30 · P1d 任务 14：语法题库 + 假词 + 词汇量估计 + 语法选题定级
 
 - **做了什么**：用户确认 3 点：题库授权按教师标准自审；第二部分只考语法；假词离线生成静态清单。新增 `app/adaptive/placement/`：`items.py` + `items.yaml`（90 题，难度由四个维度分现算，启动时校验）、`pseudowords.py` + `pseudowords.txt`（4 元组模型，对照完整 ECDICT 过滤，300 个）、`vocab_size.py`（对数逻辑模型 + 误报率写进似然 + 最大后验拟合 + 就近频段选题）、`grammar_test.py`（最大后验拟合能力 + 标准误、选题、结束判定、CEFR 分界）。`rules.yaml` 加 `placement.vocab` / `placement.grammar`，版本号升到 `2026-09-29.5`。ADR 0010 / 0012、P1 计划 §6.1、PLAN 第二·五节加落地记录。提交 39e40f4、c958afb、c69da84 和本次。pytest 全量 647 通过（单测 407），ruff、mypy 干净。

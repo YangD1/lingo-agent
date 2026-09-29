@@ -59,3 +59,13 @@
 | 反思：会话摘要 | 同上 | 新消息、旧摘要 | `memories`（episode）；活动 `summarize` | `llm/reflect` | 回复下“私教做了什么”；`/memory` 页面 |
 | 反思：自动收词（与记忆同一次调用） | 同上 + `services/vocab/mine.py` `collect` | 反思给出的候选词（带消息短 id）、`words` | `user_cards`（只为还没有卡片的词建 `source=auto` 的卡，已有卡片一律不动，所以移出就是精确撤销；每次反思最多 5 个，查不到的词丢弃）；活动 `vocab_collect` | `llm/reflect` | 回复下“私教做了什么”：每个词可“移出”；`/vocab/mine`：来源显示“对话中收集”，可删除 |
 | 反思：语法打标（与记忆同一次调用） | 同上 + `adaptive/evidence.py`、`adaptive/mastery.py` | 本轮学习者消息（短 id u1、u2）、语法 KC 清单（system prompt 固定前缀） | `kc_evidence`（同一条消息的证据先删后写）；由证据重放更新 `kc_mastery`；活动 `grammar_tagging` | `llm/reflect` | 回复下“私教做了什么”（语法点链到 `/learner?kc=`）；`/learner` 页面：每条证据可查看、可删除 |
+
+## 入学测（独立页面，不经过模型）
+
+入学测是学习者主动做的测试，不调用任何模型：选题、判分、定级都是纯函数（`adaptive/placement/`），LangGraph 子图只负责编排和断点续做。不写 `agent_activities`（活动挂在对话的某一轮上，入学测不属于任何对话），结果页本身就是公示。
+
+| 步骤 | 代码 | 读 | 写 | 学习者在哪里能看到 / 撤销 |
+|---|---|---|---|---|
+| 出题与作答 | `agents/placement_graph.py`（`pick → ask(interrupt)`）、`placement/service.py` | 词库 `words`（词频前 2 万的可考词）、假词清单、语法题库、`placement_item_stats`（作答够 30 次的题用校准难度） | checkpoint（种子和作答；做完即删）；`placement_sessions` | `/placement` 页面；`restart` 放弃当前测试 |
+| 结果写回 | `adaptive/placement/writeback.py`（子图 `finish` 调用，一个事务，重复调用不重复写） | 本次作答 | `placement_sessions.result`；`user_profiles.cefr_level`（总体等级 = 语法等级）；`skill_estimates`（grammar、vocab）；`kc_evidence`（`source=placement`，每道语法题一条识别证据，错题不存选项和答案）；重放 `kc_mastery`；`placement_item_stats`（测后用最终能力回算题目难度，全站共用，不含个人信息） | 结果页；`/memory` 改等级；`/learner` 每条证据可查看、删除 |
+| 按词汇量批量标熟 | `services/vocab/placement_known.py` → `GET/POST/DELETE /vocab/placement-known` | 最近一次入学测的词汇结果、当前词书 | `user_cards`（学习者确认后，为当前词书里词频排名在“认识概率 ≥ 90%”以内、还没有卡片的词建 `source=placement` 的 known 卡） | 结果页、筛选页的提示；`DELETE` 整批撤销（只删仍是 known 的这类卡片） |
