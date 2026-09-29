@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
-import { register, uniqueEmail } from "./helpers";
+import { register, uniqueEmail, useFakeModel } from "./helpers";
 
 test.use({ locale: "zh-CN" });
 
@@ -79,4 +79,79 @@ test("add a word to my list by an inflected form, then remove it", async ({ page
   await page.goto("/vocab/mine");
   await row.getByRole("button", { name: "删除" }).click();
   await expect(page.getByText("还没有生词。")).toBeVisible();
+});
+
+const replies = (page: Page) =>
+  page.getByRole("list", { name: "消息" }).locator(':scope > li[data-role="assistant"]');
+
+async function chat(page: Page, text: string) {
+  const input = page.getByRole("textbox", { name: /输入消息/ });
+  await input.fill(text);
+  await input.press("Enter");
+  await expect(page.getByRole("button", { name: "发送" })).toBeVisible();
+}
+
+/** Select `word` in the last tutor reply, as a learner dragging over it would. */
+async function selectInLastReply(page: Page, word: string) {
+  await replies(page)
+    .last()
+    .locator('[data-slot="message"]')
+    .evaluate((bubble, word) => {
+      const walker = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const at = node.textContent!.indexOf(word);
+        if (at < 0) continue;
+        const range = document.createRange();
+        range.setStart(node, at);
+        range.setEnd(node, at + word.length);
+        document.getSelection()!.removeAllRanges();
+        document.getSelection()!.addRange(range);
+        return;
+      }
+      throw new Error(`${word} not in the reply`);
+    }, word);
+}
+
+test("words asked about in chat are collected, and can be taken off again", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+
+  // The fake model's reflection collects the word in 'what does "X" mean'.
+  await chat(page, 'What does "went" mean?');
+  const reply = replies(page).first();
+  const line = reply.getByRole("button", { name: /^私教做了什么：/ });
+  await expect(line).toContainText("收进生词本 1 个词", { timeout: 15_000 });
+  await line.click();
+  await expect(reply.getByRole("link", { name: "查看生词本" })).toHaveAttribute(
+    "href",
+    "/vocab/mine",
+  );
+
+  await page.goto("/vocab/mine");
+  await expect(page.getByTestId("mine-go")).toContainText("对话中收集 · 未开始");
+
+  await page.goBack();
+  await replies(page).first().getByRole("button", { name: /^私教做了什么：/ }).click();
+  await replies(page).first().getByRole("button", { name: "把 go 移出生词本" }).click();
+  await expect(replies(page).first().getByText("已移出")).toBeVisible();
+  await page.goto("/vocab/mine");
+  await expect(page.getByText("还没有生词。")).toBeVisible();
+});
+
+test("select a word in a reply to add it to my list", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await chat(page, "I had to abandon the plan.");
+
+  // The fake tutor echoes the message back.
+  await selectInLastReply(page, "abandon");
+  await page.getByRole("button", { name: "把 abandon 加入生词本" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /\S/ })).toHaveText("已加入“abandon”。");
+
+  // More than one word: no button.
+  await selectInLastReply(page, "the plan");
+  await expect(page.getByRole("button", { name: /加入生词本$/ })).toHaveCount(0);
+
+  await page.goto("/vocab/mine");
+  await expect(page.getByTestId("mine-abandon")).toContainText("手动添加 · 未开始");
 });

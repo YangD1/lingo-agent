@@ -71,10 +71,11 @@ START → load_context → tutor → END
       profile_updates: ProfileUpdate | None  # 目标、兴趣、职业等画像字段有明确变化时才给
       mistakes: list[TaggedMistake]       # 学习者这一轮英文里的错误，kc_id 必须来自 KC 清单
       used_correctly: list[str]           # 这一轮在自由表达中用对的 KC（产出证据，§4.3）
-      vocab_candidates: list[str]         # 学习者问过、明显不认识的词（原形）
+      vocab_candidates: list[VocabCandidate]  # 学习者问过、明显不认识的词：消息短 id + 原形
   ```
   输入：本轮学习者消息和回复、现有事实记忆（带 id）、KC 清单（id + 简短描述）。KC 清单放在 prompt 前部固定不变，便于厂商的前缀缓存。
-- 输出校验：`kc_id` 不在清单里的错误丢弃并记日志；`vocab_candidates` 查不到 ECDICT 的丢弃。**这些都是结构化输出 + 代码校验，不靠正则。**
+- 输出校验：`kc_id` 不在清单里的错误丢弃并记日志；`vocab_candidates` 查不到 ECDICT 的丢弃。
+  - 落地（任务 13，用户确认）：候选词带消息短 id，活动挂在提问那条消息下；只收单个词，每次反思最多 5 个，按生词本的规则查词（精确 → 忽略大小写 → 还原原形）；**已有卡片的词不动**（模型可能误判，已标“认识”的词不因此变回待学），只为没有卡片的词建 `auto` 卡，从生词本或回复明细里“移出”即精确撤销。**这些都是结构化输出 + 代码校验，不靠正则。**
 - **会话摘要**：每个会话一条情景记忆，每 6 轮（和学习者新建另一个会话时）重写一次，覆盖旧摘要；和记忆抽取共用 `reflect` 路由（任务 4 落地时合并，见 ADR 0009 落地记录）。
 - **按会话串行**：同一会话的反思排队执行，不同会话并发（全局信号量，默认 2）。
 - **进程重启不丢**：`conversations.reflected_message_id` 记录已反思到哪条消息；worker 启动时和每次新消息到来时，从这个位置补做。

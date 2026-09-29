@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7、8、8b、9 完成（P1b 学习者模型全部完成：KC 清单、规则文件与 BKT/Elo、反思打标 → 证据 → 掌握度、agent 活动公示、`/learner` 页面），任务 10、11、12 完成（ECDICT 词库导入 38,243 条；词书、卡片、FSRS 调度、每日队列、熟词筛选；背词接口和 `/vocab`、`/vocab/screen`、`/vocab/review`、`/vocab/mine` 四个页面）；下一步是任务 13（自动收词 + 聊天里选词加入生词本），开工前拆子任务、和用户确认。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7、8、8b、9 完成（P1b 学习者模型全部完成：KC 清单、规则文件与 BKT/Elo、反思打标 → 证据 → 掌握度、agent 活动公示、`/learner` 页面），任务 10–13 完成（P1c 背单词全部完成：ECDICT 词库导入 38,243 条；词书、卡片、FSRS 调度、每日队列、熟词筛选；背词接口和四个页面；反思自动收词 + 聊天里选词加入生词本）；下一步是任务 14（P1d 入学测：语法题库 + 假词生成 + 词汇量估计），开工前拆子任务、和用户确认。
 **阻塞项**：无
 
 ## P0 骨架
@@ -150,13 +150,13 @@
   - [x] 12.4 `/vocab/review`。完成记录：`use-review-session.ts`（一轮翻卡：先到期复习再新词；没翻面不能评分；评分记 `duration_ms`（从出卡到评分）；本地卡片用完后再取一次队列（刚评“忘了”的卡几分钟内到期，以及第一页 100 条之外的复习），取回来为空才结束；评分失败留在当前卡；`remaining` 含第一页之外的复习数）；`review-app.tsx`（正面只有单词，空格 / 按钮翻面显示音标、中文、英文释义，1–4 评分（忘了 / 模糊 / 记得 / 很熟），在输入框里、按住重复、带修饰键、输入法组字时不触发快捷键；`speechSynthesis` 朗读按钮（浏览器不支持时不显示）；标记“新词”“生词本”；`?mode=new` 只学新词，学完提示还有多少待复习）。Vitest 4 个；lint、typecheck 通过
   - [x] 12.5 `/vocab/mine`。完成记录：`components/vocab/mine-app.tsx`：加词输入框（复用 `AutocompleteInput`，输入停 200ms 后调 `/vocab/words` 联想），结果提示区分新加入 / 还原原形（“已加入 go（went 的原形）”）/ 已在生词本；列表（拼写、音标、第一行中文释义、来源（对话中收集 / 手动添加）、状态、学习中的显示“下次复习 3 天后”），每页 50、“显示更多”；删除前确认并说明复习记录一起删除。Vitest 5 个；前端 Vitest 共 135 个、lint、typecheck 通过
   - [x] 12.6 E2E 与收尾。完成记录：`e2e/run_backend.py` 迁移后把 `backend/tests/fixtures/ecdict_sample.csv` 导入 `lingo_e2e`（牛津 3000 有其中 7 个词）；`e2e/vocab.spec.ts` 2 个用例：选书 → 筛选 2 个认识 → 看完整本 → 键盘翻卡评分 5 个新词 → 首页计数和进度（学习中 5 · 已认识 2 · 100%）刷新后仍在；生词本输入 went 加入 go、查不到的词报错、没有词书也能复习自己的词、删除。同步 P1 计划 §5.3（接口、删除和加词规则）、ADR 0011 第 7 条落地记录。pytest 560、ruff、`mypy app`、前端 lint、typecheck、Vitest 135、Playwright 27 全部通过
-- [~] 13. 自动收词（reflect 的 vocab_candidates）+ 聊天里选词加入生词本（2026-09-29 用户确认：已有卡片的词自动收词不改动；明细里放“移出”；只从私教回复选单个词；不记出处句子）
+- [x] 13. 自动收词（reflect 的 vocab_candidates）+ 聊天里选词加入生词本（2026-09-29 用户确认：已有卡片的词自动收词不改动；明细里放“移出”；只从私教回复选单个词；不记出处句子）
   - [x] 13.1 后端·反思输出：`Reflection.vocab_candidates: list[VocabCandidate]`（`message` 短 id + `word` 原形；比计划的 `list[str]` 多了消息 id，好挂到提问那条消息下）+ `prompts/reflect.md` 新增一节（只收学习者问过意思、或用中文问“怎么说”的词；不收私教随口用的词、学习者自己用对的词；大多数轮次为空）；E2E 假模型的反思 schema 同步
   - [x] 13.2 后端·收词：`vocab_collect(...)`：`mine.lookup` 匹配（查不到丢弃）、去重、每批上限 5；**已有卡片的词不动**（只记“已在学”），只为没有卡片的词建 `source="auto"` 卡，这样“移出”能精确撤销；worker 在记忆、打标之后执行，失败只记日志
   - [x] 13.3 后端·活动：`STEPS` 登记 `vocab_collect`（background，摘要 `added` / `existing`：word_id + 拼写）；挂在词出现的那条学习者消息上；集成测试（假结构化模型：加入、原形还原、查不到丢弃、已有卡不动、上限、关闭反思时不执行）。完成记录：`reflection.asked_words`（单词正则校验、未知消息丢弃、忽略大小写去重、每次反思最多 5 个）；`mine.collect`（批量 `INSERT … ON CONFLICT DO NOTHING RETURNING`，已有卡不动）、`mine.on_list`；worker `_collect_words` 在打标之后执行，`went` 和 `go` 同一词只记在第一条问的消息下，失败记 `failed`；`STEPS` 加 `vocab_collect`（`WordsCollected{added, existing}`，查不到的词不显示）；活动接口加 `words_on_list`（仍在生词本里的收词 id，前端据此显示“已移出”）。E2E 假模型：`what does "X" mean` 产出候选词。测试：单测 3 个、集成 4 个；pytest 567、ruff、mypy 通过
   - [x] 13.4 前端·活动明细：回复下展开显示“收进生词本：go、…”，链到 `/vocab/mine`，每个词一个“移出”按钮（`DELETE /vocab/mine/{id}`，已移出的显示“已移出”）；中英文案；Vitest。完成记录：`lib/activity.ts` 加 `WordsCollected`、`words_on_list`、摘要行“收进生词本 N 个词”；`use-activity` 记 `wordsOnList`（按每次取到的 `words_on_list` 更新），`removeWord` 调 `removeMine`，404（已在生词本页删过）也算移出；`turn-activity` 新增 `vocab_collect` 明细（移出失败就地提示，“已在学：…”）。Vitest 新增 4 个，eslint、typecheck 通过
   - [x] 13.5 前端·选词加入：在私教回复里选中一个单词（桌面鼠标、手机长按都走 `selectionchange`）→ 选区旁浮出“加入生词本”→ `POST /vocab/mine`（`source=manual`，复用任务 12 的匹配规则）→ 轻提示结果（新加入 / 已还原原形 / 已在生词本 / 查不到）；选中多个词时按钮不出现；Vitest。完成记录：`components/chat/select-to-add.tsx`（`pickedWord`：选区两端都在同一条私教回复气泡里、是单个英文词；按钮 `position: fixed` 放在选区下方，滚动和改窗口大小时重算；`mousedown` 阻止默认以保留选区；结果替换按钮显示 3 秒，文案复用 `vocab.mine`）；挂在 `MessageList`。项目里没有挂 Toaster，所以没用 sonner。Vitest 4 个（共 142），eslint、typecheck 通过
-  - [~] 13.6 E2E（对话 → 回复下看到收词 → 移出；选词加入 → `/vocab/mine` 里出现）+ `docs/agent-tools.md`、P1 计划 §3.2、ADR 0011 落地记录、交接记录
+  - [x] 13.6 E2E（对话 → 回复下看到收词 → 移出；选词加入 → `/vocab/mine` 里出现）+ `docs/agent-tools.md`、P1 计划 §3.2、ADR 0011 落地记录、交接记录。完成记录：`e2e/vocab.spec.ts` 新增 2 个用例（问 `what does "went" mean` → 摘要“收进生词本 1 个词” → 生词本里 go 显示“对话中收集” → 回复明细里移出 → 生词本为空；在回复里选中 abandon 加入 → 状态提示 → 选中两个词时没有按钮 → 生词本里“手动添加”）；`docs/agent-tools.md` 加 `vocab_collect` 活动、后台步骤一行和“学习者在对话里的操作”一节；P1 计划 §3.2 和 ADR 0011 第 7 条加落地记录。pytest 567、ruff、`mypy app`、eslint、typecheck、Vitest 142、Playwright 29 全部通过
 - **P1d 入学测**
 - [ ] 14. 语法题库（LLM 起草 → 用户审核）+ 假词生成 + 词汇量估计
 - [ ] 15. placement 子图（interrupt / resume）+ 接口 + 结果写回

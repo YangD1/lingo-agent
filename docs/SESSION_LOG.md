@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-09-29 · P1c 任务 13：自动收词 + 聊天里选词加入生词本
+
+- **做了什么**：用户确认 4 点：已有卡片的词自动收词不改动（只记“已在学”）；回复明细里直接放“移出”；只能从私教回复里选单个词；不记出处句子。后端：`Reflection.vocab_candidates`（消息短 id + 原形）+ `prompts/reflect.md` 新一节；`reflection.asked_words` 校验；`mine.collect`（只为没有卡片的词建 `auto` 卡）、`mine.on_list`；worker `_collect_words`（打标之后执行，失败记 `failed`）；活动 `vocab_collect`；活动接口加 `words_on_list`。前端：`use-activity` 的 `wordsOnList` / `removeWord`，`turn-activity` 的收词明细，`select-to-add.tsx`（选词浮出按钮）。E2E 假模型认 `what does "X" mean`。提交 5640a33、b110fdf、14d50ac 和本次。pytest 567、Vitest 142、Playwright 29。
+- **未完成**：无。
+- **下一步**：任务 14（P1d 入学测：语法题库 LLM 起草 → 用户审核、假词生成、词汇量估计），开工前拆子任务、和用户确认。
+- **踩坑**：
+  - 项目里的 `sonner.tsx` 没有挂 `<Toaster>`，要用轻提示得自己挂；这次选词用就地浮层代替。
+  - jsdom 没有 `Range.getBoundingClientRect`，单测里要自己补（`select-to-add.test.tsx` 的 `beforeEach`）。
+  - 选中结果提示时清空选区会触发 `selectionchange` → 按钮消失，所以提示要自己记位置，不能跟着选区走。
+  - Bash 工具里 `pnpm` 是 zsh 函数（nvm 懒加载），会无限递归；用 `$HOME/.nvm/versions/node/v24.14.0/bin/pnpm` 并把该目录放进 PATH。
+  - 集成测试里 `learner()` 取到的 `user` 在 `expire_all()` 之后再读 `.id` 会触发 MissingGreenlet，先存 `user_id`。
+
+---
+
 ## 2026-09-29 · P1c 任务 12：背词接口和四个页面
 
 - **做了什么**：用户确认生词本删除一律真删、加词按 精确 → 忽略大小写 → `exchange` 还原原形、P1 不做撤销评分。后端 `app/api/vocab.py`（10 个接口）+ 服务层 `progress.py`、`mine.py`，`queue.py` 加 `today_counts`；前端 `lib/vocab.ts`、`components/vocab/`（`vocab-app`、`screen-app`、`review-app` + `use-review-session`、`mine-app`）、四个页面、导航、proxy 保护、中英文案；E2E 库导入 fixture 词库，`e2e/vocab.spec.ts` 2 个用例。提交 06fec04、2af7a0d、aca5ff6、e368378、d99842d 和本次。pytest 560、Vitest 135、Playwright 27。
