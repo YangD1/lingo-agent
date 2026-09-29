@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-09-29 · 任务 12 推送到 GitHub，修 CI
+
+- **做了什么**：用户确认保留提交邮箱和文档里的环境细节后，添加 remote `git@github.com:YangD1/lingo-agent.git`（公开仓库）并推送 main。第一次 CI：frontend、docker 通过，backend、e2e 在 Set up job 失败（`astral-sh/setup-uv@v10` 不存在），改为 `@v10.2.0`。
+- **未完成**：第二次 CI 运行的结果；backend 和 e2e 的测试步骤在 GitHub 上还没真正跑过。
+- **下一步**：CI 全绿后把任务 12 标 `[x]`，然后做任务 13 README。
+- **踩坑**：本机 gh 不可用，但仓库公开，可以不带认证调用 `api.github.com/repos/.../actions/runs` 和 `check-runs/<job id>/annotations` 查状态和失败原因（日志下载需要认证）。setup-uv 从 v8 起没有浮动的主版本标签，要写完整版本号。
+
+---
+
 ## 2026-09-29 · 任务 12 GitHub Actions CI
 
 - **做了什么**：`.github/workflows/ci.yml`，四个 job（backend / frontend / docker / e2e），每次推送 main 和每个 PR 都跑（用户选 A）；`make ci`；P0 计划 §10 已同步；`e2e/run_backend.py` 的数据库地址改为从 `E2E_ADMIN_DB` 推导。actionlint 通过；在新 clone 的仓库和全新数据库上模拟了 backend、frontend、e2e 三个 job，全部通过。

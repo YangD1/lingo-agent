@@ -38,7 +38,7 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0  # 该 action 从 v8 起不再发布浮动的主版本标签
         with:
           version: "0.11.8" # same as backend/Dockerfile
           enable-cache: true
@@ -115,7 +115,7 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0  # 该 action 从 v8 起不再发布浮动的主版本标签
         with:
           version: "0.11.8"
           enable-cache: true
