@@ -62,7 +62,7 @@ llm:
     memory_extract: openai:gpt-4o-mini
     vision: anthropic:claude-sonnet-5       # 读图、回复带图的那一轮（ADR 0008）
 asr:                                        # OpenAI 兼容 /audio/transcriptions，走租户连接（ADR 0008）
-  default: groq:whisper-large-v3-turbo      # dev 可改为本地 speaches 连接
+  default: [groq:whisper-large-v3-turbo, siliconflow:FunAudioLLM/SenseVoiceSmall, openai:gpt-transcribe]  # 大陆访问不了 Groq/OpenAI 时用硅基流动；dev 可改为本地 speaches 连接
 speech:
   tts: local_kokoro           # dev；prod: edge_tts（免费）
   pronunciation: azure        # 免费档 F0 每月 5 小时；本地方案后置

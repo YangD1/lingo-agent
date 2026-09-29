@@ -13,7 +13,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 ## What works now
 
 - **Accounts.** Sign up and log in; each account gets its own workspace (tenant).
-- **Bring your own models.** Each user adds model connections in the app: a preset (DeepSeek, Anthropic, OpenAI, Qwen, Groq, …) or any OpenAI-compatible endpoint. API keys are encrypted in the database. The app lists the models a connection offers, and you choose the model order per task, with automatic fallback when one fails.
+- **Bring your own models.** Each user adds model connections in the app: a preset (DeepSeek, Anthropic, OpenAI, Qwen, Groq, SiliconFlow, …) or any OpenAI-compatible endpoint. API keys are encrypted in the database. The app lists the models a connection offers, and you choose the model order per task, with automatic fallback when one fails.
 - **Streaming chat** with saved conversations.
 - **Attachments in chat.** Images (read by a vision model), PDF, DOCX, TXT and Markdown documents (scanned PDF pages go to the vision model), and voice messages recorded in the browser or audio files (transcribed by a speech-to-text model). You can check and correct the extracted text before sending.
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
@@ -53,6 +53,8 @@ Three tasks use models, each with its own ordered list under **Settings**:
 | Chat model | Replies | Any chat model |
 | Image model (vision) | Images and scanned PDF pages | A model that accepts images |
 | Speech-to-text | Voice messages and audio files | An OpenAI-compatible `/audio/transcriptions` endpoint |
+
+For speech-to-text, the Groq and SiliconFlow presets are the easiest start. Groq and OpenAI refuse requests from some regions, mainland China included; SiliconFlow (`FunAudioLLM/SenseVoiceSmall`) is reachable there.
 
 **A model server on your own machine (e.g. Ollama).** By default the backend refuses addresses on private networks, to protect a shared server from requests aimed at its internal network (SSRF). On a machine only you use:
 

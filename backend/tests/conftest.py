@@ -24,6 +24,12 @@ os.environ["JWT_SECRET"] = "test-secret-" + "x" * 32
 # Fixed, test-only keyring (32 zero bytes): never valid outside the test suite.
 os.environ["CREDENTIALS_ENCRYPTION_KEYS"] = "test:" + "A" * 43 + "="
 
+# Ignore the developer's repo-root .env: its values (e.g. PROVIDER_ALLOW_PRIVATE_NETWORKS,
+# APP_ENV, PROVIDERS_CONFIG) would otherwise change what the tests see.
+from app.settings import Settings  # noqa: E402
+
+Settings.model_config["env_file"] = None
+
 # Imported after the environment is prepared.
 from app.agents.chat_graph import build_chat_graph  # noqa: E402
 from app.attachments.handlers import default_handlers  # noqa: E402

@@ -68,6 +68,7 @@ P0 的聊天只能收纯文本。用户希望消息里可以带：
   - YAML 里的 `vision` 路由只写 Claude 和 GPT。`asr` 默认用 `groq:whisper-large-v3-turbo`，备用 `openai:gpt-transcribe`：OpenAI 现在推荐 `gpt-transcribe`，`whisper-1` 和 `gpt-4o(-mini)-transcribe` 已宣布在 2027-02 下线。
   - 转写请求一律用 `response_format=json`，因为 `verbose_json` 只有 whisper 系支持。
   - 新增预设 `groq`，以及只在 dev 使用的 `speaches`。
+  - 补充（2026-09-29，用户实测）：Groq 按地区屏蔽大陆 IP（直连 403），OpenAI 也不支持大陆，而后端调用模型时有意不走代理（防 SSRF），部署在大陆的服务器两个都用不了。新增预设 `siliconflow`（`https://api.siliconflow.cn/v1`，`FunAudioLLM/SenseVoiceSmall`，大陆可直连，兼容 `/audio/transcriptions`），asr 默认顺序改为 `groq → siliconflow → openai`。
   - 结构化输出（`ImageReading`）：openai_compatible 连接改用 `method="function_calling"`，因为 `ChatOpenAI` 默认的 `json_schema` 很多中转和非 OpenAI 模型不支持。连接类型通过模型的 `kind:<类型>` 标签传给 `get_structured_llm`。
 - 用量：读图调用照常记入 `llm_usage`（task=`vision`）。ASR 也记一条，`task=asr`，token 为 0；新增可为空的列 `audio_seconds`，厂商返回了时长就填上。
 

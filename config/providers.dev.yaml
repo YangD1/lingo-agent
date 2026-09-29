@@ -37,6 +37,13 @@ presets:
     label: Groq (speech-to-text)
     base_url: https://api.groq.com/openai/v1
     models: [whisper-large-v3-turbo]
+  # Groq refuses requests from some regions (mainland China included, 403); this one is
+  # reachable there. SenseVoice also handles Chinese, Cantonese, Japanese and Korean.
+  siliconflow:
+    kind: openai_compatible
+    label: SiliconFlow (speech-to-text)
+    base_url: https://api.siliconflow.cn/v1
+    models: [FunAudioLLM/SenseVoiceSmall]
   speaches:
     kind: openai_compatible
     label: Speaches (local speech-to-text; compose profile `asr`, needs PROVIDER_ALLOW_PRIVATE_NETWORKS=true)
@@ -63,4 +70,4 @@ embedding:
 
 # Speech-to-text over OpenAI's /audio/transcriptions (ADR 0008 §5); fallbacks allowed.
 asr:
-  default: [groq:whisper-large-v3-turbo, openai:gpt-transcribe]
+  default: [groq:whisper-large-v3-turbo, siliconflow:FunAudioLLM/SenseVoiceSmall, openai:gpt-transcribe]
