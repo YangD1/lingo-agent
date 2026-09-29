@@ -28,6 +28,9 @@ export type GrammarMistake = {
 };
 export type GrammarTags = { mistakes: GrammarMistake[]; used_correctly: string[] };
 export type SummaryUpdate = { episode_id: string | null };
+export type CollectedWord = { word_id: number; word: string };
+/** Words the learner asked about: put on their word list, or already had a card. */
+export type WordsCollected = { added: CollectedWord[]; existing: CollectedWord[] };
 
 export type MemoryRef = { kind: "fact" | "episode"; content: string };
 export type KCRef = { name_en: string; name_zh: string; cefr: string };
@@ -37,6 +40,8 @@ export type ConversationActivity = {
   /** Referenced memories that still exist; a missing id was deleted. */
   memories: Record<string, MemoryRef>;
   kcs: Record<string, KCRef>;
+  /** Collected words still on the learner's word list; the others were removed. */
+  words_on_list: number[];
   /** Background work on the conversation is still queued or running. */
   pending: boolean;
 };
@@ -67,6 +72,7 @@ export type TurnDigest = {
   mistakes: number;
   usedCorrectly: number;
   summaryUpdated: boolean;
+  wordsCollected: number;
   /** Steps that failed or were skipped (no model configured). */
   failed: string[];
   skipped: string[];
@@ -82,6 +88,7 @@ export function digest(activities: Activity[]): TurnDigest {
     mistakes: 0,
     usedCorrectly: 0,
     summaryUpdated: false,
+    wordsCollected: 0,
     failed: [],
     skipped: [],
   };
@@ -101,6 +108,8 @@ export function digest(activities: Activity[]): TurnDigest {
       const s = a.summary as GrammarTags;
       d.mistakes += s.mistakes?.length ?? 0;
       d.usedCorrectly += s.used_correctly?.length ?? 0;
+    } else if (a.name === "vocab_collect") {
+      d.wordsCollected += (a.summary as WordsCollected).added?.length ?? 0;
     } else if (a.name === "summarize") {
       d.summaryUpdated = true;
     }

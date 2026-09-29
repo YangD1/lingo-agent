@@ -9,7 +9,10 @@ import {
   type KCRef,
   type MemoryRef,
   mergeActivities,
+  type WordsCollected,
 } from "@/lib/activity";
+import { ApiError } from "@/lib/api";
+import { removeMine } from "@/lib/vocab";
 
 /** After a reply: when to look for the background results, in ms from `done`. */
 export const POLL_DELAYS = [2000, 4000, 8000, 15000, 25000, 40000, 60000];
@@ -18,11 +21,23 @@ export type ActivityState = {
   byTurn: Record<string, Activity[]>;
   memories: Record<string, MemoryRef>;
   kcs: Record<string, KCRef>;
+  /** Whether each collected word is still on the learner's word list. */
+  wordsOnList: Record<number, boolean>;
   /** Turns whose background results are still being waited for. */
   waiting: Set<string>;
 };
 
-const EMPTY: ActivityState = { byTurn: {}, memories: {}, kcs: {}, waiting: new Set() };
+/** What the chat shows, and the one change it can make: taking a collected word off
+ * the word list again. */
+export type ActivityView = ActivityState & { removeWord: (wordId: number) => Promise<void> };
+
+const EMPTY: ActivityState = {
+  byTurn: {},
+  memories: {},
+  kcs: {},
+  wordsOnList: {},
+  waiting: new Set(),
+};
 
 /** State of one conversation; a switch starts from EMPTY without an effect resetting it. */
 type Owned = ActivityState & { conversationId: string | null };
@@ -32,14 +47,20 @@ const own = (s: Owned, id: string | null): Owned =>
 
 function absorb(state: Owned, body: ConversationActivity): Owned {
   const byTurn = { ...state.byTurn };
+  const wordsOnList = { ...state.wordsOnList };
   for (const a of body.activities) {
     byTurn[a.turn_id] = mergeActivities(byTurn[a.turn_id] ?? [], [a]);
+    if (a.name !== "vocab_collect" || a.status !== "ok") continue;
+    for (const w of (a.summary as WordsCollected).added ?? []) {
+      wordsOnList[w.word_id] = body.words_on_list.includes(w.word_id);
+    }
   }
   return {
     ...state,
     byTurn,
     memories: { ...state.memories, ...body.memories },
     kcs: { ...state.kcs, ...body.kcs },
+    wordsOnList,
   };
 }
 
@@ -131,6 +152,19 @@ export function useActivity(conversationId: string | null, enabled: boolean) {
     [enabled, poll],
   );
 
-  const { byTurn, memories, kcs, waiting } = own(owned, conversationId);
-  return { byTurn, memories, kcs, waiting, addLive, turnFinished };
+  /** Undo collecting a word; already gone (removed on /vocab/mine) counts as done. */
+  const removeWord = useCallback(
+    async (wordId: number) => {
+      try {
+        await removeMine(wordId);
+      } catch (err) {
+        if (!(err instanceof ApiError && err.status === 404)) throw err;
+      }
+      setState((s) => ({ ...s, wordsOnList: { ...s.wordsOnList, [wordId]: false } }));
+    },
+    [setState],
+  );
+
+  const { byTurn, memories, kcs, wordsOnList, waiting } = own(owned, conversationId);
+  return { byTurn, memories, kcs, wordsOnList, waiting, removeWord, addLive, turnFinished };
 }

@@ -25,9 +25,11 @@ describe("digest", () => {
         mistakes: [{ kc_id: "g.x", error_type: "omission", severity: "low", original: "a" }],
         used_correctly: ["g.y", "g.z"],
       }),
+      step("vocab_collect", { added: [{ word_id: 1, word: "go" }], existing: [] }),
       step("summarize", { episode_id: "e2" }),
     ]);
     expect(d).toMatchObject({
+      wordsCollected: 1,
       memoriesRead: 3,
       memoriesSaved: 2,
       memoriesDeleted: 1,

@@ -13,6 +13,7 @@ import {
   type KCRef,
   type MemoryChanges,
   type MemoryRef,
+  type WordsCollected,
 } from "@/lib/activity";
 import { learnerHref } from "@/lib/learner";
 import { cn } from "@/lib/utils";
@@ -21,16 +22,27 @@ type Props = {
   activities: Activity[];
   memories: Record<string, MemoryRef>;
   kcs: Record<string, KCRef>;
+  /** Whether each collected word is still on the word list (missing: assume it is). */
+  wordsOnList?: Record<number, boolean>;
+  onRemoveWord?: (wordId: number) => Promise<void>;
   /** Background results are still expected. */
   waiting: boolean;
 };
 
-const STEP_NAMES = ["load_context", "reflect_memory", "grammar_tagging", "summarize"] as const;
+type Words = Pick<Props, "wordsOnList" | "onRemoveWord">;
+
+const STEP_NAMES = [
+  "load_context",
+  "reflect_memory",
+  "grammar_tagging",
+  "vocab_collect",
+  "summarize",
+] as const;
 type StepName = (typeof STEP_NAMES)[number];
 const isStep = (name: string): name is StepName => (STEP_NAMES as readonly string[]).includes(name);
 
 /** "What the tutor did" under a reply: one line, expandable (ADR 0013 §3). */
-export function TurnActivity({ activities, memories, kcs, waiting }: Props) {
+export function TurnActivity({ activities, memories, kcs, waiting, ...words }: Props) {
   const t = useTranslations("chat.activity");
   const [open, setOpen] = useState(false);
   const detailsId = useId();
@@ -44,6 +56,7 @@ export function TurnActivity({ activities, memories, kcs, waiting }: Props) {
     d.profileUpdated && t("profileUpdated"),
     d.mistakes > 0 && t("mistakes", { n: d.mistakes }),
     d.usedCorrectly > 0 && t("usedCorrectly", { n: d.usedCorrectly }),
+    d.wordsCollected > 0 && t("words", { n: d.wordsCollected }),
     d.summaryUpdated && t("summaryUpdated"),
     d.failed.length + d.skipped.length > 0 && t("someFailed"),
     waiting && t("waiting"),
@@ -64,7 +77,13 @@ export function TurnActivity({ activities, memories, kcs, waiting }: Props) {
       {open && (
         <div id={detailsId} className="mt-1 flex flex-col gap-2 pl-4">
           {activities.map((a) => (
-            <Step key={`${a.name}:${a.call_id}`} activity={a} memories={memories} kcs={kcs} />
+            <Step
+              key={`${a.name}:${a.call_id}`}
+              activity={a}
+              memories={memories}
+              kcs={kcs}
+              {...words}
+            />
           ))}
           <p className="flex gap-3">
             <Link href="/memory" className="underline hover:text-foreground">
@@ -87,11 +106,12 @@ function Step({
   activity: a,
   memories,
   kcs,
+  ...words
 }: {
   activity: Activity;
   memories: Record<string, MemoryRef>;
   kcs: Record<string, KCRef>;
-}) {
+} & Words) {
   const t = useTranslations("chat.activity");
   const tProfile = useTranslations("memory.profile.fields");
   const locale = useLocale();
@@ -194,7 +214,98 @@ function Step({
         </section>
       );
     }
+    case "vocab_collect": {
+      const s = a.summary as WordsCollected;
+      if (!s.added?.length && !s.existing?.length) return null;
+      return (
+        <section>
+          {s.added?.length > 0 && (
+            <>
+              <h4 className="font-medium">
+                {t("wordsHeading")}{" "}
+                <Link href="/vocab/mine" className="font-normal underline hover:text-foreground">
+                  {t("wordList")}
+                </Link>
+              </h4>
+              <ul className="list-disc pl-4">
+                {s.added.map((w) => (
+                  <CollectedWordItem
+                    key={w.word_id}
+                    wordId={w.word_id}
+                    word={w.word}
+                    onList={words.wordsOnList?.[w.word_id] ?? true}
+                    onRemove={words.onRemoveWord}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+          {s.existing?.length > 0 && (
+            <p>
+              {t("wordsExisting", {
+                words: s.existing.map((w) => w.word).join(t("listSeparator")),
+              })}
+            </p>
+          )}
+        </section>
+      );
+    }
     case "summarize":
       return <p>{t("summaryUpdated")}</p>;
   }
+}
+
+function CollectedWordItem({
+  wordId,
+  word,
+  onList,
+  onRemove,
+}: {
+  wordId: number;
+  word: string;
+  onList: boolean;
+  onRemove?: (wordId: number) => Promise<void>;
+}) {
+  const t = useTranslations("chat.activity");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const remove = () => {
+    if (!onRemove) return;
+    setBusy(true);
+    setFailed(false);
+    onRemove(wordId).then(
+      () => setBusy(false),
+      () => {
+        setBusy(false);
+        setFailed(true);
+      },
+    );
+  };
+  return (
+    <li>
+      <span className={cn("font-medium text-foreground", !onList && "line-through opacity-60")}>
+        {word}
+      </span>{" "}
+      {onList ? (
+        onRemove && (
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy}
+            aria-label={t("removeWordLabel", { word })}
+            className="underline hover:text-foreground disabled:opacity-50"
+          >
+            {t("removeWord")}
+          </button>
+        )
+      ) : (
+        <span>{t("wordRemoved")}</span>
+      )}
+      {failed && (
+        <span role="alert" className="ml-2 text-destructive">
+          {t("removeFailed")}
+        </span>
+      )}
+    </li>
+  );
 }

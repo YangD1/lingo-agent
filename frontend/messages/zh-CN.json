@@ -109,7 +109,8 @@
         "load_context": "读取记忆",
         "reflect_memory": "整理记忆",
         "grammar_tagging": "语法标注",
-        "summarize": "会话摘要"
+        "summarize": "会话摘要",
+        "vocab_collect": "收词"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -126,7 +127,15 @@
       "listSeparator": "、",
       "manageMemory": "管理记忆",
       "hide": "不再显示",
-      "learnerModel": "查看学习者模型"
+      "learnerModel": "查看学习者模型",
+      "words": "收进生词本 {n} 个词",
+      "wordsHeading": "收进生词本（你问过的词）：",
+      "wordsExisting": "已在学：{words}",
+      "removeWord": "移出",
+      "removeWordLabel": "把 {word} 移出生词本",
+      "wordRemoved": "已移出",
+      "removeFailed": "移出失败，请重试",
+      "wordList": "查看生词本"
     }
   },
   "memory": {

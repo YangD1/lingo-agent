@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ComponentProps } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { Activity } from "@/lib/activity";
 
@@ -96,5 +96,53 @@ describe("TurnActivity", () => {
   it("renders nothing for a turn without activity", () => {
     const { container } = show({});
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("lists collected words, each removable, and those already being learned", async () => {
+    const onRemoveWord = vi.fn().mockRejectedValueOnce(new Error("offline"));
+    const { rerender } = show({
+      activities: [
+        step("vocab_collect", {
+          added: [
+            { word_id: 7, word: "go" },
+            { word_id: 8, word: "reluctant" },
+          ],
+          existing: [{ word_id: 9, word: "common" }],
+        }),
+      ],
+      wordsOnList: { 7: true, 8: false },
+      onRemoveWord,
+    });
+    const toggle = screen.getByRole("button", {
+      name: "What the tutor did: added 2 words to your word list",
+    });
+    fireEvent.click(toggle);
+
+    expect(screen.getByRole("link", { name: "Word list" })).toHaveAttribute("href", "/vocab/mine");
+    expect(screen.getByText("reluctant")).toHaveClass("line-through");
+    expect(screen.getByText("removed")).toBeInTheDocument();
+    expect(screen.getByText("Already learning: common")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove reluctant from your word list" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove go from your word list" }));
+    expect(onRemoveWord).toHaveBeenCalledWith(7);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't remove it; try again");
+
+    // Removed: the parent now reports it gone.
+    rerender(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <TurnActivity
+          activities={[
+            step("vocab_collect", { added: [{ word_id: 7, word: "go" }], existing: [] }),
+          ]}
+          memories={{}}
+          kcs={{}}
+          wordsOnList={{ 7: false }}
+          onRemoveWord={onRemoveWord}
+          waiting={false}
+        />
+      </NextIntlClientProvider>,
+    );
+    await waitFor(() => expect(screen.getByText("go")).toHaveClass("line-through"));
   });
 });

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Markdown } from "./markdown";
 import { MessageAttachments } from "./message-attachments";
 import { TurnActivity } from "./turn-activity";
-import type { ActivityState } from "./use-activity";
+import type { ActivityView } from "./use-activity";
 import type { ChatMessage } from "./use-chat-session";
 
 export function MessageList({
@@ -18,7 +18,7 @@ export function MessageList({
 }: {
   messages: ChatMessage[];
   /** What the tutor did per turn; absent when the learner hid it. */
-  activity?: ActivityState;
+  activity?: ActivityView;
 }) {
   const t = useTranslations("chat");
   const errorMessage = useErrorMessage();
@@ -80,6 +80,8 @@ export function MessageList({
                 activities={activity.byTurn[m.turnId] ?? []}
                 memories={activity.memories}
                 kcs={activity.kcs}
+                wordsOnList={activity.wordsOnList}
+                onRemoveWord={activity.removeWord}
                 waiting={activity.waiting.has(m.turnId)}
               />
             )}

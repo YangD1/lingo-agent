@@ -109,7 +109,8 @@
         "load_context": "Reading memories",
         "reflect_memory": "Updating memories",
         "grammar_tagging": "Grammar tagging",
-        "summarize": "Conversation summary"
+        "summarize": "Conversation summary",
+        "vocab_collect": "Collecting words"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -126,7 +127,15 @@
       "listSeparator": ", ",
       "manageMemory": "Manage memories",
       "hide": "Hide this",
-      "learnerModel": "Learner model"
+      "learnerModel": "Learner model",
+      "words": "added {n, plural, one {# word} other {# words}} to your word list",
+      "wordsHeading": "Added to your word list (words you asked about):",
+      "wordsExisting": "Already learning: {words}",
+      "removeWord": "Remove",
+      "removeWordLabel": "Remove {word} from your word list",
+      "wordRemoved": "removed",
+      "removeFailed": "Couldn't remove it; try again",
+      "wordList": "Word list"
     }
   },
   "memory": {
