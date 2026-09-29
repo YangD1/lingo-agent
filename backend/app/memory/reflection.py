@@ -8,8 +8,9 @@ field, and the CEFR level is never taken from here (levels come from assessment)
 
 import logging
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from functools import cache
 from typing import Literal
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
@@ -17,6 +18,9 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adaptive.evidence import ChatEvidence
+from app.adaptive.kc.catalog import ErrorType, GrammarCatalog, get_grammar_catalog
+from app.adaptive.rules import Severity
 from app.db.models import UserProfile
 from app.memory import service
 from app.memory.context import profile_lines
@@ -34,6 +38,10 @@ MAX_FACTS = 100
 # Per message, when rendering transcripts for the model.
 MAX_MESSAGE_CHARS = 2000
 MAX_SUMMARY_INPUT_CHARS = 12_000
+# Guards against a model that tags every word of a long message.
+MAX_MISTAKES_PER_MESSAGE = 10
+MAX_CORRECT_PER_MESSAGE = 3
+MAX_SPAN_CHARS = 300
 # Word book tags of ADR 0011; anything else from the model is dropped.
 EXAM_TAGS = frozenset({"zk", "gk", "cet4", "cet6", "ky", "toefl", "ielts", "gre"})
 
@@ -72,9 +80,28 @@ class ProfileUpdate(BaseModel):
     )
 
 
+class TaggedMistake(BaseModel):
+    message: str = Field(description="Id of the learner message, e.g. 'u2'")
+    kc_id: str = Field(description="Grammar KC id from the catalog, e.g. 'g.articles_basic'")
+    error_type: ErrorType
+    severity: Severity
+    original: str = Field(description="The smallest wrong part of the learner's text, exact")
+    correction: str = Field(description="That part corrected")
+    l1_transfer: bool = Field(
+        default=False, description="The error mirrors the learner's native language"
+    )
+
+
+class UsedCorrectly(BaseModel):
+    message: str = Field(description="Id of the learner message, e.g. 'u2'")
+    kc_id: str = Field(description="Grammar KC id from the catalog")
+
+
 class Reflection(BaseModel):
     memory_ops: list[MemoryOp] = Field(default_factory=list)
     profile_updates: ProfileUpdate | None = None
+    mistakes: list[TaggedMistake] = Field(default_factory=list)
+    used_correctly: list[UsedCorrectly] = Field(default_factory=list)
 
 
 class EpisodeSummary(BaseModel):
@@ -102,10 +129,21 @@ def fact_ids(facts: Sequence[KnownFact]) -> dict[str, uuid.UUID]:
     return {f"m{i}": fact.id for i, fact in enumerate(facts, start=1)}
 
 
-def render_messages(messages: Sequence[BaseMessage]) -> str:
+def learner_message_ids(messages: Sequence[BaseMessage]) -> dict[str, str]:
+    """Short ids (`u1`, `u2`, ...) for the learner messages the model may tag."""
+    ids = [m.id for m in messages if isinstance(m, HumanMessage) and m.id]
+    return {f"u{i}": message_id for i, message_id in enumerate(ids, start=1)}
+
+
+def render_messages(
+    messages: Sequence[BaseMessage], learner_ids: Mapping[str, str] | None = None
+) -> str:
+    short = {v: k for k, v in (learner_ids or {}).items()}
     lines = []
     for message in messages:
         speaker = "Learner" if isinstance(message, HumanMessage) else "Tutor"
+        if message.id in short:
+            speaker += f" [{short[message.id]}]"
         text = message.text.strip()
         if len(text) > MAX_MESSAGE_CHARS:
             text = text[:MAX_MESSAGE_CHARS] + " […]"
@@ -132,15 +170,30 @@ def reflection_input(
         f"## Current profile\n{profile_text or '(empty)'}\n\n"
         f"## Remembered facts\n{facts_text or '(none)'}\n\n"
         f"## Earlier messages (context only)\n{render_messages(earlier)}\n\n"
-        f"## New messages to reflect on\n{render_messages(new)}"
+        f"## New messages to reflect on\n{render_messages(new, learner_message_ids(new))}"
     )
+
+
+@cache
+def system_prompt() -> str:
+    """Instructions plus the KC catalog: identical on every call, so vendors can cache
+    it as a prompt prefix."""
+    return (
+        f"{load_prompt('reflect')}\n\n## Grammar catalog\n\n{render_catalog(get_grammar_catalog())}"
+    )
+
+
+def render_catalog(catalog: GrammarCatalog) -> str:
+    lines = []
+    for kc in catalog.kcs:
+        lines.append(f"- {kc.id} ({kc.cefr}): {kc.description}")
+        lines.extend(f"  - {hint}" for hint in kc.common_errors)
+    return "\n".join(lines)
 
 
 async def reflect(ctx: TenantProviderContext, prompt: str, config: RunnableConfig) -> Reflection:
     llm = get_structured_llm(ctx, REFLECT_TASK, Reflection)
-    return await llm.ainvoke(
-        [SystemMessage(load_prompt("reflect")), HumanMessage(prompt)], config=config
-    )
+    return await llm.ainvoke([SystemMessage(system_prompt()), HumanMessage(prompt)], config=config)
 
 
 async def summarize(
@@ -246,3 +299,54 @@ def profile_changes(update: ProfileUpdate | None) -> dict[str, object]:
     if update.explanation_language is not None:
         changes["explanation_language"] = update.explanation_language
     return changes
+
+
+def tagged_evidence(
+    reflection: Reflection, learner_ids: Mapping[str, str], catalog: GrammarCatalog
+) -> list[ChatEvidence]:
+    """The grammar evidence worth storing: unknown messages and KC ids are dropped, as
+    are duplicates and anything past the per-message caps."""
+    items: list[ChatEvidence] = []
+    seen: set[tuple[str, str, str]] = set()
+    per_message: dict[tuple[str, bool], int] = {}
+    wrong_kcs: set[tuple[str, str]] = set()
+
+    def admit(short_id: str, kc_id: str, key: str, correct: bool, cap: int) -> str | None:
+        message_id = learner_ids.get(short_id)
+        if message_id is None or kc_id not in catalog:
+            logger.info("reflection tagged unknown message %r or KC %r", short_id, kc_id)
+            return None
+        if (message_id, kc_id, key) in seen or per_message.get((message_id, correct), 0) >= cap:
+            return None
+        seen.add((message_id, kc_id, key))
+        per_message[(message_id, correct)] = per_message.get((message_id, correct), 0) + 1
+        return message_id
+
+    for m in reflection.mistakes:
+        original = m.original.strip()[:MAX_SPAN_CHARS]
+        if not original:
+            continue
+        message_id = admit(m.message, m.kc_id, original.casefold(), False, MAX_MISTAKES_PER_MESSAGE)
+        if message_id is None:
+            continue
+        wrong_kcs.add((message_id, m.kc_id))
+        items.append(
+            ChatEvidence(
+                message_id=message_id,
+                kc_id=m.kc_id,
+                correct=False,
+                error_type=m.error_type,
+                severity=m.severity,
+                original=original,
+                correction=m.correction.strip()[:MAX_SPAN_CHARS],
+                l1_transfer=m.l1_transfer,
+            )
+        )
+    for u in reflection.used_correctly:
+        message_id = learner_ids.get(u.message)
+        if message_id is not None and (message_id, u.kc_id) in wrong_kcs:
+            continue  # the prompt forbids it; a message that also misuses the KC is a miss
+        message_id = admit(u.message, u.kc_id, "", True, MAX_CORRECT_PER_MESSAGE)
+        if message_id is not None:
+            items.append(ChatEvidence(message_id=message_id, kc_id=u.kc_id, correct=True))
+    return items

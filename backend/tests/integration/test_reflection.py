@@ -101,7 +101,7 @@ async def test_reply_is_followed_by_reflection_that_remembers(
 
     [prompt] = reflector.prompts
     assert "Write facts in: Simplified Chinese" in prompt
-    assert "Learner: I'm a backend developer." in prompt.split("## New messages")[1]
+    assert "Learner [u1]: I'm a backend developer." in prompt.split("## New messages")[1]
     facts = await service.list_memories(db_session, user.id, "fact")
     assert [f.content for f in facts] == ["Works as a backend developer."]
     assert facts[0].source_conversation_id == uuid.UUID(conversation_id)

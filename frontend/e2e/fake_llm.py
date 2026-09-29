@@ -8,7 +8,8 @@ many images it was shown, and /audio/transcriptions.
 
 Memory (ADR 0009): reflection remembers what follows "remember that" in a learner
 message, and "what do you remember" gets back the facts found in the system prompt, so
-tests can check which memories reached the model.
+tests can check which memories reached the model. Grammar tagging (ADR 0012): "he/she/it
+like" is a third-person -s mistake, "he/she/it likes" a correct use of the same KC.
 """
 
 import asyncio
@@ -36,7 +37,11 @@ IMAGE_DESCRIPTION = "A handwritten worksheet."
 TRANSCRIPT = "I goed home yesterday."
 
 
-REMEMBER = re.compile(r"^Learner: .*?remember that (.+?)\.?$", re.IGNORECASE | re.MULTILINE)
+# New learner messages are rendered as "Learner [u1]: ...".
+LEARNER_LINE = re.compile(r"^Learner(?: \[(u\d+)\])?: (.*)$", re.MULTILINE)
+REMEMBER = re.compile(r"remember that (.+?)\.?$", re.IGNORECASE)
+THIRD_PERSON = re.compile(r"\b(?:he|she|it) like(s?)\b", re.IGNORECASE)
+THIRD_PERSON_KC = "g.present_simple_third_person"
 FACTS_HEADING = "### Things they have told you\n"
 
 
@@ -70,8 +75,32 @@ def reflection(messages: list[dict[str, Any]]) -> dict[str, Any]:
     """Post-turn memory reflection: one fact per "remember that ..." among the new messages."""
     prompt = text_of(messages[-1]["content"]) if messages else ""
     new = prompt.split("## New messages to reflect on", 1)[-1]
-    facts = [m.group(1).strip() for m in REMEMBER.finditer(new)]
-    return {"memory_ops": [{"action": "add", "content": f"{f[0].upper()}{f[1:]}."} for f in facts]}
+    facts: list[str] = []
+    mistakes: list[dict[str, Any]] = []
+    used: list[dict[str, str]] = []
+    for line in LEARNER_LINE.finditer(new):
+        message_id, text = line.group(1), line.group(2)
+        if remember := REMEMBER.search(text):
+            facts.append(remember.group(1).strip())
+        if message_id and (third := THIRD_PERSON.search(text)):
+            if third.group(1):
+                used.append({"message": message_id, "kc_id": THIRD_PERSON_KC})
+            else:
+                mistakes.append(
+                    {
+                        "message": message_id,
+                        "kc_id": THIRD_PERSON_KC,
+                        "error_type": "omission",
+                        "severity": "medium",
+                        "original": third.group(0),
+                        "correction": third.group(0) + "s",
+                    }
+                )
+    return {
+        "memory_ops": [{"action": "add", "content": f"{f[0].upper()}{f[1:]}."} for f in facts],
+        "mistakes": mistakes,
+        "used_correctly": used,
+    }
 
 
 def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:

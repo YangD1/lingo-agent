@@ -19,6 +19,10 @@ from langchain_core.runnables import RunnableConfig
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.adaptive import mastery
+from app.adaptive.evidence import record_chat_evidence
+from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.rules import get_rules
 from app.agents.chat_graph import ChatGraph
 from app.chat.service import thread_config
 from app.db.models import Conversation, Memory
@@ -190,8 +194,43 @@ class ReflectionWorker:
                     embedder=memory_embedder(ctx),
                 )
             logger.info("reflected on conversation %s: %s", conversation.id, applied)
+            await self._record_evidence(conversation, new, result)
         # Advanced even when the model failed twice: a turn is not worth retrying forever.
         await self._move_cursor(conversation.id, reflected_message_id=new[-1].id)
+
+    async def _record_evidence(
+        self,
+        conversation: Conversation,
+        new: Sequence[BaseMessage],
+        result: reflection.Reflection,
+    ) -> None:
+        """Grammar evidence from the reflected messages, then the mastery it changes."""
+        learner_ids = reflection.learner_message_ids(new)
+        catalog, rules = get_grammar_catalog(), get_rules()
+        items = reflection.tagged_evidence(result, learner_ids, catalog)
+        async with self._sessionmaker() as session:
+            await mastery.ensure_current(
+                session, conversation.user_id, rules=rules, catalog=catalog
+            )
+            affected = await record_chat_evidence(
+                session,
+                user_id=conversation.user_id,
+                conversation_id=conversation.id,
+                message_ids=list(learner_ids.values()),
+                items=items,
+            )
+            await mastery.refresh(
+                session, conversation.user_id, affected, rules=rules, catalog=catalog
+            )
+            await session.commit()
+        if items:
+            wrong = sum(not item.correct for item in items)
+            logger.info(
+                "recorded %d mistakes and %d successes in conversation %s",
+                wrong,
+                len(items) - wrong,
+                conversation.id,
+            )
 
     async def _summarize(
         self,

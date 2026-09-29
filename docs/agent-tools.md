@@ -33,4 +33,4 @@
 |---|---|---|---|---|---|
 | 反思：记忆与画像 | `memory/reflection.py`、`memory/worker.py` | 本轮及之前几条消息、画像、事实记忆 | `memories`（增删改事实）、`user_profiles`（学习者没手改过的字段） | `llm/reflect`；向量化用 `embedding/memory` | `/memory` 页面 |
 | 反思：会话摘要 | 同上 | 新消息、旧摘要 | `memories`（episode） | `llm/reflect` | `/memory` 页面 |
-| 反思：语法错误打标（任务 8，开发中） | 同上 | 本轮学习者消息、语法 KC 清单 | `kc_evidence`；由证据重放更新 `kc_mastery` | `llm/reflect` | `/learner` 页面（任务 9） |
+| 反思：语法打标（与记忆同一次调用） | 同上 + `adaptive/evidence.py`、`adaptive/mastery.py` | 本轮学习者消息（短 id u1、u2）、语法 KC 清单（system prompt 固定前缀） | `kc_evidence`（同一条消息的证据先删后写）；由证据重放更新 `kc_mastery` | `llm/reflect` | `/learner` 页面（任务 9）、每条回复下的“私教做了什么”（任务 8b） |

@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7 完成（KC 清单 119 个；规则文件、BKT 重放、Elo、三张表），下一步是任务 8（反思打标 → 证据入库 → 重放更新掌握度）。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），任务 6、7、8 完成（KC 清单、规则文件与 BKT/Elo、反思打标 → 证据 → 掌握度），下一步是任务 8b（agent 活动公示，ADR 0013）。
 **阻塞项**：无
 
 ## P0 骨架
@@ -111,11 +111,11 @@
   - [x] 7.2 `app/adaptive/bkt.py`：`update(p, correct, evidence, rules)`（先按观测求后验，再加学习转移；识别 / 产出用不同 p_guess）、`prior(kc_cefr, learner_cefr, rules)`、`replay(observations, p_init, rules)`（严重度过滤、同一轮同一 KC 去重都在这里生效）。单测：[0,1]、连续答对收敛、答错下降、与手算值一致、产出比识别涨得多、low 不计入、同轮去重。完成：`Observation`、`Mastery`、`update`、`prior`、`is_mastered`、`counted`、`replay`；单测 29 个（参数在测试里固定，调 rules.yaml 不影响单测）。踩坑：连续答对后浮点数会算出正好 1.0，之后答错也降不下来，`update` 的结果限制在 [1e-4, 1-1e-4]（数值保护，不属于可调规则）
   - [x] 7.3 `app/adaptive/elo.py`：`expected`（四选一带猜测下限）、`k_factor(n)`、`update_ability`、`update_item`、`uncertainty(n)`、`prior_difficulty(维度分, rules)`。单测：K 衰减、升降方向、猜测下限、强者答简单题几乎不涨、维度分换算。完成：另有 `guess_for(format)`；K(n) 同时作为不确定度，不单设函数；`update_item` 要求传入已稳定的能力值（测后回算）；`prior_difficulty` 拒绝缺少、多出或未知的维度等级。单测 8 个
   - [x] 7.4 表和迁移：`kc_evidence`（只追加；error_type / severity / evidence / source 用 CHECK；conversation_id 置空；索引 user_id + created_at、user_id + kc_id）、`kc_mastery`（唯一键 user_id + kc_id；`rules_version`）、`skill_estimates`（唯一键 user_id + skill；rating、attempts）。只挂 user_id，删用户级联。迁移在空库上 upgrade / downgrade 通过。完成：迁移 `612ac223409b`；模型 `KCEvidence`（自增 BigInteger 主键；CHECK `mistake_fields` 保证错误行必有 error_type 和 severity、用对的行必然没有）、`KCMastery`（主键 user_id + kc_id）、`SkillEstimate`（主键 user_id + skill）；CHECK 的取值直接引用 `ERROR_TYPES`、`EVIDENCE_KINDS`、`SEVERITIES`，不重复定义。集成测试 10 个（各 CHECK、删除会话后证据保留、删除用户级联）。pytest 499、ruff、mypy 通过
-- [ ] 8. reflect 加 mistakes、used_correctly → 证据去重 → BKT 更新（子任务待用户确认）
-  - [ ] 8.1 反思 schema 和 prompt：`TaggedMistake`（message、kc_id、error_type、severity、original、correction、l1_transfer）、`UsedCorrectly`（message、kc_id）；学习者消息在输入里用短 id（u1、u2……，和记忆的 m1 同一思路，模型编不出别的消息）；KC 清单渲染进 system prompt（固定前缀，利于厂商前缀缓存）；`reflect.md` 加打标规则（严重度定义、只标语法、词汇错误不标）
-  - [ ] 8.2 校验和写入：kc_id 不在清单、消息 id 不存在的丢弃并记日志；同一条学习者消息的证据**先删后写**，反思重试或崩溃后重做都不会重复；和记忆操作在同一个事务里
-  - [ ] 8.3 `app/adaptive/mastery.py`：`refresh(session, user_id, kc_ids)` 从 `kc_evidence` 重放受影响的 KC，先验取 KC 等级 + `user_profiles.cefr_level`，写回 `kc_mastery`（带 rules_version）；规则版本变化时的重建。单测 + 集成测试
-  - [ ] 8.4 集成测试（假结构化模型：证据入库、非法 id 丢弃、重做幂等、掌握度更新）+ E2E 假模型的反思输出补上 mistakes
+- [x] 8. reflect 加 mistakes、used_correctly → 证据去重 → BKT 更新。用户确认（2026-09-29）：KC 清单带常见错误提示放进 prompt（约 6.4k tokens，system prompt 固定前缀利于缓存）；规则版本变化时“用到时发现就重算”
+  - [x] 8.1 反思 schema 和 prompt：`TaggedMistake`、`UsedCorrectly` 加进 `Reflection`（和记忆同一次调用）；新消息里的学习者消息渲染为 `Learner [u1]: ...`（`learner_message_ids`）；`system_prompt()` = `reflect.md` + `render_catalog()`（带缓存）；`reflect.md` 加打标规则（只标学习者自己写的英文、只标语法、一种错误选唯一 KC、严重度和错误类型的定义、寒暄里的省略不标、每条消息最多 3 个用对的 KC 且选最高级的）
+  - [x] 8.2 校验和写入：`reflection.tagged_evidence`（未知消息 / 未知 KC / 空原文丢弃；同一消息同一 KC 同一原文去重；每条消息最多 10 个错误、3 个用对；同一消息里既错又对的 KC 只留错误）；`adaptive/evidence.py` `record_chat_evidence`：按学习者消息 id **先删后写**，返回证据有变化的 KC（包括被删掉的）。证据和掌握度在同一个事务里提交（记忆操作仍各自提交）
+  - [x] 8.3 `adaptive/mastery.py`：`refresh`（重放受影响的语法 KC，先验取 KC 等级 + 画像里的 CEFR；没有证据的 KC 删行；`w.` 开头的单词 KC 跳过，留给 FSRS）、`rebuild`（该用户全部 KC，入学测改等级后也用它）、`ensure_current`（发现旧版本的行就重建）。worker 的 `_record_evidence` 在记忆操作之后执行
+  - [x] 8.4 测试：单测 5 个（短 id、prompt 带整份清单、各种丢弃和上限）；集成 4 个（先删后写幂等、按画像等级的先验重放、证据删光后删行、旧规则版本重建、从发消息到掌握度的完整链路）；E2E 假模型：学习者行的正则改为兼容 `[u1]`（否则记忆 E2E 会失效），“he/she/it like”返回第三人称单数错误。pytest 508、ruff、mypy、E2E（chat + memory 6 个）通过
 - [ ] 8b. agent 活动公示（ADR 0013，2026-09-29 追加需求，已确认）：活动记录表；`load_context`、反思写入活动；SSE 推送对话中的步骤，回复完成后前端再取一次后台结果；每条私教回复下默认收起一行摘要、点开看明细（链到记忆页、学习者模型页）；设置里可隐藏（只影响显示）。开工前拆子任务
 - [ ] 9. 学习者模型接口 + `/learner` 页面
 - **P1c 背单词**
