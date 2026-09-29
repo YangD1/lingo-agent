@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-09-29 · P1c 任务 12：背词接口和四个页面
+
+- **做了什么**：用户确认生词本删除一律真删、加词按 精确 → 忽略大小写 → `exchange` 还原原形、P1 不做撤销评分。后端 `app/api/vocab.py`（10 个接口）+ 服务层 `progress.py`、`mine.py`，`queue.py` 加 `today_counts`；前端 `lib/vocab.ts`、`components/vocab/`（`vocab-app`、`screen-app`、`review-app` + `use-review-session`、`mine-app`）、四个页面、导航、proxy 保护、中英文案；E2E 库导入 fixture 词库，`e2e/vocab.spec.ts` 2 个用例。提交 06fec04、2af7a0d、aca5ff6、e368378、d99842d 和本次。pytest 560、Vitest 135、Playwright 27。
+- **未完成**：无。
+- **下一步**：任务 13：reflect 的 `vocab_candidates` → 生词本（`mine.add(..., source="auto")` 已可直接用）+ 聊天回复里选中文字加入生词本；按 ADR 0013 同步 `docs/agent-tools.md` 并在活动里公示。开工前拆子任务、和用户确认。
+- **踩坑**：
+  - ECDICT 子集里没有 went、ran 这种纯变形词条（导入时过滤了），还原原形要反查原形词条的 `exchange`（正则匹配除 `0:`、`1:` 以外的变形）。
+  - eslint 的 `react-hooks/set-state-in-effect`：effect 里调用的 async 函数哪怕 setState 在 await 之后也会被报；改成 `promise.then(set…, …)` 的写法就不报（和 learner-app 一致）。
+  - Playwright 里 `getByRole("alert")` 会同时命中 Next 的路由播报器（`__next-route-announcer__`），要加 `filter({ hasText: /\S/ })`。
+  - 无头 Chromium 没有中文字体，截图里中文是方块，不是页面问题。
+  - 别在 `frontend/` 下用 `git checkout -- .` 清理测试产物：会连未提交的改动一起丢掉（这次丢了 `run_backend.py` 的改动，已重做）。
+
+---
+
 ## 2026-09-29 · P1c 任务 11：词书、卡片、FSRS 调度、每日队列、熟词筛选
 
 - **做了什么**：用户确认词书写在代码里（9 本，含牛津 3000）、一次一本、单词掌握度不写 `kc_mastery`。`fsrs` 6.3.2；迁移 `92cbcc17eefe`（`user_cards`、`review_logs`、`user_word_book`）；`rules.yaml` 的 `vocab` 一节（版本 `2026-09-29.3`）；`app/services/vocab/` 下 `books.py`、`scheduler.py`（`review`、`retrievability`、`learner_zone`、`day_bounds`）、`queue.py`（`daily_queue`）、`screening.py`（`next_batch`、`submit`）。只有服务层，还没有接口和页面。提交 25be313、df51caa、686a874 和本次。测试新增 22 个，pytest 557。

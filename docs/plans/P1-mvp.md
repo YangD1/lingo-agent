@@ -153,7 +153,8 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 - `/vocab`：选词书、进度（已学/已认识/总数）、今日任务数、入口
 - `/vocab/screen`：熟词筛选
 - `/vocab/review`：卡片（先显示单词 → 回想 → 翻面显示音标、中文释义、英文释义 → 四个评分按钮），键盘快捷键 1–4、空格翻面，`speechSynthesis` 读单词
-- `/vocab/mine`：我的生词本（自动收词和手动添加），可删除
+- `/vocab/mine`：我的生词本（自动收词和手动添加），可删除。**删除是真删**：卡片和复习记录一起删，再加回来从零开始（任务 12 用户确认）。手动加词按 精确拼写 → 忽略大小写（多个取高频）→ 用 `exchange` 把变形还原成原形（went → go）匹配，输入时按前缀联想；书里已认识的词加入生词本后变回 new，正在学的保持原调度
+- 接口（任务 12）：`GET /vocab`（各词书进度现算、当前词书、每日新词数、`screened`、今日到期 / 剩余新词，`?tz=` 为浏览器时区）、`PUT /vocab/book`（换书只把筛选起点归零）、`GET /vocab/queue?tz=&mode=all|new`、`POST /vocab/reviews`、`GET`/`POST /vocab/screen`、`GET /vocab/words?q=`、`GET`/`POST /vocab/mine`、`DELETE /vocab/mine/{word_id}`。复习页本地卡片用完后再取一次队列（刚评“忘了”的卡几分钟内到期），取回为空才结束。P1 不做撤销评分
 - 聊天回复里选中文字可以“加入生词本”（P1c 的最后一个任务，Q9）
 
 ### 5.4 测试

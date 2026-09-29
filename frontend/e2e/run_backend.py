@@ -4,8 +4,10 @@ Run from frontend/: `uv run --project ../backend python e2e/run_backend.py`.
 Separate from pytest's `lingo_test` so the two never wipe each other's data.
 """
 
+import asyncio
 import os
 import sys
+from pathlib import Path
 
 import psycopg
 
@@ -13,6 +15,8 @@ PORT = os.environ.get("E2E_BACKEND_PORT", "8100")
 # The server to test against, via its maintenance database; lingo_e2e is created next to it.
 ADMIN_URL = os.environ.get("E2E_ADMIN_DB", "postgresql://lingo:lingo@localhost:5433/postgres")
 DB_NAME = "lingo_e2e"
+# A small real slice of ECDICT: the Oxford 3000 book has 7 of its words.
+WORDS_CSV = Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "ecdict_sample.csv"
 SERVER = ADMIN_URL.split("://", 1)[1].rsplit("/", 1)[0]  # user:password@host:port
 
 # Throwaway values for a local test database only - never used anywhere else.
@@ -36,8 +40,10 @@ def recreate_database() -> None:
 def main() -> None:
     recreate_database()
     from app.db.migrate import main as migrate
+    from app.services.vocab.import_ecdict import import_csv
 
     migrate()
+    asyncio.run(import_csv(os.environ["DATABASE_URL"], WORDS_CSV))
     os.execvp(
         sys.executable,
         [
