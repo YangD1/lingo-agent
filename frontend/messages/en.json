@@ -284,6 +284,18 @@
       "title": "New words a day",
       "description": "Leave empty for the default ({default}). Reviews are never capped.",
       "save": "Save"
+    },
+    "screen": {
+      "title": "Screen known words",
+      "description": "Tap the words you already know: they are skipped and never come up for review. Words you leave are not lost; they come up later as new words, most common first.",
+      "noBook": "Choose a word book first.",
+      "finished": "You've been through every word in this book.",
+      "count": "{known} of {total} marked known",
+      "submit": "Done, next",
+      "result": "You knew {known} of {shown}.",
+      "skipped": "Most of them, so the next batch skips ahead to rarer words.",
+      "next": "Next batch",
+      "back": "Back to vocabulary"
     }
   },
   "settings": {

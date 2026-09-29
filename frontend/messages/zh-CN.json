@@ -284,6 +284,18 @@
       "title": "每天新词数",
       "description": "留空用默认值（{default}）。复习不限量。",
       "save": "保存"
+    },
+    "screen": {
+      "title": "熟词筛选",
+      "description": "点一下你已经认识的词：它们会被跳过，不进复习。没点的词不会丢，之后按词频作为新词出现。",
+      "noBook": "请先选一本词书。",
+      "finished": "这本书的词你都看过了。",
+      "count": "已标记认识 {known} / {total}",
+      "submit": "好了，提交",
+      "result": "这批 {shown} 个词里你认识 {known} 个。",
+      "skipped": "认识得很多，下一批会往后跳到更少用的词。",
+      "next": "下一批",
+      "back": "回到背单词"
     }
   },
   "settings": {
