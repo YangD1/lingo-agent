@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-09-29.2"
+version: "2026-09-29.3"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -98,3 +98,24 @@ difficulty:
         weak: {offset: -0.4, description: "Wrong options are obviously wrong."}
         one_plausible: {offset: 0.0, description: "One wrong option is tempting."}
         several_plausible: {offset: 0.4, description: "Several wrong options are tempting, e.g. common transfer errors."}
+
+# Vocabulary review (ADR 0011). Words are scheduled by FSRS (py-fsrs, default
+# parameters); these are the knobs around it.
+vocab:
+  # FSRS schedules each review for when the chance of still remembering the word
+  # drops to this.
+  desired_retention: 0.9
+  # New words a day, unless the learner sets their own number.
+  daily_new: 15
+  # Cards in their first learning steps (minutes apart) that fall due within this
+  # many minutes are shown now instead of making the learner wait.
+  learn_ahead_minutes: 20
+  # Known-word screening: the learner marks the words they already know.
+  screening:
+    batch_size: 50
+    # Each batch is spread over this many not-yet-seen words of the book, in
+    # frequency order.
+    window: 500
+    # When at least this share of a batch is known, the next batch starts after
+    # the window, among rarer words.
+    skip_ratio: 0.8

@@ -102,12 +102,32 @@ class DifficultyRules(_Strict):
         return self
 
 
+class ScreeningRules(_Strict):
+    batch_size: int = Field(ge=1, le=200)
+    window: int = Field(ge=1)
+    skip_ratio: Probability
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.window < self.batch_size:
+            raise ValueError("screening.window must be at least batch_size")
+        return self
+
+
+class VocabRules(_Strict):
+    desired_retention: OpenProbability
+    daily_new: int = Field(ge=0, le=200)
+    learn_ahead_minutes: int = Field(ge=0, le=24 * 60)
+    screening: ScreeningRules
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
     evidence: EvidenceRules
     elo: EloRules
     difficulty: DifficultyRules
+    vocab: VocabRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:

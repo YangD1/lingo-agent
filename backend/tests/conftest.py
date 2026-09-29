@@ -42,6 +42,9 @@ from app.memory.worker import ReflectionWorker  # noqa: E402
 from app.providers import net_guard  # noqa: E402
 
 BUSINESS_TABLES = (
+    "review_logs",
+    "user_cards",
+    "user_word_book",
     "kc_evidence",
     "kc_mastery",
     "skill_estimates",

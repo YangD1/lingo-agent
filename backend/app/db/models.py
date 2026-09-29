@@ -46,6 +46,8 @@ EVIDENCE_SOURCES = ("chat", "placement")
 SKILLS = ("listening", "speaking", "reading", "writing", "grammar", "vocab")
 ACTIVITY_KINDS = ("step", "tool", "mcp", "background")
 ACTIVITY_STATUSES = ("ok", "failed", "skipped")
+CARD_SOURCES = ("book", "auto", "manual")
+CARD_STATUSES = ("new", "learning", "known", "suspended")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -462,3 +464,87 @@ class Word(Base):
     frq: Mapped[int | None] = mapped_column(Integer)
     # Inflections as ECDICT writes them, e.g. "p:went/d:gone/0:go"; "0:" is the lemma.
     exchange: Mapped[str | None] = mapped_column(String(300))
+
+
+class UserWordBook(TimestampMixin, Base):
+    """The word book a learner is working through; one at a time (ADR 0011).
+
+    Books are defined in code (`app.services.vocab.books`). Switching books keeps all
+    progress: cards belong to words, not books.
+    """
+
+    __tablename__ = "user_word_book"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    book_id: Mapped[str] = mapped_column(String(20))
+    # New words a day; None = the default in rules.yaml.
+    daily_new: Mapped[int | None] = mapped_column(SmallInteger)
+    # Known-word screening: where in the book's frequency order the next batch starts.
+    screen_offset: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class UserCard(TimestampMixin, Base):
+    """A learner's card for one word, with its FSRS state (ADR 0011).
+
+    Book words get a card when first reviewed or screened; words the learner or the
+    tutor adds get one at once (status `new`). The FSRS columns mirror
+    `fsrs.Card.to_dict()` and are set only while the word is being learned; `known`
+    words are never scheduled.
+    """
+
+    __tablename__ = "user_cards"
+    __table_args__ = (
+        CheckConstraint(_in("source", CARD_SOURCES), name="source"),
+        CheckConstraint(_in("status", CARD_STATUSES), name="status"),
+        CheckConstraint("state IS NULL OR state BETWEEN 1 AND 3", name="state"),
+        CheckConstraint("status <> 'learning' OR due IS NOT NULL", name="learning_due"),
+        UniqueConstraint("user_id", "word_id"),
+        # Due reviews.
+        Index(
+            "ix_user_cards_user_id_due",
+            "user_id",
+            "due",
+            postgresql_where="status = 'learning'",
+        ),
+        # "New words started today".
+        Index("ix_user_cards_user_id_first_reviewed_at", "user_id", "first_reviewed_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    word_id: Mapped[int] = mapped_column(ForeignKey("words.id"))
+    source: Mapped[str] = mapped_column(String(10))
+    status: Mapped[str] = mapped_column(String(10))
+    # fsrs.State: 1 learning, 2 review, 3 relearning.
+    state: Mapped[int | None] = mapped_column(SmallInteger)
+    step: Mapped[int | None] = mapped_column(SmallInteger)
+    stability: Mapped[float | None] = mapped_column(Float)
+    difficulty: Mapped[float | None] = mapped_column(Float)
+    due: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    first_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ReviewLog(Base):
+    """One review of a card, with its FSRS state before and after, so parameters can
+    be fitted per learner later (ADR 0011, P4)."""
+
+    __tablename__ = "review_logs"
+    __table_args__ = (
+        CheckConstraint("rating BETWEEN 1 AND 4", name="rating"),
+        Index("ix_review_logs_user_id_reviewed_at", "user_id", "reviewed_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    card_id: Mapped[int] = mapped_column(
+        ForeignKey("user_cards.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # fsrs.Rating: 1 again, 2 hard, 3 good, 4 easy.
+    rating: Mapped[int] = mapped_column(SmallInteger)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    review_duration_ms: Mapped[int | None] = mapped_column(Integer)
+    card_before: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    card_after: Mapped[dict[str, Any]] = mapped_column(JSONB)

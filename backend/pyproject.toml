@@ -9,6 +9,7 @@ dependencies = [
     "cryptography>=46,<50",
     "email-validator>=2,<3",
     "fastapi>=0.141,<1",
+    "fsrs>=6.3,<7",
     "httpcore2>=2.13,<3",
     "httpx2>=2.13,<3",
     "langchain>=1.4,<2",
