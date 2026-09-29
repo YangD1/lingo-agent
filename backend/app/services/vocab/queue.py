@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import ColumnElement, Exists, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.rules import Rules
@@ -41,6 +41,46 @@ class DailyQueue:
     book_id: str | None
 
 
+def _due(user_id: uuid.UUID, ahead: datetime) -> tuple[ColumnElement[bool], ...]:
+    return (UserCard.user_id == user_id, UserCard.status == "learning", UserCard.due <= ahead)
+
+
+def _own_new(user_id: uuid.UUID) -> tuple[ColumnElement[bool], ...]:
+    return (
+        UserCard.user_id == user_id,
+        UserCard.status == "new",
+        UserCard.source.in_(("auto", "manual")),
+    )
+
+
+def _has_card(user_id: uuid.UUID) -> Exists:
+    return exists().where(UserCard.user_id == user_id, UserCard.word_id == Word.id)
+
+
+async def _new_allowance(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    plan: UserWordBook | None,
+    *,
+    rules: Rules,
+    tz: ZoneInfo,
+    now: datetime,
+) -> tuple[int, int]:
+    """The day's new-word limit, and new words started today."""
+    start, end = day_bounds(now, tz)
+    started = await session.scalar(
+        select(func.count())
+        .select_from(UserCard)
+        .where(
+            UserCard.user_id == user_id,
+            UserCard.first_reviewed_at >= start,
+            UserCard.first_reviewed_at < end,
+        )
+    )
+    limit = plan.daily_new if plan and plan.daily_new is not None else rules.vocab.daily_new
+    return limit, started or 0
+
+
 async def daily_queue(
     session: AsyncSession,
     user_id: uuid.UUID,
@@ -51,7 +91,7 @@ async def daily_queue(
 ) -> DailyQueue:
     now = now or datetime.now(UTC)
     ahead = now + timedelta(minutes=rules.vocab.learn_ahead_minutes)
-    due = (UserCard.user_id == user_id, UserCard.status == "learning", UserCard.due <= ahead)
+    due = _due(user_id, ahead)
     reviews = [
         QueueItem(word=word, card=card)
         for card, word in (
@@ -66,40 +106,25 @@ async def daily_queue(
     ]
     reviews_due = await session.scalar(select(func.count()).select_from(UserCard).where(*due))
 
-    start, end = day_bounds(now, tz)
-    started = await session.scalar(
-        select(func.count())
-        .select_from(UserCard)
-        .where(
-            UserCard.user_id == user_id,
-            UserCard.first_reviewed_at >= start,
-            UserCard.first_reviewed_at < end,
-        )
-    )
     plan = await session.get(UserWordBook, user_id)
-    limit = plan.daily_new if plan and plan.daily_new is not None else rules.vocab.daily_new
-    left = max(0, limit - (started or 0))
+    limit, started = await _new_allowance(session, user_id, plan, rules=rules, tz=tz, now=now)
+    left = max(0, limit - started)
 
     new: list[QueueItem] = []
     if left:
         own = await session.execute(
             select(UserCard, Word)
             .join(Word, Word.id == UserCard.word_id)
-            .where(
-                UserCard.user_id == user_id,
-                UserCard.status == "new",
-                UserCard.source.in_(("auto", "manual")),
-            )
+            .where(*_own_new(user_id))
             .order_by(UserCard.created_at, UserCard.id)
             .limit(left)
         )
         new = [QueueItem(word=word, card=card) for card, word in own.all()]
     book = get_book(plan.book_id) if plan else None
     if book and len(new) < left:
-        has_card = exists().where(UserCard.user_id == user_id, UserCard.word_id == Word.id)
         fresh = await session.scalars(
             select(Word)
-            .where(book.words(), ~has_card)
+            .where(book.words(), ~_has_card(user_id))
             .order_by(Word.frq.asc().nulls_last(), Word.bnc.asc().nulls_last(), Word.id)
             .limit(left - len(new))
         )
@@ -110,6 +135,54 @@ async def daily_queue(
         new=new,
         reviews_due=reviews_due or 0,
         new_limit=limit,
-        new_started=started or 0,
+        new_started=started,
         book_id=book.id if book else None,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class TodayCounts:
+    reviews_due: int
+    # New words still to learn today: the rest of the limit, if that many are left.
+    new_left: int
+    new_limit: int
+    new_started: int
+
+
+async def today_counts(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    rules: Rules,
+    tz: ZoneInfo,
+    now: datetime | None = None,
+) -> TodayCounts:
+    """How much of `daily_queue` is waiting, without loading it."""
+    now = now or datetime.now(UTC)
+    ahead = now + timedelta(minutes=rules.vocab.learn_ahead_minutes)
+    reviews_due = await session.scalar(
+        select(func.count()).select_from(UserCard).where(*_due(user_id, ahead))
+    )
+    plan = await session.get(UserWordBook, user_id)
+    limit, started = await _new_allowance(session, user_id, plan, rules=rules, tz=tz, now=now)
+    left = max(0, limit - started)
+    if left:
+        own = await session.scalar(
+            select(func.count()).select_from(UserCard).where(*_own_new(user_id))
+        )
+        available = own or 0
+        book = get_book(plan.book_id) if plan else None
+        if book and available < left:
+            fresh = await session.scalar(
+                select(func.count()).select_from(
+                    select(Word.id)
+                    .where(book.words(), ~_has_card(user_id))
+                    .limit(left - available)
+                    .subquery()
+                )
+            )
+            available += fresh or 0
+        left = min(left, available)
+    return TodayCounts(
+        reviews_due=reviews_due or 0, new_left=left, new_limit=limit, new_started=started
     )
