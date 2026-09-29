@@ -2,7 +2,9 @@
 
 Run from frontend/: `uv run --project ../backend python e2e/fake_llm.py`.
 Replies are deterministic; a message containing "long" gets a slow ~4s reply so the
-"stop generating" test has something to interrupt.
+"stop generating" test has something to interrupt. It also stands in for the attachment
+models (ADR 0008): structured image readings via function calling, a reply that says how
+many images it was shown, and /audio/transcriptions.
 """
 
 import asyncio
@@ -13,7 +15,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
 
 PORT = int(os.environ.get("E2E_LLM_PORT", "8101"))
@@ -23,13 +25,54 @@ LONG_DELAY = 0.1
 app = FastAPI()
 
 
+# What the fake "sees" in every image and "hears" in every recording.
+IMAGE_TEXT = "I goed to the park yesterday."
+IMAGE_DESCRIPTION = "A handwritten worksheet."
+TRANSCRIPT = "I goed home yesterday."
+
+
 def reply_for(messages: list[dict[str, Any]]) -> str:
     last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+    images = 0
     if isinstance(last, list):  # content parts
+        images = sum(p.get("type") == "image_url" for p in last)
         last = " ".join(p.get("text", "") for p in last)
     if "long" in last.lower():
         return " ".join(f"word{i}" for i in range(40))
-    return f"Nice try! You said: {last}"
+    seen = f"I can see {images} image(s). " if images else ""
+    return f"Nice try! {seen}You said: {last}"
+
+
+def tool_reply(model: str, tools: list[dict[str, Any]]) -> JSONResponse:
+    """Structured output via function calling: always the same image reading."""
+    name = tools[0]["function"]["name"]
+    arguments = {"text_in_image": IMAGE_TEXT, "description": IMAGE_DESCRIPTION}
+    return JSONResponse(
+        {
+            "id": "chatcmpl-fake",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": "call_fake",
+                                "type": "function",
+                                "function": {"name": name, "arguments": json.dumps(arguments)},
+                            }
+                        ],
+                    },
+                    "finish_reason": "tool_calls",
+                }
+            ],
+            "usage": {"prompt_tokens": 42, "completion_tokens": 10, "total_tokens": 52},
+        }
+    )
 
 
 def chunk(model: str, delta: dict[str, Any], **extra: Any) -> str:
@@ -48,6 +91,8 @@ def chunk(model: str, delta: dict[str, Any], **extra: Any) -> str:
 async def completions(request: Request) -> StreamingResponse | JSONResponse:
     body = await request.json()
     model = body.get("model", "fake")
+    if body.get("tools") and not body.get("stream"):
+        return tool_reply(model, body["tools"])
     text = reply_for(body.get("messages", []))
     usage = {"prompt_tokens": 42, "completion_tokens": len(text.split()), "total_tokens": 0}
     usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]
@@ -84,9 +129,16 @@ async def completions(request: Request) -> StreamingResponse | JSONResponse:
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
-# The model list the settings page fetches (ADR 0007 §1): one embedding model to check that
-# only chat models are offered, and "fake-tutor" first so it's the recommended one.
-MODELS = ["fake-tutor", "fake-embedding", "fake-tutor-mini"]
+@app.post("/v1/audio/transcriptions")
+async def transcriptions(file: UploadFile) -> dict[str, Any]:
+    await file.read()
+    return {"text": TRANSCRIPT}
+
+
+# The model list the settings page fetches (ADR 0007 §1): an embedding and a speech model to
+# check that only chat models are offered for chat, and "fake-tutor" first so it's the
+# recommended one. The fake ignores model names, so fake-tutor also serves as the vision model.
+MODELS = ["fake-tutor", "fake-embedding", "fake-tutor-mini", "fake-whisper"]
 
 
 @app.get("/v1/models")

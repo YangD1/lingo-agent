@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 骨架（任务 1–11、11A 完成；下一步：11B.6 附件 E2E 与部署；之后任务 12 CI）
+**当前阶段**：P0 骨架（任务 1–11、11A 完成；进行中：11B.6 附件 E2E 与部署；之后任务 12 CI）
 **阻塞项**：无
 
 ## P0 骨架
@@ -68,6 +68,10 @@
     - [x] 11B.5e 文案与错误：中英文案；新错误码（`no_vision_model`、`no_asr_model`、附件相关 10 个）；`no_vision_model` / `no_asr_model` 显示“去设置”；Vitest（压缩尺寸计算、附件 hook 轮询与发送条件、消息展示、路由组件三种任务）；typecheck、lint、build
     - 完成记录：新增 `lib/attachments.ts`、`use-attachments.ts`、`use-recorder.ts`、`attachment-tray.tsx`、`message-attachments.tsx`；`chat-route-section.tsx` 改名为 `route-section.tsx`（`task` 取 chat / vision / asr，asr 一节的路由名为 `default`；vision / asr 切换连接时不预填默认模型，因为连接的默认模型是对话模型）。附件区在“建会话期间”不因会话 id 变化而清空（`creatingRef`；已用变异测试确认用例能发现这个问题）；`ensureConversation` 合并并发请求。发送时把附件从输入框取出，被拒绝就连同文字一起放回。`vision_failed` / `transcription_failed` 不做本地化，直接显示后端带厂商原因的原文。设置页三张路由卡片各带 `data-testid="route-<task>"`，E2E 改为限定在 `route-chat` 里查找。验证：typecheck、lint、build 通过；Vitest 93 个（新增 14 个）；现有 Playwright 15 个全部通过。**尚未在真实浏览器验证**：录音（MediaRecorder）、canvas 压缩、粘贴 / 拖拽、轮询时的界面，放到 11B.6 用 E2E 和实测覆盖。已知取舍：在新对话里先加附件就会建会话，如果最后没发送，会留下一个空会话（和 ADR 0008 §3 一致）
   - [ ] 11B.6 E2E 与部署：`fake_llm.py` 支持看图回显和 `/audio/transcriptions`；E2E 覆盖三类附件（含扫描版 PDF）、未配置 vision 时的引导、识别结果修改；compose 新增 `asr` profile（speaches）并实测内存；重建镜像，交给用户实测
+    - [x] 11B.6a 假模型：`fake_llm.py` 支持 function calling（看图的结构化输出返回固定的 `ImageReading`）、对话里看到 image 块时回复“我看到了 N 张图”、`POST /v1/audio/transcriptions` 返回固定转写；模型列表加 `fake-vision`、`fake-whisper`。E2E 夹具（PNG、只有图片没有文字的扫描版 PDF、WAV）用脚本生成后提交
+    - [x] 11B.6b E2E `attachments.spec.ts`：未配置 vision 时图片卡片失败并显示“去设置”；配置 vision / asr 路由后：图片识别 → 修改识别结果 → 发送 → 回复确认看到图片 → 刷新后历史里有缩略图；文本文档 + 扫描版 PDF；语音文件只发语音不打字；真实录音（Chromium 假麦克风）；粘贴和拖拽；大图上传前被压缩成 JPEG。完成：6 个用例全部通过，完整 E2E 套件 21 个通过。**真实浏览器里验证了**：MediaRecorder 录音（Chromium 假麦克风，录出 webm 后经转写变成语音附件）、canvas 压缩（粘贴 3000×2000 的 PNG，服务端收到的文件名是 `big-photo.jpg`，说明浏览器重新编码过）、粘贴和拖拽、刷新后经鉴权的内容接口加载缩略图。vision 路由用 `fake-tutor`（假模型不看模型名，另加一个 `fake-vision` 会打乱设置页模型列表的断言）。踩坑：Playwright 拿不到由 Blob 组成的 multipart 请求体，改为检查响应；名字以 `use` 开头的辅助函数会被 eslint 的 hooks 规则当成 React hook
+    - [~] 11B.6c compose `asr` profile（speaches，CPU 镜像），在设置页把它加成连接并实测转写和内存；`.env.example` / Makefile 说明
+    - [ ] 11B.6d 重建镜像，全栈冒烟后交给用户实测
 - [ ] 12. GitHub Actions CI（backend / frontend / docker build）
 - [ ] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令
 
