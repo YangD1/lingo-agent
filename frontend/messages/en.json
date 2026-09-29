@@ -37,6 +37,7 @@
     "chat": "Chat",
     "settings": "Settings",
     "logout": "Log out",
+    "vocab": "Vocabulary",
     "memory": "Memory",
     "learner": "Learner model"
   },
@@ -258,6 +259,33 @@
       "confirm": "Delete all learning records? This cannot be undone."
     }
   },
+  "vocab": {
+    "today": {
+      "title": "Today",
+      "book": "Word book: {book}",
+      "noBook": "No word book chosen yet. Pick one below; words you add yourself are learned either way.",
+      "counts": "{reviews} to review · {left} new words left (started {started} of {limit} today)",
+      "done": "Nothing left for now. Come back later for the next reviews.",
+      "screenHint": "Tip: screen the book first, so words you already know are skipped.",
+      "start": "Start",
+      "newOnly": "New words only",
+      "screen": "Screen known words",
+      "mine": "My words"
+    },
+    "books": {
+      "title": "Word books",
+      "description": "One book at a time. Switching keeps your progress: it belongs to the words, not the book.",
+      "size": "{total} words",
+      "current": "Current",
+      "choose": "Study this book",
+      "progress": "Learning {learning} · known {known} · {percent}% met"
+    },
+    "dailyNew": {
+      "title": "New words a day",
+      "description": "Leave empty for the default ({default}). Reviews are never capped.",
+      "save": "Save"
+    }
+  },
   "settings": {
     "connections": {
       "title": "Model connections",
@@ -415,6 +443,10 @@
     "memory_not_found": "This memory doesn't exist or was already deleted.",
     "invalid_memory": "A memory needs some text, at most 1000 characters.",
     "kc_not_found": "There is no such grammar point.",
-    "evidence_not_found": "This record does not exist or was already deleted."
+    "evidence_not_found": "This record does not exist or was already deleted.",
+    "no_book": "Choose a word book first.",
+    "book_not_found": "This word book doesn't exist.",
+    "word_not_found": "The dictionary doesn't have this word.",
+    "not_in_batch": "This batch is out of date. Reload the page and try again."
   }
 }

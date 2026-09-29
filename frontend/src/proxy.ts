@@ -30,6 +30,7 @@ export const config = {
     "/chat/:path*",
     "/memory/:path*",
     "/learner/:path*",
+    "/vocab/:path*",
     "/settings/:path*",
   ],
 };

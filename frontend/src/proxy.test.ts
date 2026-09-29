@@ -48,6 +48,8 @@ describe("proxy", () => {
     ["/chat/abc", true],
     ["/memory", true],
     ["/learner", true],
+    ["/vocab", true],
+    ["/vocab/review", true],
     ["/settings", true],
     ["/api/auth/me", false],
     ["/session-expired", false],

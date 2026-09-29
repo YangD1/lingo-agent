@@ -37,6 +37,7 @@
     "chat": "对话",
     "settings": "设置",
     "logout": "退出登录",
+    "vocab": "背单词",
     "memory": "记忆",
     "learner": "学习者模型"
   },
@@ -258,6 +259,33 @@
       "confirm": "删除所有学习记录？删除后无法恢复。"
     }
   },
+  "vocab": {
+    "today": {
+      "title": "今天",
+      "book": "当前词书：{book}",
+      "noBook": "还没有选词书，在下面选一本；自己加的生词不选词书也能学。",
+      "counts": "待复习 {reviews} 个 · 新词还剩 {left} 个（今天已开始 {started} / {limit}）",
+      "done": "现在没有要学的了，晚点再来复习。",
+      "screenHint": "建议先做熟词筛选，跳过你已经认识的词。",
+      "start": "开始",
+      "newOnly": "只学新词",
+      "screen": "熟词筛选",
+      "mine": "我的生词本"
+    },
+    "books": {
+      "title": "词书",
+      "description": "一次学一本。换书不丢进度：进度记在单词上，不在书上。",
+      "size": "{total} 词",
+      "current": "当前",
+      "choose": "学这本",
+      "progress": "学习中 {learning} · 已认识 {known} · 已接触 {percent}%"
+    },
+    "dailyNew": {
+      "title": "每天新词数",
+      "description": "留空用默认值（{default}）。复习不限量。",
+      "save": "保存"
+    }
+  },
   "settings": {
     "connections": {
       "title": "模型连接",
@@ -415,6 +443,10 @@
     "memory_not_found": "这条记忆不存在或已被删除。",
     "invalid_memory": "记忆不能为空，最多 1000 个字符。",
     "kc_not_found": "没有这个语法点。",
-    "evidence_not_found": "这条记录不存在或已被删除。"
+    "evidence_not_found": "这条记录不存在或已被删除。",
+    "no_book": "请先选一本词书。",
+    "book_not_found": "没有这本词书。",
+    "word_not_found": "词库里没有这个词。",
+    "not_in_batch": "这批词已经过期，请刷新页面再试。"
   }
 }
