@@ -65,6 +65,19 @@ class GrammarTags(Summary):
     used_correctly: list[str] = []
 
 
+class CollectedWord(Summary):
+    word_id: int
+    word: str
+
+
+class WordsCollected(Summary):
+    """`vocab_collect`: words from one learner message put on their word list, and
+    those left alone because the learner already had a card for them."""
+
+    added: list[CollectedWord] = []
+    existing: list[CollectedWord] = []
+
+
 class SummaryUpdate(Summary):
     """`summarize`: the conversation summary was rewritten."""
 
@@ -81,6 +94,7 @@ STEPS: dict[str, StepSpec] = {
     "load_context": StepSpec("step", ContextRead),
     "reflect_memory": StepSpec("background", MemoryChanges),
     "grammar_tagging": StepSpec("background", GrammarTags),
+    "vocab_collect": StepSpec("background", WordsCollected),
     "summarize": StepSpec("background", SummaryUpdate),
 }
 
@@ -223,6 +237,13 @@ def memory_refs(summary: Summary) -> list[uuid.UUID]:
             return [*summary.added, *summary.updated]
         case SummaryUpdate(episode_id=uuid.UUID() as episode_id):
             return [episode_id]
+    return []
+
+
+def word_refs(summary: Summary) -> list[int]:
+    """Words a summary says were added, to be shown as still on the list or removed."""
+    if isinstance(summary, WordsCollected):
+        return [w.word_id for w in summary.added]
     return []
 
 

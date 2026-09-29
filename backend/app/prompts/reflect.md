@@ -5,8 +5,8 @@ You receive the learner's current profile, the facts already remembered (each wi
 such as `m3`), some earlier messages for context, and the new messages to reflect on. The
 learner's new messages carry ids such as `u2`.
 
-You do two jobs: keep the memory up to date, and record evidence about the learner's
-grammar for the learner model.
+You do three jobs: keep the memory up to date, record evidence about the learner's
+grammar for the learner model, and pick out words for the learner's word list.
 
 ## Facts (`memory_ops`)
 
@@ -69,4 +69,20 @@ own sentences, choosing the most advanced structures in the message. Leave out
 structures every sentence contains (basic word order, `be`) unless the learner is a
 beginner. Do not list a KC the same message also has a mistake for.
 
-Most messages contain no mistakes; return empty lists when there is nothing to record.
+## Words to learn (`vocab_candidates`)
+
+List English words the learner showed they do not know in the new messages, so they can
+be added to the learner's word list. Each entry names the learner message (`u1`,
+`u2`, ...) and the word.
+
+- Only words the learner asked about: what a word means ("what does 'reluctant'
+  mean?"), how to say something in English (asked in any language, "'犹豫' 用英文怎么说"
+  gives the word the tutor answered with), or a word they said they did not understand.
+- Not words the tutor merely used, words the learner used themselves, or words from
+  text the learner pasted without asking about them.
+- Single words only, in dictionary form ("went" -> "go", "children" -> "child"); no
+  phrases, names or very basic words (the, is, good).
+- At most 5 per message; usually there are none.
+
+Most messages contain no mistakes and no words to learn; return empty lists when there
+is nothing to record.

@@ -22,10 +22,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.activity import service as activity
 from app.activity.service import (
     ActivityStatus,
+    CollectedWord,
     GrammarMistake,
     GrammarTags,
     MemoryChanges,
     SummaryUpdate,
+    WordsCollected,
     timed,
 )
 from app.adaptive import mastery
@@ -41,6 +43,7 @@ from app.memory.reflection import Applied, KnownFact
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
+from app.services.vocab import mine
 
 logger = logging.getLogger(__name__)
 
@@ -219,6 +222,8 @@ class ReflectionWorker:
                 logger.info("reflected on conversation %s: %s", conversation.id, applied)
                 items = await self._record_evidence(conversation, new, result)
         await self._record_reflection_activity(conversation, new, status, applied, items, watch.ms)
+        if result is not None:
+            await self._collect_words(conversation, new, result)
         # Advanced even when the model failed twice: a turn is not worth retrying forever.
         await self._move_cursor(conversation.id, reflected_message_id=new[-1].id)
 
@@ -256,6 +261,55 @@ class ReflectionWorker:
                 conversation.id,
             )
         return items
+
+    async def _collect_words(
+        self,
+        conversation: Conversation,
+        new: Sequence[BaseMessage],
+        result: reflection.Reflection,
+    ) -> None:
+        """Words the learner asked about go on their list (ADR 0011, task 13); shown
+        under the message that asked. Words the dictionary lacks are dropped."""
+        asked = reflection.asked_words(result, reflection.learner_message_ids(new))
+        if not asked:
+            return
+        turns = list(dict.fromkeys(message_id for message_id, _ in asked))
+        status: ActivityStatus = "ok"
+        # Per message: (added, already had a card).
+        by_turn: dict[str, tuple[list[CollectedWord], list[CollectedWord]]] = {}
+        with timed() as watch:
+            try:
+                async with self._sessionmaker() as session:
+                    found = [
+                        (message_id, match.word)
+                        for message_id, text in asked
+                        if (match := await mine.lookup(session, text)) is not None
+                    ]
+                    collected = await mine.collect(
+                        session, conversation.user_id, [word for _, word in found]
+                    )
+            except Exception:
+                logger.exception("collecting words failed for conversation %s", conversation.id)
+                status = "failed"
+            else:
+                added = {c.word.id: c.added for c in collected}
+                for message_id, word in found:
+                    # "went" and "go" are one word: shown once, under the first message.
+                    if (was_added := added.pop(word.id, None)) is None:
+                        continue
+                    lists = by_turn.setdefault(message_id, ([], []))
+                    lists[0 if was_added else 1].append(
+                        CollectedWord(word_id=word.id, word=word.word)
+                    )
+        if status == "ok":
+            steps = [
+                (turn, "vocab_collect", WordsCollected(added=new_words, existing=had))
+                for turn, (new_words, had) in by_turn.items()
+            ]
+        else:
+            steps = [(turn, "vocab_collect", WordsCollected()) for turn in turns]
+        if steps:
+            await self._record_activity(conversation, steps, status, watch.ms)
 
     async def _record_reflection_activity(
         self,

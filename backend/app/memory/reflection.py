@@ -7,6 +7,7 @@ field, and the CEFR level is never taken from here (levels come from assessment)
 """
 
 import logging
+import re
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -42,6 +43,10 @@ MAX_SUMMARY_INPUT_CHARS = 12_000
 MAX_MISTAKES_PER_MESSAGE = 10
 MAX_CORRECT_PER_MESSAGE = 3
 MAX_SPAN_CHARS = 300
+# Words collected for the learner's list per reflection pass (ADR 0011, task 13).
+MAX_WORDS_PER_PASS = 5
+# One English word, maybe hyphenated or with an apostrophe; phrases are not collected.
+_SINGLE_WORD = re.compile(r"[A-Za-z]+(?:['-][A-Za-z]+)*")
 # Word book tags of ADR 0011; anything else from the model is dropped.
 EXAM_TAGS = frozenset({"zk", "gk", "cet4", "cet6", "ky", "toefl", "ielts", "gre"})
 
@@ -97,11 +102,17 @@ class UsedCorrectly(BaseModel):
     kc_id: str = Field(description="Grammar KC id from the catalog")
 
 
+class VocabCandidate(BaseModel):
+    message: str = Field(description="Id of the learner message that asked, e.g. 'u2'")
+    word: str = Field(description="The English word in its dictionary form, e.g. 'go'")
+
+
 class Reflection(BaseModel):
     memory_ops: list[MemoryOp] = Field(default_factory=list)
     profile_updates: ProfileUpdate | None = None
     mistakes: list[TaggedMistake] = Field(default_factory=list)
     used_correctly: list[UsedCorrectly] = Field(default_factory=list)
+    vocab_candidates: list[VocabCandidate] = Field(default_factory=list)
 
 
 class EpisodeSummary(BaseModel):
@@ -352,3 +363,23 @@ def tagged_evidence(
         if message_id is not None:
             items.append(ChatEvidence(message_id=message_id, kc_id=u.kc_id, correct=True))
     return items
+
+
+def asked_words(reflection: Reflection, learner_ids: Mapping[str, str]) -> list[tuple[str, str]]:
+    """(message id, word) for the words worth looking up: single words from known
+    messages, each once, at most MAX_WORDS_PER_PASS."""
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for candidate in reflection.vocab_candidates:
+        message_id = learner_ids.get(candidate.message)
+        word = candidate.word.strip()
+        if message_id is None or not _SINGLE_WORD.fullmatch(word):
+            logger.info("reflection proposed %r from message %r", word, candidate.message)
+            continue
+        if word.casefold() in seen:
+            continue
+        seen.add(word.casefold())
+        found.append((message_id, word))
+        if len(found) >= MAX_WORDS_PER_PASS:
+            break
+    return found

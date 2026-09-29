@@ -16,6 +16,7 @@ from app.chat.service import ConversationNotFoundError, get_owned_conversation
 from app.db.models import Memory
 from app.deps import CurrentUser, SessionDep
 from app.memory.worker import ReflectionWorker
+from app.services.vocab import mine
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,8 @@ class ConversationActivity(BaseModel):
     # Referenced memories that still exist, as they read now; missing ones were deleted.
     memories: dict[uuid.UUID, MemoryRef]
     kcs: dict[str, KCRef]
+    # Collected words still on the learner's word list; the others were removed.
+    words_on_list: list[int]
     # Background work on this conversation is still queued or running.
     pending: bool
 
@@ -73,6 +76,7 @@ async def get_activity(
     rows = await service.list_activities(session, user.id, conversation.id, turn_ids=turn)
     memory_ids: set[uuid.UUID] = set()
     kc_ids: set[str] = set()
+    word_ids: set[int] = set()
     for row in rows:
         try:
             summary = service.parse_summary(row)
@@ -81,6 +85,7 @@ async def get_activity(
             continue
         memory_ids.update(service.memory_refs(summary))
         kc_ids.update(service.kc_refs(summary))
+        word_ids.update(service.word_refs(summary))
     memories: list[Memory] = []
     if memory_ids:
         found = await session.scalars(
@@ -109,5 +114,6 @@ async def get_activity(
             kc_id: KCRef(name_en=kc.name_en, name_zh=kc.name_zh, cefr=kc.cefr)
             for kc_id, kc in kcs.items()
         },
+        words_on_list=sorted(await mine.on_list(session, user.id, sorted(word_ids))),
         pending=worker.enabled and worker.is_busy(conversation.id),
     )

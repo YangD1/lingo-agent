@@ -10,6 +10,7 @@ Memory (ADR 0009): reflection remembers what follows "remember that" in a learne
 message, and "what do you remember" gets back the facts found in the system prompt, so
 tests can check which memories reached the model. Grammar tagging (ADR 0012): "he/she/it
 like" is a third-person -s mistake, "he/she/it likes" a correct use of the same KC.
+Word list (ADR 0011): 'what does "X" mean' makes X a word to learn.
 """
 
 import asyncio
@@ -42,6 +43,7 @@ LEARNER_LINE = re.compile(r"^Learner(?: \[(u\d+)\])?: (.*)$", re.MULTILINE)
 REMEMBER = re.compile(r"remember that (.+?)\.?$", re.IGNORECASE)
 THIRD_PERSON = re.compile(r"\b(?:he|she|it) like(s?)\b", re.IGNORECASE)
 THIRD_PERSON_KC = "g.present_simple_third_person"
+ASKED_WORD = re.compile(r"what does \"?([A-Za-z]+)\"? mean", re.IGNORECASE)
 FACTS_HEADING = "### Things they have told you\n"
 
 
@@ -78,10 +80,13 @@ def reflection(messages: list[dict[str, Any]]) -> dict[str, Any]:
     facts: list[str] = []
     mistakes: list[dict[str, Any]] = []
     used: list[dict[str, str]] = []
+    words: list[dict[str, str]] = []
     for line in LEARNER_LINE.finditer(new):
         message_id, text = line.group(1), line.group(2)
         if remember := REMEMBER.search(text):
             facts.append(remember.group(1).strip())
+        if message_id:
+            words += [{"message": message_id, "word": w} for w in ASKED_WORD.findall(text)]
         if message_id and (third := THIRD_PERSON.search(text)):
             if third.group(1):
                 used.append({"message": message_id, "kc_id": THIRD_PERSON_KC})
@@ -100,6 +105,7 @@ def reflection(messages: list[dict[str, Any]]) -> dict[str, Any]:
         "memory_ops": [{"action": "add", "content": f"{f[0].upper()}{f[1:]}."} for f in facts],
         "mistakes": mistakes,
         "used_correctly": used,
+        "vocab_candidates": words,
     }
 
 

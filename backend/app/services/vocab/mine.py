@@ -7,6 +7,7 @@ choice, task 12): adding the word again starts it from scratch.
 
 import re
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -118,6 +119,58 @@ async def add(
             card.status = "new" if card.state is None else "learning"
     await session.commit()
     return Added(card=card, added=added)
+
+
+@dataclass(frozen=True, slots=True)
+class Collected:
+    word: Word
+    # False when the learner already had a card for it, which is then left alone.
+    added: bool
+
+
+async def collect(
+    session: AsyncSession, user_id: uuid.UUID, words: Sequence[Word]
+) -> list[Collected]:
+    """Words the tutor noticed the learner does not know, added with source `auto`;
+    commits.
+
+    Unlike `add`, a word with a card of any kind is left as it is: the model may be
+    wrong about a word marked known, and removing an auto-added word from the list then
+    undoes exactly what this did (task 13, user's choice).
+    """
+    unique = list({word.id: word for word in words}.values())
+    if not unique:
+        return []
+    inserted = set(
+        await session.scalars(
+            insert(UserCard)
+            .values(
+                [
+                    {"user_id": user_id, "word_id": word.id, "source": "auto", "status": "new"}
+                    for word in unique
+                ]
+            )
+            .on_conflict_do_nothing(index_elements=["user_id", "word_id"])
+            .returning(UserCard.word_id)
+        )
+    )
+    await session.commit()
+    return [Collected(word=word, added=word.id in inserted) for word in unique]
+
+
+async def on_list(session: AsyncSession, user_id: uuid.UUID, word_ids: Sequence[int]) -> set[int]:
+    """Which of these words are on the learner's list now."""
+    if not word_ids:
+        return set()
+    return set(
+        await session.scalars(
+            select(UserCard.word_id).where(
+                UserCard.user_id == user_id,
+                UserCard.word_id.in_(word_ids),
+                UserCard.source.in_(OWN_SOURCES),
+            )
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)
