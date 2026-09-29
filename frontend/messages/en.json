@@ -296,6 +296,27 @@
       "skipped": "Most of them, so the next batch skips ahead to rarer words.",
       "next": "Next batch",
       "back": "Back to vocabulary"
+    },
+    "review": {
+      "progress": "Reviewed {reviewed} · {remaining} to go",
+      "back": "Back to vocabulary",
+      "loading": "Loading…",
+      "done": "Done for now: {reviewed} cards reviewed. Cards you just learned come back later today.",
+      "nothing": "Nothing to review right now.",
+      "reviewsLeft": "{count, plural, one {# review is} other {# reviews are}} also due.",
+      "reviewNow": "Review now",
+      "new": "New word",
+      "mine": "My words",
+      "speak": "Read aloud",
+      "flip": "Show answer",
+      "rateLabel": "How well did you know it?",
+      "ratings": {
+        "1": "Again",
+        "2": "Hard",
+        "3": "Good",
+        "4": "Easy"
+      },
+      "keys": "Space shows the answer · 1–4 rates it"
     }
   },
   "settings": {
