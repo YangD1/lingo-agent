@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     # Allow tenant base_urls on loopback/private networks (e.g. a local Ollama).
     provider_allow_private_networks: bool = False
 
+    # Post-turn memory reflection (ADR 0009 §3): one extra model call per turn on the
+    # tenant's `reflect` route. Off = no new memories, existing ones are still used.
+    memory_reflection_enabled: bool = True
+
     # Observability (ADR 0005). Off by default: traces carry full conversation content.
     otel_tracing_enabled: bool = False
     otel_exporter_otlp_endpoint: str = "http://localhost:6006/v1/traces"

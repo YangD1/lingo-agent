@@ -90,6 +90,10 @@ class Conversation(TimestampMixin, Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    # Post-turn reflection cursors (ADR 0009 §3): ids of the last messages already
+    # reflected on / folded into the conversation summary. NULL: none yet.
+    reflected_message_id: Mapped[str | None] = mapped_column(String(64))
+    summarized_message_id: Mapped[str | None] = mapped_column(String(64))
 
 
 class ProviderConnection(TimestampMixin, Base):

@@ -15,6 +15,7 @@ from app.chat.locks import ConversationLocks
 from app.credentials.crypto import get_keyring
 from app.db.migrate import create_checkpointer_pool
 from app.db.session import create_engine, create_sessionmaker
+from app.memory.worker import ReflectionWorker
 from app.observability import setup_tracing, shutdown_tracing
 from app.providers.llm import get_providers_config
 from app.settings import Settings, get_settings
@@ -48,12 +49,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     await checkpoint_pool.open()
     app.state.chat_graph = build_chat_graph(AsyncPostgresSaver(checkpoint_pool))
+    app.state.reflection_worker = ReflectionWorker(
+        app.state.sessionmaker,
+        app.state.chat_graph,
+        enabled=settings.memory_reflection_enabled,
+    )
+    await app.state.reflection_worker.recover()
     usage_writer = UsageWriter(app.state.sessionmaker)
     usage_writer.start()
     set_usage_sink(usage_writer.submit)
     try:
         yield
     finally:
+        try:
+            async with asyncio.timeout(5):
+                # Cursors live in the database: the next start picks up where this left.
+                await app.state.reflection_worker.stop()
+        except TimeoutError:
+            logger.warning("reflection did not stop within 5s")
         try:
             async with asyncio.timeout(5):
                 await app.state.attachment_processor.stop()

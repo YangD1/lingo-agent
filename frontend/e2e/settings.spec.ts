@@ -61,16 +61,17 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
     "Nice try! You said: I has a cat",
   );
 
-  // Usage: the connection test + the chat reply, recorded asynchronously.
+  // Usage: the connection test, the chat reply and the memory reflection that follows it
+  // (ADR 0009), all recorded asynchronously.
   await page.getByRole("link", { name: "设置" }).click();
   const usage = page.getByRole("table", { name: "用量" });
   await expect(async () => {
     await page.getByRole("button", { name: "刷新" }).click();
     await expect(usage.locator("tbody tr")).toHaveCount(1, { timeout: 1000 });
-    await expect(usage.locator("tbody tr td").nth(2)).toHaveText("2", { timeout: 1000 });
+    await expect(usage.locator("tbody tr td").nth(2)).toHaveText("3", { timeout: 1000 });
   }).toPass({ timeout: 15_000 });
   await expect(usage.locator("tbody tr td").nth(1)).toHaveText("fake:fake-tutor");
-  await expect(usage.locator("tbody tr td").nth(3)).toHaveText("84"); // 42 prompt tokens x 2
+  await expect(usage.locator("tbody tr td").nth(3)).toHaveText("126"); // 42 prompt tokens x 3
 
   // Custom order, all with dropdowns: switch row 1 to the mini model, add a fallback
   // (prefilled with the connection's default model), then move it to the top.

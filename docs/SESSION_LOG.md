@@ -14,7 +14,8 @@
 - **Q11–Q14**：用户确认全部按推荐。
 - **任务 2 完成**：画像表、记忆表、记忆服务层（详见看板完成记录）。
 - **任务 3 完成**：`load_context` 节点，学习者上下文走 `UntrackedValue` 通道，不进 checkpoint（详见看板和 ADR 0009 落地记录）。
-- **下一步**：任务 4，`ReflectionWorker`（仿照 `app/attachments/processor.py`：进程内 task、同一会话串行、全局信号量 2）+ `reflect` 结构化调用（这一步先只做 memory_ops、profile_updates）+ 每 6 轮的会话摘要（`reflect_summary`）+ `conversations.reflected_message_id` 补做；在 `app/chat/turn.py` 的 `done` 之后触发。
+- **任务 4 完成**：后台反思（详见看板完成记录和 ADR 0009 落地记录）。
+- **下一步**：任务 5，记忆/画像接口（`app/api/memory.py`：GET/PATCH 画像、记忆列表、PATCH/DELETE 单条、清空）+ 前端 `/memory` 页面（画像表单、事实列表可编辑删除、会话摘要列表）+ 设置页路由编辑器加入 `reflect`（`frontend/src/components/settings/route-section.tsx` 的 `RouteTask`）+ E2E：聊天 → 记忆出现 → 删除 → 新会话不再使用（假模型需要能返回一条记忆，可以按消息内容决定）。
 - **踩坑**：工具函数别以 `test_` 开头（`test_clip` 被测试模块导入后会被 pytest 当成测试收集），已改名 `silent_clip`。pgvector 的 alembic autogenerate 会写出 `pgvector.sqlalchemy.vector.VECTOR()` 却不加 import，要手动改成 `from pgvector.sqlalchemy import Vector`。LangGraph 状态里有不想持久化的中间值时用 `Annotated[T, UntrackedValue(T)]`；图的 input/output schema 要另设为 `MessagesState`，否则调用方的类型要求带上这个字段。
 
 ---

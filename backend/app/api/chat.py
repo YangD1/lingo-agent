@@ -20,11 +20,13 @@ from app.attachments.service import AttachmentNotFoundError, AttachmentStateErro
 from app.chat import service
 from app.chat.locks import ConversationLocks
 from app.chat.service import ConversationNotFoundError
-from app.chat.turn import begin_turn, new_message_id, stream_reply
+from app.chat.turn import DoneEvent, begin_turn, new_message_id, stream_reply
 from app.db.models import Attachment, Conversation
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
 from app.memory.context import DatabaseLearner
 from app.memory.embedding import memory_embedder
+from app.memory.reflection import LOCALE_COOKIE, memory_language
+from app.memory.worker import ReflectionWorker
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.providers.llm import get_chat_models
@@ -68,9 +70,15 @@ async def list_conversations(user: CurrentUser, session: SessionDep) -> list[Con
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_conversation(
-    user: CurrentUser, tenant: CurrentTenant, session: SessionDep
+    request: Request, user: CurrentUser, tenant: CurrentTenant, session: SessionDep
 ) -> ConversationOut:
     conversation = await service.create_conversation(session, tenant.id, user.id)
+    # Starting afresh is when the conversation the learner left gets its summary.
+    await _reflection(request).finish_previous(
+        user.id,
+        except_conversation_id=conversation.id,
+        language=memory_language(request.cookies.get(LOCALE_COOKIE)),
+    )
     return ConversationOut.model_validate(conversation)
 
 
@@ -233,3 +241,14 @@ async def send_message(
     ):
         data = dataclasses.asdict(event)
         yield ServerSentEvent(event=data.pop("event"), data=data)
+        if isinstance(event, DoneEvent):
+            # After the reply is out, never before: memory work must not delay it.
+            _reflection(request).schedule(
+                turn.conversation_id,
+                language=memory_language(request.cookies.get(LOCALE_COOKIE)),
+            )
+
+
+def _reflection(request: Request) -> ReflectionWorker:
+    worker: ReflectionWorker = request.app.state.reflection_worker
+    return worker

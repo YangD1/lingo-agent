@@ -38,6 +38,7 @@ from app.db.migrate import alembic_config, setup_checkpointer  # noqa: E402
 from app.db.session import create_engine, create_sessionmaker  # noqa: E402
 from app.db.urls import to_psycopg_conninfo  # noqa: E402
 from app.main import create_app  # noqa: E402
+from app.memory.worker import ReflectionWorker  # noqa: E402
 from app.providers import net_guard  # noqa: E402
 
 BUSINESS_TABLES = (
@@ -137,7 +138,13 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         to_psycopg_conninfo(TEST_DATABASE_URL)
     ) as checkpointer:
         app.state.chat_graph = build_chat_graph(checkpointer)
+        # Off by default: most tests' fake models can't do structured output, and would
+        # add llm_usage rows. Reflection tests switch it on (`enabled = True`).
+        app.state.reflection_worker = ReflectionWorker(
+            app.state.sessionmaker, app.state.chat_graph, enabled=False
+        )
         yield app
+        await app.state.reflection_worker.stop()
         await app.state.attachment_processor.stop()
 
 

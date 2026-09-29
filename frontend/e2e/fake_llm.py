@@ -43,10 +43,21 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
     return f"Nice try! {seen}You said: {last}"
 
 
+# Structured outputs other than image reading, by schema (function) name.
+TOOL_ARGUMENTS: dict[str, dict[str, Any]] = {
+    # Post-turn memory reflection (ADR 0009): nothing worth remembering.
+    "Reflection": {"memory_ops": []},
+    "EpisodeSummary": {"summary": "The learner practised small talk."},
+}
+
+
 def tool_reply(model: str, tools: list[dict[str, Any]]) -> JSONResponse:
-    """Structured output via function calling: always the same image reading."""
+    """Structured output via function calling: canned arguments for the schema asked for,
+    otherwise the same image reading."""
     name = tools[0]["function"]["name"]
-    arguments = {"text_in_image": IMAGE_TEXT, "description": IMAGE_DESCRIPTION}
+    arguments = TOOL_ARGUMENTS.get(
+        name, {"text_in_image": IMAGE_TEXT, "description": IMAGE_DESCRIPTION}
+    )
     return JSONResponse(
         {
             "id": "chatcmpl-fake",
