@@ -11,7 +11,7 @@ from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.db.models import UserCard, Word
 from app.deps import CurrentUser, SessionDep
-from app.services.vocab import mine, progress, screening
+from app.services.vocab import mine, placement_known, progress, screening
 from app.services.vocab.mine import MatchKind
 from app.services.vocab.queue import QueueItem, daily_queue, today_counts
 from app.services.vocab.scheduler import Rating, WordNotFoundError, learner_zone, review
@@ -101,6 +101,22 @@ class ScreenResultOut(BaseModel):
     known: int
     shown: int
     skipped_ahead: bool
+
+
+class PlacementKnownOut(BaseModel):
+    # Why there is nothing to offer: no finished placement test, an unreliable
+    # vocabulary result, or no word book chosen. None when `count` words can be marked.
+    unavailable: Literal["no_placement", "unreliable", "no_book"] | None
+    book_id: str | None
+    # The book's words ranked this common or more, not met yet, are offered.
+    up_to_rank: int | None
+    count: int
+    # Words marked known this way so far (what undo takes back).
+    marked: int
+
+
+class CountOut(BaseModel):
+    count: int
 
 
 class MinePage(BaseModel):
@@ -258,6 +274,31 @@ async def post_screen(body: ScreenIn, user: CurrentUser, session: SessionDep) ->
     return ScreenResultOut(
         known=result.known, shown=result.shown, skipped_ahead=result.skipped_ahead
     )
+
+
+@router.get("/placement-known")
+async def get_placement_known(user: CurrentUser, session: SessionDep) -> PlacementKnownOut:
+    """What the last placement test suggests marking known in the current book."""
+    offer = await placement_known.suggestion(session, user.id, rules=get_rules())
+    return PlacementKnownOut(
+        unavailable=offer.unavailable,
+        book_id=offer.book_id,
+        up_to_rank=offer.up_to_rank,
+        count=offer.count,
+        marked=offer.marked,
+    )
+
+
+@router.post("/placement-known")
+async def post_placement_known(user: CurrentUser, session: SessionDep) -> CountOut:
+    """Mark the suggested words known (the learner confirmed); returns how many."""
+    return CountOut(count=await placement_known.mark_known(session, user.id, rules=get_rules()))
+
+
+@router.delete("/placement-known")
+async def delete_placement_known(user: CurrentUser, session: SessionDep) -> CountOut:
+    """Take back every word marked known from placement; returns how many."""
+    return CountOut(count=await placement_known.undo(session, user.id))
 
 
 @router.get("/words")
