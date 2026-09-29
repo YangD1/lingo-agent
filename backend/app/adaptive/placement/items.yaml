@@ -1,0 +1,1908 @@
+# Placement grammar item bank (ADR 0010 §4, ADR 0012 §3, P1 plan §6.1).
+#
+# Four-option gap-fill items, one grammar KC each. Drafted by a model and reviewed
+# item by item against the standard at the end of this header before commit.
+#
+# Ids are permanent (p.<kc name>.<n>): answer statistics hang off them. Fix a typo
+# freely, but an item whose meaning changes gets a new id.
+#
+# Difficulty is not written here. Each item rates the four rubric dimensions in
+# rules.yaml (difficulty.dimensions) with a reason; the loader computes
+# difficulty = cefr_anchor[KC level] + sum of offsets. Options are shuffled at run time.
+#
+# Review standard: exactly one option is correct in any reasonable reading, the
+# distractors are wrong in standard English (not merely less natural), the item
+# tests the KC it names and nothing harder, and it needs no cultural knowledge.
+
+format: choice4
+items:
+- id: p.be_present.1
+  kc: g.be_present
+  stem: My parents ___ both teachers.
+  answer: are
+  distractors:
+  - is
+  - am
+  - be
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: Plural subject 'my parents' points to are.
+    distractors:
+      level: one_plausible
+      reason: Only 'is' tempts; am and be are clearly wrong.
+- id: p.object_pronouns.1
+  kc: g.object_pronouns
+  stem: Where is Tom? I need to talk to ___.
+  answer: him
+  distractors:
+  - he
+  - his
+  - himself
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: moderate
+      reason: Two short sentences.
+    cues:
+      level: partial
+      reason: The preposition 'to' needs an object form.
+    distractors:
+      level: one_plausible
+      reason: '''he'' is the usual subject/object confusion.'
+- id: p.possessive_adjectives_pronouns.1
+  kc: g.possessive_adjectives_pronouns
+  stem: This isn't my phone. Mine is black. Is it ___?
+  answer: yours
+  distractors:
+  - your
+  - you
+  - you're
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: moderate
+      reason: Three short sentences.
+    cues:
+      level: partial
+      reason: '''Mine'' models the form, but nothing follows the gap.'
+    distractors:
+      level: one_plausible
+      reason: '''your'' is tempting; the other two are clearly wrong.'
+- id: p.plural_nouns.1
+  kc: g.plural_nouns
+  stem: There are three ___ in the picture.
+  answer: children
+  distractors:
+  - childs
+  - child
+  - childrens
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: '''three'' signals a plural.'
+    distractors:
+      level: several_plausible
+      reason: '''childs'' and ''childrens'' are both common over-regularisations.'
+- id: p.articles_basic.1
+  kc: g.articles_basic
+  stem: Is there ___ apple in the fridge?
+  answer: an
+  distractors:
+  - a
+  - the
+  - much
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short question.
+    cues:
+      level: partial
+      reason: '''There is'' and a countable noun call for a/an; the vowel sound decides.'
+    distractors:
+      level: one_plausible
+      reason: '''a'' is the tempting option.'
+- id: p.demonstratives.1
+  kc: g.demonstratives
+  stem: Look at ___ birds over there!
+  answer: those
+  distractors:
+  - that
+  - this
+  - these
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: '''birds'' (plural) and ''over there'' (far) both point to those.'
+    distractors:
+      level: one_plausible
+      reason: '''these'' tempts learners who ignore distance.'
+- id: p.there_is_are.1
+  kc: g.there_is_are
+  stem: ___ two cats in the garden.
+  answer: There are
+  distractors:
+  - There is
+  - It has
+  - Have
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: '''two cats'' signals the plural.'
+    distractors:
+      level: several_plausible
+      reason: '''It has'' / ''Have'' mirror the L1 existential (有); ''There is'' ignores number.'
+- id: p.present_simple_third_person.1
+  kc: g.present_simple_third_person
+  stem: My brother ___ in a bank.
+  answer: works
+  distractors:
+  - work
+  - working
+  - is work
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: partial
+      reason: Third-person subject, but nothing marks habit or time.
+    distractors:
+      level: several_plausible
+      reason: All three are frequent learner errors.
+- id: p.present_simple_questions_negatives.1
+  kc: g.present_simple_questions_negatives
+  stem: ___ your sister like coffee?
+  answer: Does
+  distractors:
+  - Do
+  - Is
+  - Has
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short question.
+    cues:
+      level: partial
+      reason: A third-person subject, but the learner must build the question.
+    distractors:
+      level: one_plausible
+      reason: '''Do'' is tempting; ''Is'' and ''Has'' less so.'
+- id: p.present_continuous.1
+  kc: g.present_continuous
+  stem: Be quiet, please. The baby ___.
+  answer: is sleeping
+  distractors:
+  - sleeps
+  - sleeping
+  - are sleeping
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: moderate
+      reason: Two short sentences.
+    cues:
+      level: partial
+      reason: '''Be quiet'' implies now, but must be interpreted.'
+    distractors:
+      level: several_plausible
+      reason: '''sleeps'' (tense) and ''sleeping'' (missing be) are both common.'
+- id: p.modal_forms.1
+  kc: g.modal_forms
+  stem: She can ___ three languages.
+  answer: speak
+  distractors:
+  - speaks
+  - to speak
+  - speaking
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: '''can'' directly precedes the gap.'
+    distractors:
+      level: several_plausible
+      reason: All three are typical modal-form errors.
+- id: p.question_formation.1
+  kc: g.question_formation
+  stem: Where ___ you live?
+  answer: do
+  distractors:
+  - are
+  - does
+  - is
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short question.
+    cues:
+      level: partial
+      reason: A main verb 'live' needs do-support; not signalled.
+    distractors:
+      level: several_plausible
+      reason: '''are'' (Where are you live?) is a very common L1 error; ''does'' ignores the subject.'
+- id: p.prepositions_time.1
+  kc: g.prepositions_time
+  stem: The shop closes ___ 6 o'clock on Saturdays.
+  answer: at
+  distractors:
+  - in
+  - 'on'
+  - to
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: A clock time points straight to at.
+    distractors:
+      level: one_plausible
+      reason: '''on'' is tempting because ''on Saturdays'' follows.'
+- id: p.adverbs_of_frequency.1
+  kc: g.adverbs_of_frequency
+  stem: My father ___ coffee in the morning.
+  answer: always drinks
+  distractors:
+  - drinks always
+  - always drink
+  - is always drink
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: Everyday A1 words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: none
+      reason: Only knowledge of adverb position gives the answer.
+    distractors:
+      level: several_plausible
+      reason: '''drinks always'' is a common transfer error; the other two mix in form errors.'
+- id: p.past_simple_be.1
+  kc: g.past_simple_be
+  stem: We ___ at home last night because it was raining.
+  answer: were
+  distractors:
+  - was
+  - are
+  - did
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: '''last night'' and ''We'' point straight to were.'
+    distractors:
+      level: one_plausible
+      reason: '''was'' tempts learners who ignore the plural subject.'
+- id: p.past_simple_irregular.1
+  kc: g.past_simple_irregular
+  stem: I ___ my keys at the office yesterday.
+  answer: left
+  distractors:
+  - leaved
+  - leave
+  - have left
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: '''yesterday'' signals the past.'
+    distractors:
+      level: several_plausible
+      reason: '''leaved'' (over-regular) and ''have left'' (perfect with a finished time) both tempt.'
+- id: p.past_simple_questions_negatives.1
+  kc: g.past_simple_questions_negatives
+  stem: She ___ to the party last Saturday because she was ill.
+  answer: didn't go
+  distractors:
+  - didn't went
+  - wasn't go
+  - not went
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: '''last Saturday'' signals past time.'
+    distractors:
+      level: several_plausible
+      reason: '''didn''t went'' (double past) is the classic error; the others mix be and did.'
+- id: p.past_continuous.1
+  kc: g.past_continuous
+  stem: When I got to the station, my friends ___ for me on the platform.
+  answer: were waiting
+  distractors:
+  - waited
+  - are waiting
+  - have waited
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''When I got to the station'' implies an activity already in progress.'
+    distractors:
+      level: one_plausible
+      reason: '''waited'' is tempting; the other two are clearly wrong in a past frame.'
+- id: p.present_simple_vs_continuous.1
+  kc: g.present_simple_vs_continuous
+  stem: Tom usually ___ to work, but today he is taking the bus.
+  answer: walks
+  distractors:
+  - is walking
+  - walk
+  - walking
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: '''usually'' marks a habit.'
+    distractors:
+      level: one_plausible
+      reason: '''is walking'' tempts because the second clause is continuous.'
+- id: p.going_to_future.1
+  kc: g.going_to_future
+  stem: Look at those dark clouds! It ___ rain.
+  answer: is going to
+  distractors:
+  - will to
+  - goes to
+  - is going
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two short sentences.
+    cues:
+      level: explicit
+      reason: Visible evidence (dark clouds) signals going to.
+    distractors:
+      level: one_plausible
+      reason: '''is going'' (missing to) is tempting; the others are clearly wrong.'
+- id: p.will_future.1
+  kc: g.will_future
+  stem: The phone's ringing. — Don't worry, I ___ it.
+  answer: will answer
+  distractors:
+  - answer
+  - answered
+  - would answer
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A two-line exchange.
+    cues:
+      level: partial
+      reason: An offer made while speaking; must be interpreted.
+    distractors:
+      level: one_plausible
+      reason: '''answer'' (present for an instant decision) is the tempting transfer error.'
+- id: p.past_participle_forms.1
+  kc: g.past_participle_forms
+  stem: Have you ever ___ a horse?
+  answer: ridden
+  distractors:
+  - rode
+  - ride
+  - riding
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: '''ride a horse'' is an A2-level phrase.'
+    syntax:
+      level: simple
+      reason: One short question.
+    cues:
+      level: partial
+      reason: '''Have'' signals a participle but the form must be known.'
+    distractors:
+      level: several_plausible
+      reason: '''rode'' (past simple) and ''ride'' are both common.'
+- id: p.countable_uncountable.1
+  kc: g.countable_uncountable
+  stem: Can you give me ___ about the course?
+  answer: some information
+  distractors:
+  - an information
+  - some informations
+  - a information
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short question.
+    cues:
+      level: none
+      reason: Nothing in the sentence signals countability.
+    distractors:
+      level: several_plausible
+      reason: All three reflect treating information as countable, a common transfer error.
+- id: p.quantifiers_basic.1
+  kc: g.quantifiers_basic
+  stem: There isn't ___ milk left in the fridge.
+  answer: much
+  distractors:
+  - many
+  - a few
+  - few
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: partial
+      reason: A negative and an uncountable noun, both to be noticed.
+    distractors:
+      level: one_plausible
+      reason: '''many'' tempts; ''a few''/''few'' are weaker.'
+- id: p.comparatives.1
+  kc: g.comparatives
+  stem: My new flat is ___ than my old one.
+  answer: bigger
+  distractors:
+  - more big
+  - biggest
+  - more bigger
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: '''than'' points straight to a comparative.'
+    distractors:
+      level: several_plausible
+      reason: '''more big'' and ''more bigger'' are both frequent errors.'
+- id: p.superlatives.1
+  kc: g.superlatives
+  stem: This is ___ restaurant in town.
+  answer: the best
+  distractors:
+  - the better
+  - the most good
+  - best
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: partial
+      reason: '''in town'' implies a superlative, but must be interpreted.'
+    distractors:
+      level: several_plausible
+      reason: '''the most good'' (regularised) and ''best'' (no article) both tempt.'
+- id: p.adverbs_of_manner.1
+  kc: g.adverbs_of_manner
+  stem: She speaks English very ___.
+  answer: well
+  distractors:
+  - good
+  - goodly
+  - best
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: partial
+      reason: '''speaks'' needs an adverb; not signalled.'
+    distractors:
+      level: one_plausible
+      reason: '''good'' is the common adjective-for-adverb error.'
+- id: p.modals_obligation.1
+  kc: g.modals_obligation
+  stem: You ___ smoke here. It's a hospital.
+  answer: mustn't
+  distractors:
+  - don't have to
+  - needn't
+  - haven't to
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two short sentences.
+    cues:
+      level: partial
+      reason: '''It''s a hospital'' implies a prohibition.'
+    distractors:
+      level: several_plausible
+      reason: '''don''t have to'' and ''needn''t'' are the classic confusion with no obligation.'
+- id: p.verb_patterns_basic.1
+  kc: g.verb_patterns_basic
+  stem: I want ___ a new language this year.
+  answer: to learn
+  distractors:
+  - learn
+  - learning
+  - learned
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: none
+      reason: Only knowing the pattern after 'want' gives the answer.
+    distractors:
+      level: one_plausible
+      reason: '''learn'' tempts; the others are less likely.'
+- id: p.infinitive_of_purpose.1
+  kc: g.infinitive_of_purpose
+  stem: I went to the shop ___ some bread.
+  answer: to buy
+  distractors:
+  - for buy
+  - for buying
+  - buy
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: none
+      reason: Nothing in the sentence signals the form.
+    distractors:
+      level: several_plausible
+      reason: '''for buy'' / ''for buying'' mirror the L1 (为了); ''buy'' drops to.'
+- id: p.too_enough.1
+  kc: g.too_enough
+  stem: This coffee is ___ hot to drink. I'll wait a minute.
+  answer: too
+  distractors:
+  - very
+  - enough
+  - so
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two short sentences.
+    cues:
+      level: partial
+      reason: '''to drink'' and ''I''ll wait'' imply excess.'
+    distractors:
+      level: several_plausible
+      reason: '''very'' and ''so'' are both common confusions with too.'
+- id: p.conjunctions_because_so.1
+  kc: g.conjunctions_because_so
+  stem: It was raining, ___ we stayed at home.
+  answer: so
+  distractors:
+  - because
+  - because of
+  - for
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: The second clause is a result, to be inferred.
+    distractors:
+      level: one_plausible
+      reason: '''because'' is tempting; the others are weaker.'
+- id: p.present_perfect_vs_past_simple.1
+  kc: g.present_perfect_vs_past_simple
+  stem: I ___ him last week at a conference.
+  answer: met
+  distractors:
+  - have met
+  - meet
+  - have been meeting
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: '''last week'' marks a finished time.'
+    distractors:
+      level: one_plausible
+      reason: '''have met'' is the classic error with a finished time.'
+- id: p.present_perfect_for_since.1
+  kc: g.present_perfect_for_since
+  stem: We have lived in this city ___ 2015.
+  answer: since
+  distractors:
+  - for
+  - from
+  - in
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: A year after a present perfect points to since.
+    distractors:
+      level: several_plausible
+      reason: '''for'' and ''from'' are both common errors.'
+- id: p.present_perfect_continuous.1
+  kc: g.present_perfect_continuous
+  stem: How long ___ for the bus? — About twenty minutes.
+  answer: have you been waiting
+  distractors:
+  - are you waiting
+  - do you wait
+  - you have been waiting
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A two-line exchange.
+    cues:
+      level: partial
+      reason: '''How long'' plus an ongoing activity, to be interpreted.'
+    distractors:
+      level: several_plausible
+      reason: '''are you waiting'' is the common L1 transfer; the others are form errors.'
+- id: p.present_perfect_just_already_yet.1
+  kc: g.present_perfect_just_already_yet
+  stem: I haven't finished my report ___.
+  answer: yet
+  distractors:
+  - already
+  - just
+  - ever
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: partial
+      reason: A negative with the gap at the end; needs the rule.
+    distractors:
+      level: one_plausible
+      reason: '''already'' tempts; ''just'' and ''ever'' are weaker.'
+- id: p.past_perfect.1
+  kc: g.past_perfect
+  stem: When we arrived at the cinema, the film ___, so we missed the beginning.
+  answer: had already started
+  distractors:
+  - has already started
+  - already starts
+  - was already start
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: complex
+      reason: Three clauses.
+    cues:
+      level: partial
+      reason: '''missed the beginning'' implies an earlier past event.'
+    distractors:
+      level: one_plausible
+      reason: '''has already started'' tempts; the others are clearly wrong.'
+- id: p.used_to.1
+  kc: g.used_to
+  stem: I ___ play football every weekend when I was a child.
+  answer: used to
+  distractors:
+  - use to
+  - was used to
+  - am used to
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: '''when I was a child'' signals a past habit.'
+    distractors:
+      level: several_plausible
+      reason: '''use to'' and ''was used to'' are both common confusions.'
+- id: p.stative_verbs.1
+  kc: g.stative_verbs
+  stem: I ___ what you mean.
+  answer: understand
+  distractors:
+  - am understanding
+  - understanding
+  - am understand
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: none
+      reason: Nothing signals the tense; the stative rule decides.
+    distractors:
+      level: one_plausible
+      reason: '''am understanding'' tempts; the others are clearly wrong.'
+- id: p.future_time_clauses.1
+  kc: g.future_time_clauses
+  stem: I'll send you a message as soon as I ___ at the airport.
+  answer: arrive
+  distractors:
+  - will arrive
+  - would arrive
+  - arrived
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: A future main clause, but the rule for the time clause must be known.
+    distractors:
+      level: several_plausible
+      reason: '''will arrive'' is the classic error; ''arrived'' also tempts.'
+- id: p.first_conditional.1
+  kc: g.first_conditional
+  stem: If it ___ tomorrow, we'll stay at home.
+  answer: rains
+  distractors:
+  - will rain
+  - rained
+  - would rain
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: '''we''ll'' in the main clause signals a first conditional.'
+    distractors:
+      level: one_plausible
+      reason: '''will rain'' is the tempting error.'
+- id: p.second_conditional.1
+  kc: g.second_conditional
+  stem: If I ___ more money, I would buy a bigger house.
+  answer: had
+  distractors:
+  - have
+  - would have
+  - will have
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: '''would buy'' signals a second conditional.'
+    distractors:
+      level: several_plausible
+      reason: '''have'' and ''would have'' are both common.'
+- id: p.passive_basic.1
+  kc: g.passive_basic
+  stem: This bridge ___ in 1890.
+  answer: was built
+  distractors:
+  - built
+  - was build
+  - is building
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: explicit
+      reason: A date and an object as subject point to the past passive.
+    distractors:
+      level: one_plausible
+      reason: '''built'' (active form) tempts.'
+- id: p.defining_relative_clauses.1
+  kc: g.defining_relative_clauses
+  stem: The woman ___ lives next door is a doctor.
+  answer: who
+  distractors:
+  - which
+  - whose
+  - what
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A main clause with an embedded relative clause.
+    cues:
+      level: explicit
+      reason: '''The woman'' signals a person.'
+    distractors:
+      level: one_plausible
+      reason: '''which'' for a person is the tempting error.'
+- id: p.reported_statements.1
+  kc: g.reported_statements
+  stem: He ___ me that he would be late.
+  answer: told
+  distractors:
+  - said
+  - spoke
+  - talked
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: The object 'me' decides; it must be noticed.
+    distractors:
+      level: several_plausible
+      reason: '''said'' is the classic say/tell confusion.'
+- id: p.indirect_questions.1
+  kc: g.indirect_questions
+  stem: Could you tell me where ___?
+  answer: the station is
+  distractors:
+  - is the station
+  - the station
+  - does the station
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A question with an embedded clause.
+    cues:
+      level: partial
+      reason: '''Could you tell me'' needs statement order.'
+    distractors:
+      level: one_plausible
+      reason: '''is the station'' (direct-question order) is the tempting error.'
+- id: p.modals_possibility.1
+  kc: g.modals_possibility
+  stem: He's been working for fourteen hours. He ___ be tired.
+  answer: must
+  distractors:
+  - can't
+  - mustn't
+  - needn't
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two sentences.
+    cues:
+      level: partial
+      reason: Fourteen hours of work implies a confident deduction.
+    distractors:
+      level: several_plausible
+      reason: '''mustn''t'' confuses deduction with prohibition; ''can''t'' reverses it.'
+- id: p.gerund_infinitive.1
+  kc: g.gerund_infinitive
+  stem: She suggested ___ to the beach.
+  answer: going
+  distractors:
+  - to go
+  - go
+  - us to go
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: none
+      reason: Only the pattern after suggest gives the answer.
+    distractors:
+      level: several_plausible
+      reason: '''to go'' and ''us to go'' are both very common errors.'
+- id: p.verb_object_patterns.1
+  kc: g.verb_object_patterns
+  stem: My parents didn't let me ___ out late.
+  answer: stay
+  distractors:
+  - to stay
+  - staying
+  - stayed
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: none
+      reason: Only the let + object pattern gives the answer.
+    distractors:
+      level: several_plausible
+      reason: '''to stay'' is common; the others less so but still tempting.'
+- id: p.gerund_after_prepositions.1
+  kc: g.gerund_after_prepositions
+  stem: I'm looking forward to ___ you next week.
+  answer: seeing
+  distractors:
+  - see
+  - saw
+  - be seen
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: none
+      reason: The 'to' looks like an infinitive marker; only the rule decides.
+    distractors:
+      level: one_plausible
+      reason: '''see'' is the classic error.'
+- id: p.dependent_prepositions.1
+  kc: g.dependent_prepositions
+  stem: She's very good ___ maths.
+  answer: at
+  distractors:
+  - in
+  - 'on'
+  - for
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: none
+      reason: Only knowing the collocation gives the answer.
+    distractors:
+      level: several_plausible
+      reason: '''in'' is a common transfer; ''for'' also tempts.'
+- id: p.adjectives_ed_ing.1
+  kc: g.adjectives_ed_ing
+  stem: The film was so ___ that I fell asleep.
+  answer: boring
+  distractors:
+  - bored
+  - bore
+  - boredom
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''The film'' causes the feeling; must be interpreted.'
+    distractors:
+      level: one_plausible
+      reason: '''bored'' is the tempting error.'
+- id: p.so_such.1
+  kc: g.so_such
+  stem: It was ___ a nice day that we went to the beach.
+  answer: such
+  distractors:
+  - so
+  - very
+  - too
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''a nice day'' (a + adjective + noun) and ''that'' signal such.'
+    distractors:
+      level: one_plausible
+      reason: '''so'' tempts; the others are weaker.'
+- id: p.linkers_contrast.1
+  kc: g.linkers_contrast
+  stem: ___ the rain, we enjoyed the trip.
+  answer: Despite
+  distractors:
+  - Although
+  - However
+  - Even
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A phrase and a clause.
+    cues:
+      level: partial
+      reason: A noun follows the gap; the learner must notice it.
+    distractors:
+      level: several_plausible
+      reason: '''Although'' and ''However'' are both tempting.'
+- id: p.subject_verb_agreement.1
+  kc: g.subject_verb_agreement
+  stem: Everyone in my class ___ English.
+  answer: speaks
+  distractors:
+  - speak
+  - are speaking
+  - speaking
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One clause with a longer subject.
+    cues:
+      level: partial
+      reason: '''Everyone'' is singular but looks plural.'
+    distractors:
+      level: several_plausible
+      reason: '''speak'' and ''are speaking'' both follow the plural meaning.'
+- id: p.question_tags.1
+  kc: g.question_tags
+  stem: You're coming to the party, ___?
+  answer: aren't you
+  distractors:
+  - isn't it
+  - don't you
+  - won't you
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause with a tag.
+    cues:
+      level: partial
+      reason: The auxiliary 'are' must be noticed.
+    distractors:
+      level: one_plausible
+      reason: '''isn''t it'' is the common all-purpose tag error.'
+- id: p.third_conditional.1
+  kc: g.third_conditional
+  stem: If we ___ earlier, we wouldn't have missed the train.
+  answer: had left
+  distractors:
+  - left
+  - would have left
+  - have left
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: '''wouldn''t have missed'' signals a third conditional.'
+    distractors:
+      level: several_plausible
+      reason: '''left'' and ''would have left'' both tempt.'
+- id: p.wish_unreal_past.1
+  kc: g.wish_unreal_past
+  stem: I wish I ___ how to swim. I've never learned.
+  answer: knew
+  distractors:
+  - know
+  - will know
+  - am knowing
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two sentences.
+    cues:
+      level: partial
+      reason: '''wish'' with a present situation; the rule decides.'
+    distractors:
+      level: one_plausible
+      reason: '''know'' is the tempting error.'
+- id: p.unless_and_alternatives.1
+  kc: g.unless_and_alternatives
+  stem: You won't pass the exam ___ you study harder.
+  answer: unless
+  distractors:
+  - if
+  - provided that
+  - in case
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: The negative main clause implies a negative condition.
+    distractors:
+      level: several_plausible
+      reason: All three are grammatical conjunctions that give the wrong meaning.
+- id: p.passive_advanced.1
+  kc: g.passive_advanced
+  stem: The road is closed because it ___ repaired.
+  answer: is being
+  distractors:
+  - is been
+  - being
+  - has being
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''is closed'' implies an action in progress now.'
+    distractors:
+      level: several_plausible
+      reason: All three are form errors learners make with continuous passives.
+- id: p.causative_have_get.1
+  kc: g.causative_have_get
+  stem: I'm going to ___ my hair cut tomorrow.
+  answer: have
+  distractors:
+  - make
+  - do
+  - let
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: partial
+      reason: '''my hair cut'' implies a service, must be interpreted.'
+    distractors:
+      level: several_plausible
+      reason: '''make'' and ''do'' are common transfer errors.'
+- id: p.non_defining_relative_clauses.1
+  kc: g.non_defining_relative_clauses
+  stem: My brother, ___ lives in Canada, is visiting us next month.
+  answer: who
+  distractors:
+  - that
+  - which
+  - whom
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A main clause with an embedded relative clause.
+    cues:
+      level: explicit
+      reason: The commas and a person point to who.
+    distractors:
+      level: several_plausible
+      reason: '''that'' after a comma is the classic error; ''whom'' also tempts.'
+- id: p.reported_questions_commands.1
+  kc: g.reported_questions_commands
+  stem: She asked me ___ I had finished the report.
+  answer: whether
+  distractors:
+  - that
+  - what
+  - did
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''asked'' reports a yes/no question; must be recognised.'
+    distractors:
+      level: one_plausible
+      reason: '''that'' tempts; the others are weaker.'
+- id: p.reporting_verbs.1
+  kc: g.reporting_verbs
+  stem: He denied ___ the money.
+  answer: taking
+  distractors:
+  - to take
+  - that take
+  - take
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One short clause.
+    cues:
+      level: none
+      reason: Only the pattern after deny gives the answer.
+    distractors:
+      level: one_plausible
+      reason: '''to take'' is the tempting error.'
+- id: p.modal_perfect.1
+  kc: g.modal_perfect
+  stem: The lights are off. They ___ gone to bed already.
+  answer: must have
+  distractors:
+  - can't have
+  - must
+  - should
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two sentences.
+    cues:
+      level: partial
+      reason: The lights being off supports a confident deduction.
+    distractors:
+      level: several_plausible
+      reason: '''can''t have'' reverses the deduction; ''must'' drops have.'
+- id: p.past_perfect_continuous.1
+  kc: g.past_perfect_continuous
+  stem: She was exhausted because she ___ for hours.
+  answer: had been running
+  distractors:
+  - has been running
+  - was run
+  - had been run
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''was exhausted'' sets a past reference point.'
+    distractors:
+      level: one_plausible
+      reason: '''has been running'' tempts; the others are form errors.'
+- id: p.future_continuous_perfect.1
+  kc: g.future_continuous_perfect
+  stem: By the time you get home, I ___ dinner.
+  answer: will have cooked
+  distractors:
+  - will cook
+  - cook
+  - am cooking
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''By the time'' signals completion before a future point.'
+    distractors:
+      level: several_plausible
+      reason: '''will cook'' and ''am cooking'' both tempt.'
+- id: p.be_get_used_to.1
+  kc: g.be_get_used_to
+  stem: I've lived in London for years, so I'm used to ___ on the left.
+  answer: driving
+  distractors:
+  - drive
+  - drove
+  - be driving
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''I''m used to'' needs the -ing form; the context helps.'
+    distractors:
+      level: several_plausible
+      reason: '''drive'' is the classic confusion with used to + verb.'
+- id: p.purpose_clauses.1
+  kc: g.purpose_clauses
+  stem: She spoke quietly in order ___ the baby.
+  answer: not to wake
+  distractors:
+  - to not waking
+  - for not waking
+  - not waking
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''in order'' points to the infinitive; the negative is to be worked out.'
+    distractors:
+      level: several_plausible
+      reason: All three are common errors in negative purpose.
+- id: p.comparatives_advanced.1
+  kc: g.comparatives_advanced
+  stem: The more you practise, ___ you will become.
+  answer: the better
+  distractors:
+  - the best
+  - better
+  - more better
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: '''The more'' at the start signals the double comparative.'
+    distractors:
+      level: several_plausible
+      reason: '''better'' (no the) and ''more better'' both tempt.'
+- id: p.either_neither.1
+  kc: g.either_neither
+  stem: Neither my brother nor my sister ___ coffee.
+  answer: drinks
+  distractors:
+  - don't drink
+  - doesn't drink
+  - drinking
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: One clause with a compound subject.
+    cues:
+      level: none
+      reason: Nothing but the rule rules out a double negative.
+    distractors:
+      level: several_plausible
+      reason: '''doesn''t drink'' (double negative) is a common transfer error.'
+- id: p.would_rather_had_better.1
+  kc: g.would_rather_had_better
+  stem: You'd better ___ now or you'll miss the bus.
+  answer: leave
+  distractors:
+  - to leave
+  - leaving
+  - left
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: none
+      reason: Only the pattern after had better gives the answer.
+    distractors:
+      level: several_plausible
+      reason: '''to leave'' and ''left'' (from ''had'') both tempt.'
+- id: p.mixed_conditionals.1
+  kc: g.mixed_conditionals
+  stem: If I had taken that job in Paris, I ___ in France now.
+  answer: would be living
+  distractors:
+  - would have lived
+  - will live
+  - had lived
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: '''now'' marks a present result of a past condition.'
+    distractors:
+      level: several_plausible
+      reason: '''would have lived'' (a regular third conditional) is the tempting error.'
+- id: p.inverted_conditionals.1
+  kc: g.inverted_conditionals
+  stem: ___ I known about the problem, I would have helped.
+  answer: Had
+  distractors:
+  - If
+  - Have
+  - Did
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: '''known'' and ''would have helped'' imply had; the inversion must be recognised.'
+    distractors:
+      level: one_plausible
+      reason: '''If'' tempts; the others are clearly wrong.'
+- id: p.negative_inversion.1
+  kc: g.negative_inversion
+  stem: Not only ___ late, but he also forgot his notes.
+  answer: was he
+  distractors:
+  - he was
+  - he did
+  - did he be
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: A fronted 'Not only' signals inversion.
+    distractors:
+      level: one_plausible
+      reason: '''he was'' (no inversion) is the tempting error.'
+- id: p.cleft_sentences.1
+  kc: g.cleft_sentences
+  stem: It was my sister ___ told me the news.
+  answer: who
+  distractors:
+  - what
+  - which
+  - whom
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A cleft with an embedded clause.
+    cues:
+      level: partial
+      reason: '''It was my sister'' introduces a person.'
+    distractors:
+      level: one_plausible
+      reason: '''whom'' tempts learners who associate it with formal clefts.'
+- id: p.cleft_sentences.2
+  kc: g.cleft_sentences
+  stem: What I need ___ a long holiday.
+  answer: is
+  distractors:
+  - it is
+  - that
+  - are
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One wh-cleft.
+    cues:
+      level: partial
+      reason: The wh-clause subject must be recognised as singular.
+    distractors:
+      level: one_plausible
+      reason: '''it is'' mirrors the it-cleft; the others are weaker.'
+- id: p.participle_clauses.1
+  kc: g.participle_clauses
+  stem: ___ the report, she sent it to her manager.
+  answer: Having finished
+  distractors:
+  - Finished
+  - Having been finished
+  - She finished
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A participle clause and a main clause.
+    cues:
+      level: partial
+      reason: The shared subject and order of events must be worked out.
+    distractors:
+      level: several_plausible
+      reason: '''Having been finished'' (wrong voice) and ''She finished'' (comma splice) both tempt.'
+- id: p.relative_clauses_advanced.1
+  kc: g.relative_clauses_advanced
+  stem: The person to ___ I spoke was very helpful.
+  answer: whom
+  distractors:
+  - that
+  - which
+  - whose
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A main clause with an embedded relative clause.
+    cues:
+      level: partial
+      reason: The preposition before the gap and a person must both be noticed.
+    distractors:
+      level: one_plausible
+      reason: '''that'' after a preposition is the tempting error.'
+- id: p.passive_reporting.1
+  kc: g.passive_reporting
+  stem: The painting is believed ___ stolen in the 1990s.
+  answer: to have been
+  distractors:
+  - to be
+  - that it was
+  - having been
+  rubric:
+    vocabulary:
+      level: at_target
+      reason: '''painting'', ''stolen'' are B1-B2 words.'
+    syntax:
+      level: simple
+      reason: One clause with a time phrase.
+    cues:
+      level: partial
+      reason: '''in the 1990s'' marks an earlier time than the belief.'
+    distractors:
+      level: several_plausible
+      reason: '''to be'' ignores the time shift; ''that it was'' mixes two patterns.'
+- id: p.subjunctive.1
+  kc: g.subjunctive
+  stem: The doctor recommended that he ___ smoking immediately.
+  answer: stop
+  distractors:
+  - to stop
+  - stopping
+  - will stop
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: none
+      reason: Only the rule after recommend that gives the answer.
+    distractors:
+      level: several_plausible
+      reason: '''to stop'' and ''will stop'' both tempt.'
+- id: p.ellipsis_substitution.1
+  kc: g.ellipsis_substitution
+  stem: Is it going to rain tomorrow? — I hope ___.
+  answer: not
+  distractors:
+  - 'no'
+  - don't
+  - not it
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: A two-line exchange.
+    cues:
+      level: partial
+      reason: A negative short answer after hope, to be interpreted.
+    distractors:
+      level: one_plausible
+      reason: '''no'' is the common transfer error.'
+- id: p.hedging.1
+  kc: g.hedging
+  stem: Young people ___ spend more time online than older people.
+  answer: tend to
+  distractors:
+  - tend
+  - are tending
+  - tend for
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: One clause with a comparison.
+    cues:
+      level: none
+      reason: Only the pattern of tend gives the answer.
+    distractors:
+      level: several_plausible
+      reason: '''tend'' (no to) and ''are tending'' both tempt.'
+- id: p.discourse_markers.1
+  kc: g.discourse_markers
+  stem: The project was expensive. ___, it was finished on time.
+  answer: Nevertheless
+  distractors:
+  - Although
+  - Despite
+  - Even though
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two sentences.
+    cues:
+      level: partial
+      reason: The full stop and comma mean a sentence adverb is needed.
+    distractors:
+      level: several_plausible
+      reason: All three are contrast words that cannot link sentences this way.
+- id: p.inversion_advanced.1
+  kc: g.inversion_advanced
+  stem: So difficult ___ that only three students passed.
+  answer: was the exam
+  distractors:
+  - the exam was
+  - did the exam be
+  - the exam is
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: explicit
+      reason: Fronted 'So difficult' signals inversion.
+    distractors:
+      level: one_plausible
+      reason: '''the exam was'' (no inversion) is the tempting error.'
+- id: p.inversion_advanced.2
+  kc: g.inversion_advanced
+  stem: Little ___ that she was being watched.
+  answer: did she know
+  distractors:
+  - she knew
+  - knew she
+  - she did know
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: Fronted 'Little' signals inversion only to those who know the rule.
+    distractors:
+      level: several_plausible
+      reason: '''she knew'' and ''knew she'' both tempt.'
+- id: p.fixed_subjunctive.1
+  kc: g.fixed_subjunctive
+  stem: ___ it not for your help, I would never have finished.
+  answer: Were
+  distractors:
+  - Was
+  - Had
+  - If
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: Nothing but the fixed phrase gives the answer.
+    distractors:
+      level: several_plausible
+      reason: '''Was'' and ''Had'' both look possible.'
+- id: p.concessive_clauses.1
+  kc: g.concessive_clauses
+  stem: ___ hard she tried, she couldn't open the door.
+  answer: However
+  distractors:
+  - Although
+  - Despite
+  - Even
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: partial
+      reason: An adjective right after the gap must be noticed.
+    distractors:
+      level: several_plausible
+      reason: '''Although'' and ''Despite'' both tempt.'
+- id: p.concessive_clauses.2
+  kc: g.concessive_clauses
+  stem: Tired ___ he was, he kept working.
+  answer: as
+  distractors:
+  - so
+  - but
+  - although
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: moderate
+      reason: Two clauses.
+    cues:
+      level: none
+      reason: Only the adjective + as pattern gives the answer.
+    distractors:
+      level: several_plausible
+      reason: '''although'' and ''so'' both look possible.'
+- id: p.information_structure.1
+  kc: g.information_structure
+  stem: Among the guests ___ the Prime Minister.
+  answer: was
+  distractors:
+  - were
+  - it was
+  - had
+  rubric:
+    vocabulary:
+      level: below_target
+      reason: Everyday words.
+    syntax:
+      level: simple
+      reason: One clause with a fronted phrase.
+    cues:
+      level: none
+      reason: The real subject comes after the gap and must be found.
+    distractors:
+      level: several_plausible
+      reason: '''were'' agrees with the fronted ''guests'', a natural error.'

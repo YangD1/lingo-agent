@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.placement.items import get_item_bank
 from app.adaptive.rules import get_rules
 from app.agents.chat_graph import build_chat_graph
 from app.api import (
@@ -53,6 +54,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     get_providers_config()  # refuse to start with an invalid providers.*.yaml
     get_grammar_catalog()  # refuse to start with a broken grammar KC catalog
     get_rules()  # refuse to start with invalid adaptive rules
+    get_item_bank()  # refuse to start with a broken placement item bank
     tracer_provider = setup_tracing(settings)
     init_state(app, settings)
     interrupted = await fail_interrupted(app.state.sessionmaker)
