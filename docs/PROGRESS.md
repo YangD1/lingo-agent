@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 完成（任务 1–13、11A、11B 已实测，CI 全绿）。**用户已选定下一步：进入 P1**。开工前先写 `docs/plans/P1-*.md` 阶段计划和相关 ADR（记忆存储与抽取、掌握度模型、词库来源等），拆任务写进本看板，经用户确认后再写代码。11C 暂缓（建议在 P1 前顺手修第 3、4 条，需用户确认）
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认（全部按推荐），ADR 0009–0011 已采纳。追加的能力看板（子阶段 P1e，任务 17–19）的 Q11–Q14 待用户确认，不影响前面的任务。正在做任务 0。
 **阻塞项**：无
 
 ## P0 骨架
@@ -92,7 +92,34 @@
   - [x] 13.4 验证：新 clone 到临时目录，只按 README 的步骤从零跑一遍（compose 全栈 → 注册 → 用假模型或真连接聊天），文中的命令、端口、环境变量逐项和代码核对；发现问题回头改 README 或代码。**结果**：从 GitHub clone（2a9672d）到 /tmp，`make env`（.env 权限 600，密钥和 JWT 已生成）→ `make up` 60 秒（有构建缓存，可用内存最低 2.2GB）三个服务 healthy；按 README 的“本机模型服务”一节：`PROVIDER_ALLOW_PRIVATE_NETWORKS=true` + 自定义连接 `http://host.docker.internal:8102/v1`（假模型监听 0.0.0.0）→ 不设路由直接聊天，SSE token 逐块到达，历史保存，`/api/readyz` ok，/chat、/settings、`/api/tenant/usage` 200。README 没有需要改的地方。为了不碰开发栈，验证时用了 `COMPOSE_PROJECT_NAME=lingo-readme` 和另一组端口（compose 文件固定了项目名 `lingo-agent`，同一台机器上第二份 checkout 直接 `make up` 会接管原来的容器和数据卷）；验证完 `down -v` 已清理。注意：镜像名 `lingo-agent-backend/frontend` 是固定的，验证时被同样的代码重新构建过
 
 ## P1 MVP：私教对话 + 长期记忆 + 背单词 + 入学测 + 自适应引擎 v1
-- [ ] （进入 P1 时拆分）
+- [x] P1 详细实施计划（`docs/plans/P1-mvp.md`，Q1–Q10 全部按推荐确认）+ ADR 0009（长期记忆）、0010（学习者模型）、0011（词库与 FSRS）
+- [ ] P1e 能力看板追加设计（计划 §7.5）：等用户确认 Q11–Q14
+- [~] 0. 11C 第 3、4 条（Q10）：转写连接按转写来测；Speaches 预设在 Docker 下的默认地址
+- [x] 1. ADR 0009–0011 定稿；PLAN 同步（Supervisor 移到 P2、长期记忆一行、BKT/Elo 分工、数据模型、P1 加能力看板）
+- **P1a 记忆**
+- [ ] 2. `user_profile`、`memories` 表 + 记忆服务层 + 检索（有 embedding 按向量，否则按时间）
+- [ ] 3. `load_context` 节点 + 主图改造（学习者上下文只进 prompt、不进 checkpoint）
+- [ ] 4. `ReflectionWorker` + `reflect`（memory_ops、profile_updates）+ 会话摘要 + `reflected_message_id` 补做
+- [ ] 5. 记忆/画像接口 + `/memory` 页面
+- **P1b 学习者模型**
+- [ ] 6. 语法 KC 清单（LLM 起草 → 用户审核）+ 加载校验
+- [ ] 7. BKT / Elo 纯函数 + `kc_mastery`、`mistakes`、`skill_estimates` 表
+- [ ] 8. reflect 加 mistakes、used_correctly → 证据去重 → BKT 更新
+- [ ] 9. 学习者模型接口 + `/learner` 页面
+- **P1c 背单词**
+- [ ] 10. `words` 表 + ECDICT 导入脚本 + `make vocab-import`
+- [ ] 11. 词书、`user_cards`、`review_logs` + FSRS 调度 + 每日队列
+- [ ] 12. 背词接口 + `/vocab`（选书、筛选、复习、生词本）页面
+- [ ] 13. 自动收词（reflect 的 vocab_candidates）+ 聊天里选词加入生词本
+- **P1d 入学测**
+- [ ] 14. 语法题库（LLM 起草 → 用户审核）+ 假词生成 + 词汇量估计
+- [ ] 15. placement 子图（interrupt / resume）+ 接口 + 结果写回
+- [ ] 16. `/placement` 页面 + 聊天页引导条
+- **P1e 能力看板**（2026-09-29 追加需求，Q11–Q14 待确认）
+- [ ] 17. `GET /dashboard` 聚合接口 + `/dashboard` 页面（图表、空状态、导航，登录后首页改为看板）
+- [ ] 18. 建议候选算法 + `advice` 结构化调用 + `learning_advice` 缓存与后台刷新 + 模板兜底
+- [ ] 19. 针对语法点的练习对话（`focus_kc_id`）+ 建议卡片直达
+- [ ] 20. P1 Demo 全流程实测 + README 更新
 
 ## P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作
 - [ ] （进入 P2 时拆分）

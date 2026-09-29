@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-09-29 · P1 规划：阶段计划与 ADR 草稿
+
+- **做了什么**：写了 `docs/plans/P1-mvp.md`（Demo 脚本、四个子阶段 P1a 记忆 / P1b 学习者模型 / P1c 背单词 / P1d 入学测、依赖、设计、17 个任务、待确认的 Q1–Q10）和 ADR 0009（长期记忆）、0010（学习者模型）、0011（词库与 FSRS）草稿，状态都是“提议”。看板的 P1 部分已拆好任务。没有改代码。
+- **调研结论**（2026-09-29 查 PyPI / GitHub）：py-fsrs 6.3.2 实现 FSRS-6，核心只依赖 typing-extensions，不装 `[optimizer]`；ECDICT 77 万条、66 MB，没有现成小子集，标签词数写在 ADR 0011；LangGraph `AsyncPostgresStore` 在 langgraph-checkpoint-postgres 3.1 里，但语义索引在创建时固定 embedding 函数和维度，和租户各自配置 embedding 冲突，所以推荐自建 `memories` 表；LangMem 自 2025-10 的 0.0.30 后没有新版本，不引入；pyBKT 依赖 numpy / sklearn / pandas，BKT 和 Elo 自己写。
+- **确认结果**：用户确认 Q1–Q10 全部按推荐；ADR 0009–0011 改为已采纳，PLAN 已同步。用户同时追加需求“个人能力看板（图表）+ AI 建议 + 直达学习”，写成计划 §7.5 和子阶段 P1e（任务 17–19，原 Demo 实测顺延为 20），Q11–Q14 待确认。
+- **未完成**：Q11–Q14（看板图表组合、建议生成方式、首页、图表库）等用户确认。
+- **下一步**：任务 0（11C 第 3、4 条）。
+- **踩坑**：无。
+
+---
+
 ## 2026-09-29 · 11B 实测：语音转写接入硅基流动
 
 - **做了什么**：用户实测 11B。看图（中转站 gpt-6-sol）和 PDF 提取正常；语音一路排查：中转站没有 `/audio/transcriptions`（404）→ 本地 speaches（要 `PROVIDER_ALLOW_PRIVATE_NETWORKS=true`，容器里地址是 `http://asr:8000/v1`）→ 第一段录音 -60 dB 几乎静音，Whisper 编出一串“ლ”，是麦克风问题 → 想换 Groq，发现 Groq 屏蔽大陆 IP（直连 403，经代理 401），后端又有意不走代理 → 新增硅基流动预设（11B.7），用户实测中英文都转写正确。顺带修了测试会读开发者 `.env` 的问题。CI 全绿。

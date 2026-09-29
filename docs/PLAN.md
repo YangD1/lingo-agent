@@ -36,7 +36,7 @@
 Next.js (App Router, TS, Tailwind, shadcn/ui)
    │  REST + SSE（流式对话）+ WebSocket（语音）
 FastAPI (Python 3.12, uv)
-   ├── LangGraph 主图（Supervisor 多 Agent）
+   ├── LangGraph 主图（Supervisor 多 Agent；P1 先是 load_context → tutor，路由在 P2 加入，见 ADR 0009）
    │     ├─ 路由/意图识别 → tutor_chat | grammar_coach | reading_coach
    │     │                    vocab_coach | speaking_coach | writing_coach | assessor
    │     ├─ pre: load_memory（画像 + 相关情景记忆 + 学习者模型摘要）
@@ -73,10 +73,10 @@ speech:
 | 技术 | 用在哪里 |
 |---|---|
 | **LangChain** | provider 抽象、结构化输出（Pydantic）、工具定义、文档加载与切分 |
-| **LangGraph** | Supervisor 多 Agent 图、子图（入学测是自适应循环子图）、`interrupt` 做学习计划确认、Postgres checkpointer 做会话持久化、Store 做长期记忆 |
+| **LangGraph** | Supervisor 多 Agent 图、子图（入学测是自适应循环子图）、`interrupt` 做学习计划确认、Postgres checkpointer 做会话持久化（长期记忆不用 Store，见 ADR 0009） |
 | **OpenTelemetry**（取代原计划的 LangSmith，见 ADR 0005） | 可选的全链路 trace（OpenInference 埋点，OTLP 导出到本地 Phoenix 或任意后端）；用量统计走自建 `llm_usage` 表；评估数据集与回归评测用 pytest |
 | **GraphRAG** | 语法知识图谱：用 LLM 从语法资料中抽取“知识点—依赖—易错点—例句”入 Neo4j，再叠加用户 `MASTERY` 边；检索 = 图遍历（前置依赖、关联错误）+ 向量召回，用于错因溯源和学习路径推荐 |
-| **长期记忆** | LangGraph `PostgresStore` + LangMem 式记忆抽取（画像为 profile，情景记忆为 collection），结构化学习者模型放 PG 表 |
+| **长期记忆** | 自建表：`user_profile`（结构化画像）+ `memories`（事实记忆和会话摘要，embedding 可选）；回复后由后台反思节点用结构化输出抽取（借鉴 LangMem 的增/改/删思路，不引入该库）；结构化学习者模型放 PG 表（见 ADR 0009、0010） |
 
 ---
 
@@ -90,7 +90,7 @@ speech:
  (所有场景)    (算法)       (LLM+图谱)   (算法)      (LLM)    (LLM 审题)
 ```
 1. **证据采集**：对话、写作、阅读题、背词、口语里出现的每个错误，都由 LLM 用结构化输出打上标签：`{知识点 KC id, 错误类型, 原句, 改正, 严重度, 是否母语迁移}`。KC（knowledge component）= 语法点、单词或技能子项，和 Neo4j 图谱节点共用 id。
-2. **学习者模型（算法）**：每个 KC 维护掌握度 `p_mastery`（贝叶斯知识追踪 BKT，或更简单的 Elo 式更新）。**语法 KC 也接入 FSRS**，错误模式像单词一样有“到期复习”。区分两种证据：做题时答对（识别）和自由表达中用对（产出）。后者权重更高，这是“真正学会”的信号。
+2. **学习者模型（算法）**：每个 KC 维护掌握度 `p_mastery`：语法 KC 用贝叶斯知识追踪 BKT，入学测和技能估计用 Elo（能力值和题目难度一起估计），单词直接取 FSRS 的可提取性（见 ADR 0010）。**语法 KC 也接入 FSRS**，错误模式像单词一样有“到期复习”。区分两种证据：做题时答对（识别）和自由表达中用对（产出）。后者权重更高，这是“真正学会”的信号。
 3. **诊断 Agent（LLM + GraphRAG）**：每次学习结束和每周各跑一次。输入是低掌握度 KC 和错误证据，沿图谱查前置依赖和同类易错点，输出**带证据引用的根因假设**，例如“虚拟语气错 6 次，其中 4 次是 would have done 形式错误 → 根因：完成时掌握度 0.38”。结果写入长期记忆，并展示给用户。
 4. **选题规划（算法）**：优先级 = 薄弱度 × 重要度（CEFR 等级、使用频率）× 是否到期。按 **85% 规则**控制难度，让预估正确率保持在 80–85% 左右，也就是“有挑战但做得出来”。
 5. **练习生成（LLM）** —— “科学好记、不死板”靠这些学习科学原则落地：
@@ -118,8 +118,9 @@ speech:
 ## 三、核心数据模型（初稿）
 
 - `tenants`, `tenant_members`, `provider_connections`（加密 key）, `tenant_model_routes`（见 ADR 0004）, `llm_usage`（见 ADR 0005）
-- `users`, `user_profile`（目标、CEFR、兴趣、每日时长）
-- `skill_estimates`（user, skill[listening/speaking/reading/writing/grammar/vocab], rating, updated_at）
+- `users`, `user_profile`（母语、目标、目标考试、兴趣、职业、每日时长、讲解语言、CEFR、时区）, `memories`（kind[fact/episode], content, 来源会话, 可选 embedding；见 ADR 0009）
+- `skill_estimates`（user, skill[listening/speaking/reading/writing/grammar/vocab], rating, uncertainty, updated_at）, `placement_sessions`（入学测子图的 thread 和状态）
+- `learning_advice`（每人一行：看板上的 AI 建议缓存，见 `docs/plans/P1-mvp.md` §7.5）
 - `words`（词库：ECDICT 开源词典导入）、`user_cards`（FSRS 状态：stability, difficulty, due, reps, lapses, state）、`review_logs`
 - `grammar_points`（与 Neo4j 节点同 id）、`mistakes`（user, kc_id, error_type, source, original, correction, severity）
 - `kc_mastery`（user, kc_id, kind[word/grammar/skill], p_mastery, recog_correct, produce_correct, formats_passed, fsrs_state）
@@ -139,11 +140,11 @@ speech:
 **P0 骨架（约 1 周）**
 monorepo（`backend/` uv + FastAPI，`frontend/` Next.js，`docker-compose.yml`）；provider 层 + 配置；多租户凭据（租户自配 key / base_url / 路由）；llm_usage 用量记录 + 可选 OTel tracing；用户注册登录（JWT）；最简对话流式输出。
 
-**P1 MVP：私教对话 + 长期记忆 + 背单词 + 入学测**
-LangGraph Supervisor 主图、记忆读写闭环（可视化“AI 记住了你什么”页面）；FSRS 背单词（ECDICT 导入、词书选择、熟词筛选、复习页）；CEFR 自适应入学测子图；**自适应引擎第一版：错误打标 + kc_mastery 更新**。
+**P1 MVP：私教对话 + 长期记忆 + 背单词 + 入学测 + 能力看板**（详见 `docs/plans/P1-mvp.md`）
+主图加 load_context 与后台反思、记忆读写闭环（可视化“AI 记住了你什么”页面）；FSRS 背单词（ECDICT 导入、词书选择、熟词筛选、复习页）；CEFR 自适应入学测子图；**自适应引擎第一版：错误打标 + kc_mastery 更新**；**个人能力看板**（图表 + AI 学习建议，建议由算法出候选、LLM 写理由，点击直达复习、入学测或针对语法点的练习对话）。
 
 **P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作**
-语法知识图谱构建；诊断 Agent（根因分析）；选题规划 + 练习生成与 critic 校验 + 多题型练习页；新闻 RSS 抓取 + 分级改写 + 自动收词；APScheduler 定时订阅任务；写作批改回写学习者模型；每日学习计划（interrupt 确认）。
+LangGraph Supervisor 主图（意图路由到各 coach，从 P1 移来）；语法知识图谱构建；诊断 Agent（根因分析）；选题规划 + 练习生成与 critic 校验 + 多题型练习页；新闻 RSS 抓取 + 分级改写 + 自动收词；APScheduler 定时订阅任务；写作批改回写学习者模型；每日学习计划（interrupt 确认）。
 
 **P3 语音（双模式，配置切换）**
 - **模式 A · 级联管线**（默认，便宜、完全可控）：ASR → LangGraph（完整记忆/工具/trace）→ TTS。本地用 speaches 容器（faster-whisper，OpenAI 兼容接口，作为租户连接接入，见 ADR 0008）+ Kokoro，线上 Groq/SiliconFlow + edge-tts。语音消息的转写在 11B 已经实现，P3 在此基础上做朗读、跟读和口语。用于朗读、跟读、半双工口语练习。
