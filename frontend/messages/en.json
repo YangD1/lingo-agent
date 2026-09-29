@@ -317,6 +317,32 @@
         "4": "Easy"
       },
       "keys": "Space shows the answer · 1–4 rates it"
+    },
+    "mine": {
+      "title": "My words",
+      "description": "Words you add here, or the tutor picks up when you ask about them in conversation. They are learned before your word book's.",
+      "addLabel": "Add a word",
+      "addPlaceholder": "Type an English word, e.g. reluctant",
+      "add": "Add",
+      "added": "Added “{word}”.",
+      "addedLemma": "Added “{word}” (the base form of “{typed}”).",
+      "already": "“{word}” is already on your list.",
+      "confirmRemove": "Remove “{word}”? Its review history is deleted too; adding it again starts from scratch.",
+      "remove": "Remove",
+      "empty": "No words yet.",
+      "more": "Show more ({left} left)",
+      "back": "Back to vocabulary",
+      "sources": {
+        "auto": "Picked up in conversation",
+        "manual": "Added by you"
+      },
+      "statuses": {
+        "new": "Not started",
+        "learning": "Learning",
+        "known": "Known",
+        "suspended": "Paused"
+      },
+      "due": "next review {when}"
     }
   },
   "settings": {

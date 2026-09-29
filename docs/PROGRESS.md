@@ -148,8 +148,8 @@
   - [x] 12.2 `/vocab` 页面。完成记录：`src/lib/vocab.ts`（全部背词接口的类型和调用，12.3–12.5 共用；`browserTimeZone()` 用 `Intl` 取浏览器时区，`/vocab` 和队列请求带 `?tz=`）；`components/vocab/vocab-app.tsx`：今天（当前词书、待复习 / 剩余新词 / 今日已开始、没做过筛选时提示先筛选、开始 / 只学新词（有复习也有新词时才显示）/ 熟词筛选 / 生词本入口）、词书列表（每本词数、进度条（学习中 + 已认识占比）、当前标记或“学这本”）、每天新词数（留空 = 默认，0–200 前端校验）。导航加“背单词”，`proxy.ts` 保护 `/vocab/*`；中英文案和 4 个错误码文案。Vitest 3 个 + proxy 用例 2 个；lint、typecheck 通过
   - [x] 12.3 `/vocab/screen`。完成记录：`components/vocab/screen-app.tsx`：一批词的切换按钮网格（只显示拼写，不显示释义，`aria-pressed`），计数“已标记认识 x / n”，提交后显示结果（认识比例高时说明下一批会往后跳），“下一批”重新取；没选词书（`no_book`）和整本看完时给出说明和返回入口。Vitest 3 个；lint、typecheck 通过
   - [x] 12.4 `/vocab/review`。完成记录：`use-review-session.ts`（一轮翻卡：先到期复习再新词；没翻面不能评分；评分记 `duration_ms`（从出卡到评分）；本地卡片用完后再取一次队列（刚评“忘了”的卡几分钟内到期，以及第一页 100 条之外的复习），取回来为空才结束；评分失败留在当前卡；`remaining` 含第一页之外的复习数）；`review-app.tsx`（正面只有单词，空格 / 按钮翻面显示音标、中文、英文释义，1–4 评分（忘了 / 模糊 / 记得 / 很熟），在输入框里、按住重复、带修饰键、输入法组字时不触发快捷键；`speechSynthesis` 朗读按钮（浏览器不支持时不显示）；标记“新词”“生词本”；`?mode=new` 只学新词，学完提示还有多少待复习）。Vitest 4 个；lint、typecheck 通过
-  - [~] 12.5 `/vocab/mine`：生词本列表（来源 自动 / 手动、状态、下次复习），手动加词，删除
-  - [ ] 12.6 E2E（`run_backend.py` 给 `lingo_e2e` 导入 fixture 词库）：选书 → 筛选 → 复习评分 → 刷新后进度变化；生词本增删。同步 P1 计划 §6、ADR 0011（如有变化）；typecheck、lint、Vitest、Playwright、pytest 全过
+  - [x] 12.5 `/vocab/mine`。完成记录：`components/vocab/mine-app.tsx`：加词输入框（复用 `AutocompleteInput`，输入停 200ms 后调 `/vocab/words` 联想），结果提示区分新加入 / 还原原形（“已加入 go（went 的原形）”）/ 已在生词本；列表（拼写、音标、第一行中文释义、来源（对话中收集 / 手动添加）、状态、学习中的显示“下次复习 3 天后”），每页 50、“显示更多”；删除前确认并说明复习记录一起删除。Vitest 5 个；前端 Vitest 共 135 个、lint、typecheck 通过
+  - [~] 12.6 E2E（`run_backend.py` 给 `lingo_e2e` 导入 fixture 词库）：选书 → 筛选 → 复习评分 → 刷新后进度变化；生词本增删。同步 P1 计划 §6、ADR 0011（如有变化）；typecheck、lint、Vitest、Playwright、pytest 全过
 - [ ] 13. 自动收词（reflect 的 vocab_candidates）+ 聊天里选词加入生词本
 - **P1d 入学测**
 - [ ] 14. 语法题库（LLM 起草 → 用户审核）+ 假词生成 + 词汇量估计

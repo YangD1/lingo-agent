@@ -317,6 +317,32 @@
         "4": "很熟"
       },
       "keys": "空格显示答案 · 1–4 评分"
+    },
+    "mine": {
+      "title": "我的生词本",
+      "description": "你在这里加的词，以及你在对话里问过、私教帮你记下的词。它们比词书里的词先学。",
+      "addLabel": "添加单词",
+      "addPlaceholder": "输入英文单词，比如 reluctant",
+      "add": "添加",
+      "added": "已加入“{word}”。",
+      "addedLemma": "已加入“{word}”（“{typed}”的原形）。",
+      "already": "“{word}”已经在生词本里了。",
+      "confirmRemove": "删除“{word}”？它的复习记录也会一起删除，再加回来要从头学。",
+      "remove": "删除",
+      "empty": "还没有生词。",
+      "more": "显示更多（还有 {left} 个）",
+      "back": "回到背单词",
+      "sources": {
+        "auto": "对话中收集",
+        "manual": "手动添加"
+      },
+      "statuses": {
+        "new": "未开始",
+        "learning": "学习中",
+        "known": "已认识",
+        "suspended": "已暂停"
+      },
+      "due": "下次复习 {when}"
     }
   },
   "settings": {
