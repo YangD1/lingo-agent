@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-09-29.1"
+version: "2026-09-29.2"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -19,6 +19,9 @@ bkt:
     production: 0.05
   # p_mastery at or above this counts as mastered.
   mastered: 0.95
+  # p_mastery below this counts as weak (learner page, dashboard); display only,
+  # BKT itself does not use it.
+  weak: 0.4
   # Initial p_mastery when the learner's CEFR level is known, by
   # gap = learner level - KC level (in levels). Keys must be consecutive integers;
   # gaps beyond either end use the nearest key.

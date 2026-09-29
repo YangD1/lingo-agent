@@ -19,6 +19,16 @@ from app.adaptive.rules import Evidence, Rules, Severity
 from app.db.models import KCEvidence, KCMastery, UserProfile
 
 
+def observation(row: KCEvidence) -> Observation:
+    return Observation(
+        correct=row.correct,
+        evidence=cast(Evidence, row.evidence),
+        at=row.created_at,
+        turn=row.message_id,
+        severity=cast(Severity | None, row.severity),
+    )
+
+
 async def refresh(
     session: AsyncSession,
     user_id: uuid.UUID,
@@ -46,15 +56,7 @@ async def refresh(
     )
     history: dict[str, list[Observation]] = {kc_id: [] for kc_id in wanted}
     for row in rows:
-        history[row.kc_id].append(
-            Observation(
-                correct=row.correct,
-                evidence=cast(Evidence, row.evidence),
-                at=row.created_at,
-                turn=row.message_id,
-                severity=cast(Severity | None, row.severity),
-            )
-        )
+        history[row.kc_id].append(observation(row))
     empty = [kc_id for kc_id, observations in history.items() if not observations]
     if empty:
         await session.execute(

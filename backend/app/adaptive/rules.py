@@ -39,6 +39,7 @@ class BktRules(_Strict):
     p_slip: OpenProbability
     p_guess: dict[Evidence, OpenProbability]
     mastered: OpenProbability
+    weak: OpenProbability
     prior_by_gap: dict[int, Probability] = Field(min_length=1)
     prior_unknown_learner: dict[CefrLevel, Probability]
 
@@ -55,6 +56,8 @@ class BktRules(_Strict):
             raise ValueError("prior_by_gap keys must be consecutive integers")
         if unset := set(CEFR_LEVELS) - self.prior_unknown_learner.keys():
             raise ValueError(f"prior_unknown_learner is missing {sorted(unset)}")
+        if self.weak >= self.mastered:
+            raise ValueError("weak must be below mastered")
         return self
 
 

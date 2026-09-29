@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -230,6 +230,52 @@ def kc_refs(summary: Summary) -> list[str]:
     if isinstance(summary, GrammarTags):
         return [m.kc_id for m in summary.mistakes] + summary.used_correctly
     return []
+
+
+async def untag(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    turn_id: str,
+    kc_id: str,
+    correct: bool,
+    original: str | None,
+) -> None:
+    """Drop one tagged item from a turn's `grammar_tagging`, after the learner deleted
+    the evidence behind it, so no copy of it is left; does not commit."""
+    row = await session.scalar(
+        select(AgentActivity)
+        .where(
+            AgentActivity.user_id == user_id,
+            AgentActivity.turn_id == turn_id,
+            AgentActivity.name == "grammar_tagging",
+        )
+        .with_for_update()
+    )
+    if row is None or row.status != "ok":
+        return
+    tags = GrammarTags.model_validate(row.summary)
+    if correct:
+        kept = tags.model_copy(
+            update={"used_correctly": [k for k in tags.used_correctly if k != kc_id]}
+        )
+    else:
+        mistakes = list(tags.mistakes)
+        match = next((m for m in mistakes if m.kc_id == kc_id and m.original == original), None)
+        if match is not None:
+            mistakes.remove(match)
+        kept = tags.model_copy(update={"mistakes": mistakes})
+    row.summary = kept.model_dump(mode="json")
+
+
+async def forget_grammar_tags(session: AsyncSession, user_id: uuid.UUID) -> None:
+    """Delete every `grammar_tagging` row of a learner, with the learner model; does
+    not commit. Their summaries quote the learner's mistakes."""
+    await session.execute(
+        delete(AgentActivity).where(
+            AgentActivity.user_id == user_id, AgentActivity.name == "grammar_tagging"
+        )
+    )
 
 
 class Stopwatch:

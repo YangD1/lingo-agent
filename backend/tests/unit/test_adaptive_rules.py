@@ -45,6 +45,7 @@ def _set(data: dict[str, Any], path: str, value: Any) -> None:
         ("bkt.p_guess", {"recognition": 0.95, "production": 0.05}, "must be below 1"),
         ("bkt.prior_by_gap", {2: 0.9, 0: 0.4}, "consecutive"),
         ("bkt.prior_unknown_learner", {"A1": 0.6}, "missing"),
+        ("bkt.weak", 0.95, "weak must be below mastered"),
         ("evidence.counted_severities", ["medium", "fatal"], "counted_severities"),
         ("evidence.max_per_turn", 0, "greater than or equal to 1"),
         ("elo.learner.alpha", 0, "greater than 0"),

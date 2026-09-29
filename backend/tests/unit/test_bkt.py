@@ -19,6 +19,7 @@ def rules() -> Rules:
                 p_slip=0.1,
                 p_guess={"recognition": 0.2, "production": 0.05},
                 mastered=0.95,
+                weak=0.4,
                 prior_by_gap={2: 0.9, 1: 0.7, 0: 0.4, -1: 0.15},
                 prior_unknown_learner={
                     "A1": 0.6,

@@ -9,7 +9,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.agents.chat_graph import build_chat_graph
-from app.api import activity, attachments, auth, chat, health, memory, providers, usage
+from app.api import activity, attachments, auth, chat, health, learner, memory, providers, usage
 from app.api.errors import install_error_handlers
 from app.attachments.handlers import default_handlers
 from app.attachments.processor import AttachmentProcessor, fail_interrupted
@@ -99,6 +99,7 @@ def create_app() -> FastAPI:
     app.include_router(attachments.router)
     app.include_router(memory.router)
     app.include_router(activity.router)
+    app.include_router(learner.router)
     return app
 
 
