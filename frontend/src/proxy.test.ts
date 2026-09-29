@@ -46,6 +46,7 @@ describe("proxy", () => {
 
   it.each([
     ["/chat/abc", true],
+    ["/memory", true],
     ["/settings", true],
     ["/api/auth/me", false],
     ["/session-expired", false],

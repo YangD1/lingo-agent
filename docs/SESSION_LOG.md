@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-09-29 · P1a 任务 5：记忆/画像接口与 `/memory` 页面
+
+- **做了什么**：任务 5 完成，P1a（长期记忆）全部完成。后端 `app/api/memory.py` + `tests/integration/test_memory_api.py`（提交 `e975e59`）；前端 `/memory` 页面（`src/components/memory/{memory-app,profile-section,memory-list-section}.tsx`、`src/lib/profile.ts`）、导航、`proxy.ts` 匹配 `/memory`、设置页 `RouteSection` 加入 `reflect`；中英文案；E2E 假模型支持记忆（`e2e/fake_llm.py` 的 `reflection`、`remembered_facts`）和 `e2e/memory.spec.ts`。详见看板完成记录。
+- **未完成**：无。没有在设置页加 embedding（`embedding/memory`）路由编辑：计划里任务 5 只要求 `reflect`，而且 `RouteSection` 目前只按对话/语音筛选模型列表，要支持 embedding 需要在 `model-catalog.ts` 加 embedding 分类。没配时按 YAML 的 embedding 默认路由，检索退化为按时间，不影响使用。是否要加由用户决定。
+- **下一步**：任务 6（语法 KC 清单：LLM 起草 → 用户审核 + 加载校验），开工前先拆任务、和用户确认。
+- **踩坑**：E2E 里不要在回复还在流式输出时离开页面：请求被取消（`llm_usage` 记为 `CancelledError`），这一轮不算完成，也就不会触发反思。等回复完整显示、“发送”按钮回来再跳转。`page.waitForResponse(...).finished()` 对这个 SSE 请求不可靠（会一直等），用界面状态判断。上次会话因为请求体超过 32 MB 中断，改动都还在工作区，接着做即可；本机 zsh 的 `pnpm` 是 nvm 懒加载函数，在 Bash 工具里会无限递归，要用 `~/.nvm/versions/node/v24.14.0/bin/pnpm` 并把该目录加进 PATH。
+
+---
+
 ## 2026-09-29 · P1 规划：阶段计划与 ADR 草稿
 
 - **做了什么**：写了 `docs/plans/P1-mvp.md`（Demo 脚本、四个子阶段 P1a 记忆 / P1b 学习者模型 / P1c 背单词 / P1d 入学测、依赖、设计、17 个任务、待确认的 Q1–Q10）和 ADR 0009（长期记忆）、0010（学习者模型）、0011（词库与 FSRS）草稿，状态都是“提议”。看板的 P1 部分已拆好任务。没有改代码。

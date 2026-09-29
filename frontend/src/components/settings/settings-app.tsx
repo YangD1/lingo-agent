@@ -29,6 +29,7 @@ export function SettingsApp() {
               onChange={setConnections}
             />
             <RouteSection task="chat" connections={connections} />
+            <RouteSection task="reflect" connections={connections} />
             <RouteSection task="vision" connections={connections} />
             <RouteSection task="asr" connections={connections} />
           </>

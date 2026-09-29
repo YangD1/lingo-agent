@@ -91,3 +91,32 @@ export type UsageRow = {
   avg_latency_ms: number;
 };
 export type Usage = { days: number; rows: UsageRow[] };
+
+/** backend/app/memory/reflection.py EXAM_TAGS (the word books of ADR 0011). */
+export const EXAMS = ["zk", "gk", "cet4", "cet6", "ky", "toefl", "ielts", "gre"] as const;
+export type Exam = (typeof EXAMS)[number];
+/** backend/app/api/memory.py ProfileOut (ADR 0009). */
+export type Profile = {
+  native_language: string | null;
+  occupation: string | null;
+  goal: string | null;
+  target_exam: Exam | null;
+  interests: string[];
+  daily_minutes: number | null;
+  explanation_language: "zh" | "en" | null;
+  /** Set by assessment only, never edited here (ADR 0010). */
+  cefr_level: string | null;
+  timezone: string | null;
+  /** Fields the learner set themselves: reflection leaves them alone. */
+  manual_fields: string[];
+};
+export type MemoryKind = "fact" | "episode";
+export type Memory = {
+  id: string;
+  kind: MemoryKind;
+  content: string;
+  source_conversation_id: string | null;
+  source_title: string | null;
+  created_at: string;
+  updated_at: string;
+};

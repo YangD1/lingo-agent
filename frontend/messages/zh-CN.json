@@ -36,7 +36,8 @@
   "nav": {
     "chat": "对话",
     "settings": "设置",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "memory": "记忆"
   },
   "chat": {
     "newChat": "新对话",
@@ -89,6 +90,71 @@
       "voiceMessage": "语音消息",
       "truncated": "只读取了开头部分",
       "download": "下载"
+    }
+  },
+  "memory": {
+    "edit": "编辑",
+    "editLabel": "编辑记忆",
+    "delete": "删除",
+    "save": "保存",
+    "cancel": "取消",
+    "from": "来自“{title}”",
+    "untitled": "未命名会话",
+    "profile": {
+      "title": "你的画像",
+      "description": "私教根据这些信息挑选话题和例句；聊天中提到的信息也会自动补充到这里。",
+      "cefr": "英语水平（CEFR）：",
+      "cefrUnknown": "尚未评估",
+      "notSet": "未设置",
+      "fields": {
+        "native_language": "母语",
+        "occupation": "职业",
+        "goal": "学英语的目的",
+        "target_exam": "目标考试",
+        "interests": "兴趣",
+        "daily_minutes": "每天学习分钟数",
+        "explanation_language": "语法讲解语言",
+        "timezone": "时区"
+      },
+      "exams": {
+        "zk": "中考",
+        "gk": "高考",
+        "cet4": "四级",
+        "cet6": "六级",
+        "ky": "考研",
+        "toefl": "托福",
+        "ielts": "雅思",
+        "gre": "GRE"
+      },
+      "languages": {
+        "zh": "中文",
+        "en": "英文"
+      },
+      "interestsHint": "用逗号分隔，例如：旅行，电影",
+      "useBrowserZone": "用本机时区",
+      "manualHint": "你在这里保存的字段以你为准：私教不会再根据聊天内容修改它们。",
+      "save": "保存画像",
+      "discard": "放弃修改",
+      "saved": "画像已保存。"
+    },
+    "fact": {
+      "title": "私教记住的事",
+      "description": "从对话中记下的关于你的信息，每次新对话都会用到。不对的可以直接编辑或删除。",
+      "addLabel": "告诉私教一件要记住的事",
+      "addPlaceholder": "例如：我十月底有一场面试。",
+      "add": "记住这条",
+      "empty": "还没有。你在聊天中提到关于自己的信息时，私教会记下来。",
+      "clear": "忘掉全部事实",
+      "confirmDelete": "删除这条记忆？删除后无法恢复。",
+      "confirmClear": "删除全部记住的事实？删除后无法恢复。"
+    },
+    "episode": {
+      "title": "会话摘要",
+      "description": "之前对话的简短摘要，方便私教接着上次的内容继续。",
+      "empty": "还没有摘要。对话进行一段时间后会自动生成。",
+      "clear": "删除全部摘要",
+      "confirmDelete": "删除这条摘要？删除后无法恢复。",
+      "confirmClear": "删除全部会话摘要？删除后无法恢复。"
     }
   },
   "settings": {
@@ -167,6 +233,11 @@
           "description": "按顺序尝试，前一个失败时由下一个接替。",
           "none": "还没有可用的对话模型。请添加连接并保存它的默认模型。"
         },
+        "reflect": {
+          "title": "后台整理模型",
+          "description": "每次回复后在后台运行：决定私教该记住你的哪些信息，并写会话摘要。这里用小一些、便宜一些的模型就够了。",
+          "none": "没有可用的模型：添加对话模型之前，私教不会记住新的信息。"
+        },
         "vision": {
           "title": "看图模型（vision）",
           "description": "识别图片和扫描版 PDF 页面，并回复带图片的消息。请选能看图的模型：对话模型不会自动用于这里。",
@@ -233,6 +304,8 @@
     "document_encrypted": "这个 PDF 有密码保护。",
     "document_unreadable": "无法读取这个文档。",
     "processing_failed": "处理失败，请重试。",
-    "processing_interrupted": "处理被中断，请重试。"
+    "processing_interrupted": "处理被中断，请重试。",
+    "memory_not_found": "这条记忆不存在或已被删除。",
+    "invalid_memory": "记忆不能为空，最多 1000 个字符。"
   }
 }

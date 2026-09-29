@@ -36,7 +36,8 @@
   "nav": {
     "chat": "Chat",
     "settings": "Settings",
-    "logout": "Log out"
+    "logout": "Log out",
+    "memory": "Memory"
   },
   "chat": {
     "newChat": "New chat",
@@ -89,6 +90,71 @@
       "voiceMessage": "Voice message",
       "truncated": "only the beginning was read",
       "download": "Download"
+    }
+  },
+  "memory": {
+    "edit": "Edit",
+    "editLabel": "Edit memory",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "from": "From “{title}”",
+    "untitled": "untitled conversation",
+    "profile": {
+      "title": "Your profile",
+      "description": "The tutor uses this to pick topics and examples. It also fills it in from what you say in chat.",
+      "cefr": "English level (CEFR):",
+      "cefrUnknown": "not assessed yet",
+      "notSet": "Not set",
+      "fields": {
+        "native_language": "Native language",
+        "occupation": "Occupation",
+        "goal": "Why you're learning English",
+        "target_exam": "Target exam",
+        "interests": "Interests",
+        "daily_minutes": "Minutes per day",
+        "explanation_language": "Explain grammar in",
+        "timezone": "Time zone"
+      },
+      "exams": {
+        "zk": "Zhongkao",
+        "gk": "Gaokao",
+        "cet4": "CET-4",
+        "cet6": "CET-6",
+        "ky": "Kaoyan",
+        "toefl": "TOEFL",
+        "ielts": "IELTS",
+        "gre": "GRE"
+      },
+      "languages": {
+        "zh": "Chinese",
+        "en": "English"
+      },
+      "interestsHint": "Separate with commas, e.g. travel, films",
+      "useBrowserZone": "Use this device's",
+      "manualHint": "Fields you save here are yours: the tutor won't change them from chat.",
+      "save": "Save profile",
+      "discard": "Discard changes",
+      "saved": "Profile saved."
+    },
+    "fact": {
+      "title": "Things the tutor remembers",
+      "description": "Facts picked up from your conversations and used in every new one. Edit or delete anything that is wrong.",
+      "addLabel": "Tell the tutor something to remember",
+      "addPlaceholder": "e.g. I have a job interview in late October.",
+      "add": "Remember this",
+      "empty": "Nothing yet. The tutor remembers things you mention about yourself in chat.",
+      "clear": "Forget all facts",
+      "confirmDelete": "Delete this memory? This can't be undone.",
+      "confirmClear": "Delete every remembered fact? This can't be undone."
+    },
+    "episode": {
+      "title": "Conversation summaries",
+      "description": "Short summaries of earlier conversations, so the tutor can pick up where you left off.",
+      "empty": "No summaries yet. They are written as conversations go on.",
+      "clear": "Delete all summaries",
+      "confirmDelete": "Delete this summary? This can't be undone.",
+      "confirmClear": "Delete every conversation summary? This can't be undone."
     }
   },
   "settings": {
@@ -167,6 +233,11 @@
           "description": "Models are tried in order; if one fails, the next one takes over.",
           "none": "No chat model is usable yet. Add a connection and save its default model."
         },
+        "reflect": {
+          "title": "Background memory model",
+          "description": "Runs after each reply: decides what the tutor should remember about you and writes conversation summaries. A smaller, cheaper model is fine here.",
+          "none": "No model available: the tutor won't remember anything new until you add a chat model."
+        },
         "vision": {
           "title": "Image model (vision)",
           "description": "Reads images and scanned PDF pages, and answers messages that carry images. Pick models that can see images: chat models are not used for this automatically.",
@@ -233,6 +304,8 @@
     "document_encrypted": "This PDF is password-protected.",
     "document_unreadable": "This document can't be read.",
     "processing_failed": "Processing failed. Please retry.",
-    "processing_interrupted": "Processing was interrupted. Please retry."
+    "processing_interrupted": "Processing was interrupted. Please retry.",
+    "memory_not_found": "This memory doesn't exist or was already deleted.",
+    "invalid_memory": "A memory needs some text, at most 1000 characters."
   }
 }

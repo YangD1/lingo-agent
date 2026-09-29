@@ -5,11 +5,16 @@ Replies are deterministic; a message containing "long" gets a slow ~4s reply so 
 "stop generating" test has something to interrupt. It also stands in for the attachment
 models (ADR 0008): structured image readings via function calling, a reply that says how
 many images it was shown, and /audio/transcriptions.
+
+Memory (ADR 0009): reflection remembers what follows "remember that" in a learner
+message, and "what do you remember" gets back the facts found in the system prompt, so
+tests can check which memories reached the model.
 """
 
 import asyncio
 import json
 import os
+import re
 import time
 from collections.abc import AsyncIterator
 from typing import Any
@@ -31,33 +36,59 @@ IMAGE_DESCRIPTION = "A handwritten worksheet."
 TRANSCRIPT = "I goed home yesterday."
 
 
+REMEMBER = re.compile(r"^Learner: .*?remember that (.+?)\.?$", re.IGNORECASE | re.MULTILINE)
+FACTS_HEADING = "### Things they have told you\n"
+
+
+def text_of(content: Any) -> str:
+    if isinstance(content, list):  # content parts
+        return " ".join(p.get("text", "") for p in content)
+    return str(content or "")
+
+
+def remembered_facts(messages: list[dict[str, Any]]) -> list[str]:
+    system = "\n".join(text_of(m["content"]) for m in messages if m["role"] == "system")
+    if FACTS_HEADING not in system:
+        return []
+    block = system.split(FACTS_HEADING, 1)[1].split("\n\n", 1)[0]
+    return [line.removeprefix("- ") for line in block.splitlines()]
+
+
 def reply_for(messages: list[dict[str, Any]]) -> str:
     last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
-    images = 0
-    if isinstance(last, list):  # content parts
-        images = sum(p.get("type") == "image_url" for p in last)
-        last = " ".join(p.get("text", "") for p in last)
+    images = sum(p.get("type") == "image_url" for p in last) if isinstance(last, list) else 0
+    last = text_of(last)
+    if "what do you remember" in last.lower():
+        return "I remember: " + (" | ".join(remembered_facts(messages)) or "nothing yet")
     if "long" in last.lower():
         return " ".join(f"word{i}" for i in range(40))
     seen = f"I can see {images} image(s). " if images else ""
     return f"Nice try! {seen}You said: {last}"
 
 
-# Structured outputs other than image reading, by schema (function) name.
-TOOL_ARGUMENTS: dict[str, dict[str, Any]] = {
-    # Post-turn memory reflection (ADR 0009): nothing worth remembering.
-    "Reflection": {"memory_ops": []},
-    "EpisodeSummary": {"summary": "The learner practised small talk."},
-}
+def reflection(messages: list[dict[str, Any]]) -> dict[str, Any]:
+    """Post-turn memory reflection: one fact per "remember that ..." among the new messages."""
+    prompt = text_of(messages[-1]["content"]) if messages else ""
+    new = prompt.split("## New messages to reflect on", 1)[-1]
+    facts = [m.group(1).strip() for m in REMEMBER.finditer(new)]
+    return {"memory_ops": [{"action": "add", "content": f"{f[0].upper()}{f[1:]}."} for f in facts]}
 
 
-def tool_reply(model: str, tools: list[dict[str, Any]]) -> JSONResponse:
-    """Structured output via function calling: canned arguments for the schema asked for,
-    otherwise the same image reading."""
+def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
+    """Canned arguments for the schema (function) asked for; otherwise an image reading."""
+    if name == "Reflection":
+        return reflection(messages)
+    if name == "EpisodeSummary":
+        return {"summary": "The learner practised small talk."}
+    return {"text_in_image": IMAGE_TEXT, "description": IMAGE_DESCRIPTION}
+
+
+def tool_reply(
+    model: str, tools: list[dict[str, Any]], messages: list[dict[str, Any]]
+) -> JSONResponse:
+    """Structured output via function calling."""
     name = tools[0]["function"]["name"]
-    arguments = TOOL_ARGUMENTS.get(
-        name, {"text_in_image": IMAGE_TEXT, "description": IMAGE_DESCRIPTION}
-    )
+    arguments = tool_arguments(name, messages)
     return JSONResponse(
         {
             "id": "chatcmpl-fake",
@@ -103,7 +134,7 @@ async def completions(request: Request) -> StreamingResponse | JSONResponse:
     body = await request.json()
     model = body.get("model", "fake")
     if body.get("tools") and not body.get("stream"):
-        return tool_reply(model, body["tools"])
+        return tool_reply(model, body["tools"], body.get("messages", []))
     text = reply_for(body.get("messages", []))
     usage = {"prompt_tokens": 42, "completion_tokens": len(text.split()), "total_tokens": 0}
     usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]

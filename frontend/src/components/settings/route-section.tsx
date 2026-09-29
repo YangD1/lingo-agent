@@ -16,15 +16,26 @@ import { useDescribeError } from "./use-describe-error";
 
 const MAX_ROWS = 5; // the backend's limit on a route's fallback chain
 
-/** The routes the settings page edits: chat, and the two that attachments need (ADR 0008 §5). */
-export type RouteTask = "chat" | "vision" | "asr";
+/**
+ * The routes the settings page edits: chat, the two that attachments need (ADR 0008 §5),
+ * and the background model that keeps the tutor's memory (ADR 0009).
+ */
+export type RouteTask = "chat" | "reflect" | "vision" | "asr";
 const SECTION: Record<RouteTask, TaskRoute["section"]> = {
   chat: "llm",
+  reflect: "llm",
   vision: "llm",
   asr: "asr",
 };
 // The asr section has a single route, stored under the task name "default".
-const TASK_KEY: Record<RouteTask, string> = { chat: "chat", vision: "vision", asr: "default" };
+const TASK_KEY: Record<RouteTask, string> = {
+  chat: "chat",
+  reflect: "reflect",
+  vision: "vision",
+  asr: "default",
+};
+// A connection's default model is a chat model: only a good first guess for these.
+const TEXT_TASKS = new Set<RouteTask>(["chat", "reflect"]);
 
 type Row = { key: number; connection: string; model: string };
 // Per connection name: its chat models, or why they aren't there (the user can still type one).
@@ -76,8 +87,7 @@ export function RouteSection({
 
   function newRow(): Row {
     const c = connections[0];
-    // A connection's default model is a chat model: only a good first guess for chat.
-    return row(c?.name ?? "", task === "chat" ? (c?.default_model ?? "") : "");
+    return row(c?.name ?? "", TEXT_TASKS.has(task) ? (c?.default_model ?? "") : "");
   }
 
   function loadCatalog(name: string) {
@@ -189,7 +199,7 @@ export function RouteSection({
                       value={r.connection}
                       onChange={(e) => {
                         const c = connections.find((x) => x.name === e.target.value);
-                        const model = task === "chat" ? (c?.default_model ?? "") : "";
+                        const model = TEXT_TASKS.has(task) ? (c?.default_model ?? "") : "";
                         update(r.key, { connection: e.target.value, model });
                       }}
                       className="w-36"

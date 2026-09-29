@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–4 完成，正在做任务 5（记忆/画像接口 + `/memory` 页面）。
+**当前阶段**：P1 进行中。计划 Q1–Q10 已确认，ADR 0009–0011 已采纳；任务 0、1 完成。能力看板 Q11–Q14 也已确认。任务 2–5 完成（P1a 记忆全部完成），下一步是任务 6（语法 KC 清单，P1b 学习者模型）。
 **阻塞项**：无
 
 ## P0 骨架
@@ -100,8 +100,7 @@
 - [x] 2. `user_profile`、`memories` 表 + 记忆服务层 + 检索（有 embedding 按向量，否则按时间）。完成记录：表名 `user_profiles`（和其他表一样用复数）、`memories`（迁移 `bfdce3bfd67d`；`embedding` 是不带维度的 `vector` 列，deferred 加载；每个会话一条摘要由部分唯一索引保证）；新依赖 `pgvector` 0.5（已核实不再依赖 numpy）；`app/memory/embedding.py`（`memory_embedder(ctx)`，embedding 路由 task 名 `memory`，没配时返回 None；调用失败返回 None、照常保存）；`app/memory/service.py`（画像更新区分学习者/反思，`manual_fields` 保护；记忆增删改查按用户隔离；`upsert_episode`；`facts_for_context` 最多 40 条；`relevant_episodes` 同模型向量按余弦距离排，不够再按时间补；`backfill_embeddings` 不在事务里调厂商）。`tests/integration/test_memory_service.py` 13 个；backend 共 391 个通过，ruff / mypy 干净
 - [x] 3. `load_context` 节点 + 主图改造（学习者上下文只进 prompt、不进 checkpoint）。完成记录：图为 `START → load_context → tutor → END`，内部状态 `ChatState` 的 `learner_context` 用 `UntrackedValue` 通道（不进 checkpoint，输入/输出 schema 仍是 `MessagesState`）；`app/memory/context.py`（`LearnerSource` 协议、`DatabaseLearner`、`render_learner_context`，事实 3000 字符、每条摘要 600 字符的预算）；`prompts/learner_context.md`；发消息接口传入 `DatabaseLearner`（embedding 可选）。顺带：`explanation_language` 改为可空无默认值（直接改了任务 2 的迁移，尚未推送），情景记忆条数不超过 limit 时不调 embedding。新增测试：渲染 4 个、图 2 个（上下文进了 prompt、checkpoint 三张表里扫不到；读取失败照常回复）、接口 2 个（新会话用到事实、删除后下一轮不再出现；别人的记忆不串）。backend 400 个、E2E 21 个通过，ruff / mypy 干净
 - [x] 4. `ReflectionWorker` + `reflect`（memory_ops、profile_updates）+ 会话摘要 + `reflected_message_id` 补做。完成记录：`app/memory/reflection.py`（结构化 schema、输入渲染、短 id 映射、`apply_reflection`、画像清洗、`memory_language`）、`app/memory/worker.py`（同一会话串行、全局并发 2、`finish_previous`、`recover`、游标更新保留 `updated_at`、失败重试 1 次后跳过）、`prompts/reflect.md` / `reflect_summary.md`；迁移 `271e03145c58`（conversations 加两个游标）；`MEMORY_REFLECTION_ENABLED`（.env.example、compose）；发消息在 `done` 之后触发，新建会话时总结上一个会话。记忆摘要和抽取共用 `reflect` 路由。测试：逻辑单测 6 个、集成 7 个（记住事实和画像、只看新消息、不改变会话排序、失败重试后跳过、每 6 轮及新建会话时摘要、关闭时不调用、重启后补做、操作只作用于展示给模型的事实）。E2E 假模型支持反思 schema，设置页用量从 2 次调用改为 3 次。backend 413 个、E2E 21 个通过，ruff / mypy / eslint / tsc 干净
-- [~] 5. 记忆/画像接口 + `/memory` 页面
-  - 进度：后端接口已完成（`app/api/memory.py`：`GET/PATCH /profile`（只改传入的字段，学习者改过的字段记为 manual，`cefr_level` 不能手改，考试标签和 IANA 时区有校验）、`GET/POST /memories`（`?kind=` 过滤，带来源会话标题）、`PATCH/DELETE /memories/{id}`、`DELETE /memories`（可按 kind 清空，真删除））；`tests/integration/test_memory_api.py` 9 个，backend 共 422 个通过，ruff / mypy 干净。未完成：前端 `/memory` 页面、设置页路由编辑器加入 `reflect`、E2E
+- [x] 5. 记忆/画像接口 + `/memory` 页面。完成记录：后端 `app/api/memory.py`（`GET/PATCH /profile`：只改传入的字段并记为 manual，`cefr_level` 不能手改，考试标签和 IANA 时区有校验；`GET/POST /memories`：`?kind=` 过滤，带来源会话标题；`PATCH/DELETE /memories/{id}`；`DELETE /memories`：可按 kind 清空，真删除；编辑和新增时重算 embedding，调用前先结束读事务）。前端 `/memory`（`components/memory/`：画像表单只提交改动过的字段（`lib/profile.ts`），事实可新增、编辑、删除、全部清空，会话摘要可删除、清空，都带时间和来源会话链接）；导航加“记忆”，`proxy.ts` 保护 `/memory`；设置页路由编辑器加入 `reflect`（“后台整理模型”，新行默认用连接的对话模型）。E2E 假模型：学习者说 “remember that …” 时反思返回一条事实，“what do you remember” 时回答系统提示里的事实。测试：接口集成 9 个；Vitest 新增画像转换 4 个、`reflect` 路由 1 个、`/memory` 路由保护 1 个；E2E `memory.spec.ts` 2 个（聊天 → 记忆出现 → 新会话用到 → 删除 → 新会话不再用到；画像编辑、事实增改清空）。backend 422 个、Vitest 99 个、E2E 23 个通过，ruff / mypy / eslint / tsc 干净
 - **P1b 学习者模型**
 - [ ] 6. 语法 KC 清单（LLM 起草 → 用户审核）+ 加载校验
 - [ ] 7. BKT / Elo 纯函数 + `kc_mastery`、`mistakes`、`skill_estimates` 表
