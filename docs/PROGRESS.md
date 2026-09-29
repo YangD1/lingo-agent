@@ -3,7 +3,7 @@
 > 状态：`[ ]` 未开始 · `[~]` 进行中 · `[x]` 完成 · `[!]` 阻塞（写明原因）
 > 阶段定义见 `docs/PLAN.md` 第四节。只在 P0 细化任务，后续阶段开始时再拆分。
 
-**当前阶段**：P0 骨架（任务 1–12、11A、11B 完成（11B 待用户实测）；任务 12 CI 在 GitHub 上全绿；进行中：任务 13 README）
+**当前阶段**：P0 骨架任务 1–13 全部完成（11B 附件功能待用户用真实模型实测）；CI 在 GitHub 上全绿。下一步：用户实测 11B，然后和用户确认 P0 收尾 / 进入 P1
 **阻塞项**：无
 
 ## P0 骨架
@@ -78,11 +78,11 @@
   - [x] 12.3 同步 P0 计划 §10（CI 没有单独的 alembic 步骤：conftest 已经在空库上执行 downgrade base → upgrade head）、Makefile `ci` 目标（本地按 CI 的顺序跑一遍）
   - [x] 12.4 GitHub 上实际运行：第一次运行（run 36515494936）frontend、docker 通过；backend、e2e 在 Set up job 阶段失败：`astral-sh/setup-uv@v10` 不存在——该 action 从 v8 起不再发布浮动的主版本标签（只有 v10.2.0 这类完整版本号），改为 `@v10.2.0`，其余 action 的版本号都能解析。第二次运行（run 36515892892）frontend、docker、e2e 通过，backend 的 pytest 失败（日志要登录才能下载，看不到原因）。本地去掉代理变量、TZ=UTC 重跑，复现出一个依赖本机环境的问题：`test_chat_attachments.py` 借用了 `test_chat_send.connect()`，却没用到那个文件里 autouse 的 DNS 桩，所以会真的去解析 `api.openai.com`，而本机 Clash 的 fake-ip 返回私有地址，被网络防护拒绝。改为在 `tests/conftest.py` 加一个全局 autouse 的 `public_dns`（主机名一律解析成公网地址，IP 字面量解析成自身；各模块自己的桩仍然优先）。这个 fixture 故意不用 `monkeypatch`：用了之后 monkeypatch 会比各模块的 fixture 更早建立、更晚撤销，导致 `_clear_caches` 撤销时 `get_providers_config` 还是被替换的状态。本地两种环境都是 371 个通过。第三次运行（run 36516463235）backend 仍失败，装了 gh 并登录后读到日志：真正的原因是 `test_invalid_attachment_lists_are_refused[not_ready]` 的时序竞争——上传 txt 后不等处理就发送、期望 409，但 runner 快，后台任务先处理完了，返回 200。改为先等处理完，再把数据库里的状态改回 `processing`。另有提示：`ubuntu-latest` 从 2026-10-19 起迁移到 Ubuntu 26
   - 完成记录：actionlint（官方 docker 镜像，含 shellcheck）0 个错误。Action 版本：checkout@v7、setup-node@v7、pnpm/action-setup@v6、setup-uv@v10（uv 固定为 0.11.8，与 Dockerfile 一致）、setup-buildx@v4、build-push@v7、upload-artifact@v7（由子代理查 releases 页得到，没有逐个人工核对）。**本地模拟 CI**：新 clone 的仓库，两个全新的 pgvector 容器（5434 / 5435，不动开发栈的 5433）——backend job 66s（ruff、mypy、pytest 371）、frontend job 20s（lint、typecheck、Vitest 93、build）、e2e job 44s（`CI=true`，21 个全部通过，`lingo_e2e` 建在新库里）；docker job 没有再跑，因为 11B.6d 已用同样的 Dockerfile 构建过。为了本地能指向别的端口，`e2e/run_backend.py` 的 `DATABASE_URL` 改为从 `E2E_ADMIN_DB` 推导（默认值不变）。踩坑：zsh 里 `pnpm` 是懒加载 nvm 的函数，模拟时要先 `unset -f pnpm`，再用 `whence -p pnpm` 取到的绝对路径调用
-- [~] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令。验收：照着 README 能从零跑起来。用户确认：两个文件互相链接；架构写 mermaid 简图 + 目录说明 + 链到 PLAN/ADR；13.4 完整跑 compose（复用构建缓存，盯内存）
+- [x] 13. README（英文 + zh-CN）+ CLAUDE.md 常用命令。验收：照着 README 能从零跑起来。用户确认：两个文件互相链接；架构写 mermaid 简图 + 目录说明 + 链到 PLAN/ADR；13.4 完整跑 compose（复用构建缓存，盯内存）
   - [x] 13.1 `README.md`（英文）：一句话定位 + CI 徽章；**P0 现在能做什么 / 还没做什么**（如实写，路线图链到 PLAN）；快速开始（前置条件 → `make env` → `make up` → 打开 :3000 注册 → 设置页建连接 → 聊天）；配置模型（租户在应用内配 key、加密存库；预设、自定义 OpenAI 兼容地址、本地 Ollama 与 `PROVIDER_ALLOW_PRIVATE_NETWORKS`）；可选的本地语音转写（`make asr-up`）；本地开发（`dev-db / dev-backend / dev-frontend`、测试、lint、`make ci`）；架构概览（简图 + 目录说明 + 链到 ADR）；安全说明（密钥、`.env`、生产要 HTTPS）；贡献与许可
   - [x] 13.2 `README.zh-CN.md`：内容和英文版一致，两份文件顶部互相链接
   - [x] 13.3 `CLAUDE.md` 的“常用命令”：启动、测试、lint、迁移、compose、CI 相关，以 Makefile 为准。README 里的界面名称（对话 / 设置 / 模型连接 / 自定义 / 三个任务名）、端口、环境变量、附件类型和大小、用量表字段、内存上限（512+768+384 MB）都已和代码 / i18n 文案核对
-  - [ ] 13.4 验证：新 clone 到临时目录，只按 README 的步骤从零跑一遍（compose 全栈 → 注册 → 用假模型或真连接聊天），文中的命令、端口、环境变量逐项和代码核对；发现问题回头改 README 或代码
+  - [x] 13.4 验证：新 clone 到临时目录，只按 README 的步骤从零跑一遍（compose 全栈 → 注册 → 用假模型或真连接聊天），文中的命令、端口、环境变量逐项和代码核对；发现问题回头改 README 或代码。**结果**：从 GitHub clone（2a9672d）到 /tmp，`make env`（.env 权限 600，密钥和 JWT 已生成）→ `make up` 60 秒（有构建缓存，可用内存最低 2.2GB）三个服务 healthy；按 README 的“本机模型服务”一节：`PROVIDER_ALLOW_PRIVATE_NETWORKS=true` + 自定义连接 `http://host.docker.internal:8102/v1`（假模型监听 0.0.0.0）→ 不设路由直接聊天，SSE token 逐块到达，历史保存，`/api/readyz` ok，/chat、/settings、`/api/tenant/usage` 200。README 没有需要改的地方。为了不碰开发栈，验证时用了 `COMPOSE_PROJECT_NAME=lingo-readme` 和另一组端口（compose 文件固定了项目名 `lingo-agent`，同一台机器上第二份 checkout 直接 `make up` 会接管原来的容器和数据卷）；验证完 `down -v` 已清理。注意：镜像名 `lingo-agent-backend/frontend` 是固定的，验证时被同样的代码重新构建过
 
 ## P1 MVP：私教对话 + 长期记忆 + 背单词 + 入学测 + 自适应引擎 v1
 - [ ] （进入 P1 时拆分）

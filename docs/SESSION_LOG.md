@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-09-29 · 任务 13 README
+
+- **做了什么**：`README.md`（英文）+ `README.zh-CN.md`（中文），顶部互相链接，带 CI 徽章；如实写 P0 能做什么 / 还没做什么，Docker 快速开始、模型配置（三个任务、本机模型服务与 SSRF 开关、可选本地语音转写）、本地开发、mermaid 架构简图 + 目录说明 + ADR 链接、部署注意事项、贡献。界面名称按 i18n 文案核对（中文界面是“对话”“语音转文字”）。`CLAUDE.md` 补了“常用命令”。从 GitHub 新 clone，用独立的 compose 项目名照 README 从零跑通（详见 PROGRESS 13.4）。
+- **未完成**：无。11B（附件）仍待用户用真实模型实测。
+- **下一步**：用户实测 11B；之后确认 P0 收尾，按 PLAN 规划 P1（开工前先拆任务写进看板）。
+- **踩坑**：compose 文件固定了 `name: lingo-agent`，同一台机器上再 clone 一份直接 `make up` 会接管原来的容器和数据卷，验证时要设 `COMPOSE_PROJECT_NAME` 并换端口。zsh 里 `echo ======` 会报 `= not found`（`=word` 会被展开成命令路径）。
+
+---
+
 ## 2026-09-29 · 任务 12 推送到 GitHub，修 CI
 
 - **做了什么**：用户确认保留提交邮箱和文档里的环境细节后，添加 remote `git@github.com:YangD1/lingo-agent.git`（公开仓库）并推送 main。第一次 CI：frontend、docker 通过，backend、e2e 在 Set up job 失败（`astral-sh/setup-uv@v10` 不存在），改为 `@v10.2.0`。第二次运行只有 backend 的 pytest 失败；本地去掉代理变量、TZ=UTC 重跑，复现出测试在做真实 DNS 解析（`test_chat_attachments.py` 没有 DNS 桩），改为在 `tests/conftest.py` 全局加 `public_dns`。但第三次仍失败；装 gh（官方二进制放到 `~/.local/bin`）并登录后读日志，真正原因是 `test_chat_attachments.py` 的 `not_ready` 用例在和后台处理任务赛跑，已改成确定性写法。
