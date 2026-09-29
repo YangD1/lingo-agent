@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-09-29 · 11B 实测：语音转写接入硅基流动
+
+- **做了什么**：用户实测 11B。看图（中转站 gpt-6-sol）和 PDF 提取正常；语音一路排查：中转站没有 `/audio/transcriptions`（404）→ 本地 speaches（要 `PROVIDER_ALLOW_PRIVATE_NETWORKS=true`，容器里地址是 `http://asr:8000/v1`）→ 第一段录音 -60 dB 几乎静音，Whisper 编出一串“ლ”，是麦克风问题 → 想换 Groq，发现 Groq 屏蔽大陆 IP（直连 403，经代理 401），后端又有意不走代理 → 新增硅基流动预设（11B.7），用户实测中英文都转写正确。顺带修了测试会读开发者 `.env` 的问题。CI 全绿。
+- **未完成**：11C 五个体验问题（看板里有），待用户决定做不做。
+- **下一步**：用户选择先做 11C，还是直接规划 P1（Supervisor 主图、长期记忆、FSRS 背单词、CEFR 入学测、自适应引擎第一版）。P1 开工前要先写阶段计划（参照 `docs/plans/P0-skeleton.md`）和相关 ADR，拆任务写进看板，确认后再动手。
+- **踩坑**：国外模型 API 的地区屏蔽只在直连时出现，开发机上经代理测试会漏掉，要从后端容器里测（`httpx`，`trust_env=False`）。Whisper 对静音会编造文字，判断转写质量前先用 `ffmpeg -af volumedetect` 看音量。本机的 gh 装在 `~/.local/bin`，已登录。
+
+---
+
 ## 2026-09-29 · 任务 13 README
 
 - **做了什么**：`README.md`（英文）+ `README.zh-CN.md`（中文），顶部互相链接，带 CI 徽章；如实写 P0 能做什么 / 还没做什么，Docker 快速开始、模型配置（三个任务、本机模型服务与 SSRF 开关、可选本地语音转写）、本地开发、mermaid 架构简图 + 目录说明 + ADR 链接、部署注意事项、贡献。界面名称按 i18n 文案核对（中文界面是“对话”“语音转文字”）。`CLAUDE.md` 补了“常用命令”。从 GitHub 新 clone，用独立的 compose 项目名照 README 从零跑通（详见 PROGRESS 13.4）。
