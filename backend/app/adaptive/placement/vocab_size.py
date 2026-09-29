@@ -14,7 +14,9 @@ to band averages, so it also works when each band has only a few answers.
 V is the maximum a posteriori fit over all real-word answers under a weak log-normal
 prior (so all-yes or all-no still gives a finite V); the next question goes to the band
 nearest the current fit, where an answer is most informative. The estimate is the
-expected number of known words among the first `max_rank`.
+expected number of known words among the first `max_rank`, counting in each band the
+words that can be tested (lemmas, not inflections or names; `placement.words`) rather
+than every rank.
 """
 
 import math
@@ -104,17 +106,32 @@ def fit(answers: Sequence[Answer], rules: PlacementVocabRules) -> float:
     return math.exp(best)
 
 
-def expected_size(v: float, rules: PlacementVocabRules) -> int:
-    """Expected number of known words among the first max_rank, band by band."""
-    total = sum(rules.band_size * p_know(v, b.middle, rules) for b in bands(rules))
+def expected_size(
+    v: float, rules: PlacementVocabRules, band_words: Sequence[int] | None = None
+) -> int:
+    """Expected number of known words among the first max_rank, band by band.
+
+    `band_words` is how many words each band counts; every rank when not given.
+    """
+    counts = band_words if band_words is not None else [rules.band_size] * len(bands(rules))
+    total = sum(n * p_know(v, b.middle, rules) for b, n in zip(bands(rules), counts, strict=True))
     return round(total)
 
 
-def estimate(answers: Sequence[Answer], rules: PlacementVocabRules) -> VocabEstimate:
+def rank_at(v: float, p: float, rules: PlacementVocabRules) -> int:
+    """The rank up to which the learner knows each word with probability at least p."""
+    return int(v * math.pow((1 - p) / p, 1 / rules.steepness))
+
+
+def estimate(
+    answers: Sequence[Answer],
+    rules: PlacementVocabRules,
+    band_words: Sequence[int] | None = None,
+) -> VocabEstimate:
     v = fit(answers, rules)
     f = false_alarm_rate(answers)
     return VocabEstimate(
-        size=expected_size(v, rules),
+        size=expected_size(v, rules, band_words),
         half_known_rank=round(v),
         false_alarm=f,
         reliable=f < rules.unreliable_false_alarm,
@@ -129,7 +146,13 @@ def schedule(rules: PlacementVocabRules, rng: random.Random) -> list[bool]:
     return order
 
 
+def bands_by_distance(answers: Sequence[Answer], rules: PlacementVocabRules) -> list[Band]:
+    """All bands, nearest the current fit first (log scale): the next question comes
+    from the first one that still has an unused word."""
+    log_v = math.log(fit(answers, rules))
+    return sorted(bands(rules), key=lambda b: (abs(math.log(b.middle) - log_v), b.index))
+
+
 def next_band(answers: Sequence[Answer], rules: PlacementVocabRules) -> Band:
     """The band whose middle is nearest the current fit, on a log scale."""
-    log_v = math.log(fit(answers, rules))
-    return min(bands(rules), key=lambda b: (abs(math.log(b.middle) - log_v), b.index))
+    return bands_by_distance(answers, rules)[0]

@@ -46,8 +46,10 @@ EVIDENCE_SOURCES = ("chat", "placement")
 SKILLS = ("listening", "speaking", "reading", "writing", "grammar", "vocab")
 ACTIVITY_KINDS = ("step", "tool", "mcp", "background")
 ACTIVITY_STATUSES = ("ok", "failed", "skipped")
-CARD_SOURCES = ("book", "auto", "manual")
+CARD_SOURCES = ("book", "auto", "manual", "placement")
 CARD_STATUSES = ("new", "learning", "known", "suspended")
+PLACEMENT_STATUSES = ("in_progress", "done", "abandoned")
+PLACEMENT_STAGES = ("vocab", "grammar")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -548,3 +550,53 @@ class ReviewLog(Base):
     review_duration_ms: Mapped[int | None] = mapped_column(Integer)
     card_before: Mapped[dict[str, Any]] = mapped_column(JSONB)
     card_after: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+
+class PlacementSession(TimestampMixin, Base):
+    """One run of the placement test (P1 plan §6.2); its id is the LangGraph thread id.
+
+    The answers live in the checkpoint while the test runs; when it ends they are
+    copied into `result` with the estimates, and the thread is deleted.
+    """
+
+    __tablename__ = "placement_sessions"
+    __table_args__ = (
+        CheckConstraint(_in("status", PLACEMENT_STATUSES), name="status"),
+        CheckConstraint(_in("stage", PLACEMENT_STAGES), name="stage"),
+        CheckConstraint("(status = 'done') = (result IS NOT NULL)", name="done_result"),
+        # One test at a time per learner.
+        Index(
+            "uq_placement_sessions_user_id_in_progress",
+            "user_id",
+            unique=True,
+            postgresql_where="status = 'in_progress'",
+        ),
+        Index("ix_placement_sessions_user_id_created_at", "user_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(12))
+    stage: Mapped[str] = mapped_column(String(10))
+    # Drives word sampling, pseudo-word positions and option order, so a resumed test
+    # shows the same question it stopped at.
+    seed: Mapped[int] = mapped_column(BigInteger)
+    rules_version: Mapped[str] = mapped_column(String(50))
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PlacementItemStat(TimestampMixin, Base):
+    """Calibrated difficulty of one grammar item (ADR 0012 §3); global, not per tenant.
+
+    Starts from the rubric prior and is updated after each finished test with that
+    test's final ability, never mid-test. The test switches to it only once an item
+    has enough answers (rules.yaml).
+    """
+
+    __tablename__ = "placement_item_stats"
+    __table_args__ = (CheckConstraint("attempts >= 0", name="attempts"),)
+
+    item_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    difficulty: Mapped[float] = mapped_column(Float)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

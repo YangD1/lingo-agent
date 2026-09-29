@@ -6,12 +6,14 @@ from app.adaptive.placement.vocab_size import (
     Answer,
     band_of,
     bands,
+    bands_by_distance,
     estimate,
     expected_size,
     false_alarm_rate,
     fit,
     next_band,
     p_know,
+    rank_at,
     schedule,
 )
 from app.adaptive.rules import PlacementVocabRules
@@ -139,3 +141,26 @@ def test_guessing_learner_is_corrected(rules: PlacementVocabRules) -> None:
     honest = [estimate(simulate(3000, rules, s), rules).size for s in range(10)]
     guesser = [estimate(simulate(3000, rules, s, f=0.33), rules).size for s in range(10)]
     assert abs(sum(guesser) - sum(honest)) / sum(honest) < 0.3
+
+
+def test_expected_size_counts_the_words_of_each_band(rules: PlacementVocabRules) -> None:
+    every_rank = expected_size(5000, rules)
+    assert expected_size(5000, rules, [1000] * 20) == every_rank
+    assert expected_size(5000, rules, [800] * 20) == pytest.approx(every_rank * 0.8, abs=1)
+    assert expected_size(5000, rules, [0] * 20) == 0
+    with pytest.raises(ValueError):
+        expected_size(5000, rules, [1000] * 3)
+
+
+def test_rank_at(rules: PlacementVocabRules) -> None:
+    assert rank_at(4000, 0.5, rules) == 4000
+    at_90 = rank_at(4000, 0.9, rules)
+    assert at_90 < 4000
+    assert p_know(4000, at_90, rules) == pytest.approx(0.9, abs=0.001)
+
+
+def test_bands_by_distance_start_at_next_band(rules: PlacementVocabRules) -> None:
+    answers = [Answer(rank=500, yes=True), Answer(rank=9000, yes=False)]
+    order = bands_by_distance(answers, rules)
+    assert order[0] == next_band(answers, rules)
+    assert sorted(b.index for b in order) == list(range(20))
