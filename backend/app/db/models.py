@@ -24,6 +24,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, deferred, mapped_column
 
+from app.adaptive.kc.catalog import ERROR_TYPES
+from app.adaptive.rules import EVIDENCE_KINDS, SEVERITIES
 from app.db.base import Base, TimestampMixin
 
 # Stored as CHECK-constrained strings rather than PG ENUM types: adding a value is a
@@ -38,6 +40,9 @@ ATTACHMENT_STATUSES = ("processing", "ready", "failed")
 MEMORY_KINDS = ("fact", "episode")
 CEFR_LEVELS = ("A1", "A2", "B1", "B2", "C1", "C2")
 EXPLANATION_LANGUAGES = ("zh", "en")
+KC_KINDS = ("grammar", "word")
+EVIDENCE_SOURCES = ("chat", "placement")
+SKILLS = ("listening", "speaking", "reading", "writing", "grammar", "vocab")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -294,3 +299,93 @@ class Memory(TimestampMixin, Base):
     # has few enough memories that an exact scan needs no ANN index.
     embedding: Mapped[list[float] | None] = deferred(mapped_column(Vector()))
     embedding_model: Mapped[str | None] = mapped_column(String(200))
+
+
+class KCEvidence(Base):
+    """One observation about a learner's grasp of one KC; append-only (ADR 0012 §2).
+
+    The source of truth for mastery: kc_mastery is rebuilt by replaying these rows, and
+    severity or per-turn rules apply at replay time, so nothing is filtered on write.
+    Rows with `correct = false` are the learner's mistakes and carry their details.
+    """
+
+    __tablename__ = "kc_evidence"
+    __table_args__ = (
+        CheckConstraint(_in("evidence", EVIDENCE_KINDS), name="evidence"),
+        CheckConstraint(_in("source", EVIDENCE_SOURCES), name="source"),
+        CheckConstraint(
+            f"error_type IS NULL OR {_in('error_type', ERROR_TYPES)}", name="error_type"
+        ),
+        CheckConstraint(f"severity IS NULL OR {_in('severity', SEVERITIES)}", name="severity"),
+        # A mistake always says how and how badly; a success never does.
+        CheckConstraint(
+            "correct = (error_type IS NULL) AND correct = (severity IS NULL)", name="mistake_fields"
+        ),
+        Index("ix_kc_evidence_user_id_created_at", "user_id", "created_at"),
+        Index("ix_kc_evidence_user_id_kc_id_created_at", "user_id", "kc_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # No FK: KC ids come from the checked-in catalog (grammar.yaml) or `w.<lemma>`.
+    kc_id: Mapped[str] = mapped_column(String(100))
+    correct: Mapped[bool] = mapped_column(Boolean)
+    evidence: Mapped[str] = mapped_column(String(20))
+    source: Mapped[str] = mapped_column(String(20))
+    # Kept when the conversation is deleted: evidence is the learner's to delete.
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL")
+    )
+    # The learner message it came from (LangGraph message id); the per-turn cap of
+    # rules.yaml groups by it. NULL for placement answers.
+    message_id: Mapped[str | None] = mapped_column(String(64))
+    error_type: Mapped[str | None] = mapped_column(String(20))
+    severity: Mapped[str | None] = mapped_column(String(10))
+    original: Mapped[str | None] = mapped_column(Text)
+    correction: Mapped[str | None] = mapped_column(Text)
+    # The error mirrors a pattern of the learner's first language.
+    l1_transfer: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KCMastery(TimestampMixin, Base):
+    """Cached result of replaying a learner's evidence for one KC (ADR 0012 §2).
+
+    Rows whose `rules_version` differs from rules.yaml are stale and get rebuilt.
+    """
+
+    __tablename__ = "kc_mastery"
+    __table_args__ = (
+        CheckConstraint(_in("kind", KC_KINDS), name="kind"),
+        CheckConstraint("p_mastery BETWEEN 0 AND 1", name="p_mastery"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    kc_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(10))
+    p_mastery: Mapped[float] = mapped_column(Float)
+    # Counted observations only (after the severity and per-turn rules).
+    observations: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    recog_correct: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    produce_correct: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    last_evidence_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rules_version: Mapped[str] = mapped_column(String(50))
+
+
+class SkillEstimate(TimestampMixin, Base):
+    """Elo ability per skill (ADR 0010 §2). Uncertainty is K(attempts), not stored."""
+
+    __tablename__ = "skill_estimates"
+    __table_args__ = (
+        CheckConstraint(_in("skill", SKILLS), name="skill"),
+        CheckConstraint("attempts >= 0", name="attempts"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    skill: Mapped[str] = mapped_column(String(20), primary_key=True)
+    rating: Mapped[float] = mapped_column(Float)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

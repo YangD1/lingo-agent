@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-09-29 · P1b 任务 7：规则文件、BKT、Elo、学习者模型表
+
+- **做了什么**：任务 7 完成。用户选定：BKT 先验按等级差给值、严重度三级（low 不计入）、`skill_estimates` 存 attempts；题目难度由 LLM 按维度打分给先验、Elo 按作答校准。用户要求以后方便改规则 → ADR 0012：规则集中在 `app/adaptive/rules.yaml`（带版本号）；`mistakes` 表改为只追加的 `kc_evidence`，掌握度由证据重放得出，`kc_mastery` 记 `rules_version`。代码在 `app/adaptive/{rules,bkt,elo}.py`，迁移 `612ac223409b`。提交 `8e1796f` 及本次提交。
+- **未完成**：无。
+- **下一步**：任务 8：反思 schema 加 `mistakes`（kc_id、error_type、severity、original、correction、l1_transfer）和 `used_correctly`；KC 清单渲染进反思 prompt 的固定前缀（id + description + common_errors）；非法 kc_id 丢弃；写入 `kc_evidence`（message_id 用学习者消息 id，要防止反思重试时重复写入）；按受影响的 KC 重放并写回 `kc_mastery`；`rules_version` 变化时的重建时机（建议读取时发现版本不符就重建该用户）。开工前先拆子任务、和用户确认。
+- **踩坑**：YAML 行内映射 `{offset: 0.4, description: ..., e.g. ...}` 里的逗号会把描述拆成多个键（extra="forbid" 抓到了），描述要加引号。BKT 连续答对后浮点数会算出正好 1.0，之后永远降不下来，结果要限制在 [1e-4, 1-1e-4]。测试里 commit 之后 ORM 对象过期，再读 `user.id` 会触发 MissingGreenlet，要在 commit 前取出来。
+
+---
+
 ## 2026-09-29 · P1b 任务 6 完成：KC 清单审核
 
 - **做了什么**：用户不逐条审核，授权按英语教师的专业标准自审。按“一个 KC 只对应一种技能、一种错误只归一个 KC”重构清单，得到 119 个 KC，改动明细见看板 6.3。ADR 0010 §1 补上规则和 `error_type` 五类枚举。新增例句唯一性测试。
