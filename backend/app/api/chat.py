@@ -12,6 +12,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.activity.service import DatabaseActivity
 from app.api.attachments import AttachmentOut
 from app.api.errors import api_error
 from app.attachments import service as attachment_service
@@ -223,7 +224,8 @@ async def send_message(
     user: CurrentUser,
     graph: ChatGraphDep,
 ) -> AsyncIterator[ServerSentEvent]:
-    """Stream the tutor's reply: `token`* then `done`, or `error` (ADR 0003)."""
+    """Stream the tutor's reply: `token`* then `done`, or `error` (ADR 0003); `activity`
+    events for the steps of the turn may come before and between tokens (ADR 0013)."""
     async for event in stream_reply(
         graph,
         conversation_id=turn.conversation_id,
@@ -237,6 +239,9 @@ async def send_message(
             user.id,
             turn.conversation_id,
             memory_embedder(turn.providers),
+        ),
+        activity=DatabaseActivity(
+            request.app.state.sessionmaker, user.id, turn.conversation_id, turn.message_id
         ),
     ):
         data = dataclasses.asdict(event)

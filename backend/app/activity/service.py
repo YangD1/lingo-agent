@@ -11,12 +11,12 @@ import uuid
 from collections.abc import Collection, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive.kc.catalog import ErrorType
 from app.adaptive.rules import Severity
@@ -35,7 +35,7 @@ class ContextRead(_Summary):
 
     facts: list[uuid.UUID] = []
     episodes: list[uuid.UUID] = []
-    profile_fields: list[str] = []
+    profile_items: int = 0
 
 
 class MemoryChanges(_Summary):
@@ -85,6 +85,67 @@ STEPS: dict[str, StepSpec] = {
 }
 
 
+@dataclass(frozen=True)
+class Step:
+    """One step of a turn, as the code that ran it reports it."""
+
+    name: str
+    status: ActivityStatus = "ok"
+    summary: _Summary | None = None
+    duration_ms: int | None = None
+    call_id: str = ""
+
+    def payload(self, turn_id: str) -> dict[str, Any]:
+        """What the chat stream sends live; the same fields the activity API returns."""
+        return {
+            "turn_id": turn_id,
+            "name": self.name,
+            "kind": STEPS[self.name].kind,
+            "call_id": self.call_id,
+            "status": self.status,
+            "duration_ms": self.duration_ms,
+            "summary": _summary_json(self.name, self.status, self.summary),
+        }
+
+
+class ActivitySink(Protocol):
+    """Where the steps of one turn are recorded; bound to its learner, conversation
+    and turn, so the graph never handles those ids (ADR 0013 §1)."""
+
+    turn_id: str
+
+    async def record(self, step: Step) -> None: ...
+
+
+class DatabaseActivity:
+    def __init__(
+        self,
+        sessionmaker: async_sessionmaker[AsyncSession],
+        user_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+        turn_id: str,
+    ) -> None:
+        self._sessionmaker = sessionmaker
+        self._user_id = user_id
+        self._conversation_id = conversation_id
+        self.turn_id = turn_id
+
+    async def record(self, step: Step) -> None:
+        async with self._sessionmaker() as session:
+            await record(
+                session,
+                user_id=self._user_id,
+                conversation_id=self._conversation_id,
+                turn_id=self.turn_id,
+                name=step.name,
+                status=step.status,
+                summary=step.summary,
+                duration_ms=step.duration_ms,
+                call_id=step.call_id,
+            )
+            await session.commit()
+
+
 async def record(
     session: AsyncSession,
     *,
@@ -98,15 +159,11 @@ async def record(
     call_id: str = "",
 ) -> None:
     """Write one step of a turn, replacing an earlier write of it; does not commit."""
-    spec = STEPS[name]
-    if summary is not None and not isinstance(summary, spec.summary):
-        raise TypeError(f"{name} takes a {spec.summary.__name__}, not {type(summary).__name__}")
     values = {
-        "kind": spec.kind,
+        "kind": STEPS[name].kind,
         "status": status,
         "duration_ms": duration_ms,
-        # Failed and skipped steps say nothing beyond that.
-        "summary": summary.model_dump(mode="json") if summary and status == "ok" else {},
+        "summary": _summary_json(name, status, summary),
     }
     await session.execute(
         insert(AgentActivity)
@@ -122,6 +179,16 @@ async def record(
             index_elements=["conversation_id", "turn_id", "name", "call_id"], set_=values
         )
     )
+
+
+def _summary_json(name: str, status: ActivityStatus, summary: _Summary | None) -> dict[str, Any]:
+    expected = STEPS[name].summary
+    if summary is not None and not isinstance(summary, expected):
+        raise TypeError(f"{name} takes a {expected.__name__}, not {type(summary).__name__}")
+    # Failed and skipped steps say nothing beyond that.
+    if summary is None or status != "ok":
+        return {}
+    return summary.model_dump(mode="json")
 
 
 async def list_activities(

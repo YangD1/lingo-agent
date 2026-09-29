@@ -1,6 +1,6 @@
 import uuid
 from collections.abc import AsyncIterator, Iterator
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 from langchain_core.callbacks import CallbackManagerForLLMRun
@@ -14,9 +14,10 @@ from pydantic import Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
+from app.activity.service import ContextRead, Step
 from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph, build_chat_graph
 from app.db.urls import to_psycopg_conninfo
-from app.memory.context import LearnerContext
+from app.memory.context import MAX_FACTS_CHARS, LearnerContext
 from app.providers import llm
 from app.providers.config import TenantProviderContext
 from tests.conftest import CHECKPOINT_TABLES, TEST_DATABASE_URL
@@ -205,6 +206,92 @@ async def test_learner_context_failure_does_not_stop_the_reply(
     assert result["messages"][-1].content == "Nice to meet you!"
     [sent] = model.seen
     assert "About this learner" not in str(sent[0].content)
+
+
+class FakeActivity:
+    turn_id = "turn-1"
+
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.steps: list[Step] = []
+
+    async def record(self, step: Step) -> None:
+        self.steps.append(step)
+        if self.fail:
+            raise RuntimeError("database down")
+
+
+class LongMemories:
+    """Three facts, of which only the first two fit the prompt's budget."""
+
+    ids: ClassVar = [uuid.uuid4() for _ in range(3)]
+    episode = uuid.uuid4()
+
+    async def load(self, query: str) -> LearnerContext:
+        fact = "x" * (MAX_FACTS_CHARS // 2)
+        return LearnerContext(
+            profile={"Occupation": "nurse", "Goal": "IELTS"},
+            facts=[fact] * 3,
+            episodes=["We talked about travel."],
+            fact_ids=self.ids,
+            episode_ids=[self.episode],
+        )
+
+
+async def test_reading_memories_is_recorded_and_streamed(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_model(monkeypatch, RecordingChatModel())
+    activity = FakeActivity()
+    context = ChatContext(providers, learner=LongMemories(), activity=activity)
+
+    custom = [
+        part
+        async for mode, part in graph.astream(
+            {"messages": [HumanMessage("Hi")]},
+            thread(uuid.uuid4()),
+            context=context,
+            stream_mode=["custom"],
+        )
+    ]
+
+    [step] = activity.steps
+    # Only the facts that made it into the prompt count as read.
+    assert step.summary == ContextRead(
+        facts=LongMemories.ids[:2], episodes=[LongMemories.episode], profile_items=2
+    )
+    assert step.status == "ok" and step.duration_ms is not None
+    assert custom == [{"activity": step.payload("turn-1")}]
+
+
+async def test_failed_memory_read_is_recorded_as_failed(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_model(monkeypatch, RecordingChatModel())
+    activity = FakeActivity()
+
+    await graph.ainvoke(
+        {"messages": [HumanMessage("Hi")]},
+        thread(uuid.uuid4()),
+        context=ChatContext(providers, learner=FakeLearner(fail=True), activity=activity),
+    )
+
+    [step] = activity.steps
+    assert (step.status, step.summary) == ("failed", None)
+
+
+async def test_failing_activity_record_does_not_stop_the_reply(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_model(monkeypatch, RecordingChatModel())
+
+    result = await graph.ainvoke(
+        {"messages": [HumanMessage("Hi")]},
+        thread(uuid.uuid4()),
+        context=ChatContext(providers, learner=FakeLearner(), activity=FakeActivity(fail=True)),
+    )
+
+    assert result["messages"][-1].content == "Nice to meet you!"
 
 
 async def dump_checkpoints(session: AsyncSession, thread_id: uuid.UUID) -> str:

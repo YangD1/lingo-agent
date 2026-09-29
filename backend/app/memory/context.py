@@ -30,6 +30,9 @@ class LearnerContext:
     profile: dict[str, str] = field(default_factory=dict)  # label -> value, only set ones
     facts: Sequence[str] = ()
     episodes: Sequence[str] = ()
+    # Memory ids in the same order, for the learner-facing activity (ADR 0013 §3).
+    fact_ids: Sequence[uuid.UUID] = ()
+    episode_ids: Sequence[uuid.UUID] = ()
 
     def is_empty(self) -> bool:
         return not (self.profile or self.facts or self.episodes)
@@ -73,6 +76,8 @@ class DatabaseLearner:
             profile=profile_lines(profile) if profile else {},
             facts=[m.content for m in facts],
             episodes=[m.content for m in episodes],
+            fact_ids=[m.id for m in facts],
+            episode_ids=[m.id for m in episodes],
         )
 
 
@@ -98,18 +103,23 @@ def render_learner_context(context: LearnerContext) -> str:
     if context.profile:
         lines = [f"- {label}: {value}" for label, value in context.profile.items()]
         sections.append("### Profile\n" + "\n".join(lines))
-    if context.facts:
-        lines, used = [], 0
-        for fact in context.facts:  # newest first, so the oldest are the ones dropped
-            used += len(fact)
-            if used > MAX_FACTS_CHARS:
-                break
-            lines.append(f"- {fact}")
+    if shown := facts_shown(context.facts):
+        lines = [f"- {fact}" for fact in context.facts[:shown]]
         sections.append("### Things they have told you\n" + "\n".join(lines))
     if context.episodes:
         lines = [f"- {_clip(e, MAX_EPISODE_CHARS)}" for e in context.episodes]
         sections.append("### Earlier conversations\n" + "\n".join(lines))
     return "\n\n".join(sections)
+
+
+def facts_shown(facts: Sequence[str]) -> int:
+    """How many facts fit MAX_FACTS_CHARS. Newest come first, so the oldest are dropped."""
+    used = 0
+    for count, fact in enumerate(facts):
+        used += len(fact)
+        if used > MAX_FACTS_CHARS:
+            return count
+    return len(facts)
 
 
 def _clip(text: str, limit: int) -> str:

@@ -164,7 +164,8 @@ async def test_reply_streams_as_tokens_then_done(
 
     assert status == 200
     kinds = [kind for kind, _ in events]
-    assert kinds[-1] == "done" and set(kinds[:-1]) == {"token"}
+    # Reading the learner's memories comes first, before the reply (ADR 0013 §3).
+    assert kinds[0] == "activity" and kinds[-1] == "done" and set(kinds[1:-1]) == {"token"}
     assert "".join(data["text"] for kind, data in events if kind == "token") == REPLY
     done = events[-1][1]
     assert done["usage"] == {"input_tokens": 12, "output_tokens": 9}
@@ -174,6 +175,15 @@ async def test_reply_streams_as_tokens_then_done(
         ("assistant", REPLY),
     ]
     assert done["message_id"] == messages[-1]["id"]
+    assert done["turn_id"] == messages[0]["id"]
+    activity = events[0][1]
+    assert activity["turn_id"] == done["turn_id"]
+    assert (activity["name"], activity["kind"], activity["status"]) == (
+        "load_context",
+        "step",
+        "ok",
+    )
+    assert activity["summary"] == {"facts": [], "episodes": [], "profile_items": 0}
 
 
 async def test_stream_forbids_proxy_transforms(
@@ -262,7 +272,7 @@ async def test_failure_mid_reply_ends_with_an_error_event(
     status, events, _ = await send(client, conversation_id)
 
     assert status == 200  # headers were already sent; the failure is in the stream
-    assert [k for k, _ in events] == ["token", "token", "error"]
+    assert [k for k, _ in events] == ["activity", "token", "token", "error"]
     assert events[-1][1] == {
         "code": "llm_unavailable",
         "message": "The tutor could not reply right now. Please try again.",

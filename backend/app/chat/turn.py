@@ -6,13 +6,14 @@ import re
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 import anyio
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.activity.service import ActivitySink
 from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph
 from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
@@ -33,8 +34,24 @@ class TokenEvent:
 
 
 @dataclass(frozen=True)
+class ActivityEvent:
+    """A step of this turn, as it happens (ADR 0013 §3); shaped like the activity API."""
+
+    turn_id: str
+    name: str
+    kind: str
+    call_id: str
+    status: str
+    duration_ms: int | None
+    summary: dict[str, Any]
+    event: Literal["activity"] = "activity"
+
+
+@dataclass(frozen=True)
 class DoneEvent:
     message_id: str | None
+    # The learner message's id: what later background activity is filed under.
+    turn_id: str | None = None
     usage: dict[str, int] = field(default_factory=dict)
     event: Literal["done"] = "done"
 
@@ -46,7 +63,7 @@ class ErrorEvent:
     event: Literal["error"] = "error"
 
 
-type TurnEvent = TokenEvent | DoneEvent | ErrorEvent
+type TurnEvent = TokenEvent | ActivityEvent | DoneEvent | ErrorEvent
 
 
 def title_from(text: str) -> str:
@@ -100,6 +117,7 @@ async def stream_reply(
     message_id: str | None = None,
     attachments: AttachmentSource | None = None,
     learner: LearnerSource | None = None,
+    activity: ActivitySink | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -126,6 +144,7 @@ async def stream_reply(
                 message_id=message_id,
                 attachments=attachments,
                 learner=learner,
+                activity=activity,
             ):
                 queue.put_nowait(event)
         finally:
@@ -155,11 +174,12 @@ async def _run_graph(
     message_id: str | None,
     attachments: AttachmentSource | None,
     learner: LearnerSource | None,
+    activity: ActivitySink | None,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     usage = {"input_tokens": 0, "output_tokens": 0}
     try:
-        async for chunk, metadata in graph.astream(
+        async for mode, part in graph.astream(
             {"messages": [HumanMessage(text, id=message_id)]},
             {
                 **thread_config(conversation_id),
@@ -167,9 +187,16 @@ async def _run_graph(
                 "metadata": {"user_id": str(user_id)},
                 "tags": ["chat"],
             },
-            context=ChatContext(providers, attachments, learner),
-            stream_mode="messages",
+            context=ChatContext(providers, attachments, learner, activity),
+            stream_mode=["messages", "custom"],
         ):
+            if mode == "custom":
+                if isinstance(part, dict) and "activity" in part:
+                    yield ActivityEvent(**part["activity"])
+                continue
+            if not isinstance(part, tuple):
+                continue
+            chunk, metadata = part
             if not (
                 isinstance(chunk, AIMessageChunk)
                 and isinstance(metadata, dict)
@@ -190,4 +217,4 @@ async def _run_graph(
             message="The tutor could not reply right now. Please try again.",
         )
         return
-    yield DoneEvent(message_id=reply_id, usage=usage)
+    yield DoneEvent(message_id=reply_id, turn_id=message_id, usage=usage)

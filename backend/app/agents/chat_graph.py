@@ -11,7 +11,7 @@ context carries decrypted API keys that must never be persisted (ADR 0004).
             "metadata": {"user_id": str(user.id)},  # for llm_usage (ADR 0005)
         },
         context=ChatContext(providers=ctx),
-        stream_mode="messages",
+        stream_mode=["messages", "custom"],  # custom: {"activity": ...} (ADR 0013)
     )
 """
 
@@ -33,8 +33,9 @@ from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.runtime import Runtime
 
+from app.activity.service import ActivitySink, ContextRead, Step, timed
 from app.attachments.context import AttachmentSource, render_turn, turn_content
-from app.memory.context import LearnerSource, render_learner_context
+from app.memory.context import LearnerSource, facts_shown, render_learner_context
 from app.prompts import load_prompt
 from app.providers.config import TenantProviderContext
 from app.providers.llm import get_llm
@@ -52,6 +53,8 @@ class ChatContext:
     attachments: AttachmentSource | None = None
     # The learner's profile and memories (ADR 0009 §4); None when a caller has none.
     learner: LearnerSource | None = None
+    # Where this turn's steps are recorded for the learner (ADR 0013 §3).
+    activity: ActivitySink | None = None
 
 
 class ChatState(MessagesState):
@@ -69,13 +72,35 @@ async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[
     if source is None:
         return {"learner_context": ""}
     latest = next((m.text for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
-    try:
-        context = await source.load(latest)
-    except Exception:
-        # Memory makes replies better; its failure must not stop them.
-        logger.exception("loading the learner context failed")
+    with timed() as watch:
+        try:
+            context = await source.load(latest)
+        except Exception:
+            # Memory makes replies better; its failure must not stop them.
+            logger.exception("loading the learner context failed")
+            context = None
+    if context is None:
+        await report(runtime, Step(LOAD_CONTEXT_NODE, "failed", duration_ms=watch.ms))
         return {"learner_context": ""}
+    read = ContextRead(
+        facts=list(context.fact_ids[: facts_shown(context.facts)]),
+        episodes=list(context.episode_ids),
+        profile_items=len(context.profile),
+    )
+    await report(runtime, Step(LOAD_CONTEXT_NODE, summary=read, duration_ms=watch.ms))
     return {"learner_context": render_learner_context(context)}
+
+
+async def report(runtime: Runtime[ChatContext], step: Step) -> None:
+    """Record a step and stream it to the learner. Never fails the turn."""
+    sink = runtime.context.activity
+    if sink is None:
+        return
+    try:
+        await sink.record(step)
+    except Exception:
+        logger.exception("recording the %s activity failed", step.name)
+    runtime.stream_writer({"activity": step.payload(sink.turn_id)})
 
 
 async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:

@@ -29,9 +29,10 @@ P0 需要多用户登录，对话回复要逐 token 流式输出。有两件事�
 - 发消息的接口是 `POST /conversations/{id}/messages`，响应格式为 `text/event-stream`，用 FastAPI 0.141 内置的 `fastapi.sse.EventSourceResponse` 生成（支持 POST，空闲时自动发 keepalive 注释），不再引入 sse-starlette。
 - 事件类型：
   - `token {text}`：一段增量文本
-  - `done {message_id, usage}`：回复结束
+  - `activity {turn_id, name, kind, call_id, status, duration_ms, summary}`：本轮私教做的一步（ADR 0013 §3，2026-09-29 增加），可能出现在 token 之前或之间；字段与活动接口相同
+  - `done {message_id, turn_id, usage}`：回复结束；`turn_id` 是学习者这条消息的 id，回复后的后台活动按它查
   - `error {code, message}`：出错
-- 后端用 `graph.astream(stream_mode="messages")` 拿 token，只转发 tutor 节点的 AI 消息。
+- 后端用 `graph.astream(stream_mode=["messages", "custom"])`：`messages` 里只转发 tutor 节点的 AI 消息；`custom` 里是节点通过 `stream_writer` 发出的 `{"activity": ...}`。前端忽略不认识的事件，以后加事件不破坏旧前端。
 - 开流前能判定的错误用 HTTP 状态码返回，body 为 `{"detail": {"code", "message"}}`：会话不存在或不属于当前用户返回 404；租户没配聊天模型返回 409 `no_llm_configured`；同一会话已有回复在生成时返回 409 `conversation_busy`。开流之后出的错只能用 `error` 事件表达（`llm_unavailable`，文案固定，不转发厂商错误文本）。
 - **实现细节**（P0 任务 9）：
   - FastAPI 内置 SSE 在执行接口体**之前**就发出 200 响应头（接口体在一个 producer task 里跑），所以上面的 404 和 409 检查都放在 yield 依赖 `start_turn` 里。会话锁在它的 finally 里释放；yield 依赖挂在 request 级的 exit stack 上，流结束或客户端断开之后才退出。
