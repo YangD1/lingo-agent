@@ -8,35 +8,54 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 **Stack:** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **Status: early (P0, the skeleton).** What runs today is the foundation the tutor is built on, not the tutor yet. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
+> **Status: P1, a working MVP.** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. Reading, writing, the full adaptive engine and voice conversation come next. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
 
 ## What works now
 
-- **Accounts.** Sign up and log in; each account gets its own workspace (tenant).
-- **Bring your own models.** Each user adds model connections in the app: a preset (DeepSeek, Anthropic, OpenAI, Qwen, Groq, SiliconFlow, …) or any OpenAI-compatible endpoint. API keys are encrypted in the database. The app lists the models a connection offers, and you choose the model order per task, with automatic fallback when one fails.
-- **Streaming chat** with saved conversations.
-- **Attachments in chat.** Images (read by a vision model), PDF, DOCX, TXT and Markdown documents (scanned PDF pages go to the vision model), and voice messages recorded in the browser or audio files (transcribed by a speech-to-text model). You can check and correct the extracted text before sending.
+**Learning**
+
+- **A tutor that remembers you.** After each reply, a background step decides what is worth remembering (your goals, interests, recurring problems) and summarizes the conversation. The **Memory** page shows everything it keeps, and you can edit or delete any of it.
+- **Grammar tracking.** The same step tags your mistakes against 119 grammar points (A1–C2). Mastery is then updated by an algorithm (BKT and Elo), not scored by the model. The **Learner model** page shows each point with the evidence behind it, and you can delete any piece of evidence.
+- **Vocabulary with FSRS.** Pick a word book (Oxford 3000, Zhongkao, Gaokao, CET-4/6, postgraduate entrance, IELTS, TOEFL or GRE), skip words you already know, and review daily on an FSRS schedule. Unfamiliar words from your conversations are collected automatically, and you can add one by selecting it in the chat.
+- **Placement test.** About 10 minutes: up to 40 vocabulary and 20 grammar questions, adaptive, with no model involved. It sets your CEFR level. It can also mark your word book's words that you very likely know, all at once: you confirm first, and you can undo it.
+- **Dashboard.** Word book progress, grammar mastery, skill estimates, common mistakes and a study calendar, plus today's advice. The algorithm picks what to work on and a model writes why.
+- **Focused practice.** Start a conversation on one grammar point from the dashboard, the Learner model page or the advice. The tutor opens it and steers every turn toward that point.
+- **The tutor can act, with your consent.** In chat, the tutor can propose a word book or a learning goal as a card. Nothing changes until you confirm, and you can undo it. After the placement test, a planning conversation turns the result into a plan.
+
+**Transparency**
+
+- **What the tutor did.** Under each reply you can expand what the tutor read, which tools it called, and what it wrote down afterwards. [docs/agent-tools.md](docs/agent-tools.md) lists every tool and background step.
+- **AI usage labels.** Each feature that calls a model has an "AI" badge. It shows which model tasks run and roughly how many tokens each use costs, before you click.
+
+**Platform**
+
+- **Bring your own models.** Each account adds model connections in the app: a preset (DeepSeek, Anthropic, OpenAI, Qwen, Groq, SiliconFlow, …) or any OpenAI-compatible endpoint. API keys are encrypted in the database. The app lists the models a connection offers; you choose the model order per task, with automatic fallback.
+- **Attachments in chat.** Images (read by a vision model); PDF, DOCX, TXT and Markdown documents (scanned PDF pages go to the vision model); voice messages recorded in the browser and audio files (transcribed by a speech-to-text model). You can check and correct the extracted text before sending.
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
 - **English and Chinese UI.**
 
-Not built yet (planned in [docs/PLAN.md](docs/PLAN.md)): long-term memory, the adaptive learning engine, CEFR assessment, FSRS vocabulary, graded news, grammar GraphRAG, and real-time voice conversation.
+Not built yet (see [docs/PLAN.md](docs/PLAN.md)): the full adaptive engine (diagnosis, exercise generation with a critic, daily plans), graded news reading, grammar GraphRAG and writing feedback (P2); read-aloud, shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
 
 ## Quick start (Docker)
 
-You need Docker with Compose v2, `make` and `openssl`. The stack runs in about 1.7 GB of RAM (Postgres, backend and frontend are memory-capped); building the images the first time takes a few minutes.
+You need Docker with Compose v2, `make`, `openssl`, and [uv](https://docs.astral.sh/uv/) for the one-time word list import. The stack runs in about 1.7 GB of RAM (Postgres, backend and frontend are memory-capped); building the images the first time takes a few minutes.
 
 ```bash
 git clone https://github.com/YangD1/lingo-agent.git
 cd lingo-agent
 make env   # creates .env with a fresh encryption key and JWT secret
 make up    # builds and starts postgres + backend + frontend; migrations run automatically
+make vocab-import   # once: downloads and imports the word list (about 15 seconds)
 ```
+
+The word list is [ECDICT](https://github.com/skywind3000/ECDICT) (MIT, 66 MB, pinned to one commit and checked by sha256). It is saved in `data/`, and about 38,000 words are imported: exam lists, the Oxford 3000, Collins-starred words and the 30,000 most frequent. The vocabulary pages and the placement test need it. You can run it again safely. If GitHub is unreachable, set `ECDICT_URL` to a mirror of the same file, or pass a local copy with `make vocab-import CSV=path/to/ecdict.csv`. Without uv on the host: download the file, then run `docker compose cp ecdict.csv backend:/tmp/` and `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`.
 
 Then:
 
 1. Open <http://localhost:3000> and create an account.
 2. Go to **Settings → Model connections**, add a connection (for example DeepSeek), paste your API key, and save its default model.
-3. Go to **Chat** and start talking. With a single connection you don't need to set any model order: its default model is used automatically.
+3. Take the **Placement test** (about 10 minutes). From its result page you can start a planning conversation with the tutor.
+4. Go to **Chat** and start talking, or to **Vocabulary** to pick a word book. With a single connection you don't need to set any model order: its default model is used automatically.
 
 `make ps` shows service status, `make logs` follows the logs, `make down` stops the stack (your data is kept in Docker volumes). `make help` lists every command.
 
@@ -46,13 +65,16 @@ Then:
 
 API keys are never put in `.env` or YAML files: each user enters their own in **Settings**. The YAML files in [`config/`](config) only define the presets and the default model order per task; `PROVIDERS_CONFIG` in `.env` picks the file.
 
-Three tasks use models, each with its own ordered list under **Settings**:
+Four tasks have their own ordered model list under **Settings**:
 
 | Task | Used for | Needs |
 |---|---|---|
-| Chat model | Replies | Any chat model |
+| Chat model | Replies, practice openings and the planning conversation | Any chat model; tool calling for the tutor's cards (without it the tutor only gives links) |
+| Background memory model | Memory, grammar tagging and word collection after each reply | Any chat model; a smaller, cheaper one is fine |
 | Image model (vision) | Images and scanned PDF pages | A model that accepts images |
 | Speech-to-text | Voice messages and audio files | An OpenAI-compatible `/audio/transcriptions` endpoint |
+
+Everything else, such as today's advice, uses the default model order in `config/`. The chat and memory tasks and these other calls fall back to each connection's default model, so one connection is enough to start. Vision and speech-to-text never fall back: set them up explicitly. On each connection, the **Test** button can test the model for chat, speech-to-text or images. If you have the connection the embedding route in `config/` names (by default `openai`, for `text-embedding-3-small`), memories are searched by meaning. Otherwise the most recent ones are used.
 
 For speech-to-text, the Groq and SiliconFlow presets are the easiest start. Groq and OpenAI refuse requests from some regions, mainland China included; SiliconFlow (`FunAudioLLM/SenseVoiceSmall`) is reachable there.
 
@@ -63,7 +85,6 @@ For speech-to-text, the Groq and SiliconFlow presets are the easiest start. Groq
 
 **Local speech-to-text (optional, for development).** `make asr-up` starts [speaches](https://github.com/speaches-ai/speaches) (faster-whisper) on port 8200; the first start downloads the model. It needs about 1.4 GB of RAM while transcribing. Then, with private networks allowed, add a connection from the **Speaches** preset (base URL `http://asr:8000/v1` from the Docker stack, `http://localhost:8200/v1` from a host-run backend) and put `speaches:Systran/faster-whisper-small` on the speech-to-text route. See the comments in [`.env.example`](.env.example).
 
-**Word list (for the vocabulary features).** Run `make vocab-import` once (on the host, needs [uv](https://docs.astral.sh/uv/)). It downloads [ECDICT](https://github.com/skywind3000/ECDICT) (MIT, 66 MB, pinned to one commit and checked by sha256) into `data/` and imports about 38,000 words — exam lists, Oxford 3000, Collins-starred and the 30,000 most frequent — into the `DATABASE_URL` database; the Docker stack uses the same Postgres on 127.0.0.1:5433. It takes about 15 seconds and can be run again. If GitHub is unreachable, set `ECDICT_URL` to a mirror of the same file, or pass a local copy with `make vocab-import CSV=path/to/ecdict.csv`. Without uv on the host: download the file, then `docker compose cp ecdict.csv backend:/tmp/` and `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`.
 
 ## Development
 
@@ -98,27 +119,36 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs backend checks,
 flowchart LR
     B[Browser] -->|:3000| F["Next.js<br/>(pages + /api proxy)"]
     F -->|"HTTP / SSE"| A[FastAPI]
-    A --> G[LangGraph chat graph]
+    A --> G["LangGraph<br/>chat graph + tools ·<br/>placement test"]
+    G -->|"after each reply"| R["Background reflection<br/>memory · grammar tags ·<br/>word collection"]
+    R --> L["Learner model<br/>(BKT / Elo mastery)"]
+    A --> V["Vocabulary<br/>(FSRS scheduling)"]
     G --> P["Provider layer<br/>(per-tenant connections,<br/>fallback chains)"]
-    P --> M[("Model APIs:<br/>LLM · vision · speech-to-text")]
-    A --> D[("PostgreSQL + pgvector<br/>users · encrypted keys ·<br/>conversations · checkpoints")]
+    R --> P
+    P --> M[("Model APIs:<br/>LLM · vision ·<br/>speech-to-text · embeddings")]
+    A --> D[("PostgreSQL + pgvector<br/>users · encrypted keys · conversations ·<br/>memories · mastery · cards · words")]
 ```
 
-The browser only talks to Next.js; the login cookie is httpOnly and requests reach the API through the same-origin proxy. Every model call goes through the provider layer, which builds each tenant's models from their own connections; business code never creates a vendor SDK client or hardcodes a model name.
+The browser only talks to Next.js; the login cookie is httpOnly and requests reach the API through the same-origin proxy. Every model call goes through the provider layer, which builds each tenant's models from their own connections; business code never creates a vendor SDK client or hardcodes a model name. Models understand and write; algorithms keep the books: mastery is updated from evidence by BKT and Elo, reviews are scheduled by FSRS, and the placement test is scored without a model.
 
 ```
 backend/app/     FastAPI app: api/ routes, agents/ LangGraph graphs, providers/ model access,
-                 credentials/ key encryption, attachments/, chat/, db/ models and migrations
+                 memory/ long-term memory and reflection, adaptive/ grammar points, mastery
+                 and the placement algorithm, services/vocab/ word books and FSRS,
+                 cards/ tutor tools, advice/, dashboard/, usage/, attachments/, prompts/,
+                 credentials/ key encryption, db/ models and migrations
 backend/tests/   pytest (unit + integration against a real Postgres)
 frontend/        Next.js App Router, shadcn/ui, next-intl; e2e/ Playwright tests
 config/          provider presets and default model order (dev / prod)
-docs/            PLAN.md (design), PROGRESS.md (status), decisions/ (ADRs)
+docs/            PLAN.md (design), PROGRESS.md (status), decisions/ (ADRs),
+                 agent-tools.md (every tool and background step)
 ```
 
 Design documents:
 
 - [docs/PLAN.md](docs/PLAN.md): the full design and roadmap
-- [docs/decisions/](docs/decisions): architecture decision records, e.g. [provider layer](docs/decisions/0002-provider-layer.md), [auth and streaming](docs/decisions/0003-auth-and-streaming.md), [tenant credentials](docs/decisions/0004-tenant-credentials.md), [attachments](docs/decisions/0008-multimodal-attachments.md)
+- [docs/plans/P1-mvp.md](docs/plans/P1-mvp.md): the P1 implementation plan
+- [docs/decisions/](docs/decisions): architecture decision records, e.g. [provider layer](docs/decisions/0002-provider-layer.md), [tenant credentials](docs/decisions/0004-tenant-credentials.md), [attachments](docs/decisions/0008-multimodal-attachments.md), [long-term memory](docs/decisions/0009-long-term-memory.md), [learner model](docs/decisions/0010-learner-model.md), [vocabulary and FSRS](docs/decisions/0011-vocabulary-and-fsrs.md), [agent tools and disclosure](docs/decisions/0013-agent-tools-and-disclosure.md), [AI usage labels](docs/decisions/0014-ai-usage-disclosure.md), [confirmation cards](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)
 
 ## Deploying
 
