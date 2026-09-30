@@ -254,12 +254,15 @@
       "conversationDeleted": "Conversation deleted",
       "delete": "Delete this record",
       "confirmDelete": "Delete this record? If it was tagged wrongly, the mastery is recomputed without it. This cannot be undone.",
-      "olderHidden": "{n} older records are not shown."
+      "olderHidden": "{n} older records are not shown.",
+      "placementCorrect": "Right in the placement test",
+      "placementWrong": "Wrong in the placement test",
+      "fromPlacement": "From the placement test"
     },
     "skills": {
       "title": "Skill estimates",
-      "description": "Your ability in each skill, from the placement test and practice.",
-      "empty": "No skill estimates yet. They appear here after the placement test.",
+      "description": "From the placement test: a level for grammar, an estimated vocabulary size for vocabulary.",
+      "empty": "No skill estimates yet. They appear here once you finish the placement test.",
       "row": "{skill}: ability {rating} ({attempts} answers)",
       "names": {
         "listening": "Listening",
@@ -268,7 +271,12 @@
         "writing": "Writing",
         "grammar": "Grammar",
         "vocab": "Vocabulary"
-      }
+      },
+      "levelRow": "{skill}: {level} ({attempts} answers)",
+      "vocabRow": "{skill}: about {size} words",
+      "vocabRowLevel": "{skill}: about {size} words (roughly {level})",
+      "unreliable": "(this estimate isn't reliable)",
+      "takeTest": "Take the placement test"
     },
     "clear": {
       "title": "Delete all learning records",

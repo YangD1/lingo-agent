@@ -137,11 +137,15 @@ export function KCItem({
           )}
           {page && page.evidence.length > 0 && (
             <ul className="flex flex-col divide-y" aria-label={t("evidence")}>
-              {page.evidence.map((e) => (
+              {page.evidence.map((e) => {
+                const chat = e.source === "chat";
+                return (
                 <li key={e.id} className="flex items-start gap-2 py-1.5">
                   <div className="flex flex-1 flex-col gap-0.5">
                     <p>
-                      {e.correct ? (
+                      {e.source === "placement" ? (
+                        <span>{t(e.correct ? "placementCorrect" : "placementWrong")}</span>
+                      ) : e.correct ? (
                         <span>{t("usedCorrectly")}</span>
                       ) : (
                         <>
@@ -152,8 +156,9 @@ export function KCItem({
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {[
-                        !e.correct && e.error_type && errorType(e.error_type),
-                        !e.correct && e.severity && t(`severity.${e.severity}`),
+                        // A placement answer is only right or wrong: its type is a stand-in.
+                        !e.correct && chat && e.error_type && errorType(e.error_type),
+                        !e.correct && chat && e.severity && t(`severity.${e.severity}`),
                         e.l1_transfer && t("l1Transfer"),
                         !e.counted && t("notCounted"),
                         format.dateTime(new Date(e.created_at), {
@@ -163,7 +168,14 @@ export function KCItem({
                       ]
                         .filter(Boolean)
                         .join(" · ")}
-                      {e.conversation_id ? (
+                      {e.source === "placement" ? (
+                        <>
+                          {" · "}
+                          <Link href="/placement" className="underline-offset-2 hover:underline">
+                            {t("fromPlacement")}
+                          </Link>
+                        </>
+                      ) : e.conversation_id ? (
                         <>
                           {" · "}
                           <Link
@@ -188,7 +200,8 @@ export function KCItem({
                     <Trash2 />
                   </Button>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
           {page && page.total > page.evidence.length && (

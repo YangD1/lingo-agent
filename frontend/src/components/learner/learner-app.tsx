@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
@@ -15,6 +16,7 @@ import {
   type KCFilter,
   type LearnerModel,
   MASTERY_STATES,
+  type SkillEstimate,
 } from "@/lib/learner";
 
 import { KCItem } from "./kc-item";
@@ -25,6 +27,7 @@ import { KCItem } from "./kc-item";
  */
 export function LearnerApp({ focusKc }: { focusKc: string | null }) {
   const t = useTranslations("learner");
+  const format = useFormatter();
   const describe = useDescribeError();
   const [model, setModel] = useState<LearnerModel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +61,19 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
   const skillName = (skill: string) => {
     const key = `skills.names.${skill}` as Parameters<typeof t>[0];
     return t.has(key) ? t(key) : skill;
+  };
+  // Ratings are on different scales (vocab stores ln V), so show what each one means.
+  const skillRow = (s: SkillEstimate) => {
+    const skill = skillName(s.skill);
+    if (s.vocab_size !== null) {
+      const size = format.number(s.vocab_size);
+      const row = s.cefr
+        ? t("skills.vocabRowLevel", { skill, size, level: s.cefr })
+        : t("skills.vocabRow", { skill, size });
+      return s.reliable === false ? `${row} ${t("skills.unreliable")}` : row;
+    }
+    if (s.cefr) return t("skills.levelRow", { skill, level: s.cefr, attempts: s.attempts });
+    return t("skills.row", { skill, rating: s.rating.toFixed(2), attempts: s.attempts });
   };
   const shown = model ? filterKcs(model.kcs, filter) : [];
 
@@ -147,17 +163,18 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
           </CardHeader>
           <CardContent>
             {model && model.skills.length === 0 && (
-              <p className="text-sm text-muted-foreground">{t("skills.empty")}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("skills.empty")}{" "}
+                <Link href="/placement" className="underline underline-offset-2">
+                  {t("skills.takeTest")}
+                </Link>
+              </p>
             )}
             {model && model.skills.length > 0 && (
               <ul className="flex flex-col gap-1 text-sm">
                 {model.skills.map((s) => (
-                  <li key={s.skill}>
-                    {t("skills.row", {
-                      skill: skillName(s.skill),
-                      rating: s.rating.toFixed(2),
-                      attempts: s.attempts,
-                    })}
+                  <li key={s.skill} data-testid={`skill-${s.skill}`}>
+                    {skillRow(s)}
                   </li>
                 ))}
               </ul>

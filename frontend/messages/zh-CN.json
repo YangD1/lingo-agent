@@ -254,12 +254,15 @@
       "conversationDeleted": "会话已删除",
       "delete": "删除这条记录",
       "confirmDelete": "删除这条记录？如果是打标错了，删掉后掌握度会重新计算。删除后无法恢复。",
-      "olderHidden": "还有 {n} 条更早的记录未显示。"
+      "olderHidden": "还有 {n} 条更早的记录未显示。",
+      "placementCorrect": "入学测答对",
+      "placementWrong": "入学测答错",
+      "fromPlacement": "来自入学测"
     },
     "skills": {
       "title": "技能估计",
-      "description": "各项技能的能力值，来自入学测和练习。",
-      "empty": "还没有技能估计。完成入学测后会显示在这里。",
+      "description": "来自入学测：语法给出等级，词汇给出估计词汇量。",
+      "empty": "还没有技能估计。做完入学测后会显示在这里。",
       "row": "{skill}：能力值 {rating}（{attempts} 次作答）",
       "names": {
         "listening": "听力",
@@ -268,7 +271,12 @@
         "writing": "写作",
         "grammar": "语法",
         "vocab": "词汇"
-      }
+      },
+      "levelRow": "{skill}：{level}（{attempts} 次作答）",
+      "vocabRow": "{skill}：约 {size} 词",
+      "vocabRowLevel": "{skill}：约 {size} 词（参考等级 {level}）",
+      "unreliable": "（这次估计不可靠）",
+      "takeTest": "去做入学测"
     },
     "clear": {
       "title": "删除所有学习记录",

@@ -59,7 +59,7 @@ const TWO = model([
 
 function show(focusKc: string | null = null) {
   return render(
-    <NextIntlClientProvider locale="en" messages={en}>
+    <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
       <LearnerApp focusKc={focusKc} />
     </NextIntlClientProvider>,
   );
@@ -76,6 +76,47 @@ describe("LearnerApp", () => {
     show();
     expect(await screen.findByText(/Nothing yet/)).toBeInTheDocument();
     expect(screen.getByText(/No skill estimates yet/)).toBeInTheDocument();
+  });
+
+  it("shows skills as a level and a vocabulary size, not raw ratings", async () => {
+    api.mockResolvedValueOnce({
+      ...model([]),
+      skills: [
+        { skill: "grammar", rating: 0.5, attempts: 20, cefr: "B2", vocab_size: null, reliable: null },
+        { skill: "vocab", rating: 8.29, attempts: 40, cefr: "B1", vocab_size: 3100, reliable: false },
+      ],
+    });
+    show();
+    expect(await screen.findByTestId("skill-grammar")).toHaveTextContent("Grammar: B2 (20 answers)");
+    expect(screen.getByTestId("skill-vocab")).toHaveTextContent(
+      "Vocabulary: about 3,100 words (roughly B1) (this estimate isn't reliable)",
+    );
+    expect(screen.queryByText(/8\.29/)).not.toBeInTheDocument();
+  });
+
+  it("marks placement answers as such, without the stand-in error type", async () => {
+    const placement: Evidence = {
+      ...MISTAKE,
+      source: "placement",
+      evidence: "recognition",
+      error_type: "wrong_choice",
+      severity: "medium",
+      original: null,
+      correction: null,
+      counted: true,
+      conversation_id: null,
+      conversation_title: null,
+    };
+    api.mockResolvedValueOnce(TWO).mockResolvedValueOnce({ evidence: [placement], total: 1 });
+    show("g.third");
+
+    const evidence = await screen.findByRole("list", { name: "Evidence" });
+    expect(evidence).toHaveTextContent("Wrong in the placement test");
+    expect(evidence).not.toHaveTextContent("Wrong choice");
+    expect(within(evidence).getByRole("link", { name: "From the placement test" })).toHaveAttribute(
+      "href",
+      "/placement",
+    );
   });
 
   it("lists grammar points with mastery in words and filters them", async () => {
