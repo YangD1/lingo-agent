@@ -353,6 +353,18 @@
         "suspended": "Paused"
       },
       "due": "next review {when}"
+    },
+    "placementKnown": {
+      "offer": "The current book has {count} common words you know with over 90% likelihood, given your vocabulary size.",
+      "mark": "Mark these {count} words known",
+      "marked": "{count} words marked known from the placement test.",
+      "undo": "Undo",
+      "toVocab": "Go to vocabulary",
+      "noBook": "No word book chosen yet. Once you choose one, its common words can be marked known in one go.",
+      "chooseBook": "Choose a book",
+      "unreliable": "This vocabulary estimate isn't reliable enough to mark words known.",
+      "noPlacement": "You haven't finished a placement test yet.",
+      "nothing": "There are no words in the current book to mark known."
     }
   },
   "settings": {
@@ -492,7 +504,25 @@
       "grammarHint": "Keys: 1–4 to choose"
     },
     "result": {
-      "title": "Your result"
+      "title": "Your result",
+      "finishedAt": "Finished {date}",
+      "levelNote": "Your overall level, set by the grammar part. It is saved to your profile, and your tutor adjusts explanations and practice to it.",
+      "grammar": "Grammar",
+      "grammarNote": "{answered} questions answered",
+      "vocab": "Estimated vocabulary",
+      "vocabSize": "About {size} words",
+      "vocabReference": "Roughly {level} by vocabulary size (Milton 2010; for reference only, not used for your level)",
+      "vocabNote": "For reference only; not used for your level",
+      "unreliable": "You said you knew quite a few made-up words, so this vocabulary estimate isn't reliable and won't be used to mark words known. For a better estimate, take the test again and answer \"No\" to words you don't know.",
+      "toChat": "Talk to your tutor",
+      "toVocab": "Go to vocabulary",
+      "knownTitle": "Skip common words you already know",
+      "knownDescription": "From your estimated vocabulary, mark the current book's common words you very likely know as known; they won't come up as new words.",
+      "retestTitle": "Take the test again",
+      "retestDescription": "A new test replaces your level with its result and adds a new set of placement records. Words already marked known stay as they are.",
+      "retest": "Take it again",
+      "retestConfirm": "Yes, start a new test",
+      "cancel": "Cancel"
     }
   },
   "errors": {

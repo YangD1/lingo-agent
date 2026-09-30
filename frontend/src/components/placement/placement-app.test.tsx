@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api";
 import type { Placement, PlacementResult, Question } from "@/lib/placement";
+import type { PlacementKnown } from "@/lib/vocab";
 
 import en from "../../../messages/en.json";
 import { PlacementApp } from "./placement-app";
@@ -38,6 +39,14 @@ const result: PlacementResult = {
   grammar: { ability: 0, standard_error: 0.6, cefr: "B1", answered: 20 },
 };
 
+const offer: PlacementKnown = {
+  unavailable: null,
+  book_id: "cet4",
+  up_to_rank: 1920,
+  count: 0,
+  marked: 0,
+};
+
 const placement = (question: Question | null, done = false): Placement => ({
   id: "p1",
   status: done ? "done" : "in_progress",
@@ -51,7 +60,7 @@ const placement = (question: Question | null, done = false): Placement => ({
 
 function show() {
   return render(
-    <NextIntlClientProvider locale="en" messages={en}>
+    <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
       <PlacementApp />
     </NextIntlClientProvider>,
   );
@@ -65,7 +74,8 @@ describe("PlacementApp", () => {
       .mockResolvedValueOnce(null) // latest: never tested
       .mockResolvedValueOnce(placement(vocab(0, "apple")))
       .mockResolvedValueOnce(placement(grammar))
-      .mockResolvedValueOnce(placement(null, true));
+      .mockResolvedValueOnce(placement(null, true))
+      .mockResolvedValueOnce(offer);
     show();
 
     await userEvent.click(await screen.findByRole("button", { name: "Start" }));
@@ -80,7 +90,7 @@ describe("PlacementApp", () => {
     });
 
     await userEvent.click(await screen.findByRole("button", { name: /goes/ }));
-    expect(api).toHaveBeenLastCalledWith("/placement/p1/answer", {
+    expect(api).toHaveBeenCalledWith("/placement/p1/answer", {
       method: "POST",
       json: { question_id: "grammar-0", choice: 1 },
     });
@@ -122,9 +132,29 @@ describe("PlacementApp", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("out of date");
   });
 
-  it("shows the result of a finished test", async () => {
-    api.mockResolvedValueOnce(placement(null, true));
+  it("shows the result, and restarts only once confirmed", async () => {
+    api
+      .mockResolvedValueOnce(placement(null, true))
+      .mockResolvedValueOnce({ ...offer, unavailable: "unreliable" })
+      .mockResolvedValueOnce(placement(vocab(0, "apple")));
     show();
     expect(await screen.findByTestId("placement-level")).toHaveTextContent("B1");
+    expect(screen.getByTestId("placement-vocab-size")).toHaveTextContent("About 3,100 words");
+    expect(await screen.findByText(/isn't reliable enough/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Take it again" }));
+    expect(api).toHaveBeenCalledTimes(2);
+    await userEvent.click(screen.getByRole("button", { name: "Yes, start a new test" }));
+    expect(api).toHaveBeenLastCalledWith("/placement", { method: "POST", json: { restart: true } });
+    expect(await screen.findByText("apple")).toBeInTheDocument();
+  });
+
+  it("warns when the vocabulary estimate is unreliable", async () => {
+    const unreliable = { ...result, vocab: { ...result.vocab, reliable: false } };
+    api
+      .mockResolvedValueOnce({ ...placement(null, true), result: unreliable })
+      .mockResolvedValueOnce({ ...offer, unavailable: "unreliable" });
+    show();
+    expect(await screen.findByTestId("placement-unreliable")).toBeInTheDocument();
   });
 });
