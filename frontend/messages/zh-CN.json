@@ -34,6 +34,7 @@
     }
   },
   "nav": {
+    "dashboard": "看板",
     "chat": "对话",
     "settings": "设置",
     "logout": "退出登录",
@@ -591,5 +592,74 @@
     "invalid_answer": "答案格式不对，请重新作答。",
     "placement_not_in_progress": "这次入学测已经放弃，请重新开始。",
     "placement_not_found": "找不到这次入学测。"
+  },
+  "dashboard": {
+    "title": "能力看板",
+    "loading": "加载中…",
+    "summary": {
+      "level": "CEFR 等级",
+      "levelNote": "来自入学测，会随学习更新",
+      "none": "未评估",
+      "takeTest": "做入学测",
+      "vocab": "估计词汇量",
+      "words": "约 {n} 词",
+      "vocabLevel": "参考等级 {level}",
+      "unreliable": "（仅供参考）",
+      "streak": "连续学习",
+      "days": "{n} 天",
+      "studiedToday": "今天已学习",
+      "keepGoing": "今天还没学，别断了",
+      "start": "背几个词或和私教聊一轮就开始",
+      "today": "今日待复习",
+      "reviews": "{n} 个词",
+      "newLeft": "还有 {n} 个新词，去背单词",
+      "allDone": "今天的都做完了"
+    },
+    "book": {
+      "title": "词书进度",
+      "empty": "还没选词书。",
+      "choose": "去选一本",
+      "summary": "共 {total} 词：已掌握 {mastered}、学习中 {learning}、熟词跳过 {known}、未学 {unlearned}。",
+      "mastered": "已掌握",
+      "learning": "学习中",
+      "known": "熟词跳过",
+      "unlearned": "未学",
+      "center": "已掌握或跳过"
+    },
+    "grammar": {
+      "title": "语法掌握",
+      "description": "各等级语法点的掌握情况。",
+      "level": "等级",
+      "mastered": "已掌握",
+      "learning": "学习中",
+      "weak": "薄弱",
+      "unseen": "未接触",
+      "empty": "还没有语法记录。<chat>和私教对话</chat>，或者<test>做入学测</test>，这里就会出现各等级的掌握情况。"
+    },
+    "skills": {
+      "title": "技能估计",
+      "description": "各项技能放在同一条 A1–C2 刻度上比较。",
+      "empty": "还没有技能估计。",
+      "takeTest": "做入学测",
+      "vocabValue": "约 {size} 词（参考 {level}）",
+      "measured": "已评估",
+      "notAssessed": "未评估"
+    },
+    "errors": {
+      "title": "常错语法点",
+      "description": "最近 30 天对话里出错最多的语法点，点击查看依据。",
+      "count": "{n} 次",
+      "empty": "最近 30 天对话里没有记录到语法错误。",
+      "chat": "去和私教对话"
+    },
+    "activity": {
+      "title": "学习打卡",
+      "description": "最近 12 周每天的复习数和对话轮数。",
+      "summary": "最近 12 周学习了 {studied} 天，复习 {reviews} 次，对话 {turns} 轮。",
+      "empty": "还没有学习记录。背单词或和私教对话后，这里会记下每一天。",
+      "cell": "{date}：复习 {reviews} 次，对话 {turns} 轮",
+      "less": "少",
+      "more": "多"
+    }
   }
 }

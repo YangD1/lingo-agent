@@ -25,10 +25,10 @@ describe("hasFreshToken", () => {
 describe("safeNextPath", () => {
   it.each([
     ["/settings?tab=usage", "/settings?tab=usage"],
-    [undefined, "/chat"],
-    ["https://evil.example", "/chat"],
-    ["//evil.example", "/chat"],
-    ["/\\evil.example", "/chat"],
+    [undefined, "/dashboard"],
+    ["https://evil.example", "/dashboard"],
+    ["//evil.example", "/dashboard"],
+    ["/\\evil.example", "/dashboard"],
   ])("%s -> %s", (next, expected) => {
     expect(safeNextPath(next)).toBe(expected);
   });

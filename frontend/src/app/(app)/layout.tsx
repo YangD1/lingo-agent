@@ -24,6 +24,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <header className="flex items-center gap-4 border-b px-4 py-2">
         <span className="font-semibold">Lingo Agent</span>
         <nav className="flex gap-3 text-sm">
+          <Link href="/dashboard">{t("dashboard")}</Link>
           <Link href="/chat">{t("chat")}</Link>
           <Link href="/vocab">{t("vocab")}</Link>
           <Link href="/memory">{t("memory")}</Link>

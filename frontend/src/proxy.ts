@@ -27,10 +27,12 @@ export const config = {
     "/",
     "/login",
     "/register",
+    "/dashboard/:path*",
     "/chat/:path*",
     "/memory/:path*",
     "/learner/:path*",
     "/vocab/:path*",
+    "/placement/:path*",
     "/settings/:path*",
   ],
 };

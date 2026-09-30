@@ -1,22 +1,8 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { expect, type Page, test } from "@playwright/test";
 
-import { register, uniqueEmail } from "./helpers";
+import { PSEUDOWORDS, register, uniqueEmail } from "./helpers";
 
 test.use({ locale: "zh-CN" });
-
-// Answering "no" to exactly the made-up words keeps the vocabulary result reliable and
-// high, so the sample book's words are offered for marking known.
-const PSEUDOWORDS = new Set(
-  readFileSync(
-    path.join(__dirname, "../../backend/app/adaptive/placement/pseudowords.txt"),
-    "utf8",
-  )
-    .split("\n")
-    .filter((line) => line && !line.startsWith("#")),
-);
 
 const progress = (page: Page) => page.getByTestId("placement-progress");
 

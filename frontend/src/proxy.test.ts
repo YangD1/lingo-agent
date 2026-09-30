@@ -36,8 +36,8 @@ describe("proxy", () => {
     expect(getRedirectUrl(proxy(request("/chat", fresh)))).toBeNull();
   });
 
-  it.each(["/", "/login", "/register"])("sends logged-in users from %s to /chat", (path) => {
-    expect(getRedirectUrl(proxy(request(path, fresh)))).toBe("http://localhost/chat");
+  it.each(["/", "/login", "/register"])("sends logged-in users from %s to /dashboard", (path) => {
+    expect(getRedirectUrl(proxy(request(path, fresh)))).toBe("http://localhost/dashboard");
   });
 
   it.each(["/", "/login", "/register"])("shows %s to anonymous users", (path) => {
@@ -45,7 +45,9 @@ describe("proxy", () => {
   });
 
   it.each([
+    ["/dashboard", true],
     ["/chat/abc", true],
+    ["/placement", true],
     ["/memory", true],
     ["/learner", true],
     ["/vocab", true],

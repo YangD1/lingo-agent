@@ -2,7 +2,7 @@
 export const AUTH_COOKIE = "lingo_access_token";
 
 export const LOGIN_PATH = "/login";
-export const HOME_PATH = "/chat";
+export const HOME_PATH = "/dashboard";
 
 /**
  * Optimistic check for the proxy: is there a token that hasn't expired yet?

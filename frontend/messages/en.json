@@ -34,6 +34,7 @@
     }
   },
   "nav": {
+    "dashboard": "Dashboard",
     "chat": "Chat",
     "settings": "Settings",
     "logout": "Log out",
@@ -591,5 +592,74 @@
     "invalid_answer": "That answer isn't valid. Please answer again.",
     "placement_not_in_progress": "This placement test was abandoned. Start a new one.",
     "placement_not_found": "This placement test doesn't exist."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "loading": "Loading…",
+    "summary": {
+      "level": "CEFR level",
+      "levelNote": "From the placement test, updated as you learn",
+      "none": "Not assessed",
+      "takeTest": "Take the placement test",
+      "vocab": "Estimated vocabulary",
+      "words": "About {n} words",
+      "vocabLevel": "Reference level {level}",
+      "unreliable": "(rough estimate)",
+      "streak": "Study streak",
+      "days": "{n, plural, one {# day} other {# days}}",
+      "studiedToday": "Studied today",
+      "keepGoing": "Not studied yet today — keep it going",
+      "start": "Review a few words or chat once to start",
+      "today": "Due today",
+      "reviews": "{n, plural, one {# word} other {# words}}",
+      "newLeft": "{n, plural, one {# new word} other {# new words}} left — review now",
+      "allDone": "All done for today"
+    },
+    "book": {
+      "title": "Word book",
+      "empty": "No word book yet.",
+      "choose": "Choose one",
+      "summary": "{total} words: {mastered} mastered, {learning} learning, {known} skipped as known, {unlearned} not started.",
+      "mastered": "Mastered",
+      "learning": "Learning",
+      "known": "Skipped as known",
+      "unlearned": "Not started",
+      "center": "mastered or skipped"
+    },
+    "grammar": {
+      "title": "Grammar mastery",
+      "description": "Grammar points at each level by mastery.",
+      "level": "Level",
+      "mastered": "Mastered",
+      "learning": "Learning",
+      "weak": "Weak",
+      "unseen": "Not met",
+      "empty": "No grammar records yet. <chat>Chat with your tutor</chat> or <test>take the placement test</test> to see mastery by level."
+    },
+    "skills": {
+      "title": "Skill estimates",
+      "description": "Skills side by side on one A1–C2 scale.",
+      "empty": "No skill estimates yet.",
+      "takeTest": "Take the placement test",
+      "vocabValue": "About {size} words (reference {level})",
+      "measured": "Assessed",
+      "notAssessed": "Not assessed"
+    },
+    "errors": {
+      "title": "Common mistakes",
+      "description": "Grammar points you got wrong most in chats over the last 30 days. Open one to see why.",
+      "count": "{n, plural, one {# time} other {# times}}",
+      "empty": "No grammar mistakes recorded in chats over the last 30 days.",
+      "chat": "Chat with your tutor"
+    },
+    "activity": {
+      "title": "Study calendar",
+      "description": "Word reviews and chat turns per day over the last 12 weeks.",
+      "summary": "Studied {studied, plural, one {# day} other {# days}} in the last 12 weeks: {reviews} reviews, {turns} chat turns.",
+      "empty": "No study yet. Review words or chat with your tutor and each day shows up here.",
+      "cell": "{date}: {reviews} reviews, {turns} chat turns",
+      "less": "Less",
+      "more": "More"
+    }
   }
 }
