@@ -1,15 +1,17 @@
 """Placement API (P1 plan §6.2): a whole test, leaving and coming back, retries."""
 
 import asyncio
+import uuid
+from datetime import timedelta
 from typing import Any
 
 from httpx import AsyncClient
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.placement.items import get_item_bank
 from app.adaptive.rules import get_rules
-from app.db.models import KCEvidence, PlacementItemStat, UserProfile, Word
+from app.db.models import KCEvidence, PlacementItemStat, PlacementSession, UserProfile, Word
 from tests.integration.test_chat_send import login
 from tests.integration.test_learner_api import switch_to
 
@@ -93,6 +95,7 @@ async def test_a_whole_test(client: AsyncClient, db_session: AsyncSession) -> No
 
     latest = (await client.get("/placement/latest")).json()
     assert latest["id"] == session_id and latest["status"] == "done"
+    assert latest["retest_due"] is False
     profile = await db_session.scalar(select(UserProfile))
     assert profile is not None and profile.cefr_level == result["cefr"]
     placed = await db_session.scalar(
@@ -105,6 +108,15 @@ async def test_a_whole_test(client: AsyncClient, db_session: AsyncSession) -> No
         text("SELECT count(*) FROM checkpoints WHERE thread_id = :id"), {"id": session_id}
     )
     assert threads == 0
+
+    # Two months on, it is time for a retest.
+    await db_session.execute(
+        update(PlacementSession)
+        .where(PlacementSession.id == uuid.UUID(session_id))
+        .values(finished_at=PlacementSession.finished_at - timedelta(days=60))
+    )
+    await db_session.commit()
+    assert (await client.get("/placement/latest")).json()["retest_due"] is True
 
     # A new start after a finished test begins a new one.
     again = await post(client, "/placement", {})

@@ -12,6 +12,7 @@ const placement = (status: Placement["status"]): Placement => ({
   result: null,
   created_at: "2026-09-30T00:00:00Z",
   finished_at: null,
+  retest_due: false,
 });
 
 afterEach(() => {
@@ -24,6 +25,7 @@ describe("bannerFor", () => {
     expect(bannerFor(placement("abandoned"))).toBe("start");
     expect(bannerFor(placement("in_progress"))).toBe("resume");
     expect(bannerFor(placement("done"))).toBeNull();
+    expect(bannerFor({ ...placement("done"), retest_due: true })).toBe("retest");
   });
 });
 

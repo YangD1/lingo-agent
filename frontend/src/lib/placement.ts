@@ -43,6 +43,8 @@ export type Placement = {
   result: PlacementResult | null;
   created_at: string;
   finished_at: string | null;
+  /** Finished long enough ago (rules.yaml `advice.retest_days`) to suggest a retest. */
+  retest_due: boolean;
 };
 
 export type Answer = { yes: boolean } | { choice: number };
@@ -63,9 +65,12 @@ export const answerPlacement = (id: string, questionId: string, answer: Answer) 
     json: { question_id: questionId, ...answer },
   });
 
-/** What the chat page's banner offers: nothing once a test is done. */
-export function bannerFor(latest: Placement | null): "start" | "resume" | null {
+export type BannerKind = "start" | "resume" | "retest";
+
+/** What the chat page's banner offers: nothing once a test is done, until a retest is due. */
+export function bannerFor(latest: Placement | null): BannerKind | null {
   if (latest === null || latest.status === "abandoned") return "start";
-  return latest.status === "in_progress" ? "resume" : null;
+  if (latest.status === "in_progress") return "resume";
+  return latest.retest_due ? "retest" : null;
 }
 

@@ -56,6 +56,7 @@ const placement = (question: Question | null, done = false): Placement => ({
   result: done ? result : null,
   created_at: "2026-09-30T00:00:00Z",
   finished_at: done ? "2026-09-30T00:10:00Z" : null,
+  retest_due: false,
 });
 
 function show() {

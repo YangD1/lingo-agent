@@ -16,6 +16,7 @@ import {
 import { CEFR_LEVELS, kcName, learnerHref } from "@/lib/learner";
 
 import { ActivityHeatmap } from "./activity-heatmap";
+import { AdviceCard } from "./advice-card";
 import { BookChart } from "./book-chart";
 import { ErrorsChart } from "./errors-chart";
 import { GrammarChart } from "./grammar-chart";
@@ -54,6 +55,7 @@ export function DashboardApp() {
         {board && (
           <>
             <SummaryCards board={board} />
+            <AdviceCard />
             <div className="grid gap-6 md:grid-cols-2">
               <BookSection board={board} />
               <SkillsSection board={board} />

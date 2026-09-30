@@ -145,7 +145,9 @@
       "resume": "You have a placement test left halfway; pick it up where you stopped.",
       "startAction": "Take the test",
       "resumeAction": "Continue",
-      "close": "Close"
+      "close": "Close",
+      "retest": "It's been over 60 days since your last placement test. Retake it to see your progress.",
+      "retestAction": "Retake"
     }
   },
   "memory": {
@@ -591,7 +593,8 @@
     "stale_question": "That question is out of date (maybe answered in another tab). Showing the current one.",
     "invalid_answer": "That answer isn't valid. Please answer again.",
     "placement_not_in_progress": "This placement test was abandoned. Start a new one.",
-    "placement_not_found": "This placement test doesn't exist."
+    "placement_not_found": "This placement test doesn't exist.",
+    "advice_refresh_limited": "Advice can be refreshed once an hour. Please try again later."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -660,6 +663,68 @@
       "cell": "{date}: {reviews} reviews, {turns} chat turns",
       "less": "Less",
       "more": "More"
+    },
+    "advice": {
+      "title": "Today's advice",
+      "loading": "Loading…",
+      "writing": "Writing your advice…",
+      "byAi": "Picked by AI from the learning engine's suggestions, with its reasons; written {time}.",
+      "noModel": "No model is set up yet, so this advice follows simple rules. <settings>Open settings</settings>",
+      "failed": "The AI advice couldn't be written this time, so this advice follows simple rules.",
+      "rules": "Advice from your learning data.",
+      "refresh": "Refresh advice",
+      "refreshAfter": "Can refresh again in {n} min",
+      "empty": "Nothing in particular to catch up on today. <chat>A chat with your tutor</chat> is always good practice.",
+      "aiBadge": "AI",
+      "kinds": {
+        "placement": {
+          "title": "Take the placement test",
+          "reason": "Find your level so the tutor can pitch explanations and practice right.",
+          "action": "Start"
+        },
+        "retest": {
+          "title": "Retake the placement test",
+          "reason": "Your last placement test was a while ago. Retake it to see how far you've come.",
+          "action": "Start"
+        },
+        "resume": {
+          "title": "Finish the placement test",
+          "reason": "You left a placement test halfway. Pick up where you stopped.",
+          "action": "Continue"
+        },
+        "choose_book": {
+          "title": "Choose a word book",
+          "reason": "With a book chosen, new words and reviews are planned for you every day.",
+          "action": "Choose"
+        },
+        "vocab_screen": {
+          "title": "Skip the words you know",
+          "reason": "Mark the words you already know in {book}, so reviews don't waste time on them.",
+          "action": "Screen"
+        },
+        "vocab_review": {
+          "title": "Review the words that are due",
+          "reason": "Reviewing them now is when they stick best.",
+          "action": "Review"
+        },
+        "vocab_learn": {
+          "title": "Learn today's new words",
+          "reason": "A few every day adds up.",
+          "action": "Learn"
+        },
+        "grammar_practice": {
+          "title": "Practise: {kc}",
+          "reason": "You've tripped on this one in recent chats. Start by looking at those sentences.",
+          "action": "See why"
+        }
+      },
+      "evidence": {
+        "due": "{n} due",
+        "newLeft": "{n} new words left today",
+        "lastTest": "Last taken {n} days ago",
+        "inProgress": "One left unfinished",
+        "grammar": "{kc} · {n} mistakes lately · mastery {p}"
+      }
     }
   }
 }

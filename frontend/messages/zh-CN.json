@@ -145,7 +145,9 @@
       "resume": "你有一次入学测还没做完，可以接着做。",
       "startAction": "开始入学测",
       "resumeAction": "继续",
-      "close": "关闭提示"
+      "close": "关闭提示",
+      "retest": "距离上次入学测已经超过 60 天，重测一次看看进步吧。",
+      "retestAction": "重新测试"
     }
   },
   "memory": {
@@ -591,7 +593,8 @@
     "stale_question": "这道题已经过期（可能在别的页面答过了），已为你刷新到当前题。",
     "invalid_answer": "答案格式不对，请重新作答。",
     "placement_not_in_progress": "这次入学测已经放弃，请重新开始。",
-    "placement_not_found": "找不到这次入学测。"
+    "placement_not_found": "找不到这次入学测。",
+    "advice_refresh_limited": "建议每小时只能手动刷新一次，请稍后再试。"
   },
   "dashboard": {
     "title": "能力看板",
@@ -660,6 +663,68 @@
       "cell": "{date}：复习 {reviews} 次，对话 {turns} 轮",
       "less": "少",
       "more": "多"
+    },
+    "advice": {
+      "title": "今天的建议",
+      "loading": "加载中…",
+      "writing": "正在生成建议…",
+      "byAi": "由 AI 从学习引擎给出的候选里挑选并写理由，生成于 {time}。",
+      "noModel": "还没配置模型，下面是按规则给出的建议。<settings>去设置</settings>",
+      "failed": "AI 建议这次没生成出来，下面是按规则给出的建议。",
+      "rules": "按你的学习数据给出的建议。",
+      "refresh": "刷新建议",
+      "refreshAfter": "{n} 分钟后可再刷新",
+      "empty": "今天没有特别要安排的事。<chat>和私教聊一聊</chat>，也是很好的练习。",
+      "aiBadge": "AI",
+      "kinds": {
+        "placement": {
+          "title": "做一次入学测",
+          "reason": "先测一下你的水平，私教会按等级调整讲解和练习。",
+          "action": "去测试"
+        },
+        "retest": {
+          "title": "重新做一次入学测",
+          "reason": "上次入学测已经过去很久了，重测一次看看自己的进步。",
+          "action": "去测试"
+        },
+        "resume": {
+          "title": "把入学测做完",
+          "reason": "你有一次入学测做到一半，接着做就好。",
+          "action": "继续"
+        },
+        "choose_book": {
+          "title": "选一本词书",
+          "reason": "选好词书后，每天会按计划安排新词和复习。",
+          "action": "去选词书"
+        },
+        "vocab_screen": {
+          "title": "筛掉已经认识的词",
+          "reason": "先把{book}里已经认识的词标出来，背词时就不会在熟词上浪费时间。",
+          "action": "去筛选"
+        },
+        "vocab_review": {
+          "title": "复习到期的单词",
+          "reason": "这些词现在复习，记得最牢。",
+          "action": "去复习"
+        },
+        "vocab_learn": {
+          "title": "学今天的新词",
+          "reason": "每天学一点，词汇量稳步增长。",
+          "action": "去学新词"
+        },
+        "grammar_practice": {
+          "title": "练习：{kc}",
+          "reason": "最近对话里这个语法点错得比较多，先看看出错的句子。",
+          "action": "查看依据"
+        }
+      },
+      "evidence": {
+        "due": "到期 {n} 个",
+        "newLeft": "今天还剩 {n} 个新词",
+        "lastTest": "上次在 {n} 天前",
+        "inProgress": "有一次没做完",
+        "grammar": "{kc} · 最近错 {n} 次 · 掌握度 {p}"
+      }
     }
   }
 }
