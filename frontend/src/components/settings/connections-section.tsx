@@ -24,6 +24,15 @@ import { useDescribeError } from "./use-describe-error";
 
 const CUSTOM = "__custom__";
 
+// "auto" lets the backend guess from the model's name and the tenant's routes.
+const TEST_AS = {
+  auto: "testAsAuto",
+  chat: "testAsChat",
+  asr: "testAsAsr",
+  vision: "testAsVision",
+} as const;
+const TEST_OK = { chat: "testOk", asr: "testOkAsr", vision: "testOkVision" } as const;
+
 type Props = {
   presets: Presets;
   connections: Connection[];
@@ -94,6 +103,7 @@ function ConnectionItem({
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [testAs, setTestAs] = useState<keyof typeof TEST_AS>("auto");
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -147,17 +157,19 @@ function ConnectionItem({
     run(async () => {
       const r = await api<ConnectionTest>(`/tenant/connections/${c.id}/test`, {
         method: "POST",
-        json: { model: model.trim() },
+        json: { model: model.trim(), ...(testAs === "auto" ? {} : { purpose: testAs }) },
       });
       setResult(
         r.ok
-          ? { ok: true, text: t(r.purpose === "asr" ? "testOkAsr" : "testOk", { ms: r.latency_ms }) }
+          ? { ok: true, text: t(TEST_OK[r.purpose], { ms: r.latency_ms }) }
           : {
               ok: false,
               text:
                 r.error_code === "asr_not_supported"
                   ? t("asrNotSupported")
-                  : t("testFailed", { error: r.error ?? "" }),
+                  : r.error_code === "vision_not_supported"
+                    ? t("visionNotSupported")
+                    : t("testFailed", { error: r.error ?? "" }),
             },
       );
       // The backend recorded last_verified_at / last_error; show them.
@@ -233,7 +245,20 @@ function ConnectionItem({
           <Button size="sm" variant="outline" onClick={test} disabled={busy || !model.trim()}>
             {t("test")}
           </Button>
+          <NativeSelect
+            aria-label={t("testAs")}
+            title={t("testAs")}
+            value={testAs}
+            onChange={(e) => setTestAs(e.target.value as keyof typeof TEST_AS)}
+          >
+            {Object.entries(TEST_AS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {t(label)}
+              </option>
+            ))}
+          </NativeSelect>
         </div>
+        <p className="text-xs text-muted-foreground">{t("defaultModelHint")}</p>
         <CatalogStatus catalog={catalog} hasDefault={saved !== ""} onRetry={loadModels} />
       </div>
       {editing ? (

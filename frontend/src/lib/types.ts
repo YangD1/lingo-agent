@@ -67,14 +67,16 @@ export type Connection = {
   last_verified_at: string | null;
   last_error: string | null;
 };
+export type TestPurpose = "chat" | "asr" | "vision";
 export type ConnectionTest = {
   ok: boolean;
   error: string | null;
   // Set when the UI can explain the failure itself, e.g. "asr_not_supported".
   error_code: string | null;
   latency_ms: number;
-  // A speech-to-text model is tested by transcribing a short clip, not by chatting.
-  purpose: "chat" | "asr";
+  // A speech-to-text model is tested by transcribing a short clip, a vision one with a
+  // small image; the backend guesses when the request doesn't say.
+  purpose: TestPurpose;
 };
 export type TaskRoute = {
   section: "llm" | "embedding" | "asr";

@@ -270,17 +270,21 @@ async def _test_purpose(
 ) -> TestPurpose:
     """Speech-to-text when the model's name says so or the tenant's speech-to-text route
     uses it: a chat message would fail on such a model, and pass on a relay that has no
-    /audio/transcriptions at all."""
-    if conn.kind not in ASR_KINDS:
-        return "chat"
-    if looks_like_speech_to_text(model):
+    /audio/transcriptions at all. Vision when the vision route uses it."""
+    if conn.kind in ASR_KINDS and looks_like_speech_to_text(model):
         return "asr"
     ctx = await load_provider_context(session, tenant_id)
-    try:
-        chain = resolve_route(get_providers_config(), ctx, "asr", "default")
-    except NoModelConfiguredError:
-        return "chat"
-    return "asr" if any((m.connection, m.model) == (conn.name, model) for m in chain) else "chat"
+
+    def on_route(section: Section, task: str) -> bool:
+        try:
+            chain = resolve_route(get_providers_config(), ctx, section, task)
+        except NoModelConfiguredError:
+            return False
+        return any((m.connection, m.model) == (conn.name, model) for m in chain)
+
+    if conn.kind in ASR_KINDS and on_route("asr", "default"):
+        return "asr"
+    return "vision" if on_route("llm", "vision") else "chat"
 
 
 @router.get("/tenant/connections/{connection_id}/models", dependencies=[Manager])

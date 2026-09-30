@@ -175,6 +175,16 @@ def test_auto_fallback_uses_default_models_in_creation_order() -> None:
     assert chain[0].params["temperature"] == 0.7  # the task's route params still apply
 
 
+def test_auto_fallback_skips_speech_to_text_default_models() -> None:
+    ctx = make_ctx(
+        conn("siliconflow", "openai_compatible", default_model="FunAudioLLM/SenseVoiceSmall"),
+        conn("local", "openai_compatible", default_model="Systran/faster-whisper-small"),
+        conn("relay", "openai_compatible", default_model="relay-model"),
+    )
+    chain, _ = resolve_route_with_source(make_config(), ctx, "llm", "chat")
+    assert refs(chain) == ["relay:relay-model"]
+
+
 def test_matching_yaml_route_is_not_extended_by_default_models() -> None:
     ctx = make_ctx(
         conn("relay", "openai_compatible", default_model="relay-model"),

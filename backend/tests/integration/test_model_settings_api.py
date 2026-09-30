@@ -1,7 +1,10 @@
+import base64
+import io
 import uuid
 from typing import Any
 
 import httpx2
+import openai
 import pytest
 from httpx import AsyncClient
 from langchain_core.messages import AIMessage
@@ -306,6 +309,52 @@ async def test_model_on_the_speech_route_is_tested_by_transcribing(
     explicit = {"model": "my-stt", "purpose": "chat"}
     assert (await client.post(url, json=explicit)).json()["purpose"] == "chat"
     assert chats == ["my-stt", "my-stt"] and len(seen) == 1
+
+
+def bad_request() -> httpx2.Response:
+    return httpx2.Response(400, request=httpx2.Request("POST", "https://relay.example.com/v1"))
+
+
+async def test_vision_test_sends_an_image(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sent: list[Any] = []
+    outcomes = iter([None, openai.BadRequestError("no images", response=bad_request(), body=None)])
+
+    class FakeModel:
+        async def ainvoke(self, messages: Any) -> AIMessage:
+            sent.append(messages)
+            if (error := next(outcomes)) is not None:
+                raise error
+            return AIMessage("Red")
+
+    monkeypatch.setattr(service, "build_chat_model", lambda *a, **k: FakeModel())
+    await login(client)
+    conn = await create(
+        client, name="relay", kind="openai_compatible", base_url="https://relay.example.com/v1"
+    )
+    url = f"/tenant/connections/{conn['id']}/test"
+    # On the vision route: guessed as vision. An explicit purpose tests any model.
+    put = await client.put("/tenant/routes/llm/vision", json={"models": ["relay:eyes"]})
+    assert put.status_code == 200
+
+    ok = (await client.post(url, json={"model": "eyes"})).json()
+    refused = (await client.post(url, json={"model": "blind", "purpose": "vision"})).json()
+
+    assert (ok["ok"], ok["purpose"]) == (True, "vision")
+    (message,) = sent[0]
+    image = message.content[1]
+    assert image["mime_type"] == "image/png"
+    assert base64.b64decode(image["base64"]).startswith(b"\x89PNG")
+    assert (refused["ok"], refused["purpose"]) == (False, "vision")
+    assert refused["error_code"] == "vision_not_supported"
+
+
+def test_built_in_test_image_is_a_valid_png() -> None:
+    from PIL import Image
+
+    with Image.open(io.BytesIO(service.test_image())) as image:
+        assert (image.format, image.size, image.getpixel((5, 5))) == ("PNG", (32, 32), (255, 0, 0))
 
 
 async def test_anthropic_is_always_tested_as_chat(

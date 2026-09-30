@@ -1,10 +1,14 @@
 """Tenant provider connections and route overrides (ADR 0004 §6)."""
 
+import base64
 import re
+import struct
 import time
 import uuid
+import zlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import cache
 from typing import Annotated, Any, Literal
 
 import openai
@@ -39,7 +43,7 @@ _NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 _KEY_REQUIRED: frozenset[str] = frozenset({"deepseek", "anthropic", "openai"})
 
 
-type TestPurpose = Literal["chat", "asr"]
+type TestPurpose = Literal["chat", "asr", "vision"]
 
 
 class NotFoundError(Exception):
@@ -264,7 +268,7 @@ async def verify_connection(
     purpose: TestPurpose = "chat",
 ) -> TestResult:
     """Send one tiny request through the same guarded client real calls use: a chat
-    message, or for speech-to-text a short built-in clip."""
+    message, for speech-to-text a short built-in clip, for vision a small built-in image."""
     api_key = _decrypt_key(conn, keyring)
     kind: ProviderKind = conn.kind  # type: ignore[assignment]  # DB CHECK constraint
     resolved = ResolvedModel(
@@ -292,7 +296,11 @@ async def verify_connection(
                 UsageLabels(conn.tenant_id, "connection_test", conn.name, model)
             )
             await build_chat_model(resolved, task="connection_test", callbacks=[recorder]).ainvoke(
-                [HumanMessage("Reply with the single word OK.")]
+                [
+                    _vision_probe()
+                    if purpose == "vision"
+                    else HumanMessage("Reply with the single word OK.")
+                ]
             )
     except Exception as exc:  # any vendor/network failure is a test result, not a 500
         cause = exc.__cause__ if isinstance(exc, TranscriptionError) and exc.__cause__ else exc
@@ -300,6 +308,9 @@ async def verify_connection(
         # A server without /audio/transcriptions (a chat-only relay) answers 404.
         if purpose == "asr" and isinstance(cause, openai.NotFoundError):
             error_code = "asr_not_supported"
+        # Models without image input are refused with a 400 by OpenAI-style servers.
+        elif purpose == "vision" and isinstance(cause, openai.BadRequestError):
+            error_code = "vision_not_supported"
     latency_ms = int((time.monotonic() - started) * 1000)
 
     if error is None:
@@ -307,6 +318,39 @@ async def verify_connection(
     conn.last_error = error
     await session.commit()
     return TestResult(error is None, error, error_code, latency_ms)
+
+
+def _vision_probe() -> HumanMessage:
+    return HumanMessage(
+        content=[
+            {"type": "text", "text": "What colour is this image? Reply with one word."},
+            {
+                "type": "image",
+                "base64": base64.b64encode(test_image()).decode("ascii"),
+                "mime_type": "image/png",
+            },
+        ]
+    )
+
+
+@cache
+def test_image() -> bytes:
+    """A 32x32 red square as PNG, for testing a connection's vision. Some servers
+    refuse images smaller than about 28 pixels a side."""
+    size = 32
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
+    rows = b"".join(b"\x00" + b"\xff\x00\x00" * size for _ in range(size))
+    header = struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0)  # 8-bit RGB
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(rows))
+        + chunk(b"IEND", b"")
+    )
 
 
 def _clean_model(model: str | None) -> str | None:

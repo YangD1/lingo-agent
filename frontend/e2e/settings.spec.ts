@@ -24,7 +24,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await expect(connection.getByTestId("model-list-status")).toHaveText(
     "密钥可用：共 2 个对话模型可选。",
   );
-  const model = connection.getByLabel("默认对话模型");
+  const model = connection.getByLabel("默认模型");
   await expect(model).toHaveValue("fake-tutor");
   // Opening the list offers every chat model, not just the ones matching the current value.
   await model.fill("fake-tutor-mini");
@@ -45,6 +45,10 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await connection.getByRole("button", { name: "测试" }).click();
   await expect(connection.getByRole("status")).toContainText("连接成功");
   await expect(connection).toContainText("上次测试通过");
+  // Tested as vision on request: the built-in image goes to the model.
+  await connection.getByLabel("测试方式").selectOption("看图");
+  await connection.getByRole("button", { name: "测试" }).click();
+  await expect(connection.getByRole("status")).toContainText("看图可用");
 
   // No route needed: the connection's default model is used automatically.
   const route = page.getByRole("list", { name: "对话模型" }).getByRole("listitem");
@@ -61,17 +65,17 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
     "Nice try! You said: I has a cat",
   );
 
-  // Usage: the connection test, the chat reply and the memory reflection that follows it
-  // (ADR 0009), all recorded asynchronously.
+  // Usage: the two connection tests, the chat reply and the memory reflection that follows
+  // it (ADR 0009), all recorded asynchronously.
   await page.getByRole("link", { name: "设置" }).click();
   const usage = page.getByRole("table", { name: "用量" });
   await expect(async () => {
     await page.getByRole("button", { name: "刷新" }).click();
     await expect(usage.locator("tbody tr")).toHaveCount(1, { timeout: 1000 });
-    await expect(usage.locator("tbody tr td").nth(2)).toHaveText("3", { timeout: 1000 });
+    await expect(usage.locator("tbody tr td").nth(2)).toHaveText("4", { timeout: 1000 });
   }).toPass({ timeout: 15_000 });
   await expect(usage.locator("tbody tr td").nth(1)).toHaveText("fake:fake-tutor");
-  await expect(usage.locator("tbody tr td").nth(3)).toHaveText("126"); // 42 prompt tokens x 3
+  await expect(usage.locator("tbody tr td").nth(3)).toHaveText("168"); // 42 prompt tokens x 4
 
   // Custom order, all with dropdowns: switch row 1 to the mini model, add a fallback
   // (prefilled with the connection's default model), then move it to the top.
@@ -117,8 +121,8 @@ test("when the model list can't be fetched, the reason is shown and a name can b
   const connection = page.getByTestId("connection-relay");
   await expect(connection.getByTestId("model-list-status")).toContainText("获取模型列表失败：");
   await expect(connection.getByTestId("model-list-status")).toContainText("404");
-  await connection.getByLabel("默认对话模型").fill("my-model");
-  await connection.getByLabel("默认对话模型").press("Tab"); // close the (empty) suggestion popup
+  await connection.getByLabel("默认模型").fill("my-model");
+  await connection.getByLabel("默认模型").press("Tab"); // close the (empty) suggestion popup
   await connection.getByRole("button", { name: "保存模型" }).click();
   await expect(connection.getByRole("status")).toHaveText("默认模型已保存。");
   await expect(
@@ -156,7 +160,7 @@ test("an existing connection's model list offers everything, and typing filters 
   await register(page, uniqueEmail());
   await useFakeModel(page); // saved with default model "fake-tutor"
   await page.goto("/settings");
-  const model = page.getByTestId("connection-fake").getByLabel("默认对话模型");
+  const model = page.getByTestId("connection-fake").getByLabel("默认模型");
   const options = page.getByRole("listbox").getByRole("option");
 
   // The current value doesn't filter the list: every other model is one click away.

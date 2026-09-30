@@ -223,7 +223,7 @@ def resolve_route_with_source(
     config: ProvidersConfig, ctx: TenantProviderContext, section: Section, task: str
 ) -> tuple[list[ResolvedModel], RouteSource]:
     """Tenant override > YAML route; if neither matches a connection, each connection's
-    default model in creation order (llm only: default models are chat models)."""
+    default model in creation order (llm only, and not speech-to-text models)."""
     route = route_for(config, ctx, section, task)
     source: RouteSource = "override" if (section, task) in ctx.routes else "default"
     resolved: list[ResolvedModel] = []
@@ -237,11 +237,15 @@ def resolve_route_with_source(
             continue
         resolved.append(_resolved(config, conn, model, route))
     if not resolved and section == "llm" and (section, task) not in CAPABILITY_TASKS:
+        # Imported here: model_catalog imports this module.
+        from app.providers.model_catalog import looks_like_speech_to_text
+
         source = "auto"
+        # A speech-only connection's default model can't chat, so it is left out.
         resolved = [
             _resolved(config, conn, conn.default_model, route)
             for conn in ctx.connections.values()
-            if conn.default_model
+            if conn.default_model and not looks_like_speech_to_text(conn.default_model)
         ]
     if not resolved:
         raise NoModelConfiguredError(section, task, route.models)
