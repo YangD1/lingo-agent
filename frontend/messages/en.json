@@ -739,5 +739,43 @@
       },
       "evidenceLink": "See the evidence"
     }
+  },
+  "aiBadge": {
+    "label": "Uses AI: what it does and roughly how many tokens",
+    "feature": {
+      "chat_message": "Your tutor's reply is written by an AI model. After it, the tutor reviews the turn in the background to update your memories, mistakes and words.",
+      "chat_image": "An AI model reads each image first, so the tutor can talk about it.",
+      "chat_pdf": "PDFs with a text layer are read without AI. Scanned pages are read by an AI model, one call per page.",
+      "chat_audio": "Your recording is turned into text by a speech-to-text model.",
+      "practice_start": "The tutor opens the practice with a first message written by an AI model.",
+      "advice": "Today's advice is written by an AI model from your learning data, and checked by code. Without a model, template advice is shown instead.",
+      "memory_edit": "Saving a memory turns it into a vector with an embedding model, so the tutor can find it later."
+    },
+    "task": {
+      "chat": "Reply",
+      "reflect": "Review the turn",
+      "memory": "Index memories for search",
+      "vision": "Read the image",
+      "asr": "Speech to text",
+      "practice_opening": "Opening message",
+      "advice": "Write advice"
+    },
+    "timing": {
+      "now": "right away",
+      "background": "in the background, after the reply"
+    },
+    "per": {
+      "image": "per image",
+      "page": "per page"
+    },
+    "tokens": "≈ {input} input + {output} output tokens",
+    "audio": "≈ {seconds} s of audio (billed by length, not tokens)",
+    "fromHistory": "average of your last {samples, plural, one {# call} other {# calls}}",
+    "fromDefault": "no history yet, default estimate",
+    "model": "model {model}",
+    "noModel": "no model configured",
+    "loading": "Loading the estimate…",
+    "failed": "Couldn't load the estimate.",
+    "footer": "Token counts only. The price depends on your model provider."
   }
 }

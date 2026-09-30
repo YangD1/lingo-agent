@@ -739,5 +739,43 @@
       },
       "evidenceLink": "查看依据"
     }
+  },
+  "aiBadge": {
+    "label": "使用 AI：做什么、大约多少 token",
+    "feature": {
+      "chat_message": "私教的回复由 AI 模型生成。回复后，私教会在后台复盘这一轮，更新你的记忆、错题和生词。",
+      "chat_image": "AI 模型先读懂每张图片，私教才能围绕它交流。",
+      "chat_pdf": "带文字层的 PDF 不用 AI 就能读取。扫描页由 AI 模型识别，每页一次调用。",
+      "chat_audio": "你的录音由语音转写模型转成文字。",
+      "practice_start": "练习开始时，私教的第一条消息由 AI 模型生成。",
+      "advice": "今天的建议由 AI 模型根据你的学习数据写成，再由代码校验。没配置模型时显示模板建议。",
+      "memory_edit": "保存记忆时，向量模型会把它转成向量，方便私教之后检索。"
+    },
+    "task": {
+      "chat": "回复",
+      "reflect": "复盘这一轮",
+      "memory": "为记忆建立检索向量",
+      "vision": "读图",
+      "asr": "语音转写",
+      "practice_opening": "开场白",
+      "advice": "写建议"
+    },
+    "timing": {
+      "now": "立即",
+      "background": "回复后在后台"
+    },
+    "per": {
+      "image": "每张图",
+      "page": "每页"
+    },
+    "tokens": "约 {input} 输入 + {output} 输出 token",
+    "audio": "约 {seconds} 秒音频（按时长计费，不按 token）",
+    "fromHistory": "按你最近 {samples} 次调用的平均",
+    "fromDefault": "还没有记录，这是默认估计",
+    "model": "模型 {model}",
+    "noModel": "还没配置模型",
+    "loading": "正在加载估计…",
+    "failed": "估计加载失败。",
+    "footer": "只显示 token 数，价格取决于你的模型服务商。"
   }
 }
