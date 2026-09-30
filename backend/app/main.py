@@ -17,6 +17,7 @@ from app.api import (
     attachments,
     auth,
     chat,
+    dashboard,
     health,
     learner,
     memory,
@@ -126,6 +127,7 @@ def create_app() -> FastAPI:
     app.include_router(learner.router)
     app.include_router(vocab.router)
     app.include_router(placement.router)
+    app.include_router(dashboard.router)
     return app
 
 

@@ -160,6 +160,8 @@ class LLMUsage(Base):
     __tablename__ = "llm_usage"
     __table_args__ = (
         Index("ix_llm_usage_tenant_id_created_at", "tenant_id", "created_at"),
+        # The learner dashboard counts chat turns per day from here.
+        Index("ix_llm_usage_user_id_created_at", "user_id", "created_at"),
         CheckConstraint(_in("status", USAGE_STATUSES), name="status"),
     )
 

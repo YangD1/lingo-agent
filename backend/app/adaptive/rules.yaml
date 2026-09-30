@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-09-30.1"
+version: "2026-09-30.2"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -110,6 +110,9 @@ vocab:
   # Cards in their first learning steps (minutes apart) that fall due within this
   # many minutes are shown now instead of making the learner wait.
   learn_ahead_minutes: 20
+  # A word counts as mastered on the dashboard once FSRS has it in review with at
+  # least this many days of stability (Anki's "mature" card); display only.
+  mastered_stability_days: 21
   # Known-word screening: the learner marks the words they already know.
   screening:
     batch_size: 50

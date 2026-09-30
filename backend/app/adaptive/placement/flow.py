@@ -212,15 +212,23 @@ def public(question: Question) -> dict[str, object]:
 # --- result ---------------------------------------------------------------------------
 
 
-def vocab_reference(half_known_rank: float, rules: PlacementVocabRules) -> CefrLevel | None:
-    """Rough CEFR level from the number of known words among the most frequent ranks."""
+def known_in_basis(half_known_rank: float, rules: PlacementVocabRules) -> float | None:
+    """Expected known words among the `cefr_reference.basis` most frequent ranks."""
     ref = rules.cefr_reference
     if ref is None:
         return None
     counted = vocab_size.bands(rules)[: ref.basis // rules.band_size]
-    known = sum(
+    return sum(
         rules.band_size * vocab_size.p_know(half_known_rank, b.middle, rules) for b in counted
     )
+
+
+def vocab_reference(half_known_rank: float, rules: PlacementVocabRules) -> CefrLevel | None:
+    """Rough CEFR level from the number of known words among the most frequent ranks."""
+    ref = rules.cefr_reference
+    known = known_in_basis(half_known_rank, rules)
+    if ref is None or known is None:
+        return None
     level: CefrLevel = CEFR_LEVELS[0]
     for candidate in CEFR_LEVELS[1:]:
         if known >= ref.thresholds[candidate]:

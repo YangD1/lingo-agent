@@ -118,6 +118,7 @@ class VocabRules(_Strict):
     desired_retention: OpenProbability
     daily_new: int = Field(ge=0, le=200)
     learn_ahead_minutes: int = Field(ge=0, le=24 * 60)
+    mastered_stability_days: float = Field(default=21, gt=0)
     screening: ScreeningRules
 
 
