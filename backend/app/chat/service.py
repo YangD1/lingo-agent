@@ -2,17 +2,20 @@
 
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.kc.catalog import GrammarKC
 from app.agents.chat_graph import ChatGraph
 from app.db.models import Attachment, Conversation
+from app.services.vocab.scheduler import day_bounds
 
 
 class ConversationNotFoundError(Exception):
@@ -54,7 +57,7 @@ async def create_conversation(
 ) -> Conversation:
     """A free chat; with `focus` a practice conversation on that grammar point; with
     `purpose` "planning" a study-planning one. Titled in the UI's `locale` (the list
-    shows titles as they are)."""
+    shows titles as they are). Daily conversations come from `todays_daily`."""
     conversation = Conversation(tenant_id=tenant_id, user_id=user_id, purpose=purpose)
     if focus is not None:
         conversation.focus_kc_id = focus.id
@@ -77,6 +80,60 @@ def planning_title(locale: str | None) -> str:
     if locale and locale.lower().startswith("zh"):
         return "学习规划"
     return "Study plan"
+
+
+def daily_title(day: date, locale: str | None) -> str:
+    if locale and locale.lower().startswith("zh"):
+        return f"今天的学习 · {day.month}月{day.day}日"
+    return f"Today's study · {day:%b} {day.day}"
+
+
+async def daily_conversation(
+    session: AsyncSession, user_id: uuid.UUID, tz: ZoneInfo
+) -> Conversation | None:
+    """The learner's daily conversation for today in `tz` (ADR 0016 §1), if any."""
+    start, end = day_bounds(datetime.now(UTC), tz)
+    return await session.scalar(
+        select(Conversation)
+        .where(
+            Conversation.user_id == user_id,
+            Conversation.purpose == "daily",
+            Conversation.created_at >= start,
+            Conversation.created_at < end,
+        )
+        .order_by(Conversation.created_at.desc(), Conversation.id)
+        .limit(1)
+    )
+
+
+async def todays_daily(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    tz: ZoneInfo,
+    *,
+    locale: str | None = None,
+) -> tuple[Conversation, bool]:
+    """Today's daily conversation, created if there is none yet; True if created.
+
+    Serialised per learner with a transaction-scoped advisory lock, so two first
+    messages sent at once share one conversation.
+    """
+    await session.execute(select(func.pg_advisory_xact_lock(func.hashtext(f"daily:{user_id}"))))
+    existing = await daily_conversation(session, user_id, tz)
+    if existing is not None:
+        await session.commit()  # releases the lock
+        return existing, False
+    conversation = Conversation(
+        tenant_id=tenant_id,
+        user_id=user_id,
+        purpose="daily",
+        title=daily_title(datetime.now(UTC).astimezone(tz).date(), locale),
+    )
+    session.add(conversation)
+    await session.commit()
+    await session.refresh(conversation)
+    return conversation, True
 
 
 async def unstarted_planning(

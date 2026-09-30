@@ -191,10 +191,11 @@ placement:
       C1: 1.2
       C2: 2.4
 
-# Study advice on the dashboard (P1 plan §7.5.2). The algorithm proposes candidate
-# actions and ranks them; a model only picks among them and writes the reasons.
+# Study advice (P1 plan §7.5.2, ADR 0016). The algorithm proposes candidate actions and
+# ranks them; the tutor talks them over in the dashboard's daily conversation and the
+# planning conversation, and may only offer cards within them.
 advice:
-  # Candidates handed to the model; it picks at most three.
+  # Candidates the tutor is told about (the dashboard shows the best few as quick replies).
   max_candidates: 6
   # Suggest a retest once the latest finished placement test is this old.
   retest_days: 60

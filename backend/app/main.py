@@ -10,7 +10,6 @@ from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.placement.items import get_item_bank
 from app.adaptive.placement.words import DatabaseWords
 from app.adaptive.rules import get_rules
-from app.advice.service import AdviceRefresher
 from app.agents.chat_graph import build_chat_graph
 from app.agents.placement_graph import build_placement_graph
 from app.api import (
@@ -87,8 +86,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         enabled=settings.memory_reflection_enabled,
     )
     await app.state.reflection_worker.recover()
-    # Nothing to recover: stale advice is regenerated when the dashboard is next opened.
-    app.state.advice_refresher = AdviceRefresher(app.state.sessionmaker)
     usage_writer = UsageWriter(app.state.sessionmaker)
     usage_writer.start()
     set_usage_sink(usage_writer.submit)
@@ -101,11 +98,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await app.state.reflection_worker.stop()
         except TimeoutError:
             logger.warning("reflection did not stop within 5s")
-        try:
-            async with asyncio.timeout(5):
-                await app.state.advice_refresher.stop()
-        except TimeoutError:
-            logger.warning("advice generation did not stop within 5s")
         try:
             async with asyncio.timeout(5):
                 await app.state.attachment_processor.stop()

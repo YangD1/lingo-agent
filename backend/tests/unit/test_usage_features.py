@@ -23,7 +23,7 @@ def call(**overrides: object) -> FeatureCall:
 
 def test_shipped_catalog_loads() -> None:
     catalog = get_features()
-    assert {"chat_message", "chat_image", "chat_audio", "practice_start", "advice"} <= set(
+    assert {"chat_message", "chat_image", "chat_audio", "practice_start", "plan_start"} <= set(
         catalog.features
     )
     chat = catalog.features["chat_message"].calls
@@ -93,16 +93,19 @@ def test_current_model_is_the_first_usable_one_in_the_route() -> None:
     config = make_config()
     ctx = make_ctx(conn("deepseek"), conn("openai"))
     assert current_model(config, ctx, call()) == "openai:gpt-5-mini"  # chat route
-    assert current_model(config, ctx, call(task="advice")) == "deepseek:deepseek-chat"
+    # A task without a route of its own runs on the default one.
+    assert current_model(config, ctx, call(task="other_task")) == "deepseek:deepseek-chat"
     # Recorded as practice_opening, routed as chat.
     assert current_model(config, ctx, call(task="practice_opening", route="chat")) == (
         "openai:gpt-5-mini"
     )
     overridden = make_ctx(
         conn("deepseek"),
-        routes={("llm", "advice"): RouteSpec(models=["deepseek:deepseek-reasoner"])},
+        routes={("llm", "other_task"): RouteSpec(models=["deepseek:deepseek-reasoner"])},
     )
-    assert current_model(config, overridden, call(task="advice")) == "deepseek:deepseek-reasoner"
+    assert current_model(config, overridden, call(task="other_task")) == (
+        "deepseek:deepseek-reasoner"
+    )
 
 
 def test_current_model_is_none_when_nothing_is_configured() -> None:

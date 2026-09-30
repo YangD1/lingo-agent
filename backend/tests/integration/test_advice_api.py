@@ -1,114 +1,49 @@
-"""`GET /advice` and `POST /advice/refresh` (P1 plan §7.5.2)."""
+"""`GET /advice`: the learning engine's candidates, no model (ADR 0016 §3)."""
 
-from collections.abc import Iterator
-
-import pytest
-from fastapi import FastAPI
 from httpx import AsyncClient
 
-from app.advice import writer
-from app.advice.service import AdviceRefresher
-from tests.integration.test_advice_service import FakeAdvisor, draft
-from tests.integration.test_chat_send import login
+from tests.integration.test_chat_send import connect, login
 from tests.integration.test_learner_api import switch_to
 
 
-@pytest.fixture
-def advisor(monkeypatch: pytest.MonkeyPatch) -> FakeAdvisor:
-    fake = FakeAdvisor()
-    monkeypatch.setattr(writer, "get_structured_llm", fake.get_structured_llm)
-    return fake
-
-
-@pytest.fixture
-def refresher(app: FastAPI, advisor: FakeAdvisor) -> Iterator[AdviceRefresher]:
-    refresher: AdviceRefresher = app.state.advice_refresher
-    refresher.enabled = True
-    yield refresher
-
-
-async def test_templates_at_once_then_the_model_writes_in_the_background(
-    client: AsyncClient, advisor: FakeAdvisor, refresher: AdviceRefresher
-) -> None:
+async def test_candidates_best_first_without_a_model(client: AsyncClient) -> None:
     await login(client)
-    advisor.drafts.append(draft("choose_book"))
 
-    first = await client.get("/advice", params={"tz": "Asia/Shanghai", "locale": "zh-CN"})
+    response = await client.get("/advice", params={"tz": "Asia/Shanghai"})
 
-    assert first.status_code == 200, first.text
-    body = first.json()
-    assert body["status"] is None and body["refreshing"] is True
-    assert [(i["kind"], i["title"]) for i in body["items"]] == [
-        ("placement", None),
-        ("choose_book", None),
-    ]
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["model_ready"] is False
+    assert [i["kind"] for i in body["items"]] == ["placement", "choose_book"]
     placement = body["items"][0]
     assert placement["days_since"] is None and placement["in_progress"] is False
-
-    await refresher.wait_idle()
-    assert "Write in: Simplified Chinese" in advisor.prompts[0]
-    second = (await client.get("/advice", params={"locale": "zh-CN"})).json()
-    assert second["status"] == "ai" and second["refreshing"] is False
-    assert second["generated_at"] is not None and second["refresh_after"] is None
-    assert [(i["candidate_id"], i["title"]) for i in second["items"]] == [
-        ("choose_book", "Do choose_book"),
-        ("placement", None),
-    ]
-    # Fresh advice: nothing new is scheduled.
-    assert len(advisor.prompts) == 1
-
-    # The locale cookie decides when the page does not say.
-    client.cookies.set("NEXT_LOCALE", "en")
-    third = (await client.get("/advice")).json()
-    assert [i["title"] for i in third["items"]] == [None, None]
+    assert placement["candidate_id"] == "placement"
 
 
-async def test_live_evidence_comes_with_each_item(
-    client: AsyncClient, advisor: FakeAdvisor, refresher: AdviceRefresher
-) -> None:
+async def test_live_evidence_and_model_ready(client: AsyncClient) -> None:
     await login(client)
+    await connect(client, "deepseek")
     response = await client.put("/vocab/book", json={"book_id": "cet4"})
     assert response.status_code == 204, response.text
 
-    items = (await client.get("/advice")).json()["items"]
+    body = (await client.get("/advice")).json()
 
-    screen = next(i for i in items if i["kind"] == "vocab_screen")
+    assert body["model_ready"] is True
+    screen = next(i for i in body["items"] if i["kind"] == "vocab_screen")
     assert screen["book"] == {"id": "cet4", "name_en": "CET-4", "name_zh": "大学英语四级"}
-    await refresher.wait_idle()
 
 
-async def test_refresh_by_hand_once_an_hour(
-    client: AsyncClient, advisor: FakeAdvisor, refresher: AdviceRefresher
-) -> None:
-    await login(client)
-
-    accepted = await client.post("/advice/refresh", params={"locale": "en"})
-    assert accepted.status_code == 202, accepted.text
-    assert accepted.json()["refreshing"] is True
-    await refresher.wait_idle()
-
-    limited = await client.post("/advice/refresh")
-    assert limited.status_code == 429
-    assert limited.json()["detail"]["code"] == "advice_refresh_limited"
-    assert 3500 < int(limited.headers["retry-after"]) <= 3600
-    assert (await client.get("/advice")).json()["refresh_after"] is not None
-
-
-async def test_advice_is_the_learners_own(
-    client: AsyncClient, advisor: FakeAdvisor, refresher: AdviceRefresher
-) -> None:
+async def test_advice_is_the_learners_own(client: AsyncClient) -> None:
     await login(client, "first@example.com")
+    assert (await client.put("/vocab/book", json={"book_id": "cet4"})).status_code == 204
     await login(client, "second@example.com")
-    await switch_to(client, "first@example.com")
-    advisor.drafts.append(draft("placement"))
-    await client.get("/advice")
-    await refresher.wait_idle()
-    assert (await client.get("/advice")).json()["items"][0]["title"] == "Do placement"
 
-    await switch_to(client, "second@example.com")
-    other = (await client.get("/advice")).json()
-    assert other["status"] is None and all(i["title"] is None for i in other["items"])
-    await refresher.wait_idle()
+    kinds = [i["kind"] for i in (await client.get("/advice")).json()["items"]]
+    assert "choose_book" in kinds and "vocab_screen" not in kinds
+
+    await switch_to(client, "first@example.com")
+    kinds = [i["kind"] for i in (await client.get("/advice")).json()["items"]]
+    assert "vocab_screen" in kinds and "choose_book" not in kinds
 
 
 async def test_needs_login(client: AsyncClient) -> None:

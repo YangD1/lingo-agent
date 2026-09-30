@@ -1,8 +1,9 @@
-"""What the tutor is told in a study-planning conversation (ADR 0015 §6).
+"""What the tutor is told in a study-planning or daily conversation (ADR 0015 §6, 0016).
 
-A planning conversation starts from the placement result page. Each turn the tutor
-gets the latest placement result, the grammar points the test found weak, and the
-advice candidates (`advice/candidates.py`). The algorithm still decides what can be
+A planning conversation starts from the placement result page, a daily one from the
+dashboard. Each turn the tutor gets the latest placement result, the grammar points the
+test found weak, and the advice candidates (`advice/candidates.py`); the two differ only
+in how they are told to use them. The algorithm still decides what can be
 done: the practice and link cards the tutor may show are limited to these (the card
 scope); proposals to change the word book or goal are for the learner to confirm.
 
@@ -13,7 +14,7 @@ rebuilt every turn, so the numbers are current.
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -22,11 +23,14 @@ from app.adaptive import mastery
 from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.advice.candidates import Candidate, Kind, candidates
-from app.advice.writer import describe
+from app.advice.describe import describe
 from app.cards.tools import CardScope, LinkKind
 from app.db.models import KCEvidence, KCMastery, PlacementSession
 from app.prompts import load_prompt
 from app.services.vocab.scheduler import learner_zone
+
+# Which conversation the brief is for: the prompt around it differs.
+type PlanningPurpose = Literal["planning", "daily"]
 
 # Grammar points the latest test found weak, weakest first.
 MISSED_SHOWN = 5
@@ -55,6 +59,7 @@ class PlanningBrief:
     # Grammar points answered wrong in that test and not mastered since.
     missed: Sequence[MissedKC] = ()
     candidates: Sequence[Candidate] = field(default_factory=list)
+    purpose: PlanningPurpose = "planning"
 
     def scope(self) -> CardScope:
         """The practice and link cards the tutor may show."""
@@ -72,15 +77,21 @@ class PlanningSource(Protocol):
 class DatabasePlanning:
     """PlanningSource for one learner; loads once per turn, for the prompt and the tools."""
 
-    def __init__(self, sessionmaker: async_sessionmaker[AsyncSession], user_id: uuid.UUID) -> None:
+    def __init__(
+        self,
+        sessionmaker: async_sessionmaker[AsyncSession],
+        user_id: uuid.UUID,
+        purpose: PlanningPurpose = "planning",
+    ) -> None:
         self._sessionmaker = sessionmaker
         self._user_id = user_id
+        self._purpose: PlanningPurpose = purpose
         self._brief: PlanningBrief | None = None
 
     async def load(self) -> PlanningBrief:
         if self._brief is None:
             async with self._sessionmaker() as session:
-                self._brief = await load_brief(session, self._user_id)
+                self._brief = await load_brief(session, self._user_id, self._purpose)
                 await session.commit()  # stale mastery rows may have been rebuilt
         return self._brief
 
@@ -92,7 +103,9 @@ class DatabasePlanning:
             return CardScope(kc_ids=set(), links=set())
 
 
-async def load_brief(session: AsyncSession, user_id: uuid.UUID) -> PlanningBrief:
+async def load_brief(
+    session: AsyncSession, user_id: uuid.UUID, purpose: PlanningPurpose = "planning"
+) -> PlanningBrief:
     """May rebuild stale mastery rows first; the caller commits."""
     rules, catalog = get_rules(), get_grammar_catalog()
     result = await session.scalar(
@@ -108,7 +121,12 @@ async def load_brief(session: AsyncSession, user_id: uuid.UUID) -> PlanningBrief
         catalog=catalog,
         tz=await learner_zone(session, user_id),
     )
-    return PlanningBrief(placement=result, missed=await _missed(session, user_id), candidates=found)
+    return PlanningBrief(
+        placement=result,
+        missed=await _missed(session, user_id),
+        candidates=found,
+        purpose=purpose,
+    )
 
 
 async def _missed(session: AsyncSession, user_id: uuid.UUID) -> list[MissedKC]:
@@ -143,7 +161,7 @@ async def _missed(session: AsyncSession, user_id: uuid.UUID) -> list[MissedKC]:
 
 
 def render_planning(brief: PlanningBrief) -> str:
-    """The planning section of the system prompt."""
+    """The planning (or daily) section of the system prompt."""
     lines = ["### Latest placement test"]
     result = brief.placement
     if result is None:
@@ -175,4 +193,4 @@ def render_planning(brief: PlanningBrief) -> str:
     if not brief.candidates:
         lines.append("- Nothing pressing.")
     # replace, not format: mistake examples may contain braces.
-    return load_prompt("planning").replace("{planning_brief}", "\n".join(lines))
+    return load_prompt(brief.purpose).replace("{planning_brief}", "\n".join(lines))

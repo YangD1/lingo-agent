@@ -33,7 +33,6 @@ Settings.model_config["env_file"] = None
 # Imported after the environment is prepared.
 from app.adaptive.placement.words import DatabaseWords  # noqa: E402
 from app.adaptive.rules import get_rules  # noqa: E402
-from app.advice.service import AdviceRefresher  # noqa: E402
 from app.agents.chat_graph import build_chat_graph  # noqa: E402
 from app.agents.placement_graph import build_placement_graph  # noqa: E402
 from app.attachments.handlers import default_handlers  # noqa: E402
@@ -47,7 +46,6 @@ from app.placement.service import PlacementRuntime  # noqa: E402
 from app.providers import net_guard  # noqa: E402
 
 BUSINESS_TABLES = (
-    "learning_advice",
     "placement_item_stats",
     "placement_sessions",
     "review_logs",
@@ -164,10 +162,7 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         app.state.reflection_worker = ReflectionWorker(
             app.state.sessionmaker, app.state.chat_graph, enabled=False
         )
-        # Off too, for the same reasons; advice tests switch it on.
-        app.state.advice_refresher = AdviceRefresher(app.state.sessionmaker, enabled=False)
         yield app
-        await app.state.advice_refresher.stop()
         await app.state.reflection_worker.stop()
         await app.state.attachment_processor.stop()
 

@@ -16,13 +16,14 @@ from app.activity.service import DatabaseActivity
 from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
 from app.api.attachments import AttachmentOut
 from app.api.errors import api_error
+from app.api.vocab import TimeZone
 from app.attachments import service as attachment_service
 from app.attachments.context import DatabaseAttachments
 from app.attachments.service import AttachmentNotFoundError, AttachmentStateError
 from app.cards.runtime import DatabaseTutorTools
 from app.chat import service
 from app.chat.locks import ConversationLocks
-from app.chat.planning import DatabasePlanning
+from app.chat.planning import DatabasePlanning, PlanningPurpose
 from app.chat.practice import DatabasePractice
 from app.chat.service import ConversationNotFoundError
 from app.chat.turn import (
@@ -43,6 +44,7 @@ from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.providers.llm import get_chat_models
 from app.providers.tenant import load_provider_context
+from app.services.vocab.scheduler import learner_zone
 
 router = APIRouter(prefix="/conversations", tags=["chat"])
 
@@ -61,8 +63,9 @@ class ConversationOut(BaseModel):
     updated_at: datetime
     # The grammar point a practice conversation is about; None for free chat.
     focus_kc: FocusKcOut | None = None
-    # "planning": the study-planning conversation (ADR 0015 §6); None otherwise.
-    purpose: Literal["planning"] | None = None
+    # "planning": a study-planning conversation (ADR 0015 §6); "daily": the dashboard's
+    # conversation of the day (ADR 0016); None otherwise.
+    purpose: PlanningPurpose | None = None
 
     @classmethod
     def of(cls, conversation: Conversation) -> "ConversationOut":
@@ -73,7 +76,7 @@ class ConversationOut(BaseModel):
             created_at=conversation.created_at,
             updated_at=conversation.updated_at,
             focus_kc=FocusKcOut.model_validate(kc, from_attributes=True) if kc else None,
-            purpose="planning" if conversation.purpose == "planning" else None,
+            purpose=_purpose(conversation),
         )
 
 
@@ -82,11 +85,14 @@ class ConversationIn(BaseModel):
 
     # A grammar KC id: starts a practice conversation on it (P1 plan §7.5.3).
     focus_kc_id: Annotated[str | None, Field(max_length=64)] = None
-    # "planning": a study-planning conversation (ADR 0015 §6); not with focus_kc_id.
-    purpose: Literal["planning"] | None = None
+    # "planning": a study-planning conversation (ADR 0015 §6); "daily": today's
+    # dashboard conversation, returned if it exists (ADR 0016). Not with focus_kc_id.
+    purpose: PlanningPurpose | None = None
     # The UI's locale, for the practice title; the cookie is only set once the
     # learner picks a language by hand.
     locale: Annotated[str | None, Field(max_length=10)] = None
+    # The browser's IANA time zone, for "today" when the profile has none.
+    tz: Annotated[str | None, Field(max_length=64)] = None
 
 
 class MessageOut(BaseModel):
@@ -94,6 +100,14 @@ class MessageOut(BaseModel):
     role: Literal["user", "assistant"]
     content: str
     attachments: list[AttachmentOut] = []
+
+
+def _purpose(conversation: Conversation) -> PlanningPurpose | None:
+    match conversation.purpose:
+        case "planning" | "daily" as purpose:
+            return purpose
+        case _:
+            return None
 
 
 async def _owned(
@@ -113,13 +127,24 @@ async def list_conversations(user: CurrentUser, session: SessionDep) -> list[Con
     return [ConversationOut.of(c) for c in rows]
 
 
+@router.get("/today")
+async def get_todays_conversation(
+    user: CurrentUser, session: SessionDep, tz: TimeZone = None
+) -> ConversationOut | None:
+    """Today's daily conversation (ADR 0016 §1), or null before the learner's first
+    message of the day."""
+    zone = await learner_zone(session, user.id, tz)
+    conversation = await service.daily_conversation(session, user.id, zone)
+    return ConversationOut.of(conversation) if conversation else None
+
+
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
     responses={
         200: {
-            "description": "an unstarted practice conversation on the same KC, or an "
-            "empty planning conversation, reused"
+            "description": "an unstarted practice conversation on the same KC, an "
+            "empty planning conversation, or today's daily conversation, reused"
         },
         422: {"description": "validation_error, unknown_kc or conflicting_purpose"},
     },
@@ -144,6 +169,22 @@ async def create_conversation(
         )
     if body.purpose == "planning":
         conversation = await service.unstarted_planning(session, graph, user.id)
+    locale = body.locale or request.cookies.get(LOCALE_COOKIE)
+    if body.purpose == "daily":
+        zone = await learner_zone(session, user.id, body.tz)
+        conversation, created = await service.todays_daily(
+            session, tenant.id, user.id, zone, locale=locale
+        )
+        if created:
+            response.status_code = status.HTTP_201_CREATED
+            await _reflection(request).finish_previous(
+                user.id,
+                except_conversation_id=conversation.id,
+                language=memory_language(request.cookies.get(LOCALE_COOKIE)),
+            )
+        else:
+            response.status_code = status.HTTP_200_OK
+        return ConversationOut.of(conversation)
     if body.focus_kc_id is not None:
         focus = get_grammar_catalog().get(body.focus_kc_id)
         if focus is None:
@@ -160,7 +201,7 @@ async def create_conversation(
             user.id,
             focus=focus,
             purpose=body.purpose,
-            locale=body.locale or request.cookies.get(LOCALE_COOKIE),
+            locale=locale,
         )
     # Starting afresh is when the conversation the learner left gets its summary.
     await _reflection(request).finish_previous(
@@ -223,7 +264,8 @@ class Turn:
     text: str | None  # None: an opening
     message_id: str
     focus_kc_id: str | None
-    planning: bool
+    # A planning or daily conversation: the turn gets the learning engine's brief.
+    planning: PlanningPurpose | None
 
 
 def _conflict(code: str, message: str) -> HTTPException:
@@ -275,7 +317,7 @@ async def start_turn(
             text,
             message_id,
             conversation.focus_kc_id,
-            conversation.purpose == "planning",
+            _purpose(conversation),
         )
     finally:
         locks.release(conversation.id)
@@ -294,6 +336,7 @@ async def start_opening(
     conversation."""
     response.headers["Cache-Control"] = "no-transform"
     conversation = await _owned(session, user, conversation_id)
+    # A daily conversation has no opening: the tutor answers the learner's first message.
     planning = conversation.purpose == "planning"
     if conversation.focus_kc_id is None and not planning:
         raise _conflict("not_practice", "Only a practice or planning conversation opens by itself.")
@@ -312,7 +355,7 @@ async def start_opening(
             None,
             OPENING_TURN_ID,
             conversation.focus_kc_id,
-            planning,
+            "planning" if planning else None,
         )
     finally:
         locks.release(conversation.id)
@@ -400,7 +443,7 @@ async def _reply(
 ) -> AsyncIterator[ServerSentEvent]:
     sessionmaker = request.app.state.sessionmaker
     # Read once per turn, for the prompt and for the cards the tools may show.
-    planning = DatabasePlanning(sessionmaker, user.id) if turn.planning else None
+    planning = DatabasePlanning(sessionmaker, user.id, turn.planning) if turn.planning else None
     async for event in stream_reply(
         graph,
         conversation_id=turn.conversation_id,
