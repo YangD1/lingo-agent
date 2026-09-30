@@ -36,6 +36,10 @@
   - compose 里 postgres 的用户名不是 `postgres`，要用 `sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'`。
   - zsh 下 `grep --include=*.py` 要加引号，否则报 no matches found。
   - Docker 全栈仍在运行（含 asr）。
+- **开发库要保留**：用户在开发库 `lingo` 里有一个测试账号，包括 2 个模型连接、3 条路由、1 次完成的入学测（产生 20 条语法证据）和 1 个会话。还没有词书、卡片和记忆；`llm_usage` 只有 `advice` 和 `asr` 两类记录。用户要用这个账号一直测到功能做完，最后再换新账号完整测一轮。所以：
+  - 迁移只能做增量，不能要求清库。
+  - 不要清库、不要删 `pgdata` 卷、不要改 `.env` 里的 `CREDENTIALS_ENCRYPTION_KEYS`。改了它，已存的 key 就解不开了。
+  - 测试用的是单独的 `lingo_test` / `lingo_e2e` 库，不影响开发库。
 
 ---
 
