@@ -67,6 +67,15 @@ features:
         timing: now
         default: {input_tokens: 1500, output_tokens: 150}
 
+  # "Talk it over with the tutor" on the placement result (ADR 0015 §6): the tutor's
+  # opening of the planning conversation; later turns are chat_message.
+  plan_start:
+    calls:
+      - task: plan_opening
+        route: chat
+        timing: now
+        default: {input_tokens: 3500, output_tokens: 200}
+
   advice:
     calls:
       - task: advice

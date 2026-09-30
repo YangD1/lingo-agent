@@ -59,6 +59,9 @@ export const fetchPlacement = (id: string) =>
 /** The most recent test in any state; null if the learner never started one. */
 export const fetchLatestPlacement = () => api<Placement | null>("/placement/latest");
 
+/** Starts, or returns to, a study-planning conversation with the tutor (ADR 0015 §6). */
+export const PLAN_HREF = "/chat?plan=1";
+
 export const answerPlacement = (id: string, questionId: string, answer: Answer) =>
   api<Placement>(`/placement/${encodeURIComponent(id)}/answer`, {
     method: "POST",

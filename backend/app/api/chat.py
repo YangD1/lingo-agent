@@ -22,6 +22,7 @@ from app.attachments.service import AttachmentNotFoundError, AttachmentStateErro
 from app.cards.runtime import DatabaseTutorTools
 from app.chat import service
 from app.chat.locks import ConversationLocks
+from app.chat.planning import DatabasePlanning
 from app.chat.practice import DatabasePractice
 from app.chat.service import ConversationNotFoundError
 from app.chat.turn import (
@@ -60,6 +61,8 @@ class ConversationOut(BaseModel):
     updated_at: datetime
     # The grammar point a practice conversation is about; None for free chat.
     focus_kc: FocusKcOut | None = None
+    # "planning": the study-planning conversation (ADR 0015 §6); None otherwise.
+    purpose: Literal["planning"] | None = None
 
     @classmethod
     def of(cls, conversation: Conversation) -> "ConversationOut":
@@ -70,6 +73,7 @@ class ConversationOut(BaseModel):
             created_at=conversation.created_at,
             updated_at=conversation.updated_at,
             focus_kc=FocusKcOut.model_validate(kc, from_attributes=True) if kc else None,
+            purpose="planning" if conversation.purpose == "planning" else None,
         )
 
 
@@ -78,6 +82,8 @@ class ConversationIn(BaseModel):
 
     # A grammar KC id: starts a practice conversation on it (P1 plan §7.5.3).
     focus_kc_id: Annotated[str | None, Field(max_length=64)] = None
+    # "planning": a study-planning conversation (ADR 0015 §6); not with focus_kc_id.
+    purpose: Literal["planning"] | None = None
     # The UI's locale, for the practice title; the cookie is only set once the
     # learner picks a language by hand.
     locale: Annotated[str | None, Field(max_length=10)] = None
@@ -111,8 +117,11 @@ async def list_conversations(user: CurrentUser, session: SessionDep) -> list[Con
     "",
     status_code=status.HTTP_201_CREATED,
     responses={
-        200: {"description": "an unstarted practice conversation on the same KC, reused"},
-        422: {"description": "validation_error or unknown_kc"},
+        200: {
+            "description": "an unstarted practice conversation on the same KC, or an "
+            "empty planning conversation, reused"
+        },
+        422: {"description": "validation_error, unknown_kc or conflicting_purpose"},
     },
 )
 async def create_conversation(
@@ -127,6 +136,14 @@ async def create_conversation(
     body = body or ConversationIn()
     focus = None
     conversation = None
+    if body.focus_kc_id is not None and body.purpose is not None:
+        raise api_error(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "conflicting_purpose",
+            "a conversation is for practice or for planning, not both",
+        )
+    if body.purpose == "planning":
+        conversation = await service.unstarted_planning(session, graph, user.id)
     if body.focus_kc_id is not None:
         focus = get_grammar_catalog().get(body.focus_kc_id)
         if focus is None:
@@ -142,6 +159,7 @@ async def create_conversation(
             tenant.id,
             user.id,
             focus=focus,
+            purpose=body.purpose,
             locale=body.locale or request.cookies.get(LOCALE_COOKIE),
         )
     # Starting afresh is when the conversation the learner left gets its summary.
@@ -202,9 +220,10 @@ class MessageIn(BaseModel):
 class Turn:
     conversation_id: uuid.UUID
     providers: TenantProviderContext
-    text: str | None  # None: a practice opening
+    text: str | None  # None: an opening
     message_id: str
     focus_kc_id: str | None
+    planning: bool
 
 
 def _conflict(code: str, message: str) -> HTTPException:
@@ -250,7 +269,14 @@ async def start_turn(
             )
         except AttachmentStateError as exc:
             raise _conflict(exc.code, exc.message) from exc
-        yield Turn(conversation.id, providers, text, message_id, conversation.focus_kc_id)
+        yield Turn(
+            conversation.id,
+            providers,
+            text,
+            message_id,
+            conversation.focus_kc_id,
+            conversation.purpose == "planning",
+        )
     finally:
         locks.release(conversation.id)
 
@@ -264,11 +290,13 @@ async def start_opening(
     session: SessionDep,
     graph: ChatGraphDep,
 ) -> AsyncIterator[Turn]:
-    """Like start_turn, for the tutor's first message in a practice conversation."""
+    """Like start_turn, for the tutor's first message in a practice or planning
+    conversation."""
     response.headers["Cache-Control"] = "no-transform"
     conversation = await _owned(session, user, conversation_id)
-    if conversation.focus_kc_id is None:
-        raise _conflict("not_practice", "Only a practice conversation opens by itself.")
+    planning = conversation.purpose == "planning"
+    if conversation.focus_kc_id is None and not planning:
+        raise _conflict("not_practice", "Only a practice or planning conversation opens by itself.")
     providers = await _providers_for(session, tenant.id, "chat")
     locks: ConversationLocks = request.app.state.conversation_locks
     if not locks.acquire(conversation.id):
@@ -278,7 +306,14 @@ async def start_opening(
         if await service.get_history(graph, conversation):
             raise _conflict("conversation_started", "This conversation has already started.")
         await begin_turn(session, conversation, "")  # moves it to the top of the list
-        yield Turn(conversation.id, providers, None, OPENING_TURN_ID, conversation.focus_kc_id)
+        yield Turn(
+            conversation.id,
+            providers,
+            None,
+            OPENING_TURN_ID,
+            conversation.focus_kc_id,
+            planning,
+        )
     finally:
         locks.release(conversation.id)
 
@@ -353,8 +388,9 @@ async def open_practice(
     user: CurrentUser,
     graph: ChatGraphDep,
 ) -> AsyncIterator[ServerSentEvent]:
-    """The tutor's first message in a new practice conversation (Q19a), streamed like a
-    reply; `done.turn_id` is "opening". Nothing is added on the learner's behalf."""
+    """The tutor's first message in a new practice (Q19a) or planning (ADR 0015 §6)
+    conversation, streamed like a reply; `done.turn_id` is "opening". Nothing is added
+    on the learner's behalf."""
     async for event in _reply(turn, request, user, graph):
         yield event
 
@@ -363,6 +399,8 @@ async def _reply(
     turn: Turn, request: Request, user: CurrentUser, graph: ChatGraphDep
 ) -> AsyncIterator[ServerSentEvent]:
     sessionmaker = request.app.state.sessionmaker
+    # Read once per turn, for the prompt and for the cards the tools may show.
+    planning = DatabasePlanning(sessionmaker, user.id) if turn.planning else None
     async for event in stream_reply(
         graph,
         conversation_id=turn.conversation_id,
@@ -381,7 +419,14 @@ async def _reply(
         # Practice conversations stay on their grammar point: no tools (ADR 0015 §2).
         tools=None
         if turn.focus_kc_id
-        else DatabaseTutorTools(sessionmaker, user.id, turn.conversation_id, turn.message_id),
+        else DatabaseTutorTools(
+            sessionmaker,
+            user.id,
+            turn.conversation_id,
+            turn.message_id,
+            scope=planning.scope if planning else None,
+        ),
+        planning=planning,
     ):
         if isinstance(event, CardEvent):  # the card itself, like GET .../cards items
             yield ServerSentEvent(event=event.event, data=event.card)

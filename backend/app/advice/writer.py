@@ -77,7 +77,8 @@ def _quote(text: str) -> str:
     return '"' + _clip(text, MAX_EXAMPLE_CHARS).replace('"', "'") + '"'
 
 
-def _describe(c: Candidate) -> str:
+def describe(c: Candidate) -> str:
+    """One candidate in plain English, with its evidence."""
     match c.kind:
         case "placement":
             if c.days_since is None:
@@ -124,7 +125,7 @@ def render_input(
     known = [f"- {name}: {value}" for name, value in fields.items() if value]
     lines.extend(known or ["(nothing known yet)"])
     lines.extend(["", "## Candidates"])
-    lines.extend(f"- `{c.id}`: {_describe(c)}" for c in candidates)
+    lines.extend(f"- `{c.id}`: {describe(c)}" for c in candidates)
     return "\n".join(lines)
 
 

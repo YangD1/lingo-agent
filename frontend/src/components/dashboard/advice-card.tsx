@@ -42,14 +42,10 @@ function minutesUntil(iso: string | null): number | null {
 }
 
 /**
- * Today's study advice (P1 plan §7.5.2): the learning engine proposes the actions, a model
- * picks up to three and writes why. Cached on the server and rewritten in the background,
- * so this shows what is there at once and asks again for a little while when new advice
- * is on its way. Items without model text use templates; the numbers are always live.
+ * The learner's advice, asking again for a little while when new advice is on its way
+ * (it is rewritten in the background). `refresh` asks for it to be rewritten now.
  */
-export function AdviceCard() {
-  const t = useTranslations("dashboard.advice");
-  const format = useFormatter();
+export function useAdvice() {
   const locale = useLocale();
   const describe = useDescribeError();
   const [advice, setAdvice] = useState<Advice | null>(null);
@@ -91,6 +87,20 @@ export function AdviceCard() {
     void load(refreshAdvice(locale));
   };
 
+  return { advice, error, waitMinutes, refresh };
+}
+
+/**
+ * Today's study advice (P1 plan §7.5.2): the learning engine proposes the actions, a model
+ * picks up to three and writes why. Cached on the server and rewritten in the background,
+ * so this shows what is there at once and asks again for a little while when new advice
+ * is on its way. Items without model text use templates; the numbers are always live.
+ */
+export function AdviceCard() {
+  const t = useTranslations("dashboard.advice");
+  const format = useFormatter();
+  const { advice, error, waitMinutes, refresh } = useAdvice();
+
   return (
     <Card data-testid="advice">
       <CardHeader>
@@ -99,7 +109,7 @@ export function AdviceCard() {
           <AiBadge feature="advice" />
         </CardTitle>
         <CardDescription data-testid="advice-status">
-          {advice ? <Status advice={advice} /> : !error && t("loading")}
+          {advice ? <AdviceStatus advice={advice} /> : !error && t("loading")}
         </CardDescription>
         {advice && (
           <CardAction className="flex flex-col items-end gap-1">
@@ -159,7 +169,7 @@ export function AdviceCard() {
   );
 }
 
-function Status({ advice }: { advice: Advice }) {
+export function AdviceStatus({ advice }: { advice: Advice }) {
   const t = useTranslations("dashboard.advice");
   if (advice.refreshing && advice.status === null) return t("writing");
   if (advice.status === "no_model")
@@ -175,7 +185,7 @@ function Status({ advice }: { advice: Advice }) {
   return t("rules");
 }
 
-function AdviceEntry({ item }: { item: AdviceItem }) {
+export function AdviceEntry({ item }: { item: AdviceItem }) {
   const t = useTranslations("dashboard.advice");
   const locale = useLocale();
   const key = templateKey(item);

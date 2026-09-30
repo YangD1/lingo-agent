@@ -47,6 +47,14 @@ def test_other_candidates_regenerate_but_not_too_often(changed: dict[str, list[s
     assert needs_refresh(row(MIN_INTERVAL, **changed), FOUND, "en", NOW)
 
 
+def test_a_placement_test_after_the_advice_regenerates_it_at_once() -> None:
+    fresh = row(timedelta(minutes=1), ids=["vocab_review"])  # the placement one is gone
+    assert not needs_refresh(fresh, FOUND, "en", NOW)
+    assert needs_refresh(fresh, FOUND, "en", NOW, placed_at=NOW - timedelta(seconds=5))
+    # Once rewritten after the test, the interval applies again.
+    assert not needs_refresh(fresh, FOUND, "en", NOW, placed_at=NOW - timedelta(minutes=2))
+
+
 def test_another_language_regenerates_and_hides_the_models_text() -> None:
     zh = row(MIN_INTERVAL, locale="zh-CN")
     assert needs_refresh(zh, FOUND, "en", NOW)

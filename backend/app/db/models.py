@@ -51,6 +51,7 @@ CARD_STATUSES = ("new", "learning", "known", "suspended")
 PLACEMENT_STATUSES = ("in_progress", "done", "abandoned")
 PLACEMENT_STAGES = ("vocab", "grammar")
 ADVICE_STATUSES = ("ai", "no_model", "failed", "empty")
+CONVERSATION_PURPOSES = ("planning",)
 TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
@@ -99,7 +100,10 @@ class Conversation(TimestampMixin, Base):
     """One chat thread; its id is the LangGraph thread_id."""
 
     __tablename__ = "conversations"
-    __table_args__ = (Index("ix_conversations_user_id_updated_at", "user_id", "updated_at"),)
+    __table_args__ = (
+        Index("ix_conversations_user_id_updated_at", "user_id", "updated_at"),
+        CheckConstraint(_in("purpose", CONVERSATION_PURPOSES), name="purpose"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(
@@ -114,6 +118,9 @@ class Conversation(TimestampMixin, Base):
     # Grammar KC this conversation practises (P1 plan §7.5.3); NULL for free chat. No FK:
     # the catalog is a file, so the id is checked against it when the row is written.
     focus_kc_id: Mapped[str | None] = mapped_column(String(64))
+    # What the conversation is for, besides practice (ADR 0015 §6): "planning" is the
+    # study-planning conversation started from the placement result; NULL for free chat.
+    purpose: Mapped[str | None] = mapped_column(String(20))
 
 
 class ProviderConnection(TimestampMixin, Base):

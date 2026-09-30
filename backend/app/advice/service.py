@@ -3,8 +3,10 @@
 Opening the dashboard reads the cache and never waits for a model (P1 plan §7.5.2).
 The advice is regenerated when it is older than `STALE_AFTER`, when today's candidate
 actions are not the ones it was written for, or when it was written in another UI
-language (Q18b). Items whose candidate is gone are hidden at once and templates fill
-in (Q18d), so the page never points at work already done.
+language (Q18b), or at once after a placement test (task 21.3: its result page shows
+the advice, which should reflect the new result). Items whose candidate is gone are
+hidden at once and templates fill in (Q18d), so the page never points at work already
+done.
 
 Generation runs in-process, one task per learner at a time, like reflection: no task
 queue, the backend is a single worker process. A missing model or a failed call is
@@ -21,6 +23,7 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 from langchain_core.runnables import RunnableConfig
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -29,7 +32,7 @@ from app.adaptive.rules import Rules, get_rules
 from app.advice import writer
 from app.advice.candidates import Candidate, candidates
 from app.advice.writer import Item, fill
-from app.db.models import LearningAdvice, UserProfile
+from app.db.models import LearningAdvice, PlacementSession, UserProfile
 from app.memory.reflection import memory_language
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
@@ -62,9 +65,16 @@ class Advice:
 
 
 def needs_refresh(
-    row: LearningAdvice | None, found: Sequence[Candidate], locale: Locale, now: datetime
+    row: LearningAdvice | None,
+    found: Sequence[Candidate],
+    locale: Locale,
+    now: datetime,
+    placed_at: datetime | None = None,
 ) -> bool:
+    """`placed_at`: when the latest placement test was finished."""
     if row is None:
+        return True
+    if placed_at is not None and placed_at > row.generated_at:
         return True
     age = now - row.generated_at
     changed = row.locale != locale or set(row.candidate_ids) != {c.id for c in found}
@@ -99,12 +109,17 @@ async def read(
     now = now or datetime.now(UTC)
     found = await candidates(session, user_id, rules=rules, catalog=catalog, tz=tz, now=now)
     row = await session.get(LearningAdvice, user_id)
+    placed_at = await session.scalar(
+        select(func.max(PlacementSession.finished_at)).where(
+            PlacementSession.user_id == user_id, PlacementSession.status == "done"
+        )
+    )
     by_id = {c.id: c for c in found}
     return Advice(
         items=[(item, by_id[item.candidate_id]) for item in fill(stored_items(row, locale), found)],
         status=row.status if row else None,  # type: ignore[arg-type]  # CHECK constraint
         generated_at=row.generated_at if row else None,
-        stale=needs_refresh(row, found, locale, now),
+        stale=needs_refresh(row, found, locale, now, placed_at),
         by_hand_after=by_hand_after(row, now),
     )
 

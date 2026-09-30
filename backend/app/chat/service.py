@@ -49,14 +49,18 @@ async def create_conversation(
     user_id: uuid.UUID,
     *,
     focus: GrammarKC | None = None,
+    purpose: str | None = None,
     locale: str | None = None,
 ) -> Conversation:
-    """A free chat, or with `focus` a practice conversation on that grammar point,
-    titled in the UI's `locale` (the list shows titles as they are)."""
-    conversation = Conversation(tenant_id=tenant_id, user_id=user_id)
+    """A free chat; with `focus` a practice conversation on that grammar point; with
+    `purpose` "planning" a study-planning one. Titled in the UI's `locale` (the list
+    shows titles as they are)."""
+    conversation = Conversation(tenant_id=tenant_id, user_id=user_id, purpose=purpose)
     if focus is not None:
         conversation.focus_kc_id = focus.id
         conversation.title = practice_title(focus, locale)
+    elif purpose == "planning":
+        conversation.title = planning_title(locale)
     session.add(conversation)
     await session.commit()
     await session.refresh(conversation)
@@ -67,6 +71,29 @@ def practice_title(kc: GrammarKC, locale: str | None) -> str:
     if locale and locale.lower().startswith("zh"):
         return f"练习：{kc.name_zh}"  # noqa: RUF001 (Chinese punctuation)
     return f"Practice: {kc.name_en}"
+
+
+def planning_title(locale: str | None) -> str:
+    if locale and locale.lower().startswith("zh"):
+        return "学习规划"
+    return "Study plan"
+
+
+async def unstarted_planning(
+    session: AsyncSession, graph: ChatGraph, user_id: uuid.UUID
+) -> Conversation | None:
+    """The learner's latest planning conversation if nothing is in it yet, not even the
+    tutor's opening (which would sum up an older result): pressing the button twice
+    leaves one conversation."""
+    latest = await session.scalar(
+        select(Conversation)
+        .where(Conversation.user_id == user_id, Conversation.purpose == "planning")
+        .order_by(Conversation.created_at.desc(), Conversation.id)
+        .limit(1)
+    )
+    if latest is None or await get_history(graph, latest):
+        return None
+    return latest
 
 
 async def unstarted_practice(

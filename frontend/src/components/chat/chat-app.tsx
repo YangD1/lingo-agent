@@ -31,17 +31,20 @@ function setUrl(id: string | null, mode: "push" | "replace" = "push") {
 export function ChatApp({
   initialId,
   practiceKc = null,
+  planning = false,
 }: {
   initialId: string | null;
   /** `?practice=<kc>`: start, or return to, a practice conversation on that grammar point. */
   practiceKc?: string | null;
+  /** `?plan=1`: start, or return to, an empty study-planning conversation (ADR 0015 §6). */
+  planning?: boolean;
 }) {
   const t = useTranslations("chat");
   const locale = useLocale();
   const errorMessage = useErrorMessage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(initialId);
-  // The practice conversation made from `?practice=`, in case the list loads without it.
+  // The conversation made from `?practice=` or `?plan=`, in case the list loads without it.
   const [practice, setPractice] = useState<Conversation | null>(null);
   const [practiceError, setPracticeError] = useState<ApiErrorLike | null>(null);
 
@@ -51,14 +54,16 @@ export function ChatApp({
   useEffect(refresh, [refresh]);
 
   // Once per point and page load (StrictMode runs effects twice). Coming back to the same
-  // point returns its unstarted practice conversation instead of a new one (Q19c).
+  // point returns its unstarted practice conversation instead of a new one (Q19c); an
+  // empty planning conversation is returned likewise.
   const practiceStarted = useRef<string | null>(null);
+  const purpose = planning ? "planning" : practiceKc ? `practice:${practiceKc}` : null;
   useEffect(() => {
-    if (!practiceKc || practiceStarted.current === practiceKc) return;
-    practiceStarted.current = practiceKc;
+    if (!purpose || practiceStarted.current === purpose) return;
+    practiceStarted.current = purpose;
     api<Conversation>("/conversations", {
       method: "POST",
-      json: { focus_kc_id: practiceKc, locale },
+      json: planning ? { purpose: "planning", locale } : { focus_kc_id: practiceKc, locale },
     }).then(
       (c) => {
         setPractice(c);
@@ -69,7 +74,7 @@ export function ChatApp({
       (e: unknown) =>
         setPracticeError(e instanceof ApiError ? e : { code: "network_error", message: "" }),
     );
-  }, [practiceKc, locale]);
+  }, [purpose, planning, practiceKc, locale]);
 
   useEffect(() => {
     const onPop = () => setActiveId(new URLSearchParams(window.location.search).get("c"));
@@ -94,12 +99,14 @@ export function ChatApp({
   const active =
     conversations.find((c) => c.id === activeId) ??
     (practice?.id === activeId ? practice : undefined);
-  // A practice conversation with nothing in it yet: the tutor speaks first (Q19a). Tried
-  // once per conversation and page load, so a refusal (e.g. no model) doesn't loop.
+  // A practice or planning conversation with nothing in it yet: the tutor speaks first
+  // (Q19a, ADR 0015 §6). Tried once per conversation and page load, so a refusal (e.g. no
+  // model) doesn't loop.
   const opened = useRef(new Set<string>());
   const { readyFor, messages, streaming, open } = session;
   useEffect(() => {
-    if (!active?.focus_kc || readyFor !== active.id || opened.current.has(active.id)) return;
+    const opens = active?.focus_kc || active?.purpose === "planning";
+    if (!active || !opens || readyFor !== active.id || opened.current.has(active.id)) return;
     if (messages.length > 0 || streaming) return;
     opened.current.add(active.id);
     void open();

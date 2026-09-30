@@ -15,7 +15,8 @@
 | `chat_pdf` | 同上 | `vision`（只有扫描页，每页一次） |
 | `chat_audio` | 聊天输入框“录音” | `asr`（按音频秒数） |
 | `practice_start` | 看板常错语法点、`/learner` 语法点详情、建议卡片的“开始练习” | `practice_opening`（走 `chat` 路由） |
-| `advice` | 看板“今天的建议”标题、模型写的建议条目 | `advice` |
+| `plan_start` | 入学测结果页“和私教聊聊怎么学” | `plan_opening`（走 `chat` 路由）；之后每轮同 `chat_message` |
+| `advice` | 看板“今天的建议”标题、入学测结果页“接下来做什么”、模型写的建议条目 | `advice` |
 | `memory_edit` | `/memory` 记忆列表（添加、修改） | `memory` 向量化 |
 
 设置页的“测试连接”不挂标记：只给管理员用，每次几个 token，且不走路由（ADR 0014 §4）。
@@ -30,7 +31,7 @@
 
 | 步骤名 | 类型 | 摘要字段 |
 |---|---|---|
-| `load_context` | step | `facts`、`episodes`（真正放进 prompt 的记忆 id）、`profile_items`（画像项数）、`practice_kc`（练习会话的语法点 id，普通对话为空） |
+| `load_context` | step | `facts`、`episodes`（真正放进 prompt 的记忆 id）、`profile_items`（画像项数）、`practice_kc`（练习会话的语法点 id，普通对话为空）、`planning`（规划对话：读了入学测结果和建议候选） |
 | `reflect_memory` | background | `added`、`updated`（记忆 id）、`deleted`（只计数）、`profile_fields`；挂在一批反思的最后一条学习者消息上 |
 | `grammar_tagging` | background | `mistakes`（`kc_id`、`error_type`、`severity`、`original`、`correction`）、`used_correctly`（KC id）；每条学习者消息一行。摘要里有错误原句的副本，所以学习者在 `/learner` 删掉一条证据时，这里对应的一项也去掉；“删除所有学习记录”时这些行全部删除 |
 | `vocab_collect` | background | `added`、`existing`（`word_id` + 拼写：新收进生词本的词、已有卡片没有改动的词）；挂在提问的那条学习者消息上，没有收到词的消息不记。接口另返回 `words_on_list`（仍在生词本里的收词），明细据此显示“已移出” |
@@ -54,6 +55,7 @@
 - **上限**：一轮最多 2 次工具往返，每次最多 3 个调用（多出的直接返回错误），每个调用 15 秒超时；到上限后最后一次调用不带工具，提示里说明不能再调用。
 - **失败不中断**：参数不合法、超出范围、超时，都作为工具结果（`status=error`）返回给模型，由它向学习者解释；厂商拒绝工具调用（400 / 404 / 422）时这一轮不带工具重答，只能给站内链接（`prompts/tutor_no_tools.md`），活动记 `tools: skipped`。
 - **不带工具的情况**：练习会话（有 `focus_kc_id`）、带图片的一轮、上限已到。
+- **规划对话里的范围**（ADR 0015 §6）：`suggest_practice` 的语法点只能是最近一次入学测答错且还没掌握的（最多 5 个）或建议候选里的，`suggest_link` 只能是建议候选对应的页面或 `/learner`；超出的调用作为错误返回。读不到候选时范围为空（只能出提议卡片）。
 - **幂等**：同一个 tool call id 只写一张卡片；同一轮里同样的提议（类型和参数都相同）复用第一张卡片。
 - **下一轮可见**：本会话最近 10 张卡片及其状态（待确认 / 已确认 / 已拒绝 / 已撤销）放进 system prompt，模型据此不重复提议。
 
@@ -77,6 +79,15 @@
 | 读取学习者上下文 | `agents/chat_graph.py` `load_context` | 画像、事实记忆、相关的会话摘要 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` | `embedding/memory`（有配置时用于检索摘要） | 回复下“私教做了什么”；`/memory` 页面查看、修改、删除 |
 | 读取练习指引（只在练习会话） | `chat/practice.py` `DatabasePractice`，在 `load_context` 里 | 会话的 `focus_kc_id`；该语法点的目录信息、掌握度档位（不给模型数字）、最近 2 条对话错误原句 → 改正 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `practice_kc` | 无 | 对话顶部“语法练习：…”和“查看依据”；`/learner` 删除证据后下一轮就不再使用 |
 | 私教回复 | `agents/chat_graph.py` `tutor`（⇄ `tools`，见上一节） | 对话历史、学习者上下文、练习指引、本轮附件、本会话最近的卡片 | checkpoint（对话历史，含工具调用和结果）；`tutor_cards` | `llm/chat`；带图片时 `llm/vision`；工具之后的回复记为 `chat_tools` | 对话页；删除会话即删除 |
+
+### 规划对话（从入学测结果页进入，ADR 0015 §6）
+
+`POST /conversations` 带 `purpose: "planning"` 创建（还没有任何消息的规划对话直接复用），`POST /conversations/{id}/opening` 让私教先开口，之后和普通对话一样每轮带工具。
+
+| 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
+|---|---|---|---|---|---|
+| 读取规划依据（每轮） | `chat/planning.py` `DatabasePlanning`，在 `load_context` 里 | 最近一次完成的入学测结果（等级、语法、词汇量）；该次答错且还没掌握的语法点（最多 5 个，含掌握度）；看板建议的候选（同“看板学习建议”，含最近对话里的错误原句） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `planning`；同时决定本轮卡片范围 | 无 | 回复下“私教做了什么”；入学测结果页；`/learner` 删除证据后下一轮就不再使用 |
+| 私教开场 | `api/chat.py` `open_practice`（同一接口）；`tutor` 在本次调用末尾加开场提示（`prompts/plan_opening.md`，不进 checkpoint） | 同上 + 学习者上下文 | checkpoint（只有私教的开场白）；活动 `load_context`（turn `opening`）；不安排反思 | `llm/chat`，`llm_usage` 记为 `plan_opening` | 对话页第一条消息；删除会话即删除 |
 
 ### 练习会话的开场（学习者打开练习会话时执行一次）
 
@@ -113,11 +124,11 @@
 | 结果写回 | `adaptive/placement/writeback.py`（子图 `finish` 调用，一个事务，重复调用不重复写） | 本次作答 | `placement_sessions.result`；`user_profiles.cefr_level`（总体等级 = 语法等级）；`skill_estimates`（grammar、vocab）；`kc_evidence`（`source=placement`，每道语法题一条识别证据，错题不存选项和答案）；重放 `kc_mastery`；`placement_item_stats`（测后用最终能力回算题目难度，全站共用，不含个人信息） | 结果页（总体等级、语法分项、估计词汇量和仅供参考的词汇等级；可重新测试）；`/memory` 改等级；`/learner` 技能估计显示等级和词汇量，每条证据标“来自入学测”，可查看、删除 |
 | 按词汇量批量标熟 | `services/vocab/placement_known.py` → `GET/POST/DELETE /vocab/placement-known` | 最近一次入学测的词汇结果、当前词书 | `user_cards`（学习者确认后，为当前词书里词频排名在“认识概率 ≥ 90%”以内、还没有卡片的词建 `source=placement` 的 known 卡） | 结果页、筛选页的“跳过已经认识的常用词”卡片（点确认才执行，显示已标熟多少个）；“撤销”即 `DELETE` 整批撤销（只删仍是 known 的这类卡片） |
 
-## 看板学习建议（打开看板时按需在后台执行）
+## 看板学习建议（打开看板或入学测结果页时按需在后台执行）
 
 算法出候选、模型只挑选和写理由（P1 计划 §7.5.2）。打开看板只读缓存，不等模型；缓存过期时在后台重新生成。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
 | 生成候选（不调模型） | `advice/candidates.py` | 今日待复习 / 剩余新词、当前词书与筛选进度、最近一次完成的入学测、最近 14 天对话里计入的语法错误（KC、掌握度、最多 2 条原句 → 改正） | 无 | 无 | 看板“今天的建议”：每条旁边的实时数字 |
-| 挑选并写理由 | `advice/writer.py`、`advice/service.py` `AdviceRefresher`（进程内，每个学习者同时只一个任务；没有缓存、超过 12 小时、候选或界面语言变了且距上次满 10 分钟时触发；也可手动刷新，一小时一次） | 候选及证据（含上面的错误原句）、画像（等级、目标、考试、每日时长、兴趣） | `learning_advice`（每人一行，只存模型写的条目；不在候选里的 id、重复、空文本丢弃；没配模型或失败时记下状态、不存条目） | `llm/advice`（走默认路由） | 看板“今天的建议”：模型写的条目标“AI”，其余是模板；说明生成时间或“没配置模型 / 生成失败”。建议只是链接，没有副作用；删除账号时随之删除 |
+| 挑选并写理由 | `advice/writer.py`、`advice/service.py` `AdviceRefresher`（进程内，每个学习者同时只一个任务；没有缓存、超过 12 小时、候选或界面语言变了且距上次满 10 分钟时触发；完成入学测后第一次读取时立即触发，不受 10 分钟限制；也可手动刷新，一小时一次） | 候选及证据（含上面的错误原句）、画像（等级、目标、考试、每日时长、兴趣） | `learning_advice`（每人一行，只存模型写的条目；不在候选里的 id、重复、空文本丢弃；没配模型或失败时记下状态、不存条目） | `llm/advice`（走默认路由） | 看板“今天的建议”：模型写的条目标“AI”，其余是模板；说明生成时间或“没配置模型 / 生成失败”。建议只是链接，没有副作用；删除账号时随之删除 |

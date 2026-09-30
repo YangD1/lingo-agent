@@ -1,12 +1,13 @@
 """The tutor's tools for one turn, backed by the database (ADR 0015 §1).
 
 Bound at the API layer to the learner, conversation and turn: the graph passes only
-the model's tool name, arguments and call id.
+the model's tool name, arguments and call id. `scope`, when given, limits the practice
+and link cards (a planning conversation's candidates, ADR 0015 §6).
 """
 
 import asyncio
 import uuid
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -22,7 +23,7 @@ class DatabaseTutorTools:
         user_id: uuid.UUID,
         conversation_id: uuid.UUID,
         turn_id: str,
-        scope: CardScope | None = None,
+        scope: Callable[[], Awaitable[CardScope]] | None = None,
     ) -> None:
         self._sessionmaker = sessionmaker
         self._user_id = user_id
@@ -35,7 +36,7 @@ class DatabaseTutorTools:
 
     async def run(self, name: str, args: Mapping[str, Any], call_id: str) -> ToolOutcome:
         try:
-            draft = draft_card(name, args, self._scope)
+            draft = draft_card(name, args, await self._scope() if self._scope else None)
         except ToolCallError as exc:
             return ToolOutcome(f"Error: {exc}. No card was shown.", ok=False)
         async with self._writing, self._sessionmaker() as session:

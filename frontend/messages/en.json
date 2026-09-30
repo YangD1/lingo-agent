@@ -541,7 +541,10 @@
       "vocabReference": "Roughly {level} by vocabulary size (Milton 2010; for reference only, not used for your level)",
       "vocabNote": "For reference only; not used for your level",
       "unreliable": "You said you knew quite a few made-up words, so this vocabulary estimate isn't reliable and won't be used to mark words known. For a better estimate, take the test again and answer \"No\" to words you don't know.",
-      "toChat": "Talk to your tutor",
+      "nextTitle": "What to do next",
+      "nextLoading": "Loading advice…",
+      "planNote": "Not sure where to start? Your tutor goes through the result with you, asks about your goal and time, and suggests a word book, grammar practice and a daily goal. Nothing changes until you confirm it.",
+      "plan": "Plan my study with the tutor",
       "toVocab": "Go to vocabulary",
       "knownTitle": "Skip common words you already know",
       "knownDescription": "From your estimated vocabulary, mark the current book's common words you very likely know as known; they won't come up as new words.",
@@ -747,6 +750,7 @@
       "chat_pdf": "PDFs with a text layer are read without AI. Scanned pages are read by an AI model, one call per page.",
       "chat_audio": "Your recording is turned into text by a speech-to-text model.",
       "practice_start": "The tutor opens the practice with a first message written by an AI model.",
+      "plan_start": "The tutor opens the planning conversation with a first message written by an AI model, from your test result and learning data. After that, each reply is like any chat message.",
       "advice": "Today's advice is written by an AI model from your learning data, and checked by code. Without a model, template advice is shown instead.",
       "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the tutor can find it later."
     },
@@ -758,6 +762,7 @@
       "vision": "Read the image",
       "asr": "Speech to text",
       "practice_opening": "Opening message",
+      "plan_opening": "Opening message",
       "advice": "Write advice"
     },
     "timing": {

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Advice } from "@/lib/advice";
 import { ApiError } from "@/lib/api";
 import type { Placement, PlacementResult, Question } from "@/lib/placement";
 import type { PlacementKnown } from "@/lib/vocab";
@@ -15,6 +16,37 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   api,
 }));
+// The result page's advice and AI badges have their own requests; keep them off `api`.
+const fetchAdvice = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/advice", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/advice")>()),
+  fetchAdvice,
+}));
+vi.mock("@/lib/ai-usage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ai-usage")>()),
+  loadEstimates: () => new Promise(() => {}),
+}));
+
+const advice: Advice = {
+  items: [
+    {
+      candidate_id: "choose_book",
+      kind: "choose_book",
+      title: "Pick a word book for B1",
+      reason: "You know about 3,100 words; a B1 book fills the gaps.",
+      count: null,
+      days_since: null,
+      in_progress: false,
+      kc: null,
+      p_mastery: null,
+      book: null,
+    },
+  ],
+  status: "ai",
+  generated_at: "2026-09-30T00:11:00Z",
+  refreshing: false,
+  refresh_after: null,
+};
 
 const vocab = (index: number, word: string): Question => ({
   id: `vocab-${index}`,
@@ -67,7 +99,10 @@ function show() {
   );
 }
 
-beforeEach(() => api.mockReset());
+beforeEach(() => {
+  api.mockReset();
+  fetchAdvice.mockReset().mockResolvedValue(advice);
+});
 
 describe("PlacementApp", () => {
   it("starts, answers by key and by click, and ends on the result", async () => {
@@ -148,6 +183,17 @@ describe("PlacementApp", () => {
     await userEvent.click(screen.getByRole("button", { name: "Yes, start a new test" }));
     expect(api).toHaveBeenLastCalledWith("/placement", { method: "POST", json: { restart: true } });
     expect(await screen.findByText("apple")).toBeInTheDocument();
+  });
+
+  it("offers the advice for the new result and a planning conversation", async () => {
+    api.mockResolvedValueOnce(placement(null, true)).mockResolvedValueOnce(offer);
+    show();
+    const next = await screen.findByTestId("placement-next");
+    expect(await screen.findByText("Pick a word book for B1")).toBeInTheDocument();
+    expect(fetchAdvice).toHaveBeenCalledWith("en");
+    expect(next).toContainElement(screen.getByTestId("advice-item"));
+    expect(screen.getByTestId("placement-plan")).toHaveAttribute("href", "/chat?plan=1");
+    expect(screen.getByTestId("placement-plan")).toHaveTextContent("Plan my study with the tutor");
   });
 
   it("warns when the vocabulary estimate is unreliable", async () => {

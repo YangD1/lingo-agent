@@ -18,6 +18,7 @@ from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph
 from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
 from app.cards.tools import TutorTools
+from app.chat.planning import PlanningSource
 from app.chat.practice import PracticeSource
 from app.chat.service import REPLY_PART_SEPARATOR, thread_config
 from app.db.models import Attachment, Conversation
@@ -83,6 +84,8 @@ OPENING_TURN_ID = "opening"
 # Recorded in llm_usage instead of "chat": the tutor speaking first is not a turn the
 # learner took, so it does not count on the dashboard.
 OPENING_USAGE_TASK = "practice_opening"
+# Likewise for a planning conversation's opening (ADR 0015 §7).
+PLAN_OPENING_USAGE_TASK = "plan_opening"
 
 
 def title_from(text: str) -> str:
@@ -139,6 +142,7 @@ async def stream_reply(
     activity: ActivitySink | None = None,
     practice: PracticeSource | None = None,
     tools: TutorTools | None = None,
+    planning: PlanningSource | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -152,8 +156,8 @@ async def stream_reply(
     LangGraph only checkpoints finished nodes, so after a disconnect the learner's
     message is kept but no half-written reply is.
 
-    `text` None is a practice opening: the tutor speaks first, no learner message is
-    added, and `message_id` is OPENING_TURN_ID.
+    `text` None is an opening (of a practice or planning conversation): the tutor
+    speaks first, no learner message is added, and `message_id` is OPENING_TURN_ID.
     """
     queue: asyncio.Queue[TurnEvent | None] = asyncio.Queue()  # None marks the end
 
@@ -171,6 +175,7 @@ async def stream_reply(
                 activity=activity,
                 practice=practice,
                 tools=tools,
+                planning=planning,
             ):
                 queue.put_nowait(event)
         finally:
@@ -203,10 +208,12 @@ async def _run_graph(
     activity: ActivitySink | None,
     practice: PracticeSource | None,
     tools: TutorTools | None,
+    planning: PlanningSource | None,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     text_id: str | None = None  # the tutor message whose text is streaming
     usage = {"input_tokens": 0, "output_tokens": 0}
+    opening = PLAN_OPENING_USAGE_TASK if planning is not None else OPENING_USAGE_TASK
     try:
         async for mode, part in graph.astream(
             {"messages": [] if text is None else [HumanMessage(text, id=message_id)]},
@@ -214,10 +221,12 @@ async def _run_graph(
                 **thread_config(conversation_id),
                 # llm_usage reads these; conversation_id comes from thread_id.
                 "metadata": {"user_id": str(user_id)}
-                | ({"usage_task": OPENING_USAGE_TASK} if text is None else {}),
+                | ({"usage_task": opening} if text is None else {}),
                 "tags": ["chat"],
             },
-            context=ChatContext(providers, attachments, learner, activity, practice, tools),
+            context=ChatContext(
+                providers, attachments, learner, activity, practice, tools, planning
+            ),
             stream_mode=["messages", "custom"],
         ):
             if mode == "custom":

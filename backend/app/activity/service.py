@@ -38,6 +38,8 @@ class ContextRead(Summary):
     profile_items: int = 0
     # The grammar point of a practice conversation, if this is one.
     practice_kc: str | None = None
+    # A planning conversation: the placement result and advice candidates were read.
+    planning: bool = False
 
 
 class MemoryChanges(Summary):

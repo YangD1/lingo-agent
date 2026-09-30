@@ -51,6 +51,7 @@ from app.activity.service import (
 )
 from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
+from app.chat.planning import PlanningBrief, PlanningSource, render_planning
 from app.chat.practice import PracticeSource, render_practice
 from app.memory.context import (
     LearnerContext,
@@ -93,13 +94,15 @@ class ChatContext:
     practice: PracticeSource | None = None
     # The tutor's tools (ADR 0015); None where tools aren't bound (practice conversations).
     tools: TutorTools | None = None
+    # A study-planning conversation's brief (ADR 0015 §6); None elsewhere.
+    planning: PlanningSource | None = None
 
 
 class ChatState(MessagesState):
     # What the tutor is told about the learner this turn. Untracked: never written to
     # the checkpoint, so memories the learner deletes leave no copy behind.
     learner_context: Annotated[str, UntrackedValue(str)]
-    # Practice guidance for this turn, untracked likewise so it reflects current mastery.
+    # Practice or planning guidance for this turn, untracked likewise so it is current.
     practice: Annotated[str, UntrackedValue(str)]
     # The conversation's cards and their status, untracked so it is current each turn.
     cards: Annotated[str, UntrackedValue(str)]
@@ -113,10 +116,12 @@ async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[
     cards = await _cards(runtime.context.tools)
     learner = runtime.context.learner
     practice = runtime.context.practice
-    if learner is None and practice is None:
+    planning = runtime.context.planning
+    if learner is None and practice is None and planning is None:
         return {"learner_context": "", "practice": "", "cards": cards}
     latest = next((m.text for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
     context = focus = None
+    brief: PlanningBrief | None = None
     failed = False
     with timed() as watch:
         # Memory and practice guidance make replies better; their failure must not stop them.
@@ -132,7 +137,13 @@ async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[
             except Exception:
                 logger.exception("loading the practice focus failed")
                 failed = True
-    if failed and context is None and focus is None:
+        if planning is not None:
+            try:
+                brief = await planning.load()
+            except Exception:
+                logger.exception("loading the planning brief failed")
+                failed = True
+    if failed and context is None and focus is None and brief is None:
         await report(runtime, Step(LOAD_CONTEXT_NODE, "failed", duration_ms=watch.ms))
         return {"learner_context": "", "practice": "", "cards": cards}
     context = context or LearnerContext()
@@ -141,11 +152,12 @@ async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[
         episodes=list(context.episode_ids),
         profile_items=len(context.profile),
         practice_kc=focus.kc.id if focus else None,
+        planning=brief is not None,
     )
     await report(runtime, Step(LOAD_CONTEXT_NODE, summary=read, duration_ms=watch.ms))
     return {
         "learner_context": render_learner_context(context),
-        "practice": render_practice(focus) if focus else "",
+        "practice": render_practice(focus) if focus else render_planning(brief) if brief else "",
         "cards": cards,
     }
 
@@ -227,9 +239,10 @@ async def _call(
     )
     messages = [SystemMessage(prompt), *history]
     if not any(isinstance(m, HumanMessage) for m in history):
-        # A practice opening: the learner hasn't written yet. Some providers need a user
-        # turn, so the cue goes in as one, for this call only.
-        messages.append(HumanMessage(load_prompt("practice_opening")))
+        # An opening: the learner hasn't written yet. Some providers need a user turn,
+        # so the cue goes in as one, for this call only.
+        cue = "plan_opening" if runtime.context.planning is not None else "practice_opening"
+        messages.append(HumanMessage(load_prompt(cue)))
     # astream, not ainvoke: if the learner disconnects, the run is cancelled, and only
     # astream reports that to callbacks (ainvoke's internal gather is cancelled before
     # on_llm_error runs), so llm_usage would miss a call the provider still bills for.
@@ -312,7 +325,8 @@ async def _run_call(runtime: Runtime[ChatContext], call: ToolCall, index: int) -
 
 def system_prompt(learner_context: str, practice: str = "", tools: str = "") -> str:
     """The tutor's instructions, then what it knows about the learner, then (in a
-    practice conversation) what this conversation is for, then what its tools can do."""
+    practice or planning conversation) what this conversation is for, then what its
+    tools can do."""
     sections = [load_prompt("tutor_system")]
     if learner_context:
         # replace, not format: memories may contain braces.

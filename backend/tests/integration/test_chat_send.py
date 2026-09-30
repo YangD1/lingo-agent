@@ -188,6 +188,7 @@ async def test_reply_streams_as_tokens_then_done(
         "episodes": [],
         "profile_items": 0,
         "practice_kc": None,
+        "planning": False,
     }
 
 

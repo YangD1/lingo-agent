@@ -4,14 +4,18 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { AiBadge } from "@/components/ai-badge";
+import { AdviceEntry, AdviceStatus, useAdvice } from "@/components/dashboard/advice-card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlacementKnown } from "@/components/vocab/placement-known";
-import type { PlacementResult as Result } from "@/lib/placement";
+import { PLAN_HREF, type PlacementResult as Result } from "@/lib/placement";
 
 /**
  * The finished test: the overall level (the grammar level, Q15d), the vocabulary size
- * with its rough reference level, the offer to mark common words known, and a retest.
+ * with its rough reference level, what to do next (the advice, rewritten for the new
+ * result, and a planning conversation with the tutor), the offer to mark common words
+ * known, and a retest.
  */
 export function PlacementResult({
   result,
@@ -72,16 +76,10 @@ export function PlacementResult({
               {t("unreliable")}
             </p>
           )}
-          <div className="flex flex-wrap gap-2">
-            <Link href="/chat" className={buttonVariants({ size: "sm" })}>
-              {t("toChat")}
-            </Link>
-            <Link href="/vocab" className={buttonVariants({ size: "sm", variant: "outline" })}>
-              {t("toVocab")}
-            </Link>
-          </div>
         </CardContent>
       </Card>
+
+      <NextSteps />
 
       <Card>
         <CardHeader>
@@ -116,5 +114,48 @@ export function PlacementResult({
         </CardContent>
       </Card>
     </>
+  );
+}
+
+/** The top advice for the new result, and the way into a planning conversation. */
+function NextSteps() {
+  const t = useTranslations("placement.result");
+  const { advice, error } = useAdvice();
+  return (
+    <Card data-testid="placement-next">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {t("nextTitle")}
+          <AiBadge feature="advice" />
+        </CardTitle>
+        <CardDescription>{advice ? <AdviceStatus advice={advice} /> : t("nextLoading")}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        {advice && advice.items.length > 0 && (
+          <ol className="grid gap-3 md:grid-cols-3">
+            {advice.items.map((item) => (
+              <AdviceEntry key={item.candidate_id} item={item} />
+            ))}
+          </ol>
+        )}
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-muted-foreground">{t("planNote")}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={PLAN_HREF} className={buttonVariants()} data-testid="placement-plan">
+              {t("plan")}
+            </Link>
+            <AiBadge feature="plan_start" />
+            <Link href="/vocab" className={buttonVariants({ variant: "outline" })}>
+              {t("toVocab")}
+            </Link>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

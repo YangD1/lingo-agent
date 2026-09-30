@@ -7,6 +7,7 @@ export type AiFeature =
   | "chat_pdf"
   | "chat_audio"
   | "practice_start"
+  | "plan_start"
   | "advice"
   | "memory_edit";
 
@@ -19,6 +20,7 @@ const AI_TASKS = [
   "vision",
   "asr",
   "practice_opening",
+  "plan_opening",
   "advice",
 ] as const;
 export type AiTask = (typeof AI_TASKS)[number];
