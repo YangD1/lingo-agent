@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-10-01 · 任务 20.5：11C 剩余三条
+
+- **做了什么**（Q20.5a–c 已确认：静音两条判定都要；空结果按“空 + 重复字符”；测试方式下拉、默认自动）：
+  - 20.5.1（8628dcb）：`use-recorder.ts` 用 AnalyserNode 测音量，录音条显示音量；峰值 < -50 dBFS 或有声（> -45 dBFS）时长 < 0.3 秒就不上传，提示检查麦克风。新 E2E `silent-recording.spec.ts`。
+  - 20.5.2（27fb0de）：`handlers.heard_speech()`，转写为空 / 无字母数字 / 同一字符占 ≥80% 时附件失败为 `transcription_empty`。不传 VAD。
+  - 20.5.3（67593d1）：测试接口 `purpose` 加 `vision`（内置 32x32 PNG，400 → `vision_not_supported`），自动判断看 vision 路由；对话默认模型兜底跳过语音转写模型；卡片改“默认模型” + 说明 + “测试方式”下拉。ADR 0008 追加一段。
+  - 验证：后端 829、Vitest 206、E2E 36 全过，ruff / mypy / eslint / tsc 干净。
+- **未完成**：20.6（README）；Docker 全栈仍是旧镜像，任务 20.5、21、22 都没在 `make up` 下实测。
+- **下一步**：20.6 开工前在 PROGRESS 拆任务并和用户确认（截图按 Q20b：英文界面、Playwright + 假模型、放 `docs/images/`）。
+- **踩坑**：
+  - Playwright 的 `test.use({ launchOptions })` 不能放在 describe 里（会强制新 worker），要放到单独的 spec 文件顶层。
+  - `--use-file-for-fake-audio-capture=<wav>` 可以让 Chromium 假麦克风播放指定文件，拿静音 WAV 测静音拦截。
+  - AudioContext 没进入 running 时 AnalyserNode 读到的全是 0；这种情况必须当成“测不到”而不是“静音”，否则会拦掉所有录音。
+  - 设置页 E2E 的用量计数会随连接测试次数变化（每次测试都记用量）。
+
+---
+
 ## 2026-09-30 · 任务 21.4–21.5：对话卡片前端与 E2E（任务 21 全部完成）
 
 - **做了什么**：
