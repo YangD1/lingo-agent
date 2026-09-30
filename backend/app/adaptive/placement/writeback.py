@@ -14,6 +14,7 @@ show the test's answers.
 import math
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -36,6 +37,17 @@ from app.db.models import (
 
 class SessionNotFoundError(Exception):
     pass
+
+
+async def latest_result(session: AsyncSession, user_id: uuid.UUID) -> dict[str, Any] | None:
+    """The result of the learner's most recent finished test; None if they never finished one."""
+    result: dict[str, Any] | None = await session.scalar(
+        select(PlacementSession.result)
+        .where(PlacementSession.user_id == user_id, PlacementSession.status == "done")
+        .order_by(PlacementSession.finished_at.desc())
+        .limit(1)
+    )
+    return result
 
 
 async def _set_skill(

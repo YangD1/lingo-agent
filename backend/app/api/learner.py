@@ -42,6 +42,11 @@ class SkillOut(BaseModel):
     skill: str
     rating: float
     attempts: int
+    # grammar: the level of the rating; vocab: the reference level of the latest test.
+    cefr: CefrLevel | None
+    # vocab only: estimated size and whether the latest test's estimate is reliable.
+    vocab_size: int | None
+    reliable: bool | None
 
 
 class Thresholds(BaseModel):
@@ -111,9 +116,7 @@ async def get_learner(user: CurrentUser, session: SessionDep) -> LearnerOut:
             level: LevelOut(total=total, seen=seen.get(level, 0))
             for level, total in overview.totals.items()
         },
-        skills=[
-            SkillOut(skill=s.skill, rating=s.rating, attempts=s.attempts) for s in overview.skills
-        ],
+        skills=[SkillOut.model_validate(s, from_attributes=True) for s in overview.skills],
         thresholds=Thresholds(mastered=rules.bkt.mastered, weak=rules.bkt.weak),
     )
 

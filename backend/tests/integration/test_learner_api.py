@@ -1,10 +1,15 @@
 """/learner: the learner model page's data, and deleting it (P1 plan §7)."""
 
+import math
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import FastAPI
 from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models import PlacementSession, SkillEstimate, User
 from app.memory.reflection import Reflection, TaggedMistake, UsedCorrectly
 from tests.integration.test_activity_api import activity
 from tests.integration.test_chat_send import connect, history, login, new_conversation, send
@@ -185,3 +190,46 @@ async def test_deleting_everything_leaves_no_copy_and_spares_others(
     assert "grammar_tagging" not in names and "reflect_memory" in names
     await switch_to(client, "other@example.com")
     assert len((await learner_model(client))["kcs"]) == 3
+
+
+async def test_skills_read_as_a_level_and_a_vocabulary_size(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Vocab's rating is ln V: the page gets the latest finished test's size instead."""
+    await login(client)
+    user = await db_session.scalar(select(User))
+    assert user is not None
+    now = datetime.now(UTC)
+
+    def placement(size: int, finished: datetime) -> PlacementSession:
+        vocab = {"size": size, "half_known_rank": 4000, "reliable": True, "reference_cefr": "B1"}
+        return PlacementSession(
+            user_id=user.id,
+            status="done",
+            stage="grammar",
+            seed=1,
+            rules_version="x",
+            result={"cefr": "B2", "vocab": vocab, "grammar": {}, "answers": {}},
+            finished_at=finished,
+        )
+
+    db_session.add_all(
+        [
+            placement(1200, now - timedelta(days=90)),
+            placement(3100, now),
+            SkillEstimate(user_id=user.id, skill="grammar", rating=0.5, attempts=20),
+            SkillEstimate(user_id=user.id, skill="vocab", rating=math.log(4000), attempts=40),
+        ]
+    )
+    await db_session.commit()
+
+    skills = {s["skill"]: s for s in (await learner_model(client))["skills"]}
+    assert skills["grammar"]["cefr"] == "B2" and skills["grammar"]["vocab_size"] is None
+    assert skills["vocab"] | {"rating": 0} == {
+        "skill": "vocab",
+        "rating": 0,
+        "attempts": 40,
+        "cefr": "B1",
+        "vocab_size": 3100,
+        "reliable": True,
+    }

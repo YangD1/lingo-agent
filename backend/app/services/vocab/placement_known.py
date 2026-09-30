@@ -19,8 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 
 from app.adaptive.placement.vocab_size import rank_at
+from app.adaptive.placement.writeback import latest_result
 from app.adaptive.rules import Rules
-from app.db.models import PlacementSession, UserCard, UserWordBook
+from app.db.models import UserCard, UserWordBook
 from app.db.models import Word as WordRow
 from app.services.vocab.books import get_book
 
@@ -55,12 +56,7 @@ async def _marked(session: AsyncSession, user_id: uuid.UUID) -> int:
 
 
 async def _latest_vocab(session: AsyncSession, user_id: uuid.UUID) -> dict[str, object] | None:
-    result: dict[str, object] | None = await session.scalar(
-        select(PlacementSession.result)
-        .where(PlacementSession.user_id == user_id, PlacementSession.status == "done")
-        .order_by(PlacementSession.finished_at.desc())
-        .limit(1)
-    )
+    result = await latest_result(session, user_id)
     vocab = result.get("vocab") if result else None
     return vocab if isinstance(vocab, dict) else None
 

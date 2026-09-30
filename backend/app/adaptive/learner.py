@@ -7,7 +7,7 @@ shown on the vocabulary pages. Deleting is real deletion, and takes with it the
 
 import uuid
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal
 
 from sqlalchemy import CursorResult, delete, func, select
@@ -17,6 +17,8 @@ from app.activity import service as activity
 from app.adaptive import mastery
 from app.adaptive.bkt import counted
 from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, GrammarKC
+from app.adaptive.placement.grammar_test import cefr_for
+from app.adaptive.placement.writeback import latest_result
 from app.adaptive.rules import Rules
 from app.db.models import Conversation, KCEvidence, KCMastery, SkillEstimate
 
@@ -46,12 +48,31 @@ class KCStatus:
 
 
 @dataclass(frozen=True, slots=True)
+class Skill:
+    """A skill estimate with what makes its rating readable.
+
+    Grammar gets the level its ability maps to. Vocabulary's rating is ln V (the rank
+    at which the learner knows half the words), not a size, so it gets the estimated
+    size and reference level of the latest finished placement test, the only writer
+    of skill estimates for now.
+    """
+
+    skill: str
+    rating: float
+    attempts: int
+    cefr: CefrLevel | None = None
+    vocab_size: int | None = None
+    # False when the vocabulary test counted many pseudo-words as known.
+    reliable: bool | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Overview:
     # Weakest first.
     kcs: list[KCStatus]
     # Catalog size per level, to show how many are not met yet.
     totals: dict[CefrLevel, int]
-    skills: list[SkillEstimate]
+    skills: list[Skill]
 
 
 async def overview(
@@ -81,14 +102,30 @@ async def overview(
         if (kc := catalog.get(row.kc_id)) is not None
     ]
     kcs.sort(key=lambda s: (s.mastery.p_mastery, -s.mastery.observations, s.kc.id))
-    skills = await session.scalars(
+    estimates = await session.scalars(
         select(SkillEstimate).where(SkillEstimate.user_id == user_id).order_by(SkillEstimate.skill)
     )
+    placement = await latest_result(session, user_id)
     return Overview(
         kcs=kcs,
         totals=dict(Counter(kc.cefr for kc in catalog.kcs)),
-        skills=list(skills),
+        skills=[_skill(row, placement, rules) for row in estimates],
     )
+
+
+def _skill(row: SkillEstimate, placement: dict[str, Any] | None, rules: Rules) -> Skill:
+    skill = Skill(row.skill, row.rating, row.attempts)
+    if row.skill == "grammar":
+        return replace(skill, cefr=cefr_for(row.rating, rules))
+    vocab = placement.get("vocab") if placement else None
+    if row.skill == "vocab" and isinstance(vocab, dict):
+        return replace(
+            skill,
+            cefr=vocab.get("reference_cefr"),
+            vocab_size=vocab.get("size"),
+            reliable=vocab.get("reliable"),
+        )
+    return skill
 
 
 @dataclass(frozen=True, slots=True)
