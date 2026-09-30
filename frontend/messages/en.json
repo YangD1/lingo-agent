@@ -148,6 +148,11 @@
       "close": "Close",
       "retest": "It's been over 60 days since your last placement test. Retake it to see your progress.",
       "retestAction": "Retake"
+    },
+    "practice": {
+      "label": "Grammar practice: {kc}",
+      "evidence": "See the evidence",
+      "badge": "Grammar practice"
     }
   },
   "memory": {
@@ -260,7 +265,8 @@
       "olderHidden": "{n} older records are not shown.",
       "placementCorrect": "Right in the placement test",
       "placementWrong": "Wrong in the placement test",
-      "fromPlacement": "From the placement test"
+      "fromPlacement": "From the placement test",
+      "practice": "Practise with your tutor"
     },
     "skills": {
       "title": "Skill estimates",
@@ -594,7 +600,10 @@
     "invalid_answer": "That answer isn't valid. Please answer again.",
     "placement_not_in_progress": "This placement test was abandoned. Start a new one.",
     "placement_not_found": "This placement test doesn't exist.",
-    "advice_refresh_limited": "Advice can be refreshed once an hour. Please try again later."
+    "advice_refresh_limited": "Advice can be refreshed once an hour. Please try again later.",
+    "unknown_kc": "That grammar point no longer exists.",
+    "not_practice": "Only a grammar practice conversation starts by itself.",
+    "conversation_started": "This conversation has already started."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -653,7 +662,8 @@
       "description": "Grammar points you got wrong most in chats over the last 30 days. Open one to see why.",
       "count": "{n, plural, one {# time} other {# times}}",
       "empty": "No grammar mistakes recorded in chats over the last 30 days.",
-      "chat": "Chat with your tutor"
+      "chat": "Chat with your tutor",
+      "practice": "Practise"
     },
     "activity": {
       "title": "Study calendar",
@@ -714,8 +724,8 @@
         },
         "grammar_practice": {
           "title": "Practise: {kc}",
-          "reason": "You've tripped on this one in recent chats. Start by looking at those sentences.",
-          "action": "See why"
+          "reason": "You've tripped over this point in recent conversations; practise it with your tutor.",
+          "action": "Start practising"
         }
       },
       "evidence": {
@@ -724,7 +734,8 @@
         "lastTest": "Last taken {n} days ago",
         "inProgress": "One left unfinished",
         "grammar": "{kc} · {n} mistakes lately · mastery {p}"
-      }
+      },
+      "evidenceLink": "See the evidence"
     }
   }
 }

@@ -8,13 +8,14 @@ import { useChatSession } from "./use-chat-session";
 
 const api = vi.hoisted(() => vi.fn());
 const streamChat = vi.hoisted(() => vi.fn());
+const streamOpening = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   api,
 }));
-vi.mock("@/lib/sse", () => ({ streamChat }));
+vi.mock("@/lib/sse", () => ({ streamChat, streamOpening, OPENING_TURN_ID: "opening" }));
 
-const CONVERSATION = { id: "c1", title: "", created_at: "", updated_at: "" };
+const CONVERSATION = { id: "c1", title: "", created_at: "", updated_at: "", focus_kc: null };
 
 async function* events(...items: ChatEvent[]) {
   yield* items;
@@ -36,6 +37,7 @@ function setup(conversationId: string | null = null) {
 beforeEach(() => {
   api.mockReset();
   streamChat.mockReset();
+  streamOpening.mockReset();
 });
 
 describe("useChatSession", () => {
@@ -226,6 +228,67 @@ describe("useChatSession", () => {
       role: "user",
       content: "I goed home.",
       attachments: [voice],
+    });
+  });
+
+  describe("practice opening", () => {
+    it("is ready only once the conversation's history is loaded", async () => {
+      let resolve: (history: unknown[]) => void = () => {};
+      api.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+      const { result } = setup("p1");
+
+      expect(result.current.readyFor).toBeNull();
+      await act(async () => resolve([]));
+      expect(result.current.readyFor).toBe("p1");
+    });
+
+    it("streams the tutor's first message", async () => {
+      api.mockResolvedValueOnce([]);
+      streamOpening.mockReturnValue(
+        events(
+          { event: "token", text: "Welcome!" },
+          { event: "done", message_id: "a1", turn_id: "opening", usage: {} },
+        ),
+      );
+      const { result, onTurnFinished, onReplyDone } = setup("p1");
+      await waitFor(() => expect(result.current.readyFor).toBe("p1"));
+
+      await act(() => result.current.open());
+
+      expect(streamOpening.mock.calls[0][0]).toBe("p1");
+      expect(result.current.messages.map(({ role, content, status, turnId }) => [role, content, status, turnId])).toEqual([
+        ["assistant", "Welcome!", undefined, "opening"],
+      ]);
+      expect(onReplyDone).toHaveBeenCalledWith("p1", "opening");
+      expect(onTurnFinished).toHaveBeenCalledOnce();
+    });
+
+    it("adds nothing when refused, and says why", async () => {
+      api.mockResolvedValueOnce([]);
+      streamOpening.mockImplementation(async function* () {
+        yield* [];
+        throw new ApiError(409, "no_llm_configured", "configure a model");
+      });
+      const { result, onTurnFinished } = setup("p1");
+      await waitFor(() => expect(result.current.readyFor).toBe("p1"));
+
+      await act(() => result.current.open());
+
+      expect(result.current.messages).toEqual([]);
+      expect(result.current.error?.code).toBe("no_llm_configured");
+      expect(onTurnFinished).not.toHaveBeenCalled();
+    });
+
+    it("files a reloaded opening's activity under the opening", async () => {
+      api.mockResolvedValueOnce([
+        { id: "a1", role: "assistant", content: "Welcome!", attachments: [] },
+        { id: "u1", role: "user", content: "I like tea.", attachments: [] },
+        { id: "a2", role: "assistant", content: "Nice!", attachments: [] },
+      ]);
+      const { result } = setup("p1");
+
+      await waitFor(() => expect(result.current.messages).toHaveLength(3));
+      expect(result.current.messages.map((m) => m.turnId)).toEqual(["opening", undefined, "u1"]);
     });
   });
 });

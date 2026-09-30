@@ -1,12 +1,12 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
-import { type DragEvent, useCallback, useEffect, useState } from "react";
+import { type DragEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
-import { useErrorMessage } from "@/i18n/errors";
-import { api } from "@/lib/api";
+import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
+import { api, ApiError } from "@/lib/api";
 import { useShowActivity } from "@/lib/preferences";
 import type { Conversation } from "@/lib/types";
 
@@ -15,6 +15,7 @@ import { Composer } from "./composer";
 import { ConversationList } from "./conversation-list";
 import { MessageList } from "./message-list";
 import { PlacementBanner } from "./placement-banner";
+import { PracticeBar } from "./practice-bar";
 import { useActivity } from "./use-activity";
 import { useAttachments } from "./use-attachments";
 import { useChatSession } from "./use-chat-session";
@@ -27,16 +28,48 @@ function setUrl(id: string | null, mode: "push" | "replace" = "push") {
   else window.history.replaceState(null, "", url);
 }
 
-export function ChatApp({ initialId }: { initialId: string | null }) {
+export function ChatApp({
+  initialId,
+  practiceKc = null,
+}: {
+  initialId: string | null;
+  /** `?practice=<kc>`: start, or return to, a practice conversation on that grammar point. */
+  practiceKc?: string | null;
+}) {
   const t = useTranslations("chat");
+  const locale = useLocale();
   const errorMessage = useErrorMessage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(initialId);
+  // The practice conversation made from `?practice=`, in case the list loads without it.
+  const [practice, setPractice] = useState<Conversation | null>(null);
+  const [practiceError, setPracticeError] = useState<ApiErrorLike | null>(null);
 
   const refresh = useCallback(() => {
     api<Conversation[]>("/conversations").then(setConversations, () => {});
   }, []);
   useEffect(refresh, [refresh]);
+
+  // Once per point and page load (StrictMode runs effects twice). Coming back to the same
+  // point returns its unstarted practice conversation instead of a new one (Q19c).
+  const practiceStarted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!practiceKc || practiceStarted.current === practiceKc) return;
+    practiceStarted.current = practiceKc;
+    api<Conversation>("/conversations", {
+      method: "POST",
+      json: { focus_kc_id: practiceKc, locale },
+    }).then(
+      (c) => {
+        setPractice(c);
+        setConversations((all) => [c, ...all.filter((o) => o.id !== c.id)]);
+        setActiveId(c.id);
+        setUrl(c.id, "replace");
+      },
+      (e: unknown) =>
+        setPracticeError(e instanceof ApiError ? e : { code: "network_error", message: "" }),
+    );
+  }, [practiceKc, locale]);
 
   useEffect(() => {
     const onPop = () => setActiveId(new URLSearchParams(window.location.search).get("c"));
@@ -57,6 +90,20 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
     onReplyDone: activity.turnFinished,
   });
   const tray = useAttachments(activeId, session.ensureConversation);
+
+  const active =
+    conversations.find((c) => c.id === activeId) ??
+    (practice?.id === activeId ? practice : undefined);
+  // A practice conversation with nothing in it yet: the tutor speaks first (Q19a). Tried
+  // once per conversation and page load, so a refusal (e.g. no model) doesn't loop.
+  const opened = useRef(new Set<string>());
+  const { readyFor, messages, streaming, open } = session;
+  useEffect(() => {
+    if (!active?.focus_kc || readyFor !== active.id || opened.current.has(active.id)) return;
+    if (messages.length > 0 || streaming) return;
+    opened.current.add(active.id);
+    void open();
+  }, [active, readyFor, messages.length, streaming, open]);
   const [dragging, setDragging] = useState(false);
 
   const hasFiles = (event: DragEvent) => event.dataTransfer.types.includes("Files");
@@ -78,7 +125,7 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
     if (id === activeId) select(null);
   }
 
-  const error = session.error;
+  const error = session.error ?? practiceError;
   return (
     <>
       <ConversationList
@@ -106,7 +153,7 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
             {t("attachments.dropHere")}
           </div>
         )}
-        <PlacementBanner />
+        {active?.focus_kc ? <PracticeBar kc={active.focus_kc} /> : <PlacementBanner />}
         <MessageList messages={session.messages} activity={showActivity ? activity : undefined} />
         {error && (
           <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Target, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,12 @@ export function ConversationList({ conversations, activeId, onSelect, onNew, onD
                   c.id === activeId && "bg-muted font-medium",
                 )}
               >
+                {c.focus_kc && (
+                  <Target
+                    className="mr-1.5 inline size-3.5 align-[-2px] text-muted-foreground"
+                    aria-label={t("practice.badge")}
+                  />
+                )}
                 {c.title || t("untitled")}
               </button>
               <button

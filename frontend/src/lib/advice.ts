@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import { type CefrLevel, learnerHref } from "@/lib/learner";
+import { type CefrLevel, practiceHref } from "@/lib/learner";
 import { browserTimeZone } from "@/lib/vocab";
 
 export type AdviceKind =
@@ -62,7 +62,7 @@ export function adviceHref(item: AdviceItem): string {
     case "choose_book":
       return "/vocab";
     case "grammar_practice":
-      return item.kc ? learnerHref(item.kc.id) : "/learner";
+      return item.kc ? practiceHref(item.kc.id) : "/learner";
   }
 }
 

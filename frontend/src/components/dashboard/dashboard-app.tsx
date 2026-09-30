@@ -13,7 +13,7 @@ import {
   hasGrammar,
   type SkillPoint,
 } from "@/lib/dashboard";
-import { CEFR_LEVELS, kcName, learnerHref } from "@/lib/learner";
+import { CEFR_LEVELS, kcName, learnerHref, practiceHref } from "@/lib/learner";
 
 import { ActivityHeatmap } from "./activity-heatmap";
 import { AdviceCard } from "./advice-card";
@@ -311,7 +311,12 @@ function ErrorsSection({ board }: { board: Dashboard }) {
                 <Link href={learnerHref(e.kc_id)} className={linkClass}>
                   {kcName(e, locale)} <span className="text-muted-foreground">({e.cefr})</span>
                 </Link>
-                <span className="tabular-nums">{t("count", { n: e.mistakes })}</span>
+                <span className="flex gap-3">
+                  <span className="tabular-nums">{t("count", { n: e.mistakes })}</span>
+                  <Link href={practiceHref(e.kc_id)} className={linkClass}>
+                    {t("practice")}
+                  </Link>
+                </span>
               </li>
             ))}
           </ol>

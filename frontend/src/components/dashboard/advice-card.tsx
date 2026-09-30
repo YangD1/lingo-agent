@@ -24,7 +24,7 @@ import {
   POLL_TIMES,
   refreshAdvice,
 } from "@/lib/advice";
-import { kcName } from "@/lib/learner";
+import { kcName, learnerHref } from "@/lib/learner";
 
 const linkClass = "underline underline-offset-2";
 
@@ -197,12 +197,16 @@ function AdviceEntry({ item }: { item: AdviceItem }) {
         {item.reason ?? t(`kinds.${key}.reason`, { book })}
       </p>
       <Evidence item={item} kc={kc} />
-      <Link
-        href={adviceHref(item)}
-        className={buttonVariants({ size: "sm", className: "self-start" })}
-      >
-        {t(`kinds.${key}.action`)}
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link href={adviceHref(item)} className={buttonVariants({ size: "sm" })}>
+          {t(`kinds.${key}.action`)}
+        </Link>
+        {item.kind === "grammar_practice" && item.kc && (
+          <Link href={learnerHref(item.kc.id)} className={linkClass}>
+            {t("evidenceLink")}
+          </Link>
+        )}
+      </div>
     </li>
   );
 }

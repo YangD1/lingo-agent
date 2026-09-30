@@ -87,3 +87,6 @@ export const kcName = (kc: { name_en: string; name_zh: string }, locale: string)
 
 /** Link to a grammar point on the learner page, opened. */
 export const learnerHref = (kcId: string) => `/learner?kc=${encodeURIComponent(kcId)}`;
+
+/** Start (or return to an unstarted) practice conversation on a grammar point. */
+export const practiceHref = (kcId: string) => `/chat?practice=${encodeURIComponent(kcId)}`;

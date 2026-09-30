@@ -4,7 +4,14 @@ export type User = { id: string; email: string; display_name: string | null };
 export type Tenant = { id: string; name: string; kind: string };
 export type Me = { user: User; tenant: Tenant };
 
-export type Conversation = { id: string; title: string; created_at: string; updated_at: string };
+export type Conversation = {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  /** The grammar point a practice conversation is about; null for free chat. */
+  focus_kc: { id: string; name_en: string; name_zh: string; cefr: string } | null;
+};
 export type AttachmentKind = "image" | "audio" | "document";
 /** backend/app/api/attachments.py AttachmentOut (ADR 0008). */
 export type Attachment = {

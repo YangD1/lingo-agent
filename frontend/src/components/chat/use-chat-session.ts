@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiErrorLike } from "@/i18n/errors";
 import type { Activity } from "@/lib/activity";
 import { api, ApiError, isAbortError } from "@/lib/api";
-import { streamChat } from "@/lib/sse";
+import { type ChatEvent, OPENING_TURN_ID, streamChat, streamOpening } from "@/lib/sse";
 import type { Attachment, Conversation, HistoryMessage } from "@/lib/types";
 
 export type ChatMessage = {
@@ -43,6 +43,9 @@ export function useChatSession(conversationId: string | null, options: Options) 
   const [streaming, setStreaming] = useState(false);
   /** An error before any reply was produced (e.g. no_llm_configured); the input is restored. */
   const [error, setError] = useState<ApiErrorLike | null>(null);
+  // The conversation whose history was loaded last: until it is the current one,
+  // `messages` may still be another conversation's.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   // An in-flight creation, so two early uploads don't create two conversations.
   const creatingRef = useRef<Promise<string> | null>(null);
@@ -63,6 +66,8 @@ export function useChatSession(conversationId: string | null, options: Options) 
     creatingRef.current = null;
     setError(null);
     if (conversationId === null) {
+      // Switching to a new chat clears the screen, like the rest of this reset.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMessages([]);
       return;
     }
@@ -80,9 +85,12 @@ export function useChatSession(conversationId: string | null, options: Options) 
               turnId:
                 m.role === "assistant" && history[i - 1]?.role === "user"
                   ? (history[i - 1].id ?? undefined)
-                  : undefined,
+                  : m.role === "assistant" && i === 0
+                    ? OPENING_TURN_ID // a practice opening
+                    : undefined,
             })),
           );
+          setLoadedFor(conversationId);
         }
       })
       .catch((e: unknown) => !cancelled && setError(toApiErrorLike(e)))
@@ -94,8 +102,41 @@ export function useChatSession(conversationId: string | null, options: Options) 
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const updateLast = (patch: (message: ChatMessage) => ChatMessage) =>
-    setMessages((all) => [...all.slice(0, -1), patch(all[all.length - 1])]);
+  const updateLast = useCallback(
+    (patch: (message: ChatMessage) => ChatMessage) =>
+      setMessages((all) => [...all.slice(0, -1), patch(all[all.length - 1])]),
+    [],
+  );
+
+  /** Apply one event of the reply being streamed into the last message. */
+  const apply = useCallback(
+    (event: ChatEvent, id: string) => {
+      if (event.event === "token") {
+        updateLast((m) => ({ ...m, content: m.content + event.text }));
+      } else if (event.event === "activity") {
+        updateLast((m) => ({ ...m, turnId: event.turn_id }));
+        optionsRef.current.onActivity?.(event);
+      } else if (event.event === "done") {
+        const turnId = event.turn_id ?? undefined;
+        updateLast((m) => ({ ...m, status: undefined, turnId: turnId ?? m.turnId }));
+        if (turnId) optionsRef.current.onReplyDone?.(id, turnId);
+      } else {
+        updateLast((m) => ({ ...m, status: "error", error: event }));
+      }
+    },
+    [updateLast],
+  );
+
+  /** Stopped or cut off mid-reply: the partial reply isn't saved (ADR 0003), say so. */
+  const markInterrupted = useCallback(
+    (e: unknown) =>
+      updateLast((m) =>
+        isAbortError(e)
+          ? { ...m, status: "stopped" }
+          : { ...m, status: "error", error: toApiErrorLike(e) },
+      ),
+    [updateLast],
+  );
 
   /**
    * The conversation's id, creating it first if this is a new chat: attachments are
@@ -151,31 +192,12 @@ export function useChatSession(conversationId: string | null, options: Options) 
         let step = await stream.next(); // 404/409 throw here, before any reply
         accepted = true;
         if (created) optionsRef.current.onConversationCreated(created);
-        for (; !step.done; step = await stream.next()) {
-          const event = step.value;
-          if (event.event === "token") {
-            updateLast((m) => ({ ...m, content: m.content + event.text }));
-          } else if (event.event === "activity") {
-            updateLast((m) => ({ ...m, turnId: event.turn_id }));
-            optionsRef.current.onActivity?.(event);
-          } else if (event.event === "done") {
-            const turnId = event.turn_id ?? undefined;
-            updateLast((m) => ({ ...m, status: undefined, turnId: turnId ?? m.turnId }));
-            if (turnId) optionsRef.current.onReplyDone?.(id, turnId);
-          } else {
-            updateLast((m) => ({ ...m, status: "error", error: event }));
-          }
-        }
+        for (; !step.done; step = await stream.next()) apply(step.value, id);
         return true;
       } catch (e) {
         if (accepted) {
-          // Stopped or cut off mid-reply. The backend keeps the user's message but not
-          // the partial reply (ADR 0003), so mark it instead of pretending it was saved.
-          updateLast((m) =>
-            isAbortError(e)
-              ? { ...m, status: "stopped" }
-              : { ...m, status: "error", error: toApiErrorLike(e) },
-          );
+          // The backend keeps the learner's message, not the partial reply.
+          markInterrupted(e);
           return true;
         }
         setMessages((all) => all.slice(0, -2));
@@ -192,10 +214,48 @@ export function useChatSession(conversationId: string | null, options: Options) 
         if (accepted) optionsRef.current.onTurnFinished();
       }
     },
-    [conversationId],
+    [conversationId, apply, markInterrupted],
   );
+
+  /**
+   * Have the tutor open a practice conversation that has no messages yet (Q19a). A
+   * refusal (no model, already started) shows as `error` and adds nothing.
+   */
+  const open = useCallback(async (): Promise<void> => {
+    if (conversationId === null) return;
+    const id = conversationId;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setError(null);
+    setStreaming(true);
+    setMessages((all) => [
+      ...all,
+      { key: nextKey(), role: "assistant", content: "", status: "streaming", turnId: OPENING_TURN_ID },
+    ]);
+    let accepted = false;
+    try {
+      const stream = streamOpening(id, { signal: controller.signal });
+      let step = await stream.next(); // 409 throws here, before any reply
+      accepted = true;
+      for (; !step.done; step = await stream.next()) apply(step.value, id);
+    } catch (e) {
+      if (accepted) {
+        markInterrupted(e);
+      } else {
+        setMessages((all) => all.slice(0, -1));
+        if (!isAbortError(e)) setError(toApiErrorLike(e));
+      }
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
+      setStreaming(false);
+      if (accepted) optionsRef.current.onTurnFinished();
+    }
+  }, [conversationId, apply, markInterrupted]);
 
   const stop = useCallback(() => abortRef.current?.abort(), []);
 
-  return { messages, loading, streaming, error, send, stop, ensureConversation };
+  /** The conversation whose history is on screen, once it is; null before that. */
+  const readyFor = loadedFor === conversationId ? conversationId : null;
+
+  return { messages, loading, streaming, error, readyFor, send, open, stop, ensureConversation };
 }

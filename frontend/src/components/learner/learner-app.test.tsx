@@ -151,6 +151,11 @@ describe("LearnerApp", () => {
       "href",
       "/chat?c=c1",
     );
+    expect(
+      within(screen.getByTestId("kc-g.third")).getByRole("link", {
+        name: "Practise with your tutor",
+      }),
+    ).toHaveAttribute("href", "/chat?practice=g.third");
 
     await userEvent.click(within(evidence).getByRole("button", { name: "Delete this record" }));
     expect(api).toHaveBeenCalledWith("/learner/evidence/7", { method: "DELETE" });

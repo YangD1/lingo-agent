@@ -96,8 +96,12 @@ describe("AdviceCard", () => {
     );
     expect(items[2]).toHaveTextContent("Practise: Third person -s");
     expect(items[2]).toHaveTextContent("Third person -s · 3 mistakes lately · mastery 23%");
-    // Until task 19's practice chat, grammar leads to the evidence in the learner model.
-    expect(within(items[2]).getByRole("link", { name: "See why" })).toHaveAttribute(
+    // Grammar starts a practice conversation; its evidence is a link away.
+    expect(within(items[2]).getByRole("link", { name: "Start practising" })).toHaveAttribute(
+      "href",
+      "/chat?practice=g.third",
+    );
+    expect(within(items[2]).getByRole("link", { name: "See the evidence" })).toHaveAttribute(
       "href",
       "/learner?kc=g.third",
     );

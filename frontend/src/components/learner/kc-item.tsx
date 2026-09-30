@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   deleteEvidence,
   type Evidence,
@@ -14,6 +14,7 @@ import {
   fetchEvidence,
   type KCStatus,
   kcName,
+  practiceHref,
 } from "@/lib/learner";
 import { cn } from "@/lib/utils";
 
@@ -127,6 +128,12 @@ export function KCItem({
       </p>
       {open && (
         <div id={detailsId} className="mt-2 flex flex-col gap-2 pl-6 text-sm">
+          <Link
+            href={practiceHref(kc.kc_id)}
+            className={buttonVariants({ size: "sm", variant: "outline", className: "self-start" })}
+          >
+            {t("practice")}
+          </Link>
           {error && (
             <p role="alert" className="text-destructive">
               {error}

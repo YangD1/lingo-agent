@@ -148,6 +148,11 @@
       "close": "关闭提示",
       "retest": "距离上次入学测已经超过 60 天，重测一次看看进步吧。",
       "retestAction": "重新测试"
+    },
+    "practice": {
+      "label": "语法练习：{kc}",
+      "evidence": "查看依据",
+      "badge": "语法练习"
     }
   },
   "memory": {
@@ -260,7 +265,8 @@
       "olderHidden": "还有 {n} 条更早的记录未显示。",
       "placementCorrect": "入学测答对",
       "placementWrong": "入学测答错",
-      "fromPlacement": "来自入学测"
+      "fromPlacement": "来自入学测",
+      "practice": "和私教练一练"
     },
     "skills": {
       "title": "技能估计",
@@ -594,7 +600,10 @@
     "invalid_answer": "答案格式不对，请重新作答。",
     "placement_not_in_progress": "这次入学测已经放弃，请重新开始。",
     "placement_not_found": "找不到这次入学测。",
-    "advice_refresh_limited": "建议每小时只能手动刷新一次，请稍后再试。"
+    "advice_refresh_limited": "建议每小时只能手动刷新一次，请稍后再试。",
+    "unknown_kc": "找不到这个语法点，可能已经下线。",
+    "not_practice": "只有语法练习对话会由私教先开口。",
+    "conversation_started": "这个对话已经开始了。"
   },
   "dashboard": {
     "title": "能力看板",
@@ -653,7 +662,8 @@
       "description": "最近 30 天对话里出错最多的语法点，点击查看依据。",
       "count": "{n} 次",
       "empty": "最近 30 天对话里没有记录到语法错误。",
-      "chat": "去和私教对话"
+      "chat": "去和私教对话",
+      "practice": "练一练"
     },
     "activity": {
       "title": "学习打卡",
@@ -714,8 +724,8 @@
         },
         "grammar_practice": {
           "title": "练习：{kc}",
-          "reason": "最近对话里这个语法点错得比较多，先看看出错的句子。",
-          "action": "查看依据"
+          "reason": "最近对话里这个语法点错得比较多，和私教专门练一练。",
+          "action": "开始练习"
         }
       },
       "evidence": {
@@ -724,7 +734,8 @@
         "lastTest": "上次在 {n} 天前",
         "inProgress": "有一次没做完",
         "grammar": "{kc} · 最近错 {n} 次 · 掌握度 {p}"
-      }
+      },
+      "evidenceLink": "查看依据"
     }
   }
 }

@@ -11,7 +11,8 @@ export type ChatEvent =
   | {
       event: "done";
       message_id: string | null;
-      /** The learner message's id: background activity of this turn is filed under it. */
+      /** The learner message's id (OPENING_TURN_ID for an opening): background activity
+       * of this turn is filed under it. */
       turn_id: string | null;
       usage: { input_tokens?: number; output_tokens?: number };
     }
@@ -39,6 +40,29 @@ export async function* streamChat(
     body: JSON.stringify({ content, attachment_ids: attachmentIds }),
     signal,
   });
+  yield* readEvents(response);
+}
+
+/** The turn id of a practice opening, which has no learner message. */
+export const OPENING_TURN_ID = "opening";
+
+/**
+ * The tutor's first message in a new practice conversation, streamed like a reply.
+ * 409 not_practice / conversation_started / no_llm_configured throw ApiError.
+ */
+export async function* streamOpening(
+  conversationId: string,
+  { signal }: { signal?: AbortSignal } = {},
+): AsyncGenerator<ChatEvent, void, undefined> {
+  const response = await apiFetch(`/conversations/${conversationId}/opening`, {
+    method: "POST",
+    headers: { accept: "text/event-stream" },
+    signal,
+  });
+  yield* readEvents(response);
+}
+
+async function* readEvents(response: Response): AsyncGenerator<ChatEvent, void, undefined> {
   if (!response.body) throw new Error("response has no body");
 
   const events = response.body
