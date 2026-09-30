@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-09-30 · P1e 任务 18：看板学习建议（候选 → 模型挑选 → 缓存）
+
+- **做了什么**：用户确认 Q18a–Q18e 均按推荐。
+  - 18.1 `app/advice/candidates.py`；`rules.yaml` 加 `advice:`，版本升到 `2026-09-30.3`。
+  - 18.2 `app/advice/writer.py`、`prompts/advice.md`。
+  - 18.3 `app/advice/service.py`（`read`、`needs_refresh`、`AdviceRefresher`）；表 `learning_advice`，迁移 `a7d45c7043a3`；接入 `main.py` 生命周期。
+  - 18.4 `app/api/advice.py`：`GET /advice`、`POST /advice/refresh`。
+  - 18.5 `lib/advice.ts`、`components/dashboard/advice-card.tsx`；`PlacementOut.retest_due` + 聊天页引导条的 `retest`。
+  - 18.6 `e2e/advice.spec.ts`，`fake_llm.py` 能回答 `AdviceDraft`；更新 `docs/agent-tools.md` 和 P1 计划 §7.5.2。
+
+  提交 9107c97、d6c788f、d642465、16ec7d4、970310a 和本次。后端 759、Vitest 173、Playwright 32 全部通过，ruff、mypy、tsc、eslint 干净。
+- **未完成**：
+  - 仍然没有在 Docker 全栈和真实模型上看过建议的实际文字质量（提示词只用假模型验证过结构）。
+  - 任务 16–18 都要 `make up` 重建后才能看到。
+- **下一步**：任务 19。
+  - `conversations.focus_kc_id` + `load_context` 里加练习指引。
+  - `adviceHref` 里的 `grammar_practice` 改为新建练习对话（现在是 `/learner?kc=`）。
+  - 开工前拆子任务、和用户确认。
+- **踩坑**：
+  - JSONB 列写 Python `None` 存的是 JSON `null`，不是 SQL NULL：`placement_sessions` 的 `done_result` 约束会拒绝，测试里不要给未完成的测试传 `result=None`。
+  - SQLAlchemy 2.1 的 `Result.tuples()` 已废弃，直接 `.all()`。
+  - eslint 的 `react-hooks/purity` 不允许在渲染时调用 `Date.now()`：冷却分钟数要在拿到响应时算好，存进 state。
+  - 前端没有 prettier，格式靠手写和 eslint。
+  - 重测提醒如果只按种类记住“已关闭”，下一次到期也不会再提醒。所以按 `retest:<finished_at>` 记。
+  - 手动刷新以外，候选变化触发的重新生成有 10 分钟最短间隔。E2E 里要看到 AI 建议，得点“刷新建议”。
+
+---
+
 ## 2026-09-30 · P1e 任务 17：能力看板（`GET /dashboard` + `/dashboard`）
 
 - **做了什么**：用户确认 Q17a–Q17d 均按推荐：

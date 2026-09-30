@@ -10,7 +10,9 @@ Memory (ADR 0009): reflection remembers what follows "remember that" in a learne
 message, and "what do you remember" gets back the facts found in the system prompt, so
 tests can check which memories reached the model. Grammar tagging (ADR 0012): "he/she/it
 like" is a third-person -s mistake, "he/she/it likes" a correct use of the same KC.
-Word list (ADR 0011): 'what does "X" mean' makes X a word to learn.
+Word list (ADR 0011): 'what does "X" mean' makes X a word to learn. Study advice
+(P1 plan §7.5.2): an invented action first, then a grammar practice candidate if there
+is one, else the last candidate, so tests can check that only real candidates survive.
 """
 
 import asyncio
@@ -45,6 +47,8 @@ THIRD_PERSON = re.compile(r"\b(?:he|she|it) like(s?)\b", re.IGNORECASE)
 THIRD_PERSON_KC = "g.present_simple_third_person"
 ASKED_WORD = re.compile(r"what does \"?([A-Za-z]+)\"? mean", re.IGNORECASE)
 FACTS_HEADING = "### Things they have told you\n"
+# Advice candidates are listed as "- `<id>`: <what>".
+CANDIDATE_LINE = re.compile(r"^- `([^`]+)`:", re.MULTILINE)
 
 
 def text_of(content: Any) -> str:
@@ -109,10 +113,24 @@ def reflection(messages: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def advice(messages: list[dict[str, Any]]) -> dict[str, Any]:
+    ids = CANDIDATE_LINE.findall(text_of(messages[-1]["content"]) if messages else "")
+    grammar = [i for i in ids if i.startswith("grammar_practice:")]
+    picked = grammar[0] if grammar else ids[-1]
+    return {
+        "items": [
+            {"candidate_id": "invented_action", "title": "Made up", "reason": "Not a candidate."},
+            {"candidate_id": picked, "title": "趁热练一练", "reason": "假模型挑了这一条。"},
+        ]
+    }
+
+
 def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
     """Canned arguments for the schema (function) asked for; otherwise an image reading."""
     if name == "Reflection":
         return reflection(messages)
+    if name == "AdviceDraft":
+        return advice(messages)
     if name == "EpisodeSummary":
         return {"summary": "The learner practised small talk."}
     return {"text_in_image": IMAGE_TEXT, "description": IMAGE_DESCRIPTION}
