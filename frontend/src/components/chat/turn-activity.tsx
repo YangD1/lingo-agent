@@ -7,12 +7,14 @@ import { useId, useState } from "react";
 
 import {
   type Activity,
+  type CardShown,
   type ContextRead,
   digest,
   type GrammarTags,
   type KCRef,
   type MemoryChanges,
   type MemoryRef,
+  TOOL_NAMES,
   type WordsCollected,
 } from "@/lib/activity";
 import { learnerHref } from "@/lib/learner";
@@ -37,6 +39,8 @@ const STEP_NAMES = [
   "grammar_tagging",
   "vocab_collect",
   "summarize",
+  "tools",
+  ...TOOL_NAMES,
 ] as const;
 type StepName = (typeof STEP_NAMES)[number];
 const isStep = (name: string): name is StepName => (STEP_NAMES as readonly string[]).includes(name);
@@ -51,6 +55,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
   const d = digest(activities);
   const parts = [
     d.practiced && t("practice"),
+    d.planned && t("planning"),
     d.memoriesRead > 0 && t("read", { n: d.memoriesRead }),
     d.memoriesSaved > 0 && t("saved", { n: d.memoriesSaved }),
     d.memoriesDeleted > 0 && t("deleted", { n: d.memoriesDeleted }),
@@ -58,6 +63,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
     d.mistakes > 0 && t("mistakes", { n: d.mistakes }),
     d.usedCorrectly > 0 && t("usedCorrectly", { n: d.usedCorrectly }),
     d.wordsCollected > 0 && t("words", { n: d.wordsCollected }),
+    d.cardsShown > 0 && t("cards", { n: d.cardsShown }),
     d.summaryUpdated && t("summaryUpdated"),
     d.failed.length + d.skipped.length > 0 && t("someFailed"),
     waiting && t("waiting"),
@@ -118,6 +124,13 @@ function Step({
   const locale = useLocale();
   if (!isStep(a.name)) return null; // from a newer backend
   const step = t(`steps.${a.name}`);
+  if (a.kind === "tool") {
+    if (a.status !== "ok") return <p>{t("toolFailed", { step })}</p>;
+    const kind = (a.summary as CardShown).card_kind ?? "";
+    const key = `cardKinds.${kind}` as Parameters<typeof t>[0];
+    return <p>{t("cardShown", { card: t.has(key) ? t(key) : step })}</p>;
+  }
+  if (a.name === "tools") return <p>{t("toolsUnavailable")}</p>;
   if (a.status === "failed") return <p>{t("failed", { step })}</p>;
   if (a.status === "skipped") {
     return (
@@ -155,6 +168,7 @@ function Step({
           </h4>
           {ids.length > 0 && <ul className="list-disc pl-4">{ids.map(memory)}</ul>}
           {s.practice_kc && <p>{t("practiceRead", { kc: kcName(s.practice_kc) })}</p>}
+          {s.planning && <p>{t("planningRead")}</p>}
         </section>
       );
     }

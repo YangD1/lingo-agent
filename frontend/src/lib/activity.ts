@@ -18,7 +18,18 @@ export type ContextRead = {
   profile_items: number;
   /** The grammar point of a practice conversation (P1 plan §7.5.3). */
   practice_kc?: string | null;
+  /** A planning conversation: the placement result and advice candidates were read. */
+  planning?: boolean;
 };
+/** A tool call of the tutor (ADR 0015): the card it showed, if any. */
+export type CardShown = { card_id: string | null; card_kind: string | null };
+/** Activity names of the tutor's tools (backend app/cards/tools.py). */
+export const TOOL_NAMES = [
+  "propose_word_book",
+  "propose_learning_goal",
+  "suggest_practice",
+  "suggest_link",
+] as const;
 export type MemoryChanges = {
   added: string[];
   updated: string[];
@@ -76,6 +87,10 @@ export type TurnDigest = {
   memoriesDeleted: number;
   /** The tutor was given a practice conversation's guidance. */
   practiced: boolean;
+  /** The tutor was given a planning conversation's brief. */
+  planned: boolean;
+  /** Cards the tutor showed with tool calls. */
+  cardsShown: number;
   profileUpdated: boolean;
   mistakes: number;
   usedCorrectly: number;
@@ -93,6 +108,8 @@ export function digest(activities: Activity[]): TurnDigest {
     memoriesSaved: 0,
     memoriesDeleted: 0,
     practiced: false,
+    planned: false,
+    cardsShown: 0,
     profileUpdated: false,
     mistakes: 0,
     usedCorrectly: 0,
@@ -109,6 +126,9 @@ export function digest(activities: Activity[]): TurnDigest {
       const s = a.summary as ContextRead;
       d.memoriesRead += (s.facts?.length ?? 0) + (s.episodes?.length ?? 0);
       d.practiced ||= Boolean(s.practice_kc);
+      d.planned ||= Boolean(s.planning);
+    } else if (a.kind === "tool") {
+      if ((a.summary as CardShown).card_id) d.cardsShown += 1;
     } else if (a.name === "reflect_memory") {
       const s = a.summary as MemoryChanges;
       d.memoriesSaved += (s.added?.length ?? 0) + (s.updated?.length ?? 0);

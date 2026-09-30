@@ -68,6 +68,8 @@
 
 卡片存在 `tutor_cards`（`cards/service.py`；状态 `proposed → applied | declined`、`applied → undone`，链接卡片是 `info`；提议不过期），删除会话时一起删除。接口：`GET /conversations/{id}/cards`、`POST /cards/{id}/apply|decline|undo`（只能操作自己的卡片）。回复中的卡片通过 SSE `card` 事件实时推送。
 
+**学习者在哪里看到**：卡片显示在那一轮私教回复的下方（`frontend/src/components/chat/tutor-cards.tsx`），和回复一起属于对话，不受“显示私教做了什么”开关影响。提议卡片上有“确认 / 不用了”，确认后可“撤销”；撤销被拒绝（之后又改过设置）时卡片上说明原因。每次调用在“私教做了什么”里记一行（展示了什么卡片，或没能展示）；厂商不支持工具时也有一行说明。
+
 ## MCP 服务
 
 目前没有。

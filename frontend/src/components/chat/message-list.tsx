@@ -10,16 +10,21 @@ import { Markdown } from "./markdown";
 import { MessageAttachments } from "./message-attachments";
 import { SelectToAdd } from "./select-to-add";
 import { TurnActivity } from "./turn-activity";
+import { TutorCards } from "./tutor-cards";
 import type { ActivityView } from "./use-activity";
+import type { CardsView } from "./use-cards";
 import type { ChatMessage } from "./use-chat-session";
 
 export function MessageList({
   messages,
   activity,
+  cards,
 }: {
   messages: ChatMessage[];
   /** What the tutor did per turn; absent when the learner hid it. */
   activity?: ActivityView;
+  /** Cards the tutor showed per turn (ADR 0015); part of the conversation, never hidden. */
+  cards?: CardsView;
 }) {
   const t = useTranslations("chat");
   const errorMessage = useErrorMessage();
@@ -81,6 +86,9 @@ export function MessageList({
                 </p>
               )}
             </div>
+            {cards && m.role === "assistant" && m.turnId && (
+              <TutorCards cards={cards.byTurn[m.turnId] ?? []} onDecide={cards.decide} />
+            )}
             {activity && m.role === "assistant" && m.turnId && m.status !== "streaming" && (
               <TurnActivity
                 activities={activity.byTurn[m.turnId] ?? []}

@@ -17,6 +17,7 @@ import { MessageList } from "./message-list";
 import { PlacementBanner } from "./placement-banner";
 import { PracticeBar } from "./practice-bar";
 import { useActivity } from "./use-activity";
+import { useCards } from "./use-cards";
 import { useAttachments } from "./use-attachments";
 import { useChatSession } from "./use-chat-session";
 
@@ -84,14 +85,19 @@ export function ChatApp({
 
   const [showActivity] = useShowActivity();
   const activity = useActivity(activeId, showActivity);
+  const cards = useCards(activeId);
   const session = useChatSession(activeId, {
     onConversationCreated: (c) => {
       setActiveId(c.id);
       setUrl(c.id, "replace");
       setConversations((all) => [c, ...all]);
     },
-    onTurnFinished: refresh,
+    onTurnFinished: () => {
+      refresh();
+      cards.reload(); // current statuses, and live numbers for link cards
+    },
     onActivity: activity.addLive,
+    onCard: cards.add,
     onReplyDone: activity.turnFinished,
   });
   const tray = useAttachments(activeId, session.ensureConversation);
@@ -161,7 +167,11 @@ export function ChatApp({
           </div>
         )}
         {active?.focus_kc ? <PracticeBar kc={active.focus_kc} /> : <PlacementBanner />}
-        <MessageList messages={session.messages} activity={showActivity ? activity : undefined} />
+        <MessageList
+          messages={session.messages}
+          activity={showActivity ? activity : undefined}
+          cards={cards}
+        />
         {error && (
           <div
             role="alert"

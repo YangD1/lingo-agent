@@ -113,7 +113,12 @@
         "reflect_memory": "整理记忆",
         "grammar_tagging": "语法标注",
         "summarize": "会话摘要",
-        "vocab_collect": "收词"
+        "vocab_collect": "收词",
+        "propose_word_book": "提议换词书",
+        "propose_learning_goal": "提议学习目标",
+        "suggest_practice": "建议练习",
+        "suggest_link": "页面直达",
+        "tools": "工具"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -140,7 +145,19 @@
       "removeFailed": "移出失败，请重试",
       "wordList": "查看生词本",
       "practice": "按练习要求回复",
-      "practiceRead": "练习指引：{kc}（掌握度档位和最近的错句）"
+      "practiceRead": "练习指引：{kc}（掌握度档位和最近的错句）",
+      "cards": "展示了 {n} 张卡片",
+      "planning": "参考了你的入学测结果",
+      "planningRead": "规划依据：最近一次入学测结果、测出的薄弱语法点、学习引擎的建议",
+      "cardShown": "展示了卡片：{card}",
+      "toolFailed": "有一张卡片没能展示（{step}），已把原因告诉私教。",
+      "toolsUnavailable": "当前模型不支持工具调用，私教改用链接代替卡片回答。",
+      "cardKinds": {
+        "word_book": "换词书",
+        "learning_goal": "学习目标",
+        "practice": "语法练习",
+        "link": "页面直达"
+      }
     },
     "placementBanner": {
       "start": "先做个入学测吧：大约 10 分钟，私教会按你的水平调整讲解和练习。",
@@ -155,6 +172,61 @@
       "label": "语法练习：{kc}",
       "evidence": "查看依据",
       "badge": "语法练习"
+    },
+    "cards": {
+      "wordBook": {
+        "title": "把词书换成 {book}",
+        "daily": "每天 {n} 个新词"
+      },
+      "goal": {
+        "title": "更新学习目标",
+        "minutes": "{n} 分钟"
+      },
+      "apply": "确认",
+      "decline": "不用了",
+      "pending": "你确认之前不会有任何改动。",
+      "applied": "已完成。",
+      "undo": "撤销",
+      "declined": "你没有采纳这条建议。",
+      "undone": "已撤销，恢复成原来的设置。",
+      "practice": {
+        "title": "练习 {kc}",
+        "action": "开始练习"
+      },
+      "link": {
+        "vocab_review": {
+          "title": "复习和学新词",
+          "action": "去复习"
+        },
+        "vocab_screen": {
+          "title": "标出已经认识的词",
+          "action": "去筛词"
+        },
+        "placement": {
+          "title": "做入学测",
+          "action": "去测试"
+        },
+        "learner": {
+          "title": "查看语法和技能",
+          "action": "去学习者模型"
+        },
+        "word_books": {
+          "title": "选一本词书",
+          "action": "去选词书"
+        }
+      },
+      "live": {
+        "review": "待复习 {due} 个 · 今天还剩 {left} 个新词",
+        "screened": "已开始筛词",
+        "notScreened": "还没筛过",
+        "inProgress": "有一次测试没做完",
+        "never": "还没测过",
+        "lastTest": "上次是 {n} 天前",
+        "weak": "{n} 个语法点需要加强"
+      }
+    },
+    "planning": {
+      "badge": "学习规划"
     }
   },
   "memory": {
@@ -607,8 +679,14 @@
     "placement_not_found": "找不到这次入学测。",
     "advice_refresh_limited": "建议每小时只能手动刷新一次，请稍后再试。",
     "unknown_kc": "找不到这个语法点，可能已经下线。",
-    "not_practice": "只有语法练习对话会由私教先开口。",
-    "conversation_started": "这个对话已经开始了。"
+    "not_practice": "只有语法练习或学习规划对话会自动开始。",
+    "conversation_started": "这个对话已经开始了。",
+    "card_not_found": "这张卡片不存在或已被删除。",
+    "card_not_pending": "这张卡片已经处理过了。",
+    "card_not_applied": "只有已确认的卡片才能撤销。",
+    "card_invalid": "这条提议已经失效（比如词书已被移除）。",
+    "setting_changed": "你之后又改过这项设置，这里不能撤销了，请到对应页面修改。",
+    "conflicting_purpose": "一个对话只能用于练习或规划，不能同时两者。"
   },
   "dashboard": {
     "title": "能力看板",

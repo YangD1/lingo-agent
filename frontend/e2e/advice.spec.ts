@@ -18,7 +18,8 @@ test("advice: templates without a model, then only the model's real picks", asyn
   await expect(page.getByTestId("advice-status")).toContainText("还没配置模型", {
     timeout: 15_000,
   });
-  await expect(advice.getByText("AI", { exact: true })).toHaveCount(0);
+  // No item was written by a model (the title's badge explains the feature itself).
+  await expect(items.getByTestId("ai-badge-advice")).toHaveCount(0);
 
   // A model, and a grammar mistake in chat.
   await useFakeModel(page);
@@ -37,7 +38,7 @@ test("advice: templates without a model, then only the model's real picks", asyn
 
   const practice = items.filter({ hasText: "趁热练一练" });
   await expect(practice).toBeVisible({ timeout: 15_000 });
-  await expect(practice.getByText("AI", { exact: true })).toBeVisible();
+  await expect(practice.getByTestId("ai-badge-advice")).toBeVisible();
   await expect(practice).toContainText("假模型挑了这一条。");
   await expect(practice).toContainText("最近错 1 次");
   // The invented action is dropped; the best other candidates fill in as templates.

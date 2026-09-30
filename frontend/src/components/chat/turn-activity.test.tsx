@@ -29,6 +29,25 @@ function show(props: Partial<ComponentProps<typeof TurnActivity>>) {
 }
 
 describe("TurnActivity", () => {
+  it("tells what the tools did", () => {
+    show({
+      activities: [
+        step("load_context", { facts: [], episodes: [], profile_items: 0, planning: true }),
+        step("propose_word_book", { card_id: "k1", card_kind: "word_book" }, { kind: "tool" }),
+        step("suggest_link", { card_id: null, card_kind: null }, { kind: "tool", status: "failed" }),
+        step("tools", {}, { kind: "step", status: "skipped" }),
+      ],
+    });
+    const line = screen.getByRole("button", { expanded: false });
+    expect(line).toHaveTextContent("went through your placement result");
+    expect(line).toHaveTextContent("showed 1 card");
+    fireEvent.click(line);
+    expect(screen.getByText(/Planning guidance/)).toBeInTheDocument();
+    expect(screen.getByText("Showed a card: switch word book")).toBeInTheDocument();
+    expect(screen.getByText(/couldn't be shown \(Page shortcut\)/)).toBeInTheDocument();
+    expect(screen.getByText(/doesn't support tools/)).toBeInTheDocument();
+  });
+
   it("shows one line, and the details when opened", () => {
     show({
       activities: [

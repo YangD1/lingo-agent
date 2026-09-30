@@ -42,6 +42,16 @@ describe("digest", () => {
     });
   });
 
+  it("counts the cards shown and a planning brief", () => {
+    const d = digest([
+      step("load_context", { facts: [], episodes: [], profile_items: 0, planning: true }),
+      step("suggest_link", { card_id: "k1", card_kind: "link" }, { kind: "tool", call_id: "c1" }),
+      step("suggest_link", { card_id: "k2", card_kind: "link" }, { kind: "tool", call_id: "c2" }),
+      step("suggest_practice", {}, { kind: "tool", call_id: "c3", status: "failed" }),
+    ]);
+    expect(d).toMatchObject({ planned: true, cardsShown: 2, failed: ["suggest_practice"] });
+  });
+
   it("counts nothing from failed or skipped steps", () => {
     const d = digest([
       step("reflect_memory", {}, { status: "failed" }),

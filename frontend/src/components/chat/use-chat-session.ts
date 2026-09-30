@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiErrorLike } from "@/i18n/errors";
 import type { Activity } from "@/lib/activity";
 import { api, ApiError, isAbortError } from "@/lib/api";
+import type { TutorCard } from "@/lib/cards";
 import { type ChatEvent, OPENING_TURN_ID, streamChat, streamOpening } from "@/lib/sse";
 import type { Attachment, Conversation, HistoryMessage } from "@/lib/types";
 
@@ -27,6 +28,8 @@ type Options = {
   onTurnFinished: () => void;
   /** A step of the turn, streamed while the reply is generated (ADR 0013 §3). */
   onActivity?: (activity: Activity) => void;
+  /** A card the tutor showed with a tool call during the reply (ADR 0015). */
+  onCard?: (card: TutorCard) => void;
   /** The reply was saved; its background activity follows under `turnId`. */
   onReplyDone?: (conversationId: string, turnId: string) => void;
 };
@@ -86,7 +89,7 @@ export function useChatSession(conversationId: string | null, options: Options) 
                 m.role === "assistant" && history[i - 1]?.role === "user"
                   ? (history[i - 1].id ?? undefined)
                   : m.role === "assistant" && i === 0
-                    ? OPENING_TURN_ID // a practice opening
+                    ? OPENING_TURN_ID // a practice or planning opening
                     : undefined,
             })),
           );
@@ -116,6 +119,9 @@ export function useChatSession(conversationId: string | null, options: Options) 
       } else if (event.event === "activity") {
         updateLast((m) => ({ ...m, turnId: event.turn_id }));
         optionsRef.current.onActivity?.(event);
+      } else if (event.event === "card") {
+        updateLast((m) => ({ ...m, turnId: event.turn_id }));
+        optionsRef.current.onCard?.(event); // the card's fields, plus `event`
       } else if (event.event === "done") {
         const turnId = event.turn_id ?? undefined;
         updateLast((m) => ({ ...m, status: undefined, turnId: turnId ?? m.turnId }));
@@ -218,8 +224,9 @@ export function useChatSession(conversationId: string | null, options: Options) 
   );
 
   /**
-   * Have the tutor open a practice conversation that has no messages yet (Q19a). A
-   * refusal (no model, already started) shows as `error` and adds nothing.
+   * Have the tutor open a practice or planning conversation that has no messages yet
+   * (Q19a, ADR 0015 §6). A refusal (no model, already started) shows as `error` and
+   * adds nothing.
    */
   const open = useCallback(async (): Promise<void> => {
     if (conversationId === null) return;

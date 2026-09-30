@@ -74,6 +74,20 @@ describe("streamChat", () => {
     expect(events[0]).toMatchObject({ turn_id: "u1", name: "load_context" });
   });
 
+  it("passes the tutor's cards through", async () => {
+    mockFetch(
+      sseResponse([
+        'event: card\ndata: {"id": "k1", "turn_id": "u1", "kind": "link", "status": "info"}\n\n',
+        'event: done\ndata: {"message_id": "m1", "turn_id": "u1", "usage": {}}\n\n',
+      ]),
+    );
+
+    const events = await collect(streamChat("c1", "hi"));
+
+    expect(events.map((e) => e.event)).toEqual(["card", "done"]);
+    expect(events[0]).toMatchObject({ id: "k1", turn_id: "u1", kind: "link" });
+  });
+
   it("ends on an error event", async () => {
     mockFetch(
       sseResponse([

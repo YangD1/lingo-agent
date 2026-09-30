@@ -2,12 +2,15 @@ import { EventSourceParserStream } from "eventsource-parser/stream";
 
 import type { Activity } from "./activity";
 import { apiFetch } from "./api";
+import type { TutorCard } from "./cards";
 
 /** The chat SSE protocol (ADR 0003 §2). */
 export type ChatEvent =
   | { event: "token"; text: string }
   /** A step of this turn as it happens (ADR 0013 §3). */
   | ({ event: "activity" } & Omit<Activity, "created_at">)
+  /** A card the tutor showed with a tool call (ADR 0015 §5), as the cards API has it. */
+  | ({ event: "card" } & TutorCard)
   | {
       event: "done";
       message_id: string | null;
@@ -18,7 +21,7 @@ export type ChatEvent =
     }
   | { event: "error"; code: string; message: string };
 
-const KNOWN_EVENTS = new Set(["token", "activity", "done", "error"]);
+const KNOWN_EVENTS = new Set(["token", "activity", "card", "done", "error"]);
 
 /**
  * Send a message and yield the reply's events. POST + fetch because EventSource can't
@@ -43,11 +46,12 @@ export async function* streamChat(
   yield* readEvents(response);
 }
 
-/** The turn id of a practice opening, which has no learner message. */
+/** The turn id of an opening (practice or planning), which has no learner message. */
 export const OPENING_TURN_ID = "opening";
 
 /**
- * The tutor's first message in a new practice conversation, streamed like a reply.
+ * The tutor's first message in a new practice or planning conversation, streamed like
+ * a reply.
  * 409 not_practice / conversation_started / no_llm_configured throw ApiError.
  */
 export async function* streamOpening(

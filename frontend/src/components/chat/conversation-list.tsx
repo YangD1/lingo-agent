@@ -1,6 +1,6 @@
 "use client";
 
-import { Target, Trash2 } from "lucide-react";
+import { Compass, Target, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,12 @@ export function ConversationList({ conversations, activeId, onSelect, onNew, onD
                   <Target
                     className="mr-1.5 inline size-3.5 align-[-2px] text-muted-foreground"
                     aria-label={t("practice.badge")}
+                  />
+                )}
+                {c.purpose === "planning" && (
+                  <Compass
+                    className="mr-1.5 inline size-3.5 align-[-2px] text-muted-foreground"
+                    aria-label={t("planning.badge")}
                   />
                 )}
                 {c.title || t("untitled")}

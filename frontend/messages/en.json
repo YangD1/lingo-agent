@@ -113,7 +113,12 @@
         "reflect_memory": "Updating memories",
         "grammar_tagging": "Grammar tagging",
         "summarize": "Conversation summary",
-        "vocab_collect": "Collecting words"
+        "vocab_collect": "Collecting words",
+        "propose_word_book": "Word book proposal",
+        "propose_learning_goal": "Study goal proposal",
+        "suggest_practice": "Practice suggestion",
+        "suggest_link": "Page shortcut",
+        "tools": "Tools"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -140,7 +145,19 @@
       "removeFailed": "Couldn't remove it; try again",
       "wordList": "Word list",
       "practice": "followed the practice plan",
-      "practiceRead": "Practice guidance: {kc} (how well you know it and your recent mistakes)"
+      "practiceRead": "Practice guidance: {kc} (how well you know it and your recent mistakes)",
+      "cards": "showed {n, plural, one {# card} other {# cards}}",
+      "planning": "went through your placement result",
+      "planningRead": "Planning guidance: your latest placement result, the grammar points it found weak, and what the learning engine suggests",
+      "cardShown": "Showed a card: {card}",
+      "toolFailed": "A card couldn't be shown ({step}); the tutor was told why.",
+      "toolsUnavailable": "The model doesn't support tools, so the tutor answered with links instead of cards.",
+      "cardKinds": {
+        "word_book": "switch word book",
+        "learning_goal": "study goal",
+        "practice": "grammar practice",
+        "link": "shortcut to a page"
+      }
     },
     "placementBanner": {
       "start": "Take the placement test first: about 10 minutes, and your tutor adjusts explanations and practice to your level.",
@@ -155,6 +172,61 @@
       "label": "Grammar practice: {kc}",
       "evidence": "See the evidence",
       "badge": "Grammar practice"
+    },
+    "cards": {
+      "wordBook": {
+        "title": "Switch your word book to {book}",
+        "daily": "{n} new words a day"
+      },
+      "goal": {
+        "title": "Update your study goal",
+        "minutes": "{n} min"
+      },
+      "apply": "Confirm",
+      "decline": "No thanks",
+      "pending": "Nothing changes until you confirm.",
+      "applied": "Done.",
+      "undo": "Undo",
+      "declined": "You declined this.",
+      "undone": "Undone: back to what you had.",
+      "practice": {
+        "title": "Practise {kc}",
+        "action": "Start practice"
+      },
+      "link": {
+        "vocab_review": {
+          "title": "Review and learn words",
+          "action": "Open reviews"
+        },
+        "vocab_screen": {
+          "title": "Mark the words you already know",
+          "action": "Open screening"
+        },
+        "placement": {
+          "title": "Take the placement test",
+          "action": "Open the test"
+        },
+        "learner": {
+          "title": "See your grammar and skills",
+          "action": "Open learner model"
+        },
+        "word_books": {
+          "title": "Choose a word book",
+          "action": "Open word books"
+        }
+      },
+      "live": {
+        "review": "{due} due · {left} new words left today",
+        "screened": "Screening started",
+        "notScreened": "Not screened yet",
+        "inProgress": "One test left unfinished",
+        "never": "Never taken",
+        "lastTest": "Last taken {n} days ago",
+        "weak": "{n, plural, one {# grammar point} other {# grammar points}} to work on"
+      }
+    },
+    "planning": {
+      "badge": "Study planning"
     }
   },
   "memory": {
@@ -607,8 +679,14 @@
     "placement_not_found": "This placement test doesn't exist.",
     "advice_refresh_limited": "Advice can be refreshed once an hour. Please try again later.",
     "unknown_kc": "That grammar point no longer exists.",
-    "not_practice": "Only a grammar practice conversation starts by itself.",
-    "conversation_started": "This conversation has already started."
+    "not_practice": "Only a grammar practice or study planning conversation starts by itself.",
+    "conversation_started": "This conversation has already started.",
+    "card_not_found": "This card doesn't exist or was deleted.",
+    "card_not_pending": "This card was already answered.",
+    "card_not_applied": "Only a confirmed card can be undone.",
+    "card_invalid": "This proposal is no longer valid (for example, the word book was removed).",
+    "setting_changed": "You've changed this setting since, so it can't be undone here. Change it on its page instead.",
+    "conflicting_purpose": "A conversation is either for practice or for planning."
   },
   "dashboard": {
     "title": "Dashboard",
