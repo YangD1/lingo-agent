@@ -5,6 +5,7 @@ import { useCallback, useSyncExternalStore } from "react";
  * be unavailable (private mode, blocked site data), and then the default applies.
  */
 const SHOW_ACTIVITY_KEY = "lingo.showAgentActivity";
+const PLACEMENT_BANNER_KEY = "lingo.placementBannerClosed";
 const CHANGE_EVENT = "lingo:preferences";
 // What this page set, for when storage refuses it.
 const fallback = new Map<string, string>();
@@ -26,21 +27,38 @@ function subscribe(onChange: () => void): () => void {
   };
 }
 
+function useStored(key: string): [string | null, (value: string) => void] {
+  const value = useSyncExternalStore(
+    subscribe,
+    () => read(key),
+    () => null,
+  );
+  const set = useCallback(
+    (next: string) => {
+      fallback.set(key, next);
+      try {
+        window.localStorage.setItem(key, next);
+      } catch {
+        // Not saved; it still applies until the page is reloaded.
+      }
+      window.dispatchEvent(new Event(CHANGE_EVENT));
+    },
+    [key],
+  );
+  return [value, set];
+}
+
 /** Whether replies show what the tutor did (ADR 0013 §3). Hiding changes display only. */
 export function useShowActivity(): [boolean, (show: boolean) => void] {
-  const show = useSyncExternalStore(
-    subscribe,
-    () => read(SHOW_ACTIVITY_KEY) !== "false",
-    () => true,
-  );
-  const set = useCallback((value: boolean) => {
-    fallback.set(SHOW_ACTIVITY_KEY, String(value));
-    try {
-      window.localStorage.setItem(SHOW_ACTIVITY_KEY, String(value));
-    } catch {
-      // Not saved; it still applies until the page is reloaded.
-    }
-    window.dispatchEvent(new Event(CHANGE_EVENT));
-  }, []);
-  return [show, set];
+  const [value, set] = useStored(SHOW_ACTIVITY_KEY);
+  const setShow = useCallback((show: boolean) => set(String(show)), [set]);
+  return [value !== "false", setShow];
+}
+
+/**
+ * Which placement banner ("start" / "resume") the learner closed. Closing one doesn't
+ * hide the other: a test started and left halfway is still worth a reminder.
+ */
+export function usePlacementBannerClosed(): [string | null, (kind: string) => void] {
+  return useStored(PLACEMENT_BANNER_KEY);
 }

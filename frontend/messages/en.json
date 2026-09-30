@@ -39,7 +39,8 @@
     "logout": "Log out",
     "vocab": "Vocabulary",
     "memory": "Memory",
-    "learner": "Learner model"
+    "learner": "Learner model",
+    "placement": "Placement test"
   },
   "chat": {
     "newChat": "New chat",
@@ -137,6 +138,13 @@
       "wordRemoved": "removed",
       "removeFailed": "Couldn't remove it; try again",
       "wordList": "Word list"
+    },
+    "placementBanner": {
+      "start": "Take the placement test first: about 10 minutes, and your tutor adjusts explanations and practice to your level.",
+      "resume": "You have a placement test left halfway; pick it up where you stopped.",
+      "startAction": "Take the test",
+      "resumeAction": "Continue",
+      "close": "Close"
     }
   },
   "memory": {

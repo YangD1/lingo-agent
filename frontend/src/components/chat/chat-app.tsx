@@ -14,6 +14,7 @@ import { SETTINGS_ERRORS } from "./attachment-tray";
 import { Composer } from "./composer";
 import { ConversationList } from "./conversation-list";
 import { MessageList } from "./message-list";
+import { PlacementBanner } from "./placement-banner";
 import { useActivity } from "./use-activity";
 import { useAttachments } from "./use-attachments";
 import { useChatSession } from "./use-chat-session";
@@ -105,6 +106,7 @@ export function ChatApp({ initialId }: { initialId: string | null }) {
             {t("attachments.dropHere")}
           </div>
         )}
+        <PlacementBanner />
         <MessageList messages={session.messages} activity={showActivity ? activity : undefined} />
         {error && (
           <div

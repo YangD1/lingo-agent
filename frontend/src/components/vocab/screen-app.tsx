@@ -11,6 +11,8 @@ import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { fetchScreenBatch, type ScreenResult, submitScreen, type Word } from "@/lib/vocab";
 
+import { PlacementKnown } from "./placement-known";
+
 type State =
   | { kind: "loading" }
   | { kind: "noBook" }
@@ -89,6 +91,7 @@ export function ScreenApp() {
             {error}
           </p>
         )}
+        {state.kind !== "noBook" && <PlacementKnown quiet onChange={next} />}
         <Card>
           <CardHeader>
             <CardTitle>{t("title")}</CardTitle>

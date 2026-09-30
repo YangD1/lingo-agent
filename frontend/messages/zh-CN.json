@@ -39,7 +39,8 @@
     "logout": "退出登录",
     "vocab": "背单词",
     "memory": "记忆",
-    "learner": "学习者模型"
+    "learner": "学习者模型",
+    "placement": "入学测"
   },
   "chat": {
     "newChat": "新对话",
@@ -137,6 +138,13 @@
       "wordRemoved": "已移出",
       "removeFailed": "移出失败，请重试",
       "wordList": "查看生词本"
+    },
+    "placementBanner": {
+      "start": "先做个入学测吧：大约 10 分钟，私教会按你的水平调整讲解和练习。",
+      "resume": "你有一次入学测还没做完，可以接着做。",
+      "startAction": "开始入学测",
+      "resumeAction": "继续",
+      "close": "关闭提示"
     }
   },
   "memory": {

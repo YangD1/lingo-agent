@@ -28,6 +28,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <Link href="/vocab">{t("vocab")}</Link>
           <Link href="/memory">{t("memory")}</Link>
           <Link href="/learner">{t("learner")}</Link>
+          <Link href="/placement">{t("placement")}</Link>
           <Link href="/settings">{t("settings")}</Link>
         </nav>
         <div className="ml-auto flex items-center gap-3">

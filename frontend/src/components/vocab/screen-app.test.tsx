@@ -15,6 +15,9 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   api,
 }));
 
+// Its own requests would interleave with the batch's; tested in placement-known.test.
+vi.mock("./placement-known", () => ({ PlacementKnown: () => null }));
+
 const word = (id: number, spelling: string): Word => ({
   id,
   word: spelling,

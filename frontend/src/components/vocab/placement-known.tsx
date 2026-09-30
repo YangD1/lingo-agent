@@ -19,7 +19,14 @@ import {
  * batch can be taken back. `quiet` shows nothing unless there is something to do:
  * the screening page uses it, the result page explains why nothing is offered.
  */
-export function PlacementKnown({ quiet = false }: { quiet?: boolean }) {
+export function PlacementKnown({
+  quiet = false,
+  onChange,
+}: {
+  quiet?: boolean;
+  /** After marking or undoing: which words are left to screen has changed. */
+  onChange?: () => void;
+}) {
   const t = useTranslations("vocab.placementKnown");
   const describe = useDescribeError();
   const [offer, setOffer] = useState<Offer | null>(null);
@@ -41,6 +48,7 @@ export function PlacementKnown({ quiet = false }: { quiet?: boolean }) {
     setError(null);
     try {
       await action();
+      onChange?.();
       await load();
     } catch (e) {
       setError(describe(e));
