@@ -51,6 +51,9 @@ CARD_STATUSES = ("new", "learning", "known", "suspended")
 PLACEMENT_STATUSES = ("in_progress", "done", "abandoned")
 PLACEMENT_STAGES = ("vocab", "grammar")
 ADVICE_STATUSES = ("ai", "no_model", "failed", "empty")
+TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link")
+# proposed -> applied | declined; applied -> undone. Cards without side effects: info.
+TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
 ADVICE_LOCALES = ("en", "zh-CN")
 
 
@@ -403,6 +406,42 @@ class SkillEstimate(TimestampMixin, Base):
     skill: Mapped[str] = mapped_column(String(20), primary_key=True)
     rating: Mapped[float] = mapped_column(Float)
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class TutorCard(Base):
+    """A card the tutor put in the conversation with a tool call (ADR 0015 §4).
+
+    Tools only write these rows; learner data changes when the learner applies a
+    proposal, and `before` keeps what it replaced so the change can be undone. Cards
+    are the source of truth for what the conversation shows: their status changes
+    outside the conversation, so it can't live in the checkpoint.
+    """
+
+    __tablename__ = "tutor_cards"
+    __table_args__ = (
+        CheckConstraint(_in("kind", TUTOR_CARD_KINDS), name="kind"),
+        CheckConstraint(_in("status", TUTOR_CARD_STATUSES), name="status"),
+        # A retried tools node finds its card instead of writing a second one.
+        UniqueConstraint("conversation_id", "tool_call_id"),
+        Index("ix_tutor_cards_user_id_created_at", "user_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE")
+    )
+    # The learner message that started the turn, as in agent_activities.
+    turn_id: Mapped[str] = mapped_column(String(64))
+    tool_call_id: Mapped[str] = mapped_column(String(100))
+    kind: Mapped[str] = mapped_column(String(20))
+    params: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(10))
+    # What applying replaced; NULL until applied.
+    before: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AgentActivity(Base):

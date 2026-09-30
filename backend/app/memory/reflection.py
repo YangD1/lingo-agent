@@ -156,6 +156,8 @@ def render_messages(
         if message.id in short:
             speaker += f" [{short[message.id]}]"
         text = message.text.strip()
+        if not text and not isinstance(message, HumanMessage):
+            continue  # a tutor message holding only tool calls (ADR 0015 §5)
         if len(text) > MAX_MESSAGE_CHARS:
             text = text[:MAX_MESSAGE_CHARS] + " […]"
         lines.append(f"{speaker}: {text}")

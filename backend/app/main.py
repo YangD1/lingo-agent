@@ -18,6 +18,7 @@ from app.api import (
     advice,
     attachments,
     auth,
+    cards,
     chat,
     dashboard,
     health,
@@ -138,6 +139,7 @@ def create_app() -> FastAPI:
     app.include_router(placement.router)
     app.include_router(dashboard.router)
     app.include_router(advice.router)
+    app.include_router(cards.router)
     return app
 
 

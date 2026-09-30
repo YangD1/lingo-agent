@@ -86,6 +86,18 @@ class SummaryUpdate(Summary):
     episode_id: uuid.UUID | None = None
 
 
+class CardShown(Summary):
+    """A tool call of the tutor (ADR 0015): the card it put in the conversation, if
+    any. The card itself shows its current status."""
+
+    card_id: uuid.UUID | None = None
+    card_kind: str | None = None
+
+
+class ToolsUnavailable(Summary):
+    """`tools`: the model refused tool calls, so the turn was answered without them."""
+
+
 @dataclass(frozen=True)
 class StepSpec:
     kind: ActivityKind
@@ -98,6 +110,12 @@ STEPS: dict[str, StepSpec] = {
     "grammar_tagging": StepSpec("background", GrammarTags),
     "vocab_collect": StepSpec("background", WordsCollected),
     "summarize": StepSpec("background", SummaryUpdate),
+    "tools": StepSpec("step", ToolsUnavailable),
+    # One per tool (app/cards/tools.py), call_id = the model's tool call id.
+    "propose_word_book": StepSpec("tool", CardShown),
+    "propose_learning_goal": StepSpec("tool", CardShown),
+    "suggest_practice": StepSpec("tool", CardShown),
+    "suggest_link": StepSpec("tool", CardShown),
 }
 
 

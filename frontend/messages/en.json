@@ -752,6 +752,7 @@
     },
     "task": {
       "chat": "Reply",
+      "chat_tools": "Reply after using a tool",
       "reflect": "Review the turn",
       "memory": "Index memories for search",
       "vision": "Read the image",

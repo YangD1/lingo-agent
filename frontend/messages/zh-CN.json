@@ -752,6 +752,7 @@
     },
     "task": {
       "chat": "回复",
+      "chat_tools": "调用工具后的回复",
       "reflect": "复盘这一轮",
       "memory": "为记忆建立检索向量",
       "vision": "读图",

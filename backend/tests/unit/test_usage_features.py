@@ -29,6 +29,7 @@ def test_shipped_catalog_loads() -> None:
     chat = catalog.features["chat_message"].calls
     assert [(c.task, c.timing) for c in chat] == [
         ("chat", "now"),
+        ("chat_tools", "now"),
         ("reflect", "background"),
         ("memory", "background"),
     ]

@@ -17,8 +17,9 @@ from app.activity.service import ActivitySink
 from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph
 from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
+from app.cards.tools import TutorTools
 from app.chat.practice import PracticeSource
-from app.chat.service import thread_config
+from app.chat.service import REPLY_PART_SEPARATOR, thread_config
 from app.db.models import Attachment, Conversation
 from app.memory.context import LearnerSource
 from app.providers.config import TenantProviderContext
@@ -49,6 +50,15 @@ class ActivityEvent:
 
 
 @dataclass(frozen=True)
+class CardEvent:
+    """A card a tool call put in the conversation (ADR 0015 §5); shaped like the cards
+    API's items."""
+
+    card: dict[str, Any]
+    event: Literal["card"] = "card"
+
+
+@dataclass(frozen=True)
 class DoneEvent:
     message_id: str | None
     # The learner message's id: what later background activity is filed under.
@@ -64,7 +74,7 @@ class ErrorEvent:
     event: Literal["error"] = "error"
 
 
-type TurnEvent = TokenEvent | ActivityEvent | DoneEvent | ErrorEvent
+type TurnEvent = TokenEvent | ActivityEvent | CardEvent | DoneEvent | ErrorEvent
 
 
 # The turn id of a practice opening, which has no learner message to be named after;
@@ -128,6 +138,7 @@ async def stream_reply(
     learner: LearnerSource | None = None,
     activity: ActivitySink | None = None,
     practice: PracticeSource | None = None,
+    tools: TutorTools | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -159,6 +170,7 @@ async def stream_reply(
                 learner=learner,
                 activity=activity,
                 practice=practice,
+                tools=tools,
             ):
                 queue.put_nowait(event)
         finally:
@@ -190,8 +202,10 @@ async def _run_graph(
     learner: LearnerSource | None,
     activity: ActivitySink | None,
     practice: PracticeSource | None,
+    tools: TutorTools | None,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
+    text_id: str | None = None  # the tutor message whose text is streaming
     usage = {"input_tokens": 0, "output_tokens": 0}
     try:
         async for mode, part in graph.astream(
@@ -203,12 +217,14 @@ async def _run_graph(
                 | ({"usage_task": OPENING_USAGE_TASK} if text is None else {}),
                 "tags": ["chat"],
             },
-            context=ChatContext(providers, attachments, learner, activity, practice),
+            context=ChatContext(providers, attachments, learner, activity, practice, tools),
             stream_mode=["messages", "custom"],
         ):
             if mode == "custom":
                 if isinstance(part, dict) and "activity" in part:
                     yield ActivityEvent(**part["activity"])
+                if isinstance(part, dict) and "card" in part:
+                    yield CardEvent(part["card"])
                 continue
             if not isinstance(part, tuple):
                 continue
@@ -219,7 +235,13 @@ async def _run_graph(
                 and metadata.get("langgraph_node") == TUTOR_NODE
             ):
                 continue
-            reply_id = reply_id or chunk.id
+            # With tool calls a turn has several tutor messages; history shows them as
+            # one, under the last one's id, their texts joined like here.
+            if chunk.text and chunk.id != text_id:
+                if text_id is not None:
+                    yield TokenEvent(REPLY_PART_SEPARATOR)
+                text_id = chunk.id
+            reply_id = chunk.id or reply_id
             if chunk.usage_metadata:
                 usage["input_tokens"] += chunk.usage_metadata["input_tokens"]
                 usage["output_tokens"] += chunk.usage_metadata["output_tokens"]

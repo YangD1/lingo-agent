@@ -23,6 +23,11 @@ features:
       - task: chat
         timing: now
         default: {input_tokens: 2500, output_tokens: 300}
+      # Only when the tutor used a tool: its reply after the tool results (ADR 0015 §7).
+      - task: chat_tools
+        route: chat
+        timing: now
+        default: {input_tokens: 3000, output_tokens: 150}
       # Reflection after each reply: memory, grammar tags, words; every few turns it
       # also rewrites the conversation summary.
       - task: reflect

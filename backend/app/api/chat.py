@@ -19,11 +19,19 @@ from app.api.errors import api_error
 from app.attachments import service as attachment_service
 from app.attachments.context import DatabaseAttachments
 from app.attachments.service import AttachmentNotFoundError, AttachmentStateError
+from app.cards.runtime import DatabaseTutorTools
 from app.chat import service
 from app.chat.locks import ConversationLocks
 from app.chat.practice import DatabasePractice
 from app.chat.service import ConversationNotFoundError
-from app.chat.turn import OPENING_TURN_ID, DoneEvent, begin_turn, new_message_id, stream_reply
+from app.chat.turn import (
+    OPENING_TURN_ID,
+    CardEvent,
+    DoneEvent,
+    begin_turn,
+    new_message_id,
+    stream_reply,
+)
 from app.db.models import Attachment, Conversation
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
 from app.memory.context import DatabaseLearner
@@ -370,7 +378,14 @@ async def _reply(
         practice=DatabasePractice(sessionmaker, user.id, turn.focus_kc_id)
         if turn.focus_kc_id
         else None,
+        # Practice conversations stay on their grammar point: no tools (ADR 0015 §2).
+        tools=None
+        if turn.focus_kc_id
+        else DatabaseTutorTools(sessionmaker, user.id, turn.conversation_id, turn.message_id),
     ):
+        if isinstance(event, CardEvent):  # the card itself, like GET .../cards items
+            yield ServerSentEvent(event=event.event, data=event.card)
+            continue
         data = dataclasses.asdict(event)
         yield ServerSentEvent(event=data.pop("event"), data=data)
         # After the reply is out, never before: memory work must not delay it. An

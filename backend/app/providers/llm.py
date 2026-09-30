@@ -7,6 +7,7 @@ Business code asks for a *task* in the context of a tenant, never a model name:
     parsed = await get_structured_llm(ctx, "memory_extract", MemorySchema).ainvoke(messages)
 """
 
+from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any, cast
 
@@ -122,6 +123,25 @@ def get_llm(ctx: TenantProviderContext, task: str) -> Runnable[LanguageModelInpu
     first chunk; errors after output has started propagate to the caller.
     """
     return chain_with_fallbacks(list(get_chat_models(ctx, task)))
+
+
+def get_llm_with_tools(
+    ctx: TenantProviderContext, task: str, tools: Sequence[type[BaseModel]]
+) -> Runnable[LanguageModelInput, BaseMessage]:
+    """Like get_llm, with `tools` bound to *each* model before chaining (ADR 0015 §2).
+
+    A model class without tool calling stays in the chain unbound: it answers in text.
+    """
+    return chain_with_fallbacks([_with_tools(model, tools) for model in get_chat_models(ctx, task)])
+
+
+def _with_tools(
+    model: BaseChatModel, tools: Sequence[type[BaseModel]]
+) -> Runnable[LanguageModelInput, BaseMessage]:
+    try:
+        return cast(Runnable[LanguageModelInput, BaseMessage], model.bind_tools(list(tools)))
+    except NotImplementedError:
+        return model
 
 
 def get_structured_llm[T: BaseModel](

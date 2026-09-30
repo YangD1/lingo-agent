@@ -96,13 +96,27 @@ async def get_owned_conversation(
     return conversation
 
 
+# Between the texts of one turn's tutor messages (a reply around tool calls).
+REPLY_PART_SEPARATOR = "\n\n"
+
+
 def to_chat_messages(messages: list[BaseMessage]) -> list[ChatMessage]:
-    """User-visible turns only (system/tool messages are internal)."""
-    return [
-        ChatMessage(id=m.id, role=_ROLES[m.type], content=m.text)
-        for m in messages
-        if m.type in _ROLES
-    ]
+    """User-visible turns only (system/tool messages are internal).
+
+    A turn with tool calls has several tutor messages (ADR 0015 §5); they show as one,
+    under the last one's id, with the calls themselves left out.
+    """
+    out: list[ChatMessage] = []
+    for m in messages:
+        if m.type not in _ROLES:
+            continue
+        role = _ROLES[m.type]
+        if role == "assistant" and out and out[-1].role == "assistant":
+            parts = [p for p in (out[-1].content, m.text) if p]
+            out[-1] = ChatMessage(id=m.id, role=role, content=REPLY_PART_SEPARATOR.join(parts))
+            continue
+        out.append(ChatMessage(id=m.id, role=role, content=m.text))
+    return out
 
 
 async def get_history(graph: ChatGraph, conversation: Conversation) -> list[ChatMessage]:

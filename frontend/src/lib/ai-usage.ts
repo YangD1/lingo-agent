@@ -13,6 +13,7 @@ export type AiFeature =
 /** `llm_usage.task` labels the catalog uses; each has a name in messages (aiBadge.task). */
 const AI_TASKS = [
   "chat",
+  "chat_tools",
   "reflect",
   "memory",
   "vision",
