@@ -90,6 +90,7 @@
       "too_many_images": "一条消息最多带 4 张图片。",
       "microphone_denied": "麦克风权限被拒绝。请在浏览器里允许后再录音。",
       "recording_unsupported": "这个浏览器不支持录音。",
+      "recording_silent": "没录到声音，检查一下麦克风再录一次。",
       "openImage": "打开 {name}",
       "voiceMessage": "语音消息",
       "truncated": "只读取了开头部分",

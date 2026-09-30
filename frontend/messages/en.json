@@ -90,6 +90,7 @@
       "too_many_images": "A message can carry at most 4 images.",
       "microphone_denied": "Microphone access was denied. Allow it in your browser to record.",
       "recording_unsupported": "This browser can't record audio.",
+      "recording_silent": "No sound was recorded. Check your microphone and try again.",
       "openImage": "Open {name}",
       "voiceMessage": "Voice message",
       "truncated": "only the beginning was read",

@@ -148,6 +148,16 @@ export function Composer({ streaming, disabled, tray, onSend, onStop }: Props) {
             <span className="font-mono">
               {clock(recorder.seconds)} / {clock(MAX_RECORDING_SECONDS)}
             </span>
+            <span
+              aria-hidden
+              data-testid="recording-level"
+              className="h-1.5 w-16 overflow-hidden rounded-full bg-muted"
+            >
+              <span
+                className="block h-full rounded-full bg-primary transition-[width] duration-75"
+                style={{ width: `${Math.round(recorder.level * 100)}%` }}
+              />
+            </span>
             <span className="text-muted-foreground">{t("attachments.recording")}</span>
             <Button
               type="button"
