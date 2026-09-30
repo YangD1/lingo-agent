@@ -1,25 +1,8 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { PSEUDOWORDS, register, uniqueEmail } from "./helpers";
+import { answerOne, placementProgress as progress, register, uniqueEmail } from "./helpers";
 
 test.use({ locale: "zh-CN" });
-
-const progress = (page: Page) => page.getByTestId("placement-progress");
-
-/** Answer the current question and wait for the next one (or the result). */
-async function answerOne(page: Page): Promise<void> {
-  const before = await progress(page).textContent();
-  if (before?.includes("词汇")) {
-    const word = await page.locator("[data-testid=placement-question] p[lang=en]").textContent();
-    await page.keyboard.press(PSEUDOWORDS.has(word ?? "") ? "n" : "y");
-  } else {
-    await page.keyboard.press("1");
-  }
-  await expect(async () => {
-    const done = await page.getByTestId("placement-result").isVisible();
-    expect(done || (await progress(page).textContent()) !== before).toBe(true);
-  }).toPass();
-}
 
 test("placement: banner, leave and come back, result, mark words known, learner page", async ({
   page,

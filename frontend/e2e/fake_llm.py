@@ -13,6 +13,9 @@ like" is a third-person -s mistake, "he/she/it likes" a correct use of the same 
 Word list (ADR 0011): 'what does "X" mean' makes X a word to learn. Study advice
 (P1 plan §7.5.2): an invented action first, then a grammar practice candidate if there
 is one, else the last candidate, so tests can check that only real candidates survive.
+Tutor tools (ADR 0015): with tools bound, a learner message about a word book ("词书" or
+"word book") gets a streamed `propose_word_book` call, and the turn goes on with a short
+reply once the tool result is back. A planning opening names the placement level.
 """
 
 import asyncio
@@ -20,6 +23,7 @@ import json
 import os
 import re
 import time
+import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -51,6 +55,10 @@ OPENING_CUE = "(This is not from the learner.)"
 PRACTICE_POINT = re.compile(r"^- Grammar point: (.+) \(CEFR [A-C][12]\)$", re.MULTILINE)
 ASKED_WORD = re.compile(r"what does \"?([A-Za-z]+)\"? mean", re.IGNORECASE)
 FACTS_HEADING = "### Things they have told you\n"
+# The planning brief (backend/app/chat/planning.py render_planning).
+PLAN_LEVEL = re.compile(r"^- Overall level \(CEFR\): ([A-C][12])", re.MULTILINE)
+WORD_BOOK = re.compile(r"词书|word book", re.IGNORECASE)
+PROPOSED_BOOK = {"book_id": "oxford3000", "daily_new": 10}
 # Advice candidates are listed as "- `<id>`: <what>".
 CANDIDATE_LINE = re.compile(r"^- `([^`]+)`:", re.MULTILINE)
 
@@ -76,12 +84,21 @@ def practice_point(messages: list[dict[str, Any]]) -> str | None:
     return found.group(1) if found else None
 
 
+def system_text(messages: list[dict[str, Any]]) -> str:
+    return "\n".join(text_of(m["content"]) for m in messages if m["role"] == "system")
+
+
 def reply_for(messages: list[dict[str, Any]]) -> str:
+    if messages and messages[-1]["role"] == "tool":  # the turn goes on after a tool call
+        return "I've put a suggestion on a card. Confirm it if it suits you."
     last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
     images = sum(p.get("type") == "image_url" for p in last) if isinstance(last, list) else 0
     last = text_of(last)
     if last.startswith(OPENING_CUE) and (point := practice_point(messages)):
         return f"Let's practise: {point}."
+    if last.startswith(OPENING_CUE) and "planning conversation" in last:
+        level = PLAN_LEVEL.search(system_text(messages))
+        return f"Your level is {level.group(1) if level else 'unknown'}. What is your goal?"
     if "what do you remember" in last.lower():
         return "I remember: " + (" | ".join(remembered_facts(messages)) or "nothing yet")
     if "long" in last.lower():
@@ -195,12 +212,44 @@ def chunk(model: str, delta: dict[str, Any], **extra: Any) -> str:
     return f"data: {json.dumps(body)}\n\n"
 
 
+def tutor_tool_call(
+    tools: list[dict[str, Any]], messages: list[dict[str, Any]]
+) -> tuple[str, dict[str, Any]] | None:
+    """The tool the tutor calls this time, if any: only right after a learner message."""
+    names = {t["function"]["name"] for t in tools}
+    if "propose_word_book" not in names or not messages or messages[-1]["role"] != "user":
+        return None
+    if not WORD_BOOK.search(text_of(messages[-1]["content"])):
+        return None
+    return "propose_word_book", PROPOSED_BOOK
+
+
+def stream_tool_call(
+    model: str, name: str, arguments: dict[str, Any], usage: dict[str, int]
+) -> StreamingResponse:
+    async def stream() -> AsyncIterator[str]:
+        call = {
+            "index": 0,
+            "id": f"call_{uuid.uuid4().hex[:12]}",
+            "type": "function",
+            "function": {"name": name, "arguments": json.dumps(arguments)},
+        }
+        yield chunk(model, {"role": "assistant", "content": None, "tool_calls": [call]})
+        yield chunk(model, {}, usage=usage)
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
 @app.post("/v1/chat/completions", response_model=None)
 async def completions(request: Request) -> StreamingResponse | JSONResponse:
     body = await request.json()
     model = body.get("model", "fake")
     if body.get("tools") and not body.get("stream"):
         return tool_reply(model, body["tools"], body.get("messages", []))
+    if body.get("tools") and (call := tutor_tool_call(body["tools"], body.get("messages", []))):
+        usage = {"prompt_tokens": 42, "completion_tokens": 10, "total_tokens": 52}
+        return stream_tool_call(model, *call, usage)
     text = reply_for(body.get("messages", []))
     usage = {"prompt_tokens": 42, "completion_tokens": len(text.split()), "total_tokens": 0}
     usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]

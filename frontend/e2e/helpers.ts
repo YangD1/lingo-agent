@@ -49,3 +49,21 @@ export const PSEUDOWORDS = new Set(
     .split("\n")
     .filter((line) => line && !line.startsWith("#")),
 );
+
+export const placementProgress = (page: Page) => page.getByTestId("placement-progress");
+
+/** Answer the current placement question and wait for the next one (or the result). */
+export async function answerOne(page: Page): Promise<void> {
+  const progress = placementProgress(page);
+  const before = await progress.textContent();
+  if (before?.includes("词汇")) {
+    const word = await page.locator("[data-testid=placement-question] p[lang=en]").textContent();
+    await page.keyboard.press(PSEUDOWORDS.has(word ?? "") ? "n" : "y");
+  } else {
+    await page.keyboard.press("1");
+  }
+  await expect(async () => {
+    const done = await page.getByTestId("placement-result").isVisible();
+    expect(done || (await progress.textContent()) !== before).toBe(true);
+  }).toPass();
+}

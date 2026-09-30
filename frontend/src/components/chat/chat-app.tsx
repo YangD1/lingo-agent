@@ -44,7 +44,13 @@ export function ChatApp({
   const locale = useLocale();
   const errorMessage = useErrorMessage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(initialId);
+  // Coming back (browser Back) to a page opened with `?practice=` or `?plan=`, Next may
+  // render the props it cached for that URL, though `setUrl` has since replaced it with
+  // the conversation made from it: the address bar is the truth.
+  const [urlId] = useState(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("c"),
+  );
+  const [activeId, setActiveId] = useState<string | null>(urlId ?? initialId);
   // The conversation made from `?practice=` or `?plan=`, in case the list loads without it.
   const [practice, setPractice] = useState<Conversation | null>(null);
   const [practiceError, setPracticeError] = useState<ApiErrorLike | null>(null);
@@ -60,7 +66,7 @@ export function ChatApp({
   const practiceStarted = useRef<string | null>(null);
   const purpose = planning ? "planning" : practiceKc ? `practice:${practiceKc}` : null;
   useEffect(() => {
-    if (!purpose || practiceStarted.current === purpose) return;
+    if (!purpose || urlId || practiceStarted.current === purpose) return;
     practiceStarted.current = purpose;
     api<Conversation>("/conversations", {
       method: "POST",
@@ -75,7 +81,7 @@ export function ChatApp({
       (e: unknown) =>
         setPracticeError(e instanceof ApiError ? e : { code: "network_error", message: "" }),
     );
-  }, [purpose, planning, practiceKc, locale]);
+  }, [purpose, urlId, planning, practiceKc, locale]);
 
   useEffect(() => {
     const onPop = () => setActiveId(new URLSearchParams(window.location.search).get("c"));

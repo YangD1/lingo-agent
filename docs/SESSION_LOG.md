@@ -4,6 +4,32 @@
 
 ---
 
+## 2026-09-30 · 任务 21.4–21.5：对话卡片前端与 E2E（任务 21 全部完成）
+
+- **做了什么**：
+  - 21.4（83bf64c）：
+    - `lib/cards.ts`、SSE `card` 事件、`use-cards.ts`、`tutor-cards.tsx`。卡片挂在那一轮回复下，提议卡可以确认、拒绝、撤销，409 有文案说明。
+    - `turn-activity` 显示工具调用、降级和规划依据；会话列表给规划对话加图标。
+    - 修了任务 22 遗留的 `e2e/advice.spec.ts`。
+  - 21.5：
+    - 新增 `e2e/planning.spec.ts`，覆盖全流程。
+    - 假模型能流式返回工具调用。
+    - `answerOne` 挪到 `e2e/helpers.ts`。
+    - 修复“返回”时重复建会话的问题（见下方踩坑）。
+  - 验证：E2E 35 个全部通过，Vitest 198，eslint / tsc 干净，后端 812。
+- **未完成**：
+  - 20.5（11C 剩余三条）、20.6（README）。
+  - Docker 全栈仍是旧镜像：任务 21、22 都没在 `make up` 下实测过。有两个新迁移，后端启动时会自动迁移。
+- **下一步**：
+  - 20.5 开工前先在 PROGRESS 拆任务，和用户确认。
+  - 用户想实测任务 21 时，要先停掉占内存的程序再 `make up`（见 memory：WSL 构建 OOM）。
+- **踩坑**：
+  - 用 `window.history.replaceState` 把 `/chat?plan=1` 改成 `/chat?c=<id>` 后，离开再按“返回”，Next 会用该条目缓存的旧 searchParams（`plan=1`）渲染页面。`ChatApp` 挂载时要以 `window.location` 的 `?c=` 为准，不然会再建一个会话。
+  - 练习会话之前一直有同样的问题，只是因为会复用未开始的会话，所以没暴露出来。
+  - 假模型要流式返回工具调用：delta 里放 `tool_calls: [{index, id, type, function: {name, arguments}}]`；`id` 每次要唯一，因为 `tutor_cards` 对 (会话, tool_call_id) 有唯一约束。
+
+---
+
 ## 2026-09-30 · 任务 21.1–21.3：私教工具调用与确认卡（后端）、入学测后的规划对话
 
 - **做了什么**：
