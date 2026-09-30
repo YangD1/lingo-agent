@@ -122,3 +122,89 @@ async def test_unknown_or_malformed_ids(client: AsyncClient) -> None:
     await login(client)
     assert (await client.get(f"/conversations/{uuid.uuid4()}/messages")).status_code == 404
     assert (await client.get("/conversations/not-a-uuid/messages")).status_code == 422
+
+
+KC = "g.word_order_svo"
+
+
+async def new_practice(client: AsyncClient, **body: Any) -> tuple[int, dict[str, Any]]:
+    response = await client.post("/conversations", json={"focus_kc_id": KC, **body})
+    data: dict[str, Any] = response.json()
+    return response.status_code, data
+
+
+async def test_free_chat_has_no_focus(client: AsyncClient) -> None:
+    await login(client)
+    conversation = await new_conversation(client)
+
+    assert conversation["focus_kc"] is None
+    # An empty JSON body is the same as none.
+    response = await client.post("/conversations", json={})
+    assert response.status_code == 201
+    assert response.json()["focus_kc"] is None
+
+
+async def test_practice_conversation_is_titled_in_the_ui_locale(
+    client: AsyncClient, app: FastAPI
+) -> None:
+    await login(client)
+
+    status, zh = await new_practice(client, locale="zh-CN")
+    assert status == 201
+    assert zh["title"] == "练习：基本句子结构（主语 + 谓语）"  # noqa: RUF001 (Chinese punctuation)
+    assert zh["focus_kc"] == {
+        "id": KC,
+        "name_en": "Basic sentence structure (subject + verb)",
+        "name_zh": "基本句子结构（主语 + 谓语）",  # noqa: RUF001 (Chinese punctuation)
+        "cefr": "A1",
+    }
+    # Without a locale in the body, the cookie decides; without either, English.
+    await seed_history(app, zh["id"])  # started, so the next one is new
+    client.cookies.set("NEXT_LOCALE", "zh-CN")
+    assert (await new_practice(client))[1]["title"].startswith("练习：")  # noqa: RUF001 (Chinese punctuation)
+    listed = (await client.get("/conversations")).json()
+    assert [c["focus_kc"]["id"] for c in listed] == [KC, KC]
+
+
+async def test_unstarted_practice_is_reused(client: AsyncClient, app: FastAPI) -> None:
+    await login(client)
+    status, first = await new_practice(client)
+    assert status == 201
+    assert first["title"].startswith("Practice: ")
+
+    # Opening the same practice again before saying anything returns to it, even after
+    # the tutor's opening.
+    thread = thread_config(uuid.UUID(first["id"]))
+    await graph_of(app).aupdate_state(thread, {"messages": [AIMessage("Hi!", id="a1")]})
+    status, again = await new_practice(client)
+    assert (status, again["id"]) == (200, first["id"])
+
+    # Once the learner has replied, it's a new one.
+    await graph_of(app).aupdate_state(
+        thread, {"messages": [HumanMessage("I like read.", id="h1")]}, as_node="tutor"
+    )
+    status, fresh = await new_practice(client)
+    assert status == 201
+    assert fresh["id"] != first["id"]
+    assert len((await client.get("/conversations")).json()) == 2
+
+
+async def test_practice_is_reused_only_for_its_owner(client: AsyncClient) -> None:
+    await login(client, "alice@example.com")
+    _, alice = await new_practice(client)
+
+    await login(client, "mallory@example.com")
+    status, mallory = await new_practice(client)
+
+    assert status == 201
+    assert mallory["id"] != alice["id"]
+
+
+async def test_unknown_kc_is_rejected(client: AsyncClient) -> None:
+    await login(client)
+
+    response = await client.post("/conversations", json={"focus_kc_id": "g.no_such_thing"})
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "unknown_kc"
+    assert (await client.get("/conversations")).json() == []

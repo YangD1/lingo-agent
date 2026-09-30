@@ -108,6 +108,9 @@ class Conversation(TimestampMixin, Base):
     # reflected on / folded into the conversation summary. NULL: none yet.
     reflected_message_id: Mapped[str | None] = mapped_column(String(64))
     summarized_message_id: Mapped[str | None] = mapped_column(String(64))
+    # Grammar KC this conversation practises (P1 plan §7.5.3); NULL for free chat. No FK:
+    # the catalog is a file, so the id is checked against it when the row is written.
+    focus_kc_id: Mapped[str | None] = mapped_column(String(64))
 
 
 class ProviderConnection(TimestampMixin, Base):

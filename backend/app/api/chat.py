@@ -13,6 +13,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.activity.service import DatabaseActivity
+from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
 from app.api.attachments import AttachmentOut
 from app.api.errors import api_error
 from app.attachments import service as attachment_service
@@ -36,13 +37,41 @@ from app.providers.tenant import load_provider_context
 router = APIRouter(prefix="/conversations", tags=["chat"])
 
 
-class ConversationOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class FocusKcOut(BaseModel):
+    id: str
+    name_en: str
+    name_zh: str
+    cefr: CefrLevel
 
+
+class ConversationOut(BaseModel):
     id: uuid.UUID
     title: str
     created_at: datetime
     updated_at: datetime
+    # The grammar point a practice conversation is about; None for free chat.
+    focus_kc: FocusKcOut | None = None
+
+    @classmethod
+    def of(cls, conversation: Conversation) -> "ConversationOut":
+        kc = get_grammar_catalog().get(conversation.focus_kc_id or "")
+        return cls(
+            id=conversation.id,
+            title=conversation.title,
+            created_at=conversation.created_at,
+            updated_at=conversation.updated_at,
+            focus_kc=FocusKcOut.model_validate(kc, from_attributes=True) if kc else None,
+        )
+
+
+class ConversationIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # A grammar KC id: starts a practice conversation on it (P1 plan §7.5.3).
+    focus_kc_id: Annotated[str | None, Field(max_length=64)] = None
+    # The UI's locale, for the practice title; the cookie is only set once the
+    # learner picks a language by hand.
+    locale: Annotated[str | None, Field(max_length=10)] = None
 
 
 class MessageOut(BaseModel):
@@ -66,21 +95,53 @@ async def _owned(
 @router.get("")
 async def list_conversations(user: CurrentUser, session: SessionDep) -> list[ConversationOut]:
     rows = await service.list_conversations(session, user.id)
-    return [ConversationOut.model_validate(c) for c in rows]
+    return [ConversationOut.of(c) for c in rows]
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        200: {"description": "an unstarted practice conversation on the same KC, reused"},
+        422: {"description": "validation_error or unknown_kc"},
+    },
+)
 async def create_conversation(
-    request: Request, user: CurrentUser, tenant: CurrentTenant, session: SessionDep
+    request: Request,
+    response: Response,
+    user: CurrentUser,
+    tenant: CurrentTenant,
+    session: SessionDep,
+    graph: ChatGraphDep,
+    body: ConversationIn | None = None,
 ) -> ConversationOut:
-    conversation = await service.create_conversation(session, tenant.id, user.id)
+    body = body or ConversationIn()
+    focus = None
+    conversation = None
+    if body.focus_kc_id is not None:
+        focus = get_grammar_catalog().get(body.focus_kc_id)
+        if focus is None:
+            raise api_error(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "unknown_kc", "unknown grammar point"
+            )
+        conversation = await service.unstarted_practice(session, graph, user.id, focus.id)
+    if conversation is not None:
+        response.status_code = status.HTTP_200_OK
+    else:
+        conversation = await service.create_conversation(
+            session,
+            tenant.id,
+            user.id,
+            focus=focus,
+            locale=body.locale or request.cookies.get(LOCALE_COOKIE),
+        )
     # Starting afresh is when the conversation the learner left gets its summary.
     await _reflection(request).finish_previous(
         user.id,
         except_conversation_id=conversation.id,
         language=memory_language(request.cookies.get(LOCALE_COOKIE)),
     )
-    return ConversationOut.model_validate(conversation)
+    return ConversationOut.of(conversation)
 
 
 @router.get("/{conversation_id}/messages")

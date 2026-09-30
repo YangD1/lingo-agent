@@ -10,6 +10,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adaptive.kc.catalog import GrammarKC
 from app.agents.chat_graph import ChatGraph
 from app.db.models import Attachment, Conversation
 
@@ -43,13 +44,47 @@ async def list_conversations(session: AsyncSession, user_id: uuid.UUID) -> list[
 
 
 async def create_conversation(
-    session: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    *,
+    focus: GrammarKC | None = None,
+    locale: str | None = None,
 ) -> Conversation:
+    """A free chat, or with `focus` a practice conversation on that grammar point,
+    titled in the UI's `locale` (the list shows titles as they are)."""
     conversation = Conversation(tenant_id=tenant_id, user_id=user_id)
+    if focus is not None:
+        conversation.focus_kc_id = focus.id
+        conversation.title = practice_title(focus, locale)
     session.add(conversation)
     await session.commit()
     await session.refresh(conversation)
     return conversation
+
+
+def practice_title(kc: GrammarKC, locale: str | None) -> str:
+    if locale and locale.lower().startswith("zh"):
+        return f"练习：{kc.name_zh}"  # noqa: RUF001 (Chinese punctuation)
+    return f"Practice: {kc.name_en}"
+
+
+async def unstarted_practice(
+    session: AsyncSession, graph: ChatGraph, user_id: uuid.UUID, kc_id: str
+) -> Conversation | None:
+    """The learner's latest practice conversation on `kc_id`, if they haven't said
+    anything in it yet (the tutor's opening may be there): opening the same practice
+    again returns to it instead of leaving empty conversations behind (Q19c)."""
+    latest = await session.scalar(
+        select(Conversation)
+        .where(Conversation.user_id == user_id, Conversation.focus_kc_id == kc_id)
+        .order_by(Conversation.created_at.desc(), Conversation.id)
+        .limit(1)
+    )
+    if latest is None:
+        return None
+    history = await get_history(graph, latest)
+    return None if any(m.role == "user" for m in history) else latest
 
 
 async def get_owned_conversation(
