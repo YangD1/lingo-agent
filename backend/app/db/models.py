@@ -50,6 +50,8 @@ CARD_SOURCES = ("book", "auto", "manual", "placement")
 CARD_STATUSES = ("new", "learning", "known", "suspended")
 PLACEMENT_STATUSES = ("in_progress", "done", "abandoned")
 PLACEMENT_STAGES = ("vocab", "grammar")
+ADVICE_STATUSES = ("ai", "no_model", "failed", "empty")
+ADVICE_LOCALES = ("en", "zh-CN")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -602,3 +604,32 @@ class PlacementItemStat(TimestampMixin, Base):
     item_id: Mapped[str] = mapped_column(String(100), primary_key=True)
     difficulty: Mapped[float] = mapped_column(Float)
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class LearningAdvice(Base):
+    """The dashboard's study advice for one learner, cached (P1 plan §7.5.2).
+
+    Regenerated in the background when it is old, when the candidate actions changed,
+    or in another UI language; the page shows this row meanwhile. Only the model's
+    items are stored: template items are filled in when read.
+    """
+
+    __tablename__ = "learning_advice"
+    __table_args__ = (
+        CheckConstraint(_in("status", ADVICE_STATUSES), name="status"),
+        CheckConstraint(_in("locale", ADVICE_LOCALES), name="locale"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    # [{candidate_id, title, reason}], best first.
+    items: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    # The candidate ids the advice was written for (order ignored).
+    candidate_ids: Mapped[list[str]] = mapped_column(ARRAY(String(120)), default=list)
+    locale: Mapped[str] = mapped_column(String(5))
+    # ai: written by the model; the others mean template text only.
+    status: Mapped[str] = mapped_column(String(10))
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # The learner's last "refresh advice"; limited to one an hour.
+    refreshed_by_hand_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
