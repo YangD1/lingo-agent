@@ -8,6 +8,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { isShortcut } from "@/lib/keyboard";
 import type { Rating } from "@/lib/vocab";
 
 import { type ReviewMode, useReviewSession } from "./use-review-session";
@@ -22,13 +23,6 @@ function speak(text: string) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "en-US";
   window.speechSynthesis.speak(utterance);
-}
-
-/** Keys typed into a field, held down, or with a modifier are not shortcuts. */
-function isShortcut(event: KeyboardEvent): boolean {
-  const target = event.target as HTMLElement | null;
-  const typing = target?.closest("input, textarea, select, [contenteditable=true]");
-  return !typing && !event.repeat && !event.isComposing && !event.ctrlKey && !event.metaKey && !event.altKey;
 }
 
 /**

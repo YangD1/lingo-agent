@@ -472,6 +472,29 @@
       "showActivityHint": "Memories read and saved, grammar mistakes marked. Hiding it changes the display only: everything is still recorded, and the Memory page still shows it all."
     }
   },
+  "placement": {
+    "title": "Placement test",
+    "description": "About 10 minutes to find your level; your tutor adjusts explanations and practice to it.",
+    "intro": {
+      "vocab": "Vocabulary: one English word at a time, up to 40; say whether you know it. Some are made up, so if you don't know a word, answer \"No\" rather than guess.",
+      "grammar": "Grammar: a sentence with one blank; pick the right one of four options, up to 20 questions.",
+      "notes": "If unsure, pick what seems most likely; answers are not shown. You can leave at any time and continue later. When you finish, your level is set to the result (you can still change it on the Memory page).",
+      "start": "Start"
+    },
+    "question": {
+      "vocabProgress": "Part 1 · Vocabulary · {n} of {total}",
+      "grammarProgress": "Part 2 · Grammar · question {n} (at most {total})",
+      "vocabPrompt": "Do you know this word?",
+      "grammarPrompt": "Choose the option that fills the blank",
+      "yes": "Yes",
+      "no": "No",
+      "vocabHint": "Keys: Y for yes, N for no",
+      "grammarHint": "Keys: 1–4 to choose"
+    },
+    "result": {
+      "title": "Your result"
+    }
+  },
   "errors": {
     "not_authenticated": "Please log in to continue.",
     "invalid_credentials": "Incorrect email or password.",
