@@ -15,6 +15,7 @@ from app.agents.chat_graph import build_chat_graph
 from app.agents.placement_graph import build_placement_graph
 from app.api import (
     activity,
+    advice,
     attachments,
     auth,
     chat,
@@ -136,6 +137,7 @@ def create_app() -> FastAPI:
     app.include_router(vocab.router)
     app.include_router(placement.router)
     app.include_router(dashboard.router)
+    app.include_router(advice.router)
     return app
 
 
