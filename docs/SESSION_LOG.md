@@ -4,6 +4,35 @@
 
 ---
 
+## 2026-09-30 · P1d 任务 16：/placement 页面 + 聊天页引导条
+
+- **做了什么**：用户确认 Q16a–Q16d 均按推荐：
+  - a：没测完就显示引导条，关闭状态存 localStorage。
+  - b：由后端给 `/learner` 带上词汇量。
+  - c：结果页可以重新测试，要二次确认。
+  - d：批量标熟放在结果页和筛选页。
+
+  各子任务：
+  - 16.1 `GET /learner` 技能行加 `cefr` / `vocab_size` / `reliable`，`writeback.latest_result` 与批量标熟共用。
+  - 16.2 `lib/placement.ts` 和 5 个错误码文案。
+  - 16.3 `components/placement/placement-app.tsx`（说明 / 作答 / 断点续做，Y/N、1–4 快捷键）。
+  - 16.4 `placement-result.tsx` 和 `components/vocab/placement-known.tsx`。
+  - 16.5 `components/chat/placement-banner.tsx`、导航入口、筛选页标熟卡片。
+  - 16.6 `/learner` 技能显示词汇量和等级，入学测证据标明来源。
+  - 16.7 `e2e/placement.spec.ts` 和文档。
+
+  提交 c53a513、f0e2779、812d2ff、9ba72f3、69bb7df、16547ed 和本次。后端 696、前端 Vitest 158、Playwright 30 全部通过，ruff、mypy、tsc、eslint 干净。
+- **未完成**：无。没有在 Docker 全栈和真实词库上手动走一遍，运行中的 Docker 服务还是旧代码，需要 `make up` 重建。
+- **下一步**：任务 17（`GET /dashboard` 聚合接口 + `/dashboard` 页面，登录后首页改为看板），开工前拆子任务、和用户确认。任务 18 的学习建议要包括“超过 60 天重测”的提醒（引导条只管没测完的情况）。
+- **踩坑**：
+  - 在 Bash 工具里用 `export PATH=… && pnpm …` 仍会挂起。要写成 `B=~/.nvm/versions/node/v24.14.0/bin; export PATH=$B:$PATH; $B/pnpm …`，见记忆 env-node-nvm-hang。
+  - 子组件的 effect 先于父组件执行。筛选页挂了 `PlacementKnown` 之后，它的请求会插到 `ScreenApp` 按顺序 mock 的请求中间，所以 `screen-app.test` 里把它 mock 掉了。
+  - 结果页挂载后会再请求一次 `/vocab/placement-known`。作答流程测试最后一步的断点要用 `toHaveBeenCalledWith`，不能用 `toHaveBeenLastCalledWith`。
+  - 入学测的错题证据没有原句和改正，`error_type=wrong_choice` / `severity=medium` 只是写回时的占位值。`/learner` 对 `source=placement` 的证据不显示这两项。
+  - E2E 里“入学测”“对话”这两个链接名会和“开始入学测”“去和私教对话”互相匹配，必须加 `exact: true`。
+
+---
+
 ## 2026-09-30 · P1d 任务 15：placement 子图 + 接口 + 结果写回 + 批量标熟
 
 - **做了什么**：用户确认 Q15a–Q15d 均按推荐（真词精确过滤、词汇量按词计数；语法测试中性起点；学习者确认后批量标熟、可撤销；总体等级 = 语法等级）。15.1 迁移 `347f8448994f`（`placement_sessions`、`placement_item_stats`、`user_cards.source` 加 `placement`）；15.2 `placement/words.py`；15.3 `placement/flow.py`（纯函数）+ `agents/placement_graph.py`；15.4 `placement/writeback.py`；15.5 `app/placement/service.py` + `app/api/placement.py`；15.6 `services/vocab/placement_known.py` + `/vocab/placement-known`；15.7 文档。`rules.yaml` 升到 `2026-09-30.1`。提交 b03d454、cdf1989、86e3bdb、428d1b5、b799a11 和本次。后端全量 695 通过，ruff、mypy 干净。
