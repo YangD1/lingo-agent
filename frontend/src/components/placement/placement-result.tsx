@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
-import { AdviceEntry, AdviceStatus, useAdvice } from "@/components/dashboard/advice-card";
+import { AdviceEntry, useAdvice } from "@/components/dashboard/advice-entry";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlacementKnown } from "@/components/vocab/placement-known";
@@ -124,11 +124,8 @@ function NextSteps() {
   return (
     <Card data-testid="placement-next">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {t("nextTitle")}
-          <AiBadge feature="advice" />
-        </CardTitle>
-        <CardDescription>{advice ? <AdviceStatus advice={advice} /> : t("nextLoading")}</CardDescription>
+        <CardTitle>{t("nextTitle")}</CardTitle>
+        {!advice && !error && <CardDescription>{t("nextLoading")}</CardDescription>}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {error && (

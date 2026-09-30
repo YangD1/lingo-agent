@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-10-01 · 任务 23.3：看板的“今天的学习”对话框
+
+- **做了什么**：
+  - 从 `ChatApp` 抽出 `components/chat/tutor-panel.tsx` 的 `TutorPanel`，对话页和看板共用。`ChatApp` 只剩会话列表、`?practice=` / `?plan=` 建会话和 URL 同步。
+  - `useChatSession` 新增 `createConversation`、`discardRefused` 两个选项；`MessageList` 新增 `empty` 插槽，改为滚动自身容器。
+  - 看板用 `dashboard/today-tutor.tsx` 的 `TodayTutor` 替换 `AdviceCard`：开口前显示规则问候和快捷回复（不调模型），点了才懒建当天的 daily 会话；没配模型时显示规则建议链接。
+  - `advice-card.tsx` 改名 `advice-entry.tsx`，删掉轮询和刷新；`lib/advice.ts` 对齐新的 `GET /advice`（`items` + `model_ready`）。
+  - i18n、会话列表图标、AI 用量 feature 列表同步。Vitest 208 通过，tsc、eslint 干净。
+- **未完成**：
+  - 23.4：`components/placement/placement-result.tsx` 的 `NextSteps` 目前只做了最小改动（规则列表 + 跳转 `/chat?plan=1`），要换成 `TutorPanel` 绑定规划对话。`TutorPanel` 的 `empty` 回调已提供 `open()`，但 `open()` 要求会话已存在，所以结果页要先 `POST {purpose: "planning"}` 拿到 id，再 `autoOpen` 或手动开场。
+  - 23.5：E2E `advice.spec.ts`、`planning.spec.ts` 还是旧界面，会失败。
+  - 没在浏览器里实际看过看板效果（高度 32rem 的卡片是否合适），留到 23.5 / Docker 实测。
+- **下一步**：23.4 入学测结果页。
+- **踩坑**：
+  - 上一会话因为累积的图片和附件太多，请求超过 32MB 被拒，只能新开会话。读前端文件时按需分段读，截图少用。
+  - `POST /conversations {purpose: "daily"}` 当天已有会话时会返回那段（200）。原来的“首发被拒就删掉新建会话”逻辑会误删它，所以加了 `discardRefused: false`。
+  - 嵌入页面时 `scrollIntoView` 会带着整页滚动，改成设置容器的 `scrollTop`。
+
+---
+
 ## 2026-10-01 · 任务 20.6：README 更新到 P1
 
 - **做了什么**（Q20.6a：截图暂缓到网站设计改版后；Q20.6c：词库导入并入快速开始）：

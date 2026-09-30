@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, Target, Trash2 } from "lucide-react";
+import { Compass, Sun, Target, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,12 @@ export function ConversationList({ conversations, activeId, onSelect, onNew, onD
                   <Compass
                     className="mr-1.5 inline size-3.5 align-[-2px] text-muted-foreground"
                     aria-label={t("planning.badge")}
+                  />
+                )}
+                {c.purpose === "daily" && (
+                  <Sun
+                    className="mr-1.5 inline size-3.5 align-[-2px] text-muted-foreground"
+                    aria-label={t("daily.badge")}
                   />
                 )}
                 {c.title || t("untitled")}

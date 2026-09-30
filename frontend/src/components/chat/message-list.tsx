@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 
 import { useErrorMessage } from "@/i18n/errors";
 import { cn } from "@/lib/utils";
@@ -19,32 +19,39 @@ export function MessageList({
   messages,
   activity,
   cards,
+  empty,
 }: {
   messages: ChatMessage[];
   /** What the tutor did per turn; absent when the learner hid it. */
   activity?: ActivityView;
   /** Cards the tutor showed per turn (ADR 0015); part of the conversation, never hidden. */
   cards?: CardsView;
+  /** Shown instead of the default hint while there are no messages. */
+  empty?: ReactNode;
 }) {
   const t = useTranslations("chat");
   const errorMessage = useErrorMessage();
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
 
+  // Scroll the list itself, not the page: embedded in the dashboard, the page stays put.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8 text-center text-muted-foreground">
-        {t("empty")}
-      </div>
+      empty ?? (
+        <div className="flex flex-1 items-center justify-center p-8 text-center text-muted-foreground">
+          {t("empty")}
+        </div>
+      )
     );
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
       <ol
         ref={listRef}
         className="mx-auto flex max-w-3xl flex-col gap-4 p-4"
@@ -102,7 +109,6 @@ export function MessageList({
           </li>
         ))}
       </ol>
-      <div ref={bottomRef} />
       <SelectToAdd container={listRef} />
     </div>
   );

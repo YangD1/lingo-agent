@@ -108,9 +108,9 @@ describe("AiBadge", () => {
 
   it("says so when the estimate can't be loaded", async () => {
     api.mockRejectedValue(new Error("offline"));
-    show("advice");
+    show("memory_edit");
     await userEvent.click(screen.getByRole("button", { name: /Uses AI/ }));
     expect(await screen.findByText("Couldn't load the estimate.")).toBeInTheDocument();
-    expect(screen.getByTestId("ai-badge-details")).toHaveTextContent("Today's advice is written");
+    expect(screen.getByTestId("ai-badge-details")).toHaveTextContent("turns it into a vector");
   });
 });

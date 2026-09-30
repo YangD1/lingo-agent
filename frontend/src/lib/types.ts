@@ -11,8 +11,11 @@ export type Conversation = {
   updated_at: string;
   /** The grammar point a practice conversation is about; null for free chat. */
   focus_kc: { id: string; name_en: string; name_zh: string; cefr: string } | null;
-  /** "planning": the study-planning conversation from the placement result (ADR 0015 §6). */
-  purpose: "planning" | null;
+  /**
+   * "planning": the study-planning conversation from the placement result (ADR 0015 §6);
+   * "daily": the dashboard's conversation of the day (ADR 0016).
+   */
+  purpose: "planning" | "daily" | null;
 };
 export type AttachmentKind = "image" | "audio" | "document";
 /** backend/app/api/attachments.py AttachmentOut (ADR 0008). */

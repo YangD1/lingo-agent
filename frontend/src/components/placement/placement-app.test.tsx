@@ -32,8 +32,6 @@ const advice: Advice = {
     {
       candidate_id: "choose_book",
       kind: "choose_book",
-      title: "Pick a word book for B1",
-      reason: "You know about 3,100 words; a B1 book fills the gaps.",
       count: null,
       days_since: null,
       in_progress: false,
@@ -42,10 +40,7 @@ const advice: Advice = {
       book: null,
     },
   ],
-  status: "ai",
-  generated_at: "2026-09-30T00:11:00Z",
-  refreshing: false,
-  refresh_after: null,
+  model_ready: true,
 };
 
 const vocab = (index: number, word: string): Question => ({
@@ -189,8 +184,8 @@ describe("PlacementApp", () => {
     api.mockResolvedValueOnce(placement(null, true)).mockResolvedValueOnce(offer);
     show();
     const next = await screen.findByTestId("placement-next");
-    expect(await screen.findByText("Pick a word book for B1")).toBeInTheDocument();
-    expect(fetchAdvice).toHaveBeenCalledWith("en");
+    expect(await screen.findByText("Choose a word book")).toBeInTheDocument();
+    expect(fetchAdvice).toHaveBeenCalled();
     expect(next).toContainElement(screen.getByTestId("advice-item"));
     expect(screen.getByTestId("placement-plan")).toHaveAttribute("href", "/chat?plan=1");
     expect(screen.getByTestId("placement-plan")).toHaveTextContent("Plan my study with the tutor");

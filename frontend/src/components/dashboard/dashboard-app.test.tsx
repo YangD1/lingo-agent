@@ -17,8 +17,8 @@ vi.mock("./book-chart", () => ({ BookChart: () => <div data-testid="book-chart" 
 vi.mock("./grammar-chart", () => ({ GrammarChart: () => <div data-testid="grammar-chart" /> }));
 vi.mock("./skills-chart", () => ({ SkillsChart: () => <div data-testid="skills-chart" /> }));
 vi.mock("./errors-chart", () => ({ ErrorsChart: () => <div data-testid="errors-chart" /> }));
-// Fetches on its own; tested in advice-card.test.
-vi.mock("./advice-card", () => ({ AdviceCard: () => <div data-testid="advice" /> }));
+// Fetches on its own; tested in today-tutor.test.
+vi.mock("./today-tutor", () => ({ TodayTutor: () => <div data-testid="today" /> }));
 
 const level = (total: number, seen = 0): LevelSplit => ({
   total,

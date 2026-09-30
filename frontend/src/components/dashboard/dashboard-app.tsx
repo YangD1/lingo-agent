@@ -17,11 +17,11 @@ import {
 import { CEFR_LEVELS, kcName, learnerHref, practiceHref } from "@/lib/learner";
 
 import { ActivityHeatmap } from "./activity-heatmap";
-import { AdviceCard } from "./advice-card";
 import { BookChart } from "./book-chart";
 import { ErrorsChart } from "./errors-chart";
 import { GrammarChart } from "./grammar-chart";
 import { SkillsChart } from "./skills-chart";
+import { TodayTutor } from "./today-tutor";
 
 /** Skills the dashboard always lists; P1 only measures grammar and vocabulary. */
 const SKILLS = ["grammar", "vocab", "listening", "speaking", "reading", "writing"] as const;
@@ -38,8 +38,9 @@ export function DashboardApp() {
   const [board, setBoard] = useState<Dashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const load = () => fetchDashboard().then(setBoard, (e: unknown) => setError(describe(e)));
   useEffect(() => {
-    fetchDashboard().then(setBoard, (e: unknown) => setError(describe(e)));
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- describe is stable enough
   }, []);
 
@@ -56,7 +57,8 @@ export function DashboardApp() {
         {board && (
           <>
             <SummaryCards board={board} />
-            <AdviceCard />
+            {/* A turn counts toward today's numbers and the streak. */}
+            <TodayTutor onTurnFinished={() => void load()} />
             <div className="grid gap-6 md:grid-cols-2">
               <BookSection board={board} />
               <SkillsSection board={board} />

@@ -8,7 +8,6 @@ export type AiFeature =
   | "chat_audio"
   | "practice_start"
   | "plan_start"
-  | "advice"
   | "memory_edit";
 
 /** `llm_usage.task` labels the catalog uses; each has a name in messages (aiBadge.task). */
@@ -21,7 +20,7 @@ const AI_TASKS = [
   "asr",
   "practice_opening",
   "plan_opening",
-  "advice",
+  "advice", // no longer called (ADR 0016); past usage records still carry it
 ] as const;
 export type AiTask = (typeof AI_TASKS)[number];
 

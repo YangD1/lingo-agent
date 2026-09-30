@@ -41,7 +41,7 @@ describe("loadEstimates", () => {
 });
 
 it("callsOf is empty for a feature the backend doesn't list", () => {
-  expect(callsOf(estimates, "advice")).toEqual([]);
+  expect(callsOf(estimates, "memory_edit")).toEqual([]);
 });
 
 it("isAiTask knows the tasks that have a name", () => {

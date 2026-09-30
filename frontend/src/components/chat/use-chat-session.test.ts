@@ -108,6 +108,32 @@ describe("useChatSession", () => {
     expect(onTurnFinished).not.toHaveBeenCalled();
   });
 
+  it("creates with the given function, and keeps a refused one that may already exist", async () => {
+    const createConversation = vi.fn().mockResolvedValue({ ...CONVERSATION, purpose: "daily" });
+    streamChat.mockImplementation(async function* () {
+      yield* [];
+      throw new ApiError(409, "no_llm_configured", "configure a model");
+    });
+    const { result } = renderHook(() =>
+      useChatSession(null, {
+        onConversationCreated: vi.fn(),
+        onTurnFinished: vi.fn(),
+        createConversation,
+        discardRefused: false,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.send("Hi");
+    });
+
+    expect(createConversation).toHaveBeenCalledTimes(1);
+    expect(streamChat.mock.calls[0][0]).toBe("c1");
+    // Today's conversation is reused, not deleted: it may hold earlier turns.
+    expect(api).not.toHaveBeenCalled();
+    expect(result.current.error).toMatchObject({ code: "no_llm_configured" });
+  });
+
   it("marks the reply when the stream reports an error", async () => {
     api.mockResolvedValueOnce([]);
     streamChat.mockReturnValue(

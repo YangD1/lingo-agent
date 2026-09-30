@@ -228,6 +228,9 @@
     },
     "planning": {
       "badge": "学习规划"
+    },
+    "daily": {
+      "badge": "今天的学习"
     }
   },
   "memory": {
@@ -687,7 +690,6 @@
     "invalid_answer": "答案格式不对，请重新作答。",
     "placement_not_in_progress": "这次入学测已经放弃，请重新开始。",
     "placement_not_found": "找不到这次入学测。",
-    "advice_refresh_limited": "建议每小时只能手动刷新一次，请稍后再试。",
     "unknown_kc": "找不到这个语法点，可能已经下线。",
     "not_practice": "只有语法练习或学习规划对话会自动开始。",
     "conversation_started": "这个对话已经开始了。",
@@ -768,16 +770,7 @@
       "more": "多"
     },
     "advice": {
-      "title": "今天的建议",
-      "loading": "加载中…",
-      "writing": "正在生成建议…",
-      "byAi": "由 AI 从学习引擎给出的候选里挑选并写理由，生成于 {time}。",
       "noModel": "还没配置模型，下面是按规则给出的建议。<settings>去设置</settings>",
-      "failed": "AI 建议这次没生成出来，下面是按规则给出的建议。",
-      "rules": "按你的学习数据给出的建议。",
-      "refresh": "刷新建议",
-      "refreshAfter": "{n} 分钟后可再刷新",
-      "empty": "今天没有特别要安排的事。<chat>和私教聊一聊</chat>，也是很好的练习。",
       "kinds": {
         "placement": {
           "title": "做一次入学测",
@@ -828,6 +821,34 @@
         "grammar": "{kc} · 最近错 {n} 次 · 掌握度 {p}"
       },
       "evidenceLink": "查看依据"
+    },
+    "today": {
+      "title": "今天的学习",
+      "description": "和私教聊聊今天做什么。依据是你的学习数据，私教提议的操作要你确认才执行。",
+      "loading": "加载中…",
+      "continueInChat": "在对话页继续",
+      "greeting": {
+        "none": "今天没有特别要补的，想练点什么？",
+        "vocab_review": "今天有 {n} 个词到期，想先做什么？",
+        "vocab_learn": "今天还有 {n} 个新词没学，想先做什么？",
+        "vocab_screen": "先把词书里认识的词筛掉，背词会更省时间。想先做什么？",
+        "choose_book": "还没选词书。想先做什么？",
+        "placement": "还没做过入学测。先测一下水平，私教能讲得更贴合你。想先做什么？",
+        "retest": "上次入学测已经是 {days} 天前了。想先做什么？",
+        "resume": "你有一次入学测做到一半。想先做什么？",
+        "grammar_practice": "最近{kc}错得比较多。想先做什么？"
+      },
+      "quick": {
+        "whatToday": "今天学什么？",
+        "vocab_review": "帮我复习到期的 {n} 个词",
+        "vocab_learn": "我想学今天的新词",
+        "vocab_screen": "帮我筛掉认识的词",
+        "choose_book": "帮我选一本词书",
+        "placement": "我想做入学测",
+        "retest": "我想重新测一下水平",
+        "resume": "我想把入学测做完",
+        "grammar_practice": "我想练一下{kc}"
+      }
     }
   },
   "aiBadge": {
@@ -839,7 +860,6 @@
       "chat_audio": "你的录音由语音转写模型转成文字。",
       "practice_start": "练习开始时，私教的第一条消息由 AI 模型生成。",
       "plan_start": "私教根据你的测试结果和学习数据，用 AI 模型写出规划对话的第一条消息。之后每次回复和普通聊天一样。",
-      "advice": "今天的建议由 AI 模型根据你的学习数据写成，再由代码校验。没配置模型时显示模板建议。",
       "memory_edit": "添加或修改记忆时，向量模型会把它转成向量，方便私教之后检索。"
     },
     "task": {

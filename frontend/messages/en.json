@@ -228,6 +228,9 @@
     },
     "planning": {
       "badge": "Study planning"
+    },
+    "daily": {
+      "badge": "Today"
     }
   },
   "memory": {
@@ -687,7 +690,6 @@
     "invalid_answer": "That answer isn't valid. Please answer again.",
     "placement_not_in_progress": "This placement test was abandoned. Start a new one.",
     "placement_not_found": "This placement test doesn't exist.",
-    "advice_refresh_limited": "Advice can be refreshed once an hour. Please try again later.",
     "unknown_kc": "That grammar point no longer exists.",
     "not_practice": "Only a grammar practice or study planning conversation starts by itself.",
     "conversation_started": "This conversation has already started.",
@@ -768,16 +770,7 @@
       "more": "More"
     },
     "advice": {
-      "title": "Today's advice",
-      "loading": "Loading…",
-      "writing": "Writing your advice…",
-      "byAi": "Picked by AI from the learning engine's suggestions, with its reasons; written {time}.",
       "noModel": "No model is set up yet, so this advice follows simple rules. <settings>Open settings</settings>",
-      "failed": "The AI advice couldn't be written this time, so this advice follows simple rules.",
-      "rules": "Advice from your learning data.",
-      "refresh": "Refresh advice",
-      "refreshAfter": "Can refresh again in {n} min",
-      "empty": "Nothing in particular to catch up on today. <chat>A chat with your tutor</chat> is always good practice.",
       "kinds": {
         "placement": {
           "title": "Take the placement test",
@@ -828,6 +821,34 @@
         "grammar": "{kc} · {n} mistakes lately · mastery {p}"
       },
       "evidenceLink": "See the evidence"
+    },
+    "today": {
+      "title": "Today",
+      "description": "Talk over what to do today with your tutor. It goes by your learning data, and anything it proposes waits for your OK.",
+      "loading": "Loading…",
+      "continueInChat": "Continue in chat",
+      "greeting": {
+        "none": "Nothing in particular to catch up on today. What would you like to practise?",
+        "vocab_review": "You have {n} words due today. What would you like to start with?",
+        "vocab_learn": "You have {n} new words left today. What would you like to start with?",
+        "vocab_screen": "Skipping the words you already know makes reviews quicker. What would you like to start with?",
+        "choose_book": "You haven't chosen a word book yet. What would you like to start with?",
+        "placement": "You haven't taken the placement test yet; with your level, the tutor can pitch things right. What would you like to start with?",
+        "retest": "Your last placement test was {days} days ago. What would you like to start with?",
+        "resume": "You left a placement test halfway. What would you like to start with?",
+        "grammar_practice": "{kc} has tripped you up lately. What would you like to start with?"
+      },
+      "quick": {
+        "whatToday": "What should I study today?",
+        "vocab_review": "Help me review the {n} words that are due",
+        "vocab_learn": "I'd like to learn today's new words",
+        "vocab_screen": "Help me skip the words I know",
+        "choose_book": "Help me choose a word book",
+        "placement": "I'd like to take the placement test",
+        "retest": "I'd like to retest my level",
+        "resume": "I'd like to finish the placement test",
+        "grammar_practice": "I'd like to practise {kc}"
+      }
     }
   },
   "aiBadge": {
@@ -839,7 +860,6 @@
       "chat_audio": "Your recording is turned into text by a speech-to-text model.",
       "practice_start": "The tutor opens the practice with a first message written by an AI model.",
       "plan_start": "The tutor opens the planning conversation with a first message written by an AI model, from your test result and learning data. After that, each reply is like any chat message.",
-      "advice": "Today's advice is written by an AI model from your learning data, and checked by code. Without a model, template advice is shown instead.",
       "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the tutor can find it later."
     },
     "task": {

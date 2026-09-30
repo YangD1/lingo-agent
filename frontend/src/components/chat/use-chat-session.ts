@@ -32,10 +32,19 @@ type Options = {
   onCard?: (card: TutorCard) => void;
   /** The reply was saved; its background activity follows under `turnId`. */
   onReplyDone?: (conversationId: string, turnId: string) => void;
+  /** How a new chat's conversation is created; a plain one by default. */
+  createConversation?: () => Promise<Conversation>;
+  /**
+   * False when `createConversation` may return one that already exists (today's daily
+   * conversation): a refused first send then keeps it; an empty one is reused anyway.
+   */
+  discardRefused?: boolean;
 };
 
 const toApiErrorLike = (error: unknown): ApiErrorLike =>
   error instanceof ApiError ? error : { code: "network_error", message: String(error) };
+
+const createPlain = () => api<Conversation>("/conversations", { method: "POST" });
 
 let keySeq = 0;
 const nextKey = () => `m${++keySeq}`;
@@ -150,7 +159,7 @@ export function useChatSession(conversationId: string | null, options: Options) 
    */
   const ensureConversation = useCallback(async (): Promise<string> => {
     if (conversationId !== null) return conversationId;
-    creatingRef.current ??= api<Conversation>("/conversations", { method: "POST" }).then(
+    creatingRef.current ??= (optionsRef.current.createConversation ?? createPlain)().then(
       (created) => {
         createdIdRef.current = created.id;
         optionsRef.current.onConversationCreated(created);
@@ -188,7 +197,7 @@ export function useChatSession(conversationId: string | null, options: Options) 
       try {
         let id = conversationId ?? (await creatingRef.current);
         if (id == null) {
-          created = await api<Conversation>("/conversations", { method: "POST" });
+          created = await (optionsRef.current.createConversation ?? createPlain)();
           id = createdIdRef.current = created.id;
         }
         const stream = streamChat(id, text, {
@@ -207,9 +216,9 @@ export function useChatSession(conversationId: string | null, options: Options) 
           return true;
         }
         setMessages((all) => all.slice(0, -2));
-        if (created) {
+        if (created) createdIdRef.current = null;
+        if (created && optionsRef.current.discardRefused !== false) {
           // Don't leave an empty conversation behind when its first send was refused.
-          createdIdRef.current = null;
           await api(`/conversations/${created.id}`, { method: "DELETE" }).catch(() => {});
         }
         if (!isAbortError(e)) setError(toApiErrorLike(e));

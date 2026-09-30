@@ -10,13 +10,10 @@ export type AdviceKind =
   | "grammar_practice"
   | "choose_book";
 
-/** backend/app/api/advice.py AdviceItemOut (P1 plan §7.5.2). */
+/** backend/app/api/advice.py AdviceItemOut: one of the learning engine's candidates (ADR 0016). */
 export type AdviceItem = {
   candidate_id: string;
   kind: AdviceKind;
-  /** Null: template advice, written here in the UI language. */
-  title: string | null;
-  reason: string | null;
   /** Live evidence: due words, new words left, or mistakes. */
   count: number | null;
   /** Placement: days since the latest finished test; null if never. */
@@ -28,27 +25,25 @@ export type AdviceItem = {
 };
 
 export type Advice = {
+  /** Best first. */
   items: AdviceItem[];
-  /** ai / no_model / failed / empty; null before the first generation. */
-  status: "ai" | "no_model" | "failed" | "empty" | null;
-  generated_at: string | null;
-  /** New advice is being written in the background. */
-  refreshing: boolean;
-  /** When "refresh" is allowed again; null = now. */
-  refresh_after: string | null;
+  /** A chat model is set up: the tutor can talk the advice over; otherwise show links. */
+  model_ready: boolean;
 };
 
-function query(locale: string): string {
+export function fetchAdvice(): Promise<Advice> {
   const tz = browserTimeZone();
-  return new URLSearchParams({ locale, ...(tz ? { tz } : {}) }).toString();
+  return api<Advice>(`/advice${tz ? `?${new URLSearchParams({ tz })}` : ""}`);
 }
 
-export const fetchAdvice = (locale: string) => api<Advice>(`/advice?${query(locale)}`);
+/** Which template text an item gets: placement splits into first test, retest and resume. */
+export function templateKey(item: AdviceItem) {
+  if (item.kind !== "placement") return item.kind;
+  if (item.in_progress) return "resume";
+  return item.days_since === null ? "placement" : "retest";
+}
 
-export const refreshAdvice = (locale: string) =>
-  api<Advice>(`/advice/refresh?${query(locale)}`, { method: "POST" });
-
-/** Where each advice leads. Grammar goes to the learner model until task 19's practice chat. */
+/** Where each advice leads. */
 export function adviceHref(item: AdviceItem): string {
   switch (item.kind) {
     case "vocab_review":
@@ -65,7 +60,3 @@ export function adviceHref(item: AdviceItem): string {
       return item.kc ? practiceHref(item.kc.id) : "/learner";
   }
 }
-
-/** How long to keep asking while new advice is written: every 3 s, at most 10 times. */
-export const POLL_MS = 3000;
-export const POLL_TIMES = 10;
