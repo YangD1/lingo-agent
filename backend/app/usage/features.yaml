@@ -1,0 +1,77 @@
+# Which model calls each learner-facing feature makes (ADR 0014). The frontend's AI
+# badge shows these, with token estimates from the tenant's own recent calls
+# (`llm_usage`), or the `default` numbers here until there is history.
+#
+# Adding a feature that calls a model? Register it here and put an AI badge on it.
+#
+# Per call:
+#   task     the `llm_usage.task` label its history is recorded under
+#   section  provider section (llm / embedding / asr); default llm
+#   route    the route task it runs on, when not the same as `task`
+#   timing   now: the learner waits for it; background: after the reply, off the
+#            request path
+#   per      what one call covers: call / image / page (scanned PDF pages only)
+#   default  estimate without history: input/output tokens, or audio_seconds for asr
+#   history  false when the call is never recorded in llm_usage (embeddings)
+
+# Successful calls averaged per task.
+window: 20
+
+features:
+  chat_message:
+    calls:
+      - task: chat
+        timing: now
+        default: {input_tokens: 2500, output_tokens: 300}
+      # Reflection after each reply: memory, grammar tags, words; every few turns it
+      # also rewrites the conversation summary.
+      - task: reflect
+        timing: background
+        default: {input_tokens: 3000, output_tokens: 500}
+      - task: memory
+        section: embedding
+        timing: background
+        history: false
+        default: {input_tokens: 50, output_tokens: 0}
+
+  chat_image:
+    calls:
+      - task: vision
+        timing: now
+        per: image
+        default: {input_tokens: 1500, output_tokens: 200}
+
+  chat_pdf:
+    calls:
+      - task: vision
+        timing: now
+        per: page
+        default: {input_tokens: 1500, output_tokens: 600}
+
+  chat_audio:
+    calls:
+      - task: asr
+        section: asr
+        timing: now
+        default: {audio_seconds: 15}
+
+  practice_start:
+    calls:
+      - task: practice_opening
+        route: chat
+        timing: now
+        default: {input_tokens: 1500, output_tokens: 150}
+
+  advice:
+    calls:
+      - task: advice
+        timing: now
+        default: {input_tokens: 2500, output_tokens: 400}
+
+  memory_edit:
+    calls:
+      - task: memory
+        section: embedding
+        timing: now
+        history: false
+        default: {input_tokens: 50, output_tokens: 0}
