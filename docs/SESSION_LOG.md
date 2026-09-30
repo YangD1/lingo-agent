@@ -4,6 +4,29 @@
 
 ---
 
+## 2026-09-30 · P1e 任务 19：针对语法点的练习对话
+
+- **做了什么**：用户确认 Q19a–Q19d 均按推荐（私教自动开场；练习里的对错与普通对话同权；学习者没开口就复用；入口加 `/learner` 详情和看板常错语法点）；Q19e 没单独问，按默认（不自动结束，约 5 句用对后小结）。
+  - 19.1 迁移 `c6350c4e826a`（`conversations.focus_kc_id`）；`POST /conversations {focus_kc_id, locale}`、复用规则 `chat/service.py` `unstarted_practice`；`ConversationOut.focus_kc`。
+  - 19.2 `app/chat/practice.py` + `prompts/practice.md`：`load_context` 每轮拼练习指引（档位不给数字），UntrackedValue 不进 checkpoint；`ContextRead.practice_kc`。
+  - 19.3 `POST /conversations/{id}/opening`（`api/chat.py` `start_opening` / `open_practice`，与发消息共用 `_reply`）；`tutor` 在没有学习者消息时临时加 `prompts/practice_opening.md`；`usage/recorder.py` 支持 metadata `usage_task`，开场记为 `practice_opening`，不计入打卡。
+  - 19.4 前端：`streamOpening`、`useChatSession.open` / `readyFor`、`ChatApp` 的 `?practice=` 与自动开场、`PracticeBar`、列表标记、三个入口。
+  - 19.5 `e2e/practice.spec.ts`；活动公示补上 `practice_kc`；`docs/agent-tools.md`、P1 计划 §7.5.3。
+
+  提交 aa7c71d、09042ce、71cd6a1、66637a3 和本次。后端 777、Vitest 180、Playwright 33 全部通过，ruff、mypy、tsc、eslint 干净。
+- **未完成**：
+  - 练习指引和开场提示只用假模型验证过“指引送到了模型”，真实模型下练习对话的质量（讲解是否简短、是否真的引导造句、约 5 句后是否小结）还没看过。
+  - 仍然没有在 Docker 全栈上看过任务 16–19，要 `make up` 重建。
+- **下一步**：任务 20（P1 Demo 全流程实测 + README 更新）。需要用户实测：建议在 Docker 全栈、真实模型下走一遍 注册 → 配模型 → 入学测 → 选词书背词 → 聊天 → 看板建议 → 语法练习。开工前拆子任务、和用户确认。
+- **踩坑**：
+  - 同一个 thread 第二次 `aupdate_state` 要给 `as_node`，否则 `InvalidUpdateError: Ambiguous update`。
+  - ruff `RUF001` 会拦中文全角标点（`：`、`（）`）：确实需要时加单行 `# noqa: RUF001`。
+  - React Compiler 的 `react-hooks/set-state-in-effect` 是否报错取决于整个 hook 能否被分析：把事件处理改成 `useCallback` 后，`use-chat-session` 里原本不报的 `setMessages([])` 开始报。“当前会话的历史已加载”要用加载完成时记下的 id 在渲染时比较得出，不能在 effect 里同步 set。
+  - 开场没有学习者消息，活动的 turn id 固定为 `opening`；前端从历史恢复时，第一条是私教消息就挂到 `opening`。
+  - Playwright 里消息的 `data-role` 在 `<li>` 上，不在 `[data-slot="message"]` 上。
+
+---
+
 ## 2026-09-30 · P1e 任务 18：看板学习建议（候选 → 模型挑选 → 缓存）
 
 - **做了什么**：用户确认 Q18a–Q18e 均按推荐。

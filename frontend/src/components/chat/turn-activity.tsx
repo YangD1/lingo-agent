@@ -50,6 +50,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
 
   const d = digest(activities);
   const parts = [
+    d.practiced && t("practice"),
     d.memoriesRead > 0 && t("read", { n: d.memoriesRead }),
     d.memoriesSaved > 0 && t("saved", { n: d.memoriesSaved }),
     d.memoriesDeleted > 0 && t("deleted", { n: d.memoriesDeleted }),
@@ -153,6 +154,7 @@ function Step({
             {s.profile_items > 0 && ` · ${t("profileRead", { n: s.profile_items })}`}
           </h4>
           {ids.length > 0 && <ul className="list-disc pl-4">{ids.map(memory)}</ul>}
+          {s.practice_kc && <p>{t("practiceRead", { kc: kcName(s.practice_kc) })}</p>}
         </section>
       );
     }

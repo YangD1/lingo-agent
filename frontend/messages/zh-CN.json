@@ -138,7 +138,9 @@
       "removeWordLabel": "把 {word} 移出生词本",
       "wordRemoved": "已移出",
       "removeFailed": "移出失败，请重试",
-      "wordList": "查看生词本"
+      "wordList": "查看生词本",
+      "practice": "按练习要求回复",
+      "practiceRead": "练习指引：{kc}（掌握度档位和最近的错句）"
     },
     "placementBanner": {
       "start": "先做个入学测吧：大约 10 分钟，私教会按你的水平调整讲解和练习。",

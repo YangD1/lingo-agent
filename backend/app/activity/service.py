@@ -252,6 +252,8 @@ def word_refs(summary: Summary) -> list[int]:
 def kc_refs(summary: Summary) -> list[str]:
     if isinstance(summary, GrammarTags):
         return [m.kc_id for m in summary.mistakes] + summary.used_correctly
+    if isinstance(summary, ContextRead) and summary.practice_kc:
+        return [summary.practice_kc]
     return []
 
 

@@ -144,6 +144,16 @@ async def test_the_tutor_opens_a_practice_conversation(
     # Only the tutor's message is kept: nothing was said on the learner's behalf.
     history = (await client.get(f"/conversations/{conversation_id}/messages")).json()
     assert [(m["role"], m["content"]) for m in history] == [("assistant", REPLY)]
+    # The learner can see what the tutor read, with the point's names.
+    body = (
+        await client.get(
+            f"/conversations/{conversation_id}/activity", params={"turn": OPENING_TURN_ID}
+        )
+    ).json()
+    assert [(a["name"], a["summary"]["practice_kc"]) for a in body["activities"]] == [
+        ("load_context", KC)
+    ]
+    assert body["kcs"][KC]["name_zh"] == "基本句子结构（主语 + 谓语）"  # noqa: RUF001 (Chinese punctuation)
     # Served by the chat model, but not counted as a chat turn of the learner's.
     [record] = usage_records
     assert (record.task, record.connection_name) == (OPENING_USAGE_TASK, "deepseek")

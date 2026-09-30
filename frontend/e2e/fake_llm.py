@@ -45,6 +45,10 @@ LEARNER_LINE = re.compile(r"^Learner(?: \[(u\d+)\])?: (.*)$", re.MULTILINE)
 REMEMBER = re.compile(r"remember that (.+?)\.?$", re.IGNORECASE)
 THIRD_PERSON = re.compile(r"\b(?:he|she|it) like(s?)\b", re.IGNORECASE)
 THIRD_PERSON_KC = "g.present_simple_third_person"
+# A practice opening (backend/app/prompts/practice_opening.md) and the point it is about
+# (backend/app/chat/practice.py render_practice).
+OPENING_CUE = "(This is not from the learner.)"
+PRACTICE_POINT = re.compile(r"^- Grammar point: (.+) \(CEFR [A-C][12]\)$", re.MULTILINE)
 ASKED_WORD = re.compile(r"what does \"?([A-Za-z]+)\"? mean", re.IGNORECASE)
 FACTS_HEADING = "### Things they have told you\n"
 # Advice candidates are listed as "- `<id>`: <what>".
@@ -65,10 +69,19 @@ def remembered_facts(messages: list[dict[str, Any]]) -> list[str]:
     return [line.removeprefix("- ") for line in block.splitlines()]
 
 
+def practice_point(messages: list[dict[str, Any]]) -> str | None:
+    """The grammar point named in a practice conversation's guidance, if any."""
+    system = "\n".join(text_of(m["content"]) for m in messages if m["role"] == "system")
+    found = PRACTICE_POINT.search(system)
+    return found.group(1) if found else None
+
+
 def reply_for(messages: list[dict[str, Any]]) -> str:
     last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
     images = sum(p.get("type") == "image_url" for p in last) if isinstance(last, list) else 0
     last = text_of(last)
+    if last.startswith(OPENING_CUE) and (point := practice_point(messages)):
+        return f"Let's practise: {point}."
     if "what do you remember" in last.lower():
         return "I remember: " + (" | ".join(remembered_facts(messages)) or "nothing yet")
     if "long" in last.lower():

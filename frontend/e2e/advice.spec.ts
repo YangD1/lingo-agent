@@ -49,7 +49,11 @@ test("advice: templates without a model, then only the model's real picks", asyn
   await expect(advice.getByRole("button", { name: "刷新建议" })).toBeDisabled();
   await expect(advice).toContainText("分钟后可再刷新");
 
-  // Until the practice chat exists, the advice leads to the grammar point's evidence.
+  // Practice starts a conversation (e2e/practice.spec.ts); the evidence is a link away.
+  await expect(practice.getByRole("link", { name: "开始练习" })).toHaveAttribute(
+    "href",
+    "/chat?practice=g.present_simple_third_person",
+  );
   await practice.getByRole("link", { name: "查看依据" }).click();
   await expect(page).toHaveURL(/\/learner\?kc=g\.present_simple_third_person$/);
 });

@@ -93,6 +93,25 @@ describe("TurnActivity", () => {
     expect(screen.getByRole("link", { name: "Go to Settings" })).toHaveAttribute("href", "/settings");
   });
 
+  it("says when the tutor followed a practice conversation's guidance", () => {
+    show({
+      activities: [
+        step("load_context", {
+          facts: [],
+          episodes: [],
+          profile_items: 0,
+          practice_kc: "g.third",
+        }),
+      ],
+      kcs: { "g.third": { name_en: "Third person -s", name_zh: "第三人称单数", cefr: "A1" } },
+    });
+
+    const line = screen.getByRole("button", { name: /^What the tutor did:/ });
+    expect(line).toHaveTextContent("followed the practice plan");
+    fireEvent.click(line);
+    expect(screen.getByText(/^Practice guidance: Third person -s \(A1\)/)).toBeVisible();
+  });
+
   it("renders nothing for a turn without activity", () => {
     const { container } = show({});
     expect(container).toBeEmptyDOMElement();

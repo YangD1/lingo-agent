@@ -12,7 +12,13 @@ export type Activity = {
   created_at?: string;
 };
 
-export type ContextRead = { facts: string[]; episodes: string[]; profile_items: number };
+export type ContextRead = {
+  facts: string[];
+  episodes: string[];
+  profile_items: number;
+  /** The grammar point of a practice conversation (P1 plan §7.5.3). */
+  practice_kc?: string | null;
+};
 export type MemoryChanges = {
   added: string[];
   updated: string[];
@@ -68,6 +74,8 @@ export type TurnDigest = {
   memoriesRead: number;
   memoriesSaved: number;
   memoriesDeleted: number;
+  /** The tutor was given a practice conversation's guidance. */
+  practiced: boolean;
   profileUpdated: boolean;
   mistakes: number;
   usedCorrectly: number;
@@ -84,6 +92,7 @@ export function digest(activities: Activity[]): TurnDigest {
     memoriesRead: 0,
     memoriesSaved: 0,
     memoriesDeleted: 0,
+    practiced: false,
     profileUpdated: false,
     mistakes: 0,
     usedCorrectly: 0,
@@ -99,6 +108,7 @@ export function digest(activities: Activity[]): TurnDigest {
     if (a.name === "load_context") {
       const s = a.summary as ContextRead;
       d.memoriesRead += (s.facts?.length ?? 0) + (s.episodes?.length ?? 0);
+      d.practiced ||= Boolean(s.practice_kc);
     } else if (a.name === "reflect_memory") {
       const s = a.summary as MemoryChanges;
       d.memoriesSaved += (s.added?.length ?? 0) + (s.updated?.length ?? 0);

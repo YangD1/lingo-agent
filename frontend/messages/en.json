@@ -138,7 +138,9 @@
       "removeWordLabel": "Remove {word} from your word list",
       "wordRemoved": "removed",
       "removeFailed": "Couldn't remove it; try again",
-      "wordList": "Word list"
+      "wordList": "Word list",
+      "practice": "followed the practice plan",
+      "practiceRead": "Practice guidance: {kc} (how well you know it and your recent mistakes)"
     },
     "placementBanner": {
       "start": "Take the placement test first: about 10 minutes, and your tutor adjusts explanations and practice to your level.",
