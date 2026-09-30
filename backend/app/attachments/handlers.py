@@ -1,6 +1,7 @@
 """Derived-text handlers, keyed by MIME type or kind (ADR 0008 §1)."""
 
 import asyncio
+from collections import Counter
 
 import anyio
 
@@ -15,6 +16,12 @@ from app.attachments.reading import read_image, render_reading, vendor_failure
 from app.attachments.sniff import DOCX_MIME
 from app.providers.asr import TranscriptionError, get_asr
 from app.providers.errors import NoModelConfiguredError
+
+# Whisper fills silence with invented text, often one character over and over
+# (a -60 dB clip came back as a row of "ლ"). Past this share of one character in a
+# transcript this long, it is treated as nothing heard.
+REPEATED_CHAR_SHARE = 0.8
+REPEATED_CHAR_MIN_LENGTH = 10
 
 # Past this the text is cut (and the cut recorded) so one file can't flood the context.
 MAX_DOCUMENT_CHARS = 200_000
@@ -59,12 +66,26 @@ async def audio(job: ProcessingJob) -> ProcessingResult:
         raise ProcessingFailed(
             "transcription_failed", f"speech-to-text failed ({vendor_failure(cause)})"
         ) from exc
+    if not heard_speech(transcript.text):
+        raise ProcessingFailed("transcription_empty", "no speech was heard in the recording")
     meta: dict[str, object] = {}
     if transcript.language:
         meta["language"] = transcript.language
     if transcript.duration_seconds is not None:
         meta["duration_seconds"] = transcript.duration_seconds
     return ProcessingResult(transcript.text, meta)
+
+
+def heard_speech(text: str) -> bool:
+    """False for an empty transcript, one without letters or digits, or one that is
+    mostly a single repeated character."""
+    chars = [c for c in text if not c.isspace()]
+    if not any(c.isalnum() for c in chars):
+        return False
+    if len(chars) < REPEATED_CHAR_MIN_LENGTH:
+        return True
+    (_, most), *_ = Counter(chars).most_common(1)
+    return most / len(chars) < REPEATED_CHAR_SHARE
 
 
 async def pdf(job: ProcessingJob) -> ProcessingResult:

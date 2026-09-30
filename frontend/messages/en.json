@@ -650,6 +650,7 @@
     "model_list_failed": "Couldn't fetch the model list from the provider.",
     "no_vision_model": "No image-capable model is set up. Configure the image (vision) model in Settings.",
     "no_asr_model": "No speech-to-text model is set up. Configure it in Settings.",
+    "transcription_empty": "No speech was heard in this recording. Try recording it again.",
     "attachment_not_found": "This attachment doesn't exist or was deleted.",
     "attachment_not_ready": "An attachment is still being processed. Please wait.",
     "attachment_not_failed": "This attachment didn't fail, so there is nothing to retry.",

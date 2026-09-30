@@ -56,15 +56,18 @@ def vision(monkeypatch: pytest.MonkeyPatch) -> FakeVision:
 
 
 class FakeASR:
-    def __init__(self, error: Exception | None = None) -> None:
+    def __init__(
+        self, error: Exception | None = None, text: str = "I goed home yesterday."
+    ) -> None:
         self.calls: list[dict[str, Any]] = []
         self.error = error
+        self.text = text
 
     async def transcribe(self, audio: bytes, **kwargs: Any) -> Transcript:
         self.calls.append({"audio": audio, **kwargs})
         if self.error is not None:
             raise self.error
-        return Transcript("I goed home yesterday.", "en", 2.5)
+        return Transcript(self.text, "en", 2.5)
 
 
 def use_asr(monkeypatch: pytest.MonkeyPatch, fake: FakeASR) -> FakeASR:
@@ -165,6 +168,21 @@ async def test_audio_without_asr_or_with_a_failing_asr(
     failed = await settled(client, app, failing["id"])
     assert failed["error"] == "transcription_failed"
     assert "HTTP 429" in failed["meta"]["error_message"]
+
+
+async def test_audio_with_nothing_heard_fails(
+    client: AsyncClient, app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_asr(monkeypatch, FakeASR(text="ლლლლლლლლლლლლლლ"))
+    await login(client)
+    conversation = await new_conversation(client)
+    created = await uploaded(client, conversation["id"], b"OggS" + b"\x00" * 64, "quiet.ogg")
+
+    failed = await settled(client, app, created["id"])
+
+    assert failed["status"] == "failed"
+    assert failed["error"] == "transcription_empty"
+    assert failed["text"] is None
 
 
 async def test_text_pdf_needs_no_model(client: AsyncClient, app: FastAPI) -> None:

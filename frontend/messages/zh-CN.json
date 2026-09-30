@@ -650,6 +650,7 @@
     "model_list_failed": "无法从服务商获取模型列表。",
     "no_vision_model": "还没有配置能看图的模型。请在设置页配置图片识别（vision）模型。",
     "no_asr_model": "还没有配置语音转文字模型。请在设置页配置。",
+    "transcription_empty": "没听清这段录音，可能没录到说话声。重录一下试试。",
     "attachment_not_found": "附件不存在或已被删除。",
     "attachment_not_ready": "还有附件在处理中，请稍等。",
     "attachment_not_failed": "这个附件没有失败，不需要重试。",
