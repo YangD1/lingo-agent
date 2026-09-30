@@ -36,6 +36,8 @@ class ContextRead(Summary):
     facts: list[uuid.UUID] = []
     episodes: list[uuid.UUID] = []
     profile_items: int = 0
+    # The grammar point of a practice conversation, if this is one.
+    practice_kc: str | None = None
 
 
 class MemoryChanges(Summary):

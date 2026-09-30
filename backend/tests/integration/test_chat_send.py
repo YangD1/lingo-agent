@@ -183,7 +183,12 @@ async def test_reply_streams_as_tokens_then_done(
         "step",
         "ok",
     )
-    assert activity["summary"] == {"facts": [], "episodes": [], "profile_items": 0}
+    assert activity["summary"] == {
+        "facts": [],
+        "episodes": [],
+        "profile_items": 0,
+        "practice_kc": None,
+    }
 
 
 async def test_stream_forbids_proxy_transforms(

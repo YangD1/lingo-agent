@@ -21,6 +21,7 @@ from app.attachments.context import DatabaseAttachments
 from app.attachments.service import AttachmentNotFoundError, AttachmentStateError
 from app.chat import service
 from app.chat.locks import ConversationLocks
+from app.chat.practice import DatabasePractice
 from app.chat.service import ConversationNotFoundError
 from app.chat.turn import DoneEvent, begin_turn, new_message_id, stream_reply
 from app.db.models import Attachment, Conversation
@@ -195,6 +196,7 @@ class Turn:
     providers: TenantProviderContext
     text: str
     message_id: str
+    focus_kc_id: str | None
 
 
 def _conflict(code: str, message: str) -> HTTPException:
@@ -245,7 +247,7 @@ async def start_turn(
             )
         except AttachmentStateError as exc:
             raise _conflict(exc.code, exc.message) from exc
-        yield Turn(conversation.id, providers, text, message_id)
+        yield Turn(conversation.id, providers, text, message_id, conversation.focus_kc_id)
     finally:
         locks.release(conversation.id)
 
@@ -304,6 +306,9 @@ async def send_message(
         activity=DatabaseActivity(
             request.app.state.sessionmaker, user.id, turn.conversation_id, turn.message_id
         ),
+        practice=DatabasePractice(request.app.state.sessionmaker, user.id, turn.focus_kc_id)
+        if turn.focus_kc_id
+        else None,
     ):
         data = dataclasses.asdict(event)
         yield ServerSentEvent(event=data.pop("event"), data=data)

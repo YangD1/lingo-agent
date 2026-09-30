@@ -15,7 +15,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.activity.service import ContextRead, Step
+from app.adaptive.kc.catalog import get_grammar_catalog
 from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph, build_chat_graph
+from app.chat.practice import Mistake, PracticeFocus
 from app.db.urls import to_psycopg_conninfo
 from app.memory.context import MAX_FACTS_CHARS, LearnerContext
 from app.providers import llm
@@ -292,6 +294,90 @@ async def test_failing_activity_record_does_not_stop_the_reply(
     )
 
     assert result["messages"][-1].content == "Nice to meet you!"
+
+
+PRACTICE_MARKER = "I goed practice-marker-7 yesterday"
+
+
+class FakePractice:
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+
+    async def load(self) -> PracticeFocus:
+        if self.fail:
+            raise RuntimeError("database down")
+        kc = get_grammar_catalog().get("g.word_order_svo")
+        assert kc is not None
+        return PracticeFocus(kc, "weak", [Mistake(PRACTICE_MARKER, "I went yesterday")])
+
+
+async def test_practice_guidance_is_sent_but_never_checkpointed(
+    graph: ChatGraph,
+    providers: TenantProviderContext,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    model = RecordingChatModel()
+    use_model(monkeypatch, model)
+    thread_id = uuid.uuid4()
+    context = ChatContext(providers, learner=FakeLearner(), practice=FakePractice())
+
+    await graph.ainvoke({"messages": [HumanMessage("Hi")]}, thread(thread_id), context=context)
+
+    [sent] = model.seen
+    prompt = str(sent[0].content)
+    # Practice comes last, after what the tutor knows about the learner.
+    assert prompt.index("About this learner") < prompt.index("grammar practice")
+    assert "Basic sentence structure" in prompt
+    assert "current grasp: weak" in prompt
+    assert f'"{PRACTICE_MARKER}" -> "I went yesterday"' in prompt
+    assert set((await graph.aget_state(thread(thread_id))).values) == {"messages"}
+    assert PRACTICE_MARKER not in await dump_checkpoints(db_session, thread_id)
+
+
+async def test_free_chat_gets_no_practice_guidance(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = RecordingChatModel()
+    use_model(monkeypatch, model)
+
+    await graph.ainvoke(
+        {"messages": [HumanMessage("Hi")]},
+        thread(uuid.uuid4()),
+        context=ChatContext(providers, learner=FakeLearner()),
+    )
+
+    assert "grammar practice" not in str(model.seen[0][0].content)
+
+
+async def test_practice_is_recorded_and_its_failure_does_not_stop_the_reply(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = RecordingChatModel()
+    use_model(monkeypatch, model)
+    ok, broken = FakeActivity(), FakeActivity()
+
+    await graph.ainvoke(
+        {"messages": [HumanMessage("Hi")]},
+        thread(uuid.uuid4()),
+        context=ChatContext(providers, practice=FakePractice(), activity=ok),
+    )
+    result = await graph.ainvoke(
+        {"messages": [HumanMessage("Hi")]},
+        thread(uuid.uuid4()),
+        context=ChatContext(
+            providers, learner=FakeLearner(), practice=FakePractice(fail=True), activity=broken
+        ),
+    )
+
+    [step] = ok.steps
+    assert step.summary == ContextRead(practice_kc="g.word_order_svo")
+    # The memories still arrived, so the step is not a failure; the reply goes out.
+    [step] = broken.steps
+    assert step.status == "ok"
+    assert step.summary == ContextRead(profile_items=1)
+    assert result["messages"][-1].content == "Nice to meet you!"
+    assert "grammar practice" not in str(model.seen[-1][0].content)
 
 
 async def dump_checkpoints(session: AsyncSession, thread_id: uuid.UUID) -> str:

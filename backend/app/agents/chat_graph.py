@@ -35,7 +35,13 @@ from langgraph.runtime import Runtime
 
 from app.activity.service import ActivitySink, ContextRead, Step, timed
 from app.attachments.context import AttachmentSource, render_turn, turn_content
-from app.memory.context import LearnerSource, facts_shown, render_learner_context
+from app.chat.practice import PracticeSource, render_practice
+from app.memory.context import (
+    LearnerContext,
+    LearnerSource,
+    facts_shown,
+    render_learner_context,
+)
 from app.prompts import load_prompt
 from app.providers.config import TenantProviderContext
 from app.providers.llm import get_llm
@@ -55,12 +61,16 @@ class ChatContext:
     learner: LearnerSource | None = None
     # Where this turn's steps are recorded for the learner (ADR 0013 §3).
     activity: ActivitySink | None = None
+    # The grammar point of a practice conversation (P1 plan §7.5.3); None for free chat.
+    practice: PracticeSource | None = None
 
 
 class ChatState(MessagesState):
     # What the tutor is told about the learner this turn. Untracked: never written to
     # the checkpoint, so memories the learner deletes leave no copy behind.
     learner_context: Annotated[str, UntrackedValue(str)]
+    # Practice guidance for this turn, untracked likewise so it reflects current mastery.
+    practice: Annotated[str, UntrackedValue(str)]
 
 
 # Callers send and get plain messages; learner_context is internal to a run.
@@ -68,27 +78,42 @@ type ChatGraph = CompiledStateGraph[ChatState, ChatContext, MessagesState, Messa
 
 
 async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
-    source = runtime.context.learner
-    if source is None:
-        return {"learner_context": ""}
+    learner = runtime.context.learner
+    practice = runtime.context.practice
+    if learner is None and practice is None:
+        return {"learner_context": "", "practice": ""}
     latest = next((m.text for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
+    context = focus = None
+    failed = False
     with timed() as watch:
-        try:
-            context = await source.load(latest)
-        except Exception:
-            # Memory makes replies better; its failure must not stop them.
-            logger.exception("loading the learner context failed")
-            context = None
-    if context is None:
+        # Memory and practice guidance make replies better; their failure must not stop them.
+        if learner is not None:
+            try:
+                context = await learner.load(latest)
+            except Exception:
+                logger.exception("loading the learner context failed")
+                failed = True
+        if practice is not None:
+            try:
+                focus = await practice.load()
+            except Exception:
+                logger.exception("loading the practice focus failed")
+                failed = True
+    if failed and context is None and focus is None:
         await report(runtime, Step(LOAD_CONTEXT_NODE, "failed", duration_ms=watch.ms))
-        return {"learner_context": ""}
+        return {"learner_context": "", "practice": ""}
+    context = context or LearnerContext()
     read = ContextRead(
         facts=list(context.fact_ids[: facts_shown(context.facts)]),
         episodes=list(context.episode_ids),
         profile_items=len(context.profile),
+        practice_kc=focus.kc.id if focus else None,
     )
     await report(runtime, Step(LOAD_CONTEXT_NODE, summary=read, duration_ms=watch.ms))
-    return {"learner_context": render_learner_context(context)}
+    return {
+        "learner_context": render_learner_context(context),
+        "practice": render_practice(focus) if focus else "",
+    }
 
 
 async def report(runtime: Runtime[ChatContext], step: Step) -> None:
@@ -109,7 +134,8 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
     history, has_images = await _with_attachments(state["messages"], runtime.context.attachments)
     # A turn that brings images is answered by a model configured to see them.
     llm = get_llm(runtime.context.providers, "vision" if has_images else "chat")
-    messages = [SystemMessage(system_prompt(state.get("learner_context", ""))), *history]
+    prompt = system_prompt(state.get("learner_context", ""), state.get("practice", ""))
+    messages = [SystemMessage(prompt), *history]
     # astream, not ainvoke: if the learner disconnects, the run is cancelled, and only
     # astream reports that to callbacks (ainvoke's internal gather is cancelled before
     # on_llm_error runs), so llm_usage would miss a call the provider still bills for.
@@ -127,13 +153,18 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
     return {"messages": [message_chunk_to_message(reply)]}
 
 
-def system_prompt(learner_context: str) -> str:
-    prompt = load_prompt("tutor_system")
-    if not learner_context:
-        return prompt
-    # replace, not format: memories may contain braces.
-    section = load_prompt("learner_context").replace("{learner_context}", learner_context)
-    return f"{prompt}\n\n{section}"
+def system_prompt(learner_context: str, practice: str = "") -> str:
+    """The tutor's instructions, then what it knows about the learner, then (in a
+    practice conversation) what this conversation is for."""
+    sections = [load_prompt("tutor_system")]
+    if learner_context:
+        # replace, not format: memories may contain braces.
+        sections.append(
+            load_prompt("learner_context").replace("{learner_context}", learner_context)
+        )
+    if practice:
+        sections.append(practice)
+    return "\n\n".join(sections)
 
 
 async def _with_attachments(

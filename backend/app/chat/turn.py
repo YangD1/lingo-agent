@@ -17,6 +17,7 @@ from app.activity.service import ActivitySink
 from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph
 from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
+from app.chat.practice import PracticeSource
 from app.chat.service import thread_config
 from app.db.models import Attachment, Conversation
 from app.memory.context import LearnerSource
@@ -118,6 +119,7 @@ async def stream_reply(
     attachments: AttachmentSource | None = None,
     learner: LearnerSource | None = None,
     activity: ActivitySink | None = None,
+    practice: PracticeSource | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -145,6 +147,7 @@ async def stream_reply(
                 attachments=attachments,
                 learner=learner,
                 activity=activity,
+                practice=practice,
             ):
                 queue.put_nowait(event)
         finally:
@@ -175,6 +178,7 @@ async def _run_graph(
     attachments: AttachmentSource | None,
     learner: LearnerSource | None,
     activity: ActivitySink | None,
+    practice: PracticeSource | None,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     usage = {"input_tokens": 0, "output_tokens": 0}
@@ -187,7 +191,7 @@ async def _run_graph(
                 "metadata": {"user_id": str(user_id)},
                 "tags": ["chat"],
             },
-            context=ChatContext(providers, attachments, learner, activity),
+            context=ChatContext(providers, attachments, learner, activity, practice),
             stream_mode=["messages", "custom"],
         ):
             if mode == "custom":
