@@ -279,6 +279,18 @@ BKT、Elo 纯函数单测（边界：概率在 [0,1]、连续答对收敛、K �
 - 来自 P1 实测反馈：凡是消耗模型 token 的功能点都带“AI”标，悬停（触屏点按）显示做什么用了 AI、每次约多少 token、回复后后台还会做什么。Q22a 只显示 token 不做价格；Q22b 按租户最近 20 次同类成功调用的平均，没有历史用默认估计并注明；Q22c 先做 22 再做 21。
 - **落地记录**：功能 → 调用清单 `backend/app/usage/features.yaml`（7 个功能）；`GET /usage/estimates`；前端 `AiBadge`（Base UI Popover，悬停、聚焦、点按都能打开，整站共用一次请求）；挂在聊天发送 / 附件 / 录音、三处“开始练习”、看板建议、记忆列表。完整对照表见 `docs/agent-tools.md`“AI 用量标记”。
 
+## 7.7 入学测后的学习建议与私教代为安排（任务 21，2026-09-30 追加，ADR 0015）
+
+- 来自 P1 实测反馈。Q21a：放在 P1 做。Q21b：有副作用的操作先出确认卡，点了才执行，之后可撤销。Q21c：普通对话都绑定工具，练习会话不绑定。Q21d：工具范围是选词书与每天新词数、开语法练习、复习 / 筛词 / 重测的直达卡片、设学习目标与每天时长。ADR 0015 §8 的 5 条新决定按推荐确认。
+- 设计要点：
+  - 图改为 `load_context → tutor ⇄ tools → END`，每轮最多 2 次往返、每次最多 3 个调用；
+  - 工具 `propose_word_book`、`propose_learning_goal`、`suggest_practice`、`suggest_link`；
+  - 卡片存在新表 `tutor_cards`，状态 `proposed → applied | declined`、`applied → undone`，无副作用的卡片状态为 `info`；
+  - 接口 `POST /cards/{id}/apply|decline|undo`；
+  - `conversations.purpose='planning'` 表示规划对话；
+  - 工具后的后续调用记为 `chat_tools`，规划对话的开场记为 `plan_opening`。
+- 子任务见 `docs/PROGRESS.md` 任务 21。
+
 ---
 
 ## 8. 表汇总与迁移
