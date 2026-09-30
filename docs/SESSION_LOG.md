@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-09-30 · 任务 22：AI 用量标记（22.1–22.4 全部完成）
+
+- **做了什么**：
+  - 22.1 后端：`backend/app/usage/features.yaml` 列出 7 个功能（`chat_message`、`chat_image`、`chat_pdf`、`chat_audio`、`practice_start`、`advice`、`memory_edit`）各自触发的调用和默认估计，由 `features.py` 校验。`estimates.py` 按 task 取租户最近 20 次成功调用求平均，并用 `resolve_route` 给出当前模型。接口 `GET /usage/estimates` 登录即可访问。
+  - 22.2 前端：`components/ai-badge.tsx` + `lib/ai-usage.ts`，shadcn `ui/popover.tsx`（Base UI，`openOnHover`）。
+  - 22.3 挂载：聊天发送 / 附件（一个标说明两个功能）/ 录音按钮角上；三处“开始练习”；建议卡片标题和 AI 条目（替换了原来的纯文字 AI 标）；记忆列表标题。
+  - 22.4：ADR 0014、CLAUDE.md 约束、`docs/agent-tools.md`“AI 用量标记”对照表、PLAN、P1 计划 §7.6。E2E `e2e/usage.spec.ts` 通过。
+  - 验证：后端全量 790 通过；Vitest 189 通过；ruff、`mypy app`、eslint、tsc 都干净。提交：7855108、be4f1cb、5d423cf 和本条。
+- **未完成**：没有。任务 21 还没动。
+- **下一步**：21.1（ADR 0015 私教工具调用与确认卡）。现状见上一条交接的“开工前需要的现状”。任务 21 的新工具（如换词书、设目标）如果会调用模型，要按 ADR 0014 登记到 `features.yaml` 并挂标。规划对话本身走 `chat`；如果新增 task（如 `plan_opening`），也要登记。
+- **踩坑**：
+  - Python 3.12 下 `except A, B:` 是语法错误，要写成 `except (A, B):`。
+  - next-intl 的 key 有类型约束，`` t(`task.${string}`) `` 过不了 tsc，要先用类型守卫（`isAiTask`）收窄。
+  - 向量化不走 chat 回调，不写 `llm_usage`，所以 `memory` 估计始终是默认值（清单里是 `history: false`）。
+  - `mypy app tests` 里有 14 个历史遗留的测试文件类型错误；`make lint` 只检查 `mypy app`，和本任务无关。
+  - Playwright 无头 Chromium 缺中文字体，截图里的中文会显示成方框，不是页面问题。
+  - Docker 全栈仍是旧镜像（没有本任务的改动）；要实测需要重新 `make up`，放到 20.5 / 20.6 一起做。
+
 ## 2026-09-30 · 任务 20.2–20.4：Docker 重建、用户实测，反馈拆成任务 21、22
 
 - **做了什么**：
