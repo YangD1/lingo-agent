@@ -136,6 +136,10 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
     llm = get_llm(runtime.context.providers, "vision" if has_images else "chat")
     prompt = system_prompt(state.get("learner_context", ""), state.get("practice", ""))
     messages = [SystemMessage(prompt), *history]
+    if not any(isinstance(m, HumanMessage) for m in history):
+        # A practice opening: the learner hasn't written yet. Some providers need a user
+        # turn, so the cue goes in as one, for this call only.
+        messages.append(HumanMessage(load_prompt("practice_opening")))
     # astream, not ainvoke: if the learner disconnects, the run is cancelled, and only
     # astream reports that to callbacks (ainvoke's internal gather is cancelled before
     # on_llm_error runs), so llm_usage would miss a call the provider still bills for.

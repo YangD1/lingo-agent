@@ -23,7 +23,7 @@ from app.chat import service
 from app.chat.locks import ConversationLocks
 from app.chat.practice import DatabasePractice
 from app.chat.service import ConversationNotFoundError
-from app.chat.turn import DoneEvent, begin_turn, new_message_id, stream_reply
+from app.chat.turn import OPENING_TURN_ID, DoneEvent, begin_turn, new_message_id, stream_reply
 from app.db.models import Attachment, Conversation
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
 from app.memory.context import DatabaseLearner
@@ -194,7 +194,7 @@ class MessageIn(BaseModel):
 class Turn:
     conversation_id: uuid.UUID
     providers: TenantProviderContext
-    text: str
+    text: str | None  # None: a practice opening
     message_id: str
     focus_kc_id: str | None
 
@@ -226,12 +226,7 @@ async def start_turn(
     attachments = await _message_attachments(session, conversation, body.attachment_ids)
     # A turn with images is answered by the vision route (ADR 0008 §4).
     task = "vision" if any(a.kind == "image" for a in attachments) else "chat"
-    providers = await load_provider_context(session, tenant.id)
-    try:
-        get_chat_models(providers, task)  # resolves the route (and warms the cache)
-    except NoModelConfiguredError as exc:
-        what = "image-capable" if task == "vision" else "chat"
-        raise _conflict(exc.code, f"No {what} model is configured. Add one in Settings.") from exc
+    providers = await _providers_for(session, tenant.id, task)
     # A voice message may come without typed text: its transcript is the text.
     text = body.content.strip() or next(
         (a.text or "" for a in attachments if a.kind == "audio"), ""
@@ -250,6 +245,46 @@ async def start_turn(
         yield Turn(conversation.id, providers, text, message_id, conversation.focus_kc_id)
     finally:
         locks.release(conversation.id)
+
+
+async def start_opening(
+    conversation_id: uuid.UUID,
+    request: Request,
+    response: Response,
+    user: CurrentUser,
+    tenant: CurrentTenant,
+    session: SessionDep,
+    graph: ChatGraphDep,
+) -> AsyncIterator[Turn]:
+    """Like start_turn, for the tutor's first message in a practice conversation."""
+    response.headers["Cache-Control"] = "no-transform"
+    conversation = await _owned(session, user, conversation_id)
+    if conversation.focus_kc_id is None:
+        raise _conflict("not_practice", "Only a practice conversation opens by itself.")
+    providers = await _providers_for(session, tenant.id, "chat")
+    locks: ConversationLocks = request.app.state.conversation_locks
+    if not locks.acquire(conversation.id):
+        raise _conflict("conversation_busy", "A reply is still being generated.")
+    try:
+        # Checked under the lock: two tabs opening at once must not both get a reply.
+        if await service.get_history(graph, conversation):
+            raise _conflict("conversation_started", "This conversation has already started.")
+        await begin_turn(session, conversation, "")  # moves it to the top of the list
+        yield Turn(conversation.id, providers, None, OPENING_TURN_ID, conversation.focus_kc_id)
+    finally:
+        locks.release(conversation.id)
+
+
+async def _providers_for(
+    session: SessionDep, tenant_id: uuid.UUID, task: str
+) -> TenantProviderContext:
+    providers = await load_provider_context(session, tenant_id)
+    try:
+        get_chat_models(providers, task)  # resolves the route (and warms the cache)
+    except NoModelConfiguredError as exc:
+        what = "image-capable" if task == "vision" else "chat"
+        raise _conflict(exc.code, f"No {what} model is configured. Add one in Settings.") from exc
+    return providers
 
 
 async def _message_attachments(
@@ -289,6 +324,37 @@ async def send_message(
 ) -> AsyncIterator[ServerSentEvent]:
     """Stream the tutor's reply: `token`* then `done`, or `error` (ADR 0003); `activity`
     events for the steps of the turn may come before and between tokens (ADR 0013)."""
+    async for event in _reply(turn, request, user, graph):
+        yield event
+
+
+@router.post(
+    "/{conversation_id}/opening",
+    response_class=EventSourceResponse,
+    responses={
+        404: {"description": "conversation_not_found"},
+        409: {
+            "description": "not_practice, no_llm_configured, conversation_busy or "
+            "conversation_started"
+        },
+    },
+)
+async def open_practice(
+    turn: Annotated[Turn, Depends(start_opening)],
+    request: Request,
+    user: CurrentUser,
+    graph: ChatGraphDep,
+) -> AsyncIterator[ServerSentEvent]:
+    """The tutor's first message in a new practice conversation (Q19a), streamed like a
+    reply; `done.turn_id` is "opening". Nothing is added on the learner's behalf."""
+    async for event in _reply(turn, request, user, graph):
+        yield event
+
+
+async def _reply(
+    turn: Turn, request: Request, user: CurrentUser, graph: ChatGraphDep
+) -> AsyncIterator[ServerSentEvent]:
+    sessionmaker = request.app.state.sessionmaker
     async for event in stream_reply(
         graph,
         conversation_id=turn.conversation_id,
@@ -296,24 +362,20 @@ async def send_message(
         providers=turn.providers,
         text=turn.text,
         message_id=turn.message_id,
-        attachments=DatabaseAttachments(request.app.state.sessionmaker, turn.conversation_id),
+        attachments=DatabaseAttachments(sessionmaker, turn.conversation_id),
         learner=DatabaseLearner(
-            request.app.state.sessionmaker,
-            user.id,
-            turn.conversation_id,
-            memory_embedder(turn.providers),
+            sessionmaker, user.id, turn.conversation_id, memory_embedder(turn.providers)
         ),
-        activity=DatabaseActivity(
-            request.app.state.sessionmaker, user.id, turn.conversation_id, turn.message_id
-        ),
-        practice=DatabasePractice(request.app.state.sessionmaker, user.id, turn.focus_kc_id)
+        activity=DatabaseActivity(sessionmaker, user.id, turn.conversation_id, turn.message_id),
+        practice=DatabasePractice(sessionmaker, user.id, turn.focus_kc_id)
         if turn.focus_kc_id
         else None,
     ):
         data = dataclasses.asdict(event)
         yield ServerSentEvent(event=data.pop("event"), data=data)
-        if isinstance(event, DoneEvent):
-            # After the reply is out, never before: memory work must not delay it.
+        # After the reply is out, never before: memory work must not delay it. An
+        # opening has nothing from the learner to reflect on.
+        if isinstance(event, DoneEvent) and turn.text is not None:
             _reflection(request).schedule(
                 turn.conversation_id,
                 language=memory_language(request.cookies.get(LOCALE_COOKIE)),

@@ -10,6 +10,10 @@ LangGraph copies `configurable["thread_id"]` into metadata by itself, so a graph
 keyed by conversation id gets `conversation_id` for free. Missing ids are fine
 (background jobs have neither); the row is still written with NULLs.
 
+A run may also set `usage_task` to record the call under another task than the one
+that routed it, e.g. a practice opening served by the chat model but not counted as a
+learner's chat turn.
+
 Only metadata is recorded - never prompts, completions or exception messages.
 """
 
@@ -68,6 +72,7 @@ class _PendingRun:
     started: float
     user_id: uuid.UUID | None
     conversation_id: uuid.UUID | None
+    task: str | None
 
 
 def _as_uuid(value: Any) -> uuid.UUID | None:
@@ -126,6 +131,7 @@ class UsageRecorder(BaseCallbackHandler):
             started=time.monotonic(),
             user_id=_as_uuid(meta.get("user_id")),
             conversation_id=_as_uuid(meta.get("conversation_id") or meta.get("thread_id")),
+            task=str(meta["usage_task"])[:64] if meta.get("usage_task") else None,
         )
 
     def on_llm_end(
@@ -168,7 +174,7 @@ class UsageRecorder(BaseCallbackHandler):
             tenant_id=labels.tenant_id,
             user_id=run.user_id,
             conversation_id=run.conversation_id,
-            task=labels.task,
+            task=run.task or labels.task,
             connection_name=labels.connection,
             model=labels.model,
             input_tokens=input_tokens,

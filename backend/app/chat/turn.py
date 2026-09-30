@@ -67,6 +67,14 @@ class ErrorEvent:
 type TurnEvent = TokenEvent | ActivityEvent | DoneEvent | ErrorEvent
 
 
+# The turn id of a practice opening, which has no learner message to be named after;
+# a conversation opens once at most.
+OPENING_TURN_ID = "opening"
+# Recorded in llm_usage instead of "chat": the tutor speaking first is not a turn the
+# learner took, so it does not count on the dashboard.
+OPENING_USAGE_TASK = "practice_opening"
+
+
 def title_from(text: str) -> str:
     """First TITLE_LENGTH characters of the first message (no extra LLM call)."""
     return re.sub(r"\s+", " ", text).strip()[:TITLE_LENGTH]
@@ -114,7 +122,7 @@ async def stream_reply(
     conversation_id: uuid.UUID,
     user_id: uuid.UUID,
     providers: TenantProviderContext,
-    text: str,
+    text: str | None,
     message_id: str | None = None,
     attachments: AttachmentSource | None = None,
     learner: LearnerSource | None = None,
@@ -132,6 +140,9 @@ async def stream_reply(
 
     LangGraph only checkpoints finished nodes, so after a disconnect the learner's
     message is kept but no half-written reply is.
+
+    `text` None is a practice opening: the tutor speaks first, no learner message is
+    added, and `message_id` is OPENING_TURN_ID.
     """
     queue: asyncio.Queue[TurnEvent | None] = asyncio.Queue()  # None marks the end
 
@@ -173,7 +184,7 @@ async def _run_graph(
     conversation_id: uuid.UUID,
     user_id: uuid.UUID,
     providers: TenantProviderContext,
-    text: str,
+    text: str | None,
     message_id: str | None,
     attachments: AttachmentSource | None,
     learner: LearnerSource | None,
@@ -184,11 +195,12 @@ async def _run_graph(
     usage = {"input_tokens": 0, "output_tokens": 0}
     try:
         async for mode, part in graph.astream(
-            {"messages": [HumanMessage(text, id=message_id)]},
+            {"messages": [] if text is None else [HumanMessage(text, id=message_id)]},
             {
                 **thread_config(conversation_id),
-                # llm_usage reads user_id here; conversation_id comes from thread_id.
-                "metadata": {"user_id": str(user_id)},
+                # llm_usage reads these; conversation_id comes from thread_id.
+                "metadata": {"user_id": str(user_id)}
+                | ({"usage_task": OPENING_USAGE_TASK} if text is None else {}),
                 "tags": ["chat"],
             },
             context=ChatContext(providers, attachments, learner, activity, practice),

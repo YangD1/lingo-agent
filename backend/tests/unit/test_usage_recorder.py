@@ -131,6 +131,16 @@ async def test_langgraph_thread_id_is_the_conversation_id() -> None:
     assert records[0].conversation_id == CONVERSATION
 
 
+async def test_a_run_can_record_under_another_task() -> None:
+    records: list[UsageRecord] = []
+    model = metered(records)
+    await model.ainvoke([HumanMessage(PROMPT)], config={"metadata": {"usage_task": "opening"}})
+    await model.ainvoke([HumanMessage(PROMPT)])
+
+    # The model's own task otherwise: the override is per run, not sticky.
+    assert [r.task for r in records] == ["opening", "chat"]
+
+
 async def test_ids_reach_a_model_nested_inside_a_chain() -> None:
     records: list[UsageRecord] = []
 

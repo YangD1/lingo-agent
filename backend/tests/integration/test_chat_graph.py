@@ -380,6 +380,32 @@ async def test_practice_is_recorded_and_its_failure_does_not_stop_the_reply(
     assert "grammar practice" not in str(model.seen[-1][0].content)
 
 
+async def test_an_opening_adds_a_cue_for_the_call_only(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = RecordingChatModel(reply="Welcome! Let's practise.")
+    use_model(monkeypatch, model)
+    thread_id = uuid.uuid4()
+
+    await graph.ainvoke(
+        {"messages": []}, thread(thread_id), context=ChatContext(providers, practice=FakePractice())
+    )
+
+    [sent] = model.seen
+    assert [m.type for m in sent] == ["system", "human"]
+    assert "not from the learner" in str(sent[1].content)
+    stored = (await graph.aget_state(thread(thread_id))).values["messages"]
+    assert [(m.type, m.content) for m in stored] == [("ai", "Welcome! Let's practise.")]
+
+    # Once the learner has answered, the cue is gone.
+    await graph.ainvoke(
+        {"messages": [HumanMessage("I like tea.")]},
+        thread(thread_id),
+        context=ChatContext(providers, practice=FakePractice()),
+    )
+    assert [m.type for m in model.seen[1]] == ["system", "ai", "human"]
+
+
 async def dump_checkpoints(session: AsyncSession, thread_id: uuid.UUID) -> str:
     """Every row LangGraph persisted for the thread, as text (blobs decoded)."""
     dumped: list[str] = []
