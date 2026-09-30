@@ -23,7 +23,16 @@ export type KCStatus = {
   last_evidence_at: string | null;
 };
 
-export type SkillEstimate = { skill: string; rating: number; attempts: number };
+export type SkillEstimate = {
+  skill: string;
+  rating: number;
+  attempts: number;
+  /** grammar: the level of its rating; vocab: the latest placement test's reference level. */
+  cefr: CefrLevel | null;
+  /** vocab only: the latest placement test's estimated size. */
+  vocab_size: number | null;
+  reliable: boolean | null;
+};
 
 export type LearnerModel = {
   /** Weakest first. */

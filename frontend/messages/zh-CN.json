@@ -516,6 +516,11 @@
     "no_book": "请先选一本词书。",
     "book_not_found": "没有这本词书。",
     "word_not_found": "词库里没有这个词。",
-    "not_in_batch": "这批词已经过期，请刷新页面再试。"
+    "not_in_batch": "这批词已经过期，请刷新页面再试。",
+    "words_not_imported": "词库还没有导入，暂时不能做入学测。请联系部署方导入 ECDICT 词库。",
+    "stale_question": "这道题已经过期（可能在别的页面答过了），已为你刷新到当前题。",
+    "invalid_answer": "答案格式不对，请重新作答。",
+    "placement_not_in_progress": "这次入学测已经放弃，请重新开始。",
+    "placement_not_found": "找不到这次入学测。"
   }
 }

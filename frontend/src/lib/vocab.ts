@@ -11,7 +11,7 @@ export type Word = {
   definition: string | null;
 };
 
-export type CardSource = "book" | "auto" | "manual";
+export type CardSource = "book" | "auto" | "manual" | "placement";
 export type CardStatus = "new" | "learning" | "known" | "suspended";
 
 /** A word with the learner's card for it; card fields are null for a book word never met. */
@@ -114,6 +114,25 @@ export const addMine = (word: string) =>
 
 export const removeMine = (wordId: number) =>
   api<void>(`/vocab/mine/${wordId}`, { method: "DELETE" });
+
+/** Marking the current book's common words known from the placement test's vocabulary size. */
+export type PlacementKnown = {
+  /** Why nothing is offered; null when `count` words can be marked. */
+  unavailable: "no_placement" | "unreliable" | "no_book" | null;
+  book_id: string | null;
+  up_to_rank: number | null;
+  count: number;
+  /** Words marked known this way so far (what undo takes back). */
+  marked: number;
+};
+
+export const fetchPlacementKnown = () => api<PlacementKnown>("/vocab/placement-known");
+
+export const markPlacementKnown = () =>
+  api<{ count: number }>("/vocab/placement-known", { method: "POST" });
+
+export const undoPlacementKnown = () =>
+  api<{ count: number }>("/vocab/placement-known", { method: "DELETE" });
 
 export const bookName = (book: { name_en: string; name_zh: string }, locale: string) =>
   locale.startsWith("zh") ? book.name_zh : book.name_en;
