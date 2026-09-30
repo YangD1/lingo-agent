@@ -4,6 +4,42 @@
 
 ---
 
+## 2026-09-30 · 任务 20.2–20.4：Docker 重建、用户实测，反馈拆成任务 21、22
+
+- **做了什么**：
+  - 20.2：`make up` 重建全栈。迁移到 head `c6350c4e826a`，`/healthz` 200，前端和 `/api` 代理正常。空闲内存：backend 约 193MiB、frontend 约 83MiB、postgres 约 110MiB。
+  - 按用户要求清空开发库：TRUNCATE 除 `words`（ECDICT 38,243 条）、`alembic_version`、`checkpoint_migrations` 以外的所有表。
+  - 20.4：用户按 `docs/plans/P1-demo-checklist.md` 实测完成，除 AI 交互外没有问题。反馈两条：
+    - 入学测后要有学习建议，能直接进 AI 对话引导，私教能代为设置词书、语法练习、学习目标等 → **任务 21**
+    - 所有消耗 token 的功能点要带“AI”标记，悬停显示用量预估和说明（用户视为开源卖点）→ **任务 22**
+  - 两个任务的 Q 已确认（见看板 Q21a–d、Q22a–c），子任务已写进 `docs/PROGRESS.md`，提交 d16abd4。
+- **未完成**：任务 22、21 都没动代码。子任务拆分已经给用户看过，**用户还没回“开始”**。新会话先请用户确认拆分，再从 22.1 开工。
+- **下一步**：22.1 → 22.4 → 21.1 → 21.5 → 20.5 → 20.6。开工前需要的现状（已查过）：
+  - `llm_usage` 每条记录有 `task`（`chat`、`vision`、`reflect`、`advice`、`memory`、`practice_opening`）、`input_tokens`、`output_tokens`、`audio_seconds`，没有价格（ADR 0005）。
+  - 模型调用点：
+    - `chat_graph.py` 的 `tutor`（`chat` / `vision`）
+    - `memory/reflection.py`（`reflect`：反思 + 会话摘要）
+    - `memory/embedding.py`（`memory`）
+    - `attachments/reading.py`（`vision`）
+    - `attachments/handlers.py`（ASR）
+    - `advice/writer.py`（`advice`）
+    - 开场通过 metadata `usage_task=practice_opening` 记账
+  - 私教目前**没有任何工具调用**（没有 `bind_tools` / `ToolNode`），图是 `load_context → tutor`。
+  - `PUT /vocab/book` → `progress.choose_book()` 没有撤销；换书会把 `screen_offset` 清零，撤销要保存旧值。
+  - `UserProfile` 已有 `goal`、`target_exam`、`daily_minutes`、`manual_fields`，设学习目标不需要迁移。
+  - 建议缓存在 `advice/service.py`：`MIN_INTERVAL` 10 分钟、`BY_HAND_EVERY` 1 小时。入学测完成要绕过 10 分钟间隔，入口在 `placement/writeback.py` 的 `save_result` 之后。
+  - 结果页组件是 `frontend/src/components/placement/placement-result.tsx`。
+  - ADR 编号：0014 = AI 用量公示，0015 = 私教工具调用与确认卡。
+- **踩坑**：
+  - 第一次 `make up` 时，corepack 下载 pnpm 报 `DEPTH_ZERO_SELF_SIGNED_CERT`。构建走 Clash 代理 127.0.0.1:7890，事后在宿主机和容器里复查证书都正常，重跑成功，判断是代理临时问题。
+  - 后端健康检查是 `/healthz`，不是 `/health`。
+  - compose 里 postgres 的用户名不是 `postgres`，要用 `sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'`。
+  - zsh 下 `grep --include=*.py` 要加引号，否则报 no matches found。
+  - Docker 全栈仍在运行（含 asr）。
+
+---
+
+
 ## 2026-09-30 · P1e 任务 19：针对语法点的练习对话
 
 - **做了什么**：用户确认 Q19a–Q19d 均按推荐（私教自动开场；练习里的对错与普通对话同权；学习者没开口就复用；入口加 `/learner` 详情和看板常错语法点）；Q19e 没单独问，按默认（不自动结束，约 5 句用对后小结）。
