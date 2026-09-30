@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-09-30 · P1e 任务 17：能力看板（`GET /dashboard` + `/dashboard`）
+
+- **做了什么**：用户确认 Q17a–Q17d 均按推荐：
+  - a：词书“已掌握”= 复习状态且稳定度 ≥ 21 天。
+  - b：对话轮数按 `llm_usage` 统计。
+  - c：复习或对话都算学习；今天没学时从昨天往前数。
+  - d：技能换算到同一 CEFR 刻度。
+
+  各子任务：
+  - 17.1 `app/dashboard/service.py`、`app/api/dashboard.py`、`app/adaptive/cefr_scale.py`；`flow.known_in_basis`；`rules.yaml` 升到 `2026-09-30.2`；迁移 `1ec9ad47e438`（`llm_usage (user_id, created_at)` 索引）。
+  - 17.2 shadcn chart + recharts 3.8.0，`--chart-*` / `--heat-*` 配色（经 dataviz 校验脚本验证）。
+  - 17.3–17.5 `components/dashboard/*`、`lib/dashboard.ts`、首页和导航、proxy。
+  - 17.6 `e2e/dashboard.spec.ts` 和文档。
+
+  提交 bacefcf、f2c5a53、53677a1 和本次。后端 718、Vitest 166、Playwright 31 全部通过，ruff、mypy、tsc、eslint 干净。
+- **未完成**：无。仍然没有在 Docker 全栈和真实词库上手动走一遍（任务 16、17 都要 `make up` 重建后才能看到）。
+- **下一步**：任务 18（学习建议），开工前拆子任务、和用户确认。建议卡片放在看板上；候选里的 `placement` 要包括“超过 60 天重测”。
+- **踩坑**：
+  - 能力值在 A1 最底部时，刻度位置是 0，条形宽度为 0 就不画了。现在最短留 0.08。
+  - Recharts 3 的 `Legend` 默认 `itemSorter="value"`，会按名称排序，要传 `itemSorter={null}`。
+  - WSL 里的无头 Chromium 没有中文字体，截图里的中文是方块，不是页面的问题。
+  - 看板的滚动在内层 div 上，`fullPage` 截图截不到下面；要先把视口调高。
+  - E2E 的小词库下，入学测结果是“约 7 词 / 参考 C2”，这是测试数据造成的（入学测结果页也是这样），真实词库不会。
+  - 任务 16 漏了 `/placement` 的 proxy 保护，这次已补上。
+
+---
+
 ## 2026-09-30 · P1d 任务 16：/placement 页面 + 聊天页引导条
 
 - **做了什么**：用户确认 Q16a–Q16d 均按推荐：
