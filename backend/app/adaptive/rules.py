@@ -6,7 +6,7 @@ their own, so changing a rule never means changing code.
 
 from functools import cache
 from pathlib import Path
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Self, get_args
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -187,6 +187,37 @@ class PlacementRules(_Strict):
     grammar: PlacementGrammarRules
 
 
+AdvicePriority = Literal[
+    "placement",
+    "choose_book",
+    "vocab_review",
+    "grammar_practice",
+    "vocab_screen",
+    "vocab_learn",
+    "retest",
+]
+AdviceHalf = Literal["vocab_review", "vocab_learn", "grammar_practice"]
+
+
+class AdviceRules(_Strict):
+    max_candidates: int = Field(ge=1, le=20)
+    retest_days: int = Field(ge=1)
+    grammar_days: int = Field(ge=1)
+    max_grammar: int = Field(ge=0)
+    priority: dict[AdvicePriority, Annotated[float, Field(gt=0)]]
+    half: dict[AdviceHalf, Annotated[float, Field(gt=0)]]
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        for name, table, keys in (
+            ("priority", self.priority, get_args(AdvicePriority)),
+            ("half", self.half, get_args(AdviceHalf)),
+        ):
+            if missing := set(keys) - table.keys():
+                raise ValueError(f"advice.{name} is missing {sorted(missing)}")
+        return self
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
@@ -195,6 +226,7 @@ class Rules(_Strict):
     difficulty: DifficultyRules
     vocab: VocabRules
     placement: PlacementRules
+    advice: AdviceRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:
