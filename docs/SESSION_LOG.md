@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-09-30 · 任务 21.1–21.3：私教工具调用与确认卡（后端）、入学测后的规划对话
+
+- **做了什么**：
+  - 21.1 ADR 0015 已采纳（§8 五条按推荐）。
+  - 21.2 后端（a6df551）：
+    - 新表 `tutor_cards`；`app/cards/`：`tools.py` 参数模型与校验，`service.py` 写卡 / 确认 / 拒绝 / 撤销，`runtime.py` 按轮绑定身份。
+    - `chat_graph` 改为 `tutor ⇄ tools`（2 次往返 × 3 个调用、15 秒超时，厂商拒绝时去掉工具重答）；SSE `card` 事件。
+    - `api/cards.py`：`GET /conversations/{id}/cards`、`POST /cards/{id}/apply|decline|undo`；`chat_tools` 用量 task。
+  - 21.3（a2940a3）：
+    - `conversations.purpose='planning'`；`chat/planning.py` 每轮注入入学测结果、答错语法点和建议候选，并据此限定卡片范围；开场 `plan_opening`，登记为 `plan_start`。
+    - 入学测后建议立即重生成。
+    - 前端结果页“接下来做什么”+“和私教聊聊怎么学”（`/chat?plan=1`）。
+  - 两个迁移都已 `make migrate` 到开发库（只新增）。
+  - 验证：后端 812 通过，Vitest 190，ruff / `mypy app` / eslint / tsc 干净。
+- **未完成**：21.4（前端卡片），21.5（E2E + 交接），20.5、20.6。
+- **下一步 21.4**：
+  - 聊天页收到 SSE `card` 事件时，在当前私教气泡下渲染卡片；打开会话时用 `GET /conversations/{id}/cards` 按 `turn_id` 挂到对应回复下。消息 id 就是 turn 的学习者消息 id，和活动的挂法相同，见 `use-activity`。
+  - 卡片种类：
+    - `word_book` / `learning_goal`：确认 / 拒绝 / 撤销（409 `setting_changed` 要提示）；
+    - `practice`：用 `practiceHref`；
+    - `link`：`kind` → 路径 `vocab_review:/vocab/review`、`vocab_screen:/vocab/screen`、`placement:/placement`、`learner:/learner`、`word_books:/vocab`，并显示 `live` 数字。
+  - `turn-activity` 要显示 4 个 tool 步骤（`card_kind`）和 `tools: skipped`；`load_context` 的 `planning`。
+  - 会话列表给规划对话加标识。
+  - 中英文案，Vitest。
+- **踩坑**：
+  - 同一轮的并行工具调用会同时执行 put_card 的“先查后写”去重，出现重复卡片。已用 `DatabaseTutorTools` 里的 `asyncio.Lock` 让写卡串行。这个问题只在全量测试里偶发。
+  - 从别的测试模块导入 pytest fixture 时，参数上要加 `# noqa: F811`（仓库惯例）。
+  - `node` 在 Bash 里被 shell 函数劫持（`_load_nvm` 无限递归），要用 `$HOME/.nvm/versions/node/v24.14.0/bin/node` 的绝对路径。
+  - 放入学测页的组件如果挂了 `AiBadge` 或建议，Vitest 里要 mock `@/lib/ai-usage` 的 `loadEstimates` 和 `@/lib/advice` 的 `fetchAdvice`。否则它们会占用按顺序排好的 `api` mock。
+  - 自动生成迁移不认 CHECK 约束，要手写 `op.create_check_constraint`。自动生成对着 `lingo_test` 跑（`DATABASE_URL=...lingo_test`），不碰开发库。
+
+---
+
 ## 2026-09-30 · 任务 22：AI 用量标记（22.1–22.4 全部完成）
 
 - **做了什么**：
