@@ -687,7 +687,6 @@
       "refresh": "Refresh advice",
       "refreshAfter": "Can refresh again in {n} min",
       "empty": "Nothing in particular to catch up on today. <chat>A chat with your tutor</chat> is always good practice.",
-      "aiBadge": "AI",
       "kinds": {
         "placement": {
           "title": "Take the placement test",
@@ -744,12 +743,12 @@
     "label": "Uses AI: what it does and roughly how many tokens",
     "feature": {
       "chat_message": "Your tutor's reply is written by an AI model. After it, the tutor reviews the turn in the background to update your memories, mistakes and words.",
-      "chat_image": "An AI model reads each image first, so the tutor can talk about it.",
+      "chat_image": "An AI model reads each image first, so the tutor can talk about it. The reply to that message also comes from the image-reading model.",
       "chat_pdf": "PDFs with a text layer are read without AI. Scanned pages are read by an AI model, one call per page.",
       "chat_audio": "Your recording is turned into text by a speech-to-text model.",
       "practice_start": "The tutor opens the practice with a first message written by an AI model.",
       "advice": "Today's advice is written by an AI model from your learning data, and checked by code. Without a model, template advice is shown instead.",
-      "memory_edit": "Saving a memory turns it into a vector with an embedding model, so the tutor can find it later."
+      "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the tutor can find it later."
     },
     "task": {
       "chat": "Reply",

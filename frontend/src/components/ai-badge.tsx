@@ -37,8 +37,16 @@ function useEstimates(enabled: boolean): Loaded {
  * Marks a feature that calls a model (ADR 0014). Hover, focus or tap shows what the AI
  * does there and roughly how many tokens each call takes.
  */
-export function AiBadge({ feature, className }: { feature: AiFeature; className?: string }) {
+export function AiBadge({
+  feature,
+  className,
+}: {
+  /** Several when one control leads to more than one (e.g. attach: images and PDFs). */
+  feature: AiFeature | readonly AiFeature[];
+  className?: string;
+}) {
   const t = useTranslations("aiBadge");
+  const features: readonly AiFeature[] = typeof feature === "string" ? [feature] : feature;
   const [open, setOpen] = useState(false);
   const [opened, setOpened] = useState(false);
   const loaded = useEstimates(opened);
@@ -55,7 +63,7 @@ export function AiBadge({ feature, className }: { feature: AiFeature; className?
         openOnHover
         delay={150}
         aria-label={t("label")}
-        data-testid={`ai-badge-${feature}`}
+        data-testid={`ai-badge-${features.join("-")}`}
         className={cn(
           "inline-flex h-4 shrink-0 cursor-help items-center rounded-sm border border-violet-500/40 bg-violet-500/10 px-1 text-[10px] leading-none font-semibold tracking-wide text-violet-700 dark:text-violet-300",
           className,
@@ -63,17 +71,21 @@ export function AiBadge({ feature, className }: { feature: AiFeature; className?
       >
         AI
       </PopoverTrigger>
-      <PopoverContent className="w-80 text-xs" data-testid="ai-badge-details">
-        <p className="text-sm">{t(`feature.${feature}`)}</p>
+      <PopoverContent className="max-h-[70vh] w-80 overflow-y-auto text-xs" data-testid="ai-badge-details">
+        {features.map((f) => (
+          <section key={f} className="flex flex-col gap-2">
+            <p className="text-sm">{t(`feature.${f}`)}</p>
+            {loaded.status === "ok" && (
+              <ul className="flex flex-col gap-2">
+                {callsOf(loaded.data, f).map((call, i) => (
+                  <CallLine key={`${call.task}-${i}`} call={call} />
+                ))}
+              </ul>
+            )}
+          </section>
+        ))}
         {loaded.status === "loading" && <p className="text-muted-foreground">{t("loading")}</p>}
         {loaded.status === "error" && <p className="text-destructive">{t("failed")}</p>}
-        {loaded.status === "ok" && (
-          <ul className="flex flex-col gap-2">
-            {callsOf(loaded.data, feature).map((call, i) => (
-              <CallLine key={`${call.task}-${i}`} call={call} />
-            ))}
-          </ul>
-        )}
         <p className="text-muted-foreground">{t("footer")}</p>
       </PopoverContent>
     </Popover>

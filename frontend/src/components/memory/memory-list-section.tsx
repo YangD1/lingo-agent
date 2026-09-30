@@ -5,6 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,7 +89,10 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
   return (
     <Card data-testid={`memories-${kind}`}>
       <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          {t("title")}
+          <AiBadge feature="memory_edit" />
+        </CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

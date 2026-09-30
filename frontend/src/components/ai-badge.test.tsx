@@ -92,6 +92,20 @@ describe("AiBadge", () => {
     expect(api).toHaveBeenCalledTimes(1); // the second badge reused the first request
   });
 
+  it("explains every feature behind one control", async () => {
+    api.mockResolvedValue(estimates);
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <AiBadge feature={["chat_image", "chat_pdf"]} />
+      </NextIntlClientProvider>,
+    );
+    await userEvent.click(screen.getByTestId("ai-badge-chat_image-chat_pdf"));
+    const details = await screen.findByTestId("ai-badge-details");
+    expect(details).toHaveTextContent("reads each image first");
+    expect(details).toHaveTextContent("Scanned pages are read by an AI model");
+    expect(await screen.findByText(/per image/)).toBeInTheDocument();
+  });
+
   it("says so when the estimate can't be loaded", async () => {
     api.mockRejectedValue(new Error("offline"));
     show("advice");

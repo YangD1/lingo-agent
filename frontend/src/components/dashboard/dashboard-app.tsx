@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useState } from "react";
 
+import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -313,9 +314,12 @@ function ErrorsSection({ board }: { board: Dashboard }) {
                 </Link>
                 <span className="flex gap-3">
                   <span className="tabular-nums">{t("count", { n: e.mistakes })}</span>
-                  <Link href={practiceHref(e.kc_id)} className={linkClass}>
-                    {t("practice")}
-                  </Link>
+                  <span className="inline-flex items-center gap-1">
+                    <Link href={practiceHref(e.kc_id)} className={linkClass}>
+                      {t("practice")}
+                    </Link>
+                    <AiBadge feature="practice_start" />
+                  </span>
                 </span>
               </li>
             ))}

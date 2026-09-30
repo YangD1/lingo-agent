@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -93,7 +94,10 @@ export function AdviceCard() {
   return (
     <Card data-testid="advice">
       <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          {t("title")}
+          <AiBadge feature="advice" />
+        </CardTitle>
         <CardDescription data-testid="advice-status">
           {advice ? <Status advice={advice} /> : !error && t("loading")}
         </CardDescription>
@@ -187,11 +191,7 @@ function AdviceEntry({ item }: { item: AdviceItem }) {
         <span className="flex-1 font-medium">
           {item.title ?? t(`kinds.${key}.title`, { kc })}
         </span>
-        {item.title && (
-          <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-            {t("aiBadge")}
-          </span>
-        )}
+        {item.title && <AiBadge feature="advice" className="mt-1" />}
       </div>
       <p className="flex-1 text-sm text-muted-foreground">
         {item.reason ?? t(`kinds.${key}.reason`, { book })}
@@ -201,6 +201,7 @@ function AdviceEntry({ item }: { item: AdviceItem }) {
         <Link href={adviceHref(item)} className={buttonVariants({ size: "sm" })}>
           {t(`kinds.${key}.action`)}
         </Link>
+        {item.kind === "grammar_practice" && item.kc && <AiBadge feature="practice_start" />}
         {item.kind === "grammar_practice" && item.kc && (
           <Link href={learnerHref(item.kc.id)} className={linkClass}>
             {t("evidenceLink")}

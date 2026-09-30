@@ -5,6 +5,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -128,12 +129,15 @@ export function KCItem({
       </p>
       {open && (
         <div id={detailsId} className="mt-2 flex flex-col gap-2 pl-6 text-sm">
-          <Link
-            href={practiceHref(kc.kc_id)}
-            className={buttonVariants({ size: "sm", variant: "outline", className: "self-start" })}
-          >
-            {t("practice")}
-          </Link>
+          <span className="inline-flex items-center gap-1.5 self-start">
+            <Link
+              href={practiceHref(kc.kc_id)}
+              className={buttonVariants({ size: "sm", variant: "outline" })}
+            >
+              {t("practice")}
+            </Link>
+            <AiBadge feature="practice_start" />
+          </span>
           {error && (
             <p role="alert" className="text-destructive">
               {error}

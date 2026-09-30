@@ -105,7 +105,11 @@ describe("AdviceCard", () => {
       "href",
       "/learner?kc=g.third",
     );
-    expect(screen.queryByText("AI")).not.toBeInTheDocument();
+    // Only the card title says advice can come from AI; these came from templates.
+    for (const entry of items) {
+      expect(within(entry).queryByTestId("ai-badge-advice")).not.toBeInTheDocument();
+    }
+    expect(within(items[2]).getByTestId("ai-badge-practice_start")).toBeInTheDocument();
     expect(
       within(screen.getByTestId("advice-status")).getByRole("link", { name: "Open settings" }),
     ).toHaveAttribute("href", "/settings");
@@ -127,9 +131,9 @@ describe("AdviceCard", () => {
     expect(items[0]).toHaveTextContent("趁热学新词");
     expect(items[0]).toHaveTextContent("为雅思攒词汇。");
     expect(items[0]).toHaveTextContent("今天还剩 5 个新词");
-    expect(within(items[0]).getByText("AI")).toBeInTheDocument();
+    expect(within(items[0]).getByTestId("ai-badge-advice")).toBeInTheDocument();
     expect(items[1]).toHaveTextContent("选一本词书");
-    expect(within(items[1]).queryByText("AI")).not.toBeInTheDocument();
+    expect(within(items[1]).queryByTestId("ai-badge-advice")).not.toBeInTheDocument();
     expect(screen.getByText(/由 AI 从学习引擎给出的候选里挑选/)).toBeInTheDocument();
   });
 

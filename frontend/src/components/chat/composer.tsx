@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { AiBadge } from "@/components/ai-badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ACCEPT } from "@/lib/attachments";
@@ -96,17 +97,20 @@ export function Composer({ streaming, disabled, tray, onSend, onStop }: Props) {
           }}
         />
         <div className="flex flex-col gap-1">
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            aria-label={t("attachments.attach")}
-            title={t("attachments.attach")}
-            disabled={disabled || recorder.recording}
-            onClick={() => fileInput.current?.click()}
-          >
-            <Paperclip />
-          </Button>
+          <div className="relative">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label={t("attachments.attach")}
+              title={t("attachments.attach")}
+              disabled={disabled || recorder.recording}
+              onClick={() => fileInput.current?.click()}
+            >
+              <Paperclip />
+            </Button>
+            <AiBadge feature={["chat_image", "chat_pdf"]} className="absolute -top-1.5 -right-1.5" />
+          </div>
           {recorder.recording ? (
             <Button
               type="button"
@@ -119,17 +123,20 @@ export function Composer({ streaming, disabled, tray, onSend, onStop }: Props) {
               <Square />
             </Button>
           ) : (
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label={t("attachments.record")}
-              title={t("attachments.record")}
-              disabled={disabled}
-              onClick={() => void recorder.start()}
-            >
-              <Mic />
-            </Button>
+            <div className="relative">
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                aria-label={t("attachments.record")}
+                title={t("attachments.record")}
+                disabled={disabled}
+                onClick={() => void recorder.start()}
+              >
+                <Mic />
+              </Button>
+              <AiBadge feature="chat_audio" className="absolute -top-1.5 -right-1.5" />
+            </div>
           )}
         </div>
         {recorder.recording ? (
@@ -171,9 +178,12 @@ export function Composer({ streaming, disabled, tray, onSend, onStop }: Props) {
             {t("stop")}
           </Button>
         ) : (
-          <Button type="submit" disabled={empty || blocked}>
-            {t("send")}
-          </Button>
+          <div className="relative">
+            <Button type="submit" disabled={empty || blocked}>
+              {t("send")}
+            </Button>
+            <AiBadge feature="chat_message" className="absolute -top-1.5 -right-1.5" />
+          </div>
         )}
       </div>
       {tray.pending && !streaming && (
