@@ -371,7 +371,10 @@
       "filterState": "Filter by state",
       "allLevels": "All levels",
       "allStates": "All states",
-      "noMatch": "No grammar points match."
+      "noMatch": "No grammar points match.",
+      "emptyTitle": "No grammar records yet",
+      "chat": "Chat with your tutor",
+      "filter": "Filter"
     },
     "kc": {
       "mastery": "Mastery",
@@ -411,9 +414,8 @@
     },
     "skills": {
       "title": "Skill estimates",
-      "description": "From the placement test: a level for grammar, an estimated vocabulary size for vocabulary.",
-      "empty": "No skill estimates yet. They appear here once you finish the placement test.",
-      "row": "{skill}: ability {rating} ({attempts} answers)",
+      "description": "From the placement test: a level for grammar, an estimated size for vocabulary. All on one A1–C2 scale.",
+      "empty": "No skill estimates yet",
       "names": {
         "listening": "Listening",
         "speaking": "Speaking",
@@ -422,11 +424,13 @@
         "grammar": "Grammar",
         "vocab": "Vocabulary"
       },
-      "levelRow": "{skill}: {level} ({attempts} answers)",
-      "vocabRow": "{skill}: about {size} words",
-      "vocabRowLevel": "{skill}: about {size} words (roughly {level})",
       "unreliable": "(this estimate isn't reliable)",
-      "takeTest": "Take the placement test"
+      "takeTest": "Take the placement test",
+      "emptyHint": "After the placement test, each skill's level shows up here.",
+      "notAssessed": "Not assessed",
+      "answers": "{attempts} answers",
+      "vocab": "about {size} words",
+      "rating": "rating {rating} · {attempts} answers"
     },
     "clear": {
       "title": "Delete all learning records",

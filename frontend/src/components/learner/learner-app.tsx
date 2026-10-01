@@ -1,14 +1,19 @@
 "use client";
 
+import { ListChecks, MessageCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
+import { ChartLegend } from "@/components/dashboard/chart-legend";
 import { useDescribeError } from "@/components/settings/use-describe-error";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { NativeSelect } from "@/components/ui/native-select";
+import { ProgressBar } from "@/components/ui/progress";
+import { CefrTag } from "@/components/ui/tag";
 import {
   CEFR_LEVELS,
   deleteLearner,
@@ -20,7 +25,10 @@ import {
   type SkillEstimate,
 } from "@/lib/learner";
 
-import { KCItem } from "./kc-item";
+import { KCItem, STATE_BAR } from "./kc-item";
+
+const SKILLS = ["grammar", "vocab", "reading", "listening", "speaking", "writing"] as const;
+const emptyButton = buttonVariants({ size: "sm", variant: "outline" });
 
 /**
  * The learner model (ADR 0010): grammar mastery computed from evidence, with the evidence
@@ -28,6 +36,7 @@ import { KCItem } from "./kc-item";
  */
 export function LearnerApp({ focusKc }: { focusKc: string | null }) {
   const t = useTranslations("learner");
+  const tNav = useTranslations("nav");
   const format = useFormatter();
   const describe = useDescribeError();
   const [model, setModel] = useState<LearnerModel | null>(null);
@@ -62,24 +71,23 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
     const key = `skills.names.${skill}` as Parameters<typeof t>[0];
     return t.has(key) ? t(key) : skill;
   };
-  // Ratings are on different scales (vocab stores ln V), so show what each one means.
-  const skillRow = (s: SkillEstimate) => {
-    const skill = skillName(s.skill);
+  // Ratings are on different scales (vocab stores ln V), so say what each one is based on.
+  const skillDetail = (s: SkillEstimate) => {
     if (s.vocab_size !== null) {
-      const size = format.number(s.vocab_size);
-      const row = s.cefr
-        ? t("skills.vocabRowLevel", { skill, size, level: s.cefr })
-        : t("skills.vocabRow", { skill, size });
-      return s.reliable === false ? `${row} ${t("skills.unreliable")}` : row;
+      const size = t("skills.vocab", { size: format.number(s.vocab_size) });
+      return s.reliable === false ? `${size} ${t("skills.unreliable")}` : size;
     }
-    if (s.cefr) return t("skills.levelRow", { skill, level: s.cefr, attempts: s.attempts });
-    return t("skills.row", { skill, rating: s.rating.toFixed(2), attempts: s.attempts });
+    if (s.cefr) return t("skills.answers", { attempts: s.attempts });
+    return t("skills.rating", { rating: s.rating.toFixed(2), attempts: s.attempts });
   };
   const shown = model ? filterKcs(model.kcs, filter) : [];
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 md:p-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
+        <h1 className="mb-1 text-[26px] font-bold tracking-tight max-md:sr-only">
+          {tNav("learner")}
+        </h1>
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
@@ -98,16 +106,30 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {model && model.kcs.length === 0 && (
-              <p className="text-sm text-muted-foreground">{t("grammar.empty")}</p>
+              <EmptyState
+                icon={ListChecks}
+                title={t("grammar.emptyTitle")}
+                description={t("grammar.empty")}
+                action={
+                  <Link href="/chat" className={emptyButton}>
+                    <MessageCircle />
+                    {t("grammar.chat")}
+                  </Link>
+                }
+              />
             )}
             {model && model.kcs.length > 0 && (
               <>
-                <p className="text-xs text-muted-foreground" data-testid="level-coverage">
+                <p
+                  className="font-mono text-[11.5px] text-muted-foreground"
+                  data-testid="level-coverage"
+                >
                   {CEFR_LEVELS.filter((l) => model.levels[l])
                     .map((l) => t("grammar.coverage", { level: l, ...model.levels[l]! }))
                     .join(" · ")}
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">{t("grammar.filter")}</span>
                   <NativeSelect
                     aria-label={t("grammar.filterLevel")}
                     value={filter.level}
@@ -136,11 +158,19 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
                       </option>
                     ))}
                   </NativeSelect>
+                  <ChartLegend
+                    className="ml-auto"
+                    items={MASTERY_STATES.map((state) => ({
+                      key: state,
+                      label: t(`kc.states.${state}`),
+                      swatch: STATE_BAR[state],
+                    }))}
+                  />
                 </div>
                 {shown.length === 0 ? (
                   <p className="text-sm text-muted-foreground">{t("grammar.noMatch")}</p>
                 ) : (
-                  <ul className="flex flex-col divide-y" aria-label={t("grammar.title")}>
+                  <ul className="flex flex-col divide-y border-b" aria-label={t("grammar.title")}>
                     {shown.map((kc) => (
                       <KCItem
                         key={kc.kc_id}
@@ -163,26 +193,60 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
           </CardHeader>
           <CardContent>
             {model && model.skills.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                {t("skills.empty")}{" "}
-                <Link href="/placement" className="underline underline-offset-2">
-                  {t("skills.takeTest")}
-                </Link>
-              </p>
+              <EmptyState
+                icon={ListChecks}
+                title={t("skills.empty")}
+                description={t("skills.emptyHint")}
+                action={
+                  <Link href="/placement" className={emptyButton}>
+                    {t("skills.takeTest")}
+                  </Link>
+                }
+              />
             )}
             {model && model.skills.length > 0 && (
-              <ul className="flex flex-col gap-1 text-sm">
-                {model.skills.map((s) => (
-                  <li key={s.skill} data-testid={`skill-${s.skill}`}>
-                    {skillRow(s)}
-                  </li>
-                ))}
+              <ul className="flex flex-col divide-y text-[13px]">
+                {SKILLS.map((skill) => {
+                  const s = model.skills.find((e) => e.skill === skill);
+                  const level = s?.cefr ? CEFR_LEVELS.indexOf(s.cefr) + 1 : 0;
+                  return (
+                    <li
+                      key={skill}
+                      data-testid={`skill-${skill}`}
+                      className="flex min-h-11 items-center gap-3 py-2"
+                    >
+                      <span className="w-12 shrink-0">{skillName(skill)}</span>
+                      {s ? (
+                        <>
+                          {s.cefr ? (
+                            <ProgressBar value={level / 6} barClassName="bg-chart-1" />
+                          ) : (
+                            <span className="flex-1" />
+                          )}
+                          {s.cefr && <CefrTag level={s.cefr} className="shrink-0" />}
+                          <span className="shrink-0 text-right text-xs text-muted-foreground">
+                            {skillDetail(s)}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-muted-foreground">
+                            {t("skills.notAssessed")}
+                          </span>
+                          <Link href="/placement" className="text-xs font-medium text-primary hover:underline">
+                            {t("skills.takeTest")}
+                          </Link>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-destructive/35">
           <CardHeader>
             <CardTitle>{t("clear.title")}</CardTitle>
             <CardDescription>{t("clear.description")}</CardDescription>
@@ -191,6 +255,7 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
             <ConfirmDialog
               trigger={
                 <Button variant="destructive" size="sm" disabled={busy}>
+                  <Trash2 />
                   {t("clear.button")}
                 </Button>
               }

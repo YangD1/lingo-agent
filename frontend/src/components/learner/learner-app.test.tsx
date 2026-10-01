@@ -87,10 +87,12 @@ describe("LearnerApp", () => {
       ],
     });
     show();
-    expect(await screen.findByTestId("skill-grammar")).toHaveTextContent("Grammar: B2 (20 answers)");
+    expect(await screen.findByTestId("skill-grammar")).toHaveTextContent("GrammarB220 answers");
     expect(screen.getByTestId("skill-vocab")).toHaveTextContent(
-      "Vocabulary: about 3,100 words (roughly B1) (this estimate isn't reliable)",
+      "VocabularyB1about 3,100 words (this estimate isn't reliable)",
     );
+    // Skills the placement test doesn't measure are listed too, as not assessed.
+    expect(screen.getByTestId("skill-speaking")).toHaveTextContent("Not assessed");
     expect(screen.queryByText(/8\.29/)).not.toBeInTheDocument();
   });
 

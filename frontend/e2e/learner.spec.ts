@@ -27,7 +27,7 @@ test("mistakes in chat show up in the learner model, and can be deleted", async 
   await expect(page.getByText(/还没有记录/)).toBeVisible();
   await expect(page.getByText(/还没有技能估计/)).toBeVisible();
 
-  await page.getByRole("link", { name: "对话" }).click();
+  await page.getByRole("link", { name: "对话", exact: true }).click();
   await send(page, "She like music.");
   await expect(activityOf(replies(page).first())).toContainText("标记 1 个语法错误", {
     timeout: 15_000,

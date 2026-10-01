@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Trash2 } from "lucide-react";
+import { ChevronRight, CircleCheck, CircleX, MessageCircle, Trash2 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
@@ -9,6 +9,8 @@ import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineConfirm } from "@/components/ui/inline-confirm";
+import { ProgressBar } from "@/components/ui/progress";
+import { CefrTag } from "@/components/ui/tag";
 import {
   deleteEvidence,
   type Evidence,
@@ -20,7 +22,7 @@ import {
 } from "@/lib/learner";
 import { cn } from "@/lib/utils";
 
-const STATE_BAR: Record<KCStatus["state"], string> = {
+export const STATE_BAR: Record<KCStatus["state"], string> = {
   weak: "bg-chart-3",
   learning: "bg-chart-2",
   mastered: "bg-chart-1",
@@ -90,50 +92,57 @@ export function KCItem({
   }
 
   return (
-    <li ref={ref} className="py-2" data-testid={`kc-${kc.kc_id}`}>
+    <li ref={ref} data-testid={`kc-${kc.kc_id}`}>
       <button
         type="button"
         aria-expanded={open}
         aria-controls={detailsId}
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 text-left"
+        className="flex min-h-12 w-full items-center gap-2.5 py-3 text-left outline-none focus-visible:outline-2 focus-visible:outline-ring"
       >
-        <ChevronRight className={cn("size-4 shrink-0 transition-transform", open && "rotate-90")} />
-        <span className="flex-1">
-          <span className="font-medium">{kcName(kc, locale)}</span>{" "}
-          <span className="text-xs text-muted-foreground">{kc.cefr}</span>
+        <ChevronRight
+          className={cn(
+            "size-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-90",
+          )}
+        />
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-[550]">{kcName(kc, locale)}</span>
+            <CefrTag level={kc.cefr} />
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {t("counts", {
+              mistakes: kc.mistakes,
+              produced: kc.produce_correct,
+              recognized: kc.recog_correct,
+            })}
+          </span>
         </span>
-        <span
-          role="meter"
-          aria-label={t("mastery")}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-          className="hidden h-2 w-24 overflow-hidden rounded-full bg-muted sm:block"
-        >
+        <span className="flex w-28 shrink-0 flex-col items-end gap-1.5 sm:w-36">
           <span
-            className={cn("block h-full", STATE_BAR[kc.state])}
-            style={{ width: `${percent}%` }}
-          />
-        </span>
-        <span className="w-28 text-right text-sm tabular-nums">
-          {percent}% · {t(`states.${kc.state}`)}
+            role="meter"
+            aria-label={t("mastery")}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent}
+            className="hidden w-full sm:block"
+          >
+            <ProgressBar value={kc.p_mastery} barClassName={STATE_BAR[kc.state]} />
+          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {percent}% · {t(`states.${kc.state}`)}
+          </span>
         </span>
       </button>
-      <p className="pl-6 text-xs text-muted-foreground">
-        {t("counts", {
-          mistakes: kc.mistakes,
-          produced: kc.produce_correct,
-          recognized: kc.recog_correct,
-        })}
-      </p>
       {open && (
-        <div id={detailsId} className="mt-2 flex flex-col gap-2 pl-6 text-sm">
+        <div id={detailsId} className="flex flex-col gap-2 pb-3 pl-[26px] text-[13px]">
           <span className="inline-flex items-center gap-1.5 self-start">
             <Link
               href={practiceHref(kc.kc_id)}
               className={buttonVariants({ size: "sm", variant: "outline" })}
             >
+              <MessageCircle />
               {t("practice")}
             </Link>
             <AiBadge feature="practice_start" />
@@ -147,12 +156,17 @@ export function KCItem({
             <p className="text-muted-foreground">{t("noEvidence")}</p>
           )}
           {page && page.evidence.length > 0 && (
-            <ul className="flex flex-col divide-y" aria-label={t("evidence")}>
+            <ul className="flex flex-col divide-y divide-dashed" aria-label={t("evidence")}>
               {page.evidence.map((e) => {
                 const chat = e.source === "chat";
                 return (
-                <li key={e.id} className="flex items-start gap-2 py-1.5">
-                  <div className="flex flex-1 flex-col gap-0.5">
+                <li key={e.id} className="flex items-start gap-2 py-2">
+                  {e.correct ? (
+                    <CircleCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-success" />
+                  ) : (
+                    <CircleX aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
+                  )}
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <p>
                       {e.source === "placement" ? (
                         <span>{t(e.correct ? "placementCorrect" : "placementWrong")}</span>
@@ -160,8 +174,15 @@ export function KCItem({
                         <span>{t("usedCorrectly")}</span>
                       ) : (
                         <>
-                          <span className="line-through">{e.original}</span>
-                          {e.correction && <> → {e.correction}</>}
+                          <span className="text-muted-foreground line-through decoration-destructive/70">
+                            {e.original}
+                          </span>
+                          {e.correction && (
+                            <>
+                              {" → "}
+                              <span className="font-[550] text-success">{e.correction}</span>
+                            </>
+                          )}
                         </>
                       )}
                     </p>
@@ -182,7 +203,7 @@ export function KCItem({
                       {e.source === "placement" ? (
                         <>
                           {" · "}
-                          <Link href="/placement" className="underline-offset-2 hover:underline">
+                          <Link href="/placement" className="text-primary underline-offset-2 hover:underline">
                             {t("fromPlacement")}
                           </Link>
                         </>
@@ -191,7 +212,7 @@ export function KCItem({
                           {" · "}
                           <Link
                             href={`/chat?c=${e.conversation_id}`}
-                            className="underline-offset-2 hover:underline"
+                            className="text-primary underline-offset-2 hover:underline"
                           >
                             {t("from", { title: e.conversation_title || t("untitled") })}
                           </Link>

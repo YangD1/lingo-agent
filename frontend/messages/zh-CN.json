@@ -371,7 +371,10 @@
       "filterState": "按状态筛选",
       "allLevels": "全部等级",
       "allStates": "全部状态",
-      "noMatch": "没有符合条件的语法点。"
+      "noMatch": "没有符合条件的语法点。",
+      "emptyTitle": "还没有语法记录",
+      "chat": "去和私教对话",
+      "filter": "筛选"
     },
     "kc": {
       "mastery": "掌握度",
@@ -411,9 +414,8 @@
     },
     "skills": {
       "title": "技能估计",
-      "description": "来自入学测：语法给出等级，词汇给出估计词汇量。",
-      "empty": "还没有技能估计。做完入学测后会显示在这里。",
-      "row": "{skill}：能力值 {rating}（{attempts} 次作答）",
+      "description": "来自入学测：语法给出等级，词汇给出估计词汇量。都放在同一条 A1–C2 刻度上。",
+      "empty": "还没有技能估计",
       "names": {
         "listening": "听力",
         "speaking": "口语",
@@ -422,11 +424,13 @@
         "grammar": "语法",
         "vocab": "词汇"
       },
-      "levelRow": "{skill}：{level}（{attempts} 次作答）",
-      "vocabRow": "{skill}：约 {size} 词",
-      "vocabRowLevel": "{skill}：约 {size} 词（参考等级 {level}）",
       "unreliable": "（这次估计不可靠）",
-      "takeTest": "去做入学测"
+      "takeTest": "去做入学测",
+      "emptyHint": "做完入学测后，这里会显示各项技能的等级。",
+      "notAssessed": "未评估",
+      "answers": "{attempts} 次作答",
+      "vocab": "约 {size} 词",
+      "rating": "能力值 {rating} · {attempts} 次作答"
     },
     "clear": {
       "title": "删除所有学习记录",
