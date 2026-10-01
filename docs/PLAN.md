@@ -64,7 +64,7 @@ llm:
 asr:                                        # OpenAI 兼容 /audio/transcriptions，走租户连接（ADR 0008）
   default: [groq:whisper-large-v3-turbo, siliconflow:FunAudioLLM/SenseVoiceSmall, openai:gpt-transcribe]  # 大陆访问不了 Groq/OpenAI 时用硅基流动；dev 可改为本地 speaches 连接
 speech:
-  tts: local_kokoro           # dev；prod: edge_tts（免费）
+  tts: browser               # 默认浏览器朗读（挑好声音）；可选租户连接：兼容 OpenAI 的 /audio/speech 或 Azure 语音（ADR 0018）
   pronunciation: azure        # 免费档 F0 每月 5 小时；本地方案后置
   realtime: gemini_live       # 端到端语音对话；可选 openai_realtime / disabled
 ```
@@ -142,13 +142,13 @@ speech:
 monorepo（`backend/` uv + FastAPI，`frontend/` Next.js，`docker-compose.yml`）；provider 层 + 配置；多租户凭据（租户自配 key / base_url / 路由）；llm_usage 用量记录 + 可选 OTel tracing；用户注册登录（JWT）；最简对话流式输出。
 
 **P1 MVP：私教对话 + 长期记忆 + 背单词 + 入学测 + 能力看板**（详见 `docs/plans/P1-mvp.md`）
-主图加 load_context 与后台反思、记忆读写闭环（可视化“AI 记住了你什么”页面）；FSRS 背单词（ECDICT 导入、词书选择、熟词筛选、复习页）；CEFR 自适应入学测子图；**自适应引擎第一版：错误打标 + kc_mastery 更新**；**agent 活动公示**（每条回复下可展开“私教做了什么”：读取的记忆、调用的工具、回复后记下的内容，见 ADR 0013 和 `docs/agent-tools.md`）；**个人能力看板**（图表 + 嵌入的“今天”私教对话：算法出候选，开口前显示规则问候和快捷回复，私教在对话里给出直达复习、入学测或语法练习的卡片，见 ADR 0016）；**AI 用量标记**（每个会调用模型的入口旁有“AI”标，悬停或点按显示调用了哪些模型任务、每次约多少 token，见 ADR 0014）；**私教工具调用与确认卡**（私教可以提议换词书、设学习目标，并给出练习和直达卡片。有副作用的操作要学习者确认后才执行，执行后可以撤销；入学测结果页内嵌学习规划对话，见 ADR 0015、0016）。**对话的中英比例与单词气泡**（“多说中文 / 多说英文”全局开关，没选过时按等级给默认；私教气泡可切换看中文版 / 英文版；私教气泡里的英文单词悬停或点按弹出单词气泡：音标、释义、朗读、原句、按需 AI 例句、加入生词本；私教气泡可朗读，先用浏览器 `speechSynthesis`，见 ADR 0017）。
+主图加 load_context 与后台反思、记忆读写闭环（可视化“AI 记住了你什么”页面）；FSRS 背单词（ECDICT 导入、词书选择、熟词筛选、复习页）；CEFR 自适应入学测子图；**自适应引擎第一版：错误打标 + kc_mastery 更新**；**agent 活动公示**（每条回复下可展开“私教做了什么”：读取的记忆、调用的工具、回复后记下的内容，见 ADR 0013 和 `docs/agent-tools.md`）；**个人能力看板**（图表 + 嵌入的“今天”私教对话：算法出候选，开口前显示规则问候和快捷回复，私教在对话里给出直达复习、入学测或语法练习的卡片，见 ADR 0016）；**AI 用量标记**（每个会调用模型的入口旁有“AI”标，悬停或点按显示调用了哪些模型任务、每次约多少 token，见 ADR 0014）；**私教工具调用与确认卡**（私教可以提议换词书、设学习目标，并给出练习和直达卡片。有副作用的操作要学习者确认后才执行，执行后可以撤销；入学测结果页内嵌学习规划对话，见 ADR 0015、0016）。**对话的中英比例与单词气泡**（“多说中文 / 多说英文”全局开关，没选过时按等级给默认；私教气泡可切换看中文版 / 英文版；私教气泡里的英文单词悬停或点按弹出单词气泡：音标、释义、朗读、原句、按需 AI 例句、加入生词本；私教气泡可朗读，先用浏览器 `speechSynthesis`，见 ADR 0017）。**朗读的三层方案**（浏览器自己挑好声音、按句切分、学习者可调声音和语速 → 单词发音预生成缓存 → 可选的服务端朗读连接，失败退回浏览器，见 ADR 0018）。
 
 **P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作**
 LangGraph Supervisor 主图（意图路由到各 coach，从 P1 移来）；语法知识图谱构建；诊断 Agent（根因分析）；选题规划 + 练习生成与 critic 校验 + 多题型练习页；新闻 RSS 抓取 + 分级改写 + 自动收词；APScheduler 定时订阅任务；写作批改回写学习者模型；每日学习计划（interrupt 确认）。
 
 **P3 语音（双模式，配置切换）**
-- **模式 A · 级联管线**（默认，便宜、完全可控）：ASR → LangGraph（完整记忆/工具/trace）→ TTS。本地用 speaches 容器（faster-whisper，OpenAI 兼容接口，作为租户连接接入，见 ADR 0008）+ Kokoro，线上 Groq/SiliconFlow + edge-tts。语音消息的转写在 11B 已经实现，P3 在此基础上做朗读、跟读和口语。私教气泡和单词的朗读在 P1 先用浏览器 `speechSynthesis`（ADR 0017），服务端 TTS（provider 层 `tts` 任务、edge-tts、兼容 OpenAI 的 `/audio/speech`）作为任务 25 提前做，失败时退回浏览器。用于朗读、跟读、半双工口语练习。
+- **模式 A · 级联管线**（默认，便宜、完全可控）：ASR → LangGraph（完整记忆/工具/trace）→ TTS。本地用 speaches 容器（faster-whisper，OpenAI 兼容接口，作为租户连接接入，见 ADR 0008），线上 Groq/SiliconFlow；朗读按 ADR 0018 的三层方案（浏览器优先，服务端朗读是租户可选的连接，不内置 edge-tts，不在后端容器里跑朗读模型）。语音消息的转写在 11B 已经实现，P3 在此基础上做朗读、跟读和口语。私教气泡和单词的朗读在 P1 先用浏览器 `speechSynthesis`（ADR 0017），任务 25 按 ADR 0018 改为三层：浏览器挑好声音 → 单词发音预生成 → 可选服务端朗读（provider 层 `tts` 任务，兼容 OpenAI 的 `/audio/speech` 或 Azure 语音），失败时退回浏览器。用于朗读、跟读、半双工口语练习。
 - **模式 B · 端到端实时语音**（像 ChatGPT 语音模式：低延迟、可打断、有语气）：`speech.realtime` provider 支持 Gemini Live（有免费档，首选）和 OpenAI gpt-realtime（-mini 更便宜）。浏览器通过 WebRTC/WebSocket 直连厂商，后端只签发临时 token，所以低配服务器也扛得住。
   - 和 Agent 体系的衔接：开会话时把用户画像、CEFR 等级、情景设定注入 system instructions；查词、记生词等能力用 realtime 的 function calling 回调后端；会话结束后，把转写文本送进 LangGraph 的 `reflect_memory` 节点，写回长期记忆和学习者模型。
   - 端到端模型不输出音素级分数，所以发音评测仍然走独立 provider（Azure 免费档）。
@@ -186,7 +186,7 @@ lingo-agent/
 1. **低配服务器**：Neo4j + PG + 后端 + 前端，2C4G 勉强能跑。若更低，可把图谱换成 PG + Apache AGE（少一个服务，但生态和可视化不如 Neo4j）。
 2. **新闻版权**：只做个人学习用途，保存原文链接和摘要，不对外公开分发。
 3. **发音评测**：高质量本地方案（wav2vec2 音素对齐 GOP）工程量大，先用 Azure 免费档，本地方案放到后期。
-4. **免费 API 的稳定性**：edge-tts 是非官方接口，Groq/SiliconFlow 免费档有额度限制，所以 provider 层必须支持降级链（fallback）。
+4. **免费 API 的稳定性**：edge-tts 是非官方接口（因此不内置，见 ADR 0018），Groq/SiliconFlow 免费档有额度限制，所以 provider 层必须支持降级链（fallback）。
 
 ## 验证方式（每阶段）
 - 自适应引擎：用模拟学习者（固定弱点的 LLM persona）跑多轮，验证系统能识别出预设的弱点、练习集中在这些点上、掌握度曲线随之上升。这也是很好的演示素材。

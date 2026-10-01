@@ -61,7 +61,8 @@
 - `lib/speech.ts`：把背单词页的 `speak()` 挪过来共用。私教气泡的“朗读”按钮先把文本按文字种类切成中文段和英文段，分别用 `zh-CN`、`en-US` 声音依次读；再点一次停止。浏览器不支持 `speechSynthesis` 时不显示按钮。
 - 朗读的是气泡渲染后的纯文本（去掉 Markdown 符号和代码块）。
 - 不调用模型，也不经过后端，所以不登记 `features.yaml`，不挂 AI 标记。
-- 服务端 TTS（provider 层 `tts` 任务、edge-tts、兼容 OpenAI 的 `/audio/speech`）是任务 25。届时朗读按钮优先用服务端，失败时退回浏览器。
+- 服务端 TTS 是任务 25。
+- **已被 ADR 0018 修订（2026-10-01）**：浏览器朗读改为自己挑声音（按语言和质量打分、中英尽量同性别）、按句切分、学习者可以在当前浏览器里选声音、口音和语速；服务端朗读改为租户可选的连接（兼容 OpenAI 的 `/audio/speech` 或 Azure 语音），不内置 edge-tts。
 
 ## 公示（ADR 0013、0014）
 - `features.yaml` 新增 `word_examples`（task `word_examples`，立即）和 `message_translate`（task `translate`，立即）。前端在“AI 例句”和“看中文 / 看英文”旁挂 `AiBadge`。

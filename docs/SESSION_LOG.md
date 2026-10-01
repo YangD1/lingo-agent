@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-10-01 · 任务 25.1：ADR 0018 朗读三层方案
+
+- **做了什么**：
+  - 新增 `docs/decisions/0018-read-aloud-layers.md`（已采纳）：第 1 层浏览器挑声音（等 `voiceschanged`、按语言筛、按名字打分、Multilingual 整段一个声音、中英同性别、按句切短、没有中文声音只读英文）+ 朗读设置存在 `localStorage`；第 3 层服务端朗读（provider `tts` 任务，兼容 OpenAI `/audio/speech` 或 Azure SSML，按文本+声音+语速缓存，`features.yaml` 的 `read_aloud`）；第 2 层单词发音预生成。第 2、3 层按 Q25f 后定。
+  - PLAN：`speech.tts` 改为 `browser`，去掉 Kokoro / edge-tts 默认，语音章节和风险第 4 条指向 ADR 0018；ADR 0017 §5 加修订说明。
+- **未完成**：25.2（`frontend/src/lib/speech.ts` 现在只有 `speechSegments` / `speak` / `speakSegments`，没有挑声音，要按 ADR 0018 §1 加纯函数 + 单测）、25.3、25.6；25.4、25.5 待定。
+- **下一步**：25.2。现有调用方：`components/chat/word-popup.tsx`、`message-list.tsx`、`reply-tools.tsx`、`vocab/review-app.tsx`。
+- **踩坑**：无。
+
+---
+
 ## 2026-10-01 · 朗读选型调研，任务 25 改为三层方案并拆分（未开工）
 
 - **做了什么**：
