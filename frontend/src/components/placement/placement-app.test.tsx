@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Advice } from "@/lib/advice";
 import { ApiError } from "@/lib/api";
 import type { Placement, PlacementResult, Question } from "@/lib/placement";
 import type { PlacementKnown } from "@/lib/vocab";
@@ -16,32 +15,17 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   api,
 }));
-// The result page's advice and AI badges have their own requests; keep them off `api`.
-const fetchAdvice = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/advice", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/advice")>()),
-  fetchAdvice,
+// The result page's planning conversation has its own requests and tests
+// (placement-tutor.test.tsx); keep them off `api`.
+vi.mock("./placement-tutor", () => ({
+  PlacementTutor: ({ finishedAt }: { finishedAt: string | null }) => (
+    <div data-testid="placement-next" data-finished-at={finishedAt ?? ""} />
+  ),
 }));
 vi.mock("@/lib/ai-usage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ai-usage")>()),
   loadEstimates: () => new Promise(() => {}),
 }));
-
-const advice: Advice = {
-  items: [
-    {
-      candidate_id: "choose_book",
-      kind: "choose_book",
-      count: null,
-      days_since: null,
-      in_progress: false,
-      kc: null,
-      p_mastery: null,
-      book: null,
-    },
-  ],
-  model_ready: true,
-};
 
 const vocab = (index: number, word: string): Question => ({
   id: `vocab-${index}`,
@@ -96,7 +80,6 @@ function show() {
 
 beforeEach(() => {
   api.mockReset();
-  fetchAdvice.mockReset().mockResolvedValue(advice);
 });
 
 describe("PlacementApp", () => {
@@ -180,15 +163,11 @@ describe("PlacementApp", () => {
     expect(await screen.findByText("apple")).toBeInTheDocument();
   });
 
-  it("offers the advice for the new result and a planning conversation", async () => {
+  it("puts this test's planning conversation under the result", async () => {
     api.mockResolvedValueOnce(placement(null, true)).mockResolvedValueOnce(offer);
     show();
     const next = await screen.findByTestId("placement-next");
-    expect(await screen.findByText("Choose a word book")).toBeInTheDocument();
-    expect(fetchAdvice).toHaveBeenCalled();
-    expect(next).toContainElement(screen.getByTestId("advice-item"));
-    expect(screen.getByTestId("placement-plan")).toHaveAttribute("href", "/chat?plan=1");
-    expect(screen.getByTestId("placement-plan")).toHaveTextContent("Plan my study with the tutor");
+    expect(next.dataset.finishedAt).toBe("2026-09-30T00:10:00Z");
   });
 
   it("warns when the vocabulary estimate is unreliable", async () => {

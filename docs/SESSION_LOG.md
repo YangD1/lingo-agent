@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-10-01 · 任务 23.4：入学测结果页的规划对话框
+
+- **做了什么**：
+  - 新增 `frontend/src/components/placement/placement-tutor.tsx`：`PlacementTutor` 替换 `placement-result.tsx` 里的 `NextSteps`，用 `TutorPanel` 嵌入这次测试的规划对话（ADR 0016 §4）。
+  - `findPlanning(finishedAt)`：前端从 `GET /conversations` 里挑 `purpose = planning` 且 `created_at >= finished_at` 的最近一段，没加后端接口。
+  - `PlanStart`（开口前的内容）：按钮“和私教聊聊这次结果”→ `POST {purpose: planning}` → `setOpening(true)` 让 `TutorPanel` 的 `autoOpen` 开场；已有空会话时按钮直接 `actions.open()`；直接打字走 `createConversation`，跳过开场。没配模型时显示规则建议链接。
+  - 删掉 `lib/placement.ts` 的 `PLAN_HREF`、结果页“去背单词”链接；i18n 中英同步。Vitest 216 通过，tsc、eslint 干净。
+- **未完成**：
+  - 23.5：E2E `advice.spec.ts`、`planning.spec.ts` 还是旧界面（`planning.spec.ts` 点的是已删掉的链接），要改写；对话页 `?plan=1`（`chat-app.tsx` 的 `planning` prop）现在前端没有入口了，改 E2E 时决定删还是留。
+  - 看板和结果页都没在浏览器里实际看过。
+- **下一步**：23.5 E2E + README + Docker 重建交用户实测。
+- **踩坑**：
+  - 之前留下的空规划对话（比如开场被拒）不能 `autoOpen`，否则一打开结果页就调模型，违反 Q23b；所以 `autoOpen` 只在点了按钮之后为 true。
+  - 本会话 `pnpm` 是个会递归的 shell 函数，用 `~/.nvm/versions/node/v24.14.0/bin/node node_modules/vitest/vitest.mjs run` 这类绝对路径跑。
+
+---
+
 ## 2026-10-01 · 任务 23.3：看板的“今天的学习”对话框
 
 - **做了什么**：
