@@ -4,7 +4,7 @@ import { SparklesIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { aiPill } from "@/components/ai-pill";
+import { aiMark, aiMarkCorner } from "@/components/ai-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   type AiFeature,
@@ -70,14 +70,13 @@ export function AiBadge({
         aria-label={t("label")}
         data-testid={`ai-badge-${features.join("-")}`}
         className={cn(
-          aiPill,
-          "cursor-help hover:bg-[color-mix(in_oklab,var(--ai)_18%,var(--card))]",
-          corner && "absolute -top-[7px] -right-2 z-1 ring-2 ring-background",
+          aiMark,
+          "cursor-help hover:bg-[color-mix(in_oklab,var(--ai)_14%,var(--card))]",
+          corner && aiMarkCorner,
           className,
         )}
       >
-        <SparklesIcon aria-hidden className="size-[9px]" />
-        AI
+        <SparklesIcon aria-hidden />
       </PopoverTrigger>
       <PopoverContent
         className="max-h-[70vh] w-[340px] max-w-[calc(100vw-32px)] overflow-y-auto text-xs"
@@ -86,9 +85,8 @@ export function AiBadge({
         {features.map((f) => (
           <section key={f} className="flex flex-col gap-2">
             <p className="flex items-start gap-2 text-[13px] leading-[1.6]">
-              <span aria-hidden className={cn(aiPill, "mt-0.5")}>
-                <SparklesIcon className="size-[9px]" />
-                AI
+              <span aria-hidden className={cn(aiMark, "mt-1")}>
+                <SparklesIcon />
               </span>
               <span>{t(`feature.${f}`)}</span>
             </p>

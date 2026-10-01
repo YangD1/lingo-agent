@@ -14,7 +14,7 @@ import {
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
-import { aiPill } from "@/components/ai-pill";
+import { aiMark, aiMarkCorner } from "@/components/ai-pill";
 import { LogoMark, Logo } from "@/components/brand/logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { buttonVariants } from "@/components/ui/button";
@@ -125,14 +125,8 @@ export async function Landing() {
               <span className={cn(buttonVariants({ variant: "outline" }), "relative shrink-0")}>
                 <MicIcon />
                 {t("trust.record")}
-                <span
-                  className={cn(
-                    aiPill,
-                    "absolute -top-2 -right-2 ring-2 ring-[var(--card)]",
-                  )}
-                >
-                  <SparklesIcon className="size-2.5" />
-                  AI
+                <span className={cn(aiMark, aiMarkCorner, "bg-card")}>
+                  <SparklesIcon />
                 </span>
               </span>
               <span className="text-xs text-muted-foreground">{t("trust.hint")}</span>

@@ -62,7 +62,8 @@ afterEach(() => {
 describe("AiBadge", () => {
   it("does not fetch until it is opened", () => {
     show("chat_message");
-    expect(screen.getByRole("button", { name: /Uses AI/ })).toHaveTextContent("AI");
+    // A bare star: the name comes from aria-label, there is no visible text.
+    expect(screen.getByRole("button", { name: /Uses AI/ })).toHaveTextContent("");
     expect(api).not.toHaveBeenCalled();
   });
 
