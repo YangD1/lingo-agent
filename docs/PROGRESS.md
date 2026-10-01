@@ -295,6 +295,11 @@
   - [x] 28.3 接口：复习队列、评分结果、生词本里的单词带 `sentences`（最多 2 句）；测试。完成：`services/vocab/sentences.py`（`for_words` 一条查询批量取例句，`page` 生成来源链接）；`CardOut.sentences`（`en` / `zh` / `source` / `url`），复习队列、评分结果、生词本列表和加词结果都带；`_cards` 统一组装；集成测试断言排序和链接；vocab 相关 pytest 69、ruff、mypy 全过
   - [x] 28.4 前端：`WordMeanings` 中文释义下面加例句区（英文、单词及变形加粗、灰色中文、“来源：Tatoeba”）；下面是“AI 例句”按钮（带 `AiBadge word_examples`，复用 `fetchExamples`），没有真例句时只显示按钮；i18n；Vitest。完成：`components/vocab/word-examples.tsx`（真例句每句后有到 Tatoeba 原句的链接，底部“来源：Tatoeba”；“AI 例句”按钮挂 `AiBadge word_examples`，生成后标“AI 生成”；没有例句时不画左侧竖线）；`lib/meanings.ts` 加 `markWord`（单词按整词、短语按文本加粗）；为了加粗变形，`CardOut` 加 `forms`（后端 `forms_of(..., lemma=False)`）；`WordMeanings` 改收 `card`；i18n `vocab.review.examples`；Vitest 293（新增 markWord 2 个、复习页 AI 例句 1 个）、tsc、eslint 全过；1440 / 390 × 亮暗截图核对
   - [x] 28.5 收尾：`features.yaml` 和 `docs/agent-tools.md` 注明复习卡片也是 `word_examples` 的入口；README 中英两份加数据来源与署名；E2E（假模型生成 AI 例句）；截图对照；在开发库执行导入（只新增数据，不动已有数据）；Docker 重建。完成：`features.yaml`、`agent-tools.md` 已加复习卡片入口；README 中英两份快速开始加 `make sentences-import`、例句一节（来源、许可、更新方式、没有 uv 时在容器里导入）、功能列表和许可证一节的数据署名；OpenCC 改为正式依赖（容器里也能导入）；E2E `run_backend.py` 导入一份 Tatoeba 小样本（含繁体），`vocab.spec.ts` 新增复习卡片例句用例（没有例句只有按钮、变形加粗、繁转简、原句链接、假模型 AI 例句）；E2E 43 个，`i18n` 一次偶发失败（Next 路由播报元素和标题重名，重跑通过，与本任务无关）；`make lint` 全过；开发库导入已在 28.2 完成；Docker 后端、前端重建
+- [ ] 29. 猫咪动画（2026-10-02 用户放入设计资源 `docs/design/lingo-cat-motion/`：同一只 logo 猫的六种情绪 loader / hop / ai / done / idle / oops，带小尺寸版和“减少动态效果”降级）。2026-10-02 用户确认：Q29a 私教回复前让头像本身播 ai 动画，去掉三个点；Q29b 所有空状态和错误都换成猫（`EmptyState` 默认 idle，tone=error 时 oops）；Q29c 骨架屏保留，猫只替换“加载中…”文字；Q29d done 每次都播
+  - [x] 29.1 资源入库：删掉 Windows 带来的 `:Zone.Identifier`，原样提交设计包（README、LingoCat.tsx、lingo-cat.css、svg/ 六个单文件版，共 128K）
+  - [~] 29.2 组件：`components/brand/lingo-cat.tsx` + `lingo-cat.css`（颜色走现有 `--brand` / `--spark` token）；超过 300ms 才显示的延迟包装；Vitest（各 mood 的类名、小尺寸、无障碍标签、延迟显示）
+  - [ ] 29.3 接入：loader 换掉各处“加载中…”文字；ai 用在私教回复前、AI 例句、翻译、查词；hop 用在入学测出结果等长等待；done 用在复习一轮结束、入学测做完；`EmptyState` 的图标方块换成 idle / oops 猫（`icon` 改为可选）
+  - [ ] 29.4 收尾：E2E 回归、浅色 / 深色 / 减少动态效果截图检查、Docker 重建
 
 ## P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作
 - [ ] （进入 P2 时拆分）
