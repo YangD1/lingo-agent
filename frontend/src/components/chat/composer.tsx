@@ -113,7 +113,7 @@ export function Composer({ streaming, disabled, tray, onSend, onStop, toolbar }:
             >
               <Paperclip />
             </Button>
-            <AiBadge feature={["chat_image", "chat_pdf"]} className="absolute -top-1.5 -right-1.5" />
+            <AiBadge feature={["chat_image", "chat_pdf"]} corner />
           </div>
           {recorder.recording ? (
             <Button
@@ -139,7 +139,7 @@ export function Composer({ streaming, disabled, tray, onSend, onStop, toolbar }:
               >
                 <Mic />
               </Button>
-              <AiBadge feature="chat_audio" className="absolute -top-1.5 -right-1.5" />
+              <AiBadge feature="chat_audio" corner />
             </div>
           )}
         </div>
@@ -196,7 +196,7 @@ export function Composer({ streaming, disabled, tray, onSend, onStop, toolbar }:
             <Button type="submit" disabled={empty || blocked}>
               {t("send")}
             </Button>
-            <AiBadge feature="chat_message" className="absolute -top-1.5 -right-1.5" />
+            <AiBadge feature="chat_message" corner />
           </div>
         )}
       </div>

@@ -20,9 +20,9 @@ import {
 import { cn } from "@/lib/utils";
 
 const STATE_BAR: Record<KCStatus["state"], string> = {
-  weak: "bg-destructive",
-  learning: "bg-amber-500",
-  mastered: "bg-emerald-600",
+  weak: "bg-chart-3",
+  learning: "bg-chart-2",
+  mastered: "bg-chart-1",
 };
 
 /**

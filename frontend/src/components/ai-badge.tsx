@@ -1,5 +1,6 @@
 "use client";
 
+import { SparklesIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -13,6 +14,10 @@ import {
   loadEstimates,
 } from "@/lib/ai-usage";
 import { cn } from "@/lib/utils";
+
+// component-spec §6: a 16px pill in the AI colour, reserved for this badge only.
+const aiPill =
+  "inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full border border-ai/22 bg-[color-mix(in_oklab,var(--ai)_11%,var(--card))] pr-[5px] pl-1 text-[10px] leading-none font-semibold text-ai";
 
 type Loaded = { status: "loading" } | { status: "ok"; data: UsageEstimates } | { status: "error" };
 
@@ -39,10 +44,13 @@ function useEstimates(enabled: boolean): Loaded {
  */
 export function AiBadge({
   feature,
+  corner = false,
   className,
 }: {
   /** Several when one control leads to more than one (e.g. attach: images and PDFs). */
   feature: AiFeature | readonly AiFeature[];
+  /** Pin to the top-right corner of a `relative` parent, ringed off with the page colour. */
+  corner?: boolean;
   className?: string;
 }) {
   const t = useTranslations("aiBadge");
@@ -65,18 +73,30 @@ export function AiBadge({
         aria-label={t("label")}
         data-testid={`ai-badge-${features.join("-")}`}
         className={cn(
-          "inline-flex h-4 shrink-0 cursor-help items-center rounded-sm border border-violet-500/40 bg-violet-500/10 px-1 text-[10px] leading-none font-semibold tracking-wide text-violet-700 dark:text-violet-300",
+          aiPill,
+          "cursor-help hover:bg-[color-mix(in_oklab,var(--ai)_18%,var(--card))]",
+          corner && "absolute -top-[7px] -right-2 z-1 ring-2 ring-background",
           className,
         )}
       >
+        <SparklesIcon aria-hidden className="size-[9px]" />
         AI
       </PopoverTrigger>
-      <PopoverContent className="max-h-[70vh] w-80 overflow-y-auto text-xs" data-testid="ai-badge-details">
+      <PopoverContent
+        className="max-h-[70vh] w-[340px] max-w-[calc(100vw-32px)] overflow-y-auto text-xs"
+        data-testid="ai-badge-details"
+      >
         {features.map((f) => (
           <section key={f} className="flex flex-col gap-2">
-            <p className="text-sm">{t(`feature.${f}`)}</p>
+            <p className="flex items-start gap-2 text-[13px] leading-[1.6]">
+              <span aria-hidden className={cn(aiPill, "mt-0.5")}>
+                <SparklesIcon className="size-[9px]" />
+                AI
+              </span>
+              <span>{t(`feature.${f}`)}</span>
+            </p>
             {loaded.status === "ok" && (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col divide-y">
                 {callsOf(loaded.data, f).map((call, i) => (
                   <CallLine key={`${call.task}-${i}`} call={call} />
                 ))}
@@ -86,7 +106,7 @@ export function AiBadge({
         ))}
         {loaded.status === "loading" && <p className="text-muted-foreground">{t("loading")}</p>}
         {loaded.status === "error" && <p className="text-destructive">{t("failed")}</p>}
-        <p className="text-muted-foreground">{t("footer")}</p>
+        <p className="border-t pt-2 text-muted-foreground">{t("footer")}</p>
       </PopoverContent>
     </Popover>
   );
@@ -102,19 +122,24 @@ function CallLine({ call }: { call: CallEstimate }) {
       : t("tokens", { input: n(call.input_tokens), output: n(call.output_tokens) });
 
   return (
-    <li className="flex flex-col gap-0.5 rounded-md bg-muted/50 px-2 py-1.5">
-      <span className="font-medium">
-        {isAiTask(call.task) ? t(`task.${call.task}`) : call.task}
-        <span className="font-normal text-muted-foreground"> · {t(`timing.${call.timing}`)}</span>
+    <li className="flex flex-col gap-0.5 py-2 first:pt-0 last:pb-0">
+      <span className="flex items-baseline gap-2">
+        <span className="font-semibold">
+          {isAiTask(call.task) ? t(`task.${call.task}`) : call.task}
+        </span>
+        <span className="ml-auto font-mono text-[11px] text-muted-foreground">
+          {t(`timing.${call.timing}`)}
+        </span>
       </span>
-      <span>
+      <span className="tabular-nums">
         {amount}
         {call.per !== "call" && ` ${t(`per.${call.per}`)}`}
       </span>
-      <span className="text-muted-foreground">
-        {call.source === "history" ? t("fromHistory", { samples: call.samples }) : t("fromDefault")}
-        {" · "}
+      <span className={cn("text-muted-foreground", call.model && "font-mono")}>
         {call.model ? t("model", { model: call.model }) : t("noModel")}
+      </span>
+      <span className="text-[11px] text-muted-foreground">
+        {call.source === "history" ? t("fromHistory", { samples: call.samples }) : t("fromDefault")}
       </span>
     </li>
   );

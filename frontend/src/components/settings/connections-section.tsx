@@ -282,7 +282,7 @@ function ConnectionItem({
       {result && (
         <p
           role="status"
-          className={result.ok ? "text-sm text-emerald-600" : "text-sm text-destructive"}
+          className={result.ok ? "text-sm text-success" : "text-sm text-destructive"}
         >
           {result.text}
         </p>
@@ -365,7 +365,7 @@ function EditConnectionForm({
         </div>
       </div>
       {isPreset && name.trim() !== c.name && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">{t("renamePresetHint")}</p>
+        <p className="text-xs text-warning">{t("renamePresetHint")}</p>
       )}
       <div className="flex flex-col gap-2">
         <Label htmlFor={id("key")}>{t("newKey")}</Label>

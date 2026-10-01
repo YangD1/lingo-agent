@@ -292,7 +292,7 @@ export function RouteSection({
         {message && (
           <p
             role="status"
-            className={message.ok ? "text-sm text-emerald-600" : "text-sm text-destructive"}
+            className={message.ok ? "text-sm text-success" : "text-sm text-destructive"}
           >
             {message.text}
           </p>

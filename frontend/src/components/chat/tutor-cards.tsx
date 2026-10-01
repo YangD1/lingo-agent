@@ -135,7 +135,7 @@ function Decision({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
       )}
       {card.status === "applied" && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+          <span className="text-xs font-medium text-success">
             {t("applied")}
           </span>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => act("undo")}>

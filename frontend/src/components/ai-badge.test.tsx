@@ -75,9 +75,12 @@ describe("AiBadge", () => {
     expect(details).toHaveTextContent("Your tutor's reply is written by an AI model");
     expect(await screen.findByText("Reply")).toBeInTheDocument();
     expect(details).toHaveTextContent("≈ 2,310 input + 300 output tokens");
-    expect(details).toHaveTextContent("average of your last 12 calls · model deepseek:deepseek-chat");
-    expect(details).toHaveTextContent("Review the turn · in the background, after the reply");
-    expect(details).toHaveTextContent("no history yet, default estimate · no model configured");
+    expect(details).toHaveTextContent("model deepseek:deepseek-chat");
+    expect(details).toHaveTextContent("average of your last 12 calls");
+    expect(screen.getByText("Review the turn")).toBeInTheDocument();
+    expect(details).toHaveTextContent("in the background, after the reply");
+    expect(details).toHaveTextContent("no model configured");
+    expect(details).toHaveTextContent("no history yet, default estimate");
   });
 
   it("estimates speech-to-text by audio length and images per image", async () => {

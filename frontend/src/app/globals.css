@@ -116,6 +116,14 @@
   --sidebar-border: oklch(0.914 0.011 63.4); /* #E8E1DB · 侧边栏右边线、用户区分隔线 */
   --sidebar-ring: oklch(0.625 0.184 34.9); /* #E0522F · 侧边栏内焦点环 */
   --spark: oklch(0.857 0.168 83.4); /* #FFC53D · logo 里的星星，只用于 logo */
+  /* CEFR tag ramp (component-spec §10): one hue, light to dark; the 6-step scale on the
+     tag carries the order too, so it never relies on colour alone. */
+  --cefr-1: #F1ECE8; --cefr-1-fg: #5E5862;
+  --cefr-2: #FBE3D9; --cefr-2-fg: #8F2E14;
+  --cefr-3: #F6C6B4; --cefr-3-fg: #7D2610;
+  --cefr-4: #EE9779; --cefr-4-fg: #4A1608;
+  --cefr-5: #C8441F; --cefr-5-fg: #FFFFFF;
+  --cefr-6: #8A2C13; --cefr-6-fg: #FFFFFF;
   --shadow-lift: 0 1px 2px oklch(0.2 0.02 40 / 0.05), 0 2px 8px -2px oklch(0.2 0.02 40 / 0.08);
   --shadow-pop: 0 1px 2px oklch(0.2 0.02 40 / 0.06), 0 8px 24px -6px oklch(0.2 0.02 40 / 0.14);
 }
@@ -167,6 +175,12 @@
   --sidebar-accent-foreground: oklch(0.836 0.093 36.3); /* #FFB49F */
   --sidebar-border: oklch(0.296 0.017 300.6); /* #2E2B34 */
   --sidebar-ring: oklch(0.756 0.148 34.5); /* #FF8A6E */
+  --cefr-1: #2E2B33; --cefr-1-fg: #C9C2CC;
+  --cefr-2: #3A2019; --cefr-2-fg: #FFB49F;
+  --cefr-3: #5A2A1D; --cefr-3-fg: #FFC6B6;
+  --cefr-4: #8E3A24; --cefr-4-fg: #FFE3DA;
+  --cefr-5: #E0603E; --cefr-5-fg: #1C1B22;
+  --cefr-6: #FF9E85; --cefr-6-fg: #1C1B22;
   --shadow-lift: 0 1px 2px oklch(0 0 0 / 0.3), 0 2px 8px -2px oklch(0 0 0 / 0.4);
   --shadow-pop: 0 1px 2px oklch(0 0 0 / 0.4), 0 10px 28px -6px oklch(0 0 0 / 0.55);
 }

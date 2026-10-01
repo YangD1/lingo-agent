@@ -70,7 +70,7 @@ export function PlacementResult({
             </div>
           </dl>
           {!vocab.reliable && (
-            <p className="text-amber-700 dark:text-amber-400" data-testid="placement-unreliable">
+            <p className="text-warning" data-testid="placement-unreliable">
               {t("unreliable")}
             </p>
           )}

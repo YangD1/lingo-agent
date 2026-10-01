@@ -14,9 +14,10 @@ test("AI badges explain token use, from defaults and then from the tenant's own 
   await send.hover();
   const details = page.getByTestId("ai-badge-details");
   await expect(details).toContainText("私教的回复由 AI 模型生成");
-  await expect(details).toContainText("回复 · 立即");
-  await expect(details).toContainText("复盘这一轮 · 回复后在后台");
-  await expect(details).toContainText("还没有记录，这是默认估计 · 还没配置模型");
+  // Each call: task name with its timing, the estimate, the model, then where it came from.
+  await expect(details).toContainText("回复立即");
+  await expect(details).toContainText("复盘这一轮回复后在后台");
+  await expect(details).toContainText("还没配置模型还没有记录，这是默认估计");
   await expect(details).toContainText("只显示 token 数");
   await page.screenshot({ path: test.info().outputPath("chat-badge-default.png") });
 
@@ -44,7 +45,7 @@ test("AI badges explain token use, from defaults and then from the tenant's own 
     );
   }).toPass({ timeout: 20_000 });
   await expect(page.getByTestId("ai-badge-details")).toContainText(
-    "按你最近 1 次调用的平均 · 模型 fake:fake-tutor",
+    "模型 fake:fake-tutor按你最近 1 次调用的平均",
   );
   await page.screenshot({ path: test.info().outputPath("chat-badge-history.png") });
 });
