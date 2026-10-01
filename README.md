@@ -35,7 +35,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
 - **English and Chinese UI.**
 
-Not built yet (see [docs/PLAN.md](docs/PLAN.md)): the full adaptive engine (diagnosis, exercise generation with a critic, daily plans), graded news reading, grammar GraphRAG and writing feedback (P2); optional server-side read-aloud and pre-generated word pronunciations (task 25, decided after the browser voices have been tried; see ADR 0018); shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
+Not built yet (see [docs/PLAN.md](docs/PLAN.md)): the full adaptive engine (diagnosis, exercise generation with a critic, daily plans), graded news reading, grammar GraphRAG and writing feedback (P2); optional server-side read-aloud and pre-generated word pronunciations (see ADR 0018), shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
 
 ## Quick start (Docker)
 
