@@ -1,63 +1,63 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
 
-import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
-import type { SkillPoint } from "@/lib/dashboard";
 import { CEFR_LEVELS } from "@/lib/learner";
 
-// Level i covers [i, i + 1): gridlines at the boundaries, level names in the middle.
-const BOUNDARIES = [0, 1, 2, 3, 4, 5, 6];
-const MIDDLES = CEFR_LEVELS.map((_, i) => i + 0.5);
+/** A learner at the very bottom of A1 sits at 0; keep a sliver so the bar still shows. */
 const MIN_BAR = 0.08;
 
-/** Measured skills on one CEFR scale (Q17d); each bar is labelled with its level. */
-export function SkillsChart({
-  skills,
-  name,
-}: {
-  skills: SkillPoint[];
-  name: (skill: string) => string;
-}) {
+export type SkillRow = {
+  skill: string;
+  label: string;
+  /** 0–6 on the A1–C2 scale; null when not assessed. */
+  position: number | null;
+  cefr: string | null;
+};
+
+/** Every skill on one CEFR scale (Q17d); measured ones get a bar labelled with the level. */
+export function SkillsChart({ rows }: { rows: SkillRow[] }) {
   const t = useTranslations("dashboard.skills");
-  const config = { position: { label: t("title"), color: "var(--chart-1)" } } satisfies ChartConfig;
-  // A learner at the very bottom of A1 sits at 0; keep a sliver so the bar still shows.
-  const data = skills.map((s) => ({
-    skill: name(s.skill),
-    position: Math.max(s.position ?? 0, MIN_BAR),
-    cefr: s.cefr,
-  }));
   return (
-    <ChartContainer
-      config={config}
-      className="aspect-auto w-full"
-      style={{ height: 48 + 40 * data.length }}
+    <div
       role="img"
-      aria-label={data.map((d) => `${d.skill} ${d.cefr ?? ""}`).join(", ")}
+      aria-label={rows
+        .map((r) => `${r.label} ${r.position === null ? t("notAssessed") : (r.cefr ?? "")}`)
+        .join(", ")}
+      className="grid grid-cols-[44px_1fr] items-center gap-x-2 gap-y-2 text-[13px]"
     >
-      <BarChart data={data} layout="vertical" margin={{ left: 0, right: 32 }}>
-        <CartesianGrid horizontal={false} />
-        <XAxis
-          type="number"
-          domain={[0, 6]}
-          ticks={MIDDLES}
-          tickFormatter={(v: number) => CEFR_LEVELS[Math.floor(v)] ?? ""}
-          tickLine={false}
-          axisLine={false}
-        />
-        <XAxis xAxisId="grid" type="number" domain={[0, 6]} ticks={BOUNDARIES} hide />
-        <YAxis dataKey="skill" type="category" tickLine={false} axisLine={false} width={40} />
-        <Bar
-          dataKey="position"
-          fill="var(--chart-1)"
-          radius={[0, 4, 4, 0]}
-          barSize={20}
-          isAnimationActive={false}
-        >
-          <LabelList dataKey="cefr" position="right" className="fill-foreground" fontSize={12} />
-        </Bar>
-      </BarChart>
-    </ChartContainer>
+      <span />
+      <div className="grid grid-cols-6 font-mono text-[11px] text-muted-foreground">
+        {CEFR_LEVELS.map((level) => (
+          <span key={level} className="pl-1">
+            {level}
+          </span>
+        ))}
+      </div>
+      {rows.map((r) => (
+        <SkillBar key={r.skill} row={r} />
+      ))}
+    </div>
+  );
+}
+
+function SkillBar({ row }: { row: SkillRow }) {
+  const t = useTranslations("dashboard.skills");
+  return (
+    <>
+      <span>{row.label}</span>
+      {row.position === null ? (
+        <span className="text-xs text-muted-foreground">{t("notAssessed")}</span>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <span
+            data-testid="skill-bar"
+            className="h-3 rounded-r-[4px] bg-chart-1"
+            style={{ width: `${(Math.max(row.position, MIN_BAR) / 6) * 100}%` }}
+          />
+          <span className="font-mono text-[11px] font-semibold">{row.cefr}</span>
+        </div>
+      )}
+    </>
   );
 }

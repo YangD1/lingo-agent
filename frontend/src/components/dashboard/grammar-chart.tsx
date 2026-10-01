@@ -1,55 +1,48 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import {
-  type ChartConfig,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+import { StackedBar } from "@/components/ui/progress";
 import type { Dashboard } from "@/lib/dashboard";
 import { CEFR_LEVELS } from "@/lib/learner";
 
+import { ChartLegend } from "./chart-legend";
+
 const PARTS = ["mastered", "learning", "weak", "unseen"] as const;
+// component-spec §11: mastered chart-1, learning chart-2, weak chart-3, unseen chart-5.
 const COLORS = {
-  mastered: "var(--chart-1)",
-  learning: "var(--chart-2)",
-  weak: "var(--chart-3)",
-  unseen: "var(--chart-5)",
+  mastered: "bg-chart-1",
+  learning: "bg-chart-2",
+  weak: "bg-chart-3",
+  unseen: "bg-chart-5",
 } as const;
 
-/** Grammar points per level by mastery, stacked (P1 plan §7.5.1). */
+/**
+ * Grammar points per level by mastery, one stacked bar a level (P1 plan §7.5.1). The table
+ * under it carries the numbers, so the bars are decoration for screen readers.
+ */
 export function GrammarChart({ grammar }: { grammar: Dashboard["grammar"] }) {
   const t = useTranslations("dashboard.grammar");
-  const config = Object.fromEntries(
-    PARTS.map((p) => [p, { label: t(p), color: COLORS[p] }]),
-  ) satisfies ChartConfig;
-  const data = CEFR_LEVELS.map((level) => ({ level, ...grammar[level] }));
   return (
-    <ChartContainer config={config} className="aspect-auto h-64 w-full">
-      <BarChart data={data} layout="vertical" margin={{ left: 0, right: 8 }} accessibilityLayer>
-        <CartesianGrid horizontal={false} />
-        <YAxis dataKey="level" type="category" tickLine={false} axisLine={false} width={28} />
-        <XAxis type="number" tickLine={false} axisLine={false} allowDecimals={false} />
-        <ChartTooltip content={<ChartTooltipContent />} />
-        <ChartLegend itemSorter={null} content={<ChartLegendContent />} />
-        {PARTS.map((p, i) => (
-          <Bar
-            key={p}
-            dataKey={p}
-            stackId="kc"
-            fill={COLORS[p]}
-            stroke="var(--card)"
-            strokeWidth={1}
-            radius={i === PARTS.length - 1 ? [0, 4, 4, 0] : 0}
-            isAnimationActive={false}
-          />
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5">
+        {CEFR_LEVELS.map((level) => (
+          <div
+            key={level}
+            data-testid="grammar-row"
+            className="grid grid-cols-[28px_1fr] items-center gap-2 font-mono text-xs"
+          >
+            <span className="text-muted-foreground">{level}</span>
+            <StackedBar
+              className="h-2.5"
+              segments={PARTS.map((p) => ({ key: p, value: grammar[level][p], className: COLORS[p] }))}
+            />
+          </div>
         ))}
-      </BarChart>
-    </ChartContainer>
+      </div>
+      <ChartLegend
+        items={PARTS.map((p) => ({ key: p, label: t(p), swatch: COLORS[p] }))}
+      />
+    </div>
   );
 }

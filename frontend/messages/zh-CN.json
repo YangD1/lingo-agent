@@ -789,14 +789,16 @@
     },
     "book": {
       "title": "词书进度",
-      "empty": "还没选词书。",
+      "empty": "还没选词书",
       "choose": "去选一本",
       "summary": "共 {total} 词：已掌握 {mastered}、学习中 {learning}、熟词跳过 {known}、未学 {unlearned}。",
       "mastered": "已掌握",
       "learning": "学习中",
       "known": "熟词跳过",
       "unlearned": "未学",
-      "center": "已掌握或跳过"
+      "center": "已掌握或跳过",
+      "emptyHint": "选一本词书，这里会显示进度。",
+      "change": "换词书"
     },
     "grammar": {
       "title": "语法掌握",
@@ -806,16 +808,19 @@
       "learning": "学习中",
       "weak": "薄弱",
       "unseen": "未接触",
-      "empty": "还没有语法记录。<chat>和私教对话</chat>，或者<test>做入学测</test>，这里就会出现各等级的掌握情况。"
+      "emptyTitle": "还没有语法记录",
+      "emptyHint": "和私教聊几句，或者做个入学测，这里就会显示各等级的掌握情况。",
+      "chat": "去对话"
     },
     "skills": {
       "title": "技能估计",
       "description": "各项技能放在同一条 A1–C2 刻度上比较。",
-      "empty": "还没有技能估计。",
+      "empty": "还没有技能估计",
       "takeTest": "做入学测",
       "vocabValue": "约 {size} 词（参考 {level}）",
       "measured": "已评估",
-      "notAssessed": "未评估"
+      "notAssessed": "未评估",
+      "emptyHint": "做完入学测，这里会显示各项技能的等级。"
     },
     "errors": {
       "title": "常错语法点",
@@ -823,7 +828,8 @@
       "count": "{n} 次",
       "empty": "最近 30 天对话里没有记录到语法错误。",
       "chat": "去和私教对话",
-      "practice": "练一练"
+      "practice": "练一练",
+      "emptyTitle": "还没有常错的语法点"
     },
     "activity": {
       "title": "学习打卡",

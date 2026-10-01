@@ -1,10 +1,12 @@
 "use client";
 
+import { ArrowRight, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
+import { LogoMark } from "@/components/brand/logo";
 import { type EmptyActions, TutorPanel } from "@/components/chat/tutor-panel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -15,10 +17,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Callout } from "@/components/ui/callout";
 import { type Advice, type AdviceItem, templateKey } from "@/lib/advice";
 import { api } from "@/lib/api";
 import { kcName } from "@/lib/learner";
 import type { Conversation } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { browserTimeZone } from "@/lib/vocab";
 
 import { AdviceEntry, useAdvice } from "./advice-entry";
@@ -59,9 +63,10 @@ export function TodayTutor({ onTurnFinished }: { onTurnFinished?: () => void }) 
           <CardAction>
             <Link
               href={`/chat?c=${conversation.id}`}
-              className={buttonVariants({ size: "sm", variant: "outline" })}
+              className={buttonVariants({ size: "sm", variant: "ghost" })}
             >
               {t("continueInChat")}
+              <ArrowRight />
             </Link>
           </CardAction>
         )}
@@ -69,9 +74,12 @@ export function TodayTutor({ onTurnFinished }: { onTurnFinished?: () => void }) 
       <CardContent>
         {conversation === undefined ? (
           <p className="text-sm text-muted-foreground">{t("loading")}</p>
+        ) : !conversation && advice && !advice.model_ready ? (
+          // Without a chat model there is nothing to type into: just the rule-made links.
+          <RulesStart advice={advice} />
         ) : (
           <TutorPanel
-            className="h-[32rem] rounded-lg border"
+            className="h-[28rem] rounded-lg border bg-background md:h-[32rem]"
             conversationId={conversation?.id ?? null}
             onConversationCreated={setConversation}
             onTurnFinished={onTurnFinished}
@@ -101,7 +109,6 @@ export function TodayStart({
   actions: EmptyActions;
 }) {
   const t = useTranslations("dashboard.today");
-  const tAdvice = useTranslations("dashboard.advice");
   const quick = useQuickReply();
 
   if (error)
@@ -112,40 +119,32 @@ export function TodayStart({
     );
   if (!advice) return <p className="flex-1 p-4 text-sm text-muted-foreground">{t("loading")}</p>;
 
-  if (!advice.model_ready)
-    return (
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4" data-testid="today-rules">
-        <p className="text-sm text-muted-foreground">
-          {tAdvice.rich("noModel", {
-            settings: (text) => (
-              <Link href="/settings" className={linkClass}>
-                {text}
-              </Link>
-            ),
-          })}
-        </p>
-        {advice.items.length > 0 && (
-          <ol className="grid gap-3 md:grid-cols-3">
-            {advice.items.map((item) => (
-              <AdviceEntry key={item.candidate_id} item={item} />
-            ))}
-          </ol>
-        )}
-      </div>
-    );
+  if (!advice.model_ready) return <RulesStart advice={advice} className="p-3 md:p-4" />;
 
   const replies = [t("quick.whatToday"), ...advice.items.slice(0, QUICK_FROM).map(quick)];
   return (
-    <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 overflow-y-auto p-4">
-      <p className="max-w-[85%] self-start rounded-lg bg-muted px-4 py-2" data-testid="today-greeting">
-        <Greeting item={advice.items[0]} />
-      </p>
+    <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 overflow-y-auto p-3 md:p-5">
+      <div className="flex max-w-[85%] items-start gap-3 self-start">
+        <span
+          aria-hidden
+          className="hidden size-[30px] shrink-0 items-center justify-center rounded-full bg-brand-soft md:flex"
+        >
+          <LogoMark className="size-5" />
+        </span>
+        <p
+          className="rounded-[6px_18px_18px_18px] border bg-card px-3.5 py-3 text-[15px] leading-[1.7] md:px-[18px]"
+          data-testid="today-greeting"
+        >
+          <Greeting item={advice.items[0]} />
+        </p>
+      </div>
       <div className="flex flex-wrap items-center justify-end gap-2" data-testid="today-quick">
         {replies.map((text, i) => (
           <Button
             key={i}
             size="sm"
             variant="outline"
+            className="rounded-full bg-card"
             disabled={actions.busy}
             onClick={() => void actions.send(text)}
           >
@@ -179,4 +178,29 @@ function useQuickReply() {
       kc: item.kc ? kcName(item.kc, locale) : "",
       book: item.book ? (locale.startsWith("zh") ? item.book.name_zh : item.book.name_en) : "",
     });
+}
+
+/** Without a chat model: a notice and the candidates as links, no model calls. */
+function RulesStart({ advice, className }: { advice: Advice; className?: string }) {
+  const tAdvice = useTranslations("dashboard.advice");
+  return (
+      <div className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto", className)} data-testid="today-rules">
+        <Callout tone="warning" icon={<TriangleAlert aria-hidden />}>
+          {tAdvice.rich("noModel", {
+            settings: (text) => (
+              <Link href="/settings" className={linkClass}>
+                {text}
+              </Link>
+            ),
+          })}
+        </Callout>
+        {advice.items.length > 0 && (
+          <ol className="grid gap-3 md:grid-cols-3">
+            {advice.items.map((item) => (
+              <AdviceEntry key={item.candidate_id} item={item} />
+            ))}
+          </ol>
+        )}
+      </div>
+    );
 }

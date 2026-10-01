@@ -5,7 +5,7 @@ import { cn } from "cn"
 // Sizes and states follow docs/design/lingo-agent-design/component-spec.md §1: solid buttons
 // darken by mixing in the foreground (12% hover, 22% pressed); outline / ghost use accent.
 // Below md the default and icon sizes grow to 40px for touch.
-const buttonVariants = cva(
+const variants = cva(
   "group/button inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent bg-clip-padding text-sm font-[550] whitespace-nowrap transition-colors outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
@@ -44,16 +44,24 @@ const buttonVariants = cva(
   }
 )
 
+type ButtonVariantProps = VariantProps<typeof variants>
+
+// Merged, so a variant's border or background wins over the base's `border-transparent` even
+// when the classes go straight on a <Link> instead of through <Button>.
+function buttonVariants(props?: Parameters<typeof variants>[0]) {
+  return cn(variants(props))
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props & ButtonVariantProps) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(variants({ variant, size, className }))}
       {...props}
     />
   )

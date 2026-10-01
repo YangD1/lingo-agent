@@ -78,7 +78,9 @@ describe("DashboardApp", () => {
     const grammar = screen.getByTestId("dashboard-grammar");
     expect(within(grammar).getByRole("link", { name: "Chat with your tutor" })).toBeInTheDocument();
     expect(within(grammar).queryByTestId("grammar-chart")).not.toBeInTheDocument();
-    expect(screen.getByTestId("dashboard-skill-listening")).toHaveTextContent("Not assessed");
+    const skills = screen.getByTestId("dashboard-skills");
+    expect(skills).toHaveTextContent("No skill estimates yet");
+    expect(within(skills).getByRole("link")).toHaveAttribute("href", "/placement");
     expect(screen.queryByTestId("skills-chart")).not.toBeInTheDocument();
     expect(screen.getByTestId("dashboard-errors")).toHaveTextContent(/No grammar mistakes/);
     expect(screen.getByTestId("activity-summary")).toHaveTextContent(/No study yet/);

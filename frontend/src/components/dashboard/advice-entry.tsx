@@ -10,7 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { type Advice, type AdviceItem, adviceHref, fetchAdvice, templateKey } from "@/lib/advice";
 import { kcName, learnerHref } from "@/lib/learner";
 
-const linkClass = "underline underline-offset-2";
+const linkClass = "ml-auto text-[13px] font-medium text-primary underline-offset-2 hover:underline";
 
 /** The learning engine's candidates for now (ADR 0016 §3): rules only, no model. */
 export function useAdvice() {
@@ -33,14 +33,14 @@ export function AdviceEntry({ item }: { item: AdviceItem }) {
   const book = item.book ? (locale.startsWith("zh") ? item.book.name_zh : item.book.name_en) : "";
   return (
     <li
-      className="flex flex-col gap-2 rounded-lg border p-3"
+      className="flex flex-col gap-2 rounded-lg border bg-card p-3.5"
       data-testid="advice-item"
       data-kind={item.kind}
     >
-      <span className="font-medium">{t(`kinds.${key}.title`, { kc })}</span>
-      <p className="flex-1 text-sm text-muted-foreground">{t(`kinds.${key}.reason`, { book })}</p>
+      <span className="text-sm font-semibold">{t(`kinds.${key}.title`, { kc })}</span>
+      <p className="flex-1 text-[13px] text-muted-foreground">{t(`kinds.${key}.reason`, { book })}</p>
       <Evidence item={item} kc={kc} />
-      <div className="flex items-center gap-3">
+      <div className="mt-1 flex items-center gap-3">
         <Link href={adviceHref(item)} className={buttonVariants({ size: "sm" })}>
           {t(`kinds.${key}.action`)}
         </Link>
@@ -79,7 +79,7 @@ function Evidence({ item, kc }: { item: AdviceItem; kc: string }) {
       break;
   }
   return text ? (
-    <p className="text-xs font-medium" data-testid="advice-evidence">
+    <p className="self-start rounded-[6px] border px-[7px] py-0.5 text-[11.5px] text-muted-foreground" data-testid="advice-evidence">
       {text}
     </p>
   ) : null;

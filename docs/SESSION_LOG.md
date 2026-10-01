@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-01 · 任务 26.8 对话页完成，26.9 开工
+
+- **做了什么**：26.8 对话页改版（会话列表分组 + 手机抽屉、消息气泡、输入区、私教卡片），typecheck、eslint、Vitest 280、E2E 42 全过，已提交 `3f7a85a`（ahead 7，未推送）。E2E 里“会话列表”从 list 改成 navigation。
+- **未完成**：26.9（看板、学习者模型、记忆三页 + 空状态）标 `[~]`，尚未改代码。要改的是 `frontend/src/components/dashboard/*`、`learner/learner-app.tsx`、`learner/kc-item.tsx`、`memory/memory-list-section.tsx`、`memory/profile-section.tsx`。
+- **下一步**：对照 `docs/design/lingo-agent-design/screens/{dashboard,learner,memory}-*.jpg` 和组件规格 §2/§10–§16，用 26.5 的通用组件（Tag/CefrTag、ProgressBar/StackedBar、EmptyState）改样式，保留 test id 和 aria 名称。
+- **踩坑**：截图脚本参数是 JSON 字符串，不是文件路径（用 `"$(cat /tmp/s.json)"`）；Docker 前端镜像还是 26.x 之前的，26.12 统一重建。
+
+---
+
 ## 2026-10-01 · 任务 26.2–26.7：设计包收入、视觉基础、外壳、确认方式
 
 - **做了什么**：设计包收入 `docs/design/lingo-agent-design/`（截图压成 1100px JPEG），26.3 拆成 26.4–26.12，Q26a–f 按推荐确认。26.4 token / 字体 / logo / 主题（ADR 0019）；26.5 写死颜色换 token、AiBadge 重做、通用组件（tag / progress / callout / status-text / empty-state）；26.6 侧栏 + 手机顶栏 / 底栏 / “更多”面板（`components/shell/`、`ui/sheet.tsx`）；26.7 `ui/confirm-dialog.tsx`、`ui/inline-confirm.tsx` 替换全部 `window.confirm`。每步 typecheck、eslint、Vitest 277、E2E 42 全过并已提交（ahead 6，未推送）。

@@ -80,10 +80,8 @@ test("dashboard: guides a new learner, then charts what they did", async ({ page
   const book = page.getByTestId("dashboard-book");
   await expect(book.locator(".recharts-pie")).toBeVisible();
   await expect(book.getByTestId("book-summary")).toContainText("学习中 2");
-  await expect(page.getByTestId("dashboard-grammar").locator(".recharts-bar")).toHaveCount(4);
-  await expect(page.getByTestId("dashboard-skills").locator(".recharts-bar-rectangle")).toHaveCount(
-    2,
-  );
+  await expect(page.getByTestId("dashboard-grammar").getByTestId("grammar-row")).toHaveCount(6);
+  await expect(page.getByTestId("dashboard-skills").getByTestId("skill-bar")).toHaveCount(2);
   await expect(page.getByTestId("dashboard-skill-vocab")).toContainText("约");
   await expect(page.getByTestId("dashboard-skill-listening")).toContainText("未评估");
 

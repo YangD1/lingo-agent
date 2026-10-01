@@ -43,7 +43,7 @@ export function ActivityHeatmap({ days }: { days: Day[] }) {
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-1 text-xs text-muted-foreground" aria-hidden>
+      <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground" aria-hidden>
         <span>{t("less")}</span>
         {SHADES.map((shade) => (
           <span key={shade} className={cn("size-3 rounded-[3px]", shade)} />

@@ -789,14 +789,16 @@
     },
     "book": {
       "title": "Word book",
-      "empty": "No word book yet.",
+      "empty": "No word book yet",
       "choose": "Choose one",
       "summary": "{total} words: {mastered} mastered, {learning} learning, {known} skipped as known, {unlearned} not started.",
       "mastered": "Mastered",
       "learning": "Learning",
       "known": "Skipped as known",
       "unlearned": "Not started",
-      "center": "mastered or skipped"
+      "center": "mastered or skipped",
+      "emptyHint": "Choose a word book to see your progress here.",
+      "change": "Change book"
     },
     "grammar": {
       "title": "Grammar mastery",
@@ -806,16 +808,19 @@
       "learning": "Learning",
       "weak": "Weak",
       "unseen": "Not met",
-      "empty": "No grammar records yet. <chat>Chat with your tutor</chat> or <test>take the placement test</test> to see mastery by level."
+      "emptyTitle": "No grammar records yet",
+      "emptyHint": "Chat with your tutor or take the placement test to see mastery by level.",
+      "chat": "Chat with your tutor"
     },
     "skills": {
       "title": "Skill estimates",
       "description": "Skills side by side on one A1–C2 scale.",
-      "empty": "No skill estimates yet.",
+      "empty": "No skill estimates yet",
       "takeTest": "Take the placement test",
       "vocabValue": "About {size} words (reference {level})",
       "measured": "Assessed",
-      "notAssessed": "Not assessed"
+      "notAssessed": "Not assessed",
+      "emptyHint": "Take the placement test to see a level for each skill."
     },
     "errors": {
       "title": "Common mistakes",
@@ -823,7 +828,8 @@
       "count": "{n, plural, one {# time} other {# times}}",
       "empty": "No grammar mistakes recorded in chats over the last 30 days.",
       "chat": "Chat with your tutor",
-      "practice": "Practise"
+      "practice": "Practise",
+      "emptyTitle": "No common mistakes yet"
     },
     "activity": {
       "title": "Study calendar",
