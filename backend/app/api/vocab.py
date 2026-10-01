@@ -1,6 +1,7 @@
 """Vocabulary: word books, the daily queue, reviewing, screening and the learner's own
 word list (ADR 0011, P1 plan §6). Everything here is the current user's own data."""
 
+import logging
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -10,11 +11,16 @@ from pydantic import BaseModel, Field
 from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.db.models import UserCard, Word
-from app.deps import CurrentUser, SessionDep
-from app.services.vocab import mine, placement_known, progress, screening
+from app.deps import CurrentTenant, CurrentUser, SessionDep
+from app.memory.service import get_profile
+from app.providers.errors import NoModelConfiguredError
+from app.providers.tenant import load_provider_context
+from app.services.vocab import examples, mine, placement_known, progress, screening
 from app.services.vocab.mine import MatchKind
 from app.services.vocab.queue import QueueItem, daily_queue, today_counts
 from app.services.vocab.scheduler import Rating, WordNotFoundError, learner_zone, review
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/vocab", tags=["vocab"])
 
@@ -134,6 +140,25 @@ class AddedOut(BaseModel):
     matched: MatchKind
     # False when the word was already on the list.
     added: bool
+
+
+class LookupOut(BaseModel):
+    word: WordOut
+    # "lemma": the looked-up text is an inflection of `word` ("went" -> "go").
+    matched: MatchKind
+    # On the learner's own word list (生词本).
+    on_list: bool
+
+
+class Sentence(BaseModel):
+    en: str
+    zh: str
+
+
+class ExamplesOut(BaseModel):
+    sentences: list[Sentence]
+    # The level they were written for.
+    cefr: str
 
 
 def _word(word: Word) -> WordOut:
@@ -309,6 +334,60 @@ async def get_words(
 ) -> list[WordOut]:
     """Dictionary words starting with `q`, for the add-a-word box."""
     return [_word(w) for w in await mine.suggest(session, q)]
+
+
+@router.get("/lookup")
+async def lookup_word(
+    session: SessionDep,
+    user: CurrentUser,
+    word: Annotated[str, Query(min_length=1, max_length=100)],
+) -> LookupOut:
+    """The dictionary entry for a word in a tutor message (ADR 0017 §2); no model."""
+    match = await mine.lookup(session, word)
+    if match is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "word_not_found", "the dictionary has no such word"
+        )
+    return LookupOut(
+        word=_word(match.word),
+        matched=match.kind,
+        on_list=match.word.id in await mine.on_list(session, user.id, [match.word.id]),
+    )
+
+
+@router.post("/words/{word_id}/examples")
+async def post_examples(
+    word_id: int, user: CurrentUser, tenant: CurrentTenant, session: SessionDep
+) -> ExamplesOut:
+    """Two example sentences at the learner's level, written by a model once per
+    tenant, word and level, then cached (ADR 0017 §3)."""
+    word = await session.get(Word, word_id)
+    if word is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "word_not_found", "no such word")
+    profile = await get_profile(session, user.id)
+    cefr = (profile.cefr_level if profile else None) or examples.DEFAULT_LEVEL
+    ctx = await load_provider_context(session, tenant.id)
+    try:
+        sentences = await examples.examples(
+            session, ctx, word, cefr, {"metadata": {"user_id": str(user.id)}}
+        )
+    except NoModelConfiguredError as exc:
+        raise api_error(
+            status.HTTP_409_CONFLICT, exc.code, "No chat model is configured. Add one in Settings."
+        ) from exc
+    except examples.ExamplesInvalidError as exc:
+        raise api_error(
+            status.HTTP_502_BAD_GATEWAY,
+            "examples_invalid",
+            "The model's sentences didn't use the word. Please try again.",
+        ) from exc
+    except Exception as exc:
+        # Details stay in the server log; vendor errors can echo input.
+        logger.exception("writing examples for word %s failed", word_id)
+        raise api_error(
+            status.HTTP_502_BAD_GATEWAY, "llm_unavailable", "The model is unavailable right now."
+        ) from exc
+    return ExamplesOut(sentences=[Sentence(**s) for s in sentences], cefr=cefr)
 
 
 @router.get("/mine")

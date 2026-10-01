@@ -1,14 +1,16 @@
 """Conversations (P0 plan §6.2). Someone else's conversation is always a 404."""
 
 import dataclasses
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -21,7 +23,7 @@ from app.attachments import service as attachment_service
 from app.attachments.context import DatabaseAttachments
 from app.attachments.service import AttachmentNotFoundError, AttachmentStateError
 from app.cards.runtime import DatabaseTutorTools
-from app.chat import service
+from app.chat import service, translate
 from app.chat.locks import ConversationLocks
 from app.chat.planning import DatabasePlanning, PlanningPurpose
 from app.chat.practice import DatabasePractice
@@ -45,6 +47,8 @@ from app.providers.errors import NoModelConfiguredError
 from app.providers.llm import get_chat_models
 from app.providers.tenant import load_provider_context
 from app.services.vocab.scheduler import learner_zone
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/conversations", tags=["chat"])
 
@@ -228,6 +232,54 @@ async def get_messages(
         )
         for m in history
     ]
+
+
+class TranslateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target: translate.Target
+
+
+class TranslationOut(BaseModel):
+    message_id: str
+    target: translate.Target
+    text: str
+
+
+@router.post("/{conversation_id}/messages/{message_id}/translate")
+async def translate_message(
+    conversation_id: uuid.UUID,
+    message_id: Annotated[str, Path(max_length=100)],
+    body: TranslateIn,
+    user: CurrentUser,
+    tenant: CurrentTenant,
+    session: SessionDep,
+    graph: ChatGraphDep,
+) -> TranslationOut:
+    """A tutor message in the other language (ADR 0017 §4): made by a model the first
+    time, then kept."""
+    conversation = await _owned(session, user, conversation_id)
+    ctx = await load_provider_context(session, tenant.id)
+    config: RunnableConfig = {
+        "metadata": {"user_id": str(user.id), "conversation_id": str(conversation.id)}
+    }
+    try:
+        text = await translate.translate(
+            session, graph, ctx, conversation, message_id, body.target, config
+        )
+    except translate.MessageNotFoundError as exc:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "message_not_found", "no such tutor message"
+        ) from exc
+    except NoModelConfiguredError as exc:
+        raise _conflict(exc.code, "No chat model is configured. Add one in Settings.") from exc
+    except Exception as exc:
+        # Details stay in the server log; vendor errors can echo input.
+        logger.exception("translating a message in conversation %s failed", conversation_id)
+        raise api_error(
+            status.HTTP_502_BAD_GATEWAY, "llm_unavailable", "The model is unavailable right now."
+        ) from exc
+    return TranslationOut(message_id=message_id, target=body.target, text=text)
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -17,8 +17,21 @@
 | `practice_start` | 看板常错语法点、`/learner` 语法点详情、私教练习卡片的“开始练习” | `practice_opening`（走 `chat` 路由） |
 | `plan_start` | 入学测结果页对话框里的“和私教聊聊这次结果” | `plan_opening`（走 `chat` 路由）；之后每轮同 `chat_message` |
 | `memory_edit` | `/memory` 记忆列表（添加、修改） | `memory` 向量化 |
+| `word_examples` | 私教气泡里单词气泡的“AI 例句”（ADR 0017） | `word_examples`（立即；同租户同词同等级只调一次，之后读缓存） |
+| `message_translate` | 私教气泡下的“看中文 / 看英文”（ADR 0017） | `translate`（立即；每条消息每种语言只调一次，之后读缓存） |
 
 设置页的“测试连接”不挂标记：只给管理员用，每次几个 token，且不走路由（ADR 0014 §4）。
+
+### 对话之外的调用
+
+`word_examples`、`translate` 由学习者在界面上点了才调用，不属于任何一轮对话，所以不写 `agent_activities`（和入学测一样）。缓存命中时不调模型，也不记 `llm_usage`。
+
+| 调用 | 代码 | 读取 | 写入 | 学习者在哪看到 / 撤销 |
+|---|---|---|---|---|
+| AI 例句 | `services/vocab/examples.py` → `POST /vocab/words/{id}/examples` | 词条（单词、中文释义）、学习者等级（没有时按 A2） | `word_examples`（租户 + 词 + 等级；每句经代码校验含该词或其变形，都不合格时不写） | 单词气泡里显示；不含个人信息，无需撤销 |
+| 气泡翻译 | `chat/translate.py` → `POST /conversations/{id}/messages/{message_id}/translate` | 这条私教消息的文本 | `message_translations`（会话 + 消息 + 目标语言，删除会话时一起删） | 私教气泡原位切换显示；随会话删除 |
+
+查词（`GET /vocab/lookup`）和朗读（浏览器 `speechSynthesis`）不调用模型。
 
 ## 活动记录（学习者看到的“私教做了什么”）
 

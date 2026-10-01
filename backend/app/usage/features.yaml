@@ -77,6 +77,22 @@ features:
         timing: now
         default: {input_tokens: 3500, output_tokens: 200}
 
+  # "AI examples" in the word popup (ADR 0017 §3): two sentences at the learner's
+  # level, once per tenant, word and level; a cached word makes no call.
+  word_examples:
+    calls:
+      - task: word_examples
+        timing: now
+        default: {input_tokens: 350, output_tokens: 120}
+
+  # "Show in Chinese / English" under a tutor message (ADR 0017 §4): once per message
+  # and language; switching back makes no call.
+  message_translate:
+    calls:
+      - task: translate
+        timing: now
+        default: {input_tokens: 500, output_tokens: 350}
+
   memory_edit:
     calls:
       - task: memory

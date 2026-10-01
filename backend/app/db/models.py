@@ -421,6 +421,25 @@ class SkillEstimate(TimestampMixin, Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
+class MessageTranslation(Base):
+    """A tutor message in the other language, made when the learner asked (ADR 0017 §4).
+
+    Kept so switching back and forth calls no model; deleted with the conversation.
+    """
+
+    __tablename__ = "message_translations"
+    __table_args__ = (CheckConstraint(_in("target", EXPLANATION_LANGUAGES), name="target"),)
+
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), primary_key=True
+    )
+    # The message id the conversation's history shows (the last part of a reply).
+    message_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    target: Mapped[str] = mapped_column(String(5), primary_key=True)
+    text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class TutorCard(Base):
     """A card the tutor put in the conversation with a tool call (ADR 0015 §4).
 
@@ -525,6 +544,26 @@ class Word(Base):
     frq: Mapped[int | None] = mapped_column(Integer)
     # Inflections as ECDICT writes them, e.g. "p:went/d:gone/0:go"; "0:" is the lemma.
     exchange: Mapped[str | None] = mapped_column(String(300))
+
+
+class WordExample(Base):
+    """Example sentences a model wrote for a word at a level (ADR 0017 §3).
+
+    Shared by a tenant's learners (they only depend on the word and the level), not
+    across tenants: each pays for its own model calls.
+    """
+
+    __tablename__ = "word_examples"
+    __table_args__ = (CheckConstraint(_in("cefr", CEFR_LEVELS), name="cefr"),)
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True
+    )
+    word_id: Mapped[int] = mapped_column(ForeignKey("words.id"), primary_key=True)
+    cefr: Mapped[str] = mapped_column(String(2), primary_key=True)
+    # [{"en": ..., "zh": ...}], each checked to use the word or one of its forms.
+    sentences: Mapped[list[dict[str, str]]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class UserWordBook(TimestampMixin, Base):
