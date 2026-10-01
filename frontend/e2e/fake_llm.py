@@ -14,6 +14,9 @@ Word list (ADR 0011): 'what does "X" mean' makes X a word to learn. Tutor tools
 (ADR 0015): with tools bound, a learner message about a word book ("词书" or "word book")
 gets a streamed `propose_word_book` call, and the turn goes on with a short reply once the
 tool result is back. A planning opening names the placement level.
+Language mix (ADR 0017): "which language" gets back the language the system prompt asks
+for; AI example sentences use the word asked for; a translation into Chinese is "译文 "
+plus the message, one into English "(English) " plus it.
 """
 
 import asyncio
@@ -57,6 +60,10 @@ FACTS_HEADING = "### Things they have told you\n"
 PLAN_LEVEL = re.compile(r"^- Overall level \(CEFR\): ([A-C][12])", re.MULTILINE)
 WORD_BOOK = re.compile(r"词书|word book", re.IGNORECASE)
 PROPOSED_BOOK = {"book_id": "oxford3000", "daily_new": 10}
+# backend/app/prompts/language_zh.md; the examples and translation inputs.
+CHINESE_MODE = "mainly in Chinese"
+EXAMPLE_WORD = re.compile(r"^Word: (.+)$", re.MULTILINE)
+TRANSLATE_TARGET = re.compile(r"^Target language: (.+)$", re.MULTILINE)
 
 
 def text_of(content: Any) -> str:
@@ -95,6 +102,10 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
     if last.startswith(OPENING_CUE) and "planning conversation" in last:
         level = PLAN_LEVEL.search(system_text(messages))
         return f"Your level is {level.group(1) if level else 'unknown'}. What is your goal?"
+    if "which language" in last.lower():
+        if CHINESE_MODE in system_text(messages):
+            return "我们主要用中文聊。"
+        return "We mainly talk in English."
     if "what do you remember" in last.lower():
         return "I remember: " + (" | ".join(remembered_facts(messages)) or "nothing yet")
     if "long" in last.lower():
@@ -145,6 +156,19 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
         return reflection(messages)
     if name == "EpisodeSummary":
         return {"summary": "The learner practised small talk."}
+    prompt = text_of(messages[-1]["content"]) if messages else ""
+    if name == "WordExamples" and (word := EXAMPLE_WORD.search(prompt)):
+        w = word.group(1)
+        return {
+            "sentences": [
+                {"en": f"I {w} every day.", "zh": f"我每天都 {w}。"},
+                {"en": f"Do you {w} often?", "zh": f"你经常 {w} 吗"},
+            ]
+        }
+    if name == "Translation" and (target := TRANSLATE_TARGET.search(prompt)):
+        message = prompt.split("## Message\n", 1)[-1]
+        chinese = target.group(1) != "English"
+        return {"text": ("译文 " if chinese else "(English) ") + message}
     return {"text_in_image": IMAGE_TEXT, "description": IMAGE_DESCRIPTION}
 
 

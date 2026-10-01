@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-10-01 · 任务 24.5–24.7：单词气泡、气泡朗读与翻译、E2E（任务 24 完成）
+
+- **做了什么**：
+  - 24.5：`components/chat/word-popup.tsx`。私教消息的英文单词由 `Markdown words` 的 rehype 步骤包成 `span[data-word]`；悬停 300ms 或点按，弹出词条、音标、朗读、释义、原形、原句、AI 例句和加入生词本。`SelectToAdd` 已删除。朗读函数抽到 `lib/speech.ts`。
+  - 24.6：`components/chat/reply-tools.tsx`。朗读把中英文分段，各用对应的声音；“看中文 / 看英文 / 看原文”的译文在气泡原位显示。`ChatMessage.id` 记下后端消息 id。
+  - 24.7：新增 `e2e/language.spec.ts`；`fake_llm.py` 支持例句、翻译，问 “which language” 时回报当前语言；README 中英同步；Docker 重建。
+  - Vitest 240、E2E 39 全部通过。
+- **未完成**：用户在 Docker 下实测任务 24（还有 23、20.5、21、22）；任务 25（服务端朗读）等实测后再拆。
+- **下一步**：根据实测反馈修改；没问题就推送、看 CI，再拆任务 25 或进入 P2。
+- **踩坑**：
+  - 单词包成 span 以后，Testing Library 的 `findByText("整句")` 匹配不到私教消息（文本被拆进了多个子元素）。改用按段落 `textContent` 匹配，见 `today-tutor.test.tsx` 的 `tutorSays`。
+  - E2E 没有 `test.use({ locale: "zh-CN" })` 时界面是英文。
+  - 会话列表为空时不渲染成 list，不能拿它当页面已加载的标志。
+
+---
+
 ## 2026-10-01 · 任务 24.1–24.4：中英比例（前后端）、查词 / AI 例句 / 气泡翻译接口
 
 - **做了什么**：ADR 0017 已采纳（Q24a–j）；24.2 `user_profiles.chat_language` + `app/memory/language.py` + `language_zh.md` / `language_en.md`；24.3 `components/chat/language-switch.tsx`（输入框上方开关、记忆页画像下拉）；24.4 `GET /vocab/lookup`、`POST /vocab/words/{id}/examples`（`services/vocab/examples.py`，按租户 + 词 + 等级缓存）、`POST /conversations/{id}/messages/{message_id}/translate`（`chat/translate.py`，存库），迁移 `7c2e5a91d0b4`、`6a0fc12e79ca`，`features.yaml` 加 `word_examples`、`message_translate`。后端 827、Vitest 221 通过。

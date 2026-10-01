@@ -16,7 +16,8 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 - **A tutor that remembers you.** After each reply, a background step decides what is worth remembering (your goals, interests, recurring problems) and summarizes the conversation. The **Memory** page shows everything it keeps, and you can edit or delete any of it.
 - **Grammar tracking.** The same step tags your mistakes against 119 grammar points (A1–C2). Mastery is then updated by an algorithm (BKT and Elo), not scored by the model. The **Learner model** page shows each point with the evidence behind it, and you can delete any piece of evidence.
-- **Vocabulary with FSRS.** Pick a word book (Oxford 3000, Zhongkao, Gaokao, CET-4/6, postgraduate entrance, IELTS, TOEFL or GRE), skip words you already know, and review daily on an FSRS schedule. Unfamiliar words from your conversations are collected automatically, and you can add one by selecting it in the chat.
+- **Vocabulary with FSRS.** Pick a word book (Oxford 3000, Zhongkao, Gaokao, CET-4/6, postgraduate entrance, IELTS, TOEFL or GRE), skip words you already know, and review daily on an FSRS schedule. Unfamiliar words from your conversations are collected automatically.
+- **Replies you can follow.** Above the message box, switch the tutor between mostly Chinese and mostly English (until you choose, it follows your level: mostly Chinese at A1–A2 or before the placement test); it applies from the next reply. Hover or tap an English word in a reply to see its pronunciation, meanings, base form and the sentence it is in, ask for AI example sentences, or add it to your words. Every reply can be read aloud (with the browser's own voices, Chinese and English parts each in their own) and shown in Chinese or English; translations are saved, so switching back and forth calls no model.
 - **Placement test.** About 10 minutes: up to 40 vocabulary and 20 grammar questions, adaptive, with no model involved. It sets your CEFR level. It can also mark your word book's words that you very likely know, all at once: you confirm first, and you can undo it.
 - **Dashboard.** Word book progress, grammar mastery, skill estimates, common mistakes and a study calendar, plus today's conversation with the tutor. The algorithm picks what is worth doing and offers it as quick replies; the tutor talks it over with you, with cards you can confirm. One conversation a day, created with your first message, so opening the dashboard calls no model. Without a model you get the algorithm's picks as links.
 - **Focused practice.** Start a conversation on one grammar point from the dashboard or the Learner model page. The tutor opens it and steers every turn toward that point.
@@ -34,7 +35,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
 - **English and Chinese UI.**
 
-Not built yet (see [docs/PLAN.md](docs/PLAN.md)): the full adaptive engine (diagnosis, exercise generation with a critic, daily plans), graded news reading, grammar GraphRAG and writing feedback (P2); read-aloud, shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
+Not built yet (see [docs/PLAN.md](docs/PLAN.md)): the full adaptive engine (diagnosis, exercise generation with a critic, daily plans), graded news reading, grammar GraphRAG and writing feedback (P2); server-side read-aloud (task 25); shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
 
 ## Quick start (Docker)
 
