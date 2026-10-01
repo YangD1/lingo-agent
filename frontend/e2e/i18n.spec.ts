@@ -50,6 +50,7 @@ test.describe("inside the app", () => {
     );
     const url = page.url();
 
+    await page.getByRole("button", { name: "Account" }).click();
     await page.getByLabel("Language").selectOption("zh-CN");
 
     await expect(page.getByRole("link", { name: "设置" })).toBeVisible(); // server layout

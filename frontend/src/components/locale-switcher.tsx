@@ -7,7 +7,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { setLocale } from "@/i18n/actions";
 import { locales } from "@/i18n/config";
 
-export function LocaleSwitcher() {
+export function LocaleSwitcher({ className }: { className?: string }) {
   const t = useTranslations("localeSwitcher");
   const locale = useLocale();
   const [pending, startTransition] = useTransition();
@@ -15,6 +15,7 @@ export function LocaleSwitcher() {
   return (
     <NativeSelect
       aria-label={t("label")}
+      className={className}
       value={locale}
       disabled={pending}
       onChange={(event) => {

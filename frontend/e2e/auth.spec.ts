@@ -11,6 +11,8 @@ test("register, log out, and log back in to the page you asked for", async ({ pa
   await expect(page).toHaveURL(/\/login\?next=%2Fsettings$/);
 
   await register(page, email, "小李");
+  // The chat page starts with the sidebar as an icon rail: the account menu sits behind the avatar.
+  await page.getByRole("button", { name: "账户" }).click();
   await expect(page.getByTestId("current-user")).toHaveText("小李");
 
   await page.getByRole("button", { name: "退出登录" }).click();

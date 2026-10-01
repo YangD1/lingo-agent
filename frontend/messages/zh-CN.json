@@ -47,7 +47,17 @@
     "vocab": "背单词",
     "memory": "记忆",
     "learner": "学习者模型",
-    "placement": "入学测"
+    "placement": "入学测",
+    "main": "主导航",
+    "groupLearn": "学习",
+    "groupProgress": "进度",
+    "groupMine": "我的",
+    "progress": "进度",
+    "more": "更多",
+    "collapse": "收起侧栏",
+    "expand": "展开侧栏",
+    "close": "关闭",
+    "account": "账户"
   },
   "chat": {
     "newChat": "新对话",

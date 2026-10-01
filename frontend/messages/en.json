@@ -47,7 +47,17 @@
     "vocab": "Vocabulary",
     "memory": "Memory",
     "learner": "Learner model",
-    "placement": "Placement test"
+    "placement": "Placement test",
+    "main": "Main",
+    "groupLearn": "Learn",
+    "groupProgress": "Progress",
+    "groupMine": "Me",
+    "progress": "Progress",
+    "more": "More",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "close": "Close",
+    "account": "Account"
   },
   "chat": {
     "newChat": "New chat",
