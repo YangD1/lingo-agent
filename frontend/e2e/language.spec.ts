@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { register, uniqueEmail, useFakeModel } from "./helpers";
+// Renamed: called from a plain helper, where the React hooks lint rule would flag a `use…` name.
+import { register, uniqueEmail, useFakeModel as pickFakeModel } from "./helpers";
 
 test.use({ locale: "zh-CN" });
 
@@ -20,7 +21,7 @@ async function chat(page: Page, text: string) {
 
 async function openChat(page: Page) {
   await register(page, uniqueEmail());
-  await useFakeModel(page);
+  await pickFakeModel(page);
   await page.goto("/chat");
   await expect(page).toHaveURL(/\/chat$/);
   await expect(page.getByTestId("chat-language")).toBeVisible();
