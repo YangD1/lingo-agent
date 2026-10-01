@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-01 · 任务 25.6：朗读 E2E、README、Docker 重建
+
+- **做了什么**：
+  - `frontend/e2e/speech.spec.ts`：无头 Chromium 没有声音，用 `addInitScript` 替换 `speechSynthesis` / `SpeechSynthesisUtterance`，模拟声音列表并把朗读内容记到 `window.__spoken`。覆盖：没有中文声音时只读英文并提示、优先 Natural 声音、默认语速 0.9；设置页选英音 / 中文声音 / 语速，试听生效，刷新后保留。E2E 全量 41 通过。
+  - README 中英：朗读说明（自动挑声音、设置 → 朗读）、“还没做”改为可选服务端朗读和单词发音预生成（ADR 0018）。
+  - `make up` 约 27 秒（只重建前端），镜像里已有新代码，backend 健康检查 200。
+- **未完成**：用户在真实浏览器（Edge / Chrome / Safari / 手机）里实测朗读：声音是否挑对、中英切换是否自然、设置面板布局（齿轮弹出框 `w-80`）。25.4（服务端朗读连接）、25.5（单词发音预生成）按 Q25f 等实测后再定。
+- **下一步**：等用户实测反馈；之后决定 25.4 / 25.5，或进入 P2。
+- **踩坑**：Playwright 里可以用 `Object.defineProperty(window, "speechSynthesis", …)` 覆盖浏览器自带的朗读对象；真实的 `utterance.voice` 只接受真正的 `SpeechSynthesisVoice`，所以 `SpeechSynthesisUtterance` 也要一起替换。
+
+---
+
 ## 2026-10-01 · 任务 25.3：朗读设置面板
 
 - **做了什么**：
