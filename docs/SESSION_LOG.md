@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-10-02 · 推送任务 28，任务 29 猫咪动画
+
+- **做了什么**：推送 28 个提交到 4b9b324，CI run 36905913966 全绿。用户放入 `docs/design/lingo-cat-motion/`（logo 猫六种情绪），拆成任务 29，Q29a–d 已确认（头像本身播 ai 动画、所有空状态和错误都用猫、骨架屏保留、done 每次都播）。29.1 设计包入库（删 Zone.Identifier）。29.2 `components/brand/lingo-cat.tsx`（`LingoCat`、`Delayed`、`CatLoading`）+ `lingo-cat.css`（`globals.css` 引入），i18n `cat` 命名空间。29.3 `EmptyState` 去掉 `icon` 改画猫；新增 `ui/error-text.tsx`，替换 20 多处一行错误；对话页 `message-list.tsx` 的 `waiting()` 时头像位置放 ai 猫、不画空气泡；复习完成 / 入学测结果 done；翻译、AI 例句、查词放 16px 猫。29.4 临时截图脚本对照浅色 / 深色 / 减少动态效果，整页失败改为大号 oops；修 `i18n.spec` 偶发冲突。Docker 只重建了前端。
+- **未完成**：任务 29 的 5 个提交未推送。hop 动画暂无使用处（现有长等待都是私教对话）。`frontend/Dockerfile` 是否加可选代理构建参数仍未决（本次又用了 `/tmp/frontend.proxy.Dockerfile`，只多 `ENV NODE_USE_ENV_PROXY=1`）。
+- **下一步**：① 推送并看 CI；② 用户实测猫咪动画（对话等待、空生词本、复习完成、断开后端看出错）和之前积压的 28–20.5；③ 进入 P2，先拆任务写进看板、和用户确认。
+- **踩坑**：zsh 里 `for f in $files` 不按换行拆分，批量改文件改用 Python；`CatLoading` 300ms 内只有带 `role=status` 的空容器，测试要用假计时器；等待态的猫如果绝对定位，桌面上这一行高度为 0，要留在文档流里（`md:-ml-[42px]`）。
+
 ## 2026-10-02 · 任务 28 复习卡片例句（Tatoeba + 按需 AI 例句）
 
 - **做了什么**：用户反馈来源只有 ECDICT、没有例句。Q28a–c 按推荐。28.1 ADR 0020。28.2 `word_sentences` 表（迁移 `4d7a2c9e1b60`）+ `services/vocab/import_tatoeba.py` + `make sentences-import`：选句是纯函数 `pick`（生词数 → 与 9 词的差距 → id，句中大写当人名，近似句去重，每词 2 句），繁体用 OpenCC `t2s`；开发库导入 18,221 句，覆盖率牛津 95%、CET4 89%、CET6 76%、GRE 31%。28.3 `CardOut.sentences` / `forms`，`services/vocab/sentences.py`。28.4 `components/vocab/word-examples.tsx`（变形加粗、原句链接、“AI 例句”按钮挂 `AiBadge word_examples`）。28.5 features.yaml / agent-tools.md / README 署名，OpenCC 由 dev 改为正式依赖，E2E 新增复习卡片例句用例（`run_backend.py` 导入 Tatoeba 小样本）。用户要求记录的“后台预生成 AI 例句”在看板 P2。
