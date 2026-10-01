@@ -109,6 +109,7 @@ speech:
 - **LLM 个性化层**：
   - **自动收词**：阅读里点过的词、对话和写作里用错或不会的词进“我的生词本”，这类词优先级高于词书
   - **跳过已会**：快速“认识/不认识”筛选把熟词直接标为已掌握；入学测按估计的词汇量给出“这些词你大概率认识”，学习者确认后批量标熟（可整批撤销），不浪费时间
+  - **例句**：复习卡片先显示 Tatoeba 的真例句（人工翻译，CC BY 2.0 FR，标来源）；没有或想要更多时，学习者点“AI 例句”按需生成（见 ADR 0020）
   - **个性化例句和记忆法**：结合用户兴趣生成例句；词根词缀、搭配、近义辨析、易混词；结果**缓存**，同一个词每个用户只生成一次
   - **从语境中复习**：到期的词尽量出现在当天的阅读材料和对话里，不只是卡片
 - **调度**：统一用 FSRS（纯算法，不调用 LLM）。单词和语法 KC 共用一个调度器。
@@ -121,7 +122,7 @@ speech:
 - `users`, `user_profile`（母语、目标、目标考试、兴趣、职业、每日时长、讲解语言、CEFR、时区）, `memories`（kind[fact/episode], content, 来源会话, 可选 embedding；见 ADR 0009）
 - `skill_estimates`（user, skill[listening/speaking/reading/writing/grammar/vocab], rating, uncertainty, updated_at）, `placement_sessions`（入学测子图的 thread 和状态）
 - `learning_advice`（每人一行：看板上的 AI 建议缓存，见 `docs/plans/P1-mvp.md` §7.5）
-- `words`（词库：ECDICT 开源词典导入）、`user_cards`（FSRS 状态：stability, difficulty, due, reps, lapses, state）、`review_logs`
+- `words`（词库：ECDICT 开源词典导入）、`word_sentences`（例句：Tatoeba 英中句对，每词最多 2 句，见 ADR 0020）、`user_cards`（FSRS 状态：stability, difficulty, due, reps, lapses, state）、`review_logs`
 - `grammar_points`（与 Neo4j 节点同 id）、`kc_evidence`（所有观测只追加，错误行带 error_type、original、correction、severity；掌握度由它重放得出，见 ADR 0012）
 - `agent_activities`（user, conversation, turn_id=学习者消息 id, kind[step/tool/mcp/background], name, call_id, status[ok/failed/skipped], duration_ms, summary JSONB 白名单字段、记忆只存引用；见 ADR 0013）
 - `kc_mastery`（user, kc_id, kind[word/grammar/skill], p_mastery, recog_correct, produce_correct, formats_passed, fsrs_state）

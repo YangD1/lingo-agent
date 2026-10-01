@@ -288,8 +288,17 @@
   - [x] 27.5 评分按钮重做：四个按钮做成一条分段栏，用颜色点区分（忘了红 / 模糊琥珀 / 记得绿 / 很熟蓝），快捷键数字弱化；按 Q27d 决定是否在按钮下显示“下次复习”间隔（后端 `CardOut` 加 `intervals`，用 FSRS 对四个评分各算一次预览，纯函数 + 单测）。完成：`scheduler.preview()`（关掉 fuzz 的预览调度器，新卡显式 `card_id=0` 避免 py-fsrs 每张卡 sleep 1ms），`CardOut.intervals`（秒，评分 1–4）；前端四格分段栏 + 颜色点 + `formatInterval`（`Intl.NumberFormat` 单位，中英自动）；pytest vocab 57、Vitest 290 通过
   - [x] 27.6 收尾：E2E 回归、1440/390 × 亮暗截图对照、lint / typecheck / Vitest（含后端 pytest，若做 27.5 间隔）、Docker 前端重建。完成：用真实词条（for / meticulous / apple）临时 mock 队列截图，1440 / 390 × 亮暗对照通过（长卡片在手机上内部滚动，评分栏始终可见）；E2E 42、Vitest 290、tsc、eslint、pytest vocab 57、ruff、mypy 全过；Docker 前后端已重建
 
+- [ ] 28. 复习卡片例句：Tatoeba 真例句 + AI 例句（2026-10-02 用户反馈：来源只有 ECDICT、没有例句。Q28a 背面直接显示真例句，AI 例句点了才生成；Q28b 引入 Tatoeba；Q28c 例句放在中文释义下面、默认展开）
+  - 背景：ECDICT 没有例句；`word_examples`（任务 24.4，按租户 + 词 + 等级缓存）目前只在聊天单词气泡里用。Tatoeba 英中句对是志愿者人工翻译的，CC BY 2.0 FR（注明出处 + 链接即可）。曾考虑 Open English WordNet（例子多是短语）和 Wiktionary（kaikki 原始数据压缩后 2.8GB，对低配服务器太重），都不做。
+  - [x] 28.1 ADR 0020：例句来源与选句规则（Tatoeba 下载地址、版本记录方式：导出文件每周更新，无法固定 sha256，记录下载日期和哈希；署名方式；每词最多存 2 句，按“生词少、句长适中”选；繁体转简体；用 `word_forms` 匹配变形）+ 同步 PLAN（数据模型加 `word_sentences`，背单词一节写明例句来源）。完成：ADR 0020 已写（实测 2026-09-26 导出：有中文翻译的英文句 72,696 条，中文约 45% 繁体；按词形匹配覆盖率中考 99%、CET4 90%、CET6 77%、GRE 32%）；PLAN 数据模型和背单词一节已同步
+  - [~] 28.2 导入：迁移 `word_sentences`（word_id、en、zh、来源、来源句 id、排序；全局只读数据，同 `words`）；`services/vocab/import_tatoeba.py` + `make sentences-import`（下载缓存到 `data/`，可指定本地文件，可重复执行）；选句是纯函数，有单测；导入后打印各词书的例句覆盖率；集成测试用小样本文件
+  - [ ] 28.3 接口：复习队列、评分结果、生词本里的单词带 `sentences`（最多 2 句）；测试
+  - [ ] 28.4 前端：`WordMeanings` 中文释义下面加例句区（英文、单词及变形加粗、灰色中文、“来源：Tatoeba”）；下面是“AI 例句”按钮（带 `AiBadge word_examples`，复用 `fetchExamples`），没有真例句时只显示按钮；i18n；Vitest
+  - [ ] 28.5 收尾：`features.yaml` 和 `docs/agent-tools.md` 注明复习卡片也是 `word_examples` 的入口；README 中英两份加数据来源与署名；E2E（假模型生成 AI 例句）；截图对照；在开发库执行导入（只新增数据，不动已有数据）；Docker 重建
+
 ## P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作
 - [ ] （进入 P2 时拆分）
+- [ ] 后台预生成 AI 例句（2026-10-02 用户要求记录）：Tatoeba 覆盖不到的词（多半是 GRE 等难词），在排队时为第二天要复习或要学的词提前调用 `word_examples` 并写缓存，翻面就能看到，不用点。要先看 28.2 导入后各词书的覆盖率，再决定做不做、覆盖哪些词书；需要后台任务、每日调用上限，并在 `features.yaml` 登记（timing 为后台）和挂 `AiBadge`，学习者可以关掉
 
 ## P3 语音（级联 + 实时双模式）
 - [ ] （进入 P3 时拆分）
