@@ -20,17 +20,14 @@ async function say(page: Page, text: string) {
 }
 
 // The fake model opens practice with the point it finds in the guidance (e2e/fake_llm.py).
-test("practice: from the advice into a conversation the tutor opens", async ({ page }) => {
+test("practice: from a grammar point into a conversation the tutor opens", async ({ page }) => {
   await register(page, uniqueEmail());
   await useFakeModel(page);
   await page.goto("/chat");
   await say(page, "She like music.");
 
-  await page.getByRole("link", { name: "看板", exact: true }).click();
-  const advice = page.getByTestId("advice");
-  await advice.getByRole("button", { name: "刷新建议" }).click();
-  const practice = advice.getByTestId("advice-item").filter({ hasText: "趁热练一练" });
-  await practice.getByRole("link", { name: "开始练习" }).click();
+  await page.goto(`/learner?kc=${KC}`);
+  await page.getByTestId(`kc-${KC}`).getByRole("link", { name: "和私教练一练" }).click();
 
   // A new practice conversation, and the tutor speaks first about the point.
   await expect(page).toHaveURL(/\/chat\?c=[0-9a-f-]{36}$/);

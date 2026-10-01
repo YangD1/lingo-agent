@@ -18,9 +18,9 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Grammar tracking.** The same step tags your mistakes against 119 grammar points (A1–C2). Mastery is then updated by an algorithm (BKT and Elo), not scored by the model. The **Learner model** page shows each point with the evidence behind it, and you can delete any piece of evidence.
 - **Vocabulary with FSRS.** Pick a word book (Oxford 3000, Zhongkao, Gaokao, CET-4/6, postgraduate entrance, IELTS, TOEFL or GRE), skip words you already know, and review daily on an FSRS schedule. Unfamiliar words from your conversations are collected automatically, and you can add one by selecting it in the chat.
 - **Placement test.** About 10 minutes: up to 40 vocabulary and 20 grammar questions, adaptive, with no model involved. It sets your CEFR level. It can also mark your word book's words that you very likely know, all at once: you confirm first, and you can undo it.
-- **Dashboard.** Word book progress, grammar mastery, skill estimates, common mistakes and a study calendar, plus today's advice. The algorithm picks what to work on and a model writes why.
-- **Focused practice.** Start a conversation on one grammar point from the dashboard, the Learner model page or the advice. The tutor opens it and steers every turn toward that point.
-- **The tutor can act, with your consent.** In chat, the tutor can propose a word book or a learning goal as a card. Nothing changes until you confirm, and you can undo it. After the placement test, a planning conversation turns the result into a plan.
+- **Dashboard.** Word book progress, grammar mastery, skill estimates, common mistakes and a study calendar, plus today's conversation with the tutor. The algorithm picks what is worth doing and offers it as quick replies; the tutor talks it over with you, with cards you can confirm. One conversation a day, created with your first message, so opening the dashboard calls no model. Without a model you get the algorithm's picks as links.
+- **Focused practice.** Start a conversation on one grammar point from the dashboard or the Learner model page. The tutor opens it and steers every turn toward that point.
+- **The tutor can act, with your consent.** In chat, the tutor can propose a word book or a learning goal as a card. Nothing changes until you confirm, and you can undo it. After the placement test, a planning conversation on the result page turns the result into a plan.
 
 **Transparency**
 
@@ -54,7 +54,7 @@ Then:
 
 1. Open <http://localhost:3000> and create an account.
 2. Go to **Settings → Model connections**, add a connection (for example DeepSeek), paste your API key, and save its default model.
-3. Take the **Placement test** (about 10 minutes). From its result page you can start a planning conversation with the tutor.
+3. Take the **Placement test** (about 10 minutes). On its result page you can talk the result over with the tutor, right there.
 4. Go to **Chat** and start talking, or to **Vocabulary** to pick a word book. With a single connection you don't need to set any model order: its default model is used automatically.
 
 `make ps` shows service status, `make logs` follows the logs, `make down` stops the stack (your data is kept in Docker volumes). `make help` lists every command.
@@ -74,7 +74,7 @@ Four tasks have their own ordered model list under **Settings**:
 | Image model (vision) | Images and scanned PDF pages | A model that accepts images |
 | Speech-to-text | Voice messages and audio files | An OpenAI-compatible `/audio/transcriptions` endpoint |
 
-Everything else, such as today's advice, uses the default model order in `config/`. The chat and memory tasks and these other calls fall back to each connection's default model, so one connection is enough to start. Vision and speech-to-text never fall back: set them up explicitly. On each connection, the **Test** button can test the model for chat, speech-to-text or images. If you have the connection the embedding route in `config/` names (by default `openai`, for `text-embedding-3-small`), memories are searched by meaning. Otherwise the most recent ones are used.
+Any other task uses the default model order in `config/`. The chat and memory tasks and any other calls fall back to each connection's default model, so one connection is enough to start. Vision and speech-to-text never fall back: set them up explicitly. On each connection, the **Test** button can test the model for chat, speech-to-text or images. If you have the connection the embedding route in `config/` names (by default `openai`, for `text-embedding-3-small`), memories are searched by meaning. Otherwise the most recent ones are used.
 
 For speech-to-text, the Groq and SiliconFlow presets are the easiest start. Groq and OpenAI refuse requests from some regions, mainland China included; SiliconFlow (`FunAudioLLM/SenseVoiceSmall`) is reachable there.
 

@@ -165,7 +165,9 @@ test("recording with the microphone produces a transcribed voice attachment", as
 
   await page.getByRole("button", { name: "录制语音消息" }).click();
   await expect(page.getByRole("status").filter({ hasText: "正在录音" })).toBeVisible();
-  await expect(page.getByText(/0:01 \/ 3:00/)).toBeVisible();
+  // Chromium's fake microphone beeps now and then; a second of it can miss the beeps and be
+  // refused as silent (use-recorder.ts), so record a little longer.
+  await expect(page.getByText(/0:03 \/ 3:00/)).toBeVisible();
   await page.getByRole("button", { name: "停止录音" }).click();
 
   const card = tray(page).first();
