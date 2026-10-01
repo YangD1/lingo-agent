@@ -46,6 +46,9 @@ type StepName = (typeof STEP_NAMES)[number];
 const isStep = (name: string): name is StepName => (STEP_NAMES as readonly string[]).includes(name);
 
 /** "What the tutor did" under a reply: one line, expandable (ADR 0013 §3). */
+const LIST = "flex list-disc flex-col gap-0.5 pl-4 marker:text-muted-foreground/60";
+const FOOT_LINK = "font-medium text-primary underline-offset-2 hover:underline";
+
 export function TurnActivity({ activities, memories, kcs, waiting, ...words }: Props) {
   const t = useTranslations("chat.activity");
   const [open, setOpen] = useState(false);
@@ -70,19 +73,22 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
   ].filter((p): p is string => typeof p === "string");
 
   return (
-    <div className="mt-1 px-1 text-xs text-muted-foreground">
+    <div className="mt-2 text-[12.5px] text-muted-foreground">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={detailsId}
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-left hover:text-foreground"
+        className="-ml-1 flex items-center gap-1 rounded-full px-1.5 py-1 text-left transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
-        <ChevronRight className={cn("size-3 shrink-0 transition-transform", open && "rotate-90")} />
+        <ChevronRight className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")} />
         <span>{t("line", { parts: parts.length ? parts.join(" · ") : t("nothing") })}</span>
       </button>
       {open && (
-        <div id={detailsId} className="mt-1 flex flex-col gap-2 pl-4">
+        <div
+          id={detailsId}
+          className="mt-1.5 flex flex-col gap-3 rounded-lg bg-[color-mix(in_oklab,var(--muted)_60%,var(--background))] px-3.5 py-3 text-[13px]"
+        >
           {activities.map((a) => (
             <Step
               key={`${a.name}:${a.call_id}`}
@@ -92,14 +98,14 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
               {...words}
             />
           ))}
-          <p className="flex gap-3">
-            <Link href="/memory" className="underline hover:text-foreground">
+          <p className="flex gap-4 border-t pt-2.5 text-[12.5px]">
+            <Link href="/memory" className={FOOT_LINK}>
               {t("manageMemory")}
             </Link>
-            <Link href="/learner" className="underline hover:text-foreground">
+            <Link href="/learner" className={FOOT_LINK}>
               {t("learnerModel")}
             </Link>
-            <Link href="/settings#display" className="underline hover:text-foreground">
+            <Link href="/settings#display" className="ml-auto hover:text-foreground">
               {t("hide")}
             </Link>
           </p>
@@ -136,7 +142,7 @@ function Step({
     return (
       <p>
         {t("skipped", { step })}{" "}
-        <Link href="/settings" className="underline hover:text-foreground">
+        <Link href="/settings" className={FOOT_LINK}>
           {t("goToSettings")}
         </Link>
       </p>
@@ -162,11 +168,11 @@ function Step({
       const ids = [...(s.facts ?? []), ...(s.episodes ?? [])];
       return (
         <section>
-          <h4 className="font-medium">
+          <h4 className="mb-1 text-[11.5px] font-[650] text-foreground">
             {ids.length ? t("readHeading", { n: ids.length }) : t("readNone")}
             {s.profile_items > 0 && ` · ${t("profileRead", { n: s.profile_items })}`}
           </h4>
-          {ids.length > 0 && <ul className="list-disc pl-4">{ids.map(memory)}</ul>}
+          {ids.length > 0 && <ul className={LIST}>{ids.map(memory)}</ul>}
           {s.practice_kc && <p>{t("practiceRead", { kc: kcName(s.practice_kc) })}</p>}
           {s.planning && <p>{t("planningRead")}</p>}
         </section>
@@ -180,8 +186,8 @@ function Step({
         <section>
           {changed.length > 0 && (
             <>
-              <h4 className="font-medium">{t("savedHeading", { n: changed.length })}</h4>
-              <ul className="list-disc pl-4">{changed.map(memory)}</ul>
+              <h4 className="mb-1 text-[11.5px] font-[650] text-foreground">{t("savedHeading", { n: changed.length })}</h4>
+              <ul className={LIST}>{changed.map(memory)}</ul>
             </>
           )}
           {s.deleted > 0 && <p>{t("deleted", { n: s.deleted })}</p>}
@@ -202,16 +208,21 @@ function Step({
         <section>
           {s.mistakes?.length > 0 && (
             <>
-              <h4 className="font-medium">{t("mistakesHeading", { n: s.mistakes.length })}</h4>
-              <ul className="list-disc pl-4">
+              <h4 className="mb-1 text-[11.5px] font-[650] text-foreground">{t("mistakesHeading", { n: s.mistakes.length })}</h4>
+              <ul className={LIST}>
                 {s.mistakes.map((m, i) => (
                   <li key={i}>
                     <span className="line-through">{m.original}</span>
-                    {m.correction && <> → {m.correction}</>}
+                    {m.correction && (
+                      <>
+                        {" → "}
+                        <span className="font-medium text-success">{m.correction}</span>
+                      </>
+                    )}
                     {" · "}
                     <Link
                       href={learnerHref(m.kc_id)}
-                      className="text-muted-foreground/80 underline-offset-2 hover:text-foreground hover:underline"
+                      className="text-primary underline-offset-2 hover:underline"
                     >
                       {kcName(m.kc_id)}
                     </Link>
@@ -237,13 +248,13 @@ function Step({
         <section>
           {s.added?.length > 0 && (
             <>
-              <h4 className="font-medium">
+              <h4 className="mb-1 text-[11.5px] font-[650] text-foreground">
                 {t("wordsHeading")}{" "}
-                <Link href="/vocab/mine" className="font-normal underline hover:text-foreground">
+                <Link href="/vocab/mine" className="font-normal text-primary underline-offset-2 hover:underline">
                   {t("wordList")}
                 </Link>
               </h4>
-              <ul className="list-disc pl-4">
+              <ul className={LIST}>
                 {s.added.map((w) => (
                   <CollectedWordItem
                     key={w.word_id}
@@ -309,7 +320,7 @@ function CollectedWordItem({
             onClick={remove}
             disabled={busy}
             aria-label={t("removeWordLabel", { word })}
-            className="underline hover:text-foreground disabled:opacity-50"
+            className="text-primary underline-offset-2 hover:underline disabled:opacity-50"
           >
             {t("removeWord")}
           </button>

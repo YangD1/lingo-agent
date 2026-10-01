@@ -25,11 +25,11 @@ function Thumb({ item }: { item: PendingAttachment }) {
     item.previewUrl ?? (item.kind === "image" && item.attachment ? contentUrl(item.attachment) : null);
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element -- blob: and authenticated URLs
-    return <img src={src} alt="" className="size-10 shrink-0 rounded object-cover" />;
+    return <img src={src} alt="" className="size-9 shrink-0 rounded-[7px] object-cover" />;
   }
   const Icon = item.kind === "audio" ? AudioLines : FileText;
   return (
-    <span className="flex size-10 shrink-0 items-center justify-center rounded bg-muted">
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-[7px] bg-muted">
       <Icon className="size-5 text-muted-foreground" />
     </span>
   );
@@ -149,7 +149,7 @@ export function AttachmentTrayView({ tray }: { tray: AttachmentTray }) {
               key={item.key}
               data-status={item.error ? "upload_failed" : (item.attachment?.status ?? "uploading")}
               className={cn(
-                "flex w-64 items-center gap-2 rounded-lg border bg-background p-2 text-xs",
+                "flex w-full items-center gap-2 rounded-lg border bg-background p-1.5 pr-1 text-xs sm:w-[236px]",
                 failed && "border-destructive/50",
               )}
             >

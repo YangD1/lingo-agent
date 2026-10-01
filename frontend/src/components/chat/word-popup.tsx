@@ -63,6 +63,8 @@ type Open = {
  * for 0.3 s, or tap it, to see its entry, the sentence it's in, AI example sentences, and
  * to put it on the word list. Words are the `span[data-word]` that `<Markdown words>` makes.
  */
+const HEADING = "mb-0.5 text-[11.5px] font-semibold text-muted-foreground";
+
 export function WordPopup({ container }: { container: RefObject<HTMLElement | null> }) {
   const [open, setOpen] = useState<Open | null>(null);
   const openRef = useRef<Open | null>(null);
@@ -158,7 +160,7 @@ export function WordPopup({ container }: { container: RefObject<HTMLElement | nu
       <PopoverContent
         anchor={open?.anchor}
         align="start"
-        className="w-80"
+        className="flex w-80 flex-col gap-2.5 text-[13px]"
         data-testid="word-popup"
         // Hover shouldn't take focus from the message box.
         initialFocus={false}
@@ -256,9 +258,9 @@ function WordCard({
 
   const header = (
     <div className="flex items-baseline gap-2">
-      <span className="text-base font-semibold">{entry?.word.word ?? word}</span>
+      <span className="text-lg font-bold">{entry?.word.word ?? word}</span>
       {entry?.word.phonetic && (
-        <span className="text-muted-foreground">/{entry.word.phonetic}/</span>
+        <span className="font-mono text-xs text-muted-foreground">/{entry.word.phonetic}/</span>
       )}
       {speakable && (
         <Button
@@ -307,7 +309,7 @@ function WordCard({
       )}
       {sentence && sentence.text !== word && (
         <section>
-          <h4 className="text-xs text-muted-foreground">{t("sentence")}</h4>
+          <h4 className={HEADING}>{t("sentence")}</h4>
           <p data-testid="word-sentence">
             {sentence.text.slice(0, sentence.at)}
             <strong>{sentence.text.slice(sentence.at, sentence.at + word.length)}</strong>
@@ -318,8 +320,8 @@ function WordCard({
       <section>
         {examples ? (
           <>
-            <h4 className="text-xs text-muted-foreground">{t("examplesTitle")}</h4>
-            <ul className="space-y-1.5" data-testid="word-examples">
+            <h4 className={HEADING}>{t("examplesTitle")}</h4>
+            <ul className="space-y-1.5 rounded-md bg-muted px-2.5 py-2" data-testid="word-examples">
               {examples.map((example) => (
                 <li key={example.en}>
                   <p>{example.en}</p>
@@ -347,13 +349,19 @@ function WordCard({
           </p>
         )}
       </section>
-      <div className="border-t pt-2">
+      <div className="border-t pt-2.5">
         {entry.on_list || added ? (
-          <p role="status" className="text-xs text-muted-foreground">
+          <p role="status" className="text-center text-xs text-success">
             {added ?? t("onList")}
           </p>
         ) : (
-          <Button size="xs" disabled={adding} onClick={() => void add(entry)}>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="w-full"
+            disabled={adding}
+            onClick={() => void add(entry)}
+          >
             <BookPlus />
             {t("add")}
           </Button>

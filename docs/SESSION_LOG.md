@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-01 · 任务 26.2–26.7：设计包收入、视觉基础、外壳、确认方式
+
+- **做了什么**：设计包收入 `docs/design/lingo-agent-design/`（截图压成 1100px JPEG），26.3 拆成 26.4–26.12，Q26a–f 按推荐确认。26.4 token / 字体 / logo / 主题（ADR 0019）；26.5 写死颜色换 token、AiBadge 重做、通用组件（tag / progress / callout / status-text / empty-state）；26.6 侧栏 + 手机顶栏 / 底栏 / “更多”面板（`components/shell/`、`ui/sheet.tsx`）；26.7 `ui/confirm-dialog.tsx`、`ui/inline-confirm.tsx` 替换全部 `window.confirm`。每步 typecheck、eslint、Vitest 277、E2E 42 全过并已提交（ahead 6，未推送）。
+- **未完成**：26.8 对话页（看板标 `[~]`），尚未改代码；之后 26.9–26.12。
+- **下一步**：按 `docs/design/lingo-agent-design/` 组件规格“对话页”改 `frontend/src/components/chat/` 下各组件；手机会话列表用 `Sheet side="left"`。保留现有 test id 和 aria 名称（E2E 依赖“会话列表”“新对话”）。
+- **踩坑**：截图要先删 `/tmp/shot-state.json`（e2e 库重置后旧会话失效）；dev 截图右下黑色 “N” 是 Next 开发指示器；WSL 中文字体靠 `~/.local/share/fonts` 里软链的微软雅黑（用户级，不在仓库）。
+
+---
+
 ## 2026-10-01 · 任务 25 收尾、推送、任务 26.1 设计提示词
 
 - **做了什么**：

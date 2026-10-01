@@ -280,7 +280,15 @@
       "translating": "Translating…",
       "readSettings": "Read-aloud settings",
       "fellBack": "An online voice made no sound (its server may be out of reach), so this device's own voice is reading instead."
-    }
+    },
+    "openConversations": "Open conversations",
+    "groups": {
+      "today": "Today",
+      "week": "This week",
+      "earlier": "Earlier"
+    },
+    "tutor": "Tutor",
+    "typing": "The tutor is replying"
   },
   "memory": {
     "edit": "Edit",

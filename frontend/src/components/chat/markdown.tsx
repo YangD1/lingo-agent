@@ -33,7 +33,7 @@ function wrapWords(text: string): HastNode[] {
     out.push({
       type: "element",
       tagName: "span",
-      properties: { dataWord: match[0], className: ["cursor-pointer rounded-sm hover:bg-primary/10"] },
+      properties: { dataWord: match[0], className: ["cursor-pointer rounded-sm transition-colors hover:bg-brand-soft hover:ring-2 hover:ring-brand-soft"] },
       children: [{ type: "text", value: match[0] }],
     });
     last = start + match[0].length;
@@ -76,20 +76,20 @@ const components: Components = {
   h1: styled("h1", "mt-3 mb-2 text-lg font-semibold"),
   h2: styled("h2", "mt-3 mb-2 text-base font-semibold"),
   h3: styled("h3", "mt-3 mb-1 font-semibold"),
-  blockquote: styled("blockquote", "my-2 border-l-2 border-border pl-3 text-muted-foreground"),
+  blockquote: styled("blockquote", "my-2.5 rounded-md bg-muted px-3 py-2 [&>p]:my-0"),
   a: styled("a", "underline underline-offset-2", { target: "_blank", rel: "noopener noreferrer" }),
-  pre: styled("pre", "my-2 overflow-x-auto rounded-md bg-background p-3 text-sm [&_code]:bg-transparent [&_code]:p-0"),
-  code: styled("code", "rounded bg-background px-1 py-0.5 font-mono text-[0.9em]"),
+  pre: styled("pre", "my-2 overflow-x-auto rounded-md bg-muted p-3 text-sm [&_code]:bg-transparent [&_code]:p-0"),
+  code: styled("code", "rounded bg-muted px-1 py-0.5 font-mono text-[0.88em]"),
   table: ({ node, ...props }) => {
     void node;
     return (
       <div className="my-2 overflow-x-auto">
-        <table className="border-collapse text-sm" {...props} />
+        <table className="border-collapse text-[13.5px] leading-normal" {...props} />
       </div>
     );
   },
-  th: styled("th", "border border-border px-2 py-1 text-left font-semibold"),
-  td: styled("td", "border border-border px-2 py-1"),
+  th: styled("th", "border border-border bg-muted px-2.5 py-1.5 text-left font-semibold"),
+  td: styled("td", "border border-border px-2.5 py-1.5"),
   hr: styled("hr", "my-3 border-border"),
 };
 

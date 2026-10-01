@@ -6,7 +6,7 @@ test.use({ locale: "zh-CN" });
 
 const input = (page: Page) => page.getByRole("textbox", { name: /输入消息/ });
 const messages = (page: Page) => page.getByRole("list", { name: "消息" }).locator(':scope > li > [data-slot="message"]');
-const conversations = (page: Page) => page.getByRole("list", { name: "会话列表" }).locator("li");
+const conversations = (page: Page) => page.getByRole("navigation", { name: "会话列表" }).locator("li");
 
 async function send(page: Page, text: string) {
   await input(page).fill(text);

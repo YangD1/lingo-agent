@@ -20,7 +20,10 @@ import { UserAvatar } from "./user-avatar";
 /** Phone top bar: the mark and the current page's name. */
 export function MobileTopBar() {
   const t = useTranslations("nav");
-  const item = activeItem(usePathname());
+  const pathname = usePathname();
+  const item = activeItem(pathname);
+  // Chat has its own top bar, with the conversation list drawer and the conversation's title.
+  if (isActive(pathname, "/chat")) return null;
   return (
     <header className="flex h-14 shrink-0 items-center gap-2.5 border-b px-4 md:hidden">
       <Link href="/dashboard" aria-label="Lingo Agent">

@@ -4,6 +4,8 @@ import { Target } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
+import { Callout } from "@/components/ui/callout";
+import { CefrTag, Tag, isCefrLevel } from "@/components/ui/tag";
 import { kcName, learnerHref } from "@/lib/learner";
 import type { Conversation } from "@/lib/types";
 
@@ -12,18 +14,22 @@ export function PracticeBar({ kc }: { kc: NonNullable<Conversation["focus_kc"]> 
   const t = useTranslations("chat.practice");
   const locale = useLocale();
   return (
-    <div
-      className="mx-auto mt-3 flex w-full max-w-3xl items-center gap-2 rounded-lg border px-4 py-2 text-sm"
+    <Callout
+      tone="neutral"
+      icon={<Target aria-hidden />}
+      className="mx-auto mt-3 w-[calc(100%-1.5rem)] max-w-3xl"
       data-testid="practice-bar"
+      action={
+        <Link
+          href={learnerHref(kc.id)}
+          className="shrink-0 text-[13px] font-medium text-primary underline-offset-2 hover:underline"
+        >
+          {t("evidence")}
+        </Link>
+      }
     >
-      <Target className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-      <span className="flex-1">
-        {t("label", { kc: kcName(kc, locale) })}{" "}
-        <span className="text-xs text-muted-foreground">{kc.cefr}</span>
-      </span>
-      <Link href={learnerHref(kc.id)} className="underline-offset-2 hover:underline">
-        {t("evidence")}
-      </Link>
-    </div>
+      {t("label", { kc: kcName(kc, locale) })}{" "}
+      {isCefrLevel(kc.cefr) ? <CefrTag level={kc.cefr} /> : <Tag>{kc.cefr}</Tag>}
+    </Callout>
   );
 }

@@ -280,7 +280,15 @@
       "translating": "正在翻译…",
       "readSettings": "朗读设置",
       "fellBack": "在线声音没有出声（可能连不上它的服务器），已改用本机的声音朗读。"
-    }
+    },
+    "openConversations": "打开会话列表",
+    "groups": {
+      "today": "今天",
+      "week": "本周",
+      "earlier": "更早"
+    },
+    "tutor": "私教",
+    "typing": "私教正在回复"
   },
   "memory": {
     "edit": "编辑",

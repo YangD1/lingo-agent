@@ -1,8 +1,12 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { LayoutGridIcon, Menu } from "lucide-react";
+import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Sheet } from "@/components/ui/sheet";
 import type { ApiErrorLike } from "@/i18n/errors";
 import { api, ApiError } from "@/lib/api";
 import type { Conversation } from "@/lib/types";
@@ -32,6 +36,9 @@ export function ChatApp({
   planning?: boolean;
 }) {
   const locale = useLocale();
+  const t = useTranslations("chat");
+  const tNav = useTranslations("nav");
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   // Coming back (browser Back) to a page opened with `?practice=` or `?plan=`, Next may
   // render the props it cached for that URL, though `setUrl` has since replaced it with
@@ -93,29 +100,80 @@ export function ChatApp({
     if (id === activeId) select(null);
   }
 
+  const list = {
+    conversations,
+    activeId,
+    onDelete: remove,
+  };
+
   return (
     <>
       <ConversationList
-        conversations={conversations}
-        activeId={activeId}
+        {...list}
+        className="hidden md:flex"
         onSelect={select}
         onNew={() => select(null)}
-        onDelete={remove}
       />
-      <TutorPanel
-        className="flex-1"
-        conversationId={activeId}
-        onConversationCreated={(c) => {
-          setActiveId(c.id);
-          setUrl(c.id, "replace");
-          setConversations((all) => [c, ...all.filter((o) => o.id !== c.id)]);
-        }}
-        onTurnFinished={refresh}
-        // A practice or planning conversation with nothing in it yet (Q19a, ADR 0015 §6).
-        autoOpen={Boolean(active?.focus_kc || active?.purpose === "planning")}
-        header={active?.focus_kc ? <PracticeBar kc={active.focus_kc} /> : <PlacementBanner />}
-        error={practiceError}
-      />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-14 shrink-0 items-center gap-1.5 border-b px-2 md:h-12 md:px-5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            aria-label={t("openConversations")}
+            aria-haspopup="dialog"
+            onClick={() => setDrawerOpen(true)}
+          >
+            <Menu className="size-5" />
+          </Button>
+          <h1 className="truncate text-base font-semibold md:text-[15px]">
+            {active ? active.title || t("untitled") : t("newChat")}
+          </h1>
+        </header>
+        <TutorPanel
+          className="min-h-0 flex-1"
+          conversationId={activeId}
+          onConversationCreated={(c) => {
+            setActiveId(c.id);
+            setUrl(c.id, "replace");
+            setConversations((all) => [c, ...all.filter((o) => o.id !== c.id)]);
+          }}
+          onTurnFinished={refresh}
+          // A practice or planning conversation with nothing in it yet (Q19a, ADR 0015 §6).
+          autoOpen={Boolean(active?.focus_kc || active?.purpose === "planning")}
+          header={active?.focus_kc ? <PracticeBar kc={active.focus_kc} /> : <PlacementBanner />}
+          error={practiceError}
+        />
+      </div>
+      {/* Phones: the list is a drawer, and the way back to the other pages (no tab bar here). */}
+      <Sheet
+        side="left"
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        title={t("conversations")}
+        hideTitle
+        className="bg-[color-mix(in_oklab,var(--sidebar)_60%,var(--background))]"
+      >
+        <ConversationList
+          {...list}
+          className="min-h-0 w-full flex-1 border-r-0 bg-transparent"
+          onSelect={(id) => {
+            setDrawerOpen(false);
+            select(id);
+          }}
+          onNew={() => {
+            setDrawerOpen(false);
+            select(null);
+          }}
+        />
+        <Link
+          href="/dashboard"
+          className="flex h-12 shrink-0 items-center gap-2.5 border-t px-5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <LayoutGridIcon aria-hidden className="size-[18px]" />
+          {tNav("dashboard")}
+        </Link>
+      </Sheet>
     </>
   );
 }

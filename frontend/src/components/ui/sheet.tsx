@@ -14,6 +14,7 @@ export function Sheet({
   onOpenChange,
   side = "bottom",
   title,
+  hideTitle = false,
   children,
   className,
   ...props
@@ -23,6 +24,8 @@ export function Sheet({
   side?: "bottom" | "left";
   /** Accessible name; shown as a small heading. */
   title: string;
+  /** Keep the title for screen readers only, when the content makes it obvious. */
+  hideTitle?: boolean;
   children: ReactNode;
   className?: string;
   "data-testid"?: string;
@@ -43,7 +46,11 @@ export function Sheet({
         >
           {side === "bottom" && <span aria-hidden className="mx-auto mb-2 h-1 w-9 rounded-full bg-border" />}
           <Dialog.Title
-            className={cn("text-[13px] font-semibold text-muted-foreground", side === "left" && "px-4 pt-4")}
+            className={cn(
+              "text-[13px] font-semibold text-muted-foreground",
+              side === "left" && "px-4 pt-4",
+              hideTitle && "sr-only",
+            )}
           >
             {title}
           </Dialog.Title>

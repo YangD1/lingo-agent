@@ -1,11 +1,12 @@
 "use client";
 
-import { X } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { type BannerKind, bannerFor, fetchLatestPlacement } from "@/lib/placement";
 import { usePlacementBannerClosed } from "@/lib/preferences";
 
@@ -36,17 +37,20 @@ export function PlacementBanner() {
 
   if (kind === null || closed === closeKey) return null;
   return (
-    <div
-      className="mx-auto mt-3 flex w-full max-w-3xl items-center gap-3 rounded-lg border bg-muted/50 px-4 py-2 text-sm"
+    <Callout
+      tone="brand"
+      icon={<ClipboardCheck aria-hidden />}
+      className="mx-auto mt-3 w-[calc(100%-1.5rem)] max-w-3xl"
       data-testid="placement-banner"
+      action={
+        <Link href="/placement" className={buttonVariants({ size: "sm" })}>
+          {t(ACTIONS[kind])}
+        </Link>
+      }
+      onDismiss={() => close(closeKey)}
+      dismissLabel={t("close")}
     >
-      <span className="flex-1">{t(kind)}</span>
-      <Link href="/placement" className={buttonVariants({ size: "sm" })}>
-        {t(ACTIONS[kind])}
-      </Link>
-      <Button size="icon-sm" variant="ghost" aria-label={t("close")} onClick={() => close(closeKey)}>
-        <X />
-      </Button>
-    </div>
+      {t(kind)}
+    </Callout>
   );
 }

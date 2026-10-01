@@ -63,7 +63,7 @@ test("dashboard: guides a new learner, then charts what they did", async ({ page
   await useFakeModel(page);
   await page.getByRole("link", { name: "对话", exact: true }).click();
   // The dashboard has a message box of its own (today's conversation): wait for the chat page.
-  await expect(page.getByRole("list", { name: "会话列表" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "会话列表" })).toBeVisible();
   const input = page.getByRole("textbox", { name: /输入消息/ });
   await input.fill("She like music.");
   await input.press("Enter");

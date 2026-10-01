@@ -51,7 +51,7 @@ test("today: rule advice without a model, then a quick reply the tutor answers w
   await expect(today.getByTestId("today-greeting")).toHaveCount(0);
   await today.getByRole("link", { name: "在对话页继续" }).click();
   await expect(page).toHaveURL(/\/chat\?c=[0-9a-f-]{36}$/);
-  const listed = page.getByRole("list", { name: "会话列表" }).locator("li");
+  const listed = page.getByRole("navigation", { name: "会话列表" }).locator("li");
   await expect(listed).toHaveCount(1);
   await expect(listed.first()).toContainText("今天的学习");
 });

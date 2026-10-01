@@ -11,6 +11,7 @@ import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { ApiError } from "@/lib/api";
 import { type CardAction, LINK_HREFS, type LinkKind, type TutorCard } from "@/lib/cards";
 import { practiceHref } from "@/lib/learner";
+import { cn } from "@/lib/utils";
 
 type Decide = (card: TutorCard, action: CardAction) => Promise<void>;
 
@@ -18,7 +19,7 @@ type Decide = (card: TutorCard, action: CardAction) => Promise<void>;
 export function TutorCards({ cards, onDecide }: { cards: TutorCard[]; onDecide: Decide }) {
   if (cards.length === 0) return null;
   return (
-    <div className="mt-2 flex flex-col gap-2" data-testid="tutor-cards">
+    <div className="mt-2.5 flex flex-col gap-2" data-testid="tutor-cards">
       {cards.map((card) => (
         <CardItem key={card.id} card={card} onDecide={onDecide} />
       ))}
@@ -32,12 +33,24 @@ function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
   const Icon = ICONS[card.kind];
   return (
     <div
-      className="flex gap-3 rounded-lg border bg-background p-3 text-sm"
+      className="flex gap-3 rounded-lg border bg-card px-3.5 py-3 text-[13px]"
       data-testid="tutor-card"
       data-kind={card.kind}
       data-status={card.status}
     >
-      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span
+        aria-hidden
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-[9px] [&>svg]:size-4",
+          card.status === "applied"
+            ? "bg-[color-mix(in_oklab,var(--success)_13%,transparent)] text-success"
+            : card.status === "declined" || card.status === "undone"
+              ? "bg-muted text-muted-foreground"
+              : "bg-brand-soft text-brand-soft-foreground",
+        )}
+      >
+        <Icon />
+      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {card.kind === "word_book" && <WordBook card={card} />}
         {card.kind === "learning_goal" && <Goal card={card} />}
@@ -59,7 +72,7 @@ function WordBook({ card }: { card: TutorCard }) {
   const daily = card.params.daily_new;
   return (
     <div>
-      <p className="font-medium">{t("wordBook.title", { book: name })}</p>
+      <p className="text-sm font-semibold">{t("wordBook.title", { book: name })}</p>
       {typeof daily === "number" && (
         <p className="text-muted-foreground">{t("wordBook.daily", { n: daily })}</p>
       )}
@@ -78,7 +91,7 @@ function Goal({ card }: { card: TutorCard }) {
   };
   return (
     <div>
-      <p className="font-medium">{t("goal.title")}</p>
+      <p className="text-sm font-semibold">{t("goal.title")}</p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 text-muted-foreground">
         {typeof goal === "string" && (
           <>
@@ -166,7 +179,7 @@ function Practice({ card }: { card: TutorCard }) {
   const name = kc ? `${locale.startsWith("zh") ? kc.name_zh : kc.name_en} (${kc.cefr})` : kcId;
   return (
     <>
-      <p className="font-medium">{t("practice.title", { kc: name })}</p>
+      <p className="text-sm font-semibold">{t("practice.title", { kc: name })}</p>
       <div className="flex items-center gap-2">
         <Link href={practiceHref(kcId)} className={buttonVariants({ size: "sm" })}>
           {t("practice.action")}
@@ -183,7 +196,7 @@ function LinkCard({ card }: { card: TutorCard }) {
   if (!(kind in LINK_HREFS)) return null; // from a newer backend
   return (
     <>
-      <p className="font-medium">{t(`${kind}.title`)}</p>
+      <p className="text-sm font-semibold">{t(`${kind}.title`)}</p>
       <LiveNumbers kind={kind} live={card.live} />
       <div>
         <Link href={LINK_HREFS[kind]} className={buttonVariants({ size: "sm" })}>

@@ -19,6 +19,7 @@ export function Segmented<T extends string>({
   label,
   size = "default",
   className,
+  ...props
 }: {
   value: T | undefined;
   options: SegmentedOption<T>[];
@@ -26,12 +27,14 @@ export function Segmented<T extends string>({
   label: string;
   size?: "default" | "sm";
   className?: string;
+  "data-testid"?: string;
 }) {
   return (
     <div
       role="radiogroup"
       aria-label={label}
       className={cn("inline-flex rounded-md bg-muted p-[3px]", className)}
+      {...props}
     >
       {options.map((option) => {
         const checked = option.value === value;

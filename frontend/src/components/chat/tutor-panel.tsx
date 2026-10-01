@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleAlert, FileUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { type DragEvent, type ReactNode, useEffect, useRef, useState } from "react";
@@ -120,7 +121,8 @@ export function TutorPanel({
       onDrop={onDrop}
     >
       {dragging && (
-        <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/80 text-sm font-medium">
+        <div className="pointer-events-none absolute inset-3 z-10 flex flex-col items-center justify-center gap-2 rounded-[20px] border-2 border-dashed border-primary/60 bg-background/82 text-base font-semibold text-primary">
+          <FileUp aria-hidden className="size-6" />
           {t("attachments.dropHere")}
         </div>
       )}
@@ -139,9 +141,10 @@ export function TutorPanel({
       {error && (
         <div
           role="alert"
-          className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 text-sm text-destructive"
+          className="mx-auto flex w-full max-w-3xl items-center gap-3 px-3 text-sm text-destructive md:px-8"
         >
-          <span>{errorMessage(error)}</span>
+          <CircleAlert aria-hidden className="size-4 shrink-0" />
+          <span className="flex-1">{errorMessage(error)}</span>
           {SETTINGS_ERRORS.has(error.code) && (
             <Link href="/settings" className={buttonVariants({ size: "sm", variant: "outline" })}>
               {t("goToSettings")}

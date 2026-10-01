@@ -90,6 +90,10 @@ export function useReplyTranslations(conversationId: string | null) {
  * Under a tutor message: read it aloud (browser voices, Chinese and English parts each in
  * their own) and switch between it and its translation.
  */
+// The row under a tutor message (component-spec "对话页"): 28px buttons, muted until hovered.
+const TOOL = "h-7 px-2 text-[12.5px] text-muted-foreground hover:text-foreground";
+const ICON_TOOL = "size-7 text-muted-foreground hover:text-foreground";
+
 export function ReplyTools({
   messageKey,
   messageId,
@@ -128,11 +132,12 @@ export function ReplyTools({
 
   if (!speakable && !(messageId && onTranslate)) return null;
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+    <div className="mt-1.5 flex flex-wrap items-center gap-0.5 text-[12.5px] text-muted-foreground">
       {speakable && (
         <Button
           size="xs"
           variant="ghost"
+          className={TOOL}
           aria-pressed={speaking}
           onClick={(e) => read(e.currentTarget)}
         >
@@ -143,7 +148,7 @@ export function ReplyTools({
       {speakable && (
         <Popover>
           <PopoverTrigger
-            render={<Button size="icon-xs" variant="ghost" aria-label={t("readSettings")} />}
+            render={<Button size="icon-xs" variant="ghost" className={ICON_TOOL} aria-label={t("readSettings")} />}
           >
             <Settings2 />
           </PopoverTrigger>
@@ -154,9 +159,11 @@ export function ReplyTools({
       )}
       {messageId && onTranslate && (
         <>
+          {speakable && <span aria-hidden className="mx-1 h-3.5 w-px bg-border" />}
           <Button
             size="xs"
             variant="ghost"
+            className={TOOL}
             disabled={translation?.busy}
             aria-pressed={translation?.showing ?? false}
             onClick={() => onTranslate(messageId, target)}
