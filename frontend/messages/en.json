@@ -96,7 +96,6 @@
       "truncated": "only the beginning was read",
       "download": "Download"
     },
-    "addWord": "Add {word} to my words",
     "activity": {
       "line": "What the tutor did: {parts}",
       "nothing": "no memories read or saved this turn",
@@ -238,6 +237,18 @@
       "en": "Mostly English",
       "hint": "From the next reply",
       "byLevel": "Picked by your level; from the next reply"
+    },
+    "word": {
+      "speak": "Read “{word}” aloud",
+      "loading": "Looking it up…",
+      "lemma": "Base form: {word}",
+      "sentence": "In this message",
+      "examples": "AI examples",
+      "examplesLoading": "Writing examples…",
+      "examplesTitle": "Examples",
+      "add": "Add to my words",
+      "added": "Added to my words.",
+      "onList": "On my word list."
     }
   },
   "memory": {
@@ -875,7 +886,9 @@
       "chat_audio": "Your recording is turned into text by a speech-to-text model.",
       "practice_start": "The tutor opens the practice with a first message written by an AI model.",
       "plan_start": "The tutor opens the planning conversation with a first message written by an AI model, from your test result and learning data. After that, each reply is like any chat message.",
-      "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the tutor can find it later."
+      "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the tutor can find it later.",
+      "word_examples": "An AI model writes two example sentences for this word at your level. They are saved, so the next time anyone asks for this word at this level, no model is called.",
+      "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls."
     },
     "task": {
       "chat": "Reply",
@@ -886,7 +899,9 @@
       "asr": "Speech to text",
       "practice_opening": "Opening message",
       "plan_opening": "Opening message",
-      "advice": "Write advice"
+      "advice": "Write advice",
+      "word_examples": "Example sentences",
+      "translate": "Translate"
     },
     "timing": {
       "now": "right away",

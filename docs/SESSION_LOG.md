@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-01 · 任务 24.1–24.4：中英比例（前后端）、查词 / AI 例句 / 气泡翻译接口
+
+- **做了什么**：ADR 0017 已采纳（Q24a–j）；24.2 `user_profiles.chat_language` + `app/memory/language.py` + `language_zh.md` / `language_en.md`；24.3 `components/chat/language-switch.tsx`（输入框上方开关、记忆页画像下拉）；24.4 `GET /vocab/lookup`、`POST /vocab/words/{id}/examples`（`services/vocab/examples.py`，按租户 + 词 + 等级缓存）、`POST /conversations/{id}/messages/{message_id}/translate`（`chat/translate.py`，存库），迁移 `7c2e5a91d0b4`、`6a0fc12e79ca`，`features.yaml` 加 `word_examples`、`message_translate`。后端 827、Vitest 221 通过。
+- **未完成**：24.5 前端单词气泡（替换 `components/chat/select-to-add.tsx`，`lib/ai-usage.ts` 的 `AiFeature` 要加两项）；24.6 朗读 + 气泡翻译；24.7 E2E（`fake_llm.py` 要能回 `WordExamples` / `Translation`）、README、Docker。
+- **下一步**：24.5 → 24.6 → 24.7，然后交用户实测；之后任务 25（服务端 TTS）。
+- **踩坑**：Vitest 里 `beforeEach(() => api.mockReset())` 会把返回值当成清理函数导致超时，要写成块语句；ruff RUF001 不让字符串里出现 `’`，用 `\u2019`。
+
+---
+
 ## 2026-10-01 · 任务 23.5：E2E、README、Docker 重建（任务 23 完成）
 
 - **做了什么**：

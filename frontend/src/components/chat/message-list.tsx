@@ -8,12 +8,12 @@ import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
 import { MessageAttachments } from "./message-attachments";
-import { SelectToAdd } from "./select-to-add";
 import { TurnActivity } from "./turn-activity";
 import { TutorCards } from "./tutor-cards";
 import type { ActivityView } from "./use-activity";
 import type { CardsView } from "./use-cards";
 import type { ChatMessage } from "./use-chat-session";
+import { WordPopup } from "./word-popup";
 
 export function MessageList({
   messages,
@@ -80,7 +80,7 @@ export function MessageList({
               {!m.content ? (
                 m.status === "streaming" && <span className="animate-pulse">…</span>
               ) : m.role === "assistant" ? (
-                <Markdown>{m.content}</Markdown>
+                <Markdown words>{m.content}</Markdown>
               ) : (
                 m.content
               )}
@@ -109,7 +109,7 @@ export function MessageList({
           </li>
         ))}
       </ol>
-      <SelectToAdd container={listRef} />
+      <WordPopup container={listRef} />
     </div>
   );
 }

@@ -112,6 +112,20 @@ export const fetchMine = (limit: number, offset: number) =>
 export const addMine = (word: string) =>
   api<Added>("/vocab/mine", { method: "POST", json: { word } });
 
+/** A word looked up from a tutor message (backend LookupOut, ADR 0017 §2). */
+export type Lookup = { word: Word; matched: "exact" | "case" | "lemma"; on_list: boolean };
+
+export const lookupWord = (word: string) =>
+  api<Lookup>(`/vocab/lookup?${new URLSearchParams({ word })}`);
+
+export type Example = { en: string; zh: string };
+
+/** AI example sentences at the learner's level, cached per word and level (ADR 0017 §3). */
+export const fetchExamples = (wordId: number) =>
+  api<{ sentences: Example[]; cefr: string }>(`/vocab/words/${wordId}/examples`, {
+    method: "POST",
+  });
+
 export const removeMine = (wordId: number) =>
   api<void>(`/vocab/mine/${wordId}`, { method: "DELETE" });
 

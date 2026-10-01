@@ -76,6 +76,10 @@ beforeEach(() => {
   streamChat.mockReset();
 });
 
+/** A paragraph of a tutor message; its English words are separate spans (word popup). */
+const tutorSays = (text: string) =>
+  screen.findByText((_, el) => el?.tagName === "P" && el.textContent === text);
+
 describe("templateKey", () => {
   it("tells a first test, a retest and one left halfway apart", () => {
     expect(templateKey(item({ kind: "placement" }))).toBe("placement");
@@ -175,7 +179,7 @@ describe("TodayTutor", () => {
       ],
     });
     wrap(<TodayTutor />);
-    expect(await screen.findByText("Let's review your 3 words.")).toBeInTheDocument();
+    expect(await tutorSays("Let's review your 3 words.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Continue in chat" })).toHaveAttribute(
       "href",
       "/chat?c=d1",
@@ -200,7 +204,7 @@ describe("TodayTutor", () => {
     expect(api.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
     await userEvent.click(reply);
 
-    expect(await screen.findByText("Sure.")).toBeInTheDocument();
+    expect(await tutorSays("Sure.")).toBeInTheDocument();
     const post = api.mock.calls.find(([, init]) => init?.method === "POST");
     expect(post?.[0]).toBe("/conversations");
     expect(post?.[1].json).toMatchObject({ purpose: "daily", locale: "en" });

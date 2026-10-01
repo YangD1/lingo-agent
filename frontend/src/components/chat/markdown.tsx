@@ -9,6 +9,53 @@ import remarkGfm from "remark-gfm";
 // default), so model output cannot inject markup.
 const remarkPlugins = [remarkGfm, remarkCjkFriendly];
 
+/** One English word, maybe hyphenated or with an apostrophe (same rule as the backend's
+ * collected words). */
+export const WORD = /[A-Za-z]+(?:['\u2019-][A-Za-z]+)*/g;
+// Words here are code or a link's text, not prose to look up.
+const SKIP_TAGS = new Set(["code", "pre", "a"]);
+
+// Just the hast shapes this touches (hast types aren't a direct dependency).
+type HastNode = {
+  type: string;
+  tagName?: string;
+  value?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+};
+
+function wrapWords(text: string): HastNode[] {
+  const out: HastNode[] = [];
+  let last = 0;
+  for (const match of text.matchAll(WORD)) {
+    const start = match.index;
+    if (start > last) out.push({ type: "text", value: text.slice(last, start) });
+    out.push({
+      type: "element",
+      tagName: "span",
+      properties: { dataWord: match[0], className: ["cursor-pointer rounded-sm hover:bg-primary/10"] },
+      children: [{ type: "text", value: match[0] }],
+    });
+    last = start + match[0].length;
+  }
+  if (last < text.length) out.push({ type: "text", value: text.slice(last) });
+  return out;
+}
+
+/** Wraps each English word of the prose in `span[data-word]`, for the word popup (ADR 0017 §2). */
+function rehypeWords() {
+  const visit = (node: HastNode) => {
+    if (!node.children || (node.tagName && SKIP_TAGS.has(node.tagName))) return;
+    node.children = node.children.flatMap((child) => {
+      if (child.type === "text" && child.value) return wrapWords(child.value);
+      visit(child);
+      return [child];
+    });
+  };
+  return visit;
+}
+const rehypePlugins = [rehypeWords];
+
 // react-markdown passes its AST `node` to every custom component; drop it so it
 // doesn't end up as a DOM attribute.
 function styled<T extends ElementType>(Tag: T, className: string, extra?: ComponentProps<T>) {
@@ -46,10 +93,15 @@ const components: Components = {
   hr: styled("hr", "my-3 border-border"),
 };
 
-export function Markdown({ children }: { children: string }) {
+/** `words`: make English words look-up-able (tutor messages only). */
+export function Markdown({ children, words = false }: { children: string; words?: boolean }) {
   return (
     <div className="break-words">
-      <ReactMarkdown remarkPlugins={remarkPlugins} components={components}>
+      <ReactMarkdown
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={words ? rehypePlugins : undefined}
+        components={components}
+      >
         {children}
       </ReactMarkdown>
     </div>

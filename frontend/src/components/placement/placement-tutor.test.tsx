@@ -82,6 +82,10 @@ beforeEach(() => {
   streamOpening.mockReset();
 });
 
+/** A paragraph of a tutor message; its English words are separate spans (word popup). */
+const tutorSays = (text: string) =>
+  screen.findByText((_, el) => el?.tagName === "P" && el.textContent === text);
+
 describe("findPlanning", () => {
   it("takes the latest planning conversation started since the test finished", async () => {
     backend({
@@ -147,7 +151,7 @@ describe("PlacementTutor", () => {
     expect(posts()).toHaveLength(0); // nothing is created, and no model called, before this
     await userEvent.click(talk);
 
-    expect(await screen.findByText("Your level is B1. What is your goal?")).toBeInTheDocument();
+    expect(await tutorSays("Your level is B1. What is your goal?")).toBeInTheDocument();
     expect(posts()[0][1].json).toMatchObject({ purpose: "planning", locale: "en" });
     expect(streamOpening).toHaveBeenCalledTimes(1);
     expect(streamOpening.mock.calls[0][0]).toBe("p1");
@@ -173,7 +177,7 @@ describe("PlacementTutor", () => {
     await screen.findByTestId("placement-plan");
 
     await userEvent.type(screen.getByRole("textbox"), "Help me choose a book{Enter}");
-    expect(await screen.findByText("Let's pick a book.")).toBeInTheDocument();
+    expect(await tutorSays("Let's pick a book.")).toBeInTheDocument();
     expect(streamChat.mock.calls[0].slice(0, 2)).toEqual(["p1", "Help me choose a book"]);
     expect(streamOpening).not.toHaveBeenCalled();
   });
@@ -187,7 +191,7 @@ describe("PlacementTutor", () => {
       ],
     });
     wrap(<PlacementTutor finishedAt={FINISHED} />);
-    expect(await screen.findByText("Your level is B1.")).toBeInTheDocument();
+    expect(await tutorSays("Your level is B1.")).toBeInTheDocument();
     expect(screen.queryByTestId("placement-plan")).not.toBeInTheDocument();
     expect(posts()).toHaveLength(0);
     expect(streamOpening).not.toHaveBeenCalled();

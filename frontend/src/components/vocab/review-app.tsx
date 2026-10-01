@@ -3,27 +3,18 @@
 import { Volume2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { isShortcut } from "@/lib/keyboard";
+import { speak, useCanSpeak } from "@/lib/speech";
 import type { Rating } from "@/lib/vocab";
 
 import { type ReviewMode, useReviewSession } from "./use-review-session";
 
 const RATINGS: readonly Rating[] = [1, 2, 3, 4];
-
-const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window;
-
-function speak(text: string) {
-  if (!canSpeak()) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "en-US";
-  window.speechSynthesis.speak(utterance);
-}
 
 /**
  * Flashcards (P1 plan §6): the word first; recall it, then flip (Space) to see the
@@ -34,11 +25,7 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
   const describe = useDescribeError();
   const session = useReviewSession(mode);
   const { current, flipped, flip, rate } = session;
-  const speakable = useSyncExternalStore(
-    () => () => {},
-    canSpeak,
-    () => false,
-  );
+  const speakable = useCanSpeak();
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {

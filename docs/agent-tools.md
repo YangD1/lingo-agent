@@ -57,7 +57,7 @@
 
 | 操作 | 代码 | 写 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|
-| 选中私教回复里的单词加入生词本 | 前端 `components/chat/select-to-add.tsx` → `POST /vocab/mine` | `user_cards`（`source=manual`，规则同生词本页：精确 → 忽略大小写 → 还原原形；已标“认识”的词变回待学） | 选区下方提示结果；`/vocab/mine` 可删除 |
+| 在私教回复的单词气泡里加入生词本（ADR 0017） | 前端 `components/chat/word-popup.tsx` → `POST /vocab/mine`（加的是查到的词条，比如 went 加的是 go） | `user_cards`（`source=manual`，规则同生词本页：精确 → 忽略大小写 → 还原原形；已标“认识”的词变回待学） | 单词气泡里提示结果；`/vocab/mine` 可删除 |
 
 ## LLM 工具调用（模型决定是否调用）
 
