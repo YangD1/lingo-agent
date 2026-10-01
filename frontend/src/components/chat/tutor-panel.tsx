@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 import { SETTINGS_ERRORS } from "./attachment-tray";
 import { Composer } from "./composer";
+import { LanguageSwitch } from "./language-switch";
 import { MessageList } from "./message-list";
 import { useActivity } from "./use-activity";
 import { useAttachments } from "./use-attachments";
@@ -153,6 +154,7 @@ export function TutorPanel({
         tray={tray}
         onSend={session.send}
         onStop={session.stop}
+        toolbar={<LanguageSwitch />}
       />
     </section>
   );

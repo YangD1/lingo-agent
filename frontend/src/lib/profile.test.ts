@@ -11,6 +11,8 @@ const empty: Profile = {
   interests: [],
   daily_minutes: null,
   explanation_language: null,
+  chat_language: null,
+  chat_language_effective: "zh",
   cefr_level: null,
   timezone: null,
   manual_fields: [],
@@ -41,5 +43,15 @@ describe("profileChanges", () => {
     const saved: Profile = { ...empty, goal: "Pass IELTS", target_exam: "ielts", interests: ["x"] };
     const form = { ...toForm(saved), goal: "  ", target_exam: "", interests: "" };
     expect(profileChanges(saved, form)).toEqual({ goal: null, target_exam: null, interests: [] });
+  });
+
+  it("sends the tutor's language, and null to go back to picking it by level", () => {
+    expect(profileChanges(empty, { ...toForm(empty), chat_language: "en" })).toEqual({
+      chat_language: "en",
+    });
+    const chosen: Profile = { ...empty, chat_language: "en", chat_language_effective: "en" };
+    expect(profileChanges(chosen, { ...toForm(chosen), chat_language: "" })).toEqual({
+      chat_language: null,
+    });
   });
 });

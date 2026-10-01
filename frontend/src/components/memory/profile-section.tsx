@@ -135,6 +135,22 @@ export function ProfileSection() {
               </NativeSelect>,
             )}
             {field(
+              "chat_language",
+              <NativeSelect
+                id="profile-chat_language"
+                value={form.chat_language}
+                onChange={set("chat_language")}
+              >
+                <option value="">
+                  {t("chatLanguageAuto", {
+                    current: t(`chatLanguages.${saved.chat_language_effective}`),
+                  })}
+                </option>
+                <option value="zh">{t("chatLanguages.zh")}</option>
+                <option value="en">{t("chatLanguages.en")}</option>
+              </NativeSelect>,
+            )}
+            {field(
               "daily_minutes",
               <Input
                 id="profile-daily_minutes"

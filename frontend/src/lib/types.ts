@@ -110,6 +110,7 @@ export type Usage = { days: number; rows: UsageRow[] };
 export const EXAMS = ["zk", "gk", "cet4", "cet6", "ky", "toefl", "ielts", "gre"] as const;
 export type Exam = (typeof EXAMS)[number];
 /** backend/app/api/memory.py ProfileOut (ADR 0009). */
+export type ChatLanguage = "zh" | "en";
 export type Profile = {
   native_language: string | null;
   occupation: string | null;
@@ -118,6 +119,10 @@ export type Profile = {
   interests: string[];
   daily_minutes: number | null;
   explanation_language: "zh" | "en" | null;
+  /** Which language the tutor mainly talks in; null: picked by level (ADR 0017 §1). */
+  chat_language: ChatLanguage | null;
+  /** What applies now: the choice, or the level's default. */
+  chat_language_effective: ChatLanguage;
   /** Set by assessment only, never edited here (ADR 0010). */
   cefr_level: string | null;
   timezone: string | null;

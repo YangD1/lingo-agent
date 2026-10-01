@@ -9,6 +9,7 @@ export const PROFILE_FIELDS = [
   "interests",
   "daily_minutes",
   "explanation_language",
+  "chat_language",
   "timezone",
 ] as const;
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
@@ -38,6 +39,7 @@ export function toForm(profile: Profile): ProfileForm {
     interests: profile.interests.join(", "),
     daily_minutes: profile.daily_minutes?.toString() ?? "",
     explanation_language: profile.explanation_language ?? "",
+    chat_language: profile.chat_language ?? "",
     timezone: profile.timezone ?? "",
   };
 }

@@ -231,6 +231,13 @@
     },
     "daily": {
       "badge": "Today"
+    },
+    "language": {
+      "label": "Your tutor talks:",
+      "zh": "Mostly Chinese",
+      "en": "Mostly English",
+      "hint": "From the next reply",
+      "byLevel": "Picked by your level; from the next reply"
     }
   },
   "memory": {
@@ -255,6 +262,7 @@
         "interests": "Interests",
         "daily_minutes": "Minutes per day",
         "explanation_language": "Explain grammar in",
+        "chat_language": "Tutor talks in",
         "timezone": "Time zone"
       },
       "exams": {
@@ -276,7 +284,12 @@
       "manualHint": "Fields you save here are yours: the tutor won't change them from chat.",
       "save": "Save profile",
       "discard": "Discard changes",
-      "saved": "Profile saved."
+      "saved": "Profile saved.",
+      "chatLanguageAuto": "By my level (now: {current})",
+      "chatLanguages": {
+        "zh": "Mostly Chinese",
+        "en": "Mostly English"
+      }
     },
     "fact": {
       "title": "Things the tutor remembers",

@@ -231,6 +231,13 @@
     },
     "daily": {
       "badge": "今天的学习"
+    },
+    "language": {
+      "label": "私教说：",
+      "zh": "多说中文",
+      "en": "多说英文",
+      "hint": "从下一句开始生效",
+      "byLevel": "按你的等级选的，切换后从下一句开始生效"
     }
   },
   "memory": {
@@ -255,6 +262,7 @@
         "interests": "兴趣",
         "daily_minutes": "每天学习分钟数",
         "explanation_language": "语法讲解语言",
+        "chat_language": "私教说话",
         "timezone": "时区"
       },
       "exams": {
@@ -276,7 +284,12 @@
       "manualHint": "你在这里保存的字段以你为准：私教不会再根据聊天内容修改它们。",
       "save": "保存画像",
       "discard": "放弃修改",
-      "saved": "画像已保存。"
+      "saved": "画像已保存。",
+      "chatLanguageAuto": "按我的等级（现在：{current}）",
+      "chatLanguages": {
+        "zh": "多说中文",
+        "en": "多说英文"
+      }
     },
     "fact": {
       "title": "私教记住的事",

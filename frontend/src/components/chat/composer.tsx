@@ -6,6 +6,7 @@ import {
   type ClipboardEvent,
   type FormEvent,
   type KeyboardEvent,
+  type ReactNode,
   useRef,
   useState,
 } from "react";
@@ -28,12 +29,14 @@ type Props = {
   tray: AttachmentTray;
   onSend: (text: string, attachments: Attachment[]) => Promise<boolean>;
   onStop: () => void;
+  /** Above the input row: the language switch. */
+  toolbar?: ReactNode;
 };
 
 const clock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
-export function Composer({ streaming, disabled, tray, onSend, onStop }: Props) {
+export function Composer({ streaming, disabled, tray, onSend, onStop, toolbar }: Props) {
   const t = useTranslations("chat");
   const [text, setText] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -77,6 +80,7 @@ export function Composer({ streaming, disabled, tray, onSend, onStop }: Props) {
 
   return (
     <form onSubmit={submit} className="mx-auto flex w-full max-w-3xl flex-col gap-2 p-4">
+      {toolbar}
       <AttachmentTrayView tray={tray} />
       {recorder.error && (
         <p role="alert" className="text-xs text-destructive">
