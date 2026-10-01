@@ -675,20 +675,28 @@
     "title": "入学测",
     "description": "大约 10 分钟，测出你的英语水平，私教会据此调整讲解和练习的难度。",
     "intro": {
-      "vocab": "词汇量：每次出一个英文单词，判断你认不认识，最多 40 个。其中有一些是编造的词，不认识就选“不认识”，不要猜。",
-      "grammar": "语法：句子里有一个空，从四个选项里选出正确的一个，最多 20 题。",
+      "lead": "大约 10 分钟，分两部分：",
+      "vocabTitle": "词汇",
+      "vocabMeta": "最多 40 题",
+      "vocab": "每次一个英文单词，判断认不认识。有些是编造的词，不认识就选“不认识”，不要猜。",
+      "grammarTitle": "语法",
+      "grammarMeta": "最多 20 题",
+      "grammar": "句子里有一个空，从四个选项里选出正确的一个。",
       "notes": "不会就选最像的，不显示对错。可以随时离开，回来接着做。做完后，你的等级会更新为这次的结果（之后仍可以在“记忆”页手动修改）。",
       "start": "开始"
     },
     "question": {
-      "vocabProgress": "第一部分 · 词汇 · 第 {n} / {total} 题",
-      "grammarProgress": "第二部分 · 语法 · 第 {n} 题（最多 {total} 题）",
+      "vocabStage": "第一部分 · 词汇",
+      "grammarStage": "第二部分 · 语法",
+      "vocabCount": "第 {n} / {total} 题",
+      "grammarCount": "第 {n} 题（最多 {total} 题）",
+      "vocabKeys": "键盘：<k>Y</k> 认识，<k>N</k> 不认识",
+      "grammarKeys": "键盘：<k>1</k>–<k>4</k> 选择",
+      "blank": "空白",
       "vocabPrompt": "你认识这个词吗？",
       "grammarPrompt": "选出填入空白处的正确选项",
       "yes": "认识",
-      "no": "不认识",
-      "vocabHint": "键盘：Y 认识，N 不认识",
-      "grammarHint": "键盘：按 1–4 选择"
+      "no": "不认识"
     },
     "result": {
       "title": "测试结果",

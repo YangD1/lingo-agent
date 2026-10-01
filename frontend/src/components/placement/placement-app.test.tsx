@@ -95,7 +95,7 @@ describe("PlacementApp", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Start" }));
     expect(api).toHaveBeenLastCalledWith("/placement", { method: "POST", json: { restart: false } });
     expect(await screen.findByText("apple")).toBeInTheDocument();
-    expect(screen.getByTestId("placement-progress")).toHaveTextContent("Vocabulary · 1 of 40");
+    expect(screen.getByTestId("placement-progress")).toHaveTextContent("1 of 40");
 
     await userEvent.keyboard("y");
     expect(api).toHaveBeenLastCalledWith("/placement/p1/answer", {
@@ -114,7 +114,7 @@ describe("PlacementApp", () => {
   it("picks up a test left halfway without the intro", async () => {
     api.mockResolvedValueOnce(placement(grammar));
     show();
-    expect(await screen.findByTestId("placement-stem")).toHaveTextContent("She ___ to work");
+    expect(await screen.findByTestId("placement-stem")).toHaveTextContent("She blank to work");
     expect(screen.queryByTestId("placement-intro")).not.toBeInTheDocument();
   });
 

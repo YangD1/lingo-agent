@@ -56,7 +56,8 @@ export const placementProgress = (page: Page) => page.getByTestId("placement-pro
 export async function answerOne(page: Page): Promise<void> {
   const progress = placementProgress(page);
   const before = await progress.textContent();
-  if (before?.includes("词汇")) {
+  // Vocabulary counts read "第 n / 40 题", grammar ones "第 n 题（最多 20 题）".
+  if (before?.includes("/")) {
     const word = await page.locator("[data-testid=placement-question] p[lang=en]").textContent();
     await page.keyboard.press(PSEUDOWORDS.has(word ?? "") ? "n" : "y");
   } else {

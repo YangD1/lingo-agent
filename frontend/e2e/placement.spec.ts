@@ -14,7 +14,7 @@ test("placement: banner, leave and come back, result, mark words known, learner 
   await expect(page).toHaveURL(/\/placement$/);
 
   await page.getByRole("button", { name: "开始", exact: true }).click();
-  await expect(progress(page)).toHaveText("第一部分 · 词汇 · 第 1 / 40 题");
+  await expect(progress(page)).toHaveText("第 1 / 40 题");
   await answerOne(page);
   await answerOne(page);
 
@@ -22,7 +22,7 @@ test("placement: banner, leave and come back, result, mark words known, learner 
   const word = await page.locator("[data-testid=placement-question] p[lang=en]").textContent();
   await page.getByRole("link", { name: "对话", exact: true }).click();
   await banner.getByRole("link", { name: "继续" }).click();
-  await expect(progress(page)).toHaveText("第一部分 · 词汇 · 第 3 / 40 题");
+  await expect(progress(page)).toHaveText("第 3 / 40 题");
   await expect(page.locator("[data-testid=placement-question] p[lang=en]")).toHaveText(word!);
 
   // The sample word list runs out early; then 20 grammar questions.
@@ -57,5 +57,5 @@ test("placement: banner, leave and come back, result, mark words known, learner 
   await page.getByRole("link", { name: "入学测", exact: true }).click();
   await page.getByRole("button", { name: "重新测试" }).click();
   await page.getByRole("button", { name: "确定重新测试" }).click();
-  await expect(progress(page)).toHaveText("第一部分 · 词汇 · 第 1 / 40 题");
+  await expect(progress(page)).toHaveText("第 1 / 40 题");
 });

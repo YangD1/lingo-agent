@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-01 · 26.10 背单词、入学测已提交，设置进行中
+
+- **做了什么**：背单词四页 `fc287de`；入学测改版已提交（`placement/placement-app.tsx`、`placement-result.tsx`、`placement-tutor.tsx` 对话框浅底、`vocab/placement-known.tsx` 的 `bare`；messages `placement.intro/question` 改键；`e2e/helpers.ts` 的 `answerOne` 用 “/” 判断词汇阶段）。typecheck、eslint、Vitest 280、E2E 42 全过。
+- **未完成**：设置页 `settings/settings-app.tsx`、`connections-section`、`display-section`、`read-aloud-section`、`route-section`、`usage-section` 对照 `screens/settings-desktop-*`、`settings-mobile-*` 改样式；提交后 26.10 标 `[x]`。
+- **下一步**：设置页 → 26.11 首页介绍、登录、注册 → 26.12 收尾。
+- **踩坑**：截图脚本 `frontend/e2e/_shots.mjs` 未跟踪，不要提交（用法见文件头，mock 结果页用 `/tmp/pr.json`）；dev 服务器 3001/8100/8101 结束前 `fuser -k` 停掉。
+
+---
+
 ## 2026-10-01 · 任务 26.9 完成，26.10 背单词进行中
 
 - **做了什么**：26.9 看板、学习者模型、记忆三页改版，已提交 `e61218d`、`0f8663d`、`1d302eb`（Vitest 280、E2E memory/language 通过）。26.10 背单词首页 `vocab/vocab-app.tsx` 已重写（今日卡片大字计数 + 开始按钮、熟词筛选提示改 Callout、词书行进度条/“还没开始”、每日新词步进器），messages 新增 `today.countsMain/countsStarted`、`books.notStarted`、`dailyNew.fewer/more`，删 `today.counts`；typecheck、eslint、vocab-app.test 通过，**未提交**。

@@ -675,20 +675,28 @@
     "title": "Placement test",
     "description": "About 10 minutes to find your level; your tutor adjusts explanations and practice to it.",
     "intro": {
-      "vocab": "Vocabulary: one English word at a time, up to 40; say whether you know it. Some are made up, so if you don't know a word, answer \"No\" rather than guess.",
-      "grammar": "Grammar: a sentence with one blank; pick the right one of four options, up to 20 questions.",
+      "lead": "About 10 minutes, in two parts:",
+      "vocabTitle": "Vocabulary",
+      "vocabMeta": "Up to 40 questions",
+      "vocab": "One English word at a time; say whether you know it. Some are made up, so if you don't know a word, answer \"No\" rather than guess.",
+      "grammarTitle": "Grammar",
+      "grammarMeta": "Up to 20 questions",
+      "grammar": "A sentence with one blank; pick the right one of four options.",
       "notes": "If unsure, pick what seems most likely; answers are not shown. You can leave at any time and continue later. When you finish, your level is set to the result (you can still change it on the Memory page).",
       "start": "Start"
     },
     "question": {
-      "vocabProgress": "Part 1 · Vocabulary · {n} of {total}",
-      "grammarProgress": "Part 2 · Grammar · question {n} (at most {total})",
+      "vocabStage": "Part 1 · Vocabulary",
+      "grammarStage": "Part 2 · Grammar",
+      "vocabCount": "{n} of {total}",
+      "grammarCount": "Question {n} (at most {total})",
+      "vocabKeys": "Keys: <k>Y</k> yes, <k>N</k> no",
+      "grammarKeys": "Keys: <k>1</k>–<k>4</k> to choose",
+      "blank": "blank",
       "vocabPrompt": "Do you know this word?",
       "grammarPrompt": "Choose the option that fills the blank",
       "yes": "Yes",
-      "no": "No",
-      "vocabHint": "Keys: Y for yes, N for no",
-      "grammarHint": "Keys: 1–4 to choose"
+      "no": "No"
     },
     "result": {
       "title": "Your result",

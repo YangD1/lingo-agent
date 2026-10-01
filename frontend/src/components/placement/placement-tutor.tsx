@@ -92,7 +92,7 @@ export function PlacementTutor({ finishedAt }: { finishedAt: string | null }) {
           <p className="text-sm text-muted-foreground">{t("nextLoading")}</p>
         ) : (
           <TutorPanel
-            className="h-[32rem] rounded-lg border"
+            className="h-[32rem] rounded-lg border bg-muted/50"
             conversationId={conversation?.id ?? null}
             onConversationCreated={setConversation}
             createConversation={() => startPlanning(locale)}

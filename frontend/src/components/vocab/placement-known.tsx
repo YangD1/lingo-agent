@@ -1,11 +1,13 @@
 "use client";
 
+import { CircleCheck, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   fetchPlacementKnown,
   markPlacementKnown,
@@ -21,9 +23,12 @@ import {
  */
 export function PlacementKnown({
   quiet = false,
+  bare = false,
   onChange,
 }: {
   quiet?: boolean;
+  /** Inside a card already: no box of its own. */
+  bare?: boolean;
   /** After marking or undoing: which words are left to screen has changed. */
   onChange?: () => void;
 }) {
@@ -68,11 +73,14 @@ export function PlacementKnown({
   if (quiet && !canMark && offer.marked === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border p-4 text-sm" data-testid="placement-known">
+    <div
+      className={cn("flex flex-col gap-3 text-sm", !bare && "rounded-lg border bg-card p-4")}
+      data-testid="placement-known"
+    >
       {offer.unavailable === "no_book" && (
         <p>
           {t("noBook")}{" "}
-          <Link href="/vocab" className="underline underline-offset-2">
+          <Link href="/vocab" className="text-primary underline-offset-2 hover:underline">
             {t("chooseBook")}
           </Link>
         </p>
@@ -84,7 +92,7 @@ export function PlacementKnown({
         <>
           <p>{t("offer", { count: offer.count })}</p>
           <div>
-            <Button size="sm" disabled={busy} onClick={() => void act(markPlacementKnown)}>
+            <Button variant="outline" disabled={busy} onClick={() => void act(markPlacementKnown)}>
               {t("mark", { count: offer.count })}
             </Button>
           </div>
@@ -92,13 +100,17 @@ export function PlacementKnown({
       )}
       {offer.marked > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span data-testid="placement-known-marked">{t("marked", { count: offer.marked })}</span>
+          <span className="flex items-center gap-1.5 text-success">
+            <CircleCheck aria-hidden className="size-4 shrink-0" />
+            <span data-testid="placement-known-marked">{t("marked", { count: offer.marked })}</span>
+          </span>
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             disabled={busy}
             onClick={() => void act(undoPlacementKnown)}
           >
+            <Undo2 />
             {t("undo")}
           </Button>
           <Link href="/vocab" className={buttonVariants({ size: "sm", variant: "ghost" })}>
