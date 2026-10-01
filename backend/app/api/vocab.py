@@ -2,6 +2,7 @@
 word list (ADR 0011, P1 plan §6). Everything here is the current user's own data."""
 
 import logging
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
@@ -10,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.adaptive.rules import get_rules
 from app.api.errors import api_error
-from app.db.models import UserCard, Word
+from app.db.models import UserCard, Word, WordSentence
 from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.memory.service import get_profile
 from app.providers.errors import NoModelConfiguredError
@@ -25,6 +26,8 @@ from app.services.vocab.scheduler import (
     preview,
     review,
 )
+from app.services.vocab.sentences import for_words as sentences_for
+from app.services.vocab.sentences import page as sentence_page
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,16 @@ class WordOut(BaseModel):
     definition: str | None
 
 
+class ExampleOut(BaseModel):
+    """A real example sentence from a dictionary source (ADR 0020)."""
+
+    en: str
+    zh: str
+    source: str
+    # The sentence's page at the source, linked from the card as its attribution.
+    url: str | None
+
+
 class CardOut(BaseModel):
     word: WordOut
     # None for a book word never met; the rest mirror `user_cards`.
@@ -51,6 +64,8 @@ class CardOut(BaseModel):
     last_review: datetime | None
     # Seconds until the next review for ratings 1-4 if rated now, for the rating buttons.
     intervals: list[int]
+    # Up to two real example sentences, best first; empty when the sources have none.
+    sentences: list[ExampleOut]
 
 
 class BookOut(BaseModel):
@@ -179,7 +194,9 @@ def _word(word: Word) -> WordOut:
     )
 
 
-def _card(word: Word, card: UserCard | None, now: datetime) -> CardOut:
+def _card(
+    word: Word, card: UserCard | None, now: datetime, sentences: Sequence[WordSentence]
+) -> CardOut:
     return CardOut(
         word=_word(word),
         source=card.source if card else None,
@@ -187,11 +204,24 @@ def _card(word: Word, card: UserCard | None, now: datetime) -> CardOut:
         due=card.due if card else None,
         last_review=card.last_review if card else None,
         intervals=preview(card, get_rules(), now),
+        sentences=[
+            ExampleOut(en=s.en, zh=s.zh, source=s.source, url=sentence_page(s)) for s in sentences
+        ],
     )
 
 
-def _item(item: QueueItem, now: datetime) -> CardOut:
-    return _card(item.word, item.card, now)
+async def _cards(
+    session: SessionDep, items: Iterable[tuple[Word, UserCard | None]]
+) -> list[CardOut]:
+    """Cards with their example sentences, read in one query."""
+    pairs = list(items)
+    found = await sentences_for(session, (word.id for word, _ in pairs))
+    now = datetime.now(UTC)
+    return [_card(word, card, now, found.get(word.id, [])) for word, card in pairs]
+
+
+def _pairs(items: Iterable[QueueItem]) -> list[tuple[Word, UserCard | None]]:
+    return [(item.word, item.card) for item in items]
 
 
 def _no_book() -> Exception:
@@ -253,10 +283,11 @@ async def get_queue(
     queue = await daily_queue(
         session, user.id, rules=get_rules(), tz=await learner_zone(session, user.id, tz)
     )
-    now = datetime.now(UTC)
+    reviews = [] if mode == "new" else _pairs(queue.reviews)
+    cards = await _cards(session, [*reviews, *_pairs(queue.new)])
     return QueueOut(
-        reviews=[] if mode == "new" else [_item(i, now) for i in queue.reviews],
-        new=[_item(i, now) for i in queue.new],
+        reviews=cards[: len(reviews)],
+        new=cards[len(reviews) :],
         reviews_due=queue.reviews_due,
         new_limit=queue.new_limit,
         new_started=queue.new_started,
@@ -280,7 +311,7 @@ async def post_review(body: ReviewIn, user: CurrentUser, session: SessionDep) ->
     await session.commit()
     word = await session.get(Word, body.word_id)
     assert word is not None
-    return _card(word, card, datetime.now(UTC))
+    return (await _cards(session, [(word, card)]))[0]
 
 
 @router.get("/screen")
@@ -408,7 +439,7 @@ async def get_mine(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> MinePage:
     words, total = await mine.list_own(session, user.id, limit=limit, offset=offset)
-    return MinePage(words=[_card(w.word, w.card, datetime.now(UTC)) for w in words], total=total)
+    return MinePage(words=await _cards(session, [(w.word, w.card) for w in words]), total=total)
 
 
 @router.post("/mine")
@@ -422,9 +453,8 @@ async def post_mine(
         )
     added = await mine.add(session, user.id, match.word.id)
     response.status_code = status.HTTP_201_CREATED if added.added else status.HTTP_200_OK
-    return AddedOut(
-        card=_card(match.word, added.card, datetime.now(UTC)), matched=match.kind, added=added.added
-    )
+    (card,) = await _cards(session, [(match.word, added.card)])
+    return AddedOut(card=card, matched=match.kind, added=added.added)
 
 
 @router.delete("/mine/{word_id}", status_code=status.HTTP_204_NO_CONTENT)

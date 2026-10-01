@@ -6,7 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ReviewLog, UserCard, Word
+from app.db.models import ReviewLog, UserCard, Word, WordSentence
 from tests.integration.test_chat_send import login
 from tests.integration.test_learner_api import switch_to
 
@@ -114,10 +114,33 @@ async def test_choosing_a_book_screening_and_progress(
 
 async def test_reviewing_the_daily_queue(client: AsyncClient, db_session: AsyncSession) -> None:
     ids = await seed(db_session)
+    db_session.add_all(
+        WordSentence(
+            word_id=ids["common"], source="tatoeba", rank=rank, en=en, zh=zh, source_id=sid
+        )
+        for rank, en, zh, sid in ((1, "Second.", "第二。", "9"), (0, "First.", "第一。", "8"))
+    )
+    await db_session.commit()
     await login(client)
     await choose(client, "cet4", daily_new=2)
 
     queue = await get(client, "/vocab/queue", tz="Asia/Shanghai")
+    # Real example sentences, best first, linked to their page at the source.
+    assert queue["new"][0]["sentences"] == [
+        {
+            "en": "First.",
+            "zh": "第一。",
+            "source": "tatoeba",
+            "url": "https://tatoeba.org/sentences/show/8",
+        },
+        {
+            "en": "Second.",
+            "zh": "第二。",
+            "source": "tatoeba",
+            "url": "https://tatoeba.org/sentences/show/9",
+        },
+    ]
+    assert queue["new"][1]["sentences"] == []
     assert queue["reviews"] == [] and spelled(queue["new"]) == ["common", "middle"]
     assert queue["new"][0]["status"] is None and queue["new"][0]["word"]["translation"]
     # What each rating button would schedule: 1 minute for Again, days for Easy.

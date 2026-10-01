@@ -292,8 +292,8 @@
   - 背景：ECDICT 没有例句；`word_examples`（任务 24.4，按租户 + 词 + 等级缓存）目前只在聊天单词气泡里用。Tatoeba 英中句对是志愿者人工翻译的，CC BY 2.0 FR（注明出处 + 链接即可）。曾考虑 Open English WordNet（例子多是短语）和 Wiktionary（kaikki 原始数据压缩后 2.8GB，对低配服务器太重），都不做。
   - [x] 28.1 ADR 0020：例句来源与选句规则（Tatoeba 下载地址、版本记录方式：导出文件每周更新，无法固定 sha256，记录下载日期和哈希；署名方式；每词最多存 2 句，按“生词少、句长适中”选；繁体转简体；用 `word_forms` 匹配变形）+ 同步 PLAN（数据模型加 `word_sentences`，背单词一节写明例句来源）。完成：ADR 0020 已写（实测 2026-09-26 导出：有中文翻译的英文句 72,696 条，中文约 45% 繁体；按词形匹配覆盖率中考 99%、CET4 90%、CET6 77%、GRE 32%）；PLAN 数据模型和背单词一节已同步
   - [x] 28.2 导入：迁移 `word_sentences`（word_id、en、zh、来源、来源句 id、排序；全局只读数据，同 `words`）；`services/vocab/import_tatoeba.py` + `make sentences-import`（下载缓存到 `data/`，可指定本地文件，可重复执行）；选句是纯函数，有单测；导入后打印各词书的例句覆盖率；集成测试用小样本文件。完成：迁移 `4d7a2c9e1b60`（`alembic check` 无差异）；`import_tatoeba.py`（`pair_up` 优先本来就是简体的译文、`pick` 按生词数 → 长度 → id 排序，句中大写词当人名，近似句去重；`--dir` / `--refresh`，下载时把文件时间设为导出日期，导入时打印日期和 sha256）；`make sentences-import`；dev 依赖 `opencc-python-reimplemented`（mypy 忽略缺类型）；单测 4 个、集成测试 2 个；开发库实际导入 18,221 句（约 8 秒，峰值内存约 200 MB），覆盖率见 ADR 0020；pytest 834、ruff、mypy 全过
-  - [~] 28.3 接口：复习队列、评分结果、生词本里的单词带 `sentences`（最多 2 句）；测试
-  - [ ] 28.4 前端：`WordMeanings` 中文释义下面加例句区（英文、单词及变形加粗、灰色中文、“来源：Tatoeba”）；下面是“AI 例句”按钮（带 `AiBadge word_examples`，复用 `fetchExamples`），没有真例句时只显示按钮；i18n；Vitest
+  - [x] 28.3 接口：复习队列、评分结果、生词本里的单词带 `sentences`（最多 2 句）；测试。完成：`services/vocab/sentences.py`（`for_words` 一条查询批量取例句，`page` 生成来源链接）；`CardOut.sentences`（`en` / `zh` / `source` / `url`），复习队列、评分结果、生词本列表和加词结果都带；`_cards` 统一组装；集成测试断言排序和链接；vocab 相关 pytest 69、ruff、mypy 全过
+  - [~] 28.4 前端：`WordMeanings` 中文释义下面加例句区（英文、单词及变形加粗、灰色中文、“来源：Tatoeba”）；下面是“AI 例句”按钮（带 `AiBadge word_examples`，复用 `fetchExamples`），没有真例句时只显示按钮；i18n；Vitest
   - [ ] 28.5 收尾：`features.yaml` 和 `docs/agent-tools.md` 注明复习卡片也是 `word_examples` 的入口；README 中英两份加数据来源与署名；E2E（假模型生成 AI 例句）；截图对照；在开发库执行导入（只新增数据，不动已有数据）；Docker 重建
 
 ## P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作
