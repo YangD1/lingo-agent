@@ -84,6 +84,13 @@
     "delete": "删除",
     "cancel": "取消"
   },
+  "cat": {
+    "loader": "加载中",
+    "hop": "处理中",
+    "ai": "AI 正在生成",
+    "done": "完成",
+    "oops": "出错了"
+  },
   "auth": {
     "email": "邮箱",
     "password": "密码",

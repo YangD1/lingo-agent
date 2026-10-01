@@ -297,8 +297,8 @@
   - [x] 28.5 收尾：`features.yaml` 和 `docs/agent-tools.md` 注明复习卡片也是 `word_examples` 的入口；README 中英两份加数据来源与署名；E2E（假模型生成 AI 例句）；截图对照；在开发库执行导入（只新增数据，不动已有数据）；Docker 重建。完成：`features.yaml`、`agent-tools.md` 已加复习卡片入口；README 中英两份快速开始加 `make sentences-import`、例句一节（来源、许可、更新方式、没有 uv 时在容器里导入）、功能列表和许可证一节的数据署名；OpenCC 改为正式依赖（容器里也能导入）；E2E `run_backend.py` 导入一份 Tatoeba 小样本（含繁体），`vocab.spec.ts` 新增复习卡片例句用例（没有例句只有按钮、变形加粗、繁转简、原句链接、假模型 AI 例句）；E2E 43 个，`i18n` 一次偶发失败（Next 路由播报元素和标题重名，重跑通过，与本任务无关）；`make lint` 全过；开发库导入已在 28.2 完成；Docker 后端、前端重建
 - [ ] 29. 猫咪动画（2026-10-02 用户放入设计资源 `docs/design/lingo-cat-motion/`：同一只 logo 猫的六种情绪 loader / hop / ai / done / idle / oops，带小尺寸版和“减少动态效果”降级）。2026-10-02 用户确认：Q29a 私教回复前让头像本身播 ai 动画，去掉三个点；Q29b 所有空状态和错误都换成猫（`EmptyState` 默认 idle，tone=error 时 oops）；Q29c 骨架屏保留，猫只替换“加载中…”文字；Q29d done 每次都播
   - [x] 29.1 资源入库：删掉 Windows 带来的 `:Zone.Identifier`，原样提交设计包（README、LingoCat.tsx、lingo-cat.css、svg/ 六个单文件版，共 128K）
-  - [~] 29.2 组件：`components/brand/lingo-cat.tsx` + `lingo-cat.css`（颜色走现有 `--brand` / `--spark` token）；超过 300ms 才显示的延迟包装；Vitest（各 mood 的类名、小尺寸、无障碍标签、延迟显示）
-  - [ ] 29.3 接入：loader 换掉各处“加载中…”文字；ai 用在私教回复前、AI 例句、翻译、查词；hop 用在入学测出结果等长等待；done 用在复习一轮结束、入学测做完；`EmptyState` 的图标方块换成 idle / oops 猫（`icon` 改为可选）
+  - [x] 29.2 组件：`components/brand/lingo-cat.tsx`（`LingoCat`，六种 mood、size ≤ 24 自动小号、无障碍标签走 i18n `cat` 命名空间、idle 默认不读出；`Delayed` 300ms 后才渲染；`CatLoading` 立刻带 `role=status`、300ms 后画猫和文字）+ `lingo-cat.css`（原样复制，`globals.css` 引入）。没做设计包里的 `LingoLoader` 别名（仓库里从没用过 loader.css）。Vitest 4 个，tsc / eslint 干净
+  - [~] 29.3 接入：loader 换掉各处“加载中…”文字；ai 用在私教回复前、AI 例句、翻译、查词；hop 用在入学测出结果等长等待；done 用在复习一轮结束、入学测做完；`EmptyState` 的图标方块换成 idle / oops 猫（`icon` 改为可选）
   - [ ] 29.4 收尾：E2E 回归、浅色 / 深色 / 减少动态效果截图检查、Docker 重建
 
 ## P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作

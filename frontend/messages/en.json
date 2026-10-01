@@ -84,6 +84,13 @@
     "delete": "Delete",
     "cancel": "Cancel"
   },
+  "cat": {
+    "loader": "Loading",
+    "hop": "Working on it",
+    "ai": "AI is writing",
+    "done": "Done",
+    "oops": "Something went wrong"
+  },
   "auth": {
     "email": "Email",
     "password": "Password",
