@@ -8,6 +8,7 @@ import { useDescribeError } from "@/components/settings/use-describe-error";
 import { AutocompleteInput } from "@/components/ui/autocomplete";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { addMine, type Card as VocabCard, fetchMine, removeMine, suggestWords } from "@/lib/vocab";
 
 const PAGE = 50;
@@ -92,7 +93,6 @@ export function MineApp() {
   }
 
   async function remove(card: VocabCard) {
-    if (!window.confirm(t("confirmRemove", { word: card.word.word }))) return;
     setError(null);
     setNotice(null);
     try {
@@ -198,9 +198,13 @@ function MineRow({ card, onRemove }: { card: VocabCard; onRemove: () => void }) 
             ` · ${t("due", { when: format.relativeTime(new Date(card.due)) })}`}
         </p>
       </div>
-      <Button variant="ghost" size="xs" onClick={onRemove}>
-        {t("remove")}
-      </Button>
+      <InlineConfirm question={t("confirmRemove", { word: card.word.word })} onConfirm={onRemove}>
+        {(ask) => (
+          <Button variant="ghost" size="xs" onClick={ask}>
+            {t("remove")}
+          </Button>
+        )}
+      </InlineConfirm>
     </li>
   );
 }

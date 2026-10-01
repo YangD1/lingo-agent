@@ -60,8 +60,8 @@ test("chat → memory appears → delete it → a new conversation no longer use
   const summaries = page.getByRole("list", { name: "会话摘要" }).locator("li");
   await expect(summaries.first()).toContainText("The learner practised small talk.");
 
-  page.once("dialog", (dialog) => dialog.accept());
   await facts(page).first().getByRole("button", { name: "删除" }).click();
+  await facts(page).first().getByRole("group").getByRole("button", { name: "删除" }).click();
   await expect(page.getByText("还没有。你在聊天中提到关于自己的信息时")).toBeVisible();
   await page.reload();
   await expect(facts(page)).toHaveCount(0);
@@ -107,8 +107,8 @@ test("the learner edits, adds and clears what the tutor remembers", async ({ pag
 
   await page.reload();
   await expect(facts(page)).toHaveCount(2);
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "忘掉全部事实" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "删除" }).click();
   await expect(facts(page)).toHaveCount(0);
   await page.reload();
   await expect(facts(page)).toHaveCount(0);

@@ -92,15 +92,15 @@ describe("MineApp", () => {
       .mockResolvedValueOnce({ words: [GO], total: 1 })
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce({ words: [], total: 0 });
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
     show();
-    const remove = within(await screen.findByTestId("mine-go")).getByRole("button", {
-      name: "Remove",
-    });
-    await userEvent.click(remove);
+    const row = await screen.findByTestId("mine-go");
+    // The button turns into the question with Delete / Cancel in its place.
+    await userEvent.click(within(row).getByRole("button", { name: "Remove" }));
+    expect(within(row).getByRole("group")).toHaveTextContent("review history");
+    await userEvent.click(within(row).getByRole("button", { name: "Cancel" }));
     expect(api).toHaveBeenCalledTimes(1);
-    await userEvent.click(remove);
-    expect(confirm).toHaveBeenLastCalledWith(expect.stringContaining("review history"));
+    await userEvent.click(within(row).getByRole("button", { name: "Remove" }));
+    await userEvent.click(within(row).getByRole("button", { name: "Delete" }));
     expect(api).toHaveBeenCalledWith("/vocab/mine/1", { method: "DELETE" });
     expect(await screen.findByText("No words yet.")).toBeInTheDocument();
   });

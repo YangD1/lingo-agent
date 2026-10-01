@@ -8,6 +8,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { InlineConfirm } from "@/components/ui/inline-confirm";
 import {
   deleteEvidence,
   type Evidence,
@@ -73,7 +74,6 @@ export function KCItem({
   }, [open, kc.kc_id, kc.observations, kc.mistakes]);
 
   async function remove(item: Evidence) {
-    if (!window.confirm(t("confirmDelete"))) return;
     setBusy(true);
     setError(null);
     try {
@@ -201,15 +201,19 @@ export function KCItem({
                       )}
                     </p>
                   </div>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label={t("delete")}
-                    disabled={busy}
-                    onClick={() => void remove(e)}
-                  >
-                    <Trash2 />
-                  </Button>
+                  <InlineConfirm question={t("confirmDelete")} onConfirm={() => void remove(e)}>
+                    {(ask) => (
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label={t("delete")}
+                        disabled={busy}
+                        onClick={ask}
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </InlineConfirm>
                 </li>
                 );
               })}

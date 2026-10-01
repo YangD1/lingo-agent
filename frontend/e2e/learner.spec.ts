@@ -20,7 +20,6 @@ async function send(page: Page, text: string) {
 }
 
 test("mistakes in chat show up in the learner model, and can be deleted", async ({ page }) => {
-  page.on("dialog", (dialog) => void dialog.accept());
   await register(page, uniqueEmail());
   await useFakeModel(page);
 
@@ -64,6 +63,8 @@ test("mistakes in chat show up in the learner model, and can be deleted", async 
     .filter({ has: page.getByText("She like", { exact: true }) })
     .getByRole("button", { name: "删除这条记录" })
     .click();
+  // Single deletes are confirmed in place.
+  await evidence.getByRole("group").getByRole("button", { name: "删除" }).click();
   await expect(evidence.getByRole("listitem")).toHaveCount(1);
   await expect(item).toContainText("错误 0 次 · 自由表达用对 1 次");
 
@@ -75,6 +76,7 @@ test("mistakes in chat show up in the learner model, and can be deleted", async 
   // Delete everything: the grammar tags under replies go too.
   await page.goto("/learner");
   await page.getByRole("button", { name: "删除所有学习记录" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "删除" }).click();
   await expect(page.getByText(/还没有记录/)).toBeVisible();
   await page.goto(conversationUrl);
   await expect(activityOf(replies(page).nth(1))).toBeVisible();

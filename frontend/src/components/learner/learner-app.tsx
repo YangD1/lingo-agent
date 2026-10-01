@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -45,7 +46,6 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
   }, [load]);
 
   async function clear() {
-    if (!window.confirm(t("clear.confirm"))) return;
     setBusy(true);
     setError(null);
     try {
@@ -188,9 +188,16 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
             <CardDescription>{t("clear.description")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="destructive" size="sm" disabled={busy} onClick={() => void clear()}>
-              {t("clear.button")}
-            </Button>
+            <ConfirmDialog
+              trigger={
+                <Button variant="destructive" size="sm" disabled={busy}>
+                  {t("clear.button")}
+                </Button>
+              }
+              title={t("clear.title")}
+              description={t("clear.confirm")}
+              onConfirm={() => void clear()}
+            />
           </CardContent>
         </Card>
       </div>

@@ -54,7 +54,6 @@ test("choose a book, screen known words, review, and see the progress", async ({
 });
 
 test("add a word to my list by an inflected form, then remove it", async ({ page }) => {
-  page.on("dialog", (dialog) => void dialog.accept());
   await register(page, uniqueEmail());
   await page.goto("/vocab/mine");
   await expect(page.getByText("还没有生词。")).toBeVisible();
@@ -78,6 +77,7 @@ test("add a word to my list by an inflected form, then remove it", async ({ page
 
   await page.goto("/vocab/mine");
   await row.getByRole("button", { name: "删除" }).click();
+  await row.getByRole("group").getByRole("button", { name: "删除" }).click();
   await expect(page.getByText("还没有生词。")).toBeVisible();
 });
 

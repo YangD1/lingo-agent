@@ -97,8 +97,8 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await expect(page.getByTestId("route-source-chat")).toHaveText(
     "自动：按添加连接的先后，使用各连接的默认模型。",
   );
-  page.once("dialog", (dialog) => dialog.accept());
   await connection.getByRole("button", { name: "删除" }).click();
+  await connection.getByRole("group").getByRole("button", { name: "删除" }).click();
   await expect(connection).toHaveCount(0);
   await expect(page.getByTestId("route-source-chat")).toHaveText(
     "还没有可用的对话模型。请添加连接并保存它的默认模型。",

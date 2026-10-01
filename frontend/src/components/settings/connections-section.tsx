@@ -6,6 +6,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { AutocompleteInput } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -193,7 +194,6 @@ function ConnectionItem({
 
   const remove = () =>
     run(async () => {
-      if (!window.confirm(t("confirmDelete", { name: c.name }))) return;
       await api(`/tenant/connections/${c.id}`, { method: "DELETE" });
       onDeleted();
     });
@@ -274,9 +274,18 @@ function ConnectionItem({
           <Button size="sm" variant="outline" onClick={() => setEditing(true)} disabled={busy}>
             {t("edit")}
           </Button>
-          <Button size="sm" variant="ghost" onClick={remove} disabled={busy} className="ml-auto">
-            {t("delete")}
-          </Button>
+          <InlineConfirm
+            question={t("confirmDelete", { name: c.name })}
+            confirmLabel={t("delete")}
+            onConfirm={() => void remove()}
+            className="ml-auto"
+          >
+            {(ask) => (
+              <Button size="sm" variant="ghost" onClick={ask} disabled={busy} className="ml-auto">
+                {t("delete")}
+              </Button>
+            )}
+          </InlineConfirm>
         </div>
       )}
       {result && (

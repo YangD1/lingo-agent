@@ -140,7 +140,6 @@ describe("LearnerApp", () => {
       .mockResolvedValueOnce({ evidence: [MISTAKE], total: 1 })
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce(model([TWO.kcs[1]]));
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     show("g.third");
 
     const evidence = await screen.findByRole("list", { name: "Evidence" });
@@ -158,6 +157,7 @@ describe("LearnerApp", () => {
     ).toHaveAttribute("href", "/chat?practice=g.third");
 
     await userEvent.click(within(evidence).getByRole("button", { name: "Delete this record" }));
+    await userEvent.click(within(evidence).getByRole("button", { name: "Delete" }));
     expect(api).toHaveBeenCalledWith("/learner/evidence/7", { method: "DELETE" });
     await waitFor(() => expect(screen.queryByTestId("kc-g.third")).not.toBeInTheDocument());
   });
@@ -167,15 +167,17 @@ describe("LearnerApp", () => {
       .mockResolvedValueOnce(TWO)
       .mockResolvedValueOnce({ deleted: 2 })
       .mockResolvedValueOnce(model([]));
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
     show();
     const button = await screen.findByRole("button", { name: "Delete all learning records" });
 
     await userEvent.click(button);
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent("cannot be undone");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(api).toHaveBeenCalledTimes(1); // cancelled
 
     await userEvent.click(button);
-    expect(confirm).toHaveBeenCalledTimes(2);
+    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }));
     expect(api).toHaveBeenCalledWith("/learner", { method: "DELETE" });
     expect(await screen.findByText(/Nothing yet/)).toBeInTheDocument();
   });

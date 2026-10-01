@@ -8,7 +8,9 @@ import { useEffect, useState } from "react";
 import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import type { Memory, MemoryKind } from "@/lib/types";
@@ -74,14 +76,12 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
 
   const remove = (memory: Memory) =>
     run(async () => {
-      if (!window.confirm(t("confirmDelete"))) return;
       await api(`/memories/${memory.id}`, { method: "DELETE" });
       setMemories((ms) => (ms ?? []).filter((m) => m.id !== memory.id));
     });
 
   const clear = () =>
     run(async () => {
-      if (!window.confirm(t("confirmClear"))) return;
       await api(`/memories?kind=${kind}`, { method: "DELETE" });
       setMemories([]);
     });
@@ -175,15 +175,19 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
                           <Pencil />
                         </Button>
                       )}
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label={common("delete")}
-                        disabled={busy}
-                        onClick={() => void remove(m)}
-                      >
-                        <Trash2 />
-                      </Button>
+                      <InlineConfirm question={t("confirmDelete")} onConfirm={() => void remove(m)}>
+                        {(ask) => (
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            aria-label={common("delete")}
+                            disabled={busy}
+                            onClick={ask}
+                          >
+                            <Trash2 />
+                          </Button>
+                        )}
+                      </InlineConfirm>
                     </div>
                   )}
                   <p className="text-xs text-muted-foreground">
@@ -207,9 +211,16 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
               ))}
             </ul>
             <div>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => void clear()}>
-                {t("clear")}
-              </Button>
+              <ConfirmDialog
+                trigger={
+                  <Button size="sm" variant="outline" disabled={busy}>
+                    {t("clear")}
+                  </Button>
+                }
+                title={t("clear")}
+                description={t("confirmClear")}
+                onConfirm={() => void clear()}
+              />
             </div>
           </>
         )}

@@ -4,6 +4,7 @@ import { Compass, Sun, Target, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -58,16 +59,23 @@ export function ConversationList({ conversations, activeId, onSelect, onNew, onD
                 )}
                 {c.title || t("untitled")}
               </button>
-              <button
-                type="button"
-                aria-label={t("delete")}
-                onClick={() => {
-                  if (window.confirm(t("confirmDelete"))) onDelete(c.id);
-                }}
-                className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive focus:opacity-100"
+              <InlineConfirm
+                question={t("confirmDelete")}
+                onConfirm={() => onDelete(c.id)}
+                compact
+                className="absolute inset-0 rounded-md bg-muted pr-1 pl-3"
               >
-                <Trash2 className="size-4" />
-              </button>
+                {(ask) => (
+                  <button
+                    type="button"
+                    aria-label={t("delete")}
+                    onClick={ask}
+                    className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive focus:opacity-100"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                )}
+              </InlineConfirm>
             </li>
           ))}
         </ul>

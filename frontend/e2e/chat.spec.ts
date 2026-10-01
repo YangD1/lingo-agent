@@ -83,11 +83,11 @@ test("switches between conversations and deletes one", async ({ page }) => {
   await page.goBack();
   await expect(messages(page).first()).toHaveText("second topic");
 
-  page.once("dialog", (dialog) => dialog.accept());
   await conversations(page)
     .filter({ hasText: "second topic" })
     .getByRole("button", { name: "删除会话" })
     .click();
+  await page.getByRole("group", { name: /确定删除这个会话吗/ }).getByRole("button", { name: "删除" }).click();
   await expect(conversations(page)).toHaveText(["first topic"]);
   await expect(page).toHaveURL(/\/chat$/);
 });
