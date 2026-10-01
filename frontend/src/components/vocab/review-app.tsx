@@ -182,7 +182,7 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
 
                 {flipped && (
                   <div className="border-t pt-4 pb-1" data-testid="review-back">
-                    <WordMeanings key={current.word.id} word={current.word} />
+                    <WordMeanings key={current.word.id} card={current} />
                   </div>
                 )}
               </CardContent>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseDefinition, parseTranslation } from "./meanings";
+import { markWord, parseDefinition, parseTranslation } from "./meanings";
 
 describe("parseTranslation", () => {
   it("splits parts of speech and folds domain-only lines away", () => {
@@ -62,5 +62,23 @@ describe("parseDefinition", () => {
     expect(parseDefinition("s. marked by precise accordance with details")[0].pos).toBe("adj.");
     expect(parseDefinition("plain text\nmore")).toEqual([{ pos: null, domain: null, text: "plain text more" }]);
     expect(parseDefinition(null)).toEqual([]);
+  });
+});
+
+describe("markWord", () => {
+  const hits = (sentence: string, forms: string[]) =>
+    markWord(sentence, forms)
+      .filter((s) => s.hit)
+      .map((s) => s.text);
+
+  it("marks inflections as whole words, in any case", () => {
+    expect(hits("Go home. She went there, good?", ["go", "went", "goes"])).toEqual(["Go", "went"]);
+    expect(markWord("I went.", ["went"]).map((s) => s.text).join("")).toBe("I went.");
+  });
+
+  it("marks phrases and apostrophes, and leaves sentences without the word whole", () => {
+    expect(hits("Look it up, then look up the word.", ["look up"])).toEqual(["look up"]);
+    expect(hits("Don\u2019t go.", ["don't"])).toEqual(["Don\u2019t"]);
+    expect(markWord("Nothing here.", ["go"])).toEqual([{ text: "Nothing here.", hit: false }]);
   });
 });

@@ -566,6 +566,13 @@
         "4": "Easy"
       },
       "keys": "<k>Space</k> shows the answer · <k>1</k>–<k>4</k> rates it",
+      "examples": {
+        "source": "Source: Tatoeba",
+        "open": "See this sentence on Tatoeba",
+        "ai": "AI examples",
+        "aiLoading": "Writing examples…",
+        "aiSource": "Written by AI"
+      },
       "meanings": {
         "more": "More",
         "domainCount": "{count, plural, one {# specialist sense} other {# specialist senses}}",

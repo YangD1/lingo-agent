@@ -23,6 +23,10 @@ export type Card = {
   last_review: string | null;
   /** Seconds until the next review for ratings 1–4, were the word rated now. */
   intervals: number[];
+  /** Real example sentences, best first (ADR 0020); empty when no source has one. */
+  sentences: SourcedExample[];
+  /** The word and its inflections, lowercase, to pick it out of a sentence. */
+  forms: string[];
 };
 
 export type BookProgress = {
@@ -121,6 +125,9 @@ export const lookupWord = (word: string) =>
   api<Lookup>(`/vocab/lookup?${new URLSearchParams({ word })}`);
 
 export type Example = { en: string; zh: string };
+
+/** An example sentence from a dictionary source; `url` is its page there, for attribution. */
+export type SourcedExample = Example & { source: string; url: string | null };
 
 /** AI example sentences at the learner's level, cached per word and level (ADR 0017 §3). */
 export const fetchExamples = (wordId: number) =>

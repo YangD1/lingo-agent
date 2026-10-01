@@ -141,6 +141,7 @@ async def test_reviewing_the_daily_queue(client: AsyncClient, db_session: AsyncS
         },
     ]
     assert queue["new"][1]["sentences"] == []
+    assert "common" in queue["new"][0]["forms"]
     assert queue["reviews"] == [] and spelled(queue["new"]) == ["common", "middle"]
     assert queue["new"][0]["status"] is None and queue["new"][0]["word"]["translation"]
     # What each rating button would schedule: 1 minute for Again, days for Easy.

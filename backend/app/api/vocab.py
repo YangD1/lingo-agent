@@ -17,6 +17,7 @@ from app.memory.service import get_profile
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.services.vocab import examples, mine, placement_known, progress, screening
+from app.services.vocab.examples import forms_of
 from app.services.vocab.mine import MatchKind
 from app.services.vocab.queue import QueueItem, daily_queue, today_counts
 from app.services.vocab.scheduler import (
@@ -66,6 +67,8 @@ class CardOut(BaseModel):
     intervals: list[int]
     # Up to two real example sentences, best first; empty when the sources have none.
     sentences: list[ExampleOut]
+    # The word and its inflections, lowercase, to pick the word out of a sentence.
+    forms: list[str]
 
 
 class BookOut(BaseModel):
@@ -207,6 +210,7 @@ def _card(
         sentences=[
             ExampleOut(en=s.en, zh=s.zh, source=s.source, url=sentence_page(s)) for s in sentences
         ],
+        forms=sorted(forms_of(word.word, word.exchange, lemma=False)),
     )
 
 

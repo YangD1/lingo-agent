@@ -7,16 +7,20 @@ import { useState } from "react";
 import { Tag } from "@/components/ui/tag";
 import { type Sense, parseDefinition, parseTranslation } from "@/lib/meanings";
 import { cn } from "@/lib/utils";
-import type { Word } from "@/lib/vocab";
+import type { Card } from "@/lib/vocab";
+
+import { WordExamples } from "./word-examples";
 
 /** English senses shown before "show all": the rest are mostly archaic or rare. */
 const ENGLISH_FIRST = 3;
 
 /**
- * The back of a flashcard (task 27.2–27.3): everyday Chinese senses by part of speech; domain
- * senses and the English definition folded under "more", with the dictionary named.
+ * The back of a flashcard (task 27.2–27.3): everyday Chinese senses by part of speech, then
+ * example sentences (task 28.4); domain senses and the English definition folded under
+ * "more", with the dictionary named.
  */
-export function WordMeanings({ word }: { word: Word }) {
+export function WordMeanings({ card }: { card: Card }) {
+  const { word } = card;
   const t = useTranslations("vocab.review.meanings");
   const { main, domain } = parseTranslation(word.translation);
   const english = parseDefinition(word.definition);
@@ -34,6 +38,7 @@ export function WordMeanings({ word }: { word: Word }) {
           <SenseLine key={i} sense={sense} className="text-[17px] leading-[1.6]" />
         ))}
       </ul>
+      <WordExamples wordId={word.id} sentences={card.sentences} forms={card.forms} />
       {more.length > 0 && (
         // Native <details>: closed by default, keyboard and screen-reader friendly for free.
         <details className="group border-t pt-3" data-testid="review-more">

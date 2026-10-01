@@ -566,6 +566,13 @@
         "4": "很熟"
       },
       "keys": "<k>空格</k> 显示答案 · <k>1</k>–<k>4</k> 评分",
+      "examples": {
+        "source": "来源：Tatoeba",
+        "open": "在 Tatoeba 查看这句",
+        "ai": "AI 例句",
+        "aiLoading": "正在写例句…",
+        "aiSource": "AI 生成"
+      },
       "meanings": {
         "more": "更多",
         "domainCount": "{count} 条专业释义",

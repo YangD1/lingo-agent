@@ -28,6 +28,15 @@ const card = (id: number, spelling: string, overrides: Partial<Card> = {}): Card
   due: "2026-09-29T10:00:00Z",
   last_review: null,
   intervals: [60, 330, 600, 1_296_000],
+  sentences: [
+    {
+      en: "Apples grow on apple trees.",
+      zh: "苹果长在苹果树上。",
+      source: "tatoeba",
+      url: "https://tatoeba.org/sentences/show/7",
+    },
+  ],
+  forms: [spelling, `${spelling}s`],
   ...overrides,
 });
 
@@ -129,6 +138,18 @@ describe("ReviewApp", () => {
     expect(screen.getByTestId("review-card")).toHaveTextContent("/ˈæp(ə)l/");
     const meanings = within(back).getAllByRole("listitem").slice(0, 2);
     expect(meanings.map((li) => li.textContent)).toEqual(["n.苹果", "n.苹果树"]);
+    // A real example under the meanings, the word in bold, linked to its source.
+    const examples = screen.getByTestId("review-examples");
+    expect(examples).toHaveTextContent("Apples grow on apple trees.苹果长在苹果树上。");
+    expect([...examples.querySelectorAll("strong")].map((b) => b.textContent)).toEqual([
+      "Apples",
+      "apple",
+    ]);
+    expect(within(examples).getByRole("link", { name: "See this sentence on Tatoeba" })).toHaveAttribute(
+      "href",
+      "https://tatoeba.org/sentences/show/7",
+    );
+    expect(examples).toHaveTextContent("Source: Tatoeba");
     // Domain senses and the English definition wait under "More", wrapped lines joined.
     const more = screen.getByTestId("review-more");
     expect(more).not.toHaveAttribute("open");
@@ -152,6 +173,26 @@ describe("ReviewApp", () => {
     expect(await screen.findByTestId("review-done")).toHaveTextContent(
       "Done for now: 2 cards reviewed.",
     );
+  });
+
+  it("writes AI examples only when asked", async () => {
+    api.mockResolvedValueOnce(queue([card(1, "apple", { sentences: [] })])).mockResolvedValueOnce({
+      sentences: [{ en: "An apple a day keeps the doctor away.", zh: "一天一苹果，医生远离我。" }],
+      cefr: "A2",
+    });
+    show();
+    await screen.findByRole("heading", { name: "apple" });
+    await userEvent.keyboard(" ");
+    expect(screen.getByTestId("review-examples")).not.toHaveTextContent("Source: Tatoeba");
+    expect(api).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "AI examples" }));
+    const ai = await screen.findByTestId("review-ai-examples");
+    expect(api).toHaveBeenLastCalledWith("/vocab/words/1/examples", { method: "POST" });
+    expect(ai).toHaveTextContent("An apple a day keeps the doctor away.");
+    expect(ai.querySelector("strong")).toHaveTextContent("apple");
+    expect(screen.getByTestId("review-examples")).toHaveTextContent("Written by AI");
+    expect(screen.queryByRole("button", { name: "AI examples" })).not.toBeInTheDocument();
   });
 
   it("in new-word mode, points to the reviews still due", async () => {

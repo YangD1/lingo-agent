@@ -68,3 +68,37 @@ export function parseDefinition(definition: string | null): Sense[] {
   }
   return senses;
 }
+
+/** A run of a sentence; `hit` when it is the word being learned. */
+export type Segment = { text: string; hit: boolean };
+
+const TOKEN = /[A-Za-z]+(?:['’-][A-Za-z]+)*/g;
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * The sentence cut into runs, with the word's forms (lowercase, from the API) marked:
+ * single words as whole words ("go" not in "good"), phrases ("look up") as text.
+ */
+export function markWord(sentence: string, forms: string[]): Segment[] {
+  const words = new Set(forms.filter((f) => !f.includes(" ")));
+  const ranges: [number, number][] = [];
+  for (const m of sentence.matchAll(TOKEN)) {
+    if (words.has(m[0].toLowerCase().replace("’", "'"))) ranges.push([m.index, m.index + m[0].length]);
+  }
+  for (const phrase of forms.filter((f) => f.includes(" "))) {
+    for (const m of sentence.matchAll(new RegExp(`\\b${escape(phrase)}\\b`, "gi"))) {
+      ranges.push([m.index, m.index + m[0].length]);
+    }
+  }
+  ranges.sort((a, b) => a[0] - b[0]);
+  const segments: Segment[] = [];
+  let at = 0;
+  for (const [start, end] of ranges) {
+    if (start < at) continue; // overlaps one already marked
+    if (start > at) segments.push({ text: sentence.slice(at, start), hit: false });
+    segments.push({ text: sentence.slice(start, end), hit: true });
+    at = end;
+  }
+  if (at < sentence.length) segments.push({ text: sentence.slice(at), hit: false });
+  return segments;
+}
