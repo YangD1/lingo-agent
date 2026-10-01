@@ -1,0 +1,130 @@
+/* Lingo Agent · design tokens v1
+ * 直接替换 frontend/src/app/globals.css 里的 :root 与 .dark 两段；值为 OKLCH，注释里是十六进制参考与用途。
+ * 深色主题用 next-themes（attribute="class"），跟随系统 / 浅色 / 深色。
+ */
+
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.986 0.003 67.8); /* #FCFAF8 · 页面底色。暖米白，比纯白柔和，长时间阅读不刺眼 */
+  --foreground: oklch(0.226 0.014 291.8); /* #1C1B22 · 正文与标题。取自 logo 的墨色 */
+  --card: oklch(1.000 0 0); /* #FFFFFF · 卡片、私教消息气泡、输入区 */
+  --card-foreground: oklch(0.226 0.014 291.8); /* #1C1B22 · 卡片内文字 */
+  --popover: oklch(1.000 0 0); /* #FFFFFF · 弹出层：单词气泡、AI 说明、下拉菜单 */
+  --popover-foreground: oklch(0.226 0.014 291.8); /* #1C1B22 · 弹出层文字 */
+  --primary: oklch(0.568 0.175 35.8); /* #C8441F · 主按钮、用户消息气泡、链接、选中态。logo 珊瑚压深一档，白字 4.9:1 */
+  --primary-foreground: oklch(1.000 0 0); /* #FFFFFF · 主色上的文字与图标 */
+  --secondary: oklch(0.952 0.008 61.5); /* #F3EEEA · 次按钮、标签底 */
+  --secondary-foreground: oklch(0.226 0.014 291.8); /* #1C1B22 · 次按钮文字 */
+  --muted: oklch(0.952 0.008 61.5); /* #F3EEEA · 弱化底：表头、骨架屏、分段切换底、引用块 */
+  --muted-foreground: oklch(0.503 0.021 311.4); /* #68616D · 次要文字、说明、时间、图例（对底色 5.7:1） */
+  --accent: oklch(0.943 0.009 62.6); /* #F1EBE6 · 悬停、当前会话行、菜单高亮（中性暖灰，不抢主色） */
+  --accent-foreground: oklch(0.226 0.014 291.8); /* #1C1B22 · accent 上的文字 */
+  --destructive: oklch(0.503 0.180 22.9); /* #B4232F · 危险操作文字与浅红底按钮、错误文字 */
+  --destructive-foreground: oklch(1.000 0 0); /* #FFFFFF · 实心危险色上的文字（仅对话框里的最终确认） */
+  --border: oklch(0.914 0.011 63.4); /* #E8E1DB · 卡片 1px 描边、分隔线 */
+  --input: oklch(0.872 0.014 60.5); /* #DCD3CC · 输入框、描边按钮的边框 */
+  --ring: oklch(0.625 0.184 34.9); /* #E0522F · 焦点环 2px + 2px 间隙（对底色 3.7:1） */
+  --brand: oklch(0.666 0.191 34.0); /* #F25C3B · logo 原色。只用于 logo 和小面积品牌点缀，不做文字 */
+  --brand-soft: oklch(0.952 0.022 42.6); /* #FDEBE4 · 品牌浅底：提示条、导航当前项、单词高亮、私教头像底 */
+  --brand-soft-foreground: oklch(0.468 0.144 35.4); /* #9A3216 · 品牌浅底上的文字和图标 */
+  --chart-1: oklch(0.487 0.087 167.1); /* #1F6F55 · 已掌握（深绿，明度最低） */
+  --chart-2: oklch(0.768 0.142 74.8); /* #E8A53A · 学习中（琥珀，明度最高） */
+  --chart-3: oklch(0.652 0.173 35.1); /* #E5603F · 薄弱 / 错误（珊瑚红，中等明度） */
+  --chart-4: oklch(0.666 0.085 266.4); /* #7C93C9 · 熟词跳过（灰蓝，与橙红走蓝–橙轴，色弱也能分） */
+  --chart-5: oklch(0.904 0.010 67.7); /* #E4DED8 · 未学 / 未接触（浅中性灰） */
+  --success: oklch(0.502 0.098 162.6); /* #1D7553 · 成功文字（“已保存。”“已完成。”）、已掌握图标 */
+  --success-foreground: oklch(1.000 0 0); /* #FFFFFF · 实心成功色上的文字 */
+  --warning: oklch(0.522 0.116 66.9); /* #955A00 · 警告文字（词汇量估计不可靠等）、警告图标 */
+  --warning-foreground: oklch(1.000 0 0); /* #FFFFFF · 实心警告色上的文字 */
+  --ai: oklch(0.513 0.178 279.6); /* #5753C9 · AI 标记专用：冷靛蓝，在暖色界面里一眼可辨，又不和琥珀警告混淆 */
+  --ai-foreground: oklch(1.000 0 0); /* #FFFFFF · 实心 AI 色上的文字 */
+  --heat-0: oklch(0.940 0.009 67.7); /* #EFEAE5 · 热力图：当天没学习 */
+  --heat-1: oklch(0.895 0.047 41.3); /* #F9D3C5 · 热力图：1 档 */
+  --heat-2: oklch(0.781 0.105 38.3); /* #F2A086 · 热力图：2 档 */
+  --heat-3: oklch(0.647 0.166 36.4); /* #E0623F · 热力图：3 档 */
+  --heat-4: oklch(0.499 0.156 34.6); /* #A9361A · 热力图：最多 */
+  --sidebar: oklch(0.966 0.007 67.7); /* #F7F3EF · 侧边栏底色 */
+  --sidebar-foreground: oklch(0.226 0.014 291.8); /* #1C1B22 · 侧边栏文字 */
+  --sidebar-primary: oklch(0.568 0.175 35.8); /* #C8441F · 侧边栏里的主色元素 */
+  --sidebar-primary-foreground: oklch(1.000 0 0); /* #FFFFFF · sidebar-primary 上的文字 */
+  --sidebar-accent: oklch(0.939 0.026 44.7); /* #FBE6DD · 导航当前项底色（品牌浅底） */
+  --sidebar-accent-foreground: oklch(0.443 0.136 35.4); /* #8F2E14 · 导航当前项文字与图标 */
+  --sidebar-border: oklch(0.914 0.011 63.4); /* #E8E1DB · 侧边栏右边线、用户区分隔线 */
+  --sidebar-ring: oklch(0.625 0.184 34.9); /* #E0522F · 侧边栏内焦点环 */
+  --spark: oklch(0.857 0.168 83.4); /* #FFC53D · logo 里的星星，只用于 logo */
+}
+
+.dark {
+  --background: oklch(0.204 0.010 294.7); /* #17161B · 页面底色。暖米白，比纯白柔和，长时间阅读不刺眼 */
+  --foreground: oklch(0.952 0.008 61.5); /* #F3EEEA · 正文与标题。取自 logo 的墨色 */
+  --card: oklch(0.240 0.014 298.4); /* #201E25 · 卡片、私教消息气泡、输入区 */
+  --card-foreground: oklch(0.952 0.008 61.5); /* #F3EEEA · 卡片内文字 */
+  --popover: oklch(0.266 0.015 296.8); /* #26242C · 弹出层：单词气泡、AI 说明、下拉菜单 */
+  --popover-foreground: oklch(0.952 0.008 61.5); /* #F3EEEA · 弹出层文字 */
+  --primary: oklch(0.729 0.169 34.1); /* #FF7A5C · 主按钮、用户消息气泡、链接、选中态。logo 珊瑚压深一档，白字 4.9:1 */
+  --primary-foreground: oklch(0.226 0.014 291.8); /* #1C1B22 · 主色上的文字与图标 */
+  --secondary: oklch(0.286 0.013 298.6); /* #2B2930 · 次按钮、标签底 */
+  --secondary-foreground: oklch(0.952 0.008 61.5); /* #F3EEEA · 次按钮文字 */
+  --muted: oklch(0.286 0.013 298.6); /* #2B2930 · 弱化底：表头、骨架屏、分段切换底、引用块 */
+  --muted-foreground: oklch(0.734 0.016 315.9); /* #ADA6B0 · 次要文字、说明、时间、图例（对底色 5.7:1） */
+  --accent: oklch(0.295 0.015 302.5); /* #2E2B33 · 悬停、当前会话行、菜单高亮（中性暖灰，不抢主色） */
+  --accent-foreground: oklch(0.952 0.008 61.5); /* #F3EEEA · accent 上的文字 */
+  --destructive: oklch(0.714 0.180 17.6); /* #FF6B78 · 危险操作文字与浅红底按钮、错误文字 */
+  --destructive-foreground: oklch(0.226 0.014 291.8); /* #1C1B22 · 实心危险色上的文字（仅对话框里的最终确认） */
+  --border: oklch(0.320 0.016 300.7); /* #34313A · 卡片 1px 描边、分隔线 */
+  --input: oklch(0.364 0.018 303.6); /* #403C46 · 输入框、描边按钮的边框 */
+  --ring: oklch(0.756 0.148 34.5); /* #FF8A6E · 焦点环 2px + 2px 间隙（对底色 3.7:1） */
+  --brand: oklch(0.729 0.169 34.1); /* #FF7A5C · logo 原色。只用于 logo 和小面积品牌点缀，不做文字 */
+  --brand-soft: oklch(0.276 0.043 35.9); /* #3A2019 · 品牌浅底：提示条、导航当前项、单词高亮、私教头像底 */
+  --brand-soft-foreground: oklch(0.836 0.093 36.3); /* #FFB49F · 品牌浅底上的文字和图标 */
+  --chart-1: oklch(0.639 0.106 166.1); /* #3FA07D · 已掌握（深绿，明度最低） */
+  --chart-2: oklch(0.815 0.130 77.4); /* #F1B758 · 学习中（琥珀，明度最高） */
+  --chart-3: oklch(0.746 0.156 34.8); /* #FF8466 · 薄弱 / 错误（珊瑚红，中等明度） */
+  --chart-4: oklch(0.722 0.083 267.2); /* #8EA4DA · 熟词跳过（灰蓝，与橙红走蓝–橙轴，色弱也能分） */
+  --chart-5: oklch(0.351 0.018 299.2); /* #3C3943 · 未学 / 未接触（浅中性灰） */
+  --success: oklch(0.729 0.128 162.4); /* #4CC08F · 成功文字（“已保存。”“已完成。”）、已掌握图标 */
+  --success-foreground: oklch(0.247 0.034 162.8); /* #10261C · 实心成功色上的文字 */
+  --warning: oklch(0.809 0.135 76.3); /* #F2B451 · 警告文字（词汇量估计不可靠等）、警告图标 */
+  --warning-foreground: oklch(0.235 0.049 80.0); /* #2A1B00 · 实心警告色上的文字 */
+  --ai: oklch(0.761 0.128 285.0); /* #A9A5FF · AI 标记专用：冷靛蓝，在暖色界面里一眼可辨，又不和琥珀警告混淆 */
+  --ai-foreground: oklch(0.204 0.010 294.7); /* #17161B · 实心 AI 色上的文字 */
+  --heat-0: oklch(0.282 0.015 296.9); /* #2A2830 · 热力图：当天没学习 */
+  --heat-1: oklch(0.327 0.050 34.8); /* #4B2B23 · 热力图：1 档 */
+  --heat-2: oklch(0.436 0.098 37.4); /* #7E3B27 · 热力图：2 档 */
+  --heat-3: oklch(0.579 0.151 38.1); /* #C2532F · 热力图：3 档 */
+  --heat-4: oklch(0.755 0.151 37.9); /* #FF8A66 · 热力图：最多 */
+  --sidebar: oklch(0.222 0.012 293.1); /* #1B1A20 · 侧边栏底色 */
+  --sidebar-foreground: oklch(0.952 0.008 61.5); /* #F3EEEA · 侧边栏文字 */
+  --sidebar-primary: oklch(0.729 0.169 34.1); /* #FF7A5C · 侧边栏里的主色元素 */
+  --sidebar-primary-foreground: oklch(0.226 0.014 291.8); /* #1C1B22 · sidebar-primary 上的文字 */
+  --sidebar-accent: oklch(0.276 0.043 35.9); /* #3A2019 · 导航当前项底色（品牌浅底） */
+  --sidebar-accent-foreground: oklch(0.836 0.093 36.3); /* #FFB49F · 导航当前项文字与图标 */
+  --sidebar-border: oklch(0.296 0.017 300.6); /* #2E2B34 · 侧边栏右边线、用户区分隔线 */
+  --sidebar-ring: oklch(0.756 0.148 34.5); /* #FF8A6E · 侧边栏内焦点环 */
+}
+
+/* Tailwind v4：把新增 token 暴露成工具类（bg-success、text-ai、bg-heat-3 …）。shadcn 自带的已在 globals.css 的 @theme inline 里。 */
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-soft-foreground: var(--brand-soft-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-ai: var(--ai);
+  --color-ai-foreground: var(--ai-foreground);
+  --color-heat-0: var(--heat-0);
+  --color-heat-1: var(--heat-1);
+  --color-heat-2: var(--heat-2);
+  --color-heat-3: var(--heat-3);
+  --color-heat-4: var(--heat-4);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-figtree), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+/* 写死颜色的替换：violet → ai，emerald → success / chart-1，amber → warning / chart-2 */
