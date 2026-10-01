@@ -12,6 +12,9 @@ import { speakSegments, speechSegments, stopSpeaking, useCanSpeak, useSpeaking }
 
 export type TranslateTarget = "zh" | "en";
 
+// Whether this page has already said the device has no Chinese voice.
+let noChineseNoticed = false;
+
 const HAN = /[㐀-䶿一-鿿豈-﫿]/g;
 const LATIN = /[A-Za-z]/g;
 
@@ -99,10 +102,18 @@ export function ReplyTools({
   const speaking = useSpeaking(messageKey);
   const target = translationTarget(content);
 
+  const [noChinese, setNoChinese] = useState(false);
+
   const read = (button: HTMLElement) => {
     if (speaking) return stopSpeaking();
     const markdown = button.closest("li")?.querySelector('[data-slot="markdown"]');
-    if (markdown) speakSegments(messageKey, speechSegments(readableText(markdown)));
+    if (!markdown) return;
+    const skipped = speakSegments(messageKey, speechSegments(readableText(markdown)));
+    // Said once per page: the device won't grow a Chinese voice in between.
+    if (skipped.includes("zh-CN") && !noChineseNoticed) {
+      noChineseNoticed = true;
+      setNoChinese(true);
+    }
   };
 
   if (!speakable && !(messageId && onTranslate)) return null;
@@ -138,6 +149,11 @@ export function ReplyTools({
           </Button>
           {translation?.text === undefined && <AiBadge feature="message_translate" />}
         </>
+      )}
+      {noChinese && (
+        <span role="status" data-testid="no-chinese-voice">
+          {t("noChineseVoice")}
+        </span>
       )}
       {translation?.error && (
         <span role="alert" className="text-destructive">

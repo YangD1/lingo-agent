@@ -256,6 +256,7 @@
       "toChinese": "Show in Chinese",
       "toEnglish": "Show in English",
       "original": "Show original",
+      "noChineseVoice": "This device has no Chinese voice, so only the English is read.",
       "translating": "Translating…"
     }
   },

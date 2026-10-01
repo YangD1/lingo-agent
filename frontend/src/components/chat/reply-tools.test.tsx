@@ -36,11 +36,15 @@ function wrap(messages: ChatMessage[], conversationId: string | null = "c1") {
 
 type Spoken = { text: string; lang: string; onend: (() => void) | null };
 
-/** A browser that can read aloud; returns what it was asked to read. */
-function stubSpeech() {
+/** A browser that can read aloud (with these voices); returns what it was asked to read. */
+function stubSpeech(voices: object[] = []) {
   const spoken: Spoken[] = [];
   const cancel = vi.fn();
-  vi.stubGlobal("speechSynthesis", { cancel, speak: (u: Spoken) => spoken.push(u) });
+  vi.stubGlobal("speechSynthesis", {
+    cancel,
+    speak: (u: Spoken) => spoken.push(u),
+    getVoices: () => voices,
+  });
   vi.stubGlobal(
     "SpeechSynthesisUtterance",
     class {
@@ -114,6 +118,21 @@ describe("ReplyTools", () => {
     await userEvent.click(screen.getByRole("button", { name: "Read aloud" }));
     act(() => spoken[spoken.length - 1].onend?.());
     expect(screen.getByRole("button", { name: "Read aloud" })).toBeInTheDocument();
+  });
+
+  it("reads only the English, and says so once, where the device has no Chinese voice", async () => {
+    const aria = {
+      name: "Microsoft Aria Online (Natural) - English (United States)",
+      lang: "en-US",
+      localService: false,
+      default: true,
+      voiceURI: "aria",
+    };
+    const { spoken } = stubSpeech([aria]);
+    wrap([reply()]);
+    await userEvent.click(screen.getByRole("button", { name: "Read aloud" }));
+    expect(spoken.map(({ text }) => text)).toEqual(["Good job!"]);
+    expect(screen.getByTestId("no-chinese-voice")).toHaveTextContent("no Chinese voice");
   });
 
   it("has no read-aloud button where the browser can't read", () => {

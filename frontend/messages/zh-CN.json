@@ -256,6 +256,7 @@
       "toChinese": "看中文",
       "toEnglish": "看英文",
       "original": "看原文",
+      "noChineseVoice": "这台设备没有中文朗读声音，只读英文部分。",
       "translating": "正在翻译…"
     }
   },

@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-01 · 任务 25.2：浏览器朗读挑声音
+
+- **做了什么**：
+  - 新增 `frontend/src/lib/voices.ts`：按语言分档（英文：所选口音 > 其他 en；中文：zh-CN/hans > zh-TW/hant > 其他，排除 zh-HK / yue / zh-MO）、按名字打分（Natural/Neural 5、Premium 4、Enhanced 3、Google 2、在线 1、Multilingual 1、Eloquence/eSpeak −5）、排除 macOS 趣味声音、常见声音性别表；`pickVoices()` 支持手动选择（`voiceURI`）、Multilingual 整段一个声音、同性别仅作同分时的次序。
+  - `frontend/src/lib/speech.ts`：`splitSentences`（句末标点 + 换行，`.?!` 后需空格；超 200 字按逗号切）、`planSpeech`（没有声音列表时只设 lang；有列表但缺某语言就跳过）、`DEFAULT_SPEECH_SETTINGS`（美音、英文 0.9、中文 1.0）；`speak(text)` 去掉 lang 参数（调用方都只读英文）；`speakSegments` 返回跳过的语言；`useCanSpeak` 订阅 `voiceschanged`。
+  - `reply-tools.tsx`：没有中文声音时提示一次（每页一次），i18n `chat.reply.noChineseVoice`。
+  - ADR 0018 §1 补充了同性别、无声音列表、语速、切句的实现细节。
+  - 顺手修了任务 24.7 留下的 eslint 错误（`e2e/language.spec.ts` 的 `useFakeModel` 别名），单独提交 fc3aa71。
+- **未完成**：25.3 设置面板。`speech.ts` 里的 `currentSettings()` 现在固定返回 `DEFAULT_SPEECH_SETTINGS`，25.3 改成从 localStorage 读（参考 `lib/preferences.ts` 的 `useStored` / fallback 写法），并导出声音列表给下拉框用（`englishVoices` / `chineseVoices` 已在 `voices.ts`）。
+- **下一步**：25.3。
+- **踩坑**：Bash 里 `pnpm` 是 shell 函数，嵌套调用会报 `_load_nvm` / FUNCNEST，要用 `~/.nvm/versions/node/v24.14.0/bin/pnpm` 绝对路径；项目没有 prettier，格式只靠 eslint。
+
+---
+
 ## 2026-10-01 · 任务 25.1：ADR 0018 朗读三层方案
 
 - **做了什么**：
