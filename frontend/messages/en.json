@@ -560,10 +560,7 @@
       "apiKey": "API key",
       "apiKeyHint": "Leave empty only for local servers that need no key (e.g. Ollama).",
       "addSubmit": "Add connection",
-      "keyHint": "Key {hint}",
       "noKey": "No key",
-      "lastVerified": "Last test passed {when}",
-      "lastError": "Last test failed: {error}",
       "neverTested": "Not tested yet",
       "test": "Test",
       "testOk": "Connected ({ms} ms)",
@@ -598,7 +595,11 @@
       "saveEdit": "Save changes",
       "cancel": "Cancel",
       "edited": "Connection updated.",
-      "renamePresetHint": "The server's default routes find this provider by its name. After renaming, chat uses this connection's default model instead (your own routes are updated automatically)."
+      "renamePresetHint": "The server's default routes find this provider by its name. After renaming, chat uses this connection's default model instead (your own routes are updated automatically).",
+      "address": "Address",
+      "key": "Key",
+      "lastTest": "Last test",
+      "lastOk": "Working · {when}"
     },
     "route": {
       "source": {
@@ -617,7 +618,7 @@
       "moveUp": "Move up",
       "moveDown": "Move down",
       "remove": "Remove",
-      "addRow": "+ Add a fallback",
+      "addRow": "Add a fallback",
       "duplicate": "The same model appears twice.",
       "save": "Save",
       "cancel": "Cancel",
@@ -645,7 +646,8 @@
           "description": "Transcribes voice messages and audio files (an OpenAI-compatible /audio/transcriptions API, e.g. Groq, OpenAI, SiliconFlow or a local speaches server).",
           "none": "Not set up: voice messages can't be transcribed until you add a model here."
         }
-      }
+      },
+      "fallback": "Fallback"
     },
     "usage": {
       "title": "Usage",
@@ -669,6 +671,14 @@
       "description": "Applies to this browser only.",
       "showActivity": "Show “What the tutor did” under replies",
       "showActivityHint": "Memories read and saved, grammar mistakes marked. Hiding it changes the display only: everything is still recorded, and the Memory page still shows it all."
+    },
+    "toc": {
+      "title": "On this page",
+      "connections": "Connections",
+      "routes": "Model order",
+      "display": "Display",
+      "read-aloud": "Read aloud",
+      "usage": "Usage"
     }
   },
   "placement": {

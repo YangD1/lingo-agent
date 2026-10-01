@@ -1,13 +1,22 @@
 "use client";
 
+import { RefreshCw } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
 import { api } from "@/lib/api";
 import type { Usage, UsageRow } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 import { useDescribeError } from "./use-describe-error";
 
@@ -40,17 +49,16 @@ export function UsageSection() {
   const n = (value: number) => format.number(value);
 
   return (
-    <Card>
+    <Card id="usage" className="scroll-mt-14 lg:scroll-mt-4">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
+        <CardAction className="flex items-center gap-1.5">
           <NativeSelect
             aria-label={t("range")}
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
+            className="h-8 md:h-8"
           >
             {[7, 30, 90].map((d) => (
               <option key={d} value={d}>
@@ -58,54 +66,64 @@ export function UsageSection() {
               </option>
             ))}
           </NativeSelect>
-          <Button size="sm" variant="ghost" onClick={load}>
-            {t("refresh")}
+          <Button size="icon-sm" variant="ghost" aria-label={t("refresh")} title={t("refresh")} onClick={load}>
+            <RefreshCw />
           </Button>
-        </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
         )}
         {usage && rows.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t("empty")}</p>
+          <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+            {t("empty")}
+          </p>
         )}
         {rows.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" aria-label={t("title")}>
-              <thead className="text-left text-xs text-muted-foreground">
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-[13px] whitespace-nowrap" aria-label={t("title")}>
+              <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
                 <tr>
-                  <th className="py-2 pr-4 font-medium">{t("day")}</th>
-                  <th className="py-2 pr-4 font-medium">{t("model")}</th>
+                  <th className="px-3 py-2 font-medium">{t("day")}</th>
+                  <th className="px-3 py-2 font-medium">{t("model")}</th>
                   {NUMERIC.map((key) => (
-                    <th key={key} className="py-2 pr-4 text-right font-medium">
+                    <th key={key} className="px-3 py-2 text-right font-medium">
                       {t(key)}
                     </th>
                   ))}
-                  <th className="py-2 text-right font-medium">{t("avg_latency_ms")}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t("avg_latency_ms")}</th>
                 </tr>
               </thead>
-              <tbody className="tabular-nums">
+              <tbody className="font-mono">
                 {rows.map((r: UsageRow) => (
                   <tr key={`${r.day}/${r.connection}/${r.model}`} className="border-t">
-                    <td className="py-2 pr-4">{r.day}</td>
-                    <td className="py-2 pr-4 font-mono">{`${r.connection}:${r.model}`}</td>
+                    <td className="px-3 py-2">{r.day}</td>
+                    <td className="px-3 py-2">{`${r.connection}:${r.model}`}</td>
                     {NUMERIC.map((key) => (
-                      <td key={key} className="py-2 pr-4 text-right">
+                      <td
+                        key={key}
+                        className={cn(
+                          "px-3 py-2 text-right",
+                          key === "errors" && r.errors > 0 && "text-destructive",
+                        )}
+                      >
                         {n(r[key])}
                       </td>
                     ))}
-                    <td className="py-2 text-right">{n(r.avg_latency_ms)}</td>
+                    <td className="px-3 py-2 text-right">{n(r.avg_latency_ms)}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="tabular-nums font-medium">
-                <tr className="border-t">
-                  <td className="py-2 pr-4" colSpan={2}>
+              <tfoot className="font-mono font-semibold">
+                <tr className="border-t bg-muted/30">
+                  <td className="px-3 py-2 font-sans" colSpan={2}>
                     {t("total")}
                   </td>
                   {NUMERIC.map((key) => (
-                    <td key={key} className="py-2 pr-4 text-right">
+                    <td key={key} className="px-3 py-2 text-right">
                       {n(total(key))}
                     </td>
                   ))}

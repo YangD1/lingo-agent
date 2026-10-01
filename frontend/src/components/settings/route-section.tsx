@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
@@ -8,8 +8,10 @@ import { AutocompleteInput } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Tag } from "@/components/ui/tag";
 import { api } from "@/lib/api";
 import type { Connection, TaskRoute } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 import { fetchModels } from "./model-catalog";
 import { useDescribeError } from "./use-describe-error";
@@ -44,9 +46,12 @@ type Catalogs = Record<string, string[] | "loading" | "failed">;
 export function RouteSection({
   task,
   connections,
+  compact = false,
 }: {
   task: RouteTask;
   connections: Connection[];
+  /** A smaller card, for the routes shown side by side. */
+  compact?: boolean;
 }) {
   const t = useTranslations("settings.route");
   const section = SECTION[task];
@@ -142,7 +147,7 @@ export function RouteSection({
   }
 
   return (
-    <Card data-testid={`route-${task}`}>
+    <Card data-testid={`route-${task}`} size={compact ? "sm" : undefined}>
       <CardHeader>
         <CardTitle>{t(`tasks.${task}.title`)}</CardTitle>
         <CardDescription>{t(`tasks.${task}.description`)}</CardDescription>
@@ -156,12 +161,15 @@ export function RouteSection({
                 : t(`tasks.${task}.none`)}
             </p>
             {route.effective.length > 0 && (
-              <ol
-                className="list-decimal pl-5 font-mono text-sm"
-                aria-label={t(`tasks.${task}.title`)}
-              >
-                {route.effective.map((m) => (
-                  <li key={m}>{m}</li>
+              <ol className="flex flex-col gap-1.5 text-sm" aria-label={t(`tasks.${task}.title`)}>
+                {route.effective.map((m, i) => (
+                  <li key={m} className="flex min-w-0 items-center gap-2">
+                    <span className="w-4 shrink-0 text-right font-mono text-xs text-muted-foreground">
+                      {i + 1}.
+                    </span>
+                    <span data-slot="route-ref" className="truncate font-mono text-[13px]">{m}</span>
+                    {i > 0 && <Tag variant="outline">{t("fallback")}</Tag>}
+                  </li>
                 ))}
               </ol>
             )}
@@ -186,14 +194,16 @@ export function RouteSection({
           <>
             <p className="text-xs text-muted-foreground">{t("editHint")}</p>
             <ol
-              className="flex flex-col gap-2"
+              className="flex flex-col divide-y border-y"
               aria-label={t("editLabel", { title: t(`tasks.${task}.title`) })}
             >
               {rows.map((r, i) => {
                 const catalog = catalogs[r.connection];
                 return (
-                  <li key={r.key} className="flex flex-wrap items-center gap-2">
-                    <span className="w-4 text-right text-xs text-muted-foreground">{i + 1}</span>
+                  <li key={r.key} className="flex flex-wrap items-center gap-2 py-2.5">
+                    <span className="w-4 shrink-0 text-right font-mono text-xs text-muted-foreground">
+                      {i + 1}.
+                    </span>
                     <NativeSelect
                       aria-label={t("connection", { n: i + 1 })}
                       value={r.connection}
@@ -214,7 +224,7 @@ export function RouteSection({
                         </option>
                       ))}
                     </NativeSelect>
-                    <div className="w-64 max-w-full">
+                    <div className={cn("max-w-full min-w-40 flex-1", !compact && "md:max-w-80")}>
                       <AutocompleteInput
                         aria-label={t("model", { n: i + 1 })}
                         value={r.model}
@@ -233,44 +243,46 @@ export function RouteSection({
                         className="font-mono"
                       />
                     </div>
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={t("moveUp")}
-                      disabled={i === 0}
-                      onClick={() => move(i, -1)}
-                    >
-                      <ArrowUp />
-                    </Button>
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={t("moveDown")}
-                      disabled={i === rows.length - 1}
-                      onClick={() => move(i, 1)}
-                    >
-                      <ArrowDown />
-                    </Button>
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={t("remove")}
-                      disabled={rows.length === 1}
-                      onClick={() => setRows(rows.filter((x) => x.key !== r.key))}
-                    >
-                      <X />
-                    </Button>
+                    <div className="ml-auto flex">
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label={t("moveUp")}
+                        disabled={i === 0}
+                        onClick={() => move(i, -1)}
+                      >
+                        <ArrowUp />
+                      </Button>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label={t("moveDown")}
+                        disabled={i === rows.length - 1}
+                        onClick={() => move(i, 1)}
+                      >
+                        <ArrowDown />
+                      </Button>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label={t("remove")}
+                        disabled={rows.length === 1}
+                        onClick={() => setRows(rows.filter((x) => x.key !== r.key))}
+                      >
+                        <X />
+                      </Button>
+                    </div>
                   </li>
                 );
               })}
             </ol>
             <div>
               <Button
-                size="xs"
-                variant="secondary"
+                variant="link"
                 disabled={rows.length >= MAX_ROWS}
                 onClick={() => setRows([...rows, newRow()])}
               >
+                <Plus />
                 {t("addRow")}
               </Button>
             </div>

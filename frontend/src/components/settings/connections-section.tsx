@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleAlert, CircleCheck, Pencil, Plus, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useEffect, useState } from "react";
 
@@ -10,6 +11,7 @@ import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Tag } from "@/components/ui/tag";
 import { api } from "@/lib/api";
 import { modelsOfRefs, recommendModel } from "@/lib/models";
 import {
@@ -44,12 +46,12 @@ export function ConnectionsSection({ presets, connections, onChange }: Props) {
   const t = useTranslations("settings.connections");
   const [justAdded, setJustAdded] = useState<string | null>(null);
   return (
-    <Card>
+    <Card id="connections" className="scroll-mt-14 lg:scroll-mt-4">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-6">
+      <CardContent className="flex flex-col gap-5">
         {connections.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("none")}</p>
         ) : (
@@ -200,26 +202,69 @@ function ConnectionItem({
 
   const saved = c.default_model ?? "";
   return (
-    <li className="flex flex-col gap-3 rounded-lg border p-3" data-testid={`connection-${c.name}`}>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-medium">{c.name}</span>
-        <span className="text-xs text-muted-foreground">{c.kind}</span>
-        <span className="truncate text-xs text-muted-foreground">{c.base_url}</span>
-        <span className="ml-auto text-xs text-muted-foreground">
-          {c.has_api_key ? t("keyHint", { hint: c.key_hint ?? "" }) : t("noKey")}
-        </span>
+    <li className="flex flex-col gap-3 rounded-lg border p-3.5" data-testid={`connection-${c.name}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold">{c.name}</span>
+        <Tag variant="outline">{c.kind}</Tag>
+        {!editing && (
+          <div className="ml-auto flex items-center">
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)} disabled={busy}>
+              <Pencil />
+              {t("edit")}
+            </Button>
+            <InlineConfirm
+              question={t("confirmDelete", { name: c.name })}
+              confirmLabel={t("delete")}
+              onConfirm={() => void remove()}
+            >
+              {(ask) => (
+                <Button size="sm" variant="ghost" onClick={ask} disabled={busy}>
+                  <Trash2 />
+                  {t("delete")}
+                </Button>
+              )}
+            </InlineConfirm>
+          </div>
+        )}
       </div>
-      <p className="text-xs text-muted-foreground">
-        {c.last_error
-          ? t("lastError", { error: c.last_error })
-          : c.last_verified_at
-            ? t("lastVerified", { when: format.relativeTime(new Date(c.last_verified_at)) })
-            : t("neverTested")}
-      </p>
+      <dl className="grid gap-x-6 gap-y-2 text-[13px] md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1.4fr)]">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <dt className="text-xs text-muted-foreground">{t("address")}</dt>
+          <dd className="truncate font-mono" title={c.base_url}>
+            {c.base_url}
+          </dd>
+        </div>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <dt className="text-xs text-muted-foreground">{t("key")}</dt>
+          <dd className="truncate font-mono">
+            {c.has_api_key ? (c.key_hint ?? "") : t("noKey")}
+          </dd>
+        </div>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <dt className="text-xs text-muted-foreground">{t("lastTest")}</dt>
+          <dd>
+            {c.last_error ? (
+              <span className="flex items-start gap-1.5 text-destructive">
+                <CircleAlert className="mt-0.5 size-3.5 shrink-0" />
+                <span className="line-clamp-2 break-all" title={c.last_error}>
+                  {c.last_error}
+                </span>
+              </span>
+            ) : c.last_verified_at ? (
+              <span className="flex items-center gap-1.5 text-success">
+                <CircleCheck className="size-3.5 shrink-0" />
+                {t("lastOk", { when: format.relativeTime(new Date(c.last_verified_at)) })}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">{t("neverTested")}</span>
+            )}
+          </dd>
+        </div>
+      </dl>
       <div className="flex flex-col gap-2">
         <Label htmlFor={`model-${c.id}`}>{t("defaultModel")}</Label>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="w-72 max-w-full">
+          <div className="max-w-full min-w-48 flex-1 md:max-w-80">
             <AutocompleteInput
               id={`model-${c.id}`}
               value={model}
@@ -236,13 +281,13 @@ function ConnectionItem({
             />
           </div>
           <Button
-            size="sm"
+            variant="outline"
             onClick={saveModel}
             disabled={busy || model.trim() === saved}
           >
             {t("saveModel")}
           </Button>
-          <Button size="sm" variant="outline" onClick={test} disabled={busy || !model.trim()}>
+          <Button variant="outline" onClick={test} disabled={busy || !model.trim()}>
             {t("test")}
           </Button>
           <NativeSelect
@@ -261,7 +306,7 @@ function ConnectionItem({
         <p className="text-xs text-muted-foreground">{t("defaultModelHint")}</p>
         <CatalogStatus catalog={catalog} hasDefault={saved !== ""} onRetry={loadModels} />
       </div>
-      {editing ? (
+      {editing && (
         <EditConnectionForm
           connection={c}
           isPreset={isPreset}
@@ -269,24 +314,6 @@ function ConnectionItem({
           onSave={saveEdit}
           onCancel={() => setEditing(false)}
         />
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)} disabled={busy}>
-            {t("edit")}
-          </Button>
-          <InlineConfirm
-            question={t("confirmDelete", { name: c.name })}
-            confirmLabel={t("delete")}
-            onConfirm={() => void remove()}
-            className="ml-auto"
-          >
-            {(ask) => (
-              <Button size="sm" variant="ghost" onClick={ask} disabled={busy} className="ml-auto">
-                {t("delete")}
-              </Button>
-            )}
-          </InlineConfirm>
-        </div>
       )}
       {result && (
         <p
@@ -488,50 +515,55 @@ function AddConnectionForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 border-t pt-4" aria-label={t("add")}>
-      <h3 className="text-sm font-medium">{t("add")}</h3>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="provider">{t("provider")}</Label>
-        <NativeSelect
-          id="provider"
-          value={choice}
-          onChange={(e) => setChoice(e.target.value)}
-          className="w-64"
-        >
-          {available.map((p) => (
-            <option key={p.name} value={p.name}>
-              {p.label ?? p.name}
-            </option>
-          ))}
-          <option value={CUSTOM}>{t("custom")}</option>
-        </NativeSelect>
-        {preset && <p className="text-xs text-muted-foreground">{preset.base_url}</p>}
-      </div>
-      {!preset && (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="conn-name">{t("name")}</Label>
-            <Input id="conn-name" name="name" required pattern="[a-z0-9][a-z0-9_\-]{0,63}" maxLength={64} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="conn-kind">{t("kind")}</Label>
-            <NativeSelect id="conn-kind" name="kind" defaultValue="openai_compatible">
-              {PROVIDER_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {k}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="conn-base-url">{t("baseUrl")}</Label>
-            <Input id="conn-base-url" name="base_url" type="url" required />
-          </div>
+      <h3 className="text-sm font-semibold">{t("add")}</h3>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="provider">{t("provider")}</Label>
+          <NativeSelect id="provider" value={choice} onChange={(e) => setChoice(e.target.value)}>
+            {available.map((p) => (
+              <option key={p.name} value={p.name}>
+                {p.label ?? p.name}
+              </option>
+            ))}
+            <option value={CUSTOM}>{t("custom")}</option>
+          </NativeSelect>
+          {preset && (
+            <p className="truncate font-mono text-xs text-muted-foreground">{preset.base_url}</p>
+          )}
         </div>
-      )}
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="api_key">{t("apiKey")}</Label>
-        <Input id="api_key" name="api_key" type="password" autoComplete="off" className="w-96 max-w-full" />
-        <p className="text-xs text-muted-foreground">{t("apiKeyHint")}</p>
+        {!preset && (
+          <>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="conn-name">{t("name")}</Label>
+              <Input
+                id="conn-name"
+                name="name"
+                required
+                pattern="[a-z0-9][a-z0-9_\-]{0,63}"
+                maxLength={64}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="conn-kind">{t("kind")}</Label>
+              <NativeSelect id="conn-kind" name="kind" defaultValue="openai_compatible">
+                {PROVIDER_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="conn-base-url">{t("baseUrl")}</Label>
+              <Input id="conn-base-url" name="base_url" type="url" required />
+            </div>
+          </>
+        )}
+        <div className="flex flex-col gap-2 md:col-span-2">
+          <Label htmlFor="api_key">{t("apiKey")}</Label>
+          <Input id="api_key" name="api_key" type="password" autoComplete="off" />
+          <p className="text-xs text-muted-foreground">{t("apiKeyHint")}</p>
+        </div>
       </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -540,6 +572,7 @@ function AddConnectionForm({
       )}
       <div>
         <Button type="submit" disabled={busy}>
+          <Plus />
           {t("addSubmit")}
         </Button>
       </div>

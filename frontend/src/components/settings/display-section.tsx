@@ -10,7 +10,7 @@ export function DisplaySection() {
   const t = useTranslations("settings.display");
   const [showActivity, setShowActivity] = useShowActivity();
   return (
-    <Card id="display">
+    <Card id="display" className="scroll-mt-14 lg:scroll-mt-4">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>

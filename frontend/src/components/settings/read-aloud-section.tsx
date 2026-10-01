@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export function ReadAloudSection() {
   const t = useTranslations("speech");
   return (
-    <Card id="read-aloud">
+    <Card id="read-aloud" className="scroll-mt-14 lg:scroll-mt-4">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>

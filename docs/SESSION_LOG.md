@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-01 · 26.10 完成（设置页改版已提交）
+
+- **做了什么**：设置页改版：`settings/settings-app.tsx`（宽屏右侧粘性目录、窄屏顶部横向标签，滚动高亮当前区块；路由分主卡 + 三张紧凑卡）、`connections-section`（地址 / 密钥 / 最近测试三栏，编辑删除改幽灵按钮，添加表单两列）、`route-section`（`compact`，序号 + “备用”标签，模型名 `data-slot="route-ref"`）、`usage-section`（表格等宽、合计行、空状态）；messages 增 `settings.toc`、`settings.route.fallback`、`settings.connections.address/key/lastTest/lastOk`。E2E `settings.spec` 断言改为 `route-ref` 与“密钥…1234”，`i18n.spec` 改按卡片标题定位。typecheck、eslint、Vitest 280、E2E 42 全过。
+- **未完成**：无（26.10 已 `[x]`）。
+- **下一步**：26.11 首页产品介绍页、登录、注册（对照 `docs/design/lingo-agent-design/screens/` 下 landing / login / register）→ 26.12 收尾（全量 E2E、亮暗截图、Docker 重建先问用户、README 截图 20.6.1）。
+- **踩坑**：路由列表项文字现在包含序号和“备用”，测试要断言 `[data-slot="route-ref"]`；“模型连接”同时出现在目录和卡片标题，按文字查找要限定范围。截图脚本 `frontend/e2e/_shots.mjs` 仍不提交。
+
+---
+
 ## 2026-10-01 · 26.10 背单词、入学测已提交，设置进行中
 
 - **做了什么**：背单词四页 `fc287de`；入学测改版已提交（`placement/placement-app.tsx`、`placement-result.tsx`、`placement-tutor.tsx` 对话框浅底、`vocab/placement-known.tsx` 的 `bare`；messages `placement.intro/question` 改键；`e2e/helpers.ts` 的 `answerOne` 用 “/” 判断词汇阶段）。typecheck、eslint、Vitest 280、E2E 42 全过。

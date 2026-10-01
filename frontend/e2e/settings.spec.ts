@@ -17,7 +17,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await page.getByRole("button", { name: "添加连接" }).click();
 
   const connection = page.getByTestId("connection-fake");
-  await expect(connection).toContainText("密钥 …1234");
+  await expect(connection).toContainText("密钥…1234");
   await expect(connection).toContainText("尚未测试");
 
   // The model list is fetched right away; the first chat model is preselected.
@@ -44,14 +44,14 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
 
   await connection.getByRole("button", { name: "测试" }).click();
   await expect(connection.getByRole("status")).toContainText("连接成功");
-  await expect(connection).toContainText("上次测试通过");
+  await expect(connection).toContainText("可用 · ");
   // Tested as vision on request: the built-in image goes to the model.
   await connection.getByLabel("测试方式").selectOption("看图");
   await connection.getByRole("button", { name: "测试" }).click();
   await expect(connection.getByRole("status")).toContainText("看图可用");
 
   // No route needed: the connection's default model is used automatically.
-  const route = page.getByRole("list", { name: "对话模型" }).getByRole("listitem");
+  const route = page.getByRole("list", { name: "对话模型" }).locator('[data-slot="route-ref"]');
   await expect(page.getByTestId("route-source-chat")).toHaveText(
     "自动：按添加连接的先后，使用各连接的默认模型。",
   );
@@ -85,7 +85,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await expect(model1).toHaveValue("fake-tutor");
   await model1.fill("mini");
   await page.getByRole("option", { name: "fake-tutor-mini" }).click();
-  await page.getByRole("button", { name: "+ 添加备用模型" }).click();
+  await page.getByRole("button", { name: "添加备用模型" }).click();
   await expect(page.getByLabel("模型 2")).toHaveValue("fake-tutor");
   await page.getByRole("button", { name: "上移" }).nth(1).click();
   await page.getByRole("button", { name: "保存", exact: true }).click();
@@ -126,7 +126,7 @@ test("when the model list can't be fetched, the reason is shown and a name can b
   await connection.getByRole("button", { name: "保存模型" }).click();
   await expect(connection.getByRole("status")).toHaveText("默认模型已保存。");
   await expect(
-    page.getByRole("list", { name: "对话模型" }).getByRole("listitem"),
+    page.getByRole("list", { name: "对话模型" }).locator('[data-slot="route-ref"]'),
   ).toHaveText(["relay:my-model"]);
 });
 
@@ -137,10 +137,10 @@ test("adding a preset only needs a key, and bad input is explained", async ({ pa
   await page.getByLabel("服务商").selectOption({ label: "DeepSeek" });
   await page.locator("#api_key").fill("sk-not-a-real-key-9876");
   await page.getByRole("button", { name: "添加连接" }).click();
-  await expect(page.getByTestId("connection-deepseek")).toContainText("密钥 …9876");
+  await expect(page.getByTestId("connection-deepseek")).toContainText("密钥…9876");
   // The default chat route starts with deepseek, which now exists: no "skipped" note on it.
   await expect(
-    page.getByRole("list", { name: "对话模型" }).locator("li").first(),
+    page.getByRole("list", { name: "对话模型" }).locator('[data-slot="route-ref"]').first(),
   ).toHaveText("deepseek:deepseek-chat");
 
   // A key-requiring kind without a key is rejected by the backend, with its reason.
@@ -197,7 +197,7 @@ test("every field of a connection can be edited; renaming keeps custom routes wo
 
   const renamed = page.getByTestId("connection-my-relay");
   await expect(renamed.getByRole("status")).toHaveText("连接已更新。");
-  const route = page.getByRole("list", { name: "对话模型" }).getByRole("listitem");
+  const route = page.getByRole("list", { name: "对话模型" }).locator('[data-slot="route-ref"]');
   await expect(route).toHaveText(["my-relay:fake-tutor-mini", "my-relay:fake-tutor"]);
   await expect(page.getByTestId("route-source-chat")).toHaveText("正在使用你自定义的顺序。");
 

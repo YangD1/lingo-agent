@@ -59,6 +59,6 @@ test.describe("inside the app", () => {
     expect(page.url()).toBe(url);
 
     await page.getByRole("link", { name: "设置" }).click();
-    await expect(page.getByText("模型连接", { exact: true })).toBeVisible();
+    await expect(page.locator('[data-slot="card-title"]', { hasText: "模型连接" })).toBeVisible();
   });
 });
