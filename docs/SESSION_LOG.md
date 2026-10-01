@@ -8,7 +8,7 @@
 
 - **做了什么**：用户反馈来源只有 ECDICT、没有例句。Q28a–c 按推荐。28.1 ADR 0020。28.2 `word_sentences` 表（迁移 `4d7a2c9e1b60`）+ `services/vocab/import_tatoeba.py` + `make sentences-import`：选句是纯函数 `pick`（生词数 → 与 9 词的差距 → id，句中大写当人名，近似句去重，每词 2 句），繁体用 OpenCC `t2s`；开发库导入 18,221 句，覆盖率牛津 95%、CET4 89%、CET6 76%、GRE 31%。28.3 `CardOut.sentences` / `forms`，`services/vocab/sentences.py`。28.4 `components/vocab/word-examples.tsx`（变形加粗、原句链接、“AI 例句”按钮挂 `AiBadge word_examples`）。28.5 features.yaml / agent-tools.md / README 署名，OpenCC 由 dev 改为正式依赖，E2E 新增复习卡片例句用例（`run_backend.py` 导入 Tatoeba 小样本）。用户要求记录的“后台预生成 AI 例句”在看板 P2。
 - **未完成**：无。是否给 `frontend/Dockerfile` 加可选代理构建参数（本机构建要走 7890 代理，现在靠临时 Dockerfile）未决。
-- **下一步**：用户在 Docker 下实测 28 及之前各项，然后推送看 CI，之后进入 P2。
+- **下一步**：用户 2026-10-02 初步实测任务 28 暂无问题。新会话：① 推送（本地领先 origin 约 27 个提交）并看 CI；② 用户继续实测 27、26、25、24、23、20.5、21、22；③ 决定 `frontend/Dockerfile` 是否加可选代理构建参数；④ 进入 P2，先拆任务写进看板、和用户确认。
 - **踩坑**：Tatoeba 导出没有版本号，不能校验固定 sha256，改为打印日期和哈希；Ruff RUF001 不让源码里出现 `’`，用 `\u2019`；E2E 里例句顺序按“生词数”排，小样本词库里 school、bus 都算生词，所以短句排在前面；`i18n.spec.ts` 偶发 strict 模式冲突（`__next-route-announcer__` 和标题同文本）。
 
 ---
