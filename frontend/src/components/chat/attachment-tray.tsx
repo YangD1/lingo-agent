@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrorText } from "@/components/ui/error-text";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { contentUrl } from "@/lib/attachments";
 import type { AttachmentKind } from "@/lib/types";
@@ -116,9 +117,7 @@ function TextEditor({
         className="max-h-72"
       />
       {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
+        <ErrorText>{error}</ErrorText>
       )}
       <div className="flex gap-2">
         <Button size="sm" onClick={save} disabled={saving || !text.trim()}>
@@ -197,9 +196,7 @@ export function AttachmentTrayView({ tray }: { tray: AttachmentTray }) {
         })}
       </ul>
       {tray.problem && (
-        <p role="alert" className="text-xs text-destructive">
-          {t(tray.problem)}
-        </p>
+        <ErrorText size="xs">{t(tray.problem)}</ErrorText>
       )}
       {editingItem && (
         <TextEditor

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Tag } from "@/components/ui/tag";
+import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
 import { modelsOfRefs, recommendModel } from "@/lib/models";
 import {
@@ -566,9 +567,7 @@ function AddConnectionForm({
         </div>
       </div>
       {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
+        <ErrorText>{error}</ErrorText>
       )}
       <div>
         <Button type="submit" disabled={busy}>

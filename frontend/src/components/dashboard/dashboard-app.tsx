@@ -2,13 +2,9 @@
 
 import {
   ArrowLeftRight,
-  BookOpen,
-  CircleCheck,
   Flame,
-  Gauge,
   GraduationCap,
   Library,
-  ListChecks,
   type LucideIcon,
   RotateCw,
 } from "lucide-react";
@@ -29,6 +25,7 @@ import {
 } from "@/components/ui/card";
 import { EmptyState, Skeleton } from "@/components/ui/empty-state";
 import { CefrTag } from "@/components/ui/tag";
+import { ErrorText } from "@/components/ui/error-text";
 import {
   type Dashboard,
   fetchDashboard,
@@ -73,9 +70,7 @@ export function DashboardApp() {
       <div className="mx-auto flex max-w-5xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         <h1 className="mb-1 text-[26px] font-bold tracking-tight max-md:sr-only">{t("title")}</h1>
         {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
+          <ErrorText>{error}</ErrorText>
         )}
         {!board && !error && <Loading label={t("loading")} />}
         {board && (
@@ -265,7 +260,6 @@ function BookSection({ board }: { board: Dashboard }) {
         </>
       ) : (
         <EmptyState
-          icon={BookOpen}
           title={t("empty")}
           description={t("emptyHint")}
           action={
@@ -322,7 +316,6 @@ function GrammarSection({ board }: { board: Dashboard }) {
         </>
       ) : (
         <EmptyState
-          icon={ListChecks}
           title={t("emptyTitle")}
           description={t("emptyHint")}
           action={
@@ -359,7 +352,6 @@ function SkillsSection({ board }: { board: Dashboard }) {
     >
       {board.skills.length === 0 ? (
         <EmptyState
-          icon={Gauge}
           title={t("empty")}
           description={t("emptyHint")}
           action={
@@ -436,7 +428,6 @@ function ErrorsSection({ board }: { board: Dashboard }) {
         </>
       ) : (
         <EmptyState
-          icon={CircleCheck}
           title={t("emptyTitle")}
           description={t("empty")}
           action={

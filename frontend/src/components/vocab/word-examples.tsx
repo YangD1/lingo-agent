@@ -9,6 +9,8 @@ import { useDescribeError } from "@/components/settings/use-describe-error";
 import { markWord } from "@/lib/meanings";
 import { cn } from "@/lib/utils";
 import { type Example, type SourcedExample, fetchExamples } from "@/lib/vocab";
+import { ErrorText } from "@/components/ui/error-text";
+import { LingoCat } from "@/components/brand/lingo-cat";
 
 /**
  * Example sentences on the back of a flashcard (task 28.4, ADR 0020): real ones from
@@ -68,6 +70,7 @@ export function WordExamples({
           <span>{t("aiSource")}</span>
         ) : (
           <span className="inline-flex items-center gap-1">
+            {busy && <LingoCat mood="ai" size={16} label="" />}
             <button
               type="button"
               className="font-medium text-primary underline-offset-2 hover:underline disabled:opacity-60"
@@ -81,9 +84,7 @@ export function WordExamples({
         )}
       </p>
       {error && (
-        <p role="alert" className="text-xs text-destructive">
-          {error}
-        </p>
+        <ErrorText size="xs">{error}</ErrorText>
       )}
     </section>
   );

@@ -24,6 +24,8 @@ import { kcName } from "@/lib/learner";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { browserTimeZone } from "@/lib/vocab";
+import { CatLoading } from "@/components/brand/lingo-cat";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import { AdviceEntry, useAdvice } from "./advice-entry";
 
@@ -73,7 +75,7 @@ export function TodayTutor({ onTurnFinished }: { onTurnFinished?: () => void }) 
       </CardHeader>
       <CardContent>
         {conversation === undefined ? (
-          <p className="text-sm text-muted-foreground">{t("loading")}</p>
+          <CatLoading label={t("loading")} />
         ) : !conversation && advice && !advice.model_ready ? (
           // Without a chat model there is nothing to type into: just the rule-made links.
           <RulesStart advice={advice} />
@@ -111,13 +113,8 @@ export function TodayStart({
   const t = useTranslations("dashboard.today");
   const quick = useQuickReply();
 
-  if (error)
-    return (
-      <p role="alert" className="flex-1 p-4 text-sm text-destructive">
-        {error}
-      </p>
-    );
-  if (!advice) return <p className="flex-1 p-4 text-sm text-muted-foreground">{t("loading")}</p>;
+  if (error) return <EmptyState tone="error" title={error} className="flex-1" />;
+  if (!advice) return <CatLoading label={t("loading")} className="flex-1" />;
 
   if (!advice.model_ready) return <RulesStart advice={advice} className="p-3 md:p-4" />;
 

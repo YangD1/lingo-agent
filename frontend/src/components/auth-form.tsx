@@ -1,6 +1,5 @@
 "use client";
 
-import { CircleAlertIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,6 +13,7 @@ import { useErrorMessage } from "@/i18n/errors";
 import { api, ApiError } from "@/lib/api";
 import { safeNextPath } from "@/lib/auth";
 import type { User } from "@/lib/types";
+import { ErrorText } from "@/components/ui/error-text";
 
 type Mode = "login" | "register";
 
@@ -88,10 +88,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
           )}
         </div>
         {error && (
-          <p role="alert" className="flex items-center gap-1.5 text-sm text-destructive">
-            <CircleAlertIcon className="size-4 shrink-0" />
-            {error}
-          </p>
+          <ErrorText>{error}</ErrorText>
         )}
         <Button type="submit" size="lg" disabled={pending}>
           {t(`${mode}.submit`)}

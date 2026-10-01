@@ -106,7 +106,7 @@ export function CatLoading({
     <div
       role="status"
       aria-label={label}
-      className={cn("flex flex-col items-center gap-2 py-6 text-sm text-muted-foreground", className)}
+      className={cn("flex flex-col items-center justify-center gap-2 py-6 text-sm text-muted-foreground", className)}
     >
       <Delayed>
         <LingoCat mood={mood} size={size} label="" />

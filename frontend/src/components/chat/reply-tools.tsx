@@ -10,6 +10,7 @@ import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/lib/api";
+import { LingoCat } from "@/components/brand/lingo-cat";
 import {
   speakSegments,
   speechSegments,
@@ -169,7 +170,7 @@ export function ReplyTools({
             onClick={() => onTranslate(messageId, target)}
             data-testid="reply-translate"
           >
-            <Languages />
+            {translation?.busy ? <LingoCat mood="ai" size={16} label="" /> : <Languages />}
             {translation?.busy
               ? t("translating")
               : translation?.showing

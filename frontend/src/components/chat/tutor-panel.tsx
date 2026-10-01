@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleAlert, FileUp } from "lucide-react";
+import { FileUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { type DragEvent, type ReactNode, useEffect, useRef, useState } from "react";
@@ -10,6 +10,7 @@ import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { useShowActivity } from "@/lib/preferences";
 import type { Attachment, Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { LingoCat } from "@/components/brand/lingo-cat";
 
 import { SETTINGS_ERRORS } from "./attachment-tray";
 import { Composer } from "./composer";
@@ -143,7 +144,7 @@ export function TutorPanel({
           role="alert"
           className="mx-auto flex w-full max-w-3xl items-center gap-3 px-3 text-sm text-destructive md:px-8"
         >
-          <CircleAlert aria-hidden className="size-4 shrink-0" />
+          <LingoCat mood="oops" size={20} label="" />
           <span className="flex-1">{errorMessage(error)}</span>
           {SETTINGS_ERRORS.has(error.code) && (
             <Link href="/settings" className={buttonVariants({ size: "sm", variant: "outline" })}>

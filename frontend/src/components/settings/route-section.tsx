@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Tag } from "@/components/ui/tag";
+import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
 import type { Connection, TaskRoute } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -287,9 +288,7 @@ export function RouteSection({
               </Button>
             </div>
             {duplicate && (
-              <p role="alert" className="text-sm text-destructive">
-                {t("duplicate")}
-              </p>
+              <ErrorText>{t("duplicate")}</ErrorText>
             )}
             <div className="flex gap-2">
               <Button size="sm" onClick={save} disabled={incomplete || duplicate}>

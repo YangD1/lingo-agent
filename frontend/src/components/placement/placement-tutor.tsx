@@ -20,6 +20,8 @@ import type { ApiErrorLike } from "@/i18n/errors";
 import type { Advice } from "@/lib/advice";
 import { ApiError, api } from "@/lib/api";
 import type { Conversation } from "@/lib/types";
+import { CatLoading } from "@/components/brand/lingo-cat";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const linkClass = "underline underline-offset-2";
 
@@ -89,7 +91,7 @@ export function PlacementTutor({ finishedAt }: { finishedAt: string | null }) {
       </CardHeader>
       <CardContent>
         {conversation === undefined ? (
-          <p className="text-sm text-muted-foreground">{t("nextLoading")}</p>
+          <CatLoading label={t("nextLoading")} />
         ) : (
           <TutorPanel
             className="h-[32rem] rounded-lg border bg-muted/50"
@@ -130,13 +132,8 @@ export function PlanStart({
   const t = useTranslations("placement.result");
   const tAdvice = useTranslations("dashboard.advice");
 
-  if (error)
-    return (
-      <p role="alert" className="flex-1 p-4 text-sm text-destructive">
-        {error}
-      </p>
-    );
-  if (!advice) return <p className="flex-1 p-4 text-sm text-muted-foreground">{t("nextLoading")}</p>;
+  if (error) return <EmptyState tone="error" title={error} className="flex-1" />;
+  if (!advice) return <CatLoading label={t("nextLoading")} className="flex-1" />;
 
   if (!advice.model_ready)
     return (

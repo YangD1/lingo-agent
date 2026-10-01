@@ -14,6 +14,7 @@ import {
 import { AiBadge } from "@/components/ai-badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrorText } from "@/components/ui/error-text";
 import { ACCEPT } from "@/lib/attachments";
 import type { Attachment } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -198,9 +199,7 @@ export function Composer({ streaming, disabled, tray, onSend, onStop, toolbar }:
           </div>
         </div>
         {recorder.error && (
-          <p role="alert" className="px-1 text-xs text-destructive">
-            {t(`attachments.${recorder.error}`)}
-          </p>
+          <ErrorText size="xs" className="px-1">{t(`attachments.${recorder.error}`)}</ErrorText>
         )}
         {tray.pending && !streaming && (
           <p className="px-1 text-xs text-muted-foreground">{t("attachments.waitToSend")}</p>

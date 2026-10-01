@@ -1,6 +1,6 @@
 "use client";
 
-import { ListChecks, MessageCircle, Trash2 } from "lucide-react";
+import { MessageCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ProgressBar } from "@/components/ui/progress";
 import { CefrTag } from "@/components/ui/tag";
+import { ErrorText } from "@/components/ui/error-text";
 import {
   CEFR_LEVELS,
   deleteLearner,
@@ -89,9 +90,7 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
           {tNav("learner")}
         </h1>
         {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
+          <ErrorText>{error}</ErrorText>
         )}
         <Card data-testid="learner-grammar">
           <CardHeader>
@@ -107,7 +106,6 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
           <CardContent className="flex flex-col gap-3">
             {model && model.kcs.length === 0 && (
               <EmptyState
-                icon={ListChecks}
                 title={t("grammar.emptyTitle")}
                 description={t("grammar.empty")}
                 action={
@@ -194,7 +192,6 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
           <CardContent>
             {model && model.skills.length === 0 && (
               <EmptyState
-                icon={ListChecks}
                 title={t("skills.empty")}
                 description={t("skills.emptyHint")}
                 action={

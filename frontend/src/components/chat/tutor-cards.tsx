@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ErrorText } from "@/components/ui/error-text";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { ApiError } from "@/lib/api";
 import { type CardAction, LINK_HREFS, type LinkKind, type TutorCard } from "@/lib/cards";
@@ -163,9 +164,7 @@ function Decision({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
         <span className="text-xs text-muted-foreground">{t("undone")}</span>
       )}
       {error && (
-        <p role="alert" className="text-xs text-destructive">
-          {errorMessage(error)}
-        </p>
+        <ErrorText size="xs">{errorMessage(error)}</ErrorText>
       )}
     </div>
   );

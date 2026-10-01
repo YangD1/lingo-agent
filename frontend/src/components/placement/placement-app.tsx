@@ -4,10 +4,12 @@ import { BookOpen, ListChecks } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Fragment, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
+import { CatLoading } from "@/components/brand/lingo-cat";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress";
+import { ErrorText } from "@/components/ui/error-text";
 import { ApiError } from "@/lib/api";
 import { isShortcut } from "@/lib/keyboard";
 import {
@@ -42,6 +44,7 @@ function stateOf(placement: Placement | null): State {
  */
 export function PlacementApp() {
   const t = useTranslations("placement");
+  const tCat = useTranslations("cat");
   const describe = useDescribeError();
   const [state, setState] = useState<State>({ kind: "loading" });
   const [error, setError] = useState<string | null>(null);
@@ -122,10 +125,9 @@ export function PlacementApp() {
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-2xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
+          <ErrorText>{error}</ErrorText>
         )}
+        {state.kind === "loading" && !error && <CatLoading label={tCat("loader")} />}
         {state.kind === "intro" && (
           <Card data-testid="placement-intro">
             <CardHeader>

@@ -1,14 +1,14 @@
-import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { LingoCat } from "@/components/brand/lingo-cat";
 import { cn } from "@/lib/utils";
 
 /**
- * Empty and error states (component-spec §16): an icon tile, one bold line saying what the
- * situation is, one line saying what would improve it, and at most one outline sm button.
+ * Empty and error states (component-spec §16): the cat (idle, or oops for errors — task 29),
+ * one bold line saying what the situation is, one line saying what would improve it, and at
+ * most one outline sm button.
  */
 export function EmptyState({
-  icon: Icon,
   title,
   description,
   action,
@@ -16,7 +16,6 @@ export function EmptyState({
   className,
   ...props
 }: {
-  icon: LucideIcon;
   title: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
@@ -33,15 +32,7 @@ export function EmptyState({
       )}
       {...props}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "mb-1 flex size-11 items-center justify-center rounded-lg",
-          tone === "error" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground",
-        )}
-      >
-        <Icon className="size-5" />
-      </span>
+      <LingoCat mood={tone === "error" ? "oops" : "idle"} size={56} label="" className="mb-1" />
       <p className="text-[14.5px] font-semibold text-foreground">{title}</p>
       {description && <p className="max-w-sm">{description}</p>}
       {action && <div className="mt-2">{action}</div>}

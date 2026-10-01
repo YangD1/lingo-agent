@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
+import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
 import type { Usage, UsageRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -73,9 +74,7 @@ export function UsageSection() {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
+          <ErrorText>{error}</ErrorText>
         )}
         {usage && rows.length === 0 && (
           <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">

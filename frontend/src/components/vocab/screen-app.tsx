@@ -1,6 +1,6 @@
 "use client";
 
-import { BookCheck, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
@@ -9,6 +9,7 @@ import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorText } from "@/components/ui/error-text";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { fetchScreenBatch, type ScreenResult, submitScreen, type Word } from "@/lib/vocab";
@@ -100,19 +101,17 @@ export function ScreenApp() {
           <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
         {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
+          <ErrorText>{error}</ErrorText>
         )}
         {state.kind !== "noBook" && <PlacementKnown quiet onChange={next} />}
         {state.kind === "noBook" && (
           <Card>
-            <EmptyState icon={BookCheck} title={t("noBook")} action={back} />
+            <EmptyState title={t("noBook")} action={back} />
           </Card>
         )}
         {state.kind === "batch" && state.words.length === 0 && (
           <Card>
-            <EmptyState icon={BookCheck} title={t("finished")} action={back} />
+            <EmptyState title={t("finished")} action={back} />
           </Card>
         )}
         {state.kind === "batch" && state.words.length > 0 && (

@@ -8,8 +8,10 @@ import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent } from "@/components/ui/popover";
+import { ErrorText } from "@/components/ui/error-text";
 import { speak, useCanSpeak } from "@/lib/speech";
 import { type Example, type Lookup, addMine, fetchExamples, lookupWord } from "@/lib/vocab";
+import { LingoCat } from "@/components/brand/lingo-cat";
 
 /** Hovering this long over a word opens its popup (Q24i): passing over text opens nothing. */
 export const HOVER_MS = 300;
@@ -289,7 +291,10 @@ function WordCard({
     return (
       <>
         {header}
-        <p className="text-xs text-muted-foreground">{t("loading")}</p>
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <LingoCat size={16} label="" />
+          {t("loading")}
+        </p>
       </>
     );
 
@@ -338,15 +343,14 @@ function WordCard({
               disabled={examplesBusy}
               onClick={() => void loadExamples(entry.word.id)}
             >
+              {examplesBusy && <LingoCat mood="ai" size={16} label="" />}
               {examplesBusy ? t("examplesLoading") : t("examples")}
             </Button>
             <AiBadge feature="word_examples" />
           </div>
         )}
         {examplesError && (
-          <p role="alert" className="mt-1 text-xs text-destructive">
-            {examplesError}
-          </p>
+          <ErrorText size="xs" className="mt-1">{examplesError}</ErrorText>
         )}
       </section>
       <div className="border-t pt-2.5">
@@ -367,9 +371,7 @@ function WordCard({
           </Button>
         )}
         {addError && (
-          <p role="alert" className="mt-1 text-xs text-destructive">
-            {addError}
-          </p>
+          <ErrorText size="xs" className="mt-1">{addError}</ErrorText>
         )}
       </div>
     </>

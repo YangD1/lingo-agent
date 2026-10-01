@@ -21,6 +21,7 @@ import {
   practiceHref,
 } from "@/lib/learner";
 import { cn } from "@/lib/utils";
+import { ErrorText } from "@/components/ui/error-text";
 
 export const STATE_BAR: Record<KCStatus["state"], string> = {
   weak: "bg-chart-3",
@@ -148,9 +149,7 @@ export function KCItem({
             <AiBadge feature="practice_start" />
           </span>
           {error && (
-            <p role="alert" className="text-destructive">
-              {error}
-            </p>
+            <ErrorText>{error}</ErrorText>
           )}
           {page && page.evidence.length === 0 && (
             <p className="text-muted-foreground">{t("noEvidence")}</p>

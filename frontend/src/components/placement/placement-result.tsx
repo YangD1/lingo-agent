@@ -4,6 +4,7 @@ import { TriangleAlert } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { LingoCat } from "@/components/brand/lingo-cat";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +39,9 @@ export function PlacementResult({
     <>
       <Card data-testid="placement-result">
         <CardHeader>
-          <CardTitle>
+          <CardTitle className="flex items-center gap-2.5">
+            {/* Plays on every finish (Q29d); reduced motion shows the still logo. */}
+            <LingoCat mood="done" size={40} label="" />
             <h1>{t("title")}</h1>
           </CardTitle>
           {finishedAt && (

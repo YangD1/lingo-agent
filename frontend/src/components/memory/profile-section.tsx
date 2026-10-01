@@ -13,6 +13,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Segmented } from "@/components/ui/segmented";
 import { CefrTag, isCefrLevel } from "@/components/ui/tag";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
 import { type ProfileField, type ProfileForm, profileChanges, toForm } from "@/lib/profile";
 import { EXAMS, type Profile } from "@/lib/types";
@@ -39,9 +40,7 @@ export function ProfileSection() {
 
   if (!saved || !form) {
     return message ? (
-      <p role="alert" className="text-sm text-destructive">
-        {message.text}
-      </p>
+      <ErrorText>{message.text}</ErrorText>
     ) : null;
   }
 

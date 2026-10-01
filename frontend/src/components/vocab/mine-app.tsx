@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Bookmark } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
@@ -11,6 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InlineConfirm } from "@/components/ui/inline-confirm";
+import { ErrorText } from "@/components/ui/error-text";
 import { addMine, type Card as VocabCard, fetchMine, removeMine, suggestWords } from "@/lib/vocab";
 
 const PAGE = 50;
@@ -150,9 +151,7 @@ export function MineApp() {
               </Button>
             </form>
             {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
+              <ErrorText>{error}</ErrorText>
             )}
             {notice && (
               <p role="status" className="text-sm text-muted-foreground">
@@ -161,7 +160,7 @@ export function MineApp() {
             )}
 
             {total === 0 && (
-              <EmptyState icon={Bookmark} title={t("empty")} description={t("emptyHint")} />
+              <EmptyState title={t("empty")} description={t("emptyHint")} />
             )}
             {words.length > 0 && (
               <ul className="flex flex-col divide-y" aria-label={t("title")}>

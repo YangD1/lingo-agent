@@ -298,8 +298,9 @@
 - [ ] 29. 猫咪动画（2026-10-02 用户放入设计资源 `docs/design/lingo-cat-motion/`：同一只 logo 猫的六种情绪 loader / hop / ai / done / idle / oops，带小尺寸版和“减少动态效果”降级）。2026-10-02 用户确认：Q29a 私教回复前让头像本身播 ai 动画，去掉三个点；Q29b 所有空状态和错误都换成猫（`EmptyState` 默认 idle，tone=error 时 oops）；Q29c 骨架屏保留，猫只替换“加载中…”文字；Q29d done 每次都播
   - [x] 29.1 资源入库：删掉 Windows 带来的 `:Zone.Identifier`，原样提交设计包（README、LingoCat.tsx、lingo-cat.css、svg/ 六个单文件版，共 128K）
   - [x] 29.2 组件：`components/brand/lingo-cat.tsx`（`LingoCat`，六种 mood、size ≤ 24 自动小号、无障碍标签走 i18n `cat` 命名空间、idle 默认不读出；`Delayed` 300ms 后才渲染；`CatLoading` 立刻带 `role=status`、300ms 后画猫和文字）+ `lingo-cat.css`（原样复制，`globals.css` 引入）。没做设计包里的 `LingoLoader` 别名（仓库里从没用过 loader.css）。Vitest 4 个，tsc / eslint 干净
-  - [~] 29.3 接入：loader 换掉各处“加载中…”文字；ai 用在私教回复前、AI 例句、翻译、查词；hop 用在入学测出结果等长等待；done 用在复习一轮结束、入学测做完；`EmptyState` 的图标方块换成 idle / oops 猫（`icon` 改为可选）
-  - [ ] 29.4 收尾：E2E 回归、浅色 / 深色 / 减少动态效果截图检查、Docker 重建
+  - [x] 29.3 接入：loader 换掉各处“加载中…”文字；ai 用在私教回复前、AI 例句、翻译、查词；hop 用在入学测出结果等长等待；done 用在复习一轮结束、入学测做完；`EmptyState` 的图标方块换成 idle / oops 猫
+    - 完成（tsc / eslint 干净，Vitest 297、E2E 43 全过）：`EmptyState` 去掉 `icon`，默认 idle、`tone=error` 时 oops（56px）；新增 `ui/error-text.tsx`（一行错误前放 20px / 16px oops 小猫），替换 20 个文件里的 `<p role=alert … text-destructive>`；看板“今天”和入学测结果页的私教面板：出错用 `EmptyState tone=error`、加载用 `CatLoading`；对话页：私教回复前头像本身播 ai 猫（不再画空气泡和三个点，猫留在文档流里，手机上也显示），新会话空白页 idle 猫；“看中文 / 英文”翻译中、气泡里的 AI 例句、复习卡片的 AI 例句按钮旁放 16px ai 猫；查词加载 16px loader；复习页加载用 `CatLoading`，一轮结束 done（72px，一张都没复习时 idle）；入学测首次加载 `CatLoading`、结果页标题前 done（40px）。**没接**：hop——现有的长等待都是私教对话（已用 ai），入学测出结果是纯算法很快，等以后有批改写作、生成计划等再用；行内 `<span>` 错误（翻译、中英切换、私教活动明细）和 AI 用量弹层的“正在加载估计”保持文字，空间太小；看板骨架屏保留（Q29c）
+  - [~] 29.4 收尾：E2E 回归、浅色 / 深色 / 减少动态效果截图检查、Docker 重建
 
 ## P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作
 - [ ] （进入 P2 时拆分）

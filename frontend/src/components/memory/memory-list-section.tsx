@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
 import type { Memory, MemoryKind } from "@/lib/types";
 
@@ -117,9 +118,7 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
           </form>
         )}
         {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
+          <ErrorText>{error}</ErrorText>
         )}
         {memories && memories.length === 0 && (
           <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">

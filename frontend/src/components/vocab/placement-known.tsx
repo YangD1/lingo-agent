@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ErrorText } from "@/components/ui/error-text";
 import { cn } from "@/lib/utils";
 import {
   fetchPlacementKnown,
@@ -64,9 +65,7 @@ export function PlacementKnown({
 
   if (offer === null) {
     return error && !quiet ? (
-      <p role="alert" className="text-sm text-destructive">
-        {error}
-      </p>
+      <ErrorText>{error}</ErrorText>
     ) : null;
   }
   const canMark = offer.unavailable === null && offer.count > 0;
@@ -119,9 +118,7 @@ export function PlacementKnown({
         </div>
       )}
       {error && (
-        <p role="alert" className="text-destructive">
-          {error}
-        </p>
+        <ErrorText>{error}</ErrorText>
       )}
     </div>
   );

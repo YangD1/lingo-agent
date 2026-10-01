@@ -4,8 +4,10 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef } from "react";
 
 import { LogoMark } from "@/components/brand/logo";
+import { LingoCat } from "@/components/brand/lingo-cat";
 import { useErrorMessage } from "@/i18n/errors";
 import { stopSpeaking } from "@/lib/speech";
+import { ErrorText } from "@/components/ui/error-text";
 
 import { Markdown } from "./markdown";
 import { MessageAttachments } from "./message-attachments";
@@ -53,7 +55,7 @@ export function MessageList({
       empty ?? (
         <div className="flex flex-1 items-center justify-center p-6">
           <div className="flex max-w-sm flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-8 text-center text-sm text-muted-foreground">
-            <LogoMark className="size-8" />
+            <LingoCat mood="idle" size={56} label="" />
             {t("empty")}
           </div>
         </div>
@@ -94,30 +96,43 @@ export function MessageList({
               data-status={m.status}
               className="relative flex w-full flex-col self-start md:pl-[42px]"
             >
-              <span
-                aria-hidden
-                className="absolute top-0 left-0 hidden size-[30px] items-center justify-center rounded-full bg-brand-soft md:flex"
-              >
-                <LogoMark className="size-5" />
-              </span>
+              {waiting(m) ? (
+                // Before the first token the avatar itself plays the "ai" cat instead of an
+                // empty bubble with dots (task 29, Q29a). It stays in the flow so the row
+                // keeps its height.
+                <span
+                  role="status"
+                  aria-label={t("typing")}
+                  className="flex size-[30px] md:-ml-[42px]"
+                >
+                  <LingoCat mood="ai" size={30} label="" />
+                </span>
+              ) : (
+                <span
+                  aria-hidden
+                  className="absolute top-0 left-0 hidden size-[30px] items-center justify-center rounded-full bg-brand-soft md:flex"
+                >
+                  <LogoMark className="size-5" />
+                </span>
+              )}
               {/* The message itself; what the tutor did goes below it, outside the bubble. */}
-              <div
-                data-slot="message"
-                className="self-start rounded-[6px_18px_18px_18px] border bg-card px-3.5 py-3 text-[15.5px] leading-[1.75] text-card-foreground md:px-[18px] md:py-3.5 md:text-base"
-              >
-                {m.attachments && m.attachments.length > 0 && (
-                  <MessageAttachments attachments={m.attachments} />
-                )}
-                {!m.content ? (
-                  m.status === "streaming" && <TypingDots label={t("typing")} />
-                ) : (
-                  <Markdown words>
-                    {(m.id && translations.byId[m.id]?.showing && translations.byId[m.id].text) ||
-                      m.content}
-                  </Markdown>
-                )}
-                <MessageStatus message={m} />
-              </div>
+              {!waiting(m) && (
+                <div
+                  data-slot="message"
+                  className="self-start rounded-[6px_18px_18px_18px] border bg-card px-3.5 py-3 text-[15.5px] leading-[1.75] text-card-foreground md:px-[18px] md:py-3.5 md:text-base"
+                >
+                  {m.attachments && m.attachments.length > 0 && (
+                    <MessageAttachments attachments={m.attachments} />
+                  )}
+                  {m.content && (
+                    <Markdown words>
+                      {(m.id && translations.byId[m.id]?.showing && translations.byId[m.id].text) ||
+                        m.content}
+                    </Markdown>
+                  )}
+                  <MessageStatus message={m} />
+                </div>
+              )}
               {m.content && m.status !== "streaming" && (
                 <ReplyTools
                   messageKey={m.key}
@@ -160,25 +175,13 @@ function MessageStatus({ message: m }: { message: ChatMessage }) {
   }
   if (m.status === "error" && m.error) {
     return (
-      <p role="alert" className="mt-1 text-xs text-destructive">
-        {errorMessage(m.error)}
-      </p>
+      <ErrorText size="xs" className="mt-1">{errorMessage(m.error)}</ErrorText>
     );
   }
   return null;
 }
 
-/** Three pulsing dots while the reply hasn't started. */
-function TypingDots({ label }: { label: string }) {
-  return (
-    <span role="status" aria-label={label} className="inline-flex h-[1.75em] items-center gap-1">
-      {[0, 150, 300].map((delay) => (
-        <span
-          key={delay}
-          className="size-1.5 animate-pulse rounded-full bg-muted-foreground/60"
-          style={{ animationDelay: `${delay}ms` }}
-        />
-      ))}
-    </span>
-  );
+/** A tutor reply that is streaming but has no text yet. */
+function waiting(m: ChatMessage) {
+  return !m.content && m.status === "streaming" && !m.attachments?.length;
 }

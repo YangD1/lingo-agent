@@ -12,10 +12,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress";
 import { Tag } from "@/components/ui/tag";
+import { ErrorText } from "@/components/ui/error-text";
 import { isShortcut } from "@/lib/keyboard";
 import { speak, useCanSpeak } from "@/lib/speech";
 import { cn } from "@/lib/utils";
 import { formatInterval, type Rating } from "@/lib/vocab";
+import { CatLoading, LingoCat } from "@/components/brand/lingo-cat";
 
 import { type ReviewMode, useReviewSession } from "./use-review-session";
 import { WordMeanings } from "./word-meanings";
@@ -97,12 +99,10 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
         {/* m-auto centres a short card and still lets a long one scroll from its top. */}
         <div className="m-auto flex w-full max-w-[520px] flex-col gap-4 p-4">
           {session.error != null && (
-            <p role="alert" className="text-sm text-destructive">
-              {describe(session.error)}
-            </p>
+            <ErrorText>{describe(session.error)}</ErrorText>
           )}
           {session.loading && (
-            <p className="text-center text-sm text-muted-foreground">{t("loading")}</p>
+            <CatLoading label={t("loading")} />
           )}
 
           {!session.loading && !current && session.error == null && (
@@ -111,6 +111,7 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                 className="flex flex-col items-center gap-3 py-4 text-center"
                 data-testid="review-done"
               >
+                <LingoCat mood={session.reviewed > 0 ? "done" : "idle"} size={72} label="" />
                 <p className="text-lg font-bold">
                   {session.reviewed > 0
                     ? t("done", { reviewed: session.reviewed })

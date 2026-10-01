@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Callout } from "@/components/ui/callout";
 import { ProgressBar } from "@/components/ui/progress";
 import { Tag } from "@/components/ui/tag";
+import { ErrorText } from "@/components/ui/error-text";
 import {
   type BookProgress,
   bookName,
@@ -66,9 +67,7 @@ export function VocabApp() {
       <div className="mx-auto flex max-w-3xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">{tNav("vocab")}</h1>
         {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
+          <ErrorText>{error}</ErrorText>
         )}
         {overview && today && (
           <Card data-testid="vocab-today">
