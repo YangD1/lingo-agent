@@ -447,13 +447,14 @@
       "title": "今天",
       "book": "当前词书：{book}",
       "noBook": "还没有选词书，在下面选一本；自己加的生词不选词书也能学。",
-      "counts": "待复习 {reviews} 个 · 新词还剩 {left} 个（今天已开始 {started} / {limit}）",
       "done": "现在没有要学的了，晚点再来复习。",
       "screenHint": "建议先做熟词筛选，跳过你已经认识的词。",
       "start": "开始",
       "newOnly": "只学新词",
       "screen": "熟词筛选",
-      "mine": "我的生词本"
+      "mine": "我的生词本",
+      "countsMain": "待复习 {reviews} 个 · 新词还剩 {left} 个",
+      "countsStarted": "（今天已开始 {started} / {limit}）"
     },
     "books": {
       "title": "词书",
@@ -461,19 +462,23 @@
       "size": "{total} 词",
       "current": "当前",
       "choose": "学这本",
-      "progress": "学习中 {learning} · 已认识 {known} · 已接触 {percent}%"
+      "progress": "学习中 {learning} · 已认识 {known} · 已接触 {percent}%",
+      "notStarted": "还没开始"
     },
     "dailyNew": {
       "title": "每天新词数",
       "description": "留空用默认值（{default}）。复习不限量。",
-      "save": "保存"
+      "save": "保存",
+      "fewer": "少 5 个",
+      "more": "多 5 个"
     },
     "screen": {
       "title": "熟词筛选",
+      "hint": "点一下标为认识",
       "description": "点一下你已经认识的词：它们会被跳过，不进复习。没点的词不会丢，之后按词频作为新词出现。",
       "noBook": "请先选一本词书。",
       "finished": "这本书的词你都看过了。",
-      "count": "已标记认识 {known} / {total}",
+      "count": "已标记认识 <b>{known}</b> / {total}",
       "submit": "好了，提交",
       "result": "这批 {shown} 个词里你认识 {known} 个。",
       "skipped": "认识得很多，下一批会往后跳到更少用的词。",
@@ -481,7 +486,7 @@
       "back": "回到背单词"
     },
     "review": {
-      "progress": "已复习 {reviewed} · 还剩 {remaining}",
+      "progress": "已复习 <b>{reviewed}</b> · 还剩 <b>{remaining}</b>",
       "back": "回到背单词",
       "loading": "加载中…",
       "done": "这一轮完成：复习了 {reviewed} 张。刚学的词今天晚些时候还会再出现。",
@@ -499,7 +504,7 @@
         "3": "记得",
         "4": "很熟"
       },
-      "keys": "空格显示答案 · 1–4 评分"
+      "keys": "<k>空格</k> 显示答案 · <k>1</k>–<k>4</k> 评分"
     },
     "mine": {
       "title": "我的生词本",
@@ -512,7 +517,8 @@
       "already": "“{word}”已经在生词本里了。",
       "confirmRemove": "删除“{word}”？它的复习记录也会一起删除，再加回来要从头学。",
       "remove": "删除",
-      "empty": "还没有生词。",
+      "empty": "生词本还是空的",
+      "emptyHint": "在对话里点一个单词就能收进来，也可以在上面直接添加。",
       "more": "显示更多（还有 {left} 个）",
       "back": "回到背单词",
       "sources": {

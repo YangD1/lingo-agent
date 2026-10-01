@@ -43,8 +43,8 @@ test("placement: banner, leave and come back, result, mark words known, learner 
 
   // The learner page reads the result; the chat page stops inviting.
   await page.getByRole("link", { name: "学习者模型" }).click();
-  await expect(page.getByTestId("skill-vocab")).toHaveText(/^词汇：约 [\d,]+ 词/);
-  await expect(page.getByTestId("skill-grammar")).toHaveText(/^语法：(A1|A2|B1|B2|C1|C2)（\d+ 次作答）$/);
+  await expect(page.getByTestId("skill-vocab")).toHaveText(/^词汇(A1|A2|B1|B2|C1|C2)?约 [\d,]+ 词/);
+  await expect(page.getByTestId("skill-grammar")).toHaveText(/^语法(A1|A2|B1|B2|C1|C2)\d+ 次作答$/);
   const first = page.getByRole("list", { name: "语法掌握度" }).getByRole("listitem").first();
   await first.getByRole("button").first().click();
   await expect(first.getByRole("link", { name: "来自入学测" }).first()).toBeVisible();

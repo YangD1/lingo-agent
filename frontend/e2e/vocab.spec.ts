@@ -56,7 +56,7 @@ test("choose a book, screen known words, review, and see the progress", async ({
 test("add a word to my list by an inflected form, then remove it", async ({ page }) => {
   await register(page, uniqueEmail());
   await page.goto("/vocab/mine");
-  await expect(page.getByText("还没有生词。")).toBeVisible();
+  await expect(page.getByText("生词本还是空的")).toBeVisible();
 
   const input = page.getByRole("combobox", { name: "添加单词" });
   await input.fill("went");
@@ -78,7 +78,7 @@ test("add a word to my list by an inflected form, then remove it", async ({ page
   await page.goto("/vocab/mine");
   await row.getByRole("button", { name: "删除" }).click();
   await row.getByRole("group").getByRole("button", { name: "删除" }).click();
-  await expect(page.getByText("还没有生词。")).toBeVisible();
+  await expect(page.getByText("生词本还是空的")).toBeVisible();
 });
 
 const replies = (page: Page) =>
@@ -114,7 +114,7 @@ test("words asked about in chat are collected, and can be taken off again", asyn
   await replies(page).first().getByRole("button", { name: "把 go 移出生词本" }).click();
   await expect(replies(page).first().getByText("已移出")).toBeVisible();
   await page.goto("/vocab/mine");
-  await expect(page.getByText("还没有生词。")).toBeVisible();
+  await expect(page.getByText("生词本还是空的")).toBeVisible();
 });
 
 test("hover a word in a reply to look it up and add it to my list", async ({ page }) => {

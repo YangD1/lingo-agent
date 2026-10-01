@@ -51,3 +51,8 @@ export function isActive(pathname: string, href: string): boolean {
 export function activeItem(pathname: string): NavItem | undefined {
   return NAV_ITEMS.find((item) => isActive(pathname, item.href));
 }
+
+/** Pages that take the whole screen, without the sidebar or the phone bars: flashcards. */
+export function isFocusRoute(pathname: string): boolean {
+  return isActive(pathname, "/vocab/review");
+}

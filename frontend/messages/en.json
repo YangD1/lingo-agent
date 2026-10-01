@@ -447,13 +447,14 @@
       "title": "Today",
       "book": "Word book: {book}",
       "noBook": "No word book chosen yet. Pick one below; words you add yourself are learned either way.",
-      "counts": "{reviews} to review · {left} new words left (started {started} of {limit} today)",
       "done": "Nothing left for now. Come back later for the next reviews.",
       "screenHint": "Tip: screen the book first, so words you already know are skipped.",
       "start": "Start",
       "newOnly": "New words only",
       "screen": "Screen known words",
-      "mine": "My words"
+      "mine": "My words",
+      "countsMain": "{reviews} to review · {left} new words left",
+      "countsStarted": " (started {started} of {limit} today)"
     },
     "books": {
       "title": "Word books",
@@ -461,19 +462,23 @@
       "size": "{total} words",
       "current": "Current",
       "choose": "Study this book",
-      "progress": "Learning {learning} · known {known} · {percent}% met"
+      "progress": "Learning {learning} · known {known} · {percent}% met",
+      "notStarted": "Not started"
     },
     "dailyNew": {
       "title": "New words a day",
       "description": "Leave empty for the default ({default}). Reviews are never capped.",
-      "save": "Save"
+      "save": "Save",
+      "fewer": "5 fewer",
+      "more": "5 more"
     },
     "screen": {
       "title": "Screen known words",
+      "hint": "Tap the words you know",
       "description": "Tap the words you already know: they are skipped and never come up for review. Words you leave are not lost; they come up later as new words, most common first.",
       "noBook": "Choose a word book first.",
       "finished": "You've been through every word in this book.",
-      "count": "{known} of {total} marked known",
+      "count": "<b>{known}</b> of {total} marked known",
       "submit": "Done, next",
       "result": "You knew {known} of {shown}.",
       "skipped": "Most of them, so the next batch skips ahead to rarer words.",
@@ -481,7 +486,7 @@
       "back": "Back to vocabulary"
     },
     "review": {
-      "progress": "Reviewed {reviewed} · {remaining} to go",
+      "progress": "Reviewed <b>{reviewed}</b> · <b>{remaining}</b> to go",
       "back": "Back to vocabulary",
       "loading": "Loading…",
       "done": "Done for now: {reviewed} cards reviewed. Cards you just learned come back later today.",
@@ -499,7 +504,7 @@
         "3": "Good",
         "4": "Easy"
       },
-      "keys": "Space shows the answer · 1–4 rates it"
+      "keys": "<k>Space</k> shows the answer · <k>1</k>–<k>4</k> rates it"
     },
     "mine": {
       "title": "My words",
@@ -512,7 +517,8 @@
       "already": "“{word}” is already on your list.",
       "confirmRemove": "Remove “{word}”? Its review history is deleted too; adding it again starts from scratch.",
       "remove": "Remove",
-      "empty": "No words yet.",
+      "empty": "Your word list is empty",
+      "emptyHint": "Tap a word in a conversation to collect it, or add one above.",
       "more": "Show more ({left} left)",
       "back": "Back to vocabulary",
       "sources": {

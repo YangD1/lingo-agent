@@ -14,7 +14,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 import type { ShellUser } from "./app-sidebar";
-import { NAV_ITEMS, TAB_KEYS, activeItem, isActive } from "./nav-items";
+import { NAV_ITEMS, TAB_KEYS, activeItem, isActive, isFocusRoute } from "./nav-items";
 import { UserAvatar } from "./user-avatar";
 
 /** Phone top bar: the mark and the current page's name. */
@@ -23,7 +23,7 @@ export function MobileTopBar() {
   const pathname = usePathname();
   const item = activeItem(pathname);
   // Chat has its own top bar, with the conversation list drawer and the conversation's title.
-  if (isActive(pathname, "/chat")) return null;
+  if (isActive(pathname, "/chat") || isFocusRoute(pathname)) return null;
   return (
     <header className="flex h-14 shrink-0 items-center gap-2.5 border-b px-4 md:hidden">
       <Link href="/dashboard" aria-label="Lingo Agent">
@@ -42,7 +42,7 @@ export function MobileTabBar({ user }: { user: ShellUser }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
-  if (isActive(pathname, "/chat")) return null;
+  if (isActive(pathname, "/chat") || isFocusRoute(pathname)) return null;
 
   const tabs = NAV_ITEMS.filter((item) => TAB_KEYS.includes(item.key));
   const rest = NAV_ITEMS.filter((item) => !TAB_KEYS.includes(item.key));

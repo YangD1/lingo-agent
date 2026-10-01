@@ -125,7 +125,7 @@ describe("ReviewApp", () => {
     expect(rated("apple")).toBe(false);
     await userEvent.keyboard(" ");
     const back = screen.getByTestId("review-back");
-    expect(back).toHaveTextContent("/ˈæp(ə)l/");
+    expect(screen.getByTestId("review-card")).toHaveTextContent("/ˈæp(ə)l/");
     expect(back).toHaveTextContent("n. 苹果");
     expect(back).toHaveTextContent("fruit with red");
 

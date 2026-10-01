@@ -1,12 +1,14 @@
 "use client";
 
+import { BookCheck, Check } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { fetchScreenBatch, type ScreenResult, submitScreen, type Word } from "@/lib/vocab";
@@ -85,86 +87,97 @@ export function ScreenApp() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 md:p-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
+        <div className="flex flex-col gap-1">
+          <h1 className="flex flex-wrap items-baseline gap-x-3 text-[26px] font-bold tracking-tight">
+            {t("title")}
+            {state.kind === "batch" && state.words.length > 0 && (
+              <span className="text-[13px] font-normal tracking-normal text-muted-foreground">
+                {t("hint")}
+              </span>
+            )}
+          </h1>
+          <p className="text-sm text-muted-foreground">{t("description")}</p>
+        </div>
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
         )}
         {state.kind !== "noBook" && <PlacementKnown quiet onChange={next} />}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("title")}</CardTitle>
-            <CardDescription>{t("description")}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {state.kind === "noBook" && (
-              <>
-                <p className="text-sm">{t("noBook")}</p>
-                <div>{back}</div>
-              </>
-            )}
-            {state.kind === "batch" && state.words.length === 0 && (
-              <>
-                <p className="text-sm">{t("finished")}</p>
-                <div>{back}</div>
-              </>
-            )}
-            {state.kind === "batch" && state.words.length > 0 && (
-              <>
-                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
-                  {state.words.map((w) => {
-                    const known = state.known.has(w.id);
-                    return (
-                      <li key={w.id}>
-                        <button
-                          type="button"
-                          aria-pressed={known}
-                          onClick={() => toggle(w.id)}
-                          className={cn(
-                            "w-full truncate rounded-lg border px-2 py-2 text-sm transition-colors",
-                            known
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "hover:bg-muted",
-                          )}
-                        >
-                          {w.word}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-muted-foreground" data-testid="screen-count">
-                    {t("count", { known: state.known.size, total: state.words.length })}
-                  </span>
-                  <Button
-                    className="ml-auto"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => void submit()}
-                  >
-                    {t("submit")}
-                  </Button>
-                </div>
-              </>
-            )}
-            {state.kind === "result" && (
-              <>
-                <p className="text-sm" data-testid="screen-result">
+        {state.kind === "noBook" && (
+          <Card>
+            <EmptyState icon={BookCheck} title={t("noBook")} action={back} />
+          </Card>
+        )}
+        {state.kind === "batch" && state.words.length === 0 && (
+          <Card>
+            <EmptyState icon={BookCheck} title={t("finished")} action={back} />
+          </Card>
+        )}
+        {state.kind === "batch" && state.words.length > 0 && (
+          <>
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+              {state.words.map((w) => {
+                const known = state.known.has(w.id);
+                return (
+                  <li key={w.id}>
+                    <button
+                      type="button"
+                      aria-pressed={known}
+                      onClick={() => toggle(w.id)}
+                      lang="en"
+                      className={cn(
+                        "flex h-10 w-full items-center justify-center gap-1.5 rounded-lg border px-2 text-sm transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                        known
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "bg-card hover:bg-muted",
+                      )}
+                    >
+                      <span className="truncate">{w.word}</span>
+                      {known && <Check aria-hidden className="size-3.5 shrink-0" />}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="sticky bottom-0 flex flex-wrap items-center gap-2 rounded-xl border bg-card px-4 py-3 shadow-md">
+              <span className="text-[13px]" data-testid="screen-count">
+                {t.rich("count", {
+                  known: state.known.size,
+                  total: state.words.length,
+                  b: (chunks) => <b className="font-semibold">{chunks}</b>,
+                })}
+              </span>
+              <Button className="ml-auto" disabled={busy} onClick={() => void submit()}>
+                {t("submit")}
+              </Button>
+            </div>
+          </>
+        )}
+        {state.kind === "result" && (
+          <Card className="w-full max-w-xl self-center">
+            <CardHeader>
+              <CardTitle>{t("title")}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-3 pb-2 text-center">
+              <div className="flex flex-col gap-1" data-testid="screen-result">
+                <p className="text-lg font-bold">
                   {t("result", { known: state.result.known, shown: state.result.shown })}
-                  {state.result.skipped_ahead && ` ${t("skipped")}`}
                 </p>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={next}>
-                    {t("next")}
-                  </Button>
-                  {back}
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+                {state.result.skipped_ahead && (
+                  <p className="text-sm text-muted-foreground">{t("skipped")}</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={next}>
+                  {t("next")}
+                </Button>
+                {back}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

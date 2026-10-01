@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-import { NAV_GROUPS, isActive } from "./nav-items";
+import { NAV_GROUPS, isActive, isFocusRoute } from "./nav-items";
 import { UserAvatar } from "./user-avatar";
 
 export type ShellUser = { name: string; email: string };
@@ -31,6 +31,7 @@ export function AppSidebar({ user }: { user: ShellUser }) {
   const [override, setOverride] = useState<{ onChat: boolean; collapsed: boolean } | null>(null);
   const collapsed = override?.onChat === onChat ? override.collapsed : onChat;
   const toggle = () => setOverride({ onChat, collapsed: !collapsed });
+  if (isFocusRoute(pathname)) return null;
 
   return (
     <aside

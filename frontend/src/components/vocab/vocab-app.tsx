@@ -1,5 +1,6 @@
 "use client";
 
+import { Bookmark, Minus, Play, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
@@ -7,7 +8,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Callout } from "@/components/ui/callout";
+import { ProgressBar } from "@/components/ui/progress";
+import { Tag } from "@/components/ui/tag";
 import {
   type BookProgress,
   bookName,
@@ -24,6 +27,7 @@ import {
  */
 export function VocabApp() {
   const t = useTranslations("vocab");
+  const tNav = useTranslations("nav");
   const locale = useLocale();
   const describe = useDescribeError();
   const [overview, setOverview] = useState<VocabOverview | null>(null);
@@ -59,7 +63,8 @@ export function VocabApp() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 md:p-8">
+      <div className="mx-auto flex max-w-3xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
+        <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">{tNav("vocab")}</h1>
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}
@@ -69,31 +74,44 @@ export function VocabApp() {
           <Card data-testid="vocab-today">
             <CardHeader>
               <CardTitle>{t("today.title")}</CardTitle>
-              <CardDescription>
-                {current
-                  ? t("today.book", { book: bookName(current, locale) })
-                  : t("today.noBook")}
-              </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <p className="text-sm" data-testid="today-counts">
-                {t("today.counts", {
-                  reviews: today.reviews_due,
-                  left: today.new_left,
-                  started: today.new_started,
-                  limit: today.new_limit,
-                })}
-              </p>
-              {work === 0 && <p className="text-sm text-muted-foreground">{t("today.done")}</p>}
-              {current && !overview.screened && (
-                <p className="text-sm text-muted-foreground">{t("today.screenHint")}</p>
-              )}
-              <div className="flex flex-wrap gap-2">
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <p className="text-xs text-muted-foreground">
+                    {current
+                      ? t("today.book", { book: bookName(current, locale) })
+                      : t("today.noBook")}
+                  </p>
+                  <p data-testid="today-counts" className="flex flex-col">
+                    <span className="text-lg font-bold tracking-tight md:text-xl">
+                      {t("today.countsMain", {
+                        reviews: today.reviews_due,
+                        left: today.new_left,
+                      })}
+                    </span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {t("today.countsStarted", {
+                        started: today.new_started,
+                        limit: today.new_limit,
+                      })}
+                    </span>
+                  </p>
+                </div>
                 {work > 0 && (
-                  <Link href="/vocab/review" className={buttonVariants({ size: "sm" })}>
+                  <Link href="/vocab/review" className={buttonVariants({ size: "lg" })}>
+                    <Play />
                     {t("today.start")}
                   </Link>
                 )}
+              </div>
+              {work === 0 && <p className="text-sm text-muted-foreground">{t("today.done")}</p>}
+              {current && !overview.screened && (
+                <Callout tone="brand" icon={<Sparkles />}>
+                  {t("today.screenHint")}
+                </Callout>
+              )}
+              <div className="flex flex-wrap gap-2 border-t pt-3">
                 {today.new_left > 0 && today.reviews_due > 0 && (
                   <Link
                     href="/vocab/review?mode=new"
@@ -114,6 +132,7 @@ export function VocabApp() {
                   href="/vocab/mine"
                   className={buttonVariants({ size: "sm", variant: "outline" })}
                 >
+                  <Bookmark />
                   {t("today.mine")}
                 </Link>
               </div>
@@ -170,43 +189,48 @@ function BookRow({
   const t = useTranslations("vocab.books");
   const locale = useLocale();
   const percent = bookPercent(book);
+  const started = book.learning > 0 || book.known > 0;
   return (
-    <li className="flex flex-col gap-2 py-3" data-testid={`book-${book.id}`}>
-      <div className="flex items-center gap-2">
-        <span className="font-medium">{bookName(book, locale)}</span>
-        <span className="text-xs text-muted-foreground">{t("size", { total: book.total })}</span>
-        <div className="ml-auto">
-          {current ? (
-            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs text-primary">
-              {t("current")}
-            </span>
-          ) : (
-            <Button size="xs" variant="outline" disabled={disabled} onClick={onChoose}>
-              {t("choose")}
-            </Button>
-          )}
-        </div>
-      </div>
-      {(book.learning > 0 || book.known > 0) && (
-        <>
-          <div
-            className="h-1.5 overflow-hidden rounded-full bg-muted"
+    <li className="flex items-center gap-3 py-3" data-testid={`book-${book.id}`}>
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <p className="flex items-baseline gap-2">
+          <span className="text-sm font-[550]">{bookName(book, locale)}</span>
+          <span className="font-mono text-xs text-muted-foreground">
+            {t("size", { total: book.total })}
+          </span>
+        </p>
+        {started ? (
+          <span
             role="progressbar"
             aria-valuenow={percent}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-label={bookName(book, locale)}
+            className="max-w-72"
           >
-            <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {t("progress", { learning: book.learning, known: book.known, percent })}
-          </p>
-        </>
+            <ProgressBar value={percent / 100} thin />
+          </span>
+        ) : (
+          <ProgressBar value={0} thin className="max-w-72" />
+        )}
+        <p className="text-xs text-muted-foreground">
+          {started
+            ? t("progress", { learning: book.learning, known: book.known, percent })
+            : t("notStarted")}
+        </p>
+      </div>
+      {current ? (
+        <Tag variant="brand">{t("current")}</Tag>
+      ) : (
+        <Button size="sm" variant="outline" disabled={disabled} onClick={onChoose}>
+          {t("choose")}
+        </Button>
       )}
     </li>
   );
 }
+
+const STEP = 5;
 
 function DailyNewCard({
   overview,
@@ -222,6 +246,10 @@ function DailyNewCard({
   const parsed = value.trim() === "" ? null : Number(value);
   const valid =
     parsed === null || (Number.isInteger(parsed) && parsed >= 0 && parsed <= DAILY_NEW_MAX);
+  const step = (delta: number) => {
+    const from = valid ? (parsed ?? overview.daily_new_default) : overview.daily_new_default;
+    setValue(String(Math.max(0, Math.min(DAILY_NEW_MAX, from + delta))));
+  };
   return (
     <Card>
       <CardHeader>
@@ -238,20 +266,38 @@ function DailyNewCard({
             if (valid) onSave(parsed);
           }}
         >
-          <Input
-            type="number"
-            min={0}
-            max={DAILY_NEW_MAX}
-            className="w-24"
-            aria-label={t("title")}
-            aria-invalid={!valid}
-            placeholder={overview.daily_new_default.toString()}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
+          <div className="flex h-10 items-stretch overflow-hidden rounded-lg border border-input bg-card md:h-9">
+            <button
+              type="button"
+              aria-label={t("fewer")}
+              onClick={() => step(-STEP)}
+              className="flex w-9 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Minus className="size-4" />
+            </button>
+            <input
+              type="number"
+              min={0}
+              max={DAILY_NEW_MAX}
+              aria-label={t("title")}
+              aria-invalid={!valid}
+              placeholder={overview.daily_new_default.toString()}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className="w-14 border-x bg-transparent text-center font-mono text-sm outline-none [appearance:textfield] focus-visible:bg-muted/50 aria-invalid:text-destructive [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+            <button
+              type="button"
+              aria-label={t("more")}
+              onClick={() => step(STEP)}
+              className="flex w-9 items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Plus className="size-4" />
+            </button>
+          </div>
           <Button
             type="submit"
-            size="sm"
+            variant="outline"
             disabled={disabled || !valid || parsed === overview.daily_new}
           >
             {t("save")}

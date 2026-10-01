@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-01 · 任务 26.9 完成，26.10 背单词进行中
+
+- **做了什么**：26.9 看板、学习者模型、记忆三页改版，已提交 `e61218d`、`0f8663d`、`1d302eb`（Vitest 280、E2E memory/language 通过）。26.10 背单词首页 `vocab/vocab-app.tsx` 已重写（今日卡片大字计数 + 开始按钮、熟词筛选提示改 Callout、词书行进度条/“还没开始”、每日新词步进器），messages 新增 `today.countsMain/countsStarted`、`books.notStarted`、`dailyNew.fewer/more`，删 `today.counts`；typecheck、eslint、vocab-app.test 通过，**未提交**。
+- **未完成**：`vocab/mine-app.tsx`、`screen-app.tsx`、`review-app.tsx`、`placement-known.tsx` 改样式；全量 Vitest + `e2e/vocab.spec.ts`；之后入学测（`placement/*`）、设置（`settings/*`）各提交一次。
+- **下一步**：对照 `screens/vocab-mine-*`、`vocab-screen-*`、`review-*` 改完背单词四页，截图核对后提交。
+- **踩坑**：截图脚本 `e2e/_shots.mjs` 已删，需要时按上次的写法重建（base :3001、storageState `/tmp/shot-state.json`、zh-CN），不要提交；dev 服务器 3001/8100/8101 结束前用 `fuser -k` 停掉。
+
+---
+
 ## 2026-10-01 · 任务 26.8 对话页完成，26.9 开工
 
 - **做了什么**：26.8 对话页改版（会话列表分组 + 手机抽屉、消息气泡、输入区、私教卡片），typecheck、eslint、Vitest 280、E2E 42 全过，已提交 `3f7a85a`（ahead 7，未推送）。E2E 里“会话列表”从 list 改成 navigation。

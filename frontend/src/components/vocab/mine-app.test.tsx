@@ -62,7 +62,7 @@ describe("MineApp", () => {
       .mockResolvedValueOnce({ words: [GO], total: 1 })
       .mockRejectedValueOnce(new ApiError(404, "word_not_found", "no such word"));
     show();
-    expect(await screen.findByText("No words yet.")).toBeInTheDocument();
+    expect(await screen.findByText("Your word list is empty")).toBeInTheDocument();
 
     const input = screen.getByRole("combobox", { name: "Add a word" });
     await userEvent.type(input, "went{Enter}");
@@ -102,7 +102,7 @@ describe("MineApp", () => {
     await userEvent.click(within(row).getByRole("button", { name: "Remove" }));
     await userEvent.click(within(row).getByRole("button", { name: "Delete" }));
     expect(api).toHaveBeenCalledWith("/vocab/mine/1", { method: "DELETE" });
-    expect(await screen.findByText("No words yet.")).toBeInTheDocument();
+    expect(await screen.findByText("Your word list is empty")).toBeInTheDocument();
   });
 
   it("loads more", async () => {

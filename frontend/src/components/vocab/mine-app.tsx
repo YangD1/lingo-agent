@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft, Bookmark } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import { useDescribeError } from "@/components/settings/use-describe-error";
 import { AutocompleteInput } from "@/components/ui/autocomplete";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { addMine, type Card as VocabCard, fetchMine, removeMine, suggestWords } from "@/lib/vocab";
 
@@ -115,13 +117,24 @@ export function MineApp() {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 md:p-8">
+      <div className="mx-auto flex max-w-3xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/vocab"
+            aria-label={t("back")}
+            title={t("back")}
+            className={buttonVariants({ size: "icon-sm", variant: "ghost" })}
+          >
+            <ArrowLeft />
+          </Link>
+          <h1 className="text-[26px] font-bold tracking-tight">{t("title")}</h1>
+        </div>
         <Card>
           <CardHeader>
             <CardTitle>{t("title")}</CardTitle>
             <CardDescription>{t("description")}</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className="flex flex-col gap-3">
             <form className="flex gap-2" onSubmit={(e) => void add(e)}>
               <AutocompleteInput
                 aria-label={t("addLabel")}
@@ -132,7 +145,7 @@ export function MineApp() {
                 onValueChange={setText}
                 items={text.trim() ? suggestions : []}
               />
-              <Button type="submit" size="sm" disabled={busy || !text.trim()}>
+              <Button type="submit" disabled={busy || !text.trim()} className="shrink-0">
                 {t("add")}
               </Button>
             </form>
@@ -147,7 +160,9 @@ export function MineApp() {
               </p>
             )}
 
-            {total === 0 && <p className="text-sm text-muted-foreground">{t("empty")}</p>}
+            {total === 0 && (
+              <EmptyState icon={Bookmark} title={t("empty")} description={t("emptyHint")} />
+            )}
             {words.length > 0 && (
               <ul className="flex flex-col divide-y" aria-label={t("title")}>
                 {words.map((card) => (
@@ -156,15 +171,10 @@ export function MineApp() {
               </ul>
             )}
             {total !== null && words.length < total && (
-              <Button variant="outline" size="sm" onClick={() => void more()}>
+              <Button variant="ghost" className="self-center" onClick={() => void more()}>
                 {t("more", { left: total - words.length })}
               </Button>
             )}
-            <div>
-              <Link href="/vocab" className={buttonVariants({ size: "sm", variant: "outline" })}>
-                {t("back")}
-              </Link>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -177,17 +187,17 @@ function MineRow({ card, onRemove }: { card: VocabCard; onRemove: () => void }) 
   const format = useFormatter();
   const status = card.status ?? "new";
   return (
-    <li className="flex items-start gap-3 py-3" data-testid={`mine-${card.word.word}`}>
+    <li className="flex items-center gap-3 py-3" data-testid={`mine-${card.word.word}`}>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-baseline gap-2">
-          <span className="font-medium" lang="en">
+          <span className="font-semibold" lang="en">
             {card.word.word}
           </span>
           {card.word.phonetic && (
-            <span className="text-xs text-muted-foreground">/{card.word.phonetic}/</span>
+            <span className="font-mono text-xs text-muted-foreground">/{card.word.phonetic}/</span>
           )}
         </div>
-        <p className="truncate text-sm text-muted-foreground">
+        <p className="truncate text-[13px]">
           {card.word.translation.split("\n")[0]}
         </p>
         <p className="text-xs text-muted-foreground">
@@ -200,7 +210,12 @@ function MineRow({ card, onRemove }: { card: VocabCard; onRemove: () => void }) 
       </div>
       <InlineConfirm question={t("confirmRemove", { word: card.word.word })} onConfirm={onRemove}>
         {(ask) => (
-          <Button variant="ghost" size="xs" onClick={ask}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={ask}
+          >
             {t("remove")}
           </Button>
         )}
