@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
 import type { Memory, MemoryKind } from "@/lib/types";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const MAX_LENGTH = 1000; // backend/app/memory/service.py MAX_CONTENT_LENGTH
 
@@ -117,9 +118,13 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
             </Button>
           </form>
         )}
-        {error && (
-          <ErrorText>{error}</ErrorText>
-        )}
+        {error &&
+          (memories ? (
+            <ErrorText>{error}</ErrorText>
+          ) : (
+            // Nothing loaded: the whole area failed, so the big oops cat.
+            <EmptyState tone="error" title={error} />
+          ))}
         {memories && memories.length === 0 && (
           <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
             {t("empty")}

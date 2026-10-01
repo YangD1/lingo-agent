@@ -18,6 +18,7 @@ import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
 import type { Usage, UsageRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 
 import { useDescribeError } from "./use-describe-error";
 
@@ -73,9 +74,13 @@ export function UsageSection() {
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {error && (
-          <ErrorText>{error}</ErrorText>
-        )}
+        {error &&
+          (usage ? (
+            <ErrorText>{error}</ErrorText>
+          ) : (
+            // Nothing loaded: the whole area failed, so the big oops cat.
+            <EmptyState tone="error" title={error} />
+          ))}
         {usage && rows.length === 0 && (
           <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
             {t("empty")}

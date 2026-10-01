@@ -12,6 +12,7 @@ import { ProgressBar } from "@/components/ui/progress";
 import { ErrorText } from "@/components/ui/error-text";
 import { ApiError } from "@/lib/api";
 import { isShortcut } from "@/lib/keyboard";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   type Answer,
   answerPlacement,
@@ -124,9 +125,13 @@ export function PlacementApp() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-2xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
-        {error && (
-          <ErrorText>{error}</ErrorText>
-        )}
+        {error &&
+          (state.kind !== "loading" ? (
+            <ErrorText>{error}</ErrorText>
+          ) : (
+            // Nothing loaded: the whole area failed, so the big oops cat.
+            <EmptyState tone="error" title={error} />
+          ))}
         {state.kind === "loading" && !error && <CatLoading label={tCat("loader")} />}
         {state.kind === "intro" && (
           <Card data-testid="placement-intro">

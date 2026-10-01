@@ -89,9 +89,13 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
         <h1 className="mb-1 text-[26px] font-bold tracking-tight max-md:sr-only">
           {tNav("learner")}
         </h1>
-        {error && (
-          <ErrorText>{error}</ErrorText>
-        )}
+        {error &&
+          (model ? (
+            <ErrorText>{error}</ErrorText>
+          ) : (
+            // Nothing loaded: the whole area failed, so the big oops cat.
+            <EmptyState tone="error" title={error} />
+          ))}
         <Card data-testid="learner-grammar">
           <CardHeader>
             <CardTitle>{t("grammar.title")}</CardTitle>
