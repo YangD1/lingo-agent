@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_SPEECH_SETTINGS, planSpeech, splitSentences } from "@/lib/speech";
+import { DEFAULT_SPEECH_SETTINGS, planSpeech, revoice, splitSentences } from "@/lib/speech";
 import type { VoiceLike } from "@/lib/voices";
 
 const v = (name: string, lang: string): VoiceLike => ({
@@ -14,6 +14,8 @@ const v = (name: string, lang: string): VoiceLike => ({
 const ARIA = v("Microsoft Aria Online (Natural) - English (United States)", "en-US");
 const XIAOXIAO = v("Microsoft Xiaoxiao Online (Natural) - Chinese (Mainland)", "zh-CN");
 const AVA = v("Microsoft AvaMultilingual Online (Natural) - English (United States)", "en-US");
+const ZIRA = { ...v("Microsoft Zira - English (United States)", "en-US"), localService: true };
+const HUIHUI = { ...v("Microsoft Huihui - Chinese (Simplified, PRC)", "zh-CN"), localService: true };
 const SONIA = v("Microsoft Sonia Online (Natural) - English (United Kingdom)", "en-GB");
 
 describe("splitSentences", () => {
@@ -84,5 +86,39 @@ describe("planSpeech", () => {
     const { utterances } = planSpeech(segments.slice(0, 1), [ARIA, SONIA], settings);
     expect(utterances[0].voice?.name).toBe(SONIA.name);
     expect(utterances[0].lang).toBe("en-GB");
+  });
+});
+
+describe("revoice", () => {
+  it("swaps a failed voice for the best one left, piece by piece", () => {
+    const segments = [
+      { text: "Good job! Say it again.", lang: "en-US" as const },
+      { text: "你说得对。", lang: "zh-CN" as const },
+    ];
+    const voices = [AVA, ZIRA, XIAOXIAO, HUIHUI];
+    const { utterances } = planSpeech(segments, voices, DEFAULT_SPEECH_SETTINGS);
+    // The multilingual voice reads everything; when it fails, each language gets its own.
+    const failed = new Set([AVA.voiceURI]);
+    const again = revoice(utterances.slice(1), voices, { ...DEFAULT_SPEECH_SETTINGS, failed });
+    expect(again.utterances.map(({ text, voice, lang }) => [text, voice?.name, lang])).toEqual([
+      ["Say it again.", ZIRA.name, "en-US"],
+      ["你说得对。", XIAOXIAO.name, "zh-CN"],
+    ]);
+  });
+
+  it("keeps pieces whose voice works, and drops a language with no voice left", () => {
+    const voices = [ZIRA, XIAOXIAO];
+    const { utterances } = planSpeech(
+      [
+        { text: "Hi.", lang: "en-US" },
+        { text: "你好。", lang: "zh-CN" },
+      ],
+      voices,
+      DEFAULT_SPEECH_SETTINGS,
+    );
+    const failed = new Set([XIAOXIAO.voiceURI]);
+    const again = revoice(utterances, voices, { ...DEFAULT_SPEECH_SETTINGS, failed });
+    expect(again.utterances.map((u) => [u.text, u.voice?.name])).toEqual([["Hi.", ZIRA.name]]);
+    expect(again.skipped).toEqual(["zh-CN"]);
   });
 });

@@ -258,7 +258,8 @@
       "original": "Show original",
       "noChineseVoice": "This device has no Chinese voice, so only the English is read.",
       "translating": "Translating…",
-      "readSettings": "Read-aloud settings"
+      "readSettings": "Read-aloud settings",
+      "fellBack": "An online voice made no sound (its server may be out of reach), so this device's own voice is reading instead."
     }
   },
   "memory": {
@@ -947,6 +948,8 @@
     "noChinese": "This device has no Chinese voice, so only the English is read.",
     "noVoices": "The browser hasn't listed its voices yet; until then it picks one itself.",
     "hint": "Each device has its own voices, so set this on each one. Natural, Premium and Google voices usually sound best.",
-    "unsupported": "This browser can't read aloud."
+    "unsupported": "This browser can't read aloud.",
+    "silent": "{name} (no sound on this device)",
+    "silentHint": "Online voices stream from Microsoft's or Google's servers; where those can't be reached they make no sound, and this device's own voices read instead. They are tried again after a reload."
   }
 }

@@ -258,7 +258,8 @@
       "original": "看原文",
       "noChineseVoice": "这台设备没有中文朗读声音，只读英文部分。",
       "translating": "正在翻译…",
-      "readSettings": "朗读设置"
+      "readSettings": "朗读设置",
+      "fellBack": "在线声音没有出声（可能连不上它的服务器），已改用本机的声音朗读。"
     }
   },
   "memory": {
@@ -947,6 +948,8 @@
     "noChinese": "这台设备没有中文朗读声音，只读英文部分。",
     "noVoices": "浏览器还没列出可选的声音，在那之前由浏览器自己选。",
     "hint": "每台设备的声音不一样，需要分别设置。名字里带 Natural、Premium、Google 的声音通常更自然。",
-    "unsupported": "这个浏览器不能朗读。"
+    "unsupported": "这个浏览器不能朗读。",
+    "silent": "{name}（这台设备上播不出声）",
+    "silentHint": "在线声音要连微软或 Google 的服务器，连不上时没有声音，会自动改用本机的声音。刷新页面后会重新尝试。"
   }
 }

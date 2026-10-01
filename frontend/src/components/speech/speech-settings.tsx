@@ -11,6 +11,7 @@ import {
   EN_RATE_MIN,
   speakSample,
   useCanSpeak,
+  useFailedVoices,
   useSpeechSettings,
   useVoices,
 } from "@/lib/speech";
@@ -28,12 +29,14 @@ export function SpeechSettings() {
   const speakable = useCanSpeak();
   const voices = useVoices();
   const [settings, update] = useSpeechSettings();
+  const failed = useFailedVoices();
 
   if (!speakable) return <p className="text-sm text-muted-foreground">{t("unsupported")}</p>;
 
   // What "automatic" would pick for each, given the other one as it's set now.
-  const autoEn = pickVoices(voices, { ...settings, enVoice: null }).en;
-  const autoZh = pickVoices(voices, { ...settings, zhVoice: null }).zh;
+  const autoEn = pickVoices(voices, { ...settings, enVoice: null, failed }).en;
+  const autoZh = pickVoices(voices, { ...settings, zhVoice: null, failed }).zh;
+  const label = (name: string, uri: string) => (failed.has(uri) ? t("silent", { name }) : name);
   const noChinese = voices.length > 0 && !autoZh;
   const english = englishVoices(voices, settings.accent);
   const chinese = chineseVoices(voices);
@@ -74,7 +77,7 @@ export function SpeechSettings() {
             <option value="">{auto(autoEn?.name)}</option>
             {english.map((voice) => (
               <option key={voice.voiceURI} value={voice.voiceURI}>
-                {voice.name}
+                {label(voice.name, voice.voiceURI)}
               </option>
             ))}
           </NativeSelect>
@@ -100,7 +103,7 @@ export function SpeechSettings() {
             <option value="">{auto(autoZh?.name)}</option>
             {chinese.map((voice) => (
               <option key={voice.voiceURI} value={voice.voiceURI}>
-                {voice.name}
+                {label(voice.name, voice.voiceURI)}
               </option>
             ))}
           </NativeSelect>
@@ -141,6 +144,11 @@ export function SpeechSettings() {
       <p className="text-xs text-muted-foreground">
         {voices.length === 0 ? t("noVoices") : t("hint")}
       </p>
+      {failed.size > 0 && (
+        <p className="text-xs text-muted-foreground" data-testid="silent-voices">
+          {t("silentHint")}
+        </p>
+      )}
     </div>
   );
 }

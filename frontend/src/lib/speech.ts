@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 
-import { pickVoices, type VoiceChoice, type VoiceLike } from "@/lib/voices";
+import { isOnline, pickVoices, type VoiceChoice, type VoiceLike } from "@/lib/voices";
 
 /**
  * Read-aloud in the browser (ADR 0017 §5, ADR 0018 §1): free, no model, no server. Voices
@@ -70,6 +70,8 @@ export function splitSentences(text: string): string[] {
 
 export type Utterance<V extends VoiceLike = VoiceLike> = {
   text: string;
+  /** Which language the text is in, whatever voice reads it. */
+  kind: SpeechLang;
   lang: string;
   /** Null when the browser hasn't listed its voices: it picks one for `lang` itself. */
   voice: V | null;
@@ -84,7 +86,7 @@ export type Utterance<V extends VoiceLike = VoiceLike> = {
 export function planSpeech<V extends VoiceLike>(
   segments: Segment[],
   voices: readonly V[],
-  settings: SpeechSettings,
+  settings: SpeechSettings & { failed?: ReadonlySet<string> },
 ): { utterances: Utterance<V>[]; skipped: SpeechLang[] } {
   const picked = voices.length ? pickVoices(voices, settings) : null;
   const skipped = new Set<SpeechLang>();
@@ -99,7 +101,34 @@ export function planSpeech<V extends VoiceLike>(
     const rate = english ? settings.enRate : ZH_RATE;
     // A multilingual voice reading Chinese is told the text is Chinese.
     const lang = english ? (voice?.lang ?? settings.accent) : "zh-CN";
-    for (const text of splitSentences(segment.text)) utterances.push({ text, lang, voice, rate });
+    for (const text of splitSentences(segment.text)) {
+      utterances.push({ text, kind: segment.lang, lang, voice, rate });
+    }
+  }
+  return { utterances, skipped: [...skipped] };
+}
+
+/**
+ * `queue` with each failed voice swapped for the best one left for its language (ADR 0018
+ * §1); pieces with no voice left are dropped, and `skipped` says which language.
+ */
+export function revoice<V extends VoiceLike>(
+  queue: Utterance<V>[],
+  voices: readonly V[],
+  settings: SpeechSettings & { failed: ReadonlySet<string> },
+): { utterances: Utterance<V>[]; skipped: SpeechLang[] } {
+  const picked = pickVoices(voices, settings);
+  const skipped = new Set<SpeechLang>();
+  const utterances: Utterance<V>[] = [];
+  for (const item of queue) {
+    if (!item.voice || !settings.failed.has(item.voice.voiceURI)) {
+      utterances.push(item);
+      continue;
+    }
+    const english = item.kind === "en-US";
+    const voice = english ? picked.en : picked.zh;
+    if (!voice) skipped.add(item.kind);
+    else utterances.push({ ...item, voice, lang: english ? voice.lang : "zh-CN" });
   }
   return { utterances, skipped: [...skipped] };
 }
@@ -232,6 +261,44 @@ function setSpeaking(owner: string | null) {
   listeners.forEach((listener) => listener());
 }
 
+// Voices that made no sound on this page (Q25g: for this page only, so a network that
+// comes back gets them back on reload), and whose reading fell back first, for its notice.
+let failedVoices: ReadonlySet<string> = new Set();
+let fallbackOwner: string | null = null;
+const failedListeners = new Set<() => void>();
+
+function markFailed(voice: VoiceLike, owner: string | null) {
+  failedVoices = new Set([...failedVoices, voice.voiceURI]);
+  fallbackOwner ??= owner;
+  failedListeners.forEach((listener) => listener());
+}
+
+function subscribeFailed(listener: () => void) {
+  failedListeners.add(listener);
+  return () => failedListeners.delete(listener);
+}
+
+/** Voices (`voiceURI`) that made no sound on this page. */
+export function useFailedVoices(): ReadonlySet<string> {
+  return useSyncExternalStore(
+    subscribeFailed,
+    () => failedVoices,
+    () => failedVoices,
+  );
+}
+
+/** Whether `owner`'s reading was the first on this page to fall back to another voice. */
+export function useFellBack(owner: string): boolean {
+  return useSyncExternalStore(
+    subscribeFailed,
+    () => fallbackOwner === owner,
+    () => false,
+  );
+}
+
+// An online voice that hasn't started this long after its turn came is taken as silent.
+export const ONLINE_START_TIMEOUT_MS = 3000;
+
 function toUtterance({ text, lang, voice, rate }: Utterance<SpeechSynthesisVoice>) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = lang;
@@ -240,13 +307,77 @@ function toUtterance({ text, lang, voice, rate }: Utterance<SpeechSynthesisVoice
   return utterance;
 }
 
+// Each reading (and each restart after a fallback) has its own number; events from one
+// that was cut off are ignored.
+let session = 0;
+
+/**
+ * Queues `queue` for `owner` and watches it piece by piece: an online voice that errs,
+ * ends without starting, or doesn't start in time is marked failed, and the rest is read
+ * again from that piece with the voices left.
+ */
+function play(owner: string | null, queue: Utterance<SpeechSynthesisVoice>[]) {
+  const id = ++session;
+  window.speechSynthesis.cancel();
+  if (queue.length === 0) return setSpeaking(null);
+  setSpeaking(owner);
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const started = queue.map(() => false);
+  const live = () => id === session;
+  const watch = (i: number) => {
+    clearTimeout(timer);
+    const voice = queue[i].voice;
+    if (voice && isOnline(voice)) timer = setTimeout(() => fail(i), ONLINE_START_TIMEOUT_MS);
+  };
+  const fail = (i: number) => {
+    if (!live()) return;
+    clearTimeout(timer);
+    markFailed(queue[i].voice!, owner);
+    const rest = revoice(queue.slice(i), browserVoices(), {
+      ...currentSettings(),
+      failed: failedVoices,
+    });
+    play(owner, rest.utterances);
+  };
+  const done = (i: number) => {
+    if (i + 1 < queue.length) return watch(i + 1);
+    clearTimeout(timer);
+    if (speaking === owner) setSpeaking(null);
+  };
+  const silent = (i: number) => {
+    const voice = queue[i].voice;
+    return !started[i] && voice !== null && isOnline(voice);
+  };
+
+  queue.forEach((item, i) => {
+    const utterance = toUtterance(item);
+    utterance.onstart = () => {
+      if (!live()) return;
+      started[i] = true;
+      clearTimeout(timer);
+    };
+    utterance.onend = () => {
+      if (live()) (silent(i) ? fail : done)(i);
+    };
+    utterance.onerror = (event) => {
+      // Cut off by `cancel()`: a new reading, or the stop button.
+      if (!live() || event.error === "interrupted" || event.error === "canceled") return;
+      (silent(i) ? fail : done)(i);
+    };
+    window.speechSynthesis.speak(utterance);
+  });
+  watch(0);
+}
+
 /** Reads English `text` (a word, a sentence) aloud, cutting off whatever was being read. */
 export function speak(text: string) {
   if (!canSpeak()) return;
-  window.speechSynthesis.cancel();
-  setSpeaking(null);
-  const plan = planSpeech([{ text, lang: "en-US" }], browserVoices(), currentSettings());
-  plan.utterances.forEach((u) => window.speechSynthesis.speak(toUtterance(u)));
+  const plan = planSpeech([{ text, lang: "en-US" }], browserVoices(), {
+    ...currentSettings(),
+    failed: failedVoices,
+  });
+  play(null, plan.utterances);
 }
 
 /**
@@ -255,23 +386,16 @@ export function speak(text: string) {
  */
 export function speakSegments(owner: string, segments: Segment[]): SpeechLang[] {
   if (!canSpeak() || segments.length === 0) return [];
-  window.speechSynthesis.cancel();
-  const plan = planSpeech(segments, browserVoices(), currentSettings());
-  const utterances = plan.utterances.map(toUtterance);
-  if (utterances.length === 0) {
-    setSpeaking(null);
-    return plan.skipped;
-  }
-  const last = utterances[utterances.length - 1];
-  last.onend = last.onerror = () => {
-    if (speaking === owner) setSpeaking(null);
-  };
-  setSpeaking(owner);
-  utterances.forEach((utterance) => window.speechSynthesis.speak(utterance));
+  const plan = planSpeech(segments, browserVoices(), {
+    ...currentSettings(),
+    failed: failedVoices,
+  });
+  play(owner, plan.utterances);
   return plan.skipped;
 }
 
 export function stopSpeaking() {
+  session++; // events from what was being read no longer count
   if (canSpeak()) window.speechSynthesis.cancel();
   setSpeaking(null);
 }
@@ -283,17 +407,20 @@ export function stopSpeaking() {
 export function useCanSpeak(): boolean {
   return useSyncExternalStore(
     (listener) => {
-      const unsubscribeVoices = subscribeVoices(listener);
-      const unsubscribeSettings = subscribeSettings(listener);
-      return () => {
-        unsubscribeVoices();
-        unsubscribeSettings();
-      };
+      const unsubscribers = [
+        subscribeVoices(listener),
+        subscribeSettings(listener),
+        subscribeFailed(listener),
+      ];
+      return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
     },
     () => {
       if (!canSpeak()) return false;
       const list = browserVoices();
-      return list.length === 0 || pickVoices(list, currentSettings()).en !== null;
+      return (
+        list.length === 0 ||
+        pickVoices(list, { ...currentSettings(), failed: failedVoices }).en !== null
+      );
     },
     () => false,
   );

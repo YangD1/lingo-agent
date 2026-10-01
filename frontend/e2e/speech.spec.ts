@@ -28,29 +28,49 @@ const XIAOXIAO = {
   localService: false,
 };
 
-async function fakeVoices(page: Page, voices: FakeVoice[]) {
-  await page.addInitScript((list: FakeVoice[]) => {
+/** `silentOnline`: a network that can't reach the online voices' servers. */
+async function fakeVoices(page: Page, voices: FakeVoice[], { silentOnline = false } = {}) {
+  await page.addInitScript(([list, silent]: [FakeVoice[], boolean]) => {
     const all = list.map((v) => ({ ...v, default: false, voiceURI: v.name }));
     const spoken: Spoken[] = [];
     Object.assign(window, { __spoken: spoken });
     class Utterance {
       lang = "";
-      voice: { name: string } | null = null;
+      voice: { name: string; localService: boolean } | null = null;
       rate = 1;
+      onstart: (() => void) | null = null;
       onend: (() => void) | null = null;
       onerror: (() => void) | null = null;
       constructor(public text: string) {}
     }
+    // Reads one piece at a time, like a browser; a silent voice never starts.
+    let queue: Utterance[] = [];
+    const next = () => {
+      const u = queue[0];
+      if (!u || (silent && u.voice && !u.voice.localService)) return;
+      setTimeout(() => {
+        if (queue[0] !== u) return;
+        u.onstart?.();
+        queue.shift();
+        u.onend?.();
+        next();
+      }, 50);
+    };
     const synth = {
       getVoices: () => all,
       addEventListener: () => {},
-      cancel: () => {},
-      speak: (u: Utterance) =>
-        spoken.push({ text: u.text, lang: u.lang, voice: u.voice?.name ?? null, rate: u.rate }),
+      cancel: () => {
+        queue = [];
+      },
+      speak: (u: Utterance) => {
+        spoken.push({ text: u.text, lang: u.lang, voice: u.voice?.name ?? null, rate: u.rate });
+        queue.push(u);
+        if (queue.length === 1) next();
+      },
     };
     Object.defineProperty(window, "speechSynthesis", { value: synth, configurable: true });
     Object.defineProperty(window, "SpeechSynthesisUtterance", { value: Utterance, configurable: true });
-  }, voices);
+  }, [voices, silentOnline] as [FakeVoice[], boolean]);
 }
 
 const spoken = (page: Page) =>
@@ -112,4 +132,33 @@ test("voice, accent and speed are kept in this browser and used for reading", as
   await expect(card.getByLabel("英音")).toBeChecked();
   await expect(card.getByLabel("中文声音")).toHaveValue(XIAOXIAO.name);
   await expect(card.getByText("1.1×")).toBeVisible();
+});
+
+test("online voices that make no sound give way to the device's own", async ({ page }) => {
+  await fakeVoices(page, [ZIRA, ARIA, XIAOXIAO], { silentOnline: true });
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await page.goto("/chat");
+
+  await chat(page, "apples");
+  const reply = page.locator('li[data-role="assistant"]').last();
+  await expect(reply.locator('[data-slot="message"]')).toContainText("You said");
+  await reply.getByRole("button", { name: "朗读", exact: true }).click();
+
+  // About 3 seconds of silence, then the local voice reads it from where it stopped.
+  await expect(reply.getByTestId("voice-fell-back")).toBeVisible({ timeout: 6000 });
+  const read = await spoken(page);
+  expect(read[0]).toMatchObject({ text: "Nice try!", voice: ARIA.name });
+  expect(read.slice(-2)).toEqual([
+    expect.objectContaining({ text: "Nice try!", voice: ZIRA.name }),
+    expect.objectContaining({ text: "You said: apples", voice: ZIRA.name }),
+  ]);
+
+  // The settings say so, until the page is reloaded.
+  await reply.getByRole("button", { name: "朗读设置" }).click();
+  const english = page.getByTestId("speech-settings").getByLabel("英文声音");
+  await expect(english.locator("option:checked")).toHaveText(`自动（当前：${ZIRA.name}）`);
+  await expect(english.locator("option", { hasText: "播不出声" })).toHaveText(
+    `${ARIA.name}（这台设备上播不出声）`,
+  );
 });

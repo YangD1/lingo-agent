@@ -10,7 +10,14 @@ import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/lib/api";
-import { speakSegments, speechSegments, stopSpeaking, useCanSpeak, useSpeaking } from "@/lib/speech";
+import {
+  speakSegments,
+  speechSegments,
+  stopSpeaking,
+  useCanSpeak,
+  useFellBack,
+  useSpeaking,
+} from "@/lib/speech";
 
 export type TranslateTarget = "zh" | "en";
 
@@ -105,6 +112,7 @@ export function ReplyTools({
   const target = translationTarget(content);
 
   const [noChinese, setNoChinese] = useState(false);
+  const fellBack = useFellBack(messageKey);
 
   const read = (button: HTMLElement) => {
     if (speaking) return stopSpeaking();
@@ -163,6 +171,11 @@ export function ReplyTools({
           </Button>
           {translation?.text === undefined && <AiBadge feature="message_translate" />}
         </>
+      )}
+      {fellBack && (
+        <span role="status" data-testid="voice-fell-back">
+          {t("fellBack")}
+        </span>
       )}
       {noChinese && (
         <span role="status" data-testid="no-chinese-voice">

@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-10-01 · 任务 25.7：在线声音播不出时退回本地声音
+
+- **背景**：用户实测 Edge，下拉里的 Online (Natural) 声音都没声音，只有本地的三个能用；Edge 自己的“大声朗读”也没声音，确认是连不上微软语音服务。Chrome 的 Google 声音同理。
+- **做了什么**：
+  - `frontend/src/lib/voices.ts`：`usable()` 排除名字带 `undefined` 的（Edge 150 已知问题）；`isOnline()`；`VoiceChoice.failed`，`pickVoices` 先去掉失败的声音（手动选的也去掉）。
+  - `frontend/src/lib/speech.ts`：`Utterance.kind`；纯函数 `revoice()`；`play()` 取代原来的直接排队：全部排进浏览器队列，按 `onstart` / `onend` / `onerror` 逐句跟踪，在线声音 3 秒（`ONLINE_START_TIMEOUT_MS`）没开始、或没开始就结束 / 报错 → `markFailed()`，取消并从这一句用 `revoice()` 重排；`session` 计数让被取消的事件失效（`stopSpeaking` 也 `session++`）；`useFailedVoices` / `useFellBack`。失败记录只在当前页面（Q25g）。
+  - `reply-tools.tsx` 提示 `chat.reply.fellBack`；`speech-settings.tsx` 给失败的声音加“（这台设备上播不出声）”，并显示 `speech.silentHint`。
+  - 测试：`lib/speech-fallback.test.ts`（假定时器，`vi.resetModules` 每个用例重新加载模块）、`voices.test.ts` / `speech.test.ts` 新用例、`e2e/speech.spec.ts` 新增“在线声音没声音”用例（假设备逐句播放，`silentOnline` 时在线声音永远不开始）。Vitest 275、E2E 42 全过。
+  - ADR 0018 §1 补充退回规则。
+- **未完成**：Docker 重建后用户在 Edge 上再实测：第一次朗读会有约 3 秒静音，然后由本地声音接着读；之后本页直接用本地声音。
+- **下一步**：等用户实测；之后决定 25.4 / 25.5 或进入 P2。
+- **踩坑**：失败退回时只换掉失败的那个声音，排在后面、还没轮到的其他在线声音（比如中文的 Xiaoxiao）仍会各自试一次，所以中英都是在线声音时，最坏会各等一次 3 秒。
+
+---
+
 ## 2026-10-01 · 任务 25.6：朗读 E2E、README、Docker 重建
 
 - **做了什么**：

@@ -174,6 +174,22 @@ describe("pickVoices", () => {
     );
   });
 
+  it("leaves out voices that made no sound, chosen or not", () => {
+    const failed = new Set([
+      "Microsoft AvaMultilingual Online (Natural) - English (United States)",
+      "Microsoft Aria Online (Natural) - English (United States)",
+      "Microsoft Guy Online (Natural) - English (United States)",
+      "Microsoft Xiaoxiao Online (Natural) - Chinese (Mainland)",
+      "Microsoft Yunxi Online (Natural) - Chinese (Mainland)",
+    ]);
+    const choice = { ...US, enVoice: "Microsoft Aria Online (Natural) - English (United States)" };
+    // Local voices left, all scored alike: the system default first.
+    expect(names(pickVoices(WINDOWS_EDGE, { ...choice, failed }))).toEqual({
+      en: "Microsoft David - English (United States)",
+      zh: "Microsoft Huihui - Chinese (Simplified, PRC)",
+    });
+  });
+
   it("nothing to pick from", () => {
     expect(pickVoices([], US)).toEqual({ en: null, zh: null });
   });
@@ -212,6 +228,8 @@ describe("voiceScore and usable", () => {
     expect(usable(v("Bad News", "en-US"))).toBe(false);
     expect(usable(v("Whisper", "en-US"))).toBe(false);
     expect(usable(v("Samantha", "en-US"))).toBe(true);
+    // Edge 150 sometimes lists every online voice like this, then reads with the default.
+    expect(usable(v("Microsoft undefined Online (Natural) - undefined", "en-US"))).toBe(false);
     expect(chineseVoices(WINDOWS_CHROME).map((voice) => voice.name)).toEqual([
       "Microsoft Kangkang - Chinese (Simplified, PRC)",
       "Microsoft Huihui - Chinese (Simplified, PRC)",

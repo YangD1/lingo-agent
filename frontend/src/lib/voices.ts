@@ -56,10 +56,16 @@ const isMandarin = (lang: string) =>
 /** Name without its trailing " (…)", for the novelty list. */
 const baseName = (name: string) => name.replace(/\s*\(.*$/, "").trim().toLowerCase();
 
-/** Whether this voice can be offered at all. */
+/**
+ * Whether this voice can be offered at all. Edge 150 sometimes lists its online voices as
+ * "Microsoft undefined Online (Natural) - undefined" and then reads with the default one.
+ */
 export function usable(voice: VoiceLike): boolean {
-  return !NOVELTY.has(baseName(voice.name));
+  return !NOVELTY.has(baseName(voice.name)) && !/\bundefined\b/i.test(voice.name);
 }
+
+/** Online voices stream from the vendor's servers, which some networks can't reach. */
+export const isOnline = (voice: VoiceLike) => !voice.localService;
 
 /** How good the name says the voice is; only compared within one language. */
 export function voiceScore(voice: VoiceLike): number {
@@ -155,6 +161,8 @@ export type VoiceChoice = {
   enVoice?: string | null;
   zhVoice?: string | null;
   accent: Accent;
+  /** Voices (`voiceURI`) that made no sound on this page: left out, even if chosen. */
+  failed?: ReadonlySet<string>;
 };
 
 export type PickedVoices<T extends VoiceLike = VoiceLike> = { en: T | null; zh: T | null };
@@ -173,9 +181,11 @@ export function chineseVoices<T extends VoiceLike>(voices: readonly T[]): T[] {
  * matches the English one's gender when quality is equal.
  */
 export function pickVoices<T extends VoiceLike>(
-  voices: readonly T[],
+  all: readonly T[],
   choice: VoiceChoice,
 ): PickedVoices<T> {
+  const failed = choice.failed;
+  const voices = failed?.size ? all.filter((voice) => !failed.has(voice.voiceURI)) : all;
   const chosen = (uri: string | null | undefined, allowed: T[]) =>
     uri ? (allowed.find((voice) => voice.voiceURI === uri) ?? null) : null;
 
