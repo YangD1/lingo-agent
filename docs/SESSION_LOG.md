@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 26.13 修复看板双滚动条
+
+- **做了什么**：用户实测反馈看板有两条滚动条、底部超出侧栏。用临时 Playwright 探针在 E2E 环境量出文档高 1607（视口 900），撑高的是语法表格的 `<caption class="sr-only">`：`sr-only` 是绝对定位，往上没有定位祖先，包含块变成整页，于是 `<body>` 也能滚。修复放在外壳 `frontend/src/app/(app)/layout.tsx`：内容区加 `relative overflow-hidden`，以后任何页面里的绝对定位元素都不会再撑高整页。`e2e/dashboard.spec.ts` 加回归断言（文档高度 = 视口）。typecheck、eslint、E2E 42 全过。
+- **未完成**：Docker 里的前端还是旧镜像，用户要在 :3000 看到修复需要重建前端（`make up`）。
+- **下一步**：同上一条：用户实测 26、25、24、23、20.5、21、22，然后推送看 CI，之后进入 P2。
+- **踩坑**：Bash 里 `pnpm` 是 nvm 懒加载函数，会无限递归；直接用 `~/.nvm/versions/node/v24.14.0/bin/node node_modules/<pkg>/...` 调 tsc、eslint、playwright（`node_modules/@playwright/test/cli.js`），`.bin/` 下的是 shell 脚本不能用 node 直接跑。
+
+---
+
 ## 2026-10-01 · 26.12 完成（任务 26 网站改版全部完成）
 
 - **做了什么**：七个登录后页面 1440/390 × 亮/暗对照通过，无需改代码。按用户选择重建 Docker 全栈（健康，空闲内存 backend 67MiB / frontend 54MiB / postgres 85MiB）。README 截图（20.6.1）按用户选择“造一个演示号”：在隔离的 `lingo_e2e` 库起演示后端 :8100 + 假模型 :8101（脚本回复）+ 前端生产构建 :3100，用临时脚本播种演示用户（入学测 A1、牛津 3000 复习 8 张、一段三轮对话含纠错和收词），中英各截首页、对话、看板、背单词四张 1280×800，放 `docs/screenshots/`，README.md 用 en、README.zh-CN.md 用 zh。用户的 `lingo` 库未动。检查结果沿用 26.11（typecheck、eslint、Vitest 280、E2E 42）。

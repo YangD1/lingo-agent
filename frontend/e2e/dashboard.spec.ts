@@ -84,6 +84,8 @@ test("dashboard: guides a new learner, then charts what they did", async ({ page
   await expect(page.getByTestId("dashboard-skills").getByTestId("skill-bar")).toHaveCount(2);
   await expect(page.getByTestId("dashboard-skill-vocab")).toContainText("约");
   await expect(page.getByTestId("dashboard-skill-listening")).toContainText("未评估");
+  // Only the content pane scrolls: the table's sr-only caption must not stretch the page.
+  expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight)).toBe(0);
 
   const today = page.getByTestId("dashboard-activity").getByRole("listitem").last();
   await expect(today).toHaveAttribute("data-level", "4");

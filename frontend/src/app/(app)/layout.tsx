@@ -23,7 +23,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <AppSidebar user={user} />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileTopBar />
-        <div className="flex min-h-0 flex-1">{children}</div>
+        {/* relative + overflow-hidden: absolutely positioned descendants without a positioned
+            ancestor (e.g. an sr-only <caption>) would otherwise stretch <body> and add a
+            second, page-level scrollbar. */}
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">{children}</div>
         <MobileTabBar user={user} />
       </div>
     </div>
