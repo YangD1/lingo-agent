@@ -7,9 +7,9 @@
 ## 2026-10-02 · 26.13 修复看板双滚动条
 
 - **做了什么**：用户实测反馈看板有两条滚动条、底部超出侧栏。用临时 Playwright 探针在 E2E 环境量出文档高 1607（视口 900），撑高的是语法表格的 `<caption class="sr-only">`：`sr-only` 是绝对定位，往上没有定位祖先，包含块变成整页，于是 `<body>` 也能滚。修复放在外壳 `frontend/src/app/(app)/layout.tsx`：内容区加 `relative overflow-hidden`，以后任何页面里的绝对定位元素都不会再撑高整页。`e2e/dashboard.spec.ts` 加回归断言（文档高度 = 视口）。typecheck、eslint、E2E 42 全过。
-- **未完成**：Docker 里的前端还是旧镜像，用户要在 :3000 看到修复需要重建前端（`make up`）。
+- **未完成**：无。Docker 前端已单独重建并替换（健康，空闲内存 53MiB）。
 - **下一步**：同上一条：用户实测 26、25、24、23、20.5、21、22，然后推送看 CI，之后进入 P2。
-- **踩坑**：Bash 里 `pnpm` 是 nvm 懒加载函数，会无限递归；直接用 `~/.nvm/versions/node/v24.14.0/bin/node node_modules/<pkg>/...` 调 tsc、eslint、playwright（`node_modules/@playwright/test/cli.js`），`.bin/` 下的是 shell 脚本不能用 node 直接跑。
+- **踩坑**：Bash 里 `pnpm` 是 nvm 懒加载函数，会无限递归；直接用 `~/.nvm/versions/node/v24.14.0/bin/node node_modules/<pkg>/...` 调 tsc、eslint、playwright（`node_modules/@playwright/test/cli.js`），`.bin/` 下的是 shell 脚本不能用 node 直接跑。Docker 构建时 corepack 要下载 pnpm（build 阶段没有缓存），容器里直连 npm 会拿到自签名证书；`HTTPS_PROXY` 对 Node 自带的 fetch 不生效，要加 `NODE_USE_ENV_PROXY=1`。本次用临时 Dockerfile 副本（只多这一行）+ `docker build --network host --build-arg HTTPS_PROXY=http://127.0.0.1:7890 -t lingo-agent-frontend frontend`，再 `docker compose up -d --no-build frontend`。
 
 ---
 
