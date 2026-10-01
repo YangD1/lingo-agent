@@ -5,8 +5,10 @@ Separate from pytest's `lingo_test` so the two never wipe each other's data.
 """
 
 import asyncio
+import bz2
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import psycopg
@@ -17,6 +19,14 @@ ADMIN_URL = os.environ.get("E2E_ADMIN_DB", "postgresql://lingo:lingo@localhost:5
 DB_NAME = "lingo_e2e"
 # A small real slice of ECDICT: the Oxford 3000 book has 7 of its words.
 WORDS_CSV = Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "ecdict_sample.csv"
+# Two Tatoeba sentences for "go" (one by an inflected form, one in traditional Chinese
+# that the import simplifies), in the export layout import_tatoeba reads.
+TATOEBA = {
+    "eng_sentences.tsv.bz2": "1\teng\tI went to school by bus yesterday.\n"
+    "2\teng\tLet's go home together now.\n",
+    "cmn_sentences.tsv.bz2": "10\tcmn\t我昨天坐公交车去上学。\n11\tcmn\t我們現在一起回家吧。\n",
+    "cmn-eng_links.tsv.bz2": "10\t1\n11\t2\n",
+}
 SERVER = ADMIN_URL.split("://", 1)[1].rsplit("/", 1)[0]  # user:password@host:port
 
 # Throwaway values for a local test database only - never used anywhere else.
@@ -37,6 +47,15 @@ def recreate_database() -> None:
         conn.execute(f"CREATE DATABASE {DB_NAME}")
 
 
+async def import_sentences() -> None:
+    from app.services.vocab.import_tatoeba import import_dir
+
+    with tempfile.TemporaryDirectory() as directory:
+        for name, body in TATOEBA.items():
+            (Path(directory) / name).write_bytes(bz2.compress(body.encode()))
+        await import_dir(os.environ["DATABASE_URL"], Path(directory))
+
+
 def main() -> None:
     recreate_database()
     from app.db.migrate import main as migrate
@@ -44,6 +63,7 @@ def main() -> None:
 
     migrate()
     asyncio.run(import_csv(os.environ["DATABASE_URL"], WORDS_CSV))
+    asyncio.run(import_sentences())
     os.execvp(
         sys.executable,
         [

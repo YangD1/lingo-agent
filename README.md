@@ -23,7 +23,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 - **A tutor that remembers you.** After each reply, a background step decides what is worth remembering (your goals, interests, recurring problems) and summarizes the conversation. The **Memory** page shows everything it keeps, and you can edit or delete any of it.
 - **Grammar tracking.** The same step tags your mistakes against 119 grammar points (A1–C2). Mastery is then updated by an algorithm (BKT and Elo), not scored by the model. The **Learner model** page shows each point with the evidence behind it, and you can delete any piece of evidence.
-- **Vocabulary with FSRS.** Pick a word book (Oxford 3000, Zhongkao, Gaokao, CET-4/6, postgraduate entrance, IELTS, TOEFL or GRE), skip words you already know, and review daily on an FSRS schedule. Unfamiliar words from your conversations are collected automatically.
+- **Vocabulary with FSRS.** Pick a word book (Oxford 3000, Zhongkao, Gaokao, CET-4/6, postgraduate entrance, IELTS, TOEFL or GRE), skip words you already know, and review daily on an FSRS schedule. The back of each card shows the Chinese meanings by part of speech and up to two real example sentences with human translations from Tatoeba; AI examples are written only when you ask. Unfamiliar words from your conversations are collected automatically.
 - **Replies you can follow.** Above the message box, switch the tutor between mostly Chinese and mostly English (until you choose, it follows your level: mostly Chinese at A1–A2 or before the placement test); it applies from the next reply. Hover or tap an English word in a reply to see its pronunciation, meanings, base form and the sentence it is in, ask for AI example sentences, or add it to your words. Every reply can be read aloud with the browser's own voices: the best ones on the device are picked automatically (Edge's Natural, Chrome's Google, macOS Premium voices), Chinese and English each in their own, sentence by sentence; under **Settings → Read aloud** (or the gear next to **Read aloud**) you can choose the voices, an American or British accent and the English speed, kept in that browser. Replies can also be shown in Chinese or English; translations are saved, so switching back and forth calls no model.
 - **Placement test.** About 10 minutes: up to 40 vocabulary and 20 grammar questions, adaptive, with no model involved. It sets your CEFR level. It can also mark your word book's words that you very likely know, all at once: you confirm first, and you can undo it.
 - **Dashboard.** Word book progress, grammar mastery, skill estimates, common mistakes and a study calendar, plus today's conversation with the tutor. The algorithm picks what is worth doing and offers it as quick replies; the tutor talks it over with you, with cards you can confirm. One conversation a day, created with your first message, so opening the dashboard calls no model. Without a model you get the algorithm's picks as links.
@@ -54,9 +54,12 @@ cd lingo-agent
 make env   # creates .env with a fresh encryption key and JWT secret
 make up    # builds and starts postgres + backend + frontend; migrations run automatically
 make vocab-import   # once: downloads and imports the word list (about 15 seconds)
+make sentences-import   # once, after vocab-import: example sentences for the flashcards (about 10 seconds)
 ```
 
 The word list is [ECDICT](https://github.com/skywind3000/ECDICT) (MIT, 66 MB, pinned to one commit and checked by sha256). It is saved in `data/`, and about 38,000 words are imported: exam lists, the Oxford 3000, Collins-starred words and the 30,000 most frequent. The vocabulary pages and the placement test need it. You can run it again safely. If GitHub is unreachable, set `ECDICT_URL` to a mirror of the same file, or pass a local copy with `make vocab-import CSV=path/to/ecdict.csv`. Without uv on the host: download the file, then run `docker compose cp ecdict.csv backend:/tmp/` and `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`.
+
+Example sentences on the flashcards come from [Tatoeba](https://tatoeba.org) ([CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)): English sentences with human Chinese translations, at most two per word, each linked to its page on Tatoeba. The three per-language exports (about 27 MB) are saved in `data/tatoeba/`; Tatoeba updates them weekly, so the import prints each file's date and sha256 instead of checking a fixed hash. Run `make sentences-import REFRESH=1` to fetch a newer export, or `make sentences-import DIR=path/to/exports` to use local copies. Words without a real sentence still have the "AI examples" button. Without uv on the host: download `eng/eng_sentences.tsv.bz2`, `cmn/cmn_sentences.tsv.bz2` and `cmn/cmn-eng_links.tsv.bz2` from <https://downloads.tatoeba.org/exports/per_language/> into one folder, run `docker compose cp that-folder backend:/tmp/tatoeba`, then `docker compose exec backend python -m app.services.vocab.import_tatoeba --dir /tmp/tatoeba`.
 
 Then:
 
@@ -173,3 +176,5 @@ Issues and pull requests are welcome. Please run `make ci` before opening a pull
 ## License
 
 [MIT](LICENSE)
+
+Data used at runtime, downloaded by the import commands and not included in this repository: the word list from [ECDICT](https://github.com/skywind3000/ECDICT) (MIT) and example sentences from [Tatoeba](https://tatoeba.org) ([CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)).

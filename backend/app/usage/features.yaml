@@ -77,8 +77,9 @@ features:
         timing: now
         default: {input_tokens: 3500, output_tokens: 200}
 
-  # "AI examples" in the word popup (ADR 0017 §3): two sentences at the learner's
-  # level, once per tenant, word and level; a cached word makes no call.
+  # "AI examples" in the word popup (ADR 0017 §3) and on the back of a review card
+  # (ADR 0020): two sentences at the learner's level, once per tenant, word and
+  # level; a cached word makes no call.
   word_examples:
     calls:
       - task: word_examples

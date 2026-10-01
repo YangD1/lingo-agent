@@ -23,7 +23,7 @@
 
 - **记得你的私教**：每次回复后，后台会判断哪些值得记住（你的目标、兴趣、反复出现的问题），并给会话写摘要。**记忆**页面列出它记住的全部内容，每一条都可以修改或删除。
 - **语法跟踪**：同一个后台步骤会把你的错误标到 119 个语法点上（A1–C2）。掌握度由算法（BKT 和 Elo）根据这些证据更新，不由模型打分。**学习者模型**页面列出每个语法点和背后的证据，每条证据都可以删除。
-- **FSRS 背单词**：选一本词书（牛津 3000、中考、高考、四级、六级、考研、雅思、托福、GRE），先筛掉认识的词，再按 FSRS 安排每天的复习。对话里遇到的生词会自动收进生词本。
+- **FSRS 背单词**：选一本词书（牛津 3000、中考、高考、四级、六级、考研、雅思、托福、GRE），先筛掉认识的词，再按 FSRS 安排每天的复习。卡片背面按词性列出中文释义，下面最多两句来自 Tatoeba 的真实例句（人工翻译）；AI 例句点了才生成。对话里遇到的生词会自动收进生词本。
 - **读得懂私教的话**：输入框上方可以切换“多说中文 / 多说英文”（没选过时按等级：A1–A2 或还没定级时多说中文），从下一句开始生效。私教回复里的英文单词，悬停或点按就能看音标、释义、原形和原句，还可以生成 AI 例句、一键加入生词本。每条回复都能朗读：用浏览器自带的声音，自动挑这台设备上最好的（Edge 的 Natural、Chrome 的 Google、macOS 的 Premium 声音），中英文各用各的声音，逐句读；在**设置 → 朗读**（或朗读按钮旁的齿轮）里可以自己选声音、美音或英音、英文语速，设置存在当前浏览器。回复也能切换看中文版或英文版，译文保存下来，来回切换不再调用模型。
 - **入学测**：大约 10 分钟，最多 40 道词汇题和 20 道语法题，自适应出题，不调用模型。结果会更新你的 CEFR 等级；还可以把词书里你大概率认识的词一次性标为熟词，要先确认，也可以撤销。
 - **看板**：词书进度、语法掌握、技能估计、常错语法点和学习打卡，还有“今天的学习”：和私教的对话框。算法挑出值得做的事，作为快捷回复给你；私教和你商量，用卡片提议，你确认才执行。每天一段对话，你发第一条消息时才创建，所以打开看板不调模型。没配模型时显示算法挑的建议链接。
@@ -54,9 +54,12 @@ cd lingo-agent
 make env   # 生成 .env，并随机生成加密主密钥和 JWT 密钥
 make up    # 构建并启动 postgres + 后端 + 前端；数据库迁移自动执行
 make vocab-import   # 只需一次：下载并导入词库（约 15 秒）
+make sentences-import   # 只需一次，在 vocab-import 之后：导入复习卡片的例句（约 10 秒）
 ```
 
 词库来自 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT 许可，66 MB，固定到某个提交并校验 sha256）。文件保存在 `data/`，其中约 3.8 万个词会被导入：考试词表、牛津 3000、柯林斯星级词和词频前 3 万的词。背单词和入学测都要用到它。可以重复执行。访问不了 GitHub 时，把 `ECDICT_URL` 设为同一文件的镜像地址，或者用 `make vocab-import CSV=path/to/ecdict.csv` 导入本地文件。宿主机上没有 uv 时：先下载文件，再执行 `docker compose cp ecdict.csv backend:/tmp/` 和 `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`。
+
+复习卡片上的例句来自 [Tatoeba](https://tatoeba.org)（[CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)）：带人工中文翻译的英文句子，每个词最多两句，每句都链接到它在 Tatoeba 的页面。三个按语言拆分的导出文件（约 27 MB）保存在 `data/tatoeba/`；Tatoeba 每周更新导出，所以导入时打印每个文件的日期和 sha256，不校验固定哈希。要拉取新导出用 `make sentences-import REFRESH=1`，用本地文件用 `make sentences-import DIR=path/to/exports`。没有真例句的词仍然可以点“AI 例句”。宿主机上没有 uv 时：从 <https://downloads.tatoeba.org/exports/per_language/> 把 `eng/eng_sentences.tsv.bz2`、`cmn/cmn_sentences.tsv.bz2`、`cmn/cmn-eng_links.tsv.bz2` 下载到同一个文件夹，执行 `docker compose cp 该文件夹 backend:/tmp/tatoeba`，再执行 `docker compose exec backend python -m app.services.vocab.import_tatoeba --dir /tmp/tatoeba`。
 
 然后：
 
@@ -172,3 +175,5 @@ docs/            PLAN.md（设计）、PROGRESS.md（进度）、decisions/（AD
 ## 许可证
 
 [MIT](LICENSE)
+
+运行时用到的数据由导入命令下载，不包含在仓库里：词库来自 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT），例句来自 [Tatoeba](https://tatoeba.org)（[CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)）。

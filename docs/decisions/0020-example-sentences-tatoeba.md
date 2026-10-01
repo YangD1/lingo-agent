@@ -2,7 +2,7 @@
 
 - **状态**：已采纳（2026-10-02，任务 28，Q28a–c 按推荐确认）
 - **日期**：2026-10-02
-- **影响**：新增 `word_sentences` 表和 `make sentences-import`；dev 依赖加 `opencc-python-reimplemented`（只有导入时用）；复习卡片、生词本的单词带 `sentences`；`word_examples`（ADR 0017 §3）多一个入口：复习卡片。
+- **影响**：新增 `word_sentences` 表和 `make sentences-import`；新增依赖 `opencc-python-reimplemented`（纯 Python，约 1.2 MB，只在导入时加载；放在正式依赖里，宿主机没有 uv 时也能在后端容器里导入）；复习卡片、生词本的单词带 `sentences`；`word_examples`（ADR 0017 §3）多一个入口：复习卡片。
 
 ## 背景
 用户反馈复习卡片来源只有 ECDICT、没有例句。ECDICT（ADR 0011）的 `definition` 本身是 WordNet / Webster 1913 合并来的，但没有例句。AI 例句（`word_examples`）已经有了，只在聊天单词气泡里用，而且每个词都要调用模型。

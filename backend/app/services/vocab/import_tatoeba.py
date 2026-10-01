@@ -300,7 +300,7 @@ def describe(directory: Path) -> list[str]:
 
 
 def _simplifier() -> Callable[[str], str]:
-    from opencc import OpenCC  # only needed here; a dev dependency
+    from opencc import OpenCC  # imported here only: nothing else needs it
 
     convert: Callable[[str], str] = OpenCC("t2s").convert
     return convert

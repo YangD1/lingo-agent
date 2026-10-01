@@ -53,6 +53,43 @@ test("choose a book, screen known words, review, and see the progress", async ({
   await expect(book.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
 });
 
+test("the back of a card shows real example sentences, and AI ones when asked", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await page.goto("/vocab");
+  await page.getByTestId(`book-${OXFORD}`).getByRole("button", { name: "学这本" }).click();
+  await page.getByRole("link", { name: "开始" }).click();
+
+  // "the" comes first and has no sentence in run_backend.py's Tatoeba sample: only the button.
+  await expect(page.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "显示答案" }).click();
+  const examples = page.getByTestId("review-examples");
+  await expect(examples.getByRole("listitem")).toHaveCount(0);
+  await expect(examples.getByTestId("ai-badge-word_examples")).toBeVisible();
+  await page.keyboard.press("4");
+
+  await expect(page.getByRole("heading", { name: "go", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "显示答案" }).click();
+  await expect(examples.getByRole("listitem")).toHaveCount(2);
+  // Fewer uncommon words first. The word is bold, inflected forms too; the traditional
+  // translation was simplified on import.
+  await expect(examples.locator("strong")).toHaveText(["go", "went"]);
+  await expect(examples).toContainText("我们现在一起回家吧。");
+  const links = examples.getByRole("link", { name: "在 Tatoeba 查看这句" });
+  await expect(links.first()).toHaveAttribute("href", "https://tatoeba.org/sentences/show/2");
+  await expect(links.last()).toHaveAttribute("href", "https://tatoeba.org/sentences/show/1");
+  await expect(examples).toContainText("来源：Tatoeba");
+
+  await examples.getByRole("button", { name: "AI 例句" }).click();
+  const ai = page.getByTestId("review-ai-examples");
+  await expect(ai).toContainText("I go every day.");
+  await expect(ai).toContainText("我每天都 go。");
+  await expect(examples).toContainText("AI 生成");
+  await expect(examples.getByRole("button", { name: "AI 例句" })).toHaveCount(0);
+});
+
 test("add a word to my list by an inflected form, then remove it", async ({ page }) => {
   await register(page, uniqueEmail());
   await page.goto("/vocab/mine");
