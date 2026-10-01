@@ -1,12 +1,13 @@
 "use client";
 
+import { CircleAlertIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
+import { LogoMark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useErrorMessage } from "@/i18n/errors";
@@ -44,57 +45,67 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>{t(`${mode}.title`)}</CardTitle>
-        <CardDescription>{t(`${mode}.description`)}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <div className="w-full max-w-[400px] rounded-2xl border bg-card p-5 md:p-[22px]">
+      <LogoMark className="size-9" />
+      <h1 className="mt-3 text-[22px] font-bold tracking-tight">{t(`${mode}.title`)}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{t(`${mode}.description`)}</p>
+      <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="email">{t("email")}</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            aria-invalid={error ? true : undefined}
+            required
+          />
+        </div>
+        {mode === "register" && (
           <div className="flex flex-col gap-2">
-            <Label htmlFor="email">{t("email")}</Label>
-            <Input id="email" name="email" type="email" autoComplete="email" required />
+            <Label htmlFor="display_name">{t("displayName")}</Label>
+            <Input id="display_name" name="display_name" autoComplete="nickname" maxLength={100} />
           </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">{t("password")}</Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            minLength={mode === "register" ? 8 : undefined}
+            maxLength={128}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={mode === "register" ? "password-hint" : undefined}
+            required
+          />
           {mode === "register" && (
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="display_name">{t("displayName")}</Label>
-              <Input id="display_name" name="display_name" autoComplete="nickname" maxLength={100} />
-            </div>
-          )}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">{t("password")}</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              minLength={mode === "register" ? 8 : undefined}
-              maxLength={128}
-              required
-            />
-            {mode === "register" && (
-              <p className="text-xs text-muted-foreground">{t("passwordHint")}</p>
-            )}
-          </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
+            <p id="password-hint" className="text-xs text-muted-foreground">
+              {t("passwordHint")}
             </p>
           )}
-          <Button type="submit" disabled={pending}>
-            {t(`${mode}.submit`)}
-          </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            {t(`${mode}.switchPrompt`)}{" "}
-            <Link
-              href={mode === "login" ? "/register" : "/login"}
-              className="text-foreground underline underline-offset-4"
-            >
-              {t(`${mode}.switchLink`)}
-            </Link>
+        </div>
+        {error && (
+          <p role="alert" className="flex items-center gap-1.5 text-sm text-destructive">
+            <CircleAlertIcon className="size-4 shrink-0" />
+            {error}
           </p>
-        </form>
-      </CardContent>
-    </Card>
+        )}
+        <Button type="submit" size="lg" disabled={pending}>
+          {t(`${mode}.submit`)}
+        </Button>
+        <p className="text-center text-sm text-muted-foreground">
+          {t(`${mode}.switchPrompt`)}{" "}
+          <Link
+            href={mode === "login" ? "/register" : "/login"}
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            {t(`${mode}.switchLink`)}
+          </Link>
+        </p>
+      </form>
+    </div>
   );
 }

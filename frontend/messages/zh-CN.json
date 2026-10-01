@@ -4,9 +4,70 @@
     "description": "开源的 AI 英语私教，会记住你。"
   },
   "home": {
-    "tagline": "你的 AI 英语私教：记得你会什么，也记得你总在哪里出错。",
+    "badge": "开源 · 可自部署 · 接入你自己的模型",
+    "title": "你的 AI 英语私教",
+    "subtitle": "记得你会什么，也记得你总在哪里出错。",
+    "cta": "注册，开始练习",
     "login": "登录",
-    "register": "注册"
+    "register": "注册",
+    "note": "从 A1 到 C2 都能用。讲解可以多说中文，也可以全英文。",
+    "demo": {
+      "label": "对话示例",
+      "user": "Yesterday I go to a job interview and I was very nervous.",
+      "reply": "Good luck with the job hunt! One small fix: <b>I went</b> to a job interview — “yesterday” needs the past tense.",
+      "replyNote": "上次你也把 go 写成了现在时，我记下来了，下周帮你再练一次。",
+      "activity": "私教做了什么：",
+      "activityRead": "读取 3 条记忆",
+      "activityRest": "· 记下 1 条 · 标记 1 个语法错误",
+      "memory": "读取：你在准备十月底的面试",
+      "wrong": "I go",
+      "right": "I went",
+      "rule": "一般过去时"
+    },
+    "featuresTitle": "它和一般的聊天机器人不一样",
+    "features": {
+      "memory": {
+        "title": "会记住你的私教",
+        "body": "记得你的目标、兴趣和常犯的错。下次聊天从你停下的地方接着来，不用每次重新介绍自己。"
+      },
+      "grammar": {
+        "title": "语法跟踪与掌握度",
+        "body": "每个语法点都有掌握度和证据：哪句写错了、哪次用对了，都能点开看。"
+      },
+      "vocab": {
+        "title": "FSRS 背单词",
+        "body": "牛津 3000、四六级、雅思等词书，按 FSRS 间隔重复安排复习，聊天里遇到的生词也能收进来。"
+      },
+      "placement": {
+        "title": "入学测定级",
+        "body": "大约 10 分钟，给出 CEFR 等级和估计词汇量，私教按你的水平调整讲解。"
+      },
+      "transparency": {
+        "title": "AI 做了什么都看得见",
+        "body": "每个会调用 AI 的按钮都标着 AI，点开能看到用哪个模型、大约多少 token；私教读了什么、记了什么，每条回复下都能展开。"
+      },
+      "models": {
+        "title": "自带模型，开源自部署",
+        "body": "接入 DeepSeek、OpenAI、Anthropic、通义千问、硅基流动等。低配服务器也能跑，数据在你自己手里。"
+      }
+    },
+    "trust": {
+      "eyebrow": "透明是这个产品的核心",
+      "title": "私教记住的一切，你都能看、能改、能删",
+      "body": "私教想帮你换词书、设目标时，会先问你；你确认之前不会有任何改动，确认后也能撤销。",
+      "cardTitle": "把词书换成“雅思”？",
+      "cardBody": "你提到明年想考雅思。你确认之前不会有任何改动。",
+      "confirm": "确认",
+      "decline": "不用了",
+      "record": "录制语音消息",
+      "hint": "← 点开 AI 标记：会调用哪些模型、每次大约多少 token"
+    },
+    "footer": {
+      "tagline": "Lingo Agent · 开源英语私教",
+      "github": "GitHub",
+      "docs": "部署文档",
+      "docsUrl": "https://github.com/YangD1/lingo-agent/blob/main/README.zh-CN.md#部署"
+    }
   },
   "localeSwitcher": {
     "label": "语言",

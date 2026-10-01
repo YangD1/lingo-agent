@@ -4,6 +4,7 @@ import { SparklesIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { aiPill } from "@/components/ai-pill";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   type AiFeature,
@@ -14,10 +15,6 @@ import {
   loadEstimates,
 } from "@/lib/ai-usage";
 import { cn } from "@/lib/utils";
-
-// component-spec §6: a 16px pill in the AI colour, reserved for this badge only.
-const aiPill =
-  "inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full border border-ai/22 bg-[color-mix(in_oklab,var(--ai)_11%,var(--card))] pr-[5px] pl-1 text-[10px] leading-none font-semibold text-ai";
 
 type Loaded = { status: "loading" } | { status: "ok"; data: UsageEstimates } | { status: "error" };
 

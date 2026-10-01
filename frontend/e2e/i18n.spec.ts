@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 import { register, uniqueEmail, useFakeModel } from "./helpers";
 
 const TAGLINE = {
-  en: "Your AI English tutor.",
+  en: "Your AI English tutor",
   zh: "你的 AI 英语私教",
 };
 
@@ -15,7 +15,7 @@ test.describe("with a Chinese browser", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
     await expect(page.getByText(TAGLINE.zh)).toBeVisible();
 
-    await page.getByLabel("语言").selectOption("en");
+    await page.getByLabel("语言").filter({ visible: true }).selectOption("en");
     await expect(page.getByText(TAGLINE.en)).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 

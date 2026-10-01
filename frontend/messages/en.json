@@ -4,9 +4,70 @@
     "description": "An open-source AI English tutor that remembers you."
   },
   "home": {
-    "tagline": "Your AI English tutor. It remembers what you know and what you keep getting wrong.",
+    "badge": "Open source · Self-hostable · Bring your own models",
+    "title": "Your AI English tutor",
+    "subtitle": "It remembers what you know and what you keep getting wrong.",
+    "cta": "Create an account",
     "login": "Log in",
-    "register": "Create account"
+    "register": "Sign up",
+    "note": "Works from A1 to C2. Explanations can lean on Chinese or stay all in English.",
+    "demo": {
+      "label": "Example conversation",
+      "user": "Yesterday I go to a job interview and I was very nervous.",
+      "reply": "Good luck with the job hunt! One small fix: <b>I went</b> to a job interview — “yesterday” needs the past tense.",
+      "replyNote": "You wrote go in the present tense last time too. I've noted it and we'll practise it again next week.",
+      "activity": "What the tutor did:",
+      "activityRead": "read 3 memories",
+      "activityRest": "· saved 1 · flagged 1 grammar error",
+      "memory": "Read: you're preparing for an interview at the end of October",
+      "wrong": "I go",
+      "right": "I went",
+      "rule": "Past simple"
+    },
+    "featuresTitle": "Not just another chatbot",
+    "features": {
+      "memory": {
+        "title": "A tutor that remembers you",
+        "body": "Your goals, interests and usual mistakes. Each chat picks up where you left off, so you never have to introduce yourself again."
+      },
+      "grammar": {
+        "title": "Grammar tracking and mastery",
+        "body": "Every grammar point has a mastery level and the evidence behind it: which sentence went wrong, which time you got it right."
+      },
+      "vocab": {
+        "title": "FSRS vocabulary",
+        "body": "Oxford 3000, CET-4/6, IELTS and more, reviewed on an FSRS spaced-repetition schedule. New words from your chats can go in too."
+      },
+      "placement": {
+        "title": "Placement test",
+        "body": "About 10 minutes for a CEFR level and an estimated vocabulary size. The tutor pitches its explanations at your level."
+      },
+      "transparency": {
+        "title": "See everything the AI does",
+        "body": "Every button that calls a model is marked AI; open it to see which model and roughly how many tokens. What the tutor read and saved unfolds under each reply."
+      },
+      "models": {
+        "title": "Your models, self-hosted",
+        "body": "Connect DeepSeek, OpenAI, Anthropic, Qwen, SiliconFlow and more. Runs on a small server, and your data stays with you."
+      }
+    },
+    "trust": {
+      "eyebrow": "Transparency is the core of this product",
+      "title": "Everything the tutor remembers, you can see, edit and delete",
+      "body": "When the tutor wants to switch your word book or set a goal, it asks first. Nothing changes until you confirm, and you can undo it afterwards.",
+      "cardTitle": "Switch your word book to IELTS?",
+      "cardBody": "You mentioned taking IELTS next year. Nothing changes until you confirm.",
+      "confirm": "Confirm",
+      "decline": "Not now",
+      "record": "Record a voice message",
+      "hint": "← Open the AI mark: which models it calls and roughly how many tokens"
+    },
+    "footer": {
+      "tagline": "Lingo Agent · Open-source English tutor",
+      "github": "GitHub",
+      "docs": "Deployment docs",
+      "docsUrl": "https://github.com/YangD1/lingo-agent/blob/main/README.md#deploying"
+    }
   },
   "localeSwitcher": {
     "label": "Language",

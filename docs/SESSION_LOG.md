@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-01 · 26.11 完成（首页介绍、登录、注册）
+
+- **做了什么**：新增 `frontend/src/components/home/landing.tsx`（未登录首页，全静态）、`components/ai-pill.ts`（AI 胶囊样式，`ai-badge.tsx` 改为导入它）；`app/page.tsx` 只渲染 `Landing`；`(auth)/layout.tsx`、`auth-form.tsx` 按 login/register 设计稿改版；messages `home` 命名空间重写（demo / features / trust / footer）；`e2e/i18n.spec.ts` 标题断言改为 “Your AI English tutor”，语言切换用 `.filter({ visible: true })`。typecheck、eslint、Vitest 280、E2E 42 全过。
+- **未完成**：无（26.11 已 `[x]`）。
+- **下一步**：26.12 收尾（全量 E2E、各页 1440/390 亮暗截图对照、Docker 重建先问用户、README 截图 20.6.1）。
+- **踩坑**：服务端组件从 "use client" 模块导入非组件常量（如 class 字符串）拿到的是客户端引用，样式会丢——放到普通模块里。首页有两个语言切换（按断点各隐藏一个），E2E 按标签定位要过滤可见。Bash 里 `node`/`pnpm` 被 nvm 懒加载函数遮蔽，用 `$HOME/.nvm/versions/node/v24.14.0/bin/` 绝对路径。截图脚本 `frontend/e2e/_shots.mjs` 仍不提交。
+
+---
+
 ## 2026-10-01 · 26.10 完成（设置页改版已提交）
 
 - **做了什么**：设置页改版：`settings/settings-app.tsx`（宽屏右侧粘性目录、窄屏顶部横向标签，滚动高亮当前区块；路由分主卡 + 三张紧凑卡）、`connections-section`（地址 / 密钥 / 最近测试三栏，编辑删除改幽灵按钮，添加表单两列）、`route-section`（`compact`，序号 + “备用”标签，模型名 `data-slot="route-ref"`）、`usage-section`（表格等宽、合计行、空状态）；messages 增 `settings.toc`、`settings.route.fallback`、`settings.connections.address/key/lastTest/lastOk`。E2E `settings.spec` 断言改为 `route-ref` 与“密钥…1234”，`i18n.spec` 改按卡片标题定位。typecheck、eslint、Vitest 280、E2E 42 全过。
