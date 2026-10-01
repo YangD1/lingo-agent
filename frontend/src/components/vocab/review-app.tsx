@@ -18,14 +18,15 @@ import { cn } from "@/lib/utils";
 import type { Rating } from "@/lib/vocab";
 
 import { type ReviewMode, useReviewSession } from "./use-review-session";
+import { WordMeanings } from "./word-meanings";
 
 const RATINGS: readonly Rating[] = [1, 2, 3, 4];
-// "Again" reads as a miss, "Good" as the usual answer; the other two stay plain.
-const RATING_CLASS: Record<Rating, string> = {
-  1: "border-transparent bg-destructive/10 text-destructive hover:bg-destructive/15",
-  2: "bg-card hover:bg-muted",
-  3: "bg-muted hover:bg-accent",
-  4: "bg-card hover:bg-muted",
+// A dot per rating, from a miss to easy: red, amber, green, the chart's grey-blue.
+const RATING_DOT: Record<Rating, string> = {
+  1: "bg-destructive",
+  2: "bg-chart-2",
+  3: "bg-success",
+  4: "bg-chart-4",
 };
 
 const kbd = (chunks: ReactNode) => (
@@ -66,7 +67,8 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
   const total = session.reviewed + session.remaining;
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto">
+    // The card scrolls on its own; the answer / rating bar stays at the bottom of the screen.
+    <div className="flex min-h-0 flex-1 flex-col">
       <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 pt-3 md:px-6">
         <Link
           href="/vocab"
@@ -90,127 +92,145 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
         </Link>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[460px] flex-1 flex-col justify-center gap-4 p-4 md:pb-24">
-        {session.error != null && (
-          <p role="alert" className="text-sm text-destructive">
-            {describe(session.error)}
-          </p>
-        )}
-        {session.loading && (
-          <p className="text-center text-sm text-muted-foreground">{t("loading")}</p>
-        )}
+      <div className="flex min-h-0 flex-1 overflow-y-auto">
+        {/* m-auto centres a short card and still lets a long one scroll from its top. */}
+        <div className="m-auto flex w-full max-w-[520px] flex-col gap-4 p-4">
+          {session.error != null && (
+            <p role="alert" className="text-sm text-destructive">
+              {describe(session.error)}
+            </p>
+          )}
+          {session.loading && (
+            <p className="text-center text-sm text-muted-foreground">{t("loading")}</p>
+          )}
 
-        {!session.loading && !current && session.error == null && (
-          <Card>
-            <CardContent
-              className="flex flex-col items-center gap-3 py-4 text-center"
-              data-testid="review-done"
-            >
-              <p className="text-lg font-bold">
-                {session.reviewed > 0
-                  ? t("done", { reviewed: session.reviewed })
-                  : t("nothing")}
-              </p>
-              {mode === "new" && session.reviewsDue > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {t("reviewsLeft", { count: session.reviewsDue })}
-                </p>
-              )}
-              <div className="flex gap-2">
-                {mode === "new" && session.reviewsDue > 0 && (
-                  <Link href="/vocab/review" className={buttonVariants({ size: "sm" })}>
-                    {t("reviewNow")}
-                  </Link>
-                )}
-                <Link href="/vocab" className={buttonVariants({ size: "sm", variant: "outline" })}>
-                  {t("back")}
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {current && (
-          <Card data-testid="review-card" className="rounded-2xl">
-            <CardContent className="flex flex-col items-center gap-5 py-2 text-center">
-              <div className="flex min-h-5 gap-1.5 self-start">
-                {isNew && <Tag>{t("new")}</Tag>}
-                {mine && (
-                  <Tag>
-                    <Bookmark aria-hidden />
-                    {t("mine")}
-                  </Tag>
-                )}
-              </div>
-              <div className="flex flex-col items-center gap-2 py-4">
-                <div className="flex items-center gap-2">
-                  <h1
-                    className="text-[44px] leading-tight font-bold tracking-tight break-all md:text-5xl"
-                    lang="en"
-                  >
-                    {current.word.word}
-                  </h1>
-                  {speakable && (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t("speak")}
-                      onClick={() => speak(current.word.word)}
-                    >
-                      <Volume2 />
-                    </Button>
-                  )}
-                </div>
-                {flipped && current.word.phonetic && (
-                  <p className="font-mono text-muted-foreground">/{current.word.phonetic}/</p>
-                )}
-              </div>
-
-              {flipped ? (
-                <div
-                  className="flex w-full flex-col gap-2 border-t pt-5 pb-2"
-                  data-testid="review-back"
-                >
-                  <p className="text-lg whitespace-pre-line">{current.word.translation}</p>
-                  {current.word.definition && (
-                    <p className="text-sm whitespace-pre-line text-muted-foreground" lang="en">
-                      {current.word.definition}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <Button size="lg" className="mb-2 w-44" onClick={flip}>
-                  {t("flip")}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {current && flipped && (
-          <div className="grid grid-cols-4 gap-2" role="group" aria-label={t("rateLabel")}>
-            {RATINGS.map((r) => (
-              <Button
-                key={r}
-                variant="outline"
-                disabled={session.busy}
-                onClick={() => void rate(r)}
-                className={cn("h-auto flex-col gap-1 py-2.5 md:h-auto", RATING_CLASS[r])}
+          {!session.loading && !current && session.error == null && (
+            <Card>
+              <CardContent
+                className="flex flex-col items-center gap-3 py-4 text-center"
+                data-testid="review-done"
               >
-                {t(`ratings.${r}`)}
-                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-[4px] border bg-card px-1 font-mono text-[10px] text-muted-foreground">
-                  {r}
-                </span>
-              </Button>
-            ))}
-          </div>
-        )}
-        {current && (
-          <p className="text-center text-xs text-muted-foreground max-md:hidden">
-            {t.rich("keys", { k: kbd })}
-          </p>
-        )}
+                <p className="text-lg font-bold">
+                  {session.reviewed > 0
+                    ? t("done", { reviewed: session.reviewed })
+                    : t("nothing")}
+                </p>
+                {mode === "new" && session.reviewsDue > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {t("reviewsLeft", { count: session.reviewsDue })}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  {mode === "new" && session.reviewsDue > 0 && (
+                    <Link href="/vocab/review" className={buttonVariants({ size: "sm" })}>
+                      {t("reviewNow")}
+                    </Link>
+                  )}
+                  <Link href="/vocab" className={buttonVariants({ size: "sm", variant: "outline" })}>
+                    {t("back")}
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {current && (
+            <Card data-testid="review-card" className="rounded-2xl">
+              <CardContent className="flex flex-col gap-5 py-2">
+                <div className="flex min-h-5 gap-1.5">
+                  {isNew && <Tag>{t("new")}</Tag>}
+                  {mine && (
+                    <Tag>
+                      <Bookmark aria-hidden />
+                      {t("mine")}
+                    </Tag>
+                  )}
+                </div>
+                {/* Front: the word alone, centred, to recall. Back: read top to bottom. */}
+                <div
+                  className={cn(
+                    "flex flex-col gap-1.5",
+                    flipped ? "items-start" : "items-center py-10 text-center",
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <h1
+                      className={cn(
+                        "leading-tight font-bold tracking-tight break-all",
+                        flipped ? "text-[32px] md:text-4xl" : "text-[44px] md:text-5xl",
+                      )}
+                      lang="en"
+                    >
+                      {current.word.word}
+                    </h1>
+                    {speakable && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t("speak")}
+                        onClick={() => speak(current.word.word)}
+                      >
+                        <Volume2 />
+                      </Button>
+                    )}
+                  </div>
+                  {flipped && current.word.phonetic && (
+                    <p className="font-mono text-muted-foreground">/{current.word.phonetic}/</p>
+                  )}
+                </div>
+
+                {flipped && (
+                  <div className="border-t pt-4 pb-1" data-testid="review-back">
+                    <WordMeanings key={current.word.id} word={current.word} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
+
+      {current && (
+        <footer className="shrink-0 border-t bg-background/95 px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex w-full max-w-[520px] flex-col gap-2">
+            {flipped ? (
+              <div
+                className="grid grid-cols-4 divide-x overflow-hidden rounded-xl border bg-card shadow-(--shadow-lift)"
+                role="group"
+                aria-label={t("rateLabel")}
+              >
+                {RATINGS.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    disabled={session.busy}
+                    onClick={() => void rate(r)}
+                    className="relative flex flex-col items-center gap-1 py-3 text-[15px] font-medium transition-colors outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:bg-accent disabled:opacity-50"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span aria-hidden className={cn("size-2 rounded-full", RATING_DOT[r])} />
+                      {t(`ratings.${r}`)}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="absolute top-1 right-1.5 font-mono text-[10px] text-muted-foreground/70 max-md:hidden"
+                    >
+                      {r}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <Button size="lg" className="w-full" onClick={flip}>
+                {t("flip")}
+              </Button>
+            )}
+            <p className="text-center text-xs text-muted-foreground max-md:hidden">
+              {t.rich("keys", { k: kbd })}
+            </p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,8 +20,8 @@ const card = (id: number, spelling: string, overrides: Partial<Card> = {}): Card
     id,
     word: spelling,
     phonetic: "ˈæp(ə)l",
-    translation: "n. 苹果\nn. 苹果树",
-    definition: "n. fruit with red or yellow or green skin",
+    translation: "n. 苹果\nn. 苹果树\n[医] 苹果",
+    definition: "n. fruit with red or yellow\nor green skin",
   },
   source: "book",
   status: "learning",
@@ -126,8 +126,14 @@ describe("ReviewApp", () => {
     await userEvent.keyboard(" ");
     const back = screen.getByTestId("review-back");
     expect(screen.getByTestId("review-card")).toHaveTextContent("/ˈæp(ə)l/");
-    expect(back).toHaveTextContent("n. 苹果");
-    expect(back).toHaveTextContent("fruit with red");
+    const meanings = within(back).getAllByRole("listitem").slice(0, 2);
+    expect(meanings.map((li) => li.textContent)).toEqual(["n.苹果", "n.苹果树"]);
+    // Domain senses and the English definition wait under "More", wrapped lines joined.
+    const more = screen.getByTestId("review-more");
+    expect(more).not.toHaveAttribute("open");
+    expect(more.querySelector("summary")).toHaveTextContent("More · 1 specialist sense · English definition");
+    expect(more).toHaveTextContent("fruit with red or yellow or green skin");
+    expect(more).toHaveTextContent("Source: ECDICT");
 
     await userEvent.keyboard("3");
     expect(await screen.findByRole("heading", { name: "cheese" })).toBeInTheDocument();

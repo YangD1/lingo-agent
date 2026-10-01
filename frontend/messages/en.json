@@ -565,7 +565,14 @@
         "3": "Good",
         "4": "Easy"
       },
-      "keys": "<k>Space</k> shows the answer · <k>1</k>–<k>4</k> rates it"
+      "keys": "<k>Space</k> shows the answer · <k>1</k>–<k>4</k> rates it",
+      "meanings": {
+        "more": "More",
+        "domainCount": "{count, plural, one {# specialist sense} other {# specialist senses}}",
+        "english": "English definition",
+        "showAll": "Show all {count}",
+        "source": "Source: ECDICT"
+      }
     },
     "mine": {
       "title": "My words",

@@ -565,7 +565,14 @@
         "3": "记得",
         "4": "很熟"
       },
-      "keys": "<k>空格</k> 显示答案 · <k>1</k>–<k>4</k> 评分"
+      "keys": "<k>空格</k> 显示答案 · <k>1</k>–<k>4</k> 评分",
+      "meanings": {
+        "more": "更多",
+        "domainCount": "{count} 条专业释义",
+        "english": "英文释义",
+        "showAll": "显示全部 {count} 条",
+        "source": "来源：ECDICT"
+      }
     },
     "mine": {
       "title": "我的生词本",
