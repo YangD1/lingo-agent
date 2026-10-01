@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.db.models import UserProfile
 from app.memory import service
 from app.memory.embedding import MemoryEmbedder
+from app.memory.language import DEFAULT_CHAT_LANGUAGE, ChatLanguage, chat_language
 
 # Character budgets (a rough proxy for tokens) so a long memory list can't crowd out
 # the conversation itself.
@@ -33,6 +34,8 @@ class LearnerContext:
     # Memory ids in the same order, for the learner-facing activity (ADR 0013 §3).
     fact_ids: Sequence[uuid.UUID] = ()
     episode_ids: Sequence[uuid.UUID] = ()
+    # The language the tutor mainly talks in (ADR 0017 §1); by level until they choose.
+    chat_language: ChatLanguage = DEFAULT_CHAT_LANGUAGE
 
     def is_empty(self) -> bool:
         return not (self.profile or self.facts or self.episodes)
@@ -78,6 +81,10 @@ class DatabaseLearner:
             episodes=[m.content for m in episodes],
             fact_ids=[m.id for m in facts],
             episode_ids=[m.id for m in episodes],
+            chat_language=chat_language(
+                profile.chat_language if profile else None,
+                profile.cefr_level if profile else None,
+            ),
         )
 
 

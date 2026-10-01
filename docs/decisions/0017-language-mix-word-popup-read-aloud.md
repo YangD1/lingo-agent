@@ -30,7 +30,7 @@
 
 ### 1. 中英比例
 - `user_profiles.chat_language`：`zh` / `en` / null。null 表示没手动选过。
-- 生效值：手动值优先；否则按 `cefr_level`：A1、A2 或没有等级时为 `zh`，其他为 `en`。由 `memory/profile` 里的一个纯函数计算，接口和提示词共用。
+- 生效值：手动值优先；否则按 `cefr_level`：A1、A2 或没有等级时为 `zh`，其他为 `en`。由 `app/memory/language.py` 的纯函数 `chat_language()` 计算，接口和提示词共用。
 - `GET /profile` 同时返回存的值和生效值（`chat_language_effective`）。`PATCH /profile {chat_language}` 修改，计入 `manual_fields`；传 null 恢复按等级自动。反思不会写这个字段。
 - 提示词：`tutor_system.md` 里的语言规则换成按生效值渲染的一段（`prompts/language_zh.md` / `language_en.md`）。system prompt 每轮重新拼，所以练习、规划、今天的对话和普通对话都按当前值，切换后下一句生效，已经说过的话不变。
 - `zh` 时讲语法也用中文；`en` 时讲语法仍按 `explanation_language`（不变）。

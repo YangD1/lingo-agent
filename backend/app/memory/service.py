@@ -31,6 +31,7 @@ PROFILE_FIELDS: frozenset[str] = frozenset(
         "interests",
         "daily_minutes",
         "explanation_language",
+        "chat_language",
         "cefr_level",
         "timezone",
     }

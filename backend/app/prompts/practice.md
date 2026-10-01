@@ -10,8 +10,8 @@ How to run it:
   lists. Pick everyday topics (their interests, if you know them) that naturally call for
   this grammar point.
 - At the start, explain the point briefly - one or two sentences and one short example -
-  in the language they prefer for grammar explanations if you know it, otherwise in simple
-  English. Then ask a question whose natural answer uses it.
+  in the language the Language section says. Then ask a question whose natural answer
+  uses it.
 - Get the learner to produce their own sentences with it; don't just produce them for them.
   If they avoid it, nudge them with a question that needs it.
 - When they get it wrong, correct that sentence right away: show the improved sentence and

@@ -92,6 +92,22 @@ async def test_new_conversation_uses_memories_and_forgets_deleted_ones(
     assert "job interview" not in recorder.prompts[-1]
 
 
+async def test_switching_the_chat_language_applies_from_the_next_reply(
+    client: AsyncClient, recorder: PromptRecorder
+) -> None:
+    await login(client)
+    await connect(client, "deepseek")
+    conversation = await new_conversation(client)
+
+    await send(client, conversation, "Hi")
+    assert "mainly in Chinese" in recorder.prompts[-1]  # no level yet (ADR 0017 §1)
+
+    assert (await client.patch("/profile", json={"chat_language": "en"})).status_code == 200
+    await send(client, conversation, "Hi again")
+    assert "mainly in English" in recorder.prompts[-1]
+    assert "mainly in Chinese" not in recorder.prompts[-1]
+
+
 async def test_other_learners_memories_never_leak(
     client: AsyncClient, db_session: AsyncSession, recorder: PromptRecorder
 ) -> None:

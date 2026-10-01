@@ -17,6 +17,7 @@ from app.db.models import Conversation, Memory, UserProfile
 from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.memory import service
 from app.memory.embedding import MemoryEmbedder, memory_embedder
+from app.memory.language import DEFAULT_CHAT_LANGUAGE, chat_language
 from app.memory.reflection import EXAM_TAGS
 from app.providers.tenant import load_provider_context
 
@@ -33,6 +34,10 @@ class ProfileOut(BaseModel):
     interests: list[str] = []
     daily_minutes: int | None = None
     explanation_language: Literal["zh", "en"] | None = None
+    # The language the tutor mainly talks in, as chosen; null: picked by level (ADR 0017).
+    chat_language: Literal["zh", "en"] | None = None
+    # What applies now: the choice, or the level's default.
+    chat_language_effective: Literal["zh", "en"] = DEFAULT_CHAT_LANGUAGE
     # Set by assessment, never by hand (ADR 0010).
     cefr_level: str | None = None
     timezone: str | None = None
@@ -52,6 +57,8 @@ class ProfilePatch(BaseModel):
     interests: Annotated[list[Annotated[str, Field(max_length=100)]], Field(max_length=20)] = []
     daily_minutes: Annotated[int, Field(ge=1, le=600)] | None = None
     explanation_language: Literal["zh", "en"] | None = None
+    # null goes back to the level's default.
+    chat_language: Literal["zh", "en"] | None = None
     timezone: str | None = None
 
     @field_validator("native_language", "occupation", "goal")
@@ -178,7 +185,9 @@ async def delete_memories(
 
 
 def _profile_out(profile: UserProfile) -> ProfileOut:
-    return ProfileOut.model_validate(profile, from_attributes=True)
+    out = ProfileOut.model_validate(profile, from_attributes=True)
+    out.chat_language_effective = chat_language(profile.chat_language, profile.cefr_level)
+    return out
 
 
 async def _memories_out(session: SessionDep, memories: list[Memory]) -> list[MemoryOut]:

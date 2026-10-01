@@ -59,6 +59,7 @@ from app.memory.context import (
     facts_shown,
     render_learner_context,
 )
+from app.memory.language import DEFAULT_CHAT_LANGUAGE, ChatLanguage
 from app.prompts import load_prompt
 from app.providers.config import TenantProviderContext
 from app.providers.llm import get_llm, get_llm_with_tools
@@ -106,6 +107,9 @@ class ChatState(MessagesState):
     practice: Annotated[str, UntrackedValue(str)]
     # The conversation's cards and their status, untracked so it is current each turn.
     cards: Annotated[str, UntrackedValue(str)]
+    # The language the tutor mainly talks in this turn (ADR 0017 §1), untracked so a
+    # switch applies from the next reply.
+    language: Annotated[ChatLanguage, UntrackedValue(str)]
 
 
 # Callers send and get plain messages; learner_context is internal to a run.
@@ -118,7 +122,12 @@ async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[
     practice = runtime.context.practice
     planning = runtime.context.planning
     if learner is None and practice is None and planning is None:
-        return {"learner_context": "", "practice": "", "cards": cards}
+        return {
+            "learner_context": "",
+            "practice": "",
+            "cards": cards,
+            "language": DEFAULT_CHAT_LANGUAGE,
+        }
     latest = next((m.text for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
     context = focus = None
     brief: PlanningBrief | None = None
@@ -145,7 +154,12 @@ async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[
                 failed = True
     if failed and context is None and focus is None and brief is None:
         await report(runtime, Step(LOAD_CONTEXT_NODE, "failed", duration_ms=watch.ms))
-        return {"learner_context": "", "practice": "", "cards": cards}
+        return {
+            "learner_context": "",
+            "practice": "",
+            "cards": cards,
+            "language": DEFAULT_CHAT_LANGUAGE,
+        }
     context = context or LearnerContext()
     read = ContextRead(
         facts=list(context.fact_ids[: facts_shown(context.facts)]),
@@ -159,6 +173,7 @@ async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[
         "learner_context": render_learner_context(context),
         "practice": render_practice(focus) if focus else render_planning(brief) if brief else "",
         "cards": cards,
+        "language": context.chat_language,
     }
 
 
@@ -235,7 +250,10 @@ async def _call(
             "{cards}", cards
         )
     prompt = system_prompt(
-        state.get("learner_context", ""), state.get("practice", ""), tools_section
+        state.get("learner_context", ""),
+        state.get("practice", ""),
+        tools_section,
+        language=state.get("language") or DEFAULT_CHAT_LANGUAGE,
     )
     messages = [SystemMessage(prompt), *history]
     if not any(isinstance(m, HumanMessage) for m in history):
@@ -323,11 +341,17 @@ async def _run_call(runtime: Runtime[ChatContext], call: ToolCall, index: int) -
     )
 
 
-def system_prompt(learner_context: str, practice: str = "", tools: str = "") -> str:
-    """The tutor's instructions, then what it knows about the learner, then (in a
-    practice or planning conversation) what this conversation is for, then what its
-    tools can do."""
-    sections = [load_prompt("tutor_system")]
+def system_prompt(
+    learner_context: str,
+    practice: str = "",
+    tools: str = "",
+    *,
+    language: ChatLanguage = DEFAULT_CHAT_LANGUAGE,
+) -> str:
+    """The tutor's instructions and which language to talk in, then what it knows about
+    the learner, then (in a practice or planning conversation) what this conversation is
+    for, then what its tools can do."""
+    sections = [load_prompt("tutor_system"), load_prompt(f"language_{language}")]
     if learner_context:
         # replace, not format: memories may contain braces.
         sections.append(

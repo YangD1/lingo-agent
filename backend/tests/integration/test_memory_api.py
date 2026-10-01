@@ -51,6 +51,8 @@ async def test_profile_starts_empty(client: AsyncClient) -> None:
         "interests": [],
         "daily_minutes": None,
         "explanation_language": None,
+        "chat_language": None,
+        "chat_language_effective": "zh",
         "cefr_level": None,
         "timezone": None,
         "manual_fields": [],
@@ -104,6 +106,26 @@ async def test_patch_profile_rejects_bad_values(client: AsyncClient) -> None:
     for body in bodies:
         response = await client.patch("/profile", json=body)
         assert response.status_code == 422, body
+
+
+async def test_chat_language_follows_the_level_until_chosen(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await login(client)
+    user_id, _ = await ids_of(db_session, "learner@example.com")
+    await service.update_profile(db_session, user_id, {"cefr_level": "B2"}, by_learner=False)
+    assert (await client.get("/profile")).json()["chat_language_effective"] == "en"
+
+    chosen = await client.patch("/profile", json={"chat_language": "zh"})
+    assert chosen.status_code == 200, chosen.text
+    body = chosen.json()
+    assert (body["chat_language"], body["chat_language_effective"]) == ("zh", "zh")
+    assert "chat_language" in body["manual_fields"]
+
+    # null goes back to the level's default.
+    reset = (await client.patch("/profile", json={"chat_language": None})).json()
+    assert (reset["chat_language"], reset["chat_language_effective"]) == (None, "en")
+    assert (await client.patch("/profile", json={"chat_language": "fr"})).status_code == 422
 
 
 async def test_add_edit_and_list_facts(client: AsyncClient) -> None:

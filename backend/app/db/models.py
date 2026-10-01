@@ -264,6 +264,10 @@ class UserProfile(TimestampMixin, Base):
         CheckConstraint(
             "daily_minutes IS NULL OR daily_minutes BETWEEN 1 AND 600", name="daily_minutes"
         ),
+        CheckConstraint(
+            f"chat_language IS NULL OR {_in('chat_language', EXPLANATION_LANGUAGES)}",
+            name="chat_language",
+        ),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -280,6 +284,9 @@ class UserProfile(TimestampMixin, Base):
     daily_minutes: Mapped[int | None] = mapped_column(Integer)
     # Language for grammar explanations; NULL until the learner (or reflection) says.
     explanation_language: Mapped[str | None] = mapped_column(String(5))
+    # Which language the tutor mainly talks in (ADR 0017 §1); NULL: picked by level
+    # (app/memory/language.py). Only the learner sets it.
+    chat_language: Mapped[str | None] = mapped_column(String(5))
     cefr_level: Mapped[str | None] = mapped_column(String(2))
     # IANA name; "today" for word reviews is cut in this zone.
     timezone: Mapped[str | None] = mapped_column(String(64))
