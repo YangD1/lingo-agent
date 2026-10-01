@@ -36,6 +36,29 @@ def scheduler(rules: Rules) -> fsrs.Scheduler:
     return _scheduler(rules.vocab.desired_retention)
 
 
+@cache
+def _preview_scheduler(desired_retention: float) -> fsrs.Scheduler:
+    # Without fuzzing: the interval itself, not one random draw around it.
+    return fsrs.Scheduler(desired_retention=desired_retention, enable_fuzzing=False)
+
+
+RATINGS: tuple[Rating, ...] = (1, 2, 3, 4)
+
+
+def preview(card: UserCard | None, rules: Rules, now: datetime | None = None) -> list[int]:
+    """Seconds until the next review for ratings 1-4, were the word rated now (task 27.5).
+
+    Shown on the rating buttons; `review` adds fuzzing, so a long interval can land a
+    few days either side.
+    """
+    now = now or datetime.now(UTC)
+    # card_id given: py-fsrs sleeps 1ms to make up an id otherwise.
+    current = to_fsrs(card) if card else fsrs.Card(card_id=0, due=now)
+    sched = _preview_scheduler(rules.vocab.desired_retention)
+    dues = [sched.review_card(current, fsrs.Rating(r), now)[0].due for r in RATINGS]
+    return [max(0, round((due - now).total_seconds())) for due in dues]
+
+
 def to_fsrs(card: UserCard) -> fsrs.Card:
     """The card as py-fsrs sees it; a never-reviewed card is a fresh fsrs.Card."""
     if card.state is None:

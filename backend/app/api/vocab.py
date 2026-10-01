@@ -2,7 +2,7 @@
 word list (ADR 0011, P1 plan §6). Everything here is the current user's own data."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Response, status
@@ -18,7 +18,13 @@ from app.providers.tenant import load_provider_context
 from app.services.vocab import examples, mine, placement_known, progress, screening
 from app.services.vocab.mine import MatchKind
 from app.services.vocab.queue import QueueItem, daily_queue, today_counts
-from app.services.vocab.scheduler import Rating, WordNotFoundError, learner_zone, review
+from app.services.vocab.scheduler import (
+    Rating,
+    WordNotFoundError,
+    learner_zone,
+    preview,
+    review,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +49,8 @@ class CardOut(BaseModel):
     status: str | None
     due: datetime | None
     last_review: datetime | None
+    # Seconds until the next review for ratings 1-4 if rated now, for the rating buttons.
+    intervals: list[int]
 
 
 class BookOut(BaseModel):
@@ -171,18 +179,19 @@ def _word(word: Word) -> WordOut:
     )
 
 
-def _card(word: Word, card: UserCard | None) -> CardOut:
+def _card(word: Word, card: UserCard | None, now: datetime) -> CardOut:
     return CardOut(
         word=_word(word),
         source=card.source if card else None,
         status=card.status if card else None,
         due=card.due if card else None,
         last_review=card.last_review if card else None,
+        intervals=preview(card, get_rules(), now),
     )
 
 
-def _item(item: QueueItem) -> CardOut:
-    return _card(item.word, item.card)
+def _item(item: QueueItem, now: datetime) -> CardOut:
+    return _card(item.word, item.card, now)
 
 
 def _no_book() -> Exception:
@@ -244,9 +253,10 @@ async def get_queue(
     queue = await daily_queue(
         session, user.id, rules=get_rules(), tz=await learner_zone(session, user.id, tz)
     )
+    now = datetime.now(UTC)
     return QueueOut(
-        reviews=[] if mode == "new" else [_item(i) for i in queue.reviews],
-        new=[_item(i) for i in queue.new],
+        reviews=[] if mode == "new" else [_item(i, now) for i in queue.reviews],
+        new=[_item(i, now) for i in queue.new],
         reviews_due=queue.reviews_due,
         new_limit=queue.new_limit,
         new_started=queue.new_started,
@@ -270,7 +280,7 @@ async def post_review(body: ReviewIn, user: CurrentUser, session: SessionDep) ->
     await session.commit()
     word = await session.get(Word, body.word_id)
     assert word is not None
-    return _card(word, card)
+    return _card(word, card, datetime.now(UTC))
 
 
 @router.get("/screen")
@@ -398,7 +408,7 @@ async def get_mine(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> MinePage:
     words, total = await mine.list_own(session, user.id, limit=limit, offset=offset)
-    return MinePage(words=[_card(w.word, w.card) for w in words], total=total)
+    return MinePage(words=[_card(w.word, w.card, datetime.now(UTC)) for w in words], total=total)
 
 
 @router.post("/mine")
@@ -412,7 +422,9 @@ async def post_mine(
         )
     added = await mine.add(session, user.id, match.word.id)
     response.status_code = status.HTTP_201_CREATED if added.added else status.HTTP_200_OK
-    return AddedOut(card=_card(match.word, added.card), matched=match.kind, added=added.added)
+    return AddedOut(
+        card=_card(match.word, added.card, datetime.now(UTC)), matched=match.kind, added=added.added
+    )
 
 
 @router.delete("/mine/{word_id}", status_code=status.HTTP_204_NO_CONTENT)

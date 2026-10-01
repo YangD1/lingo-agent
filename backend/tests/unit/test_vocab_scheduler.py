@@ -10,6 +10,7 @@ from app.db.models import UserCard
 from app.services.vocab.books import BOOKS, get_book
 from app.services.vocab.scheduler import (
     day_bounds,
+    preview,
     retrievability,
     scheduler,
     to_fsrs,
@@ -67,3 +68,29 @@ def test_unknown_zones_are_ignored() -> None:
 def test_books() -> None:
     assert len(BOOKS) == 9 and len({b.id for b in BOOKS}) == 9
     assert get_book("cet4") is not None and get_book("nope") is None
+
+
+def test_preview_gives_each_rating_its_interval_without_changing_the_card() -> None:
+    # A word never met: the learning steps (1 and 10 minutes), Easy skips them by days.
+    again, hard, good, easy = preview(None, RULES, NOW)
+    assert (again, good) == (60, 600)
+    assert again < hard < good < easy and easy >= 86_400
+
+    card = UserCard(id=7, status="new")
+    assert preview(card, RULES, NOW) == [again, hard, good, easy]
+    assert card.state is None  # previewing reviews a copy
+
+    # A card in review: what Good actually schedules, minus the fuzz.
+    scheduled, _ = scheduler(RULES).review_card(to_fsrs(card), fsrs.Rating.Easy, NOW)
+    stored = UserCard(
+        id=7,
+        status="learning",
+        state=scheduled.state.value,
+        step=scheduled.step,
+        stability=scheduled.stability,
+        difficulty=scheduled.difficulty,
+        due=scheduled.due,
+        last_review=scheduled.last_review,
+    )
+    intervals = preview(stored, RULES, scheduled.due)
+    assert intervals == sorted(intervals) and intervals[0] < 86_400 < intervals[2]

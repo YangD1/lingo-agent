@@ -27,6 +27,7 @@ const card = (id: number, spelling: string, overrides: Partial<Card> = {}): Card
   status: "learning",
   due: "2026-09-29T10:00:00Z",
   last_review: null,
+  intervals: [60, 330, 600, 1_296_000],
   ...overrides,
 });
 
@@ -134,6 +135,12 @@ describe("ReviewApp", () => {
     expect(more.querySelector("summary")).toHaveTextContent("More · 1 specialist sense · English definition");
     expect(more).toHaveTextContent("fruit with red or yellow or green skin");
     expect(more).toHaveTextContent("Source: ECDICT");
+    expect(screen.getAllByTestId("rating-interval").map((e) => e.textContent)).toEqual([
+      "1 min",
+      "6 min",
+      "10 min",
+      "15 days",
+    ]);
 
     await userEvent.keyboard("3");
     expect(await screen.findByRole("heading", { name: "cheese" })).toBeInTheDocument();

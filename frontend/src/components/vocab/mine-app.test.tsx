@@ -21,6 +21,7 @@ const card = (id: number, spelling: string, overrides: Partial<Card> = {}): Card
   status: "new",
   due: null,
   last_review: null,
+  intervals: [60, 330, 600, 1_296_000],
   ...overrides,
 });
 

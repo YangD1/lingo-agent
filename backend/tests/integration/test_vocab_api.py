@@ -120,6 +120,9 @@ async def test_reviewing_the_daily_queue(client: AsyncClient, db_session: AsyncS
     queue = await get(client, "/vocab/queue", tz="Asia/Shanghai")
     assert queue["reviews"] == [] and spelled(queue["new"]) == ["common", "middle"]
     assert queue["new"][0]["status"] is None and queue["new"][0]["word"]["translation"]
+    # What each rating button would schedule: 1 minute for Again, days for Easy.
+    intervals = queue["new"][0]["intervals"]
+    assert intervals[0] == 60 and intervals == sorted(intervals) and intervals[3] >= 86_400
 
     response = await client.post(
         "/vocab/reviews", json={"word_id": ids["common"], "rating": 1, "duration_ms": 4200}

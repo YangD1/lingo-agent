@@ -21,6 +21,8 @@ export type Card = {
   status: CardStatus | null;
   due: string | null;
   last_review: string | null;
+  /** Seconds until the next review for ratings 1–4, were the word rated now. */
+  intervals: number[];
 };
 
 export type BookProgress = {
@@ -154,4 +156,25 @@ export const bookName = (book: { name_en: string; name_zh: string }, locale: str
 /** Share of the book met: being learned or known, 0–100. */
 export function bookPercent(book: BookProgress): number {
   return book.total ? Math.floor(((book.learning + book.known) * 100) / book.total) : 0;
+}
+
+const MINUTE = 60;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+/** "<1 min", "6 min", "3 hr", "4 days", "2 mths", "1.5 yrs": the next review, on a rating button. */
+export function formatInterval(seconds: number, locale: string): string {
+  const unit = (n: number, u: string, digits = 0) =>
+    new Intl.NumberFormat(locale, {
+      style: "unit",
+      unit: u,
+      unitDisplay: "short",
+      maximumFractionDigits: digits,
+    }).format(n);
+  if (seconds < MINUTE) return `<${unit(1, "minute")}`;
+  if (seconds < HOUR) return unit(Math.round(seconds / MINUTE), "minute");
+  if (seconds < DAY) return unit(Math.round(seconds / HOUR), "hour");
+  if (seconds < 30 * DAY) return unit(Math.round(seconds / DAY), "day");
+  if (seconds < 365 * DAY) return unit(Math.round(seconds / (30 * DAY)), "month");
+  return unit(seconds / (365 * DAY), "year", 1);
 }

@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 任务 27 AI 标记符号化 + 复习卡片改版
+
+- **做了什么**：用户反馈 AI 标记太大、复习页无脑居中、英文释义没用、评分按钮丑且被长卡片顶下去。Q27a–d 全按推荐。27.1 `AiBadge` 只留 ✦（`ai-pill.ts` 的 `aiMark` / `aiMarkCorner`）。27.2 `src/lib/meanings.ts` 把 ECDICT `translation` 按词性分行，只有领域标签的行（`[计]` 等）进折叠；`definition` 把硬换行的续行接回去（词性用白名单，避免把行首 `place.` 当成词性）。27.3 `components/vocab/word-meanings.tsx` 用原生 `<details>`，默认收起，摘要写“更多 · N 条专业释义 · 英文释义”，英文先显示 3 条，标“来源：ECDICT”。27.4 背面左对齐，卡片区内部滚动，评分栏 `shrink-0` 固定底部。27.5 四个评分做成分段栏（颜色点 + 下次间隔）；后端 `services/vocab/scheduler.py:preview()` 用关掉 fuzz 的 FSRS 算四个评分各自的间隔，`CardOut.intervals`（秒），前端 `formatInterval` 用 `Intl.NumberFormat` unit 格式化。27.6 用真实词条截图对照 1440/390 × 亮暗；E2E 42、Vitest 290、tsc、eslint、pytest vocab 57、ruff、mypy 全过。
+- **未完成**：无。
+- **下一步**：用户在 Docker 下实测 27、26、25、24、23、20.5、21、22，然后推送看 CI，之后进入 P2。
+- **踩坑**：`fsrs.Card()` 不传 `card_id` 会 sleep 1ms 生成 id，预览时传 `card_id=0`。Bash 里 `node` 也可能被 nvm 懒加载函数劫持，先 `unset -f node npm npx pnpm _load_nvm` 再把 nvm bin 放进 PATH。截图对照用的是临时 `e2e/_shots.spec.ts`（mock 队列），用完已删。
+
+---
+
 ## 2026-10-02 · 26.13 修复看板双滚动条
 
 - **做了什么**：用户实测反馈看板有两条滚动条、底部超出侧栏。用临时 Playwright 探针在 E2E 环境量出文档高 1607（视口 900），撑高的是语法表格的 `<caption class="sr-only">`：`sr-only` 是绝对定位，往上没有定位祖先，包含块变成整页，于是 `<body>` 也能滚。修复放在外壳 `frontend/src/app/(app)/layout.tsx`：内容区加 `relative overflow-hidden`，以后任何页面里的绝对定位元素都不会再撑高整页。`e2e/dashboard.spec.ts` 加回归断言（文档高度 = 视口）。typecheck、eslint、E2E 42 全过。

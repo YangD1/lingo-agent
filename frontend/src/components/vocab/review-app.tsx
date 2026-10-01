@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Bookmark, Volume2 } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useEffect } from "react";
 
 import { LogoMark } from "@/components/brand/logo";
@@ -15,7 +15,7 @@ import { Tag } from "@/components/ui/tag";
 import { isShortcut } from "@/lib/keyboard";
 import { speak, useCanSpeak } from "@/lib/speech";
 import { cn } from "@/lib/utils";
-import type { Rating } from "@/lib/vocab";
+import { formatInterval, type Rating } from "@/lib/vocab";
 
 import { type ReviewMode, useReviewSession } from "./use-review-session";
 import { WordMeanings } from "./word-meanings";
@@ -45,6 +45,7 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
   const session = useReviewSession(mode);
   const { current, flipped, flip, rate } = session;
   const speakable = useCanSpeak();
+  const locale = useLocale();
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -210,6 +211,10 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                     <span className="flex items-center gap-1.5">
                       <span aria-hidden className={cn("size-2 rounded-full", RATING_DOT[r])} />
                       {t(`ratings.${r}`)}
+                    </span>
+                    {/* When the word comes back if you choose this. */}
+                    <span className="text-xs text-muted-foreground tabular-nums" data-testid="rating-interval">
+                      {formatInterval(current.intervals[r - 1] ?? 0, locale)}
                     </span>
                     <span
                       aria-hidden
