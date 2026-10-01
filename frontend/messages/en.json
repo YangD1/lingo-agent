@@ -13,6 +13,12 @@
     "en": "English",
     "zh-CN": "简体中文"
   },
+  "themeSwitcher": {
+    "label": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
   "auth": {
     "email": "Email",
     "password": "Password",

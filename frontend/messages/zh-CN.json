@@ -13,6 +13,12 @@
     "en": "English",
     "zh-CN": "简体中文"
   },
+  "themeSwitcher": {
+    "label": "主题",
+    "system": "跟随系统",
+    "light": "浅色",
+    "dark": "深色"
+  },
   "auth": {
     "email": "邮箱",
     "password": "密码",

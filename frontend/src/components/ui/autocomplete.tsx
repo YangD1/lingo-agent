@@ -48,14 +48,14 @@ export function AutocompleteInput({
     >
       <Autocomplete.Input
         className={cn(
-          "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 md:text-sm dark:bg-input/30",
+          "h-10 w-full min-w-0 rounded-md border border-input bg-card px-3 py-1 text-base transition-colors outline-none placeholder:text-muted-foreground/85 hover:border-[color-mix(in_oklab,var(--input)_70%,var(--foreground))] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 md:h-9 md:text-sm",
           className,
         )}
         {...inputProps}
       />
       <Autocomplete.Portal>
         <Autocomplete.Positioner sideOffset={4} align="start" className="z-50 outline-none">
-          <Autocomplete.Popup className="max-h-72 w-(--anchor-width) min-w-48 overflow-y-auto rounded-lg border bg-popover p-1 text-sm text-popover-foreground shadow-md">
+          <Autocomplete.Popup className="max-h-72 w-(--anchor-width) min-w-48 overflow-y-auto rounded-lg border bg-popover p-1 text-sm text-popover-foreground shadow-(--shadow-pop)">
             {empty && (
               <Autocomplete.Empty className="px-2 py-1.5 text-muted-foreground empty:hidden">
                 {empty}
@@ -66,7 +66,7 @@ export function AutocompleteInput({
                 <Autocomplete.Item
                   key={item}
                   value={item}
-                  className="cursor-default rounded-md px-2 py-1.5 font-mono select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
+                  className="flex min-h-8 cursor-default items-center rounded-sm px-2 py-1 font-mono select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
                 >
                   {item}
                 </Autocomplete.Item>

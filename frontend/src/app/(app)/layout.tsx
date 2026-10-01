@@ -2,8 +2,10 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { Logo } from "@/components/brand/logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LogoutButton } from "@/components/logout-button";
+import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { ApiError } from "@/lib/api";
 import { serverApi } from "@/lib/server-api";
 import type { Me } from "@/lib/types";
@@ -22,7 +24,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex h-dvh flex-col">
       <header className="flex items-center gap-4 border-b px-4 py-2">
-        <span className="font-semibold">Lingo Agent</span>
+        <Logo />
         <nav className="flex gap-3 text-sm">
           <Link href="/dashboard">{t("dashboard")}</Link>
           <Link href="/chat">{t("chat")}</Link>
@@ -37,6 +39,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             {me.user.display_name || me.user.email}
           </span>
           <LocaleSwitcher />
+          <ThemeSwitcher />
           <LogoutButton />
         </div>
       </header>
