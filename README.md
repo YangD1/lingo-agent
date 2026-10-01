@@ -10,6 +10,13 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 > **Status: P1, a working MVP.** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. Reading, writing, the full adaptive engine and voice conversation come next. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
 
+| | |
+|---|---|
+| ![Chat: the tutor corrects a mistake and shows what it did](docs/screenshots/chat-en.png) | ![Dashboard: CEFR level, vocabulary size, streak and today's plan](docs/screenshots/dashboard-en.png) |
+| ![Vocabulary: today's FSRS queue and word books](docs/screenshots/vocab-en.png) | ![Home page](docs/screenshots/home-en.png) |
+
+<sub>Screenshots use a demo account with scripted model replies.</sub>
+
 ## What works now
 
 **Learning**

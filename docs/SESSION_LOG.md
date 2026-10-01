@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-01 · 26.12 完成（任务 26 网站改版全部完成）
+
+- **做了什么**：七个登录后页面 1440/390 × 亮/暗对照通过，无需改代码。按用户选择重建 Docker 全栈（健康，空闲内存 backend 67MiB / frontend 54MiB / postgres 85MiB）。README 截图（20.6.1）按用户选择“造一个演示号”：在隔离的 `lingo_e2e` 库起演示后端 :8100 + 假模型 :8101（脚本回复）+ 前端生产构建 :3100，用临时脚本播种演示用户（入学测 A1、牛津 3000 复习 8 张、一段三轮对话含纠错和收词），中英各截首页、对话、看板、背单词四张 1280×800，放 `docs/screenshots/`，README.md 用 en、README.zh-CN.md 用 zh。用户的 `lingo` 库未动。检查结果沿用 26.11（typecheck、eslint、Vitest 280、E2E 42）。
+- **未完成**：无。任务 26 已 `[x]`，20.6 / 20.6.1 已 `[x]`。
+- **下一步**：用户在 Docker（:3000）下实测新界面和任务 25、24、23、20.5、21、22；然后推送并看 CI；之后进入 P2（先拆任务和用户确认）。
+- **踩坑**：已登录用户访问 `/`、`/login`、`/register` 会被重定向，截首页要不带登录态。storageState 里没有 `NEXT_LOCALE` cookie 时按 Accept-Language 选语言，Playwright `locale: "en-US"` 即可截英文界面。对话截图要带 `?c=<会话 id>`，否则是空的新对话。`frontend/.next` 是指向 :8100 构建的，本地要用时重新构建。临时脚本 `_shots.mjs`、`_demo_seed.mjs` 已删除、未提交。
+
+---
+
 ## 2026-10-01 · 26.11 完成（首页介绍、登录、注册）
 
 - **做了什么**：新增 `frontend/src/components/home/landing.tsx`（未登录首页，全静态）、`components/ai-pill.ts`（AI 胶囊样式，`ai-badge.tsx` 改为导入它）；`app/page.tsx` 只渲染 `Landing`；`(auth)/layout.tsx`、`auth-form.tsx` 按 login/register 设计稿改版；messages `home` 命名空间重写（demo / features / trust / footer）；`e2e/i18n.spec.ts` 标题断言改为 “Your AI English tutor”，语言切换用 `.filter({ visible: true })`。typecheck、eslint、Vitest 280、E2E 42 全过。

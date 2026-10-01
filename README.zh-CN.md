@@ -10,6 +10,13 @@
 
 > **状态：P1，可用的 MVP。** 私教能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级。阅读、写作、完整的自适应引擎和语音对话在后面的阶段。见[现在能做什么](#现在能做什么)和[路线图](docs/PLAN.md)。
 
+| | |
+|---|---|
+| ![对话：私教纠错，并列出它做了什么](docs/screenshots/chat-zh.png) | ![看板：CEFR 等级、词汇量、连续学习和今天的学习](docs/screenshots/dashboard-zh.png) |
+| ![背单词：今天的 FSRS 队列和词书](docs/screenshots/vocab-zh.png) | ![首页](docs/screenshots/home-zh.png) |
+
+<sub>截图用的是演示账号，模型回复是预先写好的。</sub>
+
 ## 现在能做什么
 
 **学习**
