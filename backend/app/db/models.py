@@ -566,6 +566,26 @@ class WordExample(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class WordSentence(Base):
+    """A real example sentence for a word, with its Chinese translation (ADR 0020).
+
+    Global read-only data like `words`, imported from Tatoeba by
+    `make sentences-import`; nothing refers to these rows, so a new import replaces
+    all of a source's rows.
+    """
+
+    __tablename__ = "word_sentences"
+
+    word_id: Mapped[int] = mapped_column(ForeignKey("words.id"), primary_key=True)
+    source: Mapped[str] = mapped_column(String(20), primary_key=True)
+    # 0 = the best sentence for the word.
+    rank: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    en: Mapped[str] = mapped_column(Text)
+    zh: Mapped[str] = mapped_column(Text)
+    # The sentence's id at the source, for linking back to it (Tatoeba: the English one).
+    source_id: Mapped[str] = mapped_column(String(40))
+
+
 class UserWordBook(TimestampMixin, Base):
     """The word book a learner is working through; one at a time (ADR 0011).
 

@@ -88,6 +88,10 @@ migrate: ## Apply database migrations to DATABASE_URL (from .env)
 vocab-import: ## Import the ECDICT word list into DATABASE_URL (downloads to data/; CSV=path to use a local copy)
 	cd backend && uv run python -m app.services.vocab.import_ecdict $(if $(CSV),--csv $(abspath $(CSV)))
 
+.PHONY: sentences-import
+sentences-import: ## Import Tatoeba example sentences into DATABASE_URL (after vocab-import; DIR=local exports, REFRESH=1 to download again)
+	cd backend && uv run python -m app.services.vocab.import_tatoeba $(if $(DIR),--dir $(abspath $(DIR))) $(if $(REFRESH),--refresh)
+
 .PHONY: dev-backend
 dev-backend: ## Run the API with auto-reload on :8000
 	cd backend && uv run uvicorn app.main:app --reload --port 8000

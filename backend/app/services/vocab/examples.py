@@ -42,12 +42,17 @@ class ExamplesInvalidError(Exception):
 
 
 def word_forms(word: Word) -> set[str]:
+    return forms_of(word.word, word.exchange)
+
+
+def forms_of(word: str, exchange: str | None, *, lemma: bool = True) -> set[str]:
     """The word and its inflections from ECDICT's `exchange` ("p:went/d:gone/0:go"),
-    lowercase. `1:` lists inflection kinds, not words."""
-    forms = {word.word.lower()}
-    for part in (word.exchange or "").split("/"):
+    lowercase. `1:` lists inflection kinds, not words; `0:` is the lemma, left out when
+    `lemma` is false ("held" then does not match "hold")."""
+    forms = {word.lower()}
+    for part in (exchange or "").split("/"):
         kind, _, form = part.partition(":")
-        if form and kind != "1":
+        if form and kind != "1" and (lemma or kind != "0"):
             forms.add(form.lower())
     return forms
 
