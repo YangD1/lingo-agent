@@ -257,7 +257,8 @@
       "toEnglish": "Show in English",
       "original": "Show original",
       "noChineseVoice": "This device has no Chinese voice, so only the English is read.",
-      "translating": "Translating…"
+      "translating": "Translating…",
+      "readSettings": "Read-aloud settings"
     }
   },
   "memory": {
@@ -929,5 +930,23 @@
     "loading": "Loading the estimate…",
     "failed": "Couldn't load the estimate.",
     "footer": "Token counts only. The price depends on your model provider."
+  },
+  "speech": {
+    "title": "Read aloud",
+    "description": "Voices and speed for reading replies, words and review cards aloud. Saved in this browser only.",
+    "accent": "English accent",
+    "accentUS": "American",
+    "accentGB": "British",
+    "enVoice": "English voice",
+    "zhVoice": "Chinese voice",
+    "auto": "Automatic (now: {name})",
+    "autoNone": "Automatic",
+    "try": "Try",
+    "rate": "English speed",
+    "rateValue": "{rate}×",
+    "noChinese": "This device has no Chinese voice, so only the English is read.",
+    "noVoices": "The browser hasn't listed its voices yet; until then it picks one itself.",
+    "hint": "Each device has its own voices, so set this on each one. Natural, Premium and Google voices usually sound best.",
+    "unsupported": "This browser can't read aloud."
   }
 }

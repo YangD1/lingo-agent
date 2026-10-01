@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-10-01 · 任务 25.3：朗读设置面板
+
+- **做了什么**：
+  - `frontend/src/components/speech/speech-settings.tsx`：口音、英文声音、中文声音（下拉第一项是“自动（当前：挑中的声音）”，按另一项的当前设置计算）、试听、英文语速；没有中文声音时提示并禁用中文试听；浏览器还没列出声音时禁用下拉并说明。
+  - 入口：设置页“朗读”卡片（`components/settings/read-aloud-section.tsx`，接在“显示”后面）+ 私教气泡朗读按钮旁的齿轮（`reply-tools.tsx`，Popover）。
+  - `frontend/src/lib/speech.ts`：设置存 `localStorage` 的 `lingo.speech`（JSON，`parseSpeechSettings` 校验和夹取范围；存储不可用时只在本页生效），`useSpeechSettings` / `useVoices` / `speakSample`；`useCanSpeak` 同时订阅声音和设置。
+  - 测试：`components/speech/speech-settings.test.tsx`（5 个）+ reply-tools 齿轮用例；Vitest 268 全过，eslint / tsc 干净。
+- **未完成**：25.6（E2E：没有声音时的提示、设置保存；README 中英；Docker 重建交用户实测）。界面还没在真实浏览器里看过。
+- **下一步**：25.6。25.4、25.5 等用户实测 24 和 25 的浏览器朗读后再定（Q25f）。
+- **踩坑**：
+  - `useSyncExternalStore` 的快照在“不能朗读”分支返回新的 `[]` 会无限重渲染，要返回同一个常量。
+  - 本页的设置备份只能在 `localStorage` 抛错时用，否则清掉存储后还会读到旧值。
+
+---
+
 ## 2026-10-01 · 任务 25.2：浏览器朗读挑声音
 
 - **做了什么**：

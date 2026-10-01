@@ -135,6 +135,14 @@ describe("ReplyTools", () => {
     expect(screen.getByTestId("no-chinese-voice")).toHaveTextContent("no Chinese voice");
   });
 
+  it("opens the read-aloud settings from the gear next to “Read aloud”", async () => {
+    stubSpeech();
+    wrap([reply()]);
+    await userEvent.click(screen.getByRole("button", { name: "Read-aloud settings" }));
+    expect(await screen.findByTestId("speech-settings")).toBeInTheDocument();
+    expect(screen.getByLabelText(/English speed/)).toBeInTheDocument();
+  });
+
   it("has no read-aloud button where the browser can't read", () => {
     wrap([reply()]);
     expect(screen.queryByRole("button", { name: "Read aloud" })).not.toBeInTheDocument();

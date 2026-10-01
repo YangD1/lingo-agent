@@ -1,12 +1,14 @@
 "use client";
 
-import { Languages, Square, Volume2 } from "lucide-react";
+import { Languages, Settings2, Square, Volume2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
+import { SpeechSettings } from "@/components/speech/speech-settings";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/lib/api";
 import { speakSegments, speechSegments, stopSpeaking, useCanSpeak, useSpeaking } from "@/lib/speech";
 
@@ -129,6 +131,18 @@ export function ReplyTools({
           {speaking ? <Square /> : <Volume2 />}
           {speaking ? t("stop") : t("read")}
         </Button>
+      )}
+      {speakable && (
+        <Popover>
+          <PopoverTrigger
+            render={<Button size="icon-xs" variant="ghost" aria-label={t("readSettings")} />}
+          >
+            <Settings2 />
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="start">
+            <SpeechSettings />
+          </PopoverContent>
+        </Popover>
       )}
       {messageId && onTranslate && (
         <>

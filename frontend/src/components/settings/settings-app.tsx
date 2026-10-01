@@ -8,6 +8,7 @@ import type { Connection, Presets } from "@/lib/types";
 import { RouteSection } from "./route-section";
 import { ConnectionsSection } from "./connections-section";
 import { DisplaySection } from "./display-section";
+import { ReadAloudSection } from "./read-aloud-section";
 import { UsageSection } from "./usage-section";
 
 export function SettingsApp() {
@@ -36,6 +37,7 @@ export function SettingsApp() {
           </>
         )}
         <DisplaySection />
+        <ReadAloudSection />
         <UsageSection />
       </div>
     </div>
