@@ -335,11 +335,14 @@
       "save": "保存画像",
       "discard": "放弃修改",
       "saved": "画像已保存。",
-      "chatLanguageAuto": "按我的等级（现在：{current}）",
       "chatLanguages": {
         "zh": "多说中文",
         "en": "多说英文"
-      }
+      },
+      "chatLanguageByLevel": "按等级",
+      "chatLanguageNow": "按你现在的等级：{current}",
+      "fewerMinutes": "减少 5 分钟",
+      "moreMinutes": "增加 5 分钟"
     },
     "fact": {
       "title": "私教记住的事",

@@ -1,5 +1,6 @@
 "use client";
 
+import { Info, Minus, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -9,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Segmented } from "@/components/ui/segmented";
+import { CefrTag, isCefrLevel } from "@/components/ui/tag";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { type ProfileField, type ProfileForm, profileChanges, toForm } from "@/lib/profile";
@@ -62,9 +65,16 @@ export function ProfileSection() {
     }
   }
 
+  // The stepper moves by five minutes, within what the backend accepts.
+  const stepMinutes = (delta: number) => {
+    const current = Number.parseInt(form.daily_minutes, 10) || 0;
+    const next = Math.min(600, Math.max(1, current + delta));
+    set("daily_minutes")({ target: { value: String(next) } });
+  };
+
   const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const field = (name: ProfileField, control: React.ReactNode) => (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <Label htmlFor={`profile-${name}`}>{t(`fields.${name}`)}</Label>
       {control}
     </div>
@@ -84,11 +94,15 @@ export function ProfileSection() {
             void save();
           }}
         >
-          <p className="text-sm" data-testid="profile-cefr">
-            {t("cefr")}{" "}
-            <span className="font-medium">{saved.cefr_level ?? t("cefrUnknown")}</span>
+          <p className="flex items-center gap-2 text-sm" data-testid="profile-cefr">
+            {t("cefr")}
+            {saved.cefr_level && isCefrLevel(saved.cefr_level) ? (
+              <CefrTag level={saved.cefr_level} />
+            ) : (
+              <span className="text-muted-foreground">{t("cefrUnknown")}</span>
+            )}
           </p>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
             {field(
               "native_language",
               <Input
@@ -134,33 +148,59 @@ export function ProfileSection() {
                 <option value="en">{t("languages.en")}</option>
               </NativeSelect>,
             )}
-            {field(
-              "chat_language",
-              <NativeSelect
-                id="profile-chat_language"
+            <div className="flex flex-col gap-2">
+              <span id="profile-chat_language" className="text-sm leading-none font-medium">
+                {t("fields.chat_language")}
+              </span>
+              <Segmented
+                label={t("fields.chat_language")}
                 value={form.chat_language}
-                onChange={set("chat_language")}
-              >
-                <option value="">
-                  {t("chatLanguageAuto", {
+                onChange={(value) => set("chat_language")({ target: { value } })}
+                options={[
+                  { value: "", label: t("chatLanguageByLevel") },
+                  { value: "zh", label: t("chatLanguages.zh") },
+                  { value: "en", label: t("chatLanguages.en") },
+                ]}
+                className="flex h-9 [&>button]:h-full"
+              />
+              {form.chat_language === "" && (
+                <p className="text-xs text-muted-foreground">
+                  {t("chatLanguageNow", {
                     current: t(`chatLanguages.${saved.chat_language_effective}`),
                   })}
-                </option>
-                <option value="zh">{t("chatLanguages.zh")}</option>
-                <option value="en">{t("chatLanguages.en")}</option>
-              </NativeSelect>,
-            )}
+                </p>
+              )}
+            </div>
             {field(
               "daily_minutes",
-              <Input
-                id="profile-daily_minutes"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={600}
-                value={form.daily_minutes}
-                onChange={set("daily_minutes")}
-              />,
+              <div className="flex h-10 items-stretch overflow-hidden rounded-md border border-input bg-card md:h-9">
+                <button
+                  type="button"
+                  aria-label={t("fewerMinutes")}
+                  onClick={() => stepMinutes(-5)}
+                  className="flex w-9 items-center justify-center text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring [&_svg]:size-4"
+                >
+                  <Minus />
+                </button>
+                <input
+                  id="profile-daily_minutes"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={600}
+                  value={form.daily_minutes}
+                  onChange={set("daily_minutes")}
+                  className="w-14 [appearance:textfield] border-x border-input bg-transparent text-center font-mono text-sm tabular-nums outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <button
+                  type="button"
+                  aria-label={t("moreMinutes")}
+                  onClick={() => stepMinutes(5)}
+                  className="flex w-9 items-center justify-center text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring [&_svg]:size-4"
+                >
+                  <Plus />
+                </button>
+              </div>,
             )}
             {field(
               "timezone",
@@ -174,9 +214,7 @@ export function ProfileSection() {
                 {form.timezone !== browserZone && (
                   <Button
                     type="button"
-                    size="sm"
                     variant="outline"
-                    className="h-8"
                     onClick={() => set("timezone")({ target: { value: browserZone } })}
                   >
                     {t("useBrowserZone")}
@@ -203,15 +241,17 @@ export function ProfileSection() {
               maxLength={1000}
             />,
           )}
-          <p className="text-xs text-muted-foreground">{t("manualHint")}</p>
+          <p className="flex items-start gap-2.5 rounded-lg border bg-muted px-3.5 py-2.5 text-[13px] text-muted-foreground">
+            <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+            {t("manualHint")}
+          </p>
           <div className="flex items-center gap-3">
-            <Button type="submit" size="sm" disabled={!dirty || saving}>
+            <Button type="submit" disabled={!dirty || saving}>
               {t("save")}
             </Button>
             {dirty && (
               <Button
                 type="button"
-                size="sm"
                 variant="ghost"
                 onClick={() => {
                   setMessage(null);

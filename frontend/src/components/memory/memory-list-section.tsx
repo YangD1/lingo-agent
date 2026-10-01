@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InlineConfirm } from "@/components/ui/inline-confirm";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import type { Memory, MemoryKind } from "@/lib/types";
@@ -24,7 +25,6 @@ const MAX_LENGTH = 1000; // backend/app/memory/service.py MAX_CONTENT_LENGTH
 export function MemoryListSection({ kind }: { kind: MemoryKind }) {
   const t = useTranslations(`memory.${kind}`);
   const common = useTranslations("memory");
-  const format = useFormatter();
   const describe = useDescribeError();
   const [memories, setMemories] = useState<Memory[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,25 +98,22 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
       <CardContent className="flex flex-col gap-3">
         {editable && (
           <form
-            className="flex flex-col gap-2"
+            className="flex gap-2"
             onSubmit={(e) => {
               e.preventDefault();
               void add();
             }}
           >
-            <Textarea
+            <Input
               aria-label={t("addLabel")}
               placeholder={t("addPlaceholder")}
               value={draft}
               maxLength={MAX_LENGTH}
               onChange={(e) => setDraft(e.target.value)}
-              className="min-h-10"
             />
-            <div>
-              <Button type="submit" size="sm" disabled={busy || !draft.trim()}>
-                {t("add")}
-              </Button>
-            </div>
+            <Button type="submit" disabled={busy || !draft.trim()} className="shrink-0">
+              {t("add")}
+            </Button>
           </form>
         )}
         {error && (
@@ -125,16 +122,18 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
           </p>
         )}
         {memories && memories.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t("empty")}</p>
+          <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+            {t("empty")}
+          </p>
         )}
         {memories && memories.length > 0 && (
           <>
-            <ul className="flex flex-col divide-y" aria-label={t("title")}>
+            <ul className="flex flex-col divide-y border-y" aria-label={t("title")}>
               {memories.map((m) => (
-                <li key={m.id} className="flex flex-col gap-1 py-2">
+                <li key={m.id} className="flex flex-col gap-1 py-3">
                   {editing?.id === m.id ? (
                     <form
-                      className="flex flex-col gap-2"
+                      className="flex items-start gap-2"
                       onSubmit={(e) => {
                         e.preventDefault();
                         void saveEdit();
@@ -146,8 +145,9 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
                         maxLength={MAX_LENGTH}
                         autoFocus
                         onChange={(e) => setEditing({ id: m.id, text: e.target.value })}
+                        className="min-h-16 flex-1"
                       />
-                      <div className="flex gap-2">
+                      <div className="flex shrink-0 flex-col gap-1">
                         <Button type="submit" size="sm" disabled={busy || !editing.text.trim()}>
                           {common("save")}
                         </Button>
@@ -163,13 +163,28 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
                     </form>
                   ) : (
                     <div className="flex items-start gap-2">
-                      <p className="flex-1 text-sm whitespace-pre-wrap">{m.content}</p>
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        {editable ? (
+                          <>
+                            <p className="text-sm whitespace-pre-wrap">{m.content}</p>
+                            <MemoryMeta memory={m} />
+                          </>
+                        ) : (
+                          <>
+                            <MemoryMeta memory={m} titleFirst />
+                            <p className="text-[13px] whitespace-pre-wrap text-muted-foreground">
+                              {m.content}
+                            </p>
+                          </>
+                        )}
+                      </div>
                       {editable && (
                         <Button
                           size="icon-sm"
                           variant="ghost"
                           aria-label={common("edit")}
                           disabled={busy}
+                          className="text-muted-foreground hover:text-foreground"
                           onClick={() => setEditing({ id: m.id, text: m.content })}
                         >
                           <Pencil />
@@ -182,6 +197,7 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
                             variant="ghost"
                             aria-label={common("delete")}
                             disabled={busy}
+                            className="text-muted-foreground hover:text-foreground"
                             onClick={ask}
                           >
                             <Trash2 />
@@ -190,30 +206,13 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
                       </InlineConfirm>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    {format.dateTime(new Date(m.updated_at), {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                    {m.source_conversation_id && (
-                      <>
-                        {" · "}
-                        <Link
-                          href={`/chat?c=${m.source_conversation_id}`}
-                          className="underline-offset-2 hover:underline"
-                        >
-                          {common("from", { title: m.source_title || common("untitled") })}
-                        </Link>
-                      </>
-                    )}
-                  </p>
                 </li>
               ))}
             </ul>
             <div>
               <ConfirmDialog
                 trigger={
-                  <Button size="sm" variant="outline" disabled={busy}>
+                  <Button size="sm" variant="destructive" disabled={busy}>
                     {t("clear")}
                   </Button>
                 }
@@ -226,5 +225,54 @@ export function MemoryListSection({ kind }: { kind: MemoryKind }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * When and where a memory came from. Facts put it under the text; summaries lead with the
+ * conversation's title, which is what the learner recognises them by.
+ */
+function MemoryMeta({ memory: m, titleFirst = false }: { memory: Memory; titleFirst?: boolean }) {
+  const common = useTranslations("memory");
+  const format = useFormatter();
+  const updated = new Date(m.updated_at);
+  const date = (
+    <time
+      dateTime={m.updated_at}
+      title={format.dateTime(updated, { dateStyle: "medium", timeStyle: "short" })}
+      className="font-mono text-xs text-muted-foreground"
+    >
+      {format.dateTime(updated, { month: "2-digit", day: "2-digit" })}
+    </time>
+  );
+  const href = m.source_conversation_id ? `/chat?c=${m.source_conversation_id}` : null;
+  const title = m.source_title || common("untitled");
+
+  if (titleFirst) {
+    return (
+      <p className="flex flex-wrap items-baseline gap-x-2 text-sm font-[550]">
+        {href ? (
+          <Link href={href} className="underline-offset-2 hover:underline">
+            {title}
+          </Link>
+        ) : (
+          <span>{title}</span>
+        )}
+        {date}
+      </p>
+    );
+  }
+  return (
+    <p className="text-xs text-muted-foreground">
+      {date}
+      {href && (
+        <>
+          {" · "}
+          <Link href={href} className="text-primary underline-offset-2 hover:underline">
+            {common("from", { title })}
+          </Link>
+        </>
+      )}
+    </p>
   );
 }

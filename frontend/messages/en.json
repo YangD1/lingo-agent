@@ -335,11 +335,14 @@
       "save": "Save profile",
       "discard": "Discard changes",
       "saved": "Profile saved.",
-      "chatLanguageAuto": "By my level (now: {current})",
       "chatLanguages": {
         "zh": "Mostly Chinese",
         "en": "Mostly English"
-      }
+      },
+      "chatLanguageByLevel": "By level",
+      "chatLanguageNow": "At your level now: {current}",
+      "fewerMinutes": "5 minutes less",
+      "moreMinutes": "5 minutes more"
     },
     "fact": {
       "title": "Things the tutor remembers",
