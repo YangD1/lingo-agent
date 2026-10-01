@@ -4,10 +4,12 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useRef } from "react";
 
 import { useErrorMessage } from "@/i18n/errors";
+import { stopSpeaking } from "@/lib/speech";
 import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
 import { MessageAttachments } from "./message-attachments";
+import { ReplyTools, useReplyTranslations } from "./reply-tools";
 import { TurnActivity } from "./turn-activity";
 import { TutorCards } from "./tutor-cards";
 import type { ActivityView } from "./use-activity";
@@ -16,11 +18,14 @@ import type { ChatMessage } from "./use-chat-session";
 import { WordPopup } from "./word-popup";
 
 export function MessageList({
+  conversationId = null,
   messages,
   activity,
   cards,
   empty,
 }: {
+  /** Where the messages are saved; needed to translate the tutor's. */
+  conversationId?: string | null;
   messages: ChatMessage[];
   /** What the tutor did per turn; absent when the learner hid it. */
   activity?: ActivityView;
@@ -33,6 +38,10 @@ export function MessageList({
   const errorMessage = useErrorMessage();
   const scrollRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
+  const translations = useReplyTranslations(conversationId);
+
+  // Reading aloud stops with the conversation it reads from.
+  useEffect(() => stopSpeaking, [conversationId]);
 
   // Scroll the list itself, not the page: embedded in the dashboard, the page stays put.
   useEffect(() => {
@@ -80,7 +89,10 @@ export function MessageList({
               {!m.content ? (
                 m.status === "streaming" && <span className="animate-pulse">…</span>
               ) : m.role === "assistant" ? (
-                <Markdown words>{m.content}</Markdown>
+                <Markdown words>
+                  {(m.id && translations.byId[m.id]?.showing && translations.byId[m.id].text) ||
+                    m.content}
+                </Markdown>
               ) : (
                 m.content
               )}
@@ -93,6 +105,15 @@ export function MessageList({
                 </p>
               )}
             </div>
+            {m.role === "assistant" && m.content && m.status !== "streaming" && (
+              <ReplyTools
+                messageKey={m.key}
+                messageId={m.id}
+                content={m.content}
+                translation={m.id ? translations.byId[m.id] : undefined}
+                onTranslate={conversationId ? (id, to) => void translations.toggle(id, to) : undefined}
+              />
+            )}
             {cards && m.role === "assistant" && m.turnId && (
               <TutorCards cards={cards.byTurn[m.turnId] ?? []} onDecide={cards.decide} />
             )}

@@ -126,6 +126,7 @@ export function TutorPanel({
       )}
       {header}
       <MessageList
+        conversationId={conversationId}
         messages={session.messages}
         activity={showActivity ? activity : undefined}
         cards={cards}

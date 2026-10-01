@@ -80,6 +80,8 @@ describe("useChatSession", () => {
     expect(onActivity).toHaveBeenCalledWith(expect.objectContaining(read));
     expect(onReplyDone).toHaveBeenCalledWith("c1", "u1");
     expect(result.current.messages[1].turnId).toBe("u1");
+    // The saved reply's id, for translating it.
+    expect(result.current.messages[1].id).toBe("m1");
 
     // The page then switches to the new id: the on-screen turn must not be reloaded.
     rerender({ id: "c1" });
@@ -201,6 +203,7 @@ describe("useChatSession", () => {
     expect(api).toHaveBeenCalledWith("/conversations/c9/messages");
     // A reply's activity is filed under the learner message it answers.
     expect(result.current.messages.map((m) => m.turnId)).toEqual([undefined, "1"]);
+    expect(result.current.messages.map((m) => m.id)).toEqual(["1", "2"]);
   });
 
   it("creates the conversation once when attachments need it before the first send", async () => {

@@ -1,0 +1,149 @@
+"use client";
+
+import { Languages, Square, Volume2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useCallback, useState } from "react";
+
+import { AiBadge } from "@/components/ai-badge";
+import { useDescribeError } from "@/components/settings/use-describe-error";
+import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
+import { speakSegments, speechSegments, stopSpeaking, useCanSpeak, useSpeaking } from "@/lib/speech";
+
+export type TranslateTarget = "zh" | "en";
+
+const HAN = /[㐀-䶿一-鿿豈-﫿]/g;
+const LATIN = /[A-Za-z]/g;
+
+/** Mostly English becomes Chinese, anything else English (Q24h). */
+export function translationTarget(text: string): TranslateTarget {
+  const latin = text.match(LATIN)?.length ?? 0;
+  const han = text.match(HAN)?.length ?? 0;
+  return latin > han ? "zh" : "en";
+}
+
+/** What a rendered message says, as it would be read: no code blocks, a break per block. */
+export function readableText(markdown: Element): string {
+  const copy = markdown.cloneNode(true) as Element;
+  copy.querySelectorAll("pre").forEach((pre) => pre.remove());
+  copy.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, td, th").forEach((el) => el.append("\n"));
+  return copy.textContent ?? "";
+}
+
+type Translation = { text?: string; showing: boolean; busy: boolean; error?: string };
+
+/**
+ * Translations of the tutor's messages in one conversation (ADR 0017 §4), by message id.
+ * Each is fetched once; switching back and forth after that makes no request.
+ */
+export function useReplyTranslations(conversationId: string | null) {
+  const describe = useDescribeError();
+  const [state, setState] = useState<{ for: string | null; byId: Record<string, Translation> }>({
+    for: conversationId,
+    byId: {},
+  });
+  const byId = state.for === conversationId ? state.byId : {};
+
+  const patch = useCallback(
+    (id: string, change: Partial<Translation>) =>
+      setState((s) => {
+        const current = s.for === conversationId ? s.byId : {};
+        const before = current[id] ?? { showing: false, busy: false };
+        return { for: conversationId, byId: { ...current, [id]: { ...before, ...change } } };
+      }),
+    [conversationId],
+  );
+
+  const toggle = async (id: string, target: TranslateTarget) => {
+    const current = byId[id];
+    if (current?.busy) return;
+    if (current?.text !== undefined) return patch(id, { showing: !current.showing });
+    if (!conversationId) return;
+    patch(id, { busy: true, error: undefined });
+    try {
+      const { text } = await api<{ text: string }>(
+        `/conversations/${conversationId}/messages/${encodeURIComponent(id)}/translate`,
+        { method: "POST", json: { target } },
+      );
+      patch(id, { text, showing: true, busy: false });
+    } catch (e) {
+      patch(id, { busy: false, error: describe(e) });
+    }
+  };
+
+  return { byId, toggle };
+}
+
+/**
+ * Under a tutor message: read it aloud (browser voices, Chinese and English parts each in
+ * their own) and switch between it and its translation.
+ */
+export function ReplyTools({
+  messageKey,
+  messageId,
+  content,
+  translation,
+  onTranslate,
+}: {
+  /** Identifies the message while it's read aloud. */
+  messageKey: string;
+  /** The backend's id; without one (not saved) there is nothing to translate. */
+  messageId?: string;
+  /** The original text, which decides the language to translate to. */
+  content: string;
+  translation?: Translation;
+  onTranslate?: (id: string, target: TranslateTarget) => void;
+}) {
+  const t = useTranslations("chat.reply");
+  const speakable = useCanSpeak();
+  const speaking = useSpeaking(messageKey);
+  const target = translationTarget(content);
+
+  const read = (button: HTMLElement) => {
+    if (speaking) return stopSpeaking();
+    const markdown = button.closest("li")?.querySelector('[data-slot="markdown"]');
+    if (markdown) speakSegments(messageKey, speechSegments(readableText(markdown)));
+  };
+
+  if (!speakable && !(messageId && onTranslate)) return null;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+      {speakable && (
+        <Button
+          size="xs"
+          variant="ghost"
+          aria-pressed={speaking}
+          onClick={(e) => read(e.currentTarget)}
+        >
+          {speaking ? <Square /> : <Volume2 />}
+          {speaking ? t("stop") : t("read")}
+        </Button>
+      )}
+      {messageId && onTranslate && (
+        <>
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={translation?.busy}
+            aria-pressed={translation?.showing ?? false}
+            onClick={() => onTranslate(messageId, target)}
+            data-testid="reply-translate"
+          >
+            <Languages />
+            {translation?.busy
+              ? t("translating")
+              : translation?.showing
+                ? t("original")
+                : t(target === "zh" ? "toChinese" : "toEnglish")}
+          </Button>
+          {translation?.text === undefined && <AiBadge feature="message_translate" />}
+        </>
+      )}
+      {translation?.error && (
+        <span role="alert" className="text-destructive">
+          {translation.error}
+        </span>
+      )}
+    </div>
+  );
+}

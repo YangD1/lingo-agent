@@ -249,6 +249,14 @@
       "add": "Add to my words",
       "added": "Added to my words.",
       "onList": "On my word list."
+    },
+    "reply": {
+      "read": "Read aloud",
+      "stop": "Stop",
+      "toChinese": "Show in Chinese",
+      "toEnglish": "Show in English",
+      "original": "Show original",
+      "translating": "Translating…"
     }
   },
   "memory": {

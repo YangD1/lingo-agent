@@ -11,6 +11,8 @@ import type { Attachment, Conversation, HistoryMessage } from "@/lib/types";
 
 export type ChatMessage = {
   key: string;
+  /** The backend's id, once saved (what translating a reply needs). */
+  id?: string;
   role: "user" | "assistant";
   content: string;
   attachments?: Attachment[];
@@ -91,6 +93,7 @@ export function useChatSession(conversationId: string | null, options: Options) 
           setMessages(
             history.map((m, i) => ({
               key: nextKey(),
+              id: m.id ?? undefined,
               role: m.role,
               content: m.content,
               attachments: m.attachments,
@@ -133,7 +136,12 @@ export function useChatSession(conversationId: string | null, options: Options) 
         optionsRef.current.onCard?.(event); // the card's fields, plus `event`
       } else if (event.event === "done") {
         const turnId = event.turn_id ?? undefined;
-        updateLast((m) => ({ ...m, status: undefined, turnId: turnId ?? m.turnId }));
+        updateLast((m) => ({
+          ...m,
+          id: event.message_id ?? m.id,
+          status: undefined,
+          turnId: turnId ?? m.turnId,
+        }));
         if (turnId) optionsRef.current.onReplyDone?.(id, turnId);
       } else {
         updateLast((m) => ({ ...m, status: "error", error: event }));

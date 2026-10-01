@@ -96,7 +96,7 @@ const components: Components = {
 /** `words`: make English words look-up-able (tutor messages only). */
 export function Markdown({ children, words = false }: { children: string; words?: boolean }) {
   return (
-    <div className="break-words">
+    <div className="break-words" data-slot="markdown">
       <ReactMarkdown
         remarkPlugins={remarkPlugins}
         rehypePlugins={words ? rehypePlugins : undefined}

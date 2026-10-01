@@ -249,6 +249,14 @@
       "add": "加入生词本",
       "added": "已加入生词本。",
       "onList": "已在生词本。"
+    },
+    "reply": {
+      "read": "朗读",
+      "stop": "停止",
+      "toChinese": "看中文",
+      "toEnglish": "看英文",
+      "original": "看原文",
+      "translating": "正在翻译…"
     }
   },
   "memory": {
