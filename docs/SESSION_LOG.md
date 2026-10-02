@@ -4,11 +4,12 @@
 
 ---
 
-## 2026-10-02 · 任务 33.1–33.5 完成，Q33g 待定
+## 2026-10-02 · 任务 33 完成（Q33g 已定），提出任务 50
 
 - **做了什么**：Q33a–f 按推荐确认。33.1 `exercise/inputs.py`（`load` / `plan_set` / `briefs`，含个人档案和讲解语言）；33.2 `exercise/drafts.py`（扁平 schema、`to_body`、`judge`）、`exercise/messages.py`、两个提示词、`rules.yaml` `2026-10-02.3`（`critic_max_gap`、`bank_repeat_days`、`min_items`、`prefetch_max_hours`）、providers 两份 YAML 加 `exercise_critic` 路由、`features.yaml` 的 `practice_set` + 前端文案；33.3 `exercise/bank.py`；33.4 `agents/exercise_graph.py` + `exercise/service.save_result`；33.5 `exercise/worker.py` 的 `PracticeWorker`（接进 `main.py`）、迁移 `9f45cf7f00b8`（开发库已升级）、`service.how_made`。pytest 1030 全过，ruff、mypy、tsc 干净。5 个提交未推送（加上任务 32 共领先 origin 约 15 个）。
-- **未完成**：Q33g 等用户决定（题库兜底的替补范围，详见看板）；33.6 文档（`docs/agent-tools.md` 加出题 / 审题 / 预生成三行、P2 计划 §3.4 落地记录、ADR 0021 补 Q33a–g 和“扁平 schema”“位置不重新编号”两处实现差异）。
-- **下一步**：按 Q33g 的决定改 `bank.fill`（若加第四档：`exercise_graph.fill` 传入等级范围内按重要度排的 KC，`planner` 可能要暴露候选排序）→ 33.6 → 任务 34 批改。任务 34/35 结束一组时要调 `app.state.practice_worker.prefetch(user_id, tenant_id)`；API 用 `start()` 拿 set id、`stage()` 给进度。
+- **Q33g 后续**：用户按推荐确认，题库补位加第四档（等级范围内其他薄弱语法点，按选题优先级）；`planner.candidates()` 从 `plan()` 拆出，`inputs.wider_kcs()`、`bank.fill(wider_kcs=)`、`ExerciseContext.wider_kcs`。33.6 文档完成（agent-tools、ADR 0021、P2 计划、PLAN）。pytest 1036 全过。
+- **未完成**：任务 50（测试提醒，用户提出：没测过、学到一定阶段的人，私教要及时提醒）的子任务和 Q50a–c 待用户确认；现状和缺口写在看板任务 50。
+- **下一步**：等用户确认 Q50a–c；然后拆任务 34（批改）。任务 34/35 结束一组时要调 `app.state.practice_worker.prefetch(user_id, tenant_id)`；API 用 `start()` 拿 set id、`stage()` 给进度、`service.how_made()` 给公示。
 - **踩坑**：① `Result.tuples()` 在 SQLAlchemy 2.1 已弃用，用 `.all()`。② pytest 会把测试文件里名为 `test` 的辅助函数当用例收集。③ 带标签联合（oneOf / discriminator）不能直接作结构化输出 schema，各家支持不一。④ 没入学测的新学习者按 A2 算，A2 窗口里多数语法点先验 p ≥ 0.4，所以第一组几乎全是产出题（transform / translate），这是 Q32d 的结果，实测时留意体验。
 
 ---
