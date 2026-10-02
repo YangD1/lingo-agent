@@ -193,11 +193,15 @@ describe("LearnerApp", () => {
       "href",
       "/chat?c=c1",
     );
-    expect(
-      within(screen.getByTestId("kc-g.third")).getByRole("link", {
-        name: "Practise with your tutor",
-      }),
-    ).toHaveAttribute("href", "/chat?practice=g.third");
+    const row = within(screen.getByTestId("kc-g.third"));
+    expect(row.getByRole("link", { name: "Practise with questions" })).toHaveAttribute(
+      "href",
+      "/practice?from=learner&kc=g.third",
+    );
+    expect(row.getByRole("link", { name: "Practise in conversation" })).toHaveAttribute(
+      "href",
+      "/chat?practice=g.third",
+    );
 
     await userEvent.click(within(evidence).getByRole("button", { name: "Delete this record" }));
     await userEvent.click(within(evidence).getByRole("button", { name: "Delete" }));

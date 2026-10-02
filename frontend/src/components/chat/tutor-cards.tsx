@@ -5,13 +5,12 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 
-import { AiBadge } from "@/components/ai-badge";
+import { PracticeChoices } from "@/components/practice/practice-choices";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ErrorText } from "@/components/ui/error-text";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { ApiError } from "@/lib/api";
 import { type CardAction, LINK_HREFS, type LinkKind, type TutorCard } from "@/lib/cards";
-import { practiceHref } from "@/lib/learner";
 import { cn } from "@/lib/utils";
 
 type Decide = (card: TutorCard, action: CardAction) => Promise<void>;
@@ -179,12 +178,7 @@ function Practice({ card }: { card: TutorCard }) {
   return (
     <>
       <p className="text-sm font-semibold">{t("practice.title", { kc: name })}</p>
-      <div className="flex items-center gap-2">
-        <Link href={practiceHref(kcId)} className={buttonVariants({ size: "sm" })}>
-          {t("practice.action")}
-        </Link>
-        <AiBadge feature="practice_start" />
-      </div>
+      <PracticeChoices kcId={kcId} origin="card" />
     </>
   );
 }

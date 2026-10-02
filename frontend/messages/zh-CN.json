@@ -129,7 +129,8 @@
     "collapse": "收起侧栏",
     "expand": "展开侧栏",
     "close": "关闭",
-    "account": "账户"
+    "account": "账户",
+    "practice": "语法练习"
   },
   "chat": {
     "newChat": "新对话",
@@ -278,8 +279,7 @@
       "declined": "你没有采纳这条建议。",
       "undone": "已撤销，恢复成原来的设置。",
       "practice": {
-        "title": "练习 {kc}",
-        "action": "开始练习"
+        "title": "练习 {kc}"
       },
       "link": {
         "vocab_review": {
@@ -481,7 +481,6 @@
       "placementCorrect": "入学测答对",
       "placementWrong": "入学测答错",
       "fromPlacement": "来自入学测",
-      "practice": "和私教练一练",
       "practiceCorrect": "练习答对",
       "fromPractice": "来自练习",
       "learnedTag": "已学会",
@@ -960,8 +959,9 @@
       "count": "{n} 次",
       "empty": "最近 30 天对话里没有记录到语法错误。",
       "chat": "去和私教对话",
-      "practice": "练一练",
-      "emptyTitle": "还没有常错的语法点"
+      "practice": "做题",
+      "emptyTitle": "还没有常错的语法点",
+      "practiceChat": "对话练"
     },
     "activity": {
       "title": "学习打卡",
@@ -1209,6 +1209,10 @@
         "rejected": "审题拒掉 {n} 道",
         "separator": "；"
       }
+    },
+    "entry": {
+      "exercises": "做一组题",
+      "chat": "对话练习"
     }
   }
 }

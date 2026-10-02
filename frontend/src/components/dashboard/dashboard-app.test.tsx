@@ -149,6 +149,15 @@ describe("DashboardApp", () => {
       "href",
       "/learner?kc=g.third",
     );
+    const errors = within(screen.getByTestId("dashboard-errors"));
+    expect(errors.getByRole("link", { name: "Questions" })).toHaveAttribute(
+      "href",
+      "/practice?from=dashboard&kc=g.third",
+    );
+    expect(errors.getByRole("link", { name: "Chat" })).toHaveAttribute(
+      "href",
+      "/chat?practice=g.third",
+    );
     expect(screen.getByTestId("activity-summary")).toHaveTextContent(
       "Studied 2 days in the last 12 weeks: 8 reviews, 2 chat turns.",
     );

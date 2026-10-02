@@ -129,7 +129,8 @@
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
     "close": "Close",
-    "account": "Account"
+    "account": "Account",
+    "practice": "Grammar practice"
   },
   "chat": {
     "newChat": "New chat",
@@ -278,8 +279,7 @@
       "declined": "You declined this.",
       "undone": "Undone: back to what you had.",
       "practice": {
-        "title": "Practise {kc}",
-        "action": "Start practice"
+        "title": "Practise {kc}"
       },
       "link": {
         "vocab_review": {
@@ -481,7 +481,6 @@
       "placementCorrect": "Right in the placement test",
       "placementWrong": "Wrong in the placement test",
       "fromPlacement": "From the placement test",
-      "practice": "Practise with your tutor",
       "practiceCorrect": "Right in practice",
       "fromPractice": "from practice",
       "learnedTag": "Learned",
@@ -960,8 +959,9 @@
       "count": "{n, plural, one {# time} other {# times}}",
       "empty": "No grammar mistakes recorded in chats over the last 30 days.",
       "chat": "Chat with your tutor",
-      "practice": "Practise",
-      "emptyTitle": "No common mistakes yet"
+      "practice": "Questions",
+      "emptyTitle": "No common mistakes yet",
+      "practiceChat": "Chat"
     },
     "activity": {
       "title": "Study calendar",
@@ -1209,6 +1209,10 @@
         "rejected": "{n} rejected in review",
         "separator": "; "
       }
+    },
+    "entry": {
+      "exercises": "Practise with questions",
+      "chat": "Practise in conversation"
     }
   }
 }

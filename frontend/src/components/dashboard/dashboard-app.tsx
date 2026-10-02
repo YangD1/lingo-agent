@@ -34,6 +34,7 @@ import {
   type SkillPoint,
 } from "@/lib/dashboard";
 import { CEFR_LEVELS, kcName, learnerHref, practiceHref } from "@/lib/learner";
+import { practiceSetHref } from "@/lib/practice";
 import { cn } from "@/lib/utils";
 
 import { ActivityHeatmap } from "./activity-heatmap";
@@ -419,10 +420,17 @@ function ErrorsSection({ board }: { board: Dashboard }) {
                 </span>
                 <span className="inline-flex shrink-0 items-center gap-1">
                   <Link
-                    href={practiceHref(e.kc_id)}
+                    href={practiceSetHref("dashboard", e.kc_id)}
                     className="font-medium text-primary underline-offset-2 hover:underline"
                   >
                     {t("practice")}
+                  </Link>
+                  <AiBadge feature={["practice_set", "practice_grade"]} />
+                  <Link
+                    href={practiceHref(e.kc_id)}
+                    className="ml-1 font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    {t("practiceChat")}
                   </Link>
                   <AiBadge feature="practice_start" />
                 </span>

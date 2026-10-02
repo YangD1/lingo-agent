@@ -6,10 +6,19 @@ import {
   ListChecksIcon,
   MessageCircleIcon,
   NotebookPenIcon,
+  PencilLineIcon,
   SettingsIcon,
 } from "lucide-react";
 
-export type NavKey = "dashboard" | "chat" | "vocab" | "learner" | "placement" | "memory" | "settings";
+export type NavKey =
+  | "dashboard"
+  | "chat"
+  | "vocab"
+  | "practice"
+  | "learner"
+  | "placement"
+  | "memory"
+  | "settings";
 
 export type NavItem = { key: NavKey; href: `/${string}`; icon: LucideIcon };
 
@@ -21,6 +30,7 @@ export const NAV_GROUPS: { key: "groupLearn" | "groupProgress" | "groupMine"; it
       { key: "dashboard", href: "/dashboard", icon: LayoutGridIcon },
       { key: "chat", href: "/chat", icon: MessageCircleIcon },
       { key: "vocab", href: "/vocab", icon: BookOpenIcon },
+      { key: "practice", href: "/practice", icon: PencilLineIcon },
     ],
   },
   {

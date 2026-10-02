@@ -6,16 +6,15 @@ import {
   CircleCheck,
   CircleX,
   GraduationCap,
-  MessageCircle,
   Trash2,
 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { AiBadge } from "@/components/ai-badge";
+import { PracticeChoices } from "@/components/practice/practice-choices";
 import { useDescribeError } from "@/components/settings/use-describe-error";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { ProgressBar } from "@/components/ui/progress";
 import { CefrTag, Tag } from "@/components/ui/tag";
@@ -28,7 +27,6 @@ import {
   kcName,
   learnedChecks,
   type MasteryGate,
-  practiceHref,
 } from "@/lib/learner";
 import { cn } from "@/lib/utils";
 import { ErrorText } from "@/components/ui/error-text";
@@ -159,16 +157,7 @@ export function KCItem({
       </button>
       {open && (
         <div id={detailsId} className="flex flex-col gap-2 pb-3 pl-[26px] text-[13px]">
-          <span className="inline-flex items-center gap-1.5 self-start">
-            <Link
-              href={practiceHref(kc.kc_id)}
-              className={buttonVariants({ size: "sm", variant: "outline" })}
-            >
-              <MessageCircle />
-              {t("practice")}
-            </Link>
-            <AiBadge feature="practice_start" />
-          </span>
+          <PracticeChoices kcId={kc.kc_id} origin="learner" className="self-start" />
           <LearnedProgress kc={kc} gate={gate} mastered={mastered} />
           {error && (
             <ErrorText>{error}</ErrorText>

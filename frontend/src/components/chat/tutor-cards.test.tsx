@@ -94,7 +94,11 @@ describe("TutorCards", () => {
     expect(screen.getByText("30 分钟")).toBeInTheDocument();
     expect(screen.getByText("已撤销，恢复成原来的设置。")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "撤销" })).toBeNull();
-    expect(screen.getByRole("link", { name: "开始练习" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "做一组题" })).toHaveAttribute(
+      "href",
+      "/practice?from=card&kc=g.third",
+    );
+    expect(screen.getByRole("link", { name: "对话练习" })).toHaveAttribute(
       "href",
       "/chat?practice=g.third",
     );

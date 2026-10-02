@@ -153,7 +153,11 @@ describe("TodayStart", () => {
       "href",
       "/vocab/review",
     );
-    expect(within(items[1]).getByRole("link", { name: "Start practising" })).toHaveAttribute(
+    expect(within(items[1]).getByRole("link", { name: "Practise with questions" })).toHaveAttribute(
+      "href",
+      "/practice?from=dashboard&kc=g.third",
+    );
+    expect(within(items[1]).getByRole("link", { name: "Practise in conversation" })).toHaveAttribute(
       "href",
       "/chat?practice=g.third",
     );
