@@ -20,7 +20,7 @@ import logging
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from langchain_core.messages import (
     AIMessage,
@@ -39,6 +39,7 @@ from langgraph.config import get_config
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.runtime import Runtime
+from langgraph.types import Command
 
 from app.activity.service import (
     STEPS,
@@ -68,7 +69,12 @@ from app.providers.llm import get_llm, get_llm_with_tools
 logger = logging.getLogger(__name__)
 
 LOAD_CONTEXT_NODE = "load_context"
-TUTOR_NODE = "tutor"
+SUPERVISOR_NODE = "supervisor"
+# Each coach is a subgraph under its route's name (ADR 0023 §2); its replying node has
+# the same name, which is what streamed tokens are tagged with.
+TUTOR_NODE = Route.TUTOR.value
+GRAMMAR_COACH_NODE = Route.GRAMMAR_COACH.value
+COACH_NODES = frozenset({TUTOR_NODE, GRAMMAR_COACH_NODE})
 TOOLS_NODE = "tools"
 
 # Tool round trips per turn; the tutor's last call then has no tools and must answer.
@@ -79,6 +85,10 @@ TOOL_TIMEOUT_SECONDS = 15
 # The tutor's calls after tool results: recorded apart from "chat", which the dashboard
 # counts as the learner's turns (ADR 0015 §7).
 TOOLS_USAGE_TASK = "chat_tools"
+# What a coach is told when it speaks first: only planning conversations (the tutor's)
+# and practice conversations (grammar_coach's) open by themselves.
+PLAN_CUE = "plan_opening"
+PRACTICE_CUE = "practice_opening"
 # Vendors answer a request with tools they can't take with one of these.
 _REFUSED_STATUSES = frozenset({400, 404, 422})
 
@@ -221,14 +231,23 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
             "metadata": {**config.get("metadata", {}), "usage_task": TOOLS_USAGE_TASK},
         }
     try:
-        reply = await _call(runtime, task, state, history, has_tools, bind, config)
+        reply = await _call(runtime, task, state, history, has_tools, bind, config, PLAN_CUE)
     except Exception as exc:
         if not (bind and getattr(exc, "status_code", None) in _REFUSED_STATUSES):
             raise
         # Some OpenAI-compatible servers reject tools; answer this turn without them.
         logger.warning("tool calling refused (%s); replying without tools", type(exc).__name__)
         await report(runtime, Step("tools", "skipped"))
-        reply = await _call(runtime, task, state, history, has_tools, False, config)
+        reply = await _call(runtime, task, state, history, has_tools, False, config, PLAN_CUE)
+    return {"messages": [reply]}
+
+
+async def grammar_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
+    """A practice conversation's coach: it stays on the grammar point, without tools
+    (ADR 0015 §2), and opens the conversation by itself."""
+    history, has_images = await _with_attachments(state["messages"], runtime.context.attachments)
+    task = "vision" if has_images else "chat"
+    reply = await _call(runtime, task, state, history, False, False, get_config(), PRACTICE_CUE)
     return {"messages": [reply]}
 
 
@@ -240,6 +259,7 @@ async def _call(
     has_tools: bool,
     bind: bool,
     config: RunnableConfig,
+    opening_cue: str,
 ) -> BaseMessage:
     llm: Runnable[Any, BaseMessage] = (
         get_llm_with_tools(runtime.context.providers, task, TOOL_SCHEMAS)
@@ -262,8 +282,7 @@ async def _call(
     if not any(isinstance(m, HumanMessage) for m in history):
         # An opening: the learner hasn't written yet. Some providers need a user turn,
         # so the cue goes in as one, for this call only.
-        cue = "plan_opening" if runtime.context.planning is not None else "practice_opening"
-        messages.append(HumanMessage(load_prompt(cue)))
+        messages.append(HumanMessage(load_prompt(opening_cue)))
     # astream, not ainvoke: if the learner disconnects, the run is cancelled, and only
     # astream reports that to callbacks (ainvoke's internal gather is cancelled before
     # on_llm_error runs), so llm_usage would miss a call the provider still bills for.
@@ -398,7 +417,40 @@ async def _with_attachments(
     return expanded, has_images
 
 
+async def supervisor(
+    state: ChatState, runtime: Runtime[ChatContext]
+) -> Command[Literal["tutor", "grammar_coach"]]:
+    """Hand the turn to its coach. The route is decided before the run from what is
+    certain about the conversation (ADR 0023 §3); no model is called here."""
+    return Command(goto=runtime.context.route.value)
+
+
+def _tutor_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatState, ChatState]:
+    builder = StateGraph(ChatState, context_schema=ChatContext)
+    builder.add_node(TUTOR_NODE, tutor)
+    builder.add_node(TOOLS_NODE, run_tools)
+    builder.add_edge(START, TUTOR_NODE)
+    builder.add_conditional_edges(TUTOR_NODE, after_tutor, [TOOLS_NODE, END])
+    builder.add_edge(TOOLS_NODE, TUTOR_NODE)
+    return builder.compile(checkpointer=False)
+
+
+def _grammar_coach_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatState, ChatState]:
+    builder = StateGraph(ChatState, context_schema=ChatContext)
+    builder.add_node(GRAMMAR_COACH_NODE, grammar_coach)
+    builder.add_edge(START, GRAMMAR_COACH_NODE)
+    builder.add_edge(GRAMMAR_COACH_NODE, END)
+    return builder.compile(checkpointer=False)
+
+
 def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
+    """START -> load_context -> supervisor -> a coach -> END (ADR 0023 §2). Coaches are
+    subgraphs on the same thread: they read and extend one history.
+
+    Coaches never checkpoint on their own (`checkpointer=False`): a subgraph that does
+    stores its input, untracked learner context and practice guidance included, which
+    must never reach the checkpoint. The parent keeps the messages they add.
+    """
     builder = StateGraph(
         ChatState,
         context_schema=ChatContext,
@@ -406,10 +458,11 @@ def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
         output_schema=MessagesState,
     )
     builder.add_node(LOAD_CONTEXT_NODE, load_context)
-    builder.add_node(TUTOR_NODE, tutor)
-    builder.add_node(TOOLS_NODE, run_tools)
+    builder.add_node(SUPERVISOR_NODE, supervisor)
+    builder.add_node(TUTOR_NODE, _tutor_graph())
+    builder.add_node(GRAMMAR_COACH_NODE, _grammar_coach_graph())
     builder.add_edge(START, LOAD_CONTEXT_NODE)
-    builder.add_edge(LOAD_CONTEXT_NODE, TUTOR_NODE)
-    builder.add_conditional_edges(TUTOR_NODE, after_tutor, [TOOLS_NODE, END])
-    builder.add_edge(TOOLS_NODE, TUTOR_NODE)
+    builder.add_edge(LOAD_CONTEXT_NODE, SUPERVISOR_NODE)
+    builder.add_edge(TUTOR_NODE, END)
+    builder.add_edge(GRAMMAR_COACH_NODE, END)
     return builder.compile(checkpointer=checkpointer)

@@ -14,7 +14,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.activity.service import ActivitySink
-from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph
+from app.agents.chat_graph import COACH_NODES, ChatContext, ChatGraph
 from app.agents.routing import Route
 from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
@@ -219,7 +219,8 @@ async def _run_graph(
     usage = {"input_tokens": 0, "output_tokens": 0}
     opening = PLAN_OPENING_USAGE_TASK if planning is not None else OPENING_USAGE_TASK
     try:
-        async for mode, part in graph.astream(
+        # subgraphs=True: tokens and custom events come from inside the coach subgraphs.
+        async for _namespace, mode, part in graph.astream(
             {"messages": [] if text is None else [HumanMessage(text, id=message_id)]},
             {
                 **thread_config(conversation_id),
@@ -239,6 +240,7 @@ async def _run_graph(
                 route=route,
             ),
             stream_mode=["messages", "custom"],
+            subgraphs=True,
         ):
             if mode == "custom":
                 if isinstance(part, dict) and "activity" in part:
@@ -252,7 +254,7 @@ async def _run_graph(
             if not (
                 isinstance(chunk, AIMessageChunk)
                 and isinstance(metadata, dict)
-                and metadata.get("langgraph_node") == TUTOR_NODE
+                and metadata.get("langgraph_node") in COACH_NODES
             ):
                 continue
             # With tool calls a turn has several tutor messages; history shows them as

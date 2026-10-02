@@ -1,5 +1,5 @@
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Mapping
 from typing import Any, ClassVar
 
 import pytest
@@ -16,10 +16,19 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.activity.service import ContextRead, Step
 from app.adaptive.kc.catalog import get_grammar_catalog
-from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph, build_chat_graph
+from app.agents.chat_graph import (
+    GRAMMAR_COACH_NODE,
+    TUTOR_NODE,
+    ChatContext,
+    ChatGraph,
+    build_chat_graph,
+)
+from app.agents.routing import Route
+from app.cards.tools import ToolOutcome
 from app.chat.practice import Mistake, PracticeFocus
 from app.db.urls import to_psycopg_conninfo
 from app.memory.context import MAX_FACTS_CHARS, LearnerContext
+from app.prompts import load_prompt
 from app.providers import llm
 from app.providers.config import TenantProviderContext
 from tests.conftest import CHECKPOINT_TABLES, TEST_DATABASE_URL
@@ -139,11 +148,12 @@ async def test_tokens_stream_from_the_tutor_node(
     use_model(monkeypatch, GenericFakeChatModel(messages=iter([AIMessage("Hello there friend")])))
 
     chunks: list[tuple[str, str]] = []
-    async for chunk, metadata in graph.astream(
+    async for _namespace, (chunk, metadata) in graph.astream(
         {"messages": [HumanMessage("Hi")]},
         thread(uuid.uuid4()),
         context=ChatContext(providers),
         stream_mode="messages",
+        subgraphs=True,  # the tutor is a subgraph (ADR 0023 §2)
     ):
         # astream's return type covers every stream_mode; "messages" yields (chunk, dict).
         assert isinstance(chunk, AIMessageChunk) and isinstance(metadata, dict)
@@ -320,7 +330,9 @@ async def test_practice_guidance_is_sent_but_never_checkpointed(
     model = RecordingChatModel()
     use_model(monkeypatch, model)
     thread_id = uuid.uuid4()
-    context = ChatContext(providers, learner=FakeLearner(), practice=FakePractice())
+    context = ChatContext(
+        providers, learner=FakeLearner(), practice=FakePractice(), route=Route.GRAMMAR_COACH
+    )
 
     await graph.ainvoke({"messages": [HumanMessage("Hi")]}, thread(thread_id), context=context)
 
@@ -447,3 +459,113 @@ async def test_provider_keys_never_reach_the_checkpoint(
     everything = await dump_checkpoints(db_session, thread_id)
     assert KEY_MARKER not in everything
     assert KEY_MARKER.encode().hex() not in everything  # bytea renders as \x<hex>
+
+
+# --- the supervisor and its coaches (ADR 0023, task 37.2) ---
+
+TOOLS_MARKER = "cards-marker-only-the-tutor-sees-9"
+
+
+class FakeTools:
+    async def run(self, name: str, args: Mapping[str, Any], call_id: str) -> ToolOutcome:
+        return ToolOutcome("done")
+
+    async def context(self) -> str:
+        return TOOLS_MARKER
+
+
+@pytest.mark.parametrize(
+    ("route", "node"), [(Route.TUTOR, TUTOR_NODE), (Route.GRAMMAR_COACH, GRAMMAR_COACH_NODE)]
+)
+async def test_the_supervisor_hands_the_turn_to_its_coach(
+    graph: ChatGraph,
+    providers: TenantProviderContext,
+    monkeypatch: pytest.MonkeyPatch,
+    route: Route,
+    node: str,
+) -> None:
+    use_model(monkeypatch, GenericFakeChatModel(messages=iter([AIMessage("Hello there")])))
+
+    nodes: set[str] = set()
+    async for _namespace, (_chunk, metadata) in graph.astream(
+        {"messages": [HumanMessage("Hi")]},
+        thread(uuid.uuid4()),
+        context=ChatContext(providers, route=route),
+        stream_mode="messages",
+        subgraphs=True,
+    ):
+        assert isinstance(metadata, dict)
+        nodes.add(metadata["langgraph_node"])
+
+    assert nodes == {node}
+
+
+async def test_grammar_coach_gets_no_tools(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = RecordingChatModel()
+    use_model(monkeypatch, model)
+
+    for route in (Route.TUTOR, Route.GRAMMAR_COACH):
+        await graph.ainvoke(
+            {"messages": [HumanMessage("Hi")]},
+            thread(uuid.uuid4()),
+            context=ChatContext(providers, tools=FakeTools(), route=route),
+        )
+
+    tutor_prompt, coach_prompt = (str(sent[0].content) for sent in model.seen)
+    assert TOOLS_MARKER in tutor_prompt
+    assert TOOLS_MARKER not in coach_prompt
+
+
+@pytest.mark.parametrize(
+    ("route", "cue"), [(Route.TUTOR, "plan_opening"), (Route.GRAMMAR_COACH, "practice_opening")]
+)
+async def test_each_coach_opens_with_its_own_cue(
+    graph: ChatGraph,
+    providers: TenantProviderContext,
+    monkeypatch: pytest.MonkeyPatch,
+    route: Route,
+    cue: str,
+) -> None:
+    model = RecordingChatModel(reply="Welcome!")
+    use_model(monkeypatch, model)
+
+    await graph.ainvoke(
+        {"messages": []}, thread(uuid.uuid4()), context=ChatContext(providers, route=route)
+    )
+
+    [sent] = model.seen
+    assert sent[1].content == load_prompt(cue)
+
+
+async def test_coaches_share_one_history(
+    graph: ChatGraph,
+    providers: TenantProviderContext,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    model = RecordingChatModel(reply="Sure.")
+    use_model(monkeypatch, model)
+    thread_id = uuid.uuid4()
+
+    await graph.ainvoke(
+        {"messages": [HumanMessage("Hi")]},
+        thread(thread_id),
+        context=ChatContext(providers, route=Route.TUTOR),
+    )
+    await graph.ainvoke(
+        {"messages": [HumanMessage("Let's practise.")]},
+        thread(thread_id),
+        context=ChatContext(
+            providers, learner=FakeLearner(), practice=FakePractice(), route=Route.GRAMMAR_COACH
+        ),
+    )
+
+    # The coach sees what was said to the tutor, and both turns are kept in one thread.
+    assert [m.type for m in model.seen[1]] == ["system", "human", "ai", "human"]
+    stored = (await graph.aget_state(thread(thread_id))).values["messages"]
+    assert [m.content for m in stored] == ["Hi", "Sure.", "Let's practise.", "Sure."]
+    # Coach subgraphs keep no checkpoints of their own, so their input never lands there.
+    dump = await dump_checkpoints(db_session, thread_id)
+    assert MEMORY_MARKER not in dump and PRACTICE_MARKER not in dump
