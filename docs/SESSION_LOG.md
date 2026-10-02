@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-10-02 · 任务 35 完成（练习接口、练习页、入口）
+
+- **做了什么**：35.1–35.5 见看板（指定语法点的组、继续没做完的组、开组掌握度快照；`api/practice.py` 五个接口；学习者模型“学会的条件”；`/practice` 页；“做一组题 / 对话练习”入口）。35.6：`fake_llm.py` 加出题、审题、批改的假回复，新 `frontend/e2e/practice-set.spec.ts` 两个流程，`practice.spec.ts` 改按钮名；修了 E2E 发现的 500（见踩坑）；`docs/agent-tools.md`、P2 计划落地记录。make lint 干净，pytest 1110、Vitest 311、E2E 45 全过；Docker 重建，迁移 head `27b21e3b464b`。
+- **未完成**：无。本地领先 origin，未推送。
+- **下一步**：推送并看 CI；然后任务 50（测试提醒，Q50a–c 已确认），开工前先拆子任务。
+- **踩坑**：① `answering.answer()` 在批改前 rollback、结束后 commit，`report()` 也 commit，之后依赖注入的 `user` / `tenant` 对象过期，接口里再读 `user.id` 会触发同步懒加载（async 下报 `MissingGreenlet` → 500）；要在调用前把 id 取出来。② 上一个会话因为对话累积超过 32MB 请求上限而中断（大量 E2E trace / 输出），跑 E2E 时只 tail 结果，不要把 trace 内容读进对话。③ 等后台进程时不要用 `pgrep -f`，它会匹配到自己的 shell。
+
 ## 2026-10-02 · 任务 34 完成（批改）
 
 - **做了什么**：34.3 `adaptive/exercise/answer.py`：`answer()`（代码判 / 模型判 → `attempts` + `kc_evidence` → `mastery.refresh` → 组状态）和 `report()`（标 `reported`、删证据重放、保留作答），都自己提交；`worker.structured_call` 抽出来供批改复用。34.4 同文件 `_update_ability`：每次计入的作答走一步 Elo，没有记录时从等级锚点起步。34.5 文档：agent-tools、ADR 0021 §6、P2 计划。集成测试 15 个，pytest 1075 全过，ruff、mypy 干净。提交 1d3492e、6062901 和本条。

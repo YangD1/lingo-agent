@@ -5,16 +5,23 @@ code); open items are seeded directly to check what happens without a grading mo
 """
 
 import uuid
+from collections.abc import Sequence
 from typing import Any
 
+import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
+from langchain_core.messages import BaseMessage
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.exercise.formats import parse_body
+from app.adaptive.exercise.grader import Graded
 from app.adaptive.exercise.worker import PracticeWorker
 from app.adaptive.rules import get_rules
+from app.agents.exercise_graph import ModelReply, StructuredCall
+from app.api import practice as practice_api
 from app.db.models import Attempt, Exercise, ExerciseSet, User
 from tests.integration.test_chat_send import login
 from tests.integration.test_exercise_answer import ITEMS, KC
@@ -228,3 +235,33 @@ async def test_the_page_never_sees_where_an_own_sentence_came_from(
     await db_session.commit()
     [item] = (await get(client, f"/practice/sets/{exercise_set.id}"))["items"]
     assert item["content"] == {"instruction": "Fix it.", "original": "He go to work."}
+
+
+async def test_an_open_answer_graded_by_the_model(
+    client: AsyncClient, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    graded = Graded(
+        correct=False,
+        explanation="The verb needs -s.",
+        corrected="She walks to work.",
+        other_mistakes=[],
+    )
+
+    def fake_call(ctx: object, config: dict[str, Any], task: str) -> StructuredCall:
+        assert task == "exercise_grade" and config["metadata"]["user_id"]
+
+        async def call(messages: Sequence[BaseMessage], schema: type[BaseModel]) -> ModelReply:
+            return ModelReply(graded, "fake:grader")
+
+        return call
+
+    monkeypatch.setattr(practice_api, "structured_call", fake_call)
+    await login(client)
+    item = await open_item(db_session, "learner@example.com")
+    answered = await post(
+        client, f"/practice/exercises/{item}/answer", {"text": "She walk to work."}
+    )
+    result = answered["item"]["result"]
+    assert result["correct"] is False
+    assert result["feedback"]["corrected"] == "She walks to work."
+    assert result["feedback"]["model"] == "fake:grader"

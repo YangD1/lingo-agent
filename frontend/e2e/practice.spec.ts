@@ -27,7 +27,7 @@ test("practice: from a grammar point into a conversation the tutor opens", async
   await say(page, "She like music.");
 
   await page.goto(`/learner?kc=${KC}`);
-  await page.getByTestId(`kc-${KC}`).getByRole("link", { name: "和私教练一练" }).click();
+  await page.getByTestId(`kc-${KC}`).getByRole("link", { name: "对话练习" }).click();
 
   // A new practice conversation, and the tutor speaks first about the point.
   await expect(page).toHaveURL(/\/chat\?c=[0-9a-f-]{36}$/);
@@ -60,7 +60,7 @@ test("practice: from a grammar point into a conversation the tutor opens", async
   await expect(point).toContainText("错误 2 次");
 
   // Once they have spoken, practising again starts afresh.
-  await point.getByRole("link", { name: "和私教练一练" }).click();
+  await point.getByRole("link", { name: "对话练习" }).click();
   await expect(page).toHaveURL(/\/chat\?c=[0-9a-f-]{36}$/);
   expect(new URL(page.url()).searchParams.get("c")).not.toBe(id);
   await expect(messages(page).first()).toContainText("Let's practise");

@@ -17,6 +17,10 @@ tool result is back. A planning opening names the placement level.
 Language mix (ADR 0017): "which language" gets back the language the system prompt asks
 for; AI example sentences use the word asked for; a translation into Chinese is "译文 "
 plus the message, one into English "(English) " plus it.
+Practice sets (ADR 0021): the generator writes the same item per format whatever the
+grammar point, the critic passes them all answering as the key does, and the grader
+marks an open answer wrong with "walk" -> "walks" as another mistake (an answer equal
+to the reference is graded by code and never reaches it).
 """
 
 import asyncio
@@ -64,6 +68,57 @@ PROPOSED_BOOK = {"book_id": "oxford3000", "daily_new": 10}
 CHINESE_MODE = "mainly in Chinese"
 EXAMPLE_WORD = re.compile(r"^Word: (.+)$", re.MULTILINE)
 TRANSLATE_TARGET = re.compile(r"^Target language: (.+)$", re.MULTILINE)
+
+
+# Practice items per format (backend/app/adaptive/exercise/drafts.py Draft) and the key
+# the critic answers with (own_answer, own_segment).
+PRACTICE_DRAFTS: dict[str, dict[str, Any]] = {
+    "choice4": {
+        "stem": "My brother ___ in a hospital.",
+        "options": ["works", "work", "working", "is work"],
+        "correct": "works",
+    },
+    "cloze": {"stem": "She ___ coffee every morning.", "hint": "drink", "accepted": ["drinks"]},
+    "find_fix": {"segments": ["He ", "go ", "to work."], "wrong_segment": 1, "accepted": ["goes "]},
+    "transform": {
+        "instruction": "Start with 'My sister'.",
+        "source": "I play tennis.",
+        "accepted": ["My sister plays tennis."],
+    },
+    "translate": {"source": "她走路上班。", "accepted": ["She walks to work."]},
+    "rewrite_own": {"instruction": "Correct the sentence.", "accepted": ["She likes music."]},
+}
+PRACTICE_KEYS: dict[str, tuple[str, int | None]] = {
+    "choice4": ("works", None),
+    "cloze": ("drinks", None),
+    "find_fix": ("goes ", 1),
+    "transform": ("My sister plays tennis.", None),
+    "translate": ("She walks to work.", None),
+    "rewrite_own": ("She likes music.", None),
+}
+# One level per rubric dimension (backend/app/adaptive/rules.yaml difficulty.dimensions);
+# the generator and the critic agree, so no item fails on difficulty.
+RATINGS = {
+    "vocabulary": "at_target",
+    "syntax": "moderate",
+    "cues": "partial",
+    "distractors": "one_plausible",
+}
+
+
+def practice_section(messages: list[dict[str, Any]], title: str) -> list[dict[str, Any]]:
+    """The JSON list after `title` in the last message (backend/app/adaptive/exercise/messages.py)."""
+    content = text_of(messages[-1]["content"]) if messages else ""
+    if title not in content:
+        return []
+    start = content.index(title) + len(title)
+    end = content.find("\n\n", start)
+    items: list[dict[str, Any]] = json.loads(content[start : end if end != -1 else None])
+    return items
+
+
+def rated() -> dict[str, Any]:
+    return {k: {"level": v, "reason": "Typical for the level."} for k, v in RATINGS.items()}
 
 
 def text_of(content: Any) -> str:
@@ -156,6 +211,52 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
         return reflection(messages)
     if name == "EpisodeSummary":
         return {"summary": "The learner practised small talk."}
+    if name == "GeneratedItems":
+        asked = practice_section(messages, "Items to write:\n")
+        return {
+            "items": [
+                {
+                    "position": a["position"],
+                    "format": a["format"],
+                    "explanation": "The subject is third person singular, so the verb takes -s.",
+                    "ratings": rated(),
+                    **PRACTICE_DRAFTS[a["format"]],
+                }
+                for a in asked
+            ]
+        }
+    if name == "CriticReport":
+        items = practice_section(messages, "Items to review:\n")
+        return {
+            "reviews": [
+                {
+                    "position": i["position"],
+                    "own_answer": PRACTICE_KEYS[i["format"]][0],
+                    "own_segment": PRACTICE_KEYS[i["format"]][1],
+                    "answer_ok": True,
+                    "tests_kc": True,
+                    "content_ok": True,
+                    "problems": [],
+                    "ratings": rated(),
+                }
+                for i in items
+            ]
+        }
+    if name == "Graded":
+        return {
+            "correct": False,
+            "explanation": "The verb needs -s after a third-person subject.",
+            "corrected": "She walks to work.",
+            "other_mistakes": [
+                {
+                    "kc_id": THIRD_PERSON_KC,
+                    "error_type": "omission",
+                    "severity": "medium",
+                    "original": "walk",
+                    "correction": "walks",
+                }
+            ],
+        }
     prompt = text_of(messages[-1]["content"]) if messages else ""
     if name == "WordExamples" and (word := EXAMPLE_WORD.search(prompt)):
         w = word.group(1)

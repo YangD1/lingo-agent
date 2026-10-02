@@ -248,6 +248,8 @@ async def answer(
 ) -> AnsweredOut:
     """Grade the learner's first answer to an item; answering again returns the first
     result. On 503 nothing was stored and the learner can submit again."""
+    # `answer` ends the transaction before grading and commits, which expires `user`.
+    user_id, tenant_id = user.id, tenant.id
     try:
         response = body.response()
     except ValueError as exc:
@@ -255,14 +257,14 @@ async def answer(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_response", "empty answer"
         ) from exc
     # llm_usage attributes the grading call to this learner.
-    config: RunnableConfig = {"metadata": {"user_id": str(user.id)}, "tags": ["practice"]}
+    config: RunnableConfig = {"metadata": {"user_id": str(user_id)}, "tags": ["practice"]}
     grade_call = structured_call(
-        await load_provider_context(session, tenant.id), config, GRADE_TASK
+        await load_provider_context(session, tenant_id), config, GRADE_TASK
     )
     try:
         result = await answering.answer(
             session,
-            user.id,
+            user_id,
             exercise_id,
             response,
             grade_call=grade_call,
@@ -286,8 +288,8 @@ async def answer(
             "the answer could not be graded; nothing was saved, submit it again",
         ) from exc
     if result.set_done:
-        await worker.prefetch(user.id, tenant.id)
-    _, item = await _item_out(session, worker, user.id, exercise_id)
+        await worker.prefetch(user_id, tenant_id)
+    _, item = await _item_out(session, worker, user_id, exercise_id)
     return AnsweredOut(item=item, set_done=result.set_done)
 
 
@@ -300,13 +302,14 @@ async def report(
     worker: WorkerDep,
 ) -> AnsweredOut:
     """The learner says the item is wrong: its answer stops counting."""
+    user_id, tenant_id = user.id, tenant.id  # `report` commits, which expires `user`
     try:
         set_done = await answering.report(
-            session, user.id, exercise_id, rules=get_rules(), catalog=get_grammar_catalog()
+            session, user_id, exercise_id, rules=get_rules(), catalog=get_grammar_catalog()
         )
     except answering.ExerciseNotFoundError as exc:
         raise _item_not_found() from exc
     if set_done:
-        await worker.prefetch(user.id, tenant.id)
-    _, item = await _item_out(session, worker, user.id, exercise_id)
+        await worker.prefetch(user_id, tenant_id)
+    _, item = await _item_out(session, worker, user_id, exercise_id)
     return AnsweredOut(item=item, set_done=set_done)

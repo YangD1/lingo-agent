@@ -88,6 +88,7 @@
 - 学习者点“这题有问题”：题目标为 `reported`，不计证据，记入评估集候选（Q13）。
 - **落地记录（任务 33，2026-10-02）**：Q33a–g 已确认，细节写在 ADR 0021 §3、§4。代码：`adaptive/exercise/inputs.py`（选题输入）、`drafts.py`（扁平 schema、组装、`judge`）、`messages.py`、`bank.py`（题库补位四档）、`service.py`（存库、`how_made`）、`worker.py`（`PracticeWorker`）、`agents/exercise_graph.py`；`rules.yaml` `2026-10-02.3`；迁移 `9f45cf7f00b8`（`exercise_sets.rules_version`）。没入学测的新学习者按 A2，A2 窗口多数语法点先验 p ≥ 0.4，所以第一组几乎全是产出题，实测时留意；入学测和重测提醒另立任务 50。
 - **落地记录（任务 34，2026-10-02）**：Q34a–f 已确认，细节写在 ADR 0021 §6。代码：`adaptive/exercise/grading.py`（代码批改）、`grader.py` + `prompts/exercise_grade.md`（批改模型，`features.yaml` 的 `practice_grade`）、`answer.py`（`answer` / `report`，证据、掌握度重放、Elo、组状态）；`worker.structured_call` 抽出供批改复用。没有新迁移。任务 35 的接口在组完成（`Answered.set_done` 或 `report` 返回 True）时调 `practice_worker.prefetch`。
+- **落地记录（任务 35，2026-10-02）**：Q35a–e 按推荐确认。代码：`api/practice.py`（`POST/GET /practice/sets`、`GET /practice/sets/{id}`、`POST /practice/exercises/{id}/answer`、`/report`）、`adaptive/exercise/views.py`（读取；答案只在作答或举报后给）；`planner.plan(focus=)` 和 `PracticeWorker.start(focus_kc=)`（指定语法点最多占 `max_items_per_kc` 题，先继续没做完的组）；迁移 `f6717e7b015f`（`exercise_sets.focus_kc_id`、`mastery_before`）、`27b21e3b464b`（origin 加 `practice`）；前端 `/practice`（落地页、一题一屏、总结）、`PracticeChoices`（“做一组题”为主、“对话练习”为次），学习者模型显示“学会的条件”。**和计划不同**：结束汇总不单独开接口，组完成后放在 `GET /practice/sets/{id}` 的 `summary` 里；看板“常错语法点”每行也加了“做题”。踩坑：`answer()` / `report()` 会提交（作答前还会 rollback），之后 `user` 对象过期，接口里再读 `user.id` 会触发同步懒加载而报 500，所以要先把 id 取出来。
 
 ### 3.5 批改
 
