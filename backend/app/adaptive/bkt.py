@@ -29,6 +29,11 @@ class Observation:
     turn: str | None = None
     # Mistakes only; None for correct observations.
     severity: Severity | None = None
+    # Where it came from (kc_evidence.source) and, for practice answers, the item's
+    # format and the practice set it belongs to; read by `learned.progress`.
+    source: str = "chat"
+    format: str | None = None
+    group: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
