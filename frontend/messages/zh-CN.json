@@ -1223,6 +1223,9 @@
     "resumeAction": "继续",
     "progressAction": "重新测试",
     "ageAction": "重新测试",
-    "notNow": "以后再说"
+    "notNow": "以后再说",
+    "practice": {
+      "never": "还没做过入学测：先测一下水平，题目难度会更贴合你；也可以先做一组，按默认难度出题。"
+    }
   }
 }

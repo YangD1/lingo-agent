@@ -23,11 +23,14 @@ import { cn } from "@/lib/utils";
  */
 export function PlacementReminder({
   reasons,
+  where,
   className,
   "data-testid": testId = "placement-reminder",
 }: {
   /** Only these reasons; all by default. */
   reasons?: readonly ReminderReason[];
+  /** A page with its own wording: on the practice page, "never" says practising first is fine. */
+  where?: "practice";
   className?: string;
   "data-testid"?: string;
 }) {
@@ -66,7 +69,7 @@ export function PlacementReminder({
         </div>
       }
     >
-      {t(reminder.reason, {
+      {t(where === "practice" && reminder.reason === "never" ? "practice.never" : reminder.reason, {
         days: reminder.days_since ?? 0,
         level: reminder.level ?? "",
         learned: reminder.learned ?? 0,

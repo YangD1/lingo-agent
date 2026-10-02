@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api";
+import type { PlacementReminder } from "@/lib/placement";
 import type { Item, Origin, PracticeSet, SetBrief } from "@/lib/practice";
 
 import en from "../../../messages/en.json";
@@ -13,6 +14,14 @@ const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   api,
+}));
+// The placement reminder has its own calls, apart from the practice ones queued on `api`.
+const fetchPlacementReminder = vi.hoisted(() => vi.fn());
+const dismissPlacementReminder = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/placement", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/placement")>()),
+  fetchPlacementReminder,
+  dismissPlacementReminder,
 }));
 vi.mock("@/lib/ai-usage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ai-usage")>()),
@@ -88,6 +97,19 @@ function show(from: Origin | null = null, kc: string | null = null) {
 
 beforeEach(() => {
   api.mockReset();
+  fetchPlacementReminder.mockReset().mockResolvedValue(null);
+  dismissPlacementReminder.mockReset().mockResolvedValue(undefined);
+});
+
+const reminder = (over: Partial<PlacementReminder>): PlacementReminder => ({
+  reason: "never",
+  key: "never",
+  days_since: null,
+  level: null,
+  learned: null,
+  total: null,
+  snoozed: false,
+  ...over,
 });
 
 describe("PracticeApp", () => {
@@ -266,5 +288,53 @@ describe("PracticeApp", () => {
     api.mockResolvedValueOnce(set({ status: "failed", error_code: "no_llm_configured", items: [] }));
     show("dashboard");
     expect(await screen.findByTestId("practice-failed")).toHaveTextContent("No model is set up");
+  });
+
+  it("suggests the test before a first set, and practising first is fine", async () => {
+    fetchPlacementReminder.mockResolvedValue(reminder({}));
+    api.mockResolvedValueOnce([]);
+    show();
+
+    const hint = await screen.findByTestId("placement-reminder");
+    expect(hint).toHaveTextContent("or practise now at the default level");
+    expect(within(hint).getByRole("link", { name: "Take the test" })).toHaveAttribute(
+      "href",
+      "/placement",
+    );
+    expect(screen.getByRole("button", { name: "Start a set" })).toBeEnabled();
+
+    await userEvent.click(within(hint).getByRole("button", { name: "Not now" }));
+    expect(dismissPlacementReminder).toHaveBeenCalledWith("never");
+    expect(screen.queryByTestId("placement-reminder")).not.toBeInTheDocument();
+  });
+
+  it("keeps a retest for the end of a set", async () => {
+    const progress = reminder({
+      reason: "progress",
+      key: "progress:p1",
+      days_since: 20,
+      level: "B1",
+      learned: 24,
+      total: 33,
+    });
+    fetchPlacementReminder.mockResolvedValue(progress);
+    api.mockResolvedValueOnce([]);
+    const landing = show();
+    await screen.findByTestId("practice-landing");
+    await vi.waitFor(() => expect(fetchPlacementReminder).toHaveBeenCalled());
+    expect(screen.queryByTestId("placement-reminder")).not.toBeInTheDocument();
+    landing.unmount();
+
+    api.mockResolvedValueOnce(
+      set({
+        status: "done",
+        items: [answered(choice, true, { choice: "lives" })],
+        summary: { total: 1, correct: 1, kcs: [] },
+      }),
+    );
+    show("learner", "g.third");
+    const hint = await screen.findByTestId("placement-reminder");
+    expect(within(screen.getByTestId("practice-summary")).getByTestId("placement-reminder")).toBe(hint);
+    expect(hint).toHaveTextContent("You've learned 24 of the 33 B1 grammar points.");
   });
 });

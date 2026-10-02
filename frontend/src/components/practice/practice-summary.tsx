@@ -7,6 +7,7 @@ import Link from "next/link";
 import { AiBadge } from "@/components/ai-badge";
 import { LingoCat } from "@/components/brand/lingo-cat";
 import { STATE_BAR } from "@/components/learner/kc-item";
+import { PlacementReminder } from "@/components/placement/placement-reminder";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress";
@@ -46,6 +47,8 @@ export function PracticeSummary({
           ))}
         </ul>
         {set.how_made && <MadeBy how={set.how_made} />}
+        {/* Enough of the level learned, or the last test getting old (Q50b). */}
+        <PlacementReminder reasons={["progress", "age"]} />
         <div className="flex flex-wrap items-center gap-2">
           <Button disabled={busy} onClick={onAgain} data-testid="practice-again">
             {t("again")}

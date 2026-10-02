@@ -1223,6 +1223,9 @@
     "resumeAction": "Continue",
     "progressAction": "Retake",
     "ageAction": "Retake",
-    "notNow": "Not now"
+    "notNow": "Not now",
+    "practice": {
+      "never": "You haven't taken the placement test yet. Take it first so the questions fit your level, or practise now at the default level."
+    }
   }
 }

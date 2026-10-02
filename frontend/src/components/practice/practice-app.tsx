@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
 import { CatLoading } from "@/components/brand/lingo-cat";
+import { PlacementReminder } from "@/components/placement/placement-reminder";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -265,6 +266,8 @@ function Landing({
   const unfinished = recent.find((s) => isUnfinished(s.status));
   return (
     <>
+      {/* Before a first set: the test makes the questions fit (Q50b); practising first is fine. */}
+      <PlacementReminder reasons={["never", "resume"]} where="practice" />
       <Card data-testid="practice-landing">
         <CardHeader>
           <CardTitle>
