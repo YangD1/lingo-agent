@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 任务 36.3 完成（批改评估集）
+
+- **做了什么**：`evals/datasets/grader.yaml` 31 条（只收代码判不了、真的会走到模型的答案：开放题不在参考答案里的、find_fix 选对位置但改法不在列表里的）+ `evals/grader.py`（走 `grade_messages` → `exercise_grade` → `grader.verdict`；`verdict_right` 门槛 90%，`other_mistakes_found` / `no_extra_mistakes` 只报告不设门槛）；登记到 `EVALUATORS`。单测 6 个；pytest 1155 全过。
+- **未完成**：36.4——两个数据集都还没录制，`make eval` 现在两个都跳过。
+- **下一步**：36.4 需要用户临时给 key：按 `real-model-test-key` 记忆的做法建临时账号、在设置里加连接（`exercise_critic`、`exercise_grade` 走默认路由即可），`make eval-live ARGS='--email <临时账号>'` 先跑一遍看结果；失败的用例逐条看 detail，判断是用例本身有歧义（改用例）还是模型问题（记下来）；满意后加 `--record` 录制、入库，删临时账号。然后补全 `evals/README.md`、P2 计划落地记录、ADR 0005“评估”一节补一句。
+- **踩坑**：YAML 流式映射里答案带 `?` 会解析失败，答案统一加引号。
+
+---
+
 ## 2026-10-02 · 任务 36.2 完成（critic 评估集）
 
 - **做了什么**：`evals/datasets/critic.yaml`（坏题 25 条，六类缺陷；好题 18 条，六种题型各 3）+ `evals/critic.py`（一题一次调用，走 `critic_messages` → `exercise_critic` → `drafts.judge`，生成器难度从用例的 `ratings` 用 `prior_difficulty` 算）；登记到 `EVALUATORS`；没有录制文件时 `make eval` 和 `evals/test_replay.py` 跳过并提示录制。单测 5 个；pytest 1149 全过。

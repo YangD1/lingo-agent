@@ -1,0 +1,190 @@
+# Grading evaluation set (task 36.3): does `exercise_grade` + `grader.verdict` judge
+# known answers right, and find the learner's other grammar mistakes?
+#
+# Every case is an answer code cannot settle, so it reaches the model as in the app:
+# an open answer not among the reference answers (after normalising), or a find_fix
+# answer that picks the right piece with a fix not on the list.
+#   item       the exercise: format, kc, content, answer (as in formats.py; rewrite_own
+#              takes `evidence_id: 1` when it is left out)
+#   response   the learner's answer: {text} or, for find_fix, {segment, fix}
+#   correct    the verdict the grader should give
+#   other_mistakes  grammar KCs the answer gets wrong besides the tested one; each
+#              entry is one mistake, given as a KC id or a list of acceptable KC ids
+#
+# Items are shared through YAML anchors; every item and answer is made up.
+
+thresholds:
+  verdict_right: 0.9
+
+items:
+  passive: &passive
+    format: transform
+    kc: g.passive_basic
+    content:
+      instruction: Rewrite the sentence in the passive. Keep the past tense.
+      source: Someone stole my bike last night.
+    answer:
+      accepted: ["My bike was stolen last night.", "My bike was stolen by someone last night."]
+      explanation: Past passive is was/were + past participle.
+  question: &question
+    format: transform
+    kc: g.question_formation
+    content:
+      instruction: Turn the sentence into a yes/no question.
+      source: She lives in Shanghai.
+    answer:
+      accepted: ["Does she live in Shanghai?"]
+      explanation: Put "does" before the subject and use the base form of the verb.
+  reported: &reported
+    format: transform
+    kc: g.reported_statements
+    content:
+      instruction: Report the sentence. Start with "Tom said".
+      source: "Tom said, \"I am busy today.\""
+    answer:
+      accepted: ["Tom said that he was busy that day.", "Tom said he was busy that day."]
+      explanation: The present "am" moves back to "was", and "I" becomes "he".
+  second_conditional: &second_conditional
+    format: transform
+    kc: g.second_conditional
+    content:
+      instruction: Rewrite as one sentence starting with "If".
+      source: I don't have a car, so I can't drive to work.
+    answer:
+      accepted: ["If I had a car, I could drive to work."]
+      explanation: An unreal present takes if + past simple, could/would + verb.
+  experience: &experience
+    format: translate
+    kc: g.present_perfect_experience
+    content:
+      source: 你去过北京吗？
+      instruction: Use the present perfect.
+    answer:
+      accepted: ["Have you ever been to Beijing?", "Have you been to Beijing?"]
+      explanation: 问经历用 Have you (ever) been to ...?
+  going_to: &going_to
+    format: translate
+    kc: g.going_to_future
+    content:
+      source: 我打算明年学开车。
+      instruction: Use "be going to".
+    answer:
+      accepted: ["I'm going to learn to drive next year.", "I am going to learn to drive next year."]
+      explanation: 已经打算好的事用 be going to + 动词原形。
+  first_conditional: &first_conditional
+    format: translate
+    kc: g.first_conditional
+    content:
+      source: 如果明天下雨，我们就待在家里。
+    answer:
+      accepted: ["If it rains tomorrow, we will stay at home.", "We will stay at home if it rains tomorrow."]
+      explanation: if 从句用一般现在时，主句用 will。
+  superlative: &superlative
+    format: translate
+    kc: g.superlatives
+    content:
+      source: 这是我看过的最好的电影。
+    answer:
+      accepted: ["This is the best film I have ever seen.", "This is the best movie I've ever seen."]
+      explanation: “最……”用 the + 最高级，good 的最高级是 best。
+  own_irregular: &own_irregular
+    format: rewrite_own
+    kc: g.past_simple_irregular
+    content:
+      instruction: Rewrite your sentence correctly.
+      original: Yesterday I buyed a new phone.
+    answer:
+      accepted: ["Yesterday I bought a new phone."]
+      explanation: buy 的过去式是 bought。
+  own_third_person: &own_third_person
+    format: rewrite_own
+    kc: g.present_simple_third_person
+    content:
+      instruction: Rewrite your sentence correctly.
+      original: My father work in a hospital.
+    answer:
+      accepted: ["My father works in a hospital."]
+      explanation: 主语是第三人称单数，动词加 -s。
+  own_article: &own_article
+    format: rewrite_own
+    kc: g.articles_basic
+    content:
+      instruction: Rewrite your sentence correctly.
+      original: I want to be a engineer.
+    answer:
+      accepted: ["I want to be an engineer."]
+      explanation: engineer 以元音音素开头，用 an。
+  fix_irregular: &fix_irregular
+    format: find_fix
+    kc: g.past_simple_irregular
+    content:
+      segments: ["Last week ", "I ", "buyed ", "a new bike."]
+    answer:
+      wrong_segment: 2
+      accepted: ["bought "]
+      explanation: buy 是不规则动词，过去式是 bought。
+  fix_agreement: &fix_agreement
+    format: find_fix
+    kc: g.subject_verb_agreement
+    content:
+      segments: ["The list of names ", "are ", "on the desk ", "next to the window."]
+    answer:
+      wrong_segment: 1
+      accepted: ["is "]
+      explanation: 主语是单数的 the list。
+
+cases:
+  # --- transform ---
+  - {id: passive-fronted-time, item: *passive, response: {text: "Last night my bike was stolen."}, correct: true}
+  - {id: passive-active-form, item: *passive, response: {text: "My bike stole last night."}, correct: false}
+  - {id: passive-wrong-tense, item: *passive, response: {text: "My bike is stolen last night."}, correct: false}
+  - {id: question-no-auxiliary, item: *question, response: {text: "She lives in Shanghai?"}, correct: false}
+  - {id: reported-on-that-day, item: *reported, response: {text: "Tom said that he was busy on that day."}, correct: true}
+  - {id: reported-wrong-pronoun, item: *reported, response: {text: "Tom said that I was busy that day."}, correct: false}
+  - {id: conditional-would, item: *second_conditional, response: {text: "If I had a car, I would drive to work."}, correct: true}
+  - {id: conditional-real-form, item: *second_conditional, response: {text: "If I have a car, I can drive to work."}, correct: false}
+  - id: conditional-article-slip
+    item: *second_conditional
+    response: {text: "If I had a car, I would drive to the work."}
+    correct: true
+    other_mistakes: [[g.articles_basic, g.articles_generic, g.articles_specific]]
+
+  # --- translate ---
+  - {id: experience-visited, item: *experience, response: {text: "Have you ever visited Beijing?"}, correct: true}
+  - {id: experience-past-simple, item: *experience, response: {text: "Did you go to Beijing?"}, correct: false}
+  - {id: going-to-lessons, item: *going_to, response: {text: "I am going to take driving lessons next year."}, correct: true}
+  - {id: going-to-ing, item: *going_to, response: {text: "I'm going to learning to drive next year."}, correct: false}
+  - {id: first-conditional-will-in-if, item: *first_conditional, response: {text: "If it will rain tomorrow, we will stay at home."}, correct: false}
+  - {id: first-conditional-contracted, item: *first_conditional, response: {text: "We'll stay at home if it rains tomorrow."}, correct: true}
+  - id: first-conditional-pronoun-slip
+    item: *first_conditional
+    response: {text: "If it rains tomorrow, my parents and me will stay at home."}
+    correct: true
+    other_mistakes: [[g.subject_pronouns, g.object_pronouns]]
+  - {id: superlative-watched, item: *superlative, response: {text: "This is the best movie I have ever watched."}, correct: true}
+  - {id: superlative-most-good, item: *superlative, response: {text: "This is the most good movie I have ever seen."}, correct: false}
+  - id: superlative-participle-slip
+    item: *superlative
+    response: {text: "This is the best movie I have ever saw."}
+    correct: true
+    other_mistakes: [[g.past_participle_forms, g.present_perfect_experience]]
+
+  # --- rewrite_own ---
+  - {id: own-irregular-reordered, item: *own_irregular, response: {text: "I bought a new phone yesterday."}, correct: true}
+  - {id: own-irregular-present, item: *own_irregular, response: {text: "Yesterday I buy a new phone."}, correct: false}
+  - id: own-irregular-comma-splice
+    item: *own_irregular
+    response: {text: "Yesterday I bought a new phone, it is very good."}
+    correct: true
+    other_mistakes: [g.sentence_boundaries]
+  - {id: own-third-person-rephrased, item: *own_third_person, response: {text: "My dad works at a hospital."}, correct: true}
+  - {id: own-third-person-ing, item: *own_third_person, response: {text: "My father working in a hospital."}, correct: false}
+  - {id: own-article-rephrased, item: *own_article, response: {text: "I'd like to be an engineer."}, correct: true}
+  - {id: own-article-dropped, item: *own_article, response: {text: "I want to be engineer."}, correct: false}
+
+  # --- find_fix: the right piece, a fix not on the list ---
+  - {id: fix-irregular-got, item: *fix_irregular, response: {segment: 2, fix: "got"}, correct: true}
+  - {id: fix-irregular-base-form, item: *fix_irregular, response: {segment: 2, fix: "buy"}, correct: false}
+  - {id: fix-irregular-perfect, item: *fix_irregular, response: {segment: 2, fix: "have bought"}, correct: false}
+  - {id: fix-agreement-was, item: *fix_agreement, response: {segment: 1, fix: "was"}, correct: true}
+  - {id: fix-agreement-were, item: *fix_agreement, response: {segment: 1, fix: "were"}, correct: false}
