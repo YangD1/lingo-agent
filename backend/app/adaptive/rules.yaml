@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-02.2"
+version: "2026-10-02.3"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -269,6 +269,18 @@ practice:
   # Below this p_mastery a KC gets recognition formats (choice4, cloze, find_fix)
   # first; at or above it, production formats (transform, translate, rewrite_own).
   production_from_p: 0.4
+  # The generator and the critic each rate an item on the difficulty rubric; ratings
+  # this far apart (in logits) mean they disagree about the item, and it is rejected
+  # (Q33a). The critic's rating is the one kept.
+  critic_max_gap: 0.7
+  # Bank items fill slots the generator could not (Q33c): first items the learner has
+  # not seen, then ones last seen at least this many days ago.
+  bank_repeat_days: 14
+  # A set with fewer items than this, even after the bank, fails (Q33c, Q33d).
+  min_items: 5
+  # A set generated ahead of time is used only while younger than this and planned
+  # under the current rules (Q33e).
+  prefetch_max_hours: 24
 
 # When a grammar KC counts as learned (ADR 0021 §7). All conditions hold at one
 # piece of evidence, judged only from evidence up to it, so replaying gives the same

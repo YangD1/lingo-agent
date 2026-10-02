@@ -82,6 +82,7 @@ async def test_new_learner_is_planned_at_the_default_level(db_session: AsyncSess
     assert found.level is None
     assert found.ability == RULES.difficulty.cefr_anchor[RULES.practice.default_level]
     assert found.states == {} and found.own_sentences == {} and found.facts == []
+    assert found.profile == {} and found.explain_in == "zh"
     planned = inputs.plan_set(found, catalog=CATALOG, rules=RULES, now=NOW, seed=1)
     assert len(planned) == RULES.practice.set_size
     default = CEFR_LEVELS.index(RULES.practice.default_level)
@@ -94,7 +95,15 @@ async def test_new_learner_is_planned_at_the_default_level(db_session: AsyncSess
 
 async def test_placement_level_and_grammar_ability_are_used(db_session: AsyncSession) -> None:
     user_id, _ = await learner(db_session)
-    db_session.add(UserProfile(user_id=user_id, cefr_level="B1"))
+    db_session.add(
+        UserProfile(
+            user_id=user_id,
+            cefr_level="B1",
+            occupation="nurse",
+            interests=["hiking", "jazz"],
+            explanation_language="en",
+        )
+    )
     db_session.add(SkillEstimate(user_id=user_id, skill="grammar", rating=-0.3, attempts=20))
     await db_session.flush()
 
@@ -102,6 +111,8 @@ async def test_placement_level_and_grammar_ability_are_used(db_session: AsyncSes
 
     assert found.level == "B1"
     assert found.ability == -0.3
+    assert found.profile == {"Occupation": "nurse", "Interests": "hiking, jazz"}
+    assert found.explain_in == "en"
 
 
 async def test_states_count_recent_mistakes_but_not_tests_or_minor_slips(

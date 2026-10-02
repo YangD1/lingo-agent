@@ -67,6 +67,25 @@ features:
         timing: now
         default: {input_tokens: 1500, output_tokens: 150}
 
+  # A practice set (ADR 0021 §3): one call writes the set's items, one reviews them;
+  # items the critic rejects are rewritten and reviewed again, at most
+  # practice.max_regenerations more rounds (fewer items each). After a set is done,
+  # the next one is written the same way in the background (Q33e).
+  practice_set:
+    calls:
+      - task: exercise_generate
+        timing: now
+        default: {input_tokens: 2800, output_tokens: 2200}
+      - task: exercise_critic
+        timing: now
+        default: {input_tokens: 2000, output_tokens: 1500}
+      - task: exercise_generate
+        timing: background
+        default: {input_tokens: 2800, output_tokens: 2200}
+      - task: exercise_critic
+        timing: background
+        default: {input_tokens: 2000, output_tokens: 1500}
+
   # "Talk it over with the tutor" in the placement result's conversation (ADR 0015 §6,
   # 0016 §4): the tutor's opening of the planning conversation; later turns, and the
   # dashboard's daily conversation (which has no opening), are chat_message.

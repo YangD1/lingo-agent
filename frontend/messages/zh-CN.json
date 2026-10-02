@@ -1044,6 +1044,7 @@
       "chat_audio": "你的录音由语音转写模型转成文字。",
       "practice_start": "练习开始时，私教的第一条消息由 AI 模型生成。",
       "plan_start": "私教根据你的测试结果和学习数据，用 AI 模型写出规划对话的第一条消息。之后每次回复和普通聊天一样。",
+      "practice_set": "AI 模型按你的薄弱语法点出一组题，另一个模型先自己做一遍再审，没通过的题重写；凑不齐的用题库题补。做完一组后，下一组会在后台提前出好。",
       "memory_edit": "添加或修改记忆时，向量模型会把它转成向量，方便私教之后检索。",
       "word_examples": "AI 模型按你的等级为这个词写两个例句。例句会保存下来，之后同一等级再查这个词不再调用模型。",
       "message_translate": "AI 模型翻译这条消息。译文会保存下来，来回切换不再调用模型。"
@@ -1058,6 +1059,8 @@
       "practice_opening": "开场白",
       "plan_opening": "开场白",
       "advice": "写建议",
+      "exercise_generate": "出题",
+      "exercise_critic": "审题",
       "word_examples": "写例句",
       "translate": "翻译"
     },

@@ -1044,6 +1044,7 @@
       "chat_audio": "Your recording is turned into text by a speech-to-text model.",
       "practice_start": "The tutor opens the practice with a first message written by an AI model.",
       "plan_start": "The tutor opens the planning conversation with a first message written by an AI model, from your test result and learning data. After that, each reply is like any chat message.",
+      "practice_set": "An AI model writes a set of items on your weak grammar points; another model solves and reviews each one first, and items that fail are rewritten. Bank items fill any gaps. After you finish a set, the next one is written in the background.",
       "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the tutor can find it later.",
       "word_examples": "An AI model writes two example sentences for this word at your level. They are saved, so the next time anyone asks for this word at this level, no model is called.",
       "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls."
@@ -1058,6 +1059,8 @@
       "practice_opening": "Opening message",
       "plan_opening": "Opening message",
       "advice": "Write advice",
+      "exercise_generate": "Write items",
+      "exercise_critic": "Review items",
       "word_examples": "Example sentences",
       "translate": "Translate"
     },

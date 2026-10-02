@@ -242,9 +242,15 @@ class PracticeRules(_Strict):
     mistake_half: float = Field(gt=0)
     max_items_per_kc: int = Field(ge=1)
     production_from_p: Probability
+    critic_max_gap: float = Field(gt=0)
+    bank_repeat_days: int = Field(ge=0)
+    min_items: int = Field(ge=1)
+    prefetch_max_hours: float = Field(gt=0)
 
     @model_validator(mode="after")
     def _check(self) -> Self:
+        if self.min_items > self.set_size:
+            raise ValueError("min_items must not exceed set_size")
         gaps = sorted(self.importance_by_gap)
         if gaps != list(range(gaps[0], gaps[-1] + 1)):
             raise ValueError("importance_by_gap keys must be consecutive integers")

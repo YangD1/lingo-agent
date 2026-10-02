@@ -2,7 +2,7 @@
 
 `load` reads the learner's side from the database: the KC states `plan()` ranks, the
 level and grammar ability it aims difficulty at, the learner's own wrong sentences for
-`rewrite_own`, and a few remembered facts for personal context. `briefs` then turns
+`rewrite_own`, and the profile and a few remembered facts for personal context. `briefs` then turns
 the plan into one brief per item, everything the generator needs for it.
 """
 
@@ -10,7 +10,7 @@ import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import cast
+from typing import Literal, cast
 
 from sqlalchemy import Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,11 +20,13 @@ from app.adaptive.exercise.planner import KCState, PlannedItem, plan
 from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, GrammarKC
 from app.adaptive.rules import Rules
 from app.db.models import Exercise, KCEvidence, KCMastery, SkillEstimate, UserProfile
-from app.memory.service import facts_for_context
+from app.memory.service import facts_for_context, get_profile
 
 # Remembered facts given to the generator (Q33f): the most recently updated ones. The
 # generator picks what fits an item; the critic never sees them.
 CONTEXT_FACTS = 8
+
+type ExplainIn = Literal["zh", "en"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,7 +49,11 @@ class LearnerInputs:
     # Per KC, the best sentence to rewrite: never used in an item, else the one used
     # least, newest first.
     own_sentences: Mapping[str, OwnSentence]
+    # Personal context for the generator: occupation, goal, exam, interests, and facts.
+    profile: Mapping[str, str]
     facts: Sequence[str]
+    # Language of explanations and of translate sources; Chinese unless set to English.
+    explain_in: ExplainIn = "zh"
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,10 +132,8 @@ async def load(
     """Everything about the learner a set is planned from; may rebuild stale mastery
     rows (`mastery.ensure_current`) but does not commit."""
     await mastery.ensure_current(session, user_id, rules=rules, catalog=catalog)
-    level = cast(
-        CefrLevel | None,
-        await session.scalar(select(UserProfile.cefr_level).where(UserProfile.user_id == user_id)),
-    )
+    profile = await get_profile(session, user_id)
+    level = cast(CefrLevel | None, profile.cefr_level if profile else None)
     rating = await session.scalar(
         select(SkillEstimate.rating).where(
             SkillEstimate.user_id == user_id, SkillEstimate.skill == "grammar"
@@ -162,7 +166,25 @@ async def load(
         if row.kc_id in catalog
     }
     facts = [m.content for m in await facts_for_context(session, user_id, limit=CONTEXT_FACTS)]
-    return LearnerInputs(level, ability, states, own, facts)
+    return LearnerInputs(
+        level,
+        ability,
+        states,
+        own,
+        _personal(profile) if profile else {},
+        facts,
+        "en" if profile and profile.explanation_language == "en" else "zh",
+    )
+
+
+def _personal(profile: UserProfile) -> dict[str, str]:
+    values = {
+        "Occupation": profile.occupation,
+        "Goal": profile.goal,
+        "Target exam": profile.target_exam.upper() if profile.target_exam else None,
+        "Interests": ", ".join(profile.interests) if profile.interests else None,
+    }
+    return {label: value for label, value in values.items() if value}
 
 
 def plan_set(

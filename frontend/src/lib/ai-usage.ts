@@ -8,6 +8,7 @@ export type AiFeature =
   | "chat_audio"
   | "practice_start"
   | "plan_start"
+  | "practice_set"
   | "memory_edit"
   | "word_examples"
   | "message_translate";
@@ -22,6 +23,8 @@ const AI_TASKS = [
   "asr",
   "practice_opening",
   "plan_opening",
+  "exercise_generate",
+  "exercise_critic",
   "word_examples",
   "translate",
   "advice", // no longer called (ADR 0016); past usage records still carry it
