@@ -7,7 +7,9 @@ KC gets one evidence row per observation (find_fix: recognition, then production
 the piece was right, Q34f); each other mistake the model found gets its own row (Q34e).
 Each counted answer also moves the learner's grammar ability by Elo against the item's
 difficulty (Q34c); item difficulties stay as they are (generated items are not
-calibrated, bank items do not feed the shared placement statistics).
+calibrated, bank items do not feed the shared placement statistics). When the first
+item of a set is answered or reported, the mastery of the set's KCs is kept on the set
+(`mastery_before`, Q35c) so its summary can show what changed.
 
 `answer` and `report` are each one unit of work and commit. No transaction stays open
 across the model call: the item is read again, locked, before anything is written.
@@ -39,7 +41,15 @@ from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog
 from app.adaptive.mastery import refresh
 from app.adaptive.rules import Rules
 from app.agents.exercise_graph import StructuredCall
-from app.db.models import Attempt, Exercise, ExerciseSet, KCEvidence, SkillEstimate, UserProfile
+from app.db.models import (
+    Attempt,
+    Exercise,
+    ExerciseSet,
+    KCEvidence,
+    KCMastery,
+    SkillEstimate,
+    UserProfile,
+)
 
 OPEN_SET = ("ready", "in_progress")
 
@@ -189,10 +199,38 @@ async def _update_ability(
     row.attempts += 1
 
 
-def _start(exercise_set: ExerciseSet, now: datetime) -> None:
-    if exercise_set.status == "ready":
-        exercise_set.status = "in_progress"
-        exercise_set.started_at = exercise_set.started_at or now
+async def _start(session: AsyncSession, exercise_set: ExerciseSet, now: datetime) -> None:
+    """ready -> in_progress, keeping the set's KC mastery as it was before (Q35c).
+
+    Called before `refresh`, so the mastery rows do not include this answer yet; a KC
+    without a row has no evidence (null p_mastery).
+    """
+    if exercise_set.status != "ready":
+        return
+    exercise_set.status = "in_progress"
+    exercise_set.started_at = exercise_set.started_at or now
+    kc_ids = set(
+        await session.scalars(
+            select(Exercise.kc_id).where(
+                Exercise.set_id == exercise_set.id, Exercise.status != "rejected"
+            )
+        )
+    )
+    rows = {
+        row.kc_id: row
+        for row in await session.scalars(
+            select(KCMastery).where(
+                KCMastery.user_id == exercise_set.user_id, KCMastery.kc_id.in_(kc_ids)
+            )
+        )
+    }
+    exercise_set.mastery_before = {
+        kc_id: {
+            "p_mastery": rows[kc_id].p_mastery if kc_id in rows else None,
+            "learned": kc_id in rows and rows[kc_id].mastered_at is not None,
+        }
+        for kc_id in sorted(kc_ids)
+    }
 
 
 async def answer(
@@ -280,7 +318,7 @@ async def answer(
             )
         )
     await _update_ability(session, user_id, item, correct, rules)
-    _start(exercise_set, now)
+    await _start(session, exercise_set, now)
     set_done = await _finish_if_done(session, exercise_set, now)
     await session.flush()
     await refresh(
@@ -349,7 +387,7 @@ async def report(
     assert exercise_set is not None  # FK
     set_done = False
     if exercise_set.status in OPEN_SET:
-        _start(exercise_set, now)
+        await _start(session, exercise_set, now)
         await session.flush()
         set_done = await _finish_if_done(session, exercise_set, now)
     await session.flush()

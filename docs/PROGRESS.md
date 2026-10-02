@@ -334,7 +334,13 @@
   - [x] 34.4 语法能力随练习更新（Q34c）：每次作答按 Elo 更新 `skill_estimates` 的 grammar（没有就从默认等级的锚点起步）；生成的题不校准难度，题库题也不回写全站统计。单测 + 集成测试。完成：`answer._update_ability` 每次计入的作答按整题对错、题目难度和题型猜中率走一步 Elo；没有记录时从画像等级（没测过按 `practice.default_level`）的锚点起步，和出题时 `inputs.load` 一致；重复作答不动；题目难度不变。被举报的题不回退能力（Elo 依赖顺序，不能精确撤销，影响一步）。集成测试 3 个，pytest 1075 全过
   - [x] 34.5 文档与交接：`agent-tools.md`（批改一行）、ADR 0021 §6 补 Q34 决定、P2 计划落地记录。完成：`agent-tools.md` 加作答与批改、举报两行和 `practice_grade` 用量行；ADR 0021 §6 改掉“校准题目难度”，补 Q34a–f 落地细节；P2 计划同步 85% 规则一句并加任务 34 落地记录
 
-- [ ] 35. 练习接口 + `/practice` 页 + 入口（看板、学习者模型、私教卡片）+ “学会”进度（Vitest + E2E）
+- [ ] 35. 练习接口 + `/practice` 页 + 入口（看板、学习者模型、私教卡片）+ “学会”进度（Vitest + E2E）（2026-10-02 子任务已确认；Q35a–e 按推荐：a 指定语法点的组带上它、最多占 3 题，其余照常，不用预生成组；b 保留对话练习，入口并列“做题”（主）和“对话练习”（次）；c 开组时快照掌握度；d 侧栏和“更多”加“练习”，落地页有开始一组和最近几组，入学测提醒归任务 50；e 先继续没做完的组）
+  - [x] 35.1 指定语法点的练习组（Q35a）、继续没做完的组（Q35e）、开组掌握度快照（Q35c）。完成：`planner.plan(focus=)` 先给该语法点分 `max_items_per_kc` 题（在等级窗口外也行；已学会的算复习、占复习份额），其余照常规划；`inputs.plan_set(focus=)`；`PracticeWorker.start(..., focus_kc=)`：先继续最近一组已开始未完成的（带语法点时只继续同语法点的组），再用预生成组（带语法点时不用），最后新建；不在清单里的语法点抛 `ValueError`；`prefetch` 在有组正在生成时仍不预生成。迁移 `f6717e7b015f`：`exercise_sets.focus_kc_id`、`mastery_before`（开发库已升级，往返和 `alembic check` 通过）；`answer._start` 在组第一次作答或举报时（ready → in_progress）记下本组语法点的 p_mastery 和是否学会（没有证据的记 null）。单测 4 个 + 集成测试 3 个，pytest 1101 全过，ruff、mypy 干净
+  - [~] 35.2 练习接口 `api/practice.py`：`POST /practice/sets`（origin、可选 kc_id）、`GET /practice/sets/{id}`（状态、生成进度、题目不含答案、已答题的结果、`how_made`）、`POST /practice/exercises/{id}/answer`、`POST /practice/exercises/{id}/report`、`GET /practice/sets/{id}/summary`（本组语法点、掌握度前后对比、“学会”进度）、`GET /practice/sets`（最近几组）；组完成时调 `prefetch`；异常映射 404 / 409 / 422 / 503；批改调用 metadata 带 user_id。集成测试（假模型）
+  - [ ] 35.3 学习者模型“学会”进度：`GET /learner` 的 KC 加 `formats_passed`、`correct_span_hours`、`last_mistake_at`、`mastered_at`、`due` 和门槛参数；`kc-item` 显示四项条件的进度和“已学会 / 下次复习”。集成测试 + Vitest
+  - [ ] 35.4 `/practice` 页：落地（开始一组、最近几组）→ 生成中（hop 猫 + 进度）→ 一题一屏（六种题型的作答控件，find_fix 先点错段再写改法；键盘快捷键同入学测）→ 讲解（对 / 错、对比、其他错误、“这题有问题”）→ 结束页（done 猫、语法点掌握度前后、“学会”进度、本组怎么出的、再来一组）；中英文案；`practice_set` / `practice_grade` 的 AiBadge。Vitest
+  - [ ] 35.5 入口（Q35b、Q35d）：侧栏和手机“更多”加“练习”；学习者模型每个语法点、私教 `practice` 卡片、看板建议 `grammar_practice` 都改成“做题”（主）+“对话练习”（次）两个去处。Vitest
+  - [ ] 35.6 E2E 与收尾：`fake_llm.py` 加出题、审题、批改的假回复，`practice.spec.ts` 加做一组的流程（原文件是对话练习，按需拆分）；`docs/agent-tools.md`、ADR 0021 / P2 计划落地记录；make lint / test / e2e；Docker 重建；看板和交接记录
 - [ ] 36. 最小评估集 `backend/evals/`：critic 拒已知坏题、批改判已知答案（Q13：默认录制的假模型，可选真实模型）
 - **P2b Supervisor + 写作**
 - [ ] 37. Supervisor 路由（确定信号优先，自由对话轻量分类）+ 现有 practice / planning / daily 分支迁入 + 路由活动公示（图测试）

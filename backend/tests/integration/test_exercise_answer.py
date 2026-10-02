@@ -393,3 +393,23 @@ async def test_ability_moves_once_per_item(db_session: AsyncSession) -> None:
     # The item's difficulty is not calibrated (Q34c).
     exercise = await db_session.get(Exercise, item)
     assert exercise is not None and exercise.difficulty == 0.0
+
+
+async def test_the_first_answer_keeps_mastery_from_before_the_set(
+    db_session: AsyncSession,
+) -> None:
+    user_id = await learner(db_session)
+    first, second = await a_set(db_session, user_id, ["choice4", "choice4"])
+    await submit(db_session, user_id, first, ChoiceResponse(choice="lives"))
+    exercise_set = await set_of(db_session, first)
+    # No evidence for the KC before the set: nothing to compare with.
+    assert exercise_set.mastery_before == {KC: {"p_mastery": None, "learned": False}}
+
+    await submit(db_session, user_id, second, ChoiceResponse(choice="lives"))
+    after = await db_session.get(KCMastery, (user_id, KC))
+    assert after is not None
+    p_after = after.p_mastery
+    [again, _] = await a_set(db_session, user_id, ["choice4", "choice4"])
+    await report(db_session, user_id, again)  # reporting first starts the set too
+    snapshot = (await set_of(db_session, again)).mastery_before
+    assert snapshot == {KC: {"p_mastery": p_after, "learned": False}}

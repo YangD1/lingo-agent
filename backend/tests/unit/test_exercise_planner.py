@@ -165,3 +165,32 @@ def test_target_difficulty_hits_the_target_chance(fmt: str, ability: float) -> N
     assert expected(ability, d, guess_for(fmt, RULES)) == pytest.approx(
         (target.low + target.high) / 2
     )
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_focus_kc_takes_its_share_and_the_rest_is_planned(seed: int) -> None:
+    items = run(seed=seed, focus=A1[5])
+    assert len(items) == RULES.practice.set_size
+    focused = [i for i in items if i.kc_id == A1[5]]
+    assert len(focused) == RULES.practice.max_items_per_kc
+    assert len({i.format for i in focused}) == len(focused)
+    assert all(a.kc_id != b.kc_id for a, b in pairwise(items))
+
+
+def test_focus_kc_outside_the_window_is_still_practised() -> None:
+    items = run(focus=C2)
+    assert sum(i.kc_id == C2 for i in items) == RULES.practice.max_items_per_kc
+    assert {i.role for i in items if i.kc_id == C2} == {"weak"}
+
+
+def test_learned_focus_kc_counts_as_review() -> None:
+    states = {A1[0]: learned(3), A1[1]: learned(-1), A1[2]: learned(-2)}
+    items = run(states, focus=A1[0])
+    assert {i.role for i in items if i.kc_id == A1[0]} == {"review"}
+    roles = Counter(i.role for i in items)
+    assert roles["review"] == round(RULES.practice.set_size * (1 - RULES.practice.weak_share))
+
+
+def test_unknown_focus_kc_is_an_error() -> None:
+    with pytest.raises(ValueError):
+        run(focus="g.no_such_kc")

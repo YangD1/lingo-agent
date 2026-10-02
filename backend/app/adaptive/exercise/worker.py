@@ -1,8 +1,10 @@
 """Generating practice sets off the request path (ADR 0021 §4, Q33e).
 
-`start` hands the learner a set at once: one generated ahead of time if there is a
-fresh one, one already being generated, or a new `generating` row whose items the
-graph writes in a task while the page shows its progress (`stage`). `prefetch`, called
+`start` hands the learner a set at once: the one they started and have not finished
+(Q35e), else one generated ahead of time if there is a fresh one, else a new
+`generating` row whose items the graph writes in a task while the page shows its
+progress (`stage`). A set asked for one KC (Q35a) resumes only a set for that KC and
+never takes one generated ahead of time, which is planned freely. `prefetch`, called
 when a set is done, writes the next one in the background; each learner has at most
 one such set waiting. A set generated ahead of time is used only while younger than
 `practice.prefetch_max_hours` and planned under the current rules; otherwise it is
@@ -138,16 +140,29 @@ class PracticeWorker:
         """How far generation of this set has got; None when it is not running here."""
         return self._stages.get(set_id)
 
-    async def start(self, user_id: uuid.UUID, tenant_id: uuid.UUID, origin: str) -> uuid.UUID:
-        """The set the learner practises next; see the module docstring."""
+    async def start(
+        self,
+        user_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        origin: str,
+        *,
+        focus_kc: str | None = None,
+    ) -> uuid.UUID:
+        """The set the learner practises next; see the module docstring. Raises
+        `ValueError` for a `focus_kc` not in the grammar catalog."""
+        if focus_kc is not None and focus_kc not in get_grammar_catalog():
+            raise ValueError(f"unknown KC {focus_kc}")
         async with self._lock(user_id), self._sessionmaker() as session:
             await self._expire(session, user_id)
-            waiting = await self._waiting(session, user_id)
+            unfinished = await self._unfinished(session, user_id, focus_kc)
+            if unfinished is not None:
+                return unfinished.id
+            waiting = None if focus_kc else await self._waiting(session, user_id)
             if waiting is not None:
-                waiting.started_at = waiting.started_at or self._clock()
+                waiting.started_at = self._clock()
                 await session.commit()
                 return waiting.id
-            set_id = await self._create(session, user_id, origin, started=True)
+            set_id = await self._create(session, user_id, origin, started=True, focus_kc=focus_kc)
         self._spawn(set_id, user_id, tenant_id)
         return set_id
 
@@ -157,7 +172,9 @@ class PracticeWorker:
             return None
         async with self._lock(user_id), self._sessionmaker() as session:
             await self._expire(session, user_id)
-            if await self._waiting(session, user_id) is not None:
+            # Not while a set is being generated either: the next one is planned
+            # from the answers to this one.
+            if await self._waiting(session, user_id, generating=True) is not None:
                 await session.commit()
                 return None
             set_id = await self._create(session, user_id, "prefetch", started=False)
@@ -207,28 +224,52 @@ class PracticeWorker:
             .values(status="failed", error_code="expired")
         )
 
-    async def _waiting(self, session: AsyncSession, user_id: uuid.UUID) -> ExerciseSet | None:
-        """A set still being generated (started or not), or a ready one nobody started."""
+    async def _unfinished(
+        self, session: AsyncSession, user_id: uuid.UUID, focus_kc: str | None
+    ) -> ExerciseSet | None:
+        """The latest set the learner started and has not finished (still generating
+        included); with `focus_kc`, only one for that KC."""
+        query = select(ExerciseSet).where(
+            ExerciseSet.user_id == user_id,
+            ExerciseSet.started_at.is_not(None),
+            ExerciseSet.status.in_(("generating", "ready", "in_progress")),
+        )
+        if focus_kc is not None:
+            query = query.where(ExerciseSet.focus_kc_id == focus_kc)
+        return await session.scalar(query.order_by(ExerciseSet.created_at.desc()).limit(1))
+
+    async def _waiting(
+        self, session: AsyncSession, user_id: uuid.UUID, *, generating: bool = False
+    ) -> ExerciseSet | None:
+        """A set generated ahead of time that nobody started, ready or still generating;
+        with `generating`, also any set still being generated."""
+        unstarted = ExerciseSet.started_at.is_(None) & ExerciseSet.status.in_(
+            ("generating", "ready")
+        )
         return await session.scalar(
             select(ExerciseSet)
             .where(
                 ExerciseSet.user_id == user_id,
-                or_(
-                    ExerciseSet.status == "generating",
-                    (ExerciseSet.status == "ready") & ExerciseSet.started_at.is_(None),
-                ),
+                or_(unstarted, ExerciseSet.status == "generating") if generating else unstarted,
             )
             .order_by(ExerciseSet.created_at.desc())
             .limit(1)
         )
 
     async def _create(
-        self, session: AsyncSession, user_id: uuid.UUID, origin: str, *, started: bool
+        self,
+        session: AsyncSession,
+        user_id: uuid.UUID,
+        origin: str,
+        *,
+        started: bool,
+        focus_kc: str | None = None,
     ) -> uuid.UUID:
         row = ExerciseSet(
             user_id=user_id,
             origin=origin,
             status="generating",
+            focus_kc_id=focus_kc,
             kc_plan=[],
             rules_version=get_rules().version,
             started_at=self._clock() if started else None,
@@ -271,8 +312,13 @@ class PracticeWorker:
         now = self._clock()
         seed = secrets.randbits(31)
         async with self._sessionmaker() as session:
+            focus = await session.scalar(
+                select(ExerciseSet.focus_kc_id).where(ExerciseSet.id == set_id)
+            )
             learner = await inputs.load(session, user_id, rules=rules, catalog=catalog, now=now)
-            planned = inputs.plan_set(learner, catalog=catalog, rules=rules, now=now, seed=seed)
+            planned = inputs.plan_set(
+                learner, catalog=catalog, rules=rules, now=now, seed=seed, focus=focus
+            )
             briefs = inputs.briefs(planned, learner, catalog)
             wider = inputs.wider_kcs(learner, catalog=catalog, rules=rules, now=now)
             item_bank = await bank.load_bank(session, rules)

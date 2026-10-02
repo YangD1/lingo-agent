@@ -785,6 +785,11 @@ class ExerciseSet(Base):
     # rules.yaml version it was planned under: a set generated ahead of time is
     # replanned when the rules changed since (Q33e).
     rules_version: Mapped[str] = mapped_column(String(50), server_default="")
+    # The KC the learner asked to practise (Q35a); NULL for a set planned freely.
+    focus_kc_id: Mapped[str | None] = mapped_column(String(100))
+    # Per KC of the set, its mastery when the learner began answering (Q35c):
+    # {kc_id: {"p_mastery": float | null, "learned": bool}}; null before that.
+    mastery_before: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     # Why generation failed, as an error code; never model output.
     error_code: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

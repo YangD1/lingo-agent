@@ -4,7 +4,9 @@ A pure function of the learner's KC states and `rules.yaml`; the model only writ
 items afterwards. Weak KCs are ranked by weakness x importance x recent mistakes
 (x a diagnosis boost, from P2d); learned KCs come back when FSRS says they are due.
 Most of a set goes to weak KCs, the rest to learned ones, and the items are
-interleaved: the same KC never twice in a row, the same format only a few times.
+interleaved: the same KC never twice in a row, the same format only a few times. A set
+started from one KC (Q35a) gives that KC its `max_items_per_kc` items first and plans
+the rest as usual.
 """
 
 import math
@@ -179,9 +181,11 @@ def candidates(
     now: datetime,
     rules: Rules,
     boost: Mapping[str, float] | None = None,
+    focus: str | None = None,
 ) -> Candidates:
     """The KCs a set may practise (Q32c): those within the level window, plus any
-    with evidence, ranked by weakness x importance x recent mistakes (x boost)."""
+    with evidence, ranked by weakness x importance x recent mistakes (x boost). A
+    `focus` KC is a candidate even outside the window."""
     practice = rules.practice
     level = learner_level or practice.default_level
     window = practice.importance_by_gap
@@ -191,7 +195,7 @@ def candidates(
         gap = CEFR_LEVELS.index(level) - CEFR_LEVELS.index(kc.cefr)
         if kc.id in states:
             known[kc.id] = states[kc.id]
-        elif min(window) <= gap <= max(window):
+        elif min(window) <= gap <= max(window) or kc.id == focus:
             known[kc.id] = KCState(p_mastery=prior(kc.cefr, learner_level, rules))
         else:
             continue
@@ -225,19 +229,33 @@ def plan(
     rules: Rules,
     seed: int,
     boost: Mapping[str, float] | None = None,
+    focus: str | None = None,
 ) -> list[PlannedItem]:
     """One practice set: at most `practice.set_size` items, fewer when the learner has
-    too few candidate KCs. Same inputs and seed, same plan."""
+    too few candidate KCs. Same inputs and seed, same plan. `focus` must be a catalog KC."""
     rng = random.Random(seed)
     practice = rules.practice
     ranked = candidates(
-        catalog, states, learner_level=learner_level, now=now, rules=rules, boost=boost
+        catalog, states, learner_level=learner_level, now=now, rules=rules, boost=boost, focus=focus
     )
     weak, learned, known = ranked.weak, ranked.learned, ranked.states
 
     size = practice.set_size
     used: Counter[Format] = Counter()
     want_review = min(round(size * (1 - practice.weak_share)), len(learned))
+    focus_picks: list[_Pick] = []
+    if focus is not None:
+        if focus not in known:
+            raise ValueError(f"unknown KC {focus}")
+        role: Role = "review" if known[focus].learned else "weak"
+        focus_picks = [_Pick(focus, role)]
+        taken = _allocate(focus_picks, practice.max_items_per_kc, known, used, rules, rng)
+        weak = [k for k in weak if k != focus]
+        learned = [k for k in learned if k != focus]
+        size -= taken
+        # The focus KC's items count towards its own share of the set.
+        want_review = min(want_review - (taken if role == "review" else 0), len(learned))
+        want_review = max(0, min(want_review, size))
     # Spread weak items over enough KCs to vary them: about two items per KC.
     weak_picks = [_Pick(k, "weak") for k in weak[: max(1, math.ceil((size - want_review) / 2))]]
     got_weak = _allocate(weak_picks, size - want_review, known, used, rules, rng)
@@ -252,7 +270,7 @@ def plan(
 
     items = [
         PlannedItem(p.kc_id, fmt, target_difficulty(ability, fmt, rules), p.role)
-        for p in [*weak_picks, *review_picks]
+        for p in [*focus_picks, *weak_picks, *review_picks]
         for fmt in p.formats
     ]
     return _interleave(items, practice.max_same_format_run, rng)

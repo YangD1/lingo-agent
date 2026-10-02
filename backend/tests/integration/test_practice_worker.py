@@ -230,3 +230,56 @@ async def test_prefetch_can_be_switched_off(maker: async_sessionmaker[AsyncSessi
     practice.prefetch_enabled = False
 
     assert await practice.prefetch(user_id, tenant_id) is None
+
+
+async def test_an_unfinished_set_is_resumed_before_a_new_one(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    user_id, tenant_id = await learner(maker)
+    models = FakeModels()
+    practice = worker(maker, models)
+    first = await practice.start(user_id, tenant_id, "dashboard")
+    await practice.wait_idle()
+    ahead = await practice.prefetch(user_id, tenant_id)
+    await practice.wait_idle()
+
+    # Started (ready, then in progress) and not finished: it comes back first.
+    assert await practice.start(user_id, tenant_id, "learner") == first
+    async with maker() as session:
+        await session.execute(
+            update(ExerciseSet).where(ExerciseSet.id == first).values(status="in_progress")
+        )
+        await session.commit()
+    assert await practice.start(user_id, tenant_id, "learner") == first
+
+    async with maker() as session:
+        await session.execute(
+            update(ExerciseSet).where(ExerciseSet.id == first).values(status="done")
+        )
+        await session.commit()
+    assert await practice.start(user_id, tenant_id, "learner") == ahead
+
+
+async def test_a_set_for_one_kc(maker: async_sessionmaker[AsyncSession]) -> None:
+    user_id, tenant_id = await learner(maker)
+    practice = worker(maker, FakeModels())
+    general = await practice.start(user_id, tenant_id, "dashboard")
+    await practice.wait_idle()
+    ahead = await practice.prefetch(user_id, tenant_id)
+    await practice.wait_idle()
+    kc = "g.present_perfect_experience"
+
+    # Neither the unfinished general set nor the one generated ahead is used.
+    focused = await practice.start(user_id, tenant_id, "learner", focus_kc=kc)
+    assert focused not in (general, ahead)
+    await practice.wait_idle()
+    row = await get_set(maker, focused)
+    assert (row.status, row.focus_kc_id) == ("ready", kc)
+    planned = [p["kc_id"] for p in row.kc_plan]
+    assert planned.count(kc) == RULES.practice.max_items_per_kc
+    assert await practice.start(user_id, tenant_id, "learner", focus_kc=kc) == focused
+    # A free start resumes the latest unfinished set, whatever it was for.
+    assert await practice.start(user_id, tenant_id, "dashboard") == focused
+
+    with pytest.raises(ValueError):
+        await practice.start(user_id, tenant_id, "learner", focus_kc="g.no_such_kc")

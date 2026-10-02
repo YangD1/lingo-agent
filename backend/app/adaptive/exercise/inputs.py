@@ -194,6 +194,7 @@ def plan_set(
     rules: Rules,
     now: datetime,
     seed: int,
+    focus: str | None = None,
 ) -> list[PlannedItem]:
     return plan(
         catalog,
@@ -203,6 +204,7 @@ def plan_set(
         now=now,
         rules=rules,
         seed=seed,
+        focus=focus,
     )
 
 
