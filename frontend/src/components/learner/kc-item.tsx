@@ -1,6 +1,14 @@
 "use client";
 
-import { ChevronRight, CircleCheck, CircleX, MessageCircle, Trash2 } from "lucide-react";
+import {
+  ChevronRight,
+  Circle,
+  CircleCheck,
+  CircleX,
+  GraduationCap,
+  MessageCircle,
+  Trash2,
+} from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
@@ -10,7 +18,7 @@ import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { ProgressBar } from "@/components/ui/progress";
-import { CefrTag } from "@/components/ui/tag";
+import { CefrTag, Tag } from "@/components/ui/tag";
 import {
   deleteEvidence,
   type Evidence,
@@ -18,6 +26,8 @@ import {
   fetchEvidence,
   type KCStatus,
   kcName,
+  learnedChecks,
+  type MasteryGate,
   practiceHref,
 } from "@/lib/learner";
 import { cn } from "@/lib/utils";
@@ -35,10 +45,15 @@ export const STATE_BAR: Record<KCStatus["state"], string> = {
  */
 export function KCItem({
   kc,
+  gate,
+  mastered,
   initiallyOpen,
   onChanged,
 }: {
   kc: KCStatus;
+  gate: MasteryGate;
+  /** p_mastery a learned grammar point needs (thresholds.mastered). */
+  mastered: number;
   initiallyOpen: boolean;
   /** Evidence was deleted: the mastery needs reloading. */
   onChanged: () => void;
@@ -111,6 +126,12 @@ export function KCItem({
           <span className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-[550]">{kcName(kc, locale)}</span>
             <CefrTag level={kc.cefr} />
+            {kc.mastered_at && (
+              <Tag variant="success">
+                <GraduationCap aria-hidden />
+                {t("learnedTag")}
+              </Tag>
+            )}
           </span>
           <span className="text-xs text-muted-foreground">
             {t("counts", {
@@ -148,6 +169,7 @@ export function KCItem({
             </Link>
             <AiBadge feature="practice_start" />
           </span>
+          <LearnedProgress kc={kc} gate={gate} mastered={mastered} />
           {error && (
             <ErrorText>{error}</ErrorText>
           )}
@@ -169,6 +191,8 @@ export function KCItem({
                     <p>
                       {e.source === "placement" ? (
                         <span>{t(e.correct ? "placementCorrect" : "placementWrong")}</span>
+                      ) : e.correct && e.source === "exercise" ? (
+                        <span>{t("practiceCorrect")}</span>
                       ) : e.correct ? (
                         <span>{t("usedCorrectly")}</span>
                       ) : (
@@ -216,6 +240,8 @@ export function KCItem({
                             {t("from", { title: e.conversation_title || t("untitled") })}
                           </Link>
                         </>
+                      ) : e.source === "exercise" ? (
+                        ` · ${t("fromPractice")}`
                       ) : (
                         e.source === "chat" && ` · ${t("conversationDeleted")}`
                       )}
@@ -247,5 +273,56 @@ export function KCItem({
         </div>
       )}
     </li>
+  );
+}
+
+/** Learned: since when and the next review. Not yet: the four conditions, each met or not. */
+function LearnedProgress({
+  kc,
+  gate,
+  mastered,
+}: {
+  kc: KCStatus;
+  gate: MasteryGate;
+  mastered: number;
+}) {
+  const t = useTranslations("learner.kc.learned");
+  const format = useFormatter();
+  const date = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
+
+  if (kc.mastered_at) {
+    const dueNow = kc.due !== null && new Date(kc.due) <= new Date();
+    return (
+      <p data-testid="kc-learned" className="flex flex-wrap items-center gap-x-2 text-success">
+        <GraduationCap aria-hidden className="size-4" />
+        {t("done", { date: date(kc.mastered_at) })}
+        {kc.due && (
+          <span className="text-muted-foreground">
+            · {dueNow ? t("dueNow") : t("due", { date: date(kc.due) })}
+          </span>
+        )}
+      </p>
+    );
+  }
+  return (
+    <div data-testid="kc-learned-progress" className="flex flex-col gap-1">
+      <p className="text-xs font-semibold text-muted-foreground">{t("title")}</p>
+      <ul className="flex flex-col gap-0.5">
+        {learnedChecks(kc, gate, mastered).map((check) => (
+          <li key={check.key} className="flex items-center gap-1.5" data-met={check.met}>
+            {check.met ? (
+              <CircleCheck aria-hidden className="size-3.5 shrink-0 text-success" />
+            ) : (
+              <Circle aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+            )}
+            <span className={check.met ? undefined : "text-muted-foreground"}>
+              {check.key === "clean" && check.value === null
+                ? t("cleanNever")
+                : t(check.key, { value: check.value ?? 0, target: check.target })}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

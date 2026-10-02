@@ -177,6 +177,8 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
                       <KCItem
                         key={kc.kc_id}
                         kc={kc}
+                        gate={model.gate}
+                        mastered={model.thresholds.mastered}
                         initiallyOpen={kc.kc_id === focusKc}
                         onChanged={() => void load()}
                       />

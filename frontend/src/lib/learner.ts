@@ -21,7 +21,19 @@ export type KCStatus = {
   /** Every stored mistake, including ones BKT left out. */
   mistakes: number;
   last_evidence_at: string | null;
+  /** Progress towards "learned" (ADR 0021 §7): practice formats answered correctly,
+   * hours between the first and last correct practice answer, and the latest counted
+   * mistake in conversation or writing. */
+  formats_passed: string[];
+  correct_span_hours: number;
+  last_mistake_at: string | null;
+  /** Once learned: when, and when the grammar point is due for review. */
+  mastered_at: string | null;
+  due: string | null;
 };
+
+/** What "learned" takes (rules.yaml mastery_gate), besides mastery >= thresholds.mastered. */
+export type MasteryGate = { min_formats: number; min_span_hours: number; clean_days: number };
 
 export type SkillEstimate = {
   skill: string;
@@ -40,13 +52,14 @@ export type LearnerModel = {
   levels: Partial<Record<CefrLevel, { total: number; seen: number }>>;
   skills: SkillEstimate[];
   thresholds: { mastered: number; weak: number };
+  gate: MasteryGate;
 };
 
 export type Evidence = {
   id: number;
   correct: boolean;
   evidence: "recognition" | "production";
-  source: "chat" | "placement";
+  source: "chat" | "placement" | "exercise";
   error_type: string | null;
   severity: "low" | "medium" | "high" | null;
   original: string | null;
@@ -90,3 +103,51 @@ export const learnerHref = (kcId: string) => `/learner?kc=${encodeURIComponent(k
 
 /** Start (or return to an unstarted) practice conversation on a grammar point. */
 export const practiceHref = (kcId: string) => `/chat?practice=${encodeURIComponent(kcId)}`;
+
+export type LearnedCheck =
+  | { key: "mastery"; met: boolean; value: number; target: number }
+  | { key: "formats"; met: boolean; value: number; target: number }
+  | { key: "span"; met: boolean; value: number; target: number }
+  /** value: whole days since the latest counted mistake; null when there was none. */
+  | { key: "clean"; met: boolean; value: number | null; target: number };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The four conditions of "learned", as of `now`; mastery in whole percent. */
+export function learnedChecks(
+  kc: KCStatus,
+  gate: MasteryGate,
+  mastered: number,
+  now: Date = new Date(),
+): LearnedCheck[] {
+  const sinceMistake =
+    kc.last_mistake_at === null
+      ? null
+      : Math.floor((now.getTime() - new Date(kc.last_mistake_at).getTime()) / DAY_MS);
+  return [
+    {
+      key: "mastery",
+      met: kc.p_mastery >= mastered,
+      value: Math.round(kc.p_mastery * 100),
+      target: Math.round(mastered * 100),
+    },
+    {
+      key: "formats",
+      met: kc.formats_passed.length >= gate.min_formats,
+      value: kc.formats_passed.length,
+      target: gate.min_formats,
+    },
+    {
+      key: "span",
+      met: kc.correct_span_hours >= gate.min_span_hours,
+      value: Math.floor(kc.correct_span_hours),
+      target: gate.min_span_hours,
+    },
+    {
+      key: "clean",
+      met: sinceMistake === null || sinceMistake >= gate.clean_days,
+      value: sinceMistake,
+      target: gate.clean_days,
+    },
+  ];
+}

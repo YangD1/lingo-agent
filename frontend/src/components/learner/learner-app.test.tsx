@@ -26,6 +26,11 @@ const kc = (overrides: Partial<KCStatus>): KCStatus => ({
   produce_correct: 0,
   mistakes: 1,
   last_evidence_at: null,
+  formats_passed: [],
+  correct_span_hours: 0,
+  last_mistake_at: null,
+  mastered_at: null,
+  due: null,
   ...overrides,
 });
 
@@ -34,6 +39,7 @@ const model = (kcs: KCStatus[]): LearnerModel => ({
   levels: { A1: { total: 22, seen: 1 }, A2: { total: 27, seen: kcs.length - 1 } },
   skills: [],
   thresholds: { mastered: 0.95, weak: 0.4 },
+  gate: { min_formats: 3, min_span_hours: 20, clean_days: 14 },
 });
 
 const MISTAKE: Evidence = {
@@ -134,6 +140,41 @@ describe("LearnerApp", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
     await userEvent.selectOptions(screen.getByLabelText("Filter by state"), "weak");
     expect(screen.getByText("No grammar points match.")).toBeInTheDocument();
+  });
+
+  it("shows how far a point is from learned, or when a learned one is due", async () => {
+    const learned = kc({
+      kc_id: "g.past",
+      name_en: "Past simple",
+      p_mastery: 0.97,
+      state: "mastered",
+      formats_passed: ["choice4", "cloze", "transform"],
+      correct_span_hours: 30,
+      mastered_at: "2026-09-20T10:00:00Z",
+      due: "2099-01-05T10:00:00Z",
+    });
+    const third = kc({ formats_passed: ["choice4"], correct_span_hours: 2.5 });
+    api
+      .mockResolvedValueOnce(model([third, learned]))
+      .mockResolvedValue({ evidence: [], total: 0 });
+    show("g.third");
+
+    const progress = await screen.findByTestId("kc-learned-progress");
+    const rows = within(progress).getAllByRole("listitem");
+    expect(rows.map((r) => r.textContent)).toEqual([
+      "Mastery 20% / 95%",
+      "Question types answered right: 1 / 3",
+      "Right answers spread over 2 / 20 hours",
+      "No mistakes since in conversation or writing",
+    ]);
+    expect(rows.map((r) => r.dataset.met)).toEqual(["false", "false", "false", "true"]);
+
+    const row = screen.getByTestId("kc-g.past");
+    expect(within(row).getByText("Learned")).toBeInTheDocument();
+    await userEvent.click(within(row).getByRole("button", { expanded: false }));
+    expect(await within(row).findByTestId("kc-learned")).toHaveTextContent(
+      "Learned on Sep 20, 2026· Next review: Jan 5, 2099",
+    );
   });
 
   it("opens the focused point with its evidence; deleting reloads the mastery", async () => {

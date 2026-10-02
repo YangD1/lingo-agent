@@ -481,7 +481,21 @@
       "placementCorrect": "Right in the placement test",
       "placementWrong": "Wrong in the placement test",
       "fromPlacement": "From the placement test",
-      "practice": "Practise with your tutor"
+      "practice": "Practise with your tutor",
+      "practiceCorrect": "Right in practice",
+      "fromPractice": "from practice",
+      "learnedTag": "Learned",
+      "learned": {
+        "title": "What “learned” takes",
+        "done": "Learned on {date}",
+        "due": "Next review: {date}",
+        "dueNow": "Due for review",
+        "mastery": "Mastery {value}% / {target}%",
+        "formats": "Question types answered right: {value} / {target}",
+        "span": "Right answers spread over {value} / {target} hours",
+        "cleanNever": "No mistakes since in conversation or writing",
+        "clean": "Days since the last mistake in conversation or writing: {value} / {target}"
+      }
     },
     "skills": {
       "title": "Skill estimates",

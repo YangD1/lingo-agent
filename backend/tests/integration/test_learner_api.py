@@ -9,10 +9,13 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import PlacementSession, SkillEstimate, User
+from app.adaptive import mastery
+from app.db.models import PlacementSession, SkillEstimate, User, UserProfile
 from app.memory.reflection import Reflection, TaggedMistake, UsedCorrectly
 from tests.integration.test_activity_api import activity
 from tests.integration.test_chat_send import connect, history, login, new_conversation, send
+from tests.integration.test_learned_mastery import CATALOG, RULES, practice_set
+from tests.integration.test_learned_mastery import KC as LEARNED_KC
 from tests.integration.test_reflection import FakeReflector, idle, reflector  # noqa: F401
 
 THIRD_PERSON = "g.present_simple_third_person"  # A1
@@ -78,6 +81,7 @@ async def test_lists_the_grammar_points_met_weakest_first_with_their_evidence(
     empty = await learner_model(client)
     assert empty["kcs"] == [] and empty["skills"] == []
     assert empty["thresholds"] == {"mastered": 0.95, "weak": 0.4}
+    assert empty["gate"] == {"min_formats": 3, "min_span_hours": 20.0, "clean_days": 14}
     assert all(level["seen"] == 0 for level in empty["levels"].values())
 
     conversation_id = await chat_with_mistakes(client, app, reflector)
@@ -99,7 +103,13 @@ async def test_lists_the_grammar_points_met_weakest_first_with_their_evidence(
         "produce_correct": 0,
         "mistakes": 1,
         "last_evidence_at": None,
+        "formats_passed": [],
+        "correct_span_hours": 0.0,
+        "last_mistake_at": kcs[THIRD_PERSON]["last_mistake_at"],
+        "mastered_at": None,
+        "due": None,
     }
+    assert kcs[THIRD_PERSON]["last_mistake_at"] is not None  # the conversation mistake
     # A low-severity slip is stored and shown, but BKT does not use it.
     assert kcs[ARTICLES]["observations"] == 0 and kcs[ARTICLES]["mistakes"] == 1
     assert kcs[PAST]["produce_correct"] == 1 and kcs[PAST]["mistakes"] == 0
@@ -233,3 +243,22 @@ async def test_skills_read_as_a_level_and_a_vocabulary_size(
         "vocab_size": 3100,
         "reliable": True,
     }
+
+
+async def test_a_learned_grammar_point_shows_its_progress_and_review(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await login(client)
+    user_id = await db_session.scalar(select(User.id).where(User.email == "learner@example.com"))
+    assert user_id is not None
+    db_session.add(UserProfile(user_id=user_id, cefr_level="B1"))
+    await practice_set(db_session, user_id, [("choice4", 0, True), ("cloze", 0.1, True)])
+    await practice_set(db_session, user_id, [("transform", 21, True)])
+    await mastery.refresh(db_session, user_id, [LEARNED_KC], rules=RULES, catalog=CATALOG)
+    await db_session.commit()
+
+    [kc] = (await learner_model(client))["kcs"]
+    assert kc["formats_passed"] == ["choice4", "cloze", "transform"]
+    assert kc["correct_span_hours"] == 21.0
+    assert kc["last_mistake_at"] is None
+    assert kc["mastered_at"] is not None and kc["due"] is not None

@@ -31,6 +31,15 @@ class KCOut(BaseModel):
     # Every stored mistake, including ones BKT left out.
     mistakes: int
     last_evidence_at: datetime | None
+    # Progress towards "learned" (rules.yaml mastery_gate, ADR 0021 §7): practice
+    # formats answered correctly, hours between the first and last correct practice
+    # answer, the latest counted mistake in conversation or writing; once learned,
+    # when, and when the grammar point is due for review.
+    formats_passed: list[str]
+    correct_span_hours: float
+    last_mistake_at: datetime | None
+    mastered_at: datetime | None
+    due: datetime | None
 
 
 class LevelOut(BaseModel):
@@ -54,11 +63,18 @@ class Thresholds(BaseModel):
     weak: float
 
 
+class GateOut(BaseModel):
+    min_formats: int
+    min_span_hours: float
+    clean_days: int
+
+
 class LearnerOut(BaseModel):
     kcs: list[KCOut]
     levels: dict[CefrLevel, LevelOut]
     skills: list[SkillOut]
     thresholds: Thresholds
+    gate: GateOut
 
 
 class EvidenceOut(BaseModel):
@@ -109,6 +125,11 @@ async def get_learner(user: CurrentUser, session: SessionDep) -> LearnerOut:
                 produce_correct=s.mastery.produce_correct,
                 mistakes=s.mistakes,
                 last_evidence_at=s.mastery.last_evidence_at,
+                formats_passed=list(s.mastery.formats_passed),
+                correct_span_hours=s.mastery.correct_span_hours,
+                last_mistake_at=s.mastery.last_mistake_at,
+                mastered_at=s.mastery.mastered_at,
+                due=s.mastery.due,
             )
             for s in overview.kcs
         ],
@@ -118,6 +139,7 @@ async def get_learner(user: CurrentUser, session: SessionDep) -> LearnerOut:
         },
         skills=[SkillOut.model_validate(s, from_attributes=True) for s in overview.skills],
         thresholds=Thresholds(mastered=rules.bkt.mastered, weak=rules.bkt.weak),
+        gate=GateOut.model_validate(rules.mastery_gate, from_attributes=True),
     )
 
 

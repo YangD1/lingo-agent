@@ -481,7 +481,21 @@
       "placementCorrect": "入学测答对",
       "placementWrong": "入学测答错",
       "fromPlacement": "来自入学测",
-      "practice": "和私教练一练"
+      "practice": "和私教练一练",
+      "practiceCorrect": "练习答对",
+      "fromPractice": "来自练习",
+      "learnedTag": "已学会",
+      "learned": {
+        "title": "学会的条件",
+        "done": "{date} 学会",
+        "due": "下次复习：{date}",
+        "dueNow": "该复习了",
+        "mastery": "掌握度 {value}% / {target}%",
+        "formats": "答对的题型 {value} / {target} 种",
+        "span": "答对跨度 {value} / {target} 小时",
+        "cleanNever": "对话和写作里没再错过",
+        "clean": "距上次在对话或写作里说错 {value} / {target} 天"
+      }
     },
     "skills": {
       "title": "技能估计",
