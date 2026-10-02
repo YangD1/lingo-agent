@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adaptive.elo import guess_for, update_ability
 from app.adaptive.exercise import answer as answering
 from app.adaptive.exercise.answer import (
     ExerciseNotFoundError,
@@ -34,6 +35,7 @@ from app.db.models import (
     ExerciseSet,
     KCEvidence,
     KCMastery,
+    SkillEstimate,
     User,
     UserProfile,
 )
@@ -349,3 +351,45 @@ async def test_reporting_an_answered_item_drops_its_evidence(db_session: AsyncSe
     assert (await set_of(db_session, waiting)).status == "done"
     with pytest.raises(NotAnswerableError):
         await submit(db_session, user_id, waiting, ChoiceResponse(choice="lives"))
+
+
+async def grammar_ability(session: AsyncSession, user_id: uuid.UUID) -> SkillEstimate | None:
+    session.expire_all()
+    return await session.get(SkillEstimate, (user_id, "grammar"))
+
+
+@pytest.mark.parametrize(("level", "anchor_of"), [(None, "A2"), ("B1", "B1")])
+async def test_the_first_answer_starts_ability_at_the_level_anchor(
+    db_session: AsyncSession, level: str | None, anchor_of: str
+) -> None:
+    user_id = await learner(db_session)
+    if level:
+        db_session.add(UserProfile(user_id=user_id, cefr_level=level))
+        await db_session.commit()
+    [item] = await a_set(db_session, user_id, ["choice4"])
+    await submit(db_session, user_id, item, ChoiceResponse(choice="lives"))
+    row = await grammar_ability(db_session, user_id)
+    assert row is not None and row.attempts == 1
+    anchor = RULES.difficulty.cefr_anchor[anchor_of]  # type: ignore[index]
+    guess = guess_for("choice4", RULES)
+    assert row.rating == pytest.approx(update_ability(anchor, 0.0, True, 0, RULES, guess))
+    assert row.rating > anchor
+
+
+async def test_ability_moves_once_per_item(db_session: AsyncSession) -> None:
+    user_id = await learner(db_session)
+    db_session.add(SkillEstimate(user_id=user_id, skill="grammar", rating=0.5, attempts=10))
+    await db_session.commit()
+    item, _ = await a_set(db_session, user_id, ["choice4", "choice4"])
+    await submit(db_session, user_id, item, ChoiceResponse(choice="live"))
+    row = await grammar_ability(db_session, user_id)
+    assert row is not None and row.attempts == 11
+    moved = update_ability(0.5, 0.0, False, 10, RULES, guess_for("choice4", RULES))
+    assert row.rating == pytest.approx(moved) and moved < 0.5
+    await submit(db_session, user_id, item, ChoiceResponse(choice="lives"))  # not counted
+    again = await grammar_ability(db_session, user_id)
+    assert again is not None and again.attempts == 11
+    assert again.rating == pytest.approx(moved)
+    # The item's difficulty is not calibrated (Q34c).
+    exercise = await db_session.get(Exercise, item)
+    assert exercise is not None and exercise.difficulty == 0.0

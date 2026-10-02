@@ -5,6 +5,9 @@ first answer to an item counts (Q34b): answering again returns the first result.
 grading model fails, nothing is stored and the learner submits again (Q34d). The tested
 KC gets one evidence row per observation (find_fix: recognition, then production when
 the piece was right, Q34f); each other mistake the model found gets its own row (Q34e).
+Each counted answer also moves the learner's grammar ability by Elo against the item's
+difficulty (Q34c); item difficulties stay as they are (generated items are not
+calibrated, bank items do not feed the shared placement statistics).
 
 `answer` and `report` are each one unit of work and commit. No transaction stays open
 across the model call: the item is read again, locked, before anything is written.
@@ -19,6 +22,7 @@ from typing import Any, cast
 from sqlalchemy import delete, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adaptive.elo import guess_for, update_ability
 from app.adaptive.exercise.formats import (
     Choice4,
     ChoiceResponse,
@@ -31,11 +35,11 @@ from app.adaptive.exercise.formats import (
 from app.adaptive.exercise.grader import Graded, Verdict, grade_messages, learner_answer, verdict
 from app.adaptive.exercise.grading import Mark, grade, with_fix
 from app.adaptive.exercise.inputs import ExplainIn
-from app.adaptive.kc.catalog import GrammarCatalog
+from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog
 from app.adaptive.mastery import refresh
 from app.adaptive.rules import Rules
 from app.agents.exercise_graph import StructuredCall
-from app.db.models import Attempt, Exercise, ExerciseSet, KCEvidence, UserProfile
+from app.db.models import Attempt, Exercise, ExerciseSet, KCEvidence, SkillEstimate, UserProfile
 
 OPEN_SET = ("ready", "in_progress")
 
@@ -160,6 +164,31 @@ async def _finish_if_done(session: AsyncSession, exercise_set: ExerciseSet, now:
     return True
 
 
+async def _update_ability(
+    session: AsyncSession, user_id: uuid.UUID, item: Exercise, correct: bool, rules: Rules
+) -> None:
+    """One Elo step on the grammar ability; without one yet, start from the learner's
+    level anchor, as practice planning does (`inputs.load`)."""
+    row = await session.scalar(
+        select(SkillEstimate)
+        .where(SkillEstimate.user_id == user_id, SkillEstimate.skill == "grammar")
+        .with_for_update()
+    )
+    if row is None:
+        level = cast(
+            CefrLevel | None,
+            await session.scalar(
+                select(UserProfile.cefr_level).where(UserProfile.user_id == user_id)
+            ),
+        )
+        anchor = rules.difficulty.cefr_anchor[level or rules.practice.default_level]
+        row = SkillEstimate(user_id=user_id, skill="grammar", rating=anchor, attempts=0)
+        session.add(row)
+    guess = guess_for(item.format, rules)
+    row.rating = update_ability(row.rating, item.difficulty, correct, row.attempts, rules, guess)
+    row.attempts += 1
+
+
 def _start(exercise_set: ExerciseSet, now: datetime) -> None:
     if exercise_set.status == "ready":
         exercise_set.status = "in_progress"
@@ -250,6 +279,7 @@ async def answer(
                 mistake=(other.error_type, other.severity, other.original, other.correction),
             )
         )
+    await _update_ability(session, user_id, item, correct, rules)
     _start(exercise_set, now)
     set_done = await _finish_if_done(session, exercise_set, now)
     await session.flush()
