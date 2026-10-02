@@ -18,6 +18,18 @@ async def test_candidates_best_first_without_a_model(client: AsyncClient) -> Non
     placement = body["items"][0]
     assert placement["days_since"] is None and placement["in_progress"] is False
     assert placement["candidate_id"] == "placement"
+    assert placement["reason"] == "never" and placement["level"] is None
+
+
+async def test_not_now_hides_the_test_from_the_page(client: AsyncClient) -> None:
+    await login(client)
+    response = await client.post("/placement/reminder/dismiss", json={"key": "never"})
+    assert response.status_code == 204
+
+    body = (await client.get("/advice")).json()
+
+    # The tutor still has it (Q50d); the page doesn't offer it.
+    assert [i["kind"] for i in body["items"]] == ["choose_book"]
 
 
 async def test_live_evidence_and_model_ready(client: AsyncClient) -> None:

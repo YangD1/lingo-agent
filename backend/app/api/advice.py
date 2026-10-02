@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.advice.candidates import Kind, candidates
+from app.advice.reminder import Reason
 from app.api.vocab import TimeZone
 from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.providers.config import resolve_route
@@ -42,6 +43,12 @@ class AdviceItemOut(BaseModel):
     # Placement: days since the latest finished test, None if never; a test is open.
     days_since: int | None
     in_progress: bool
+    # Placement (task 50): why to take it now; the last test's level and that level's
+    # grammar points learned out of all.
+    reason: Reason | None
+    level: CefrLevel | None
+    learned: int | None
+    total: int | None
     kc: KcRef | None
     p_mastery: float | None
     book: BookRef | None
@@ -82,6 +89,10 @@ async def get_advice(
                 count=c.count,
                 days_since=c.days_since,
                 in_progress=c.in_progress,
+                reason=c.reason,
+                level=c.level,
+                learned=c.learned,
+                total=c.total,
                 kc=KcRef(id=c.kc.id, name_en=c.kc.name_en, name_zh=c.kc.name_zh, cefr=c.kc.cefr)
                 if c.kc
                 else None,
@@ -91,6 +102,8 @@ async def get_advice(
                 else None,
             )
             for c in found
+            # "Not now" (Q50d): the page doesn't offer it; the tutor still can if asked.
+            if not c.snoozed
         ],
         model_ready=model_ready,
     )

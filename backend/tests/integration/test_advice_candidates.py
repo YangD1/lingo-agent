@@ -10,6 +10,7 @@ from app.adaptive import mastery
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.advice.candidates import Signals, candidates, signals
+from app.advice.reminder import Reminder
 from app.db.models import KCEvidence, PlacementSession, UserCard, UserWordBook, Word
 from tests.integration.test_dashboard import new_user
 
@@ -45,7 +46,7 @@ async def test_a_new_learner(db_session: AsyncSession) -> None:
 
     s = await read(db_session, user_id)
 
-    assert s == Signals(0, 0, None, False, None, False, ())
+    assert s == Signals(0, 0, None, False, None, False, Reminder("never", "never"), ())
     found = await candidates(
         db_session, user_id, rules=RULES, catalog=CATALOG, tz=UTC_ZONE, now=NOW
     )
@@ -82,6 +83,8 @@ async def test_book_words_and_the_latest_finished_test(db_session: AsyncSession)
     # One due card; two book words without cards are today's new words.
     assert (s.reviews_due, s.new_left) == (1, 2)
     assert (s.placement_days, s.placement_in_progress) == (61, True)
+    assert s.reminder is not None and s.reminder.reason == "resume"
+    assert s.reminder.days_since == 61 and s.reminder.level == "B1"
 
 
 async def test_recent_counted_conversation_mistakes_make_weak_kcs(

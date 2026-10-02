@@ -985,6 +985,11 @@
           "reason": "上次入学测已经过去很久了，重测一次看看自己的进步。",
           "action": "去测试"
         },
+        "retest_progress": {
+          "title": "重测一次，看能不能升级",
+          "reason": "当前等级的语法点你已经学会了大部分，重测一次，私教会按新等级调整讲解和练习。",
+          "action": "去测试"
+        },
         "resume": {
           "title": "把入学测做完",
           "reason": "你有一次入学测做到一半，接着做就好。",
@@ -1020,6 +1025,7 @@
         "due": "到期 {n} 个",
         "newLeft": "今天还剩 {n} 个新词",
         "lastTest": "上次在 {n} 天前",
+        "learned": "{level} 语法点已学会 {learned}/{total}",
         "inProgress": "有一次没做完",
         "grammar": "{kc} · 最近错 {n} 次 · 掌握度 {p}"
       },
@@ -1038,6 +1044,7 @@
         "choose_book": "还没选词书。想先做什么？",
         "placement": "还没做过入学测。先测一下水平，私教能讲得更贴合你。想先做什么？",
         "retest": "上次入学测已经是 {days} 天前了。想先做什么？",
+        "retest_progress": "{level} 的语法点你已经学会了 {learned}/{total}，可以重测一下，看看能不能升级。想先做什么？",
         "resume": "你有一次入学测做到一半。想先做什么？",
         "grammar_practice": "最近{kc}错得比较多。想先做什么？"
       },
@@ -1049,6 +1056,7 @@
         "choose_book": "帮我选一本词书",
         "placement": "我想做入学测",
         "retest": "我想重新测一下水平",
+        "retest_progress": "我想重测一下，看能不能升级",
         "resume": "我想把入学测做完",
         "grammar_practice": "我想练一下{kc}"
       }

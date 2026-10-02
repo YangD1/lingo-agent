@@ -162,6 +162,9 @@ function Greeting({ item }: { item: AdviceItem | undefined }) {
     n: item.count ?? 0,
     kc: item.kc ? kcName(item.kc, locale) : "",
     days: item.days_since ?? 0,
+    level: item.level ?? "",
+    learned: item.learned ?? 0,
+    total: item.total ?? 0,
   });
 }
 

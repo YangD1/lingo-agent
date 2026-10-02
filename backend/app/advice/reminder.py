@@ -59,11 +59,15 @@ def decide(signals: ReminderSignals, rules: Rules, *, now: datetime) -> Reminder
     """The reminder to show now, if any; snoozing is the caller's business."""
     ar = rules.advice
     last = signals.last
-    if signals.open_test is not None:
-        return Reminder("resume", f"resume:{signals.open_test}")
     if last is None:
+        if signals.open_test is not None:
+            return Reminder("resume", f"resume:{signals.open_test}")
         return Reminder("never", "never")
     days = (now - last.finished_at).days
+    if signals.open_test is not None:
+        return Reminder(
+            "resume", f"resume:{signals.open_test}", days, last.level, last.learned, last.total
+        )
     if (
         days >= ar.retest_min_days
         and last.total

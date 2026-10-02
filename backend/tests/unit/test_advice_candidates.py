@@ -7,6 +7,7 @@ import pytest
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.advice.candidates import Example, Signals, WeakKC, rank
+from app.advice.reminder import Reminder
 from app.services.vocab.books import get_book
 
 RULES = get_rules()
@@ -28,8 +29,10 @@ SETTLED = Signals(
     screened=True,
     placement_days=3,
     placement_in_progress=False,
+    reminder=None,
     weak_kcs=(),
 )
+NEVER = Reminder("never", "never")
 
 
 def ids(signals: Signals) -> list[str]:
@@ -37,7 +40,9 @@ def ids(signals: Signals) -> list[str]:
 
 
 def test_a_new_learner_is_sent_to_the_test_then_a_book() -> None:
-    new = dataclasses.replace(SETTLED, book=None, screened=False, placement_days=None)
+    new = dataclasses.replace(
+        SETTLED, book=None, screened=False, placement_days=None, reminder=NEVER
+    )
     assert ids(new) == ["placement", "choose_book"]
     assert rank(new, RULES)[0].days_since is None
 
@@ -51,16 +56,39 @@ def test_a_chosen_book_not_screened_yet_suggests_screening() -> None:
 
 
 @pytest.mark.parametrize(
-    ("days", "expected"), [(59, []), (60, ["placement"]), (200, ["placement"])]
+    ("reminder", "priority"),
+    [
+        (Reminder("resume", "resume:x"), "placement"),
+        (Reminder("resume", "resume:x", 20, "B1", 3, 33), "retest"),
+        (Reminder("progress", "progress:x", 20, "B1", 24, 33), "retest_progress"),
+        (Reminder("age", "age:x", 70, "B1", 3, 33), "retest"),
+    ],
 )
-def test_a_retest_after_sixty_days(days: int, expected: list[str]) -> None:
-    signals = dataclasses.replace(SETTLED, placement_days=days)
-    assert ids(signals) == expected
-    if expected:
-        retest = rank(signals, RULES)[0]
-        assert retest.days_since == days
-        # A retest matters less than a first test.
-        assert retest.score == RULES.advice.priority["retest"]
+def test_the_reminder_sets_the_priority(reminder: Reminder, priority: str) -> None:
+    found = rank(dataclasses.replace(SETTLED, reminder=reminder), RULES)
+    assert [c.id for c in found] == ["placement"]
+    c = found[0]
+    assert c.score == RULES.advice.priority[priority]  # type: ignore[index]
+    assert (c.reason, c.days_since, c.level, c.learned, c.total) == (
+        reminder.reason,
+        reminder.days_since,
+        reminder.level,
+        reminder.learned,
+        reminder.total,
+    )
+    assert c.in_progress == (reminder.reason == "resume")
+
+
+def test_learned_enough_ranks_above_grammar_practice_below_reviews() -> None:
+    p = RULES.advice.priority
+    assert p["grammar_practice"] < p["retest_progress"] < p["vocab_review"]
+    assert p["retest"] < p["retest_progress"]
+
+
+def test_a_snoozed_reminder_stays_a_candidate() -> None:
+    snoozed = dataclasses.replace(NEVER, snoozed=True)
+    found = rank(dataclasses.replace(SETTLED, reminder=snoozed), RULES)
+    assert found[0].id == "placement" and found[0].snoozed
 
 
 def test_more_due_words_are_more_urgent_but_capped_by_priority() -> None:
@@ -102,6 +130,7 @@ def test_candidates_are_cut_to_the_limit_best_first() -> None:
         screened=False,
         placement_days=None,
         placement_in_progress=True,
+        reminder=Reminder("resume", "resume:x"),
         weak_kcs=(
             kc("g.articles_basic"),
             kc("g.present_simple_third_person"),

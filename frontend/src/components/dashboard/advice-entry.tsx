@@ -71,6 +71,8 @@ function Evidence({ item, kc }: { item: AdviceItem; kc: string }) {
       break;
     case "placement":
       if (item.in_progress) text = t("inProgress");
+      else if (item.reason === "progress")
+        text = t("learned", { level: item.level ?? "", learned: item.learned ?? 0, total: item.total ?? 0 });
       else if (item.days_since !== null) text = t("lastTest", { n: item.days_since });
       break;
     case "grammar_practice":

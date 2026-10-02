@@ -23,12 +23,24 @@ def describe(c: Candidate) -> str:
     """One candidate in plain English, with its evidence."""
     match c.kind:
         case "placement":
-            if c.days_since is None:
-                what = "Take the placement test: never taken"
-            else:
-                what = f"Retake the placement test: last taken {c.days_since} days ago"
-            if c.in_progress:
-                what += " (a test is in progress, can be continued)"
+            match c.reason:
+                case "resume":
+                    what = "Finish the placement test: one is in progress, can be continued"
+                case "progress":
+                    what = (
+                        f"Retake the placement test: {c.learned} of the {c.total} grammar "
+                        f"points at {c.level}, the last test's level, are learned now; last "
+                        f"taken {c.days_since} days ago, so time to check for the next level"
+                    )
+                case "age":
+                    what = f"Retake the placement test: last taken {c.days_since} days ago"
+                case _:
+                    what = "Take the placement test: never taken"
+            if c.snoozed:
+                what += (
+                    ' (the learner said "not now" to this lately: don\'t bring it up; '
+                    "offer it only if they ask)"
+                )
             return what
         case "choose_book":
             return "Choose a word book: none chosen yet"

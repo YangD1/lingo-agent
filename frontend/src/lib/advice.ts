@@ -1,5 +1,6 @@
 import { api } from "@/lib/api";
 import { type CefrLevel, practiceHref } from "@/lib/learner";
+import type { ReminderReason } from "@/lib/placement";
 import { browserTimeZone } from "@/lib/vocab";
 
 export type AdviceKind =
@@ -19,6 +20,12 @@ export type AdviceItem = {
   /** Placement: days since the latest finished test; null if never. */
   days_since: number | null;
   in_progress: boolean;
+  /** Placement (task 50): why to take it now; the last test's level and that level's
+   * grammar points learned out of all. */
+  reason: ReminderReason | null;
+  level: CefrLevel | null;
+  learned: number | null;
+  total: number | null;
   kc: { id: string; name_en: string; name_zh: string; cefr: CefrLevel } | null;
   p_mastery: number | null;
   book: { id: string; name_en: string; name_zh: string } | null;
@@ -36,10 +43,11 @@ export function fetchAdvice(): Promise<Advice> {
   return api<Advice>(`/advice${tz ? `?${new URLSearchParams({ tz })}` : ""}`);
 }
 
-/** Which template text an item gets: placement splits into first test, retest and resume. */
+/** Which template text an item gets: placement splits by the reminder's reason. */
 export function templateKey(item: AdviceItem) {
   if (item.kind !== "placement") return item.kind;
   if (item.in_progress) return "resume";
+  if (item.reason === "progress") return "retest_progress";
   return item.days_since === null ? "placement" : "retest";
 }
 

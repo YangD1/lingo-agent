@@ -65,6 +65,9 @@ export const answerPlacement = (id: string, questionId: string, answer: Answer) 
     json: { question_id: questionId, ...answer },
   });
 
+/** backend/app/advice/reminder.py Reason: why to take the placement test now (task 50). */
+export type ReminderReason = "resume" | "never" | "progress" | "age";
+
 export type BannerKind = "start" | "resume" | "retest";
 
 /** What the chat page's banner offers: nothing once a test is done, until a retest is due. */

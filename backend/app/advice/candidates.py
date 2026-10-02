@@ -17,8 +17,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive import mastery
-from app.adaptive.kc.catalog import GrammarCatalog, GrammarKC
+from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, GrammarKC
 from app.adaptive.rules import Rules
+from app.advice import reminder
+from app.advice.reminder import Reason, Reminder
 from app.db.models import KCEvidence, KCMastery, PlacementSession
 from app.services.vocab.books import Book, get_book
 from app.services.vocab.progress import current
@@ -65,6 +67,8 @@ class Signals:
     # Whole days since the latest finished placement test; None if never finished.
     placement_days: int | None
     placement_in_progress: bool
+    # Why to take the test now, if at all (task 50).
+    reminder: Reminder | None
     weak_kcs: tuple[WeakKC, ...]
 
 
@@ -82,6 +86,13 @@ class Candidate:
     # Placement: days since the latest finished test (None = never), and a test is open.
     days_since: int | None = None
     in_progress: bool = False
+    # Placement: the reminder's reason, the last test's level and that level's grammar
+    # points learned out of all, and whether the learner said "Not now" to it lately.
+    reason: Reason | None = None
+    level: CefrLevel | None = None
+    learned: int | None = None
+    total: int | None = None
+    snoozed: bool = False
     kc: GrammarKC | None = None
     p_mastery: float | None = None
     examples: tuple[Example, ...] = ()
@@ -97,20 +108,28 @@ def rank(signals: Signals, rules: Rules) -> list[Candidate]:
     p = ar.priority
     found: list[Candidate] = []
 
-    if signals.placement_days is None:
-        found.append(
-            Candidate(
-                "placement", "placement", p["placement"], in_progress=signals.placement_in_progress
-            )
-        )
-    elif signals.placement_days >= ar.retest_days:
+    if (r := signals.reminder) is not None:
+        match r.reason:
+            case "never":
+                priority = p["placement"]
+            case "resume":
+                priority = p["placement"] if r.days_since is None else p["retest"]
+            case "progress":
+                priority = p["retest_progress"]
+            case "age":
+                priority = p["retest"]
         found.append(
             Candidate(
                 "placement",
                 "placement",
-                p["retest"],
-                days_since=signals.placement_days,
-                in_progress=signals.placement_in_progress,
+                priority,
+                days_since=r.days_since,
+                in_progress=r.reason == "resume",
+                reason=r.reason,
+                level=r.level,
+                learned=r.learned,
+                total=r.total,
+                snoozed=r.snoozed,
             )
         )
 
@@ -246,6 +265,7 @@ async def signals(
         screened=bool(plan and plan.screen_offset),
         placement_days=(now - finished).days if finished else None,
         placement_in_progress=open_test is not None,
+        reminder=await reminder.current(session, user_id, rules=rules, catalog=catalog, now=now),
         weak_kcs=await _weak_kcs(session, user_id, rules=rules, catalog=catalog, now=now),
     )
 

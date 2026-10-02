@@ -985,6 +985,11 @@
           "reason": "Your last placement test was a while ago. Retake it to see how far you've come.",
           "action": "Start"
         },
+        "retest_progress": {
+          "title": "Retest to see if you've moved up",
+          "reason": "You've learned most of the grammar points at your level. Retest, and the tutor will adjust explanations and practice to your new level.",
+          "action": "Start"
+        },
         "resume": {
           "title": "Finish the placement test",
           "reason": "You left a placement test halfway. Pick up where you stopped.",
@@ -1020,6 +1025,7 @@
         "due": "{n} due",
         "newLeft": "{n} new words left today",
         "lastTest": "Last taken {n} days ago",
+        "learned": "{level} grammar points learned: {learned}/{total}",
         "inProgress": "One left unfinished",
         "grammar": "{kc} · {n} mistakes lately · mastery {p}"
       },
@@ -1038,6 +1044,7 @@
         "choose_book": "You haven't chosen a word book yet. What would you like to start with?",
         "placement": "You haven't taken the placement test yet; with your level, the tutor can pitch things right. What would you like to start with?",
         "retest": "Your last placement test was {days} days ago. What would you like to start with?",
+        "retest_progress": "You've learned {learned} of the {total} {level} grammar points. A retest could move you up a level. What would you like to start with?",
         "resume": "You left a placement test halfway. What would you like to start with?",
         "grammar_practice": "{kc} has tripped you up lately. What would you like to start with?"
       },
@@ -1049,6 +1056,7 @@
         "choose_book": "Help me choose a word book",
         "placement": "I'd like to take the placement test",
         "retest": "I'd like to retest my level",
+        "retest_progress": "I'd like to retest and see if I've moved up",
         "resume": "I'd like to finish the placement test",
         "grammar_practice": "I'd like to practise {kc}"
       }

@@ -101,6 +101,8 @@ async def test_the_tutor_answers_with_todays_brief_and_cards_within_it(
     assert "today's study, from the dashboard" in prompt
     assert "What the learning engine suggests now" in prompt
     assert "Take the placement test: never taken" in prompt
+    assert "mention it once in your first reply, with its reason" in prompt
+    assert 'said "not now" to this' not in prompt
     # No opening cue: the learner's own message is the last one.
     assert isinstance(messages[-1], HumanMessage)
     assert messages[-1].text == "What should I study today?"
@@ -115,6 +117,27 @@ async def test_the_tutor_answers_with_todays_brief_and_cards_within_it(
         if a["kind"] == "step" and a["name"] == "load_context"
     ]
     assert load["summary"]["planning"] is True
+
+
+async def test_after_not_now_the_tutor_offers_the_test_only_when_asked(
+    client: AsyncClient,
+    script: Script,  # noqa: F811
+) -> None:
+    await login(client)
+    await connect(client, "openai")
+    response = await client.post("/placement/reminder/dismiss", json={"key": "never"})
+    assert response.status_code == 204
+    conversation = (await daily(client))["id"]
+    script.replies = [[tool_call("suggest_link", kind="placement")], "Here it is."]
+
+    status, events, _ = await send(client, conversation, "Can I take the placement test?")
+
+    assert status == 200 and kinds(events, "done")
+    prompt = system_text(script.calls[0][1])
+    assert 'never taken (the learner said "not now" to this lately' in prompt
+    # Still in scope: asked for, the card is allowed.
+    shown = [(c["kind"], c["params"]) for c in await cards(client, conversation)]
+    assert shown == [("link", {"kind": "placement"})]
 
 
 async def test_a_daily_conversation_has_no_opening(client: AsyncClient) -> None:

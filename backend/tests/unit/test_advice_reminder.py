@@ -22,7 +22,10 @@ def at(signals: ReminderSignals) -> Reminder | None:
 
 def test_a_test_left_halfway_comes_first() -> None:
     assert at(ReminderSignals(OPEN, None)) == Reminder("resume", f"resume:{OPEN}")
-    assert at(ReminderSignals(OPEN, last(90, 33))) == Reminder("resume", f"resume:{OPEN}")
+    # With an earlier test, the numbers come along: the retest's priority depends on it.
+    assert at(ReminderSignals(OPEN, last(90, 33))) == Reminder(
+        "resume", f"resume:{OPEN}", 90, "B1", 33, 33
+    )
 
 
 def test_never_tested() -> None:

@@ -8,6 +8,7 @@ import type { ChatEvent } from "@/lib/sse";
 
 import en from "../../../messages/en.json";
 import zh from "../../../messages/zh-CN.json";
+import { AdviceEntry } from "./advice-entry";
 import { TodayStart, TodayTutor } from "./today-tutor";
 
 const api = vi.hoisted(() => vi.fn());
@@ -24,6 +25,10 @@ const item = (over: Partial<AdviceItem>): AdviceItem => ({
   count: null,
   days_since: null,
   in_progress: false,
+  reason: null,
+  level: null,
+  learned: null,
+  total: null,
   kc: null,
   p_mastery: null,
   book: null,
@@ -88,6 +93,32 @@ describe("templateKey", () => {
       "resume",
     );
     expect(templateKey(item({ kind: "vocab_learn" }))).toBe("vocab_learn");
+  });
+
+  it("says why a retest is due once the level's grammar points are learned", () => {
+    const progress = item({ kind: "placement", days_since: 20, reason: "progress" });
+    expect(templateKey(progress)).toBe("retest_progress");
+  });
+});
+
+describe("AdviceEntry", () => {
+  it("shows how many of the level's grammar points are learned", () => {
+    render(
+      <NextIntlClientProvider locale="zh-CN" messages={zh} timeZone="UTC">
+        <AdviceEntry
+          item={item({
+            kind: "placement",
+            days_since: 20,
+            reason: "progress",
+            level: "B1",
+            learned: 24,
+            total: 33,
+          })}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByTestId("advice-evidence")).toHaveTextContent("B1 语法点已学会 24/33");
+    expect(screen.getByRole("link", { name: "去测试" })).toHaveAttribute("href", "/placement");
   });
 });
 
