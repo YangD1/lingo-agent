@@ -207,7 +207,8 @@
         "propose_learning_goal": "Study goal proposal",
         "suggest_practice": "Practice suggestion",
         "suggest_link": "Page shortcut",
-        "tools": "Tools"
+        "tools": "Tools",
+        "handoff": "Handoff"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -237,7 +238,9 @@
       "practiceRead": "Practice guidance: {kc} (how well you know it and your recent mistakes)",
       "cards": "showed {n, plural, one {# card} other {# cards}}",
       "planning": "went through your placement result",
+      "handedTo": "handed to the {coach}",
       "planningRead": "Planning guidance: your latest placement result, the grammar points it found weak, and what the learning engine suggests",
+      "handoffRead": "This message looked like a piece of your writing, so the tutor handed it to the {coach} for feedback.",
       "cardShown": "Showed a card: {card}",
       "toolFailed": "A card couldn't be shown ({step}); the tutor was told why.",
       "toolsUnavailable": "The model doesn't support tools, so the tutor answered with links instead of cards.",
@@ -246,6 +249,9 @@
         "learning_goal": "study goal",
         "practice": "grammar practice",
         "link": "shortcut to a page"
+      },
+      "coaches": {
+        "writing_coach": "writing coach"
       }
     },
     "practice": {

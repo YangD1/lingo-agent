@@ -94,7 +94,9 @@
 |---|---|---|---|---|---|
 | 读取学习者上下文 | `agents/chat_graph.py` `load_context` | 画像、事实记忆、相关的会话摘要 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` | `embedding/memory`（有配置时用于检索摘要） | 回复下“私教做了什么”；`/memory` 页面查看、修改、删除 |
 | 读取练习指引（只在练习会话） | `chat/practice.py` `DatabasePractice`，在 `load_context` 里 | 会话的 `focus_kc_id`；该语法点的目录信息、掌握度档位（不给模型数字）、最近 2 条对话错误原句 → 改正 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `practice_kc` | 无 | 对话顶部“语法练习：…”和“查看依据”；`/learner` 删除证据后下一轮就不再使用 |
-| 选择由谁回复（supervisor） | `agents/chat_graph.py` `supervisor`；路由在开跑前由 `agents/routing.py` `route_for` 定 | 会话有没有练习语法点（`focus_kc_id`） | 无 | 无（不调模型，ADR 0023 §3） | 不单独显示：练习会话由 grammar_coach 回复，其余（含规划、今天的学习）由 tutor 回复，会话本身已经说明了这一点（Q37b）；自由对话的分类转交在任务 38 加入后才会记一步 |
+| 选择由谁回复（supervisor） | `agents/chat_graph.py` `supervisor`；会话层面的路由在开跑前由 `agents/routing.py` `route_for` 定 | 会话有没有练习语法点（`focus_kc_id`） | 无 | 无（ADR 0023 §3） | 不单独显示：练习会话由 grammar_coach 回复，其余（含规划、今天的学习）由 tutor 回复，会话本身已经说明了这一点（Q37b） |
+| 自由对话分类（只在自由对话，任务 38.4） | `agents/routing.py` `worth_classifying` → `classify`，在 `supervisor` 里；提示词 `prompts/route.md` | 学习者这条消息（打字的部分，不含附件）和私教上一条回复的末尾 600 字符 | 只在转给别的 coach 时记活动 `handoff`（`coach`）；留在 tutor 不记 | 消息不少于 60 个英文单词时调 `llm/route`（结构化输出，最多等 8 秒）；更短的不调（Q38a）。没配模型、出错、超时都留在 tutor | 回复下“私教做了什么”：“交给了写作教练” |
+| 写作点评（writing_coach，任务 38.4 起） | `agents/chat_graph.py` writing_coach 子图：`writing_coach`，不带工具；指引 `prompts/writing_coach.md`（38.5 改为调写作批改服务并给卡片） | 对话历史、学习者上下文、本轮附件 | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
 | 私教回复（tutor） | `agents/chat_graph.py` tutor 子图：`tutor`（⇄ `tools`，见上一节） | 对话历史、学习者上下文、规划简报、本轮附件、本会话最近的卡片 | checkpoint（对话历史，含工具调用和结果，由主图保存；子图自己不存 checkpoint）；`tutor_cards` | `llm/chat`；带图片时 `llm/vision`；工具之后的回复记为 `chat_tools` | 对话页；删除会话即删除 |
 | 练习会话回复（grammar_coach） | `agents/chat_graph.py` grammar_coach 子图：`grammar_coach`，不带工具 | 对话历史、学习者上下文、练习指引、本轮附件 | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
 

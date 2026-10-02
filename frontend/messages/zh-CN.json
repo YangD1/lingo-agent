@@ -207,7 +207,8 @@
         "propose_learning_goal": "提议学习目标",
         "suggest_practice": "建议练习",
         "suggest_link": "页面直达",
-        "tools": "工具"
+        "tools": "工具",
+        "handoff": "转交"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -237,7 +238,9 @@
       "practiceRead": "练习指引：{kc}（掌握度档位和最近的错句）",
       "cards": "展示了 {n} 张卡片",
       "planning": "参考了你的入学测结果",
+      "handedTo": "交给了{coach}",
       "planningRead": "规划依据：最近一次入学测结果、测出的薄弱语法点、学习引擎的建议",
+      "handoffRead": "这条消息像是你写的一段英文，私教把它交给了{coach}来点评。",
       "cardShown": "展示了卡片：{card}",
       "toolFailed": "有一张卡片没能展示（{step}），已把原因告诉私教。",
       "toolsUnavailable": "当前模型不支持工具调用，私教改用链接代替卡片回答。",
@@ -246,6 +249,9 @@
         "learning_goal": "学习目标",
         "practice": "语法练习",
         "link": "页面直达"
+      },
+      "coaches": {
+        "writing_coach": "写作教练"
       }
     },
     "practice": {

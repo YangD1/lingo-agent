@@ -28,6 +28,11 @@ features:
         route: chat
         timing: now
         default: {input_tokens: 3000, output_tokens: 150}
+      # Only in free chat, for a message of 60+ English words (Q38a): is it a piece of
+      # writing for writing_coach? The reply waits for it (ADR 0023 §3).
+      - task: route
+        timing: now
+        default: {input_tokens: 500, output_tokens: 15}
       # Reflection after each reply: memory, grammar tags, words; every few turns it
       # also rewrites the conversation summary.
       - task: reflect

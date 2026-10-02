@@ -14,11 +14,13 @@ from pydantic import Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.activity.service import ContextRead, Step
+from app.activity.service import ContextRead, Handoff, Step
 from app.adaptive.kc.catalog import get_grammar_catalog
+from app.agents import chat_graph
 from app.agents.chat_graph import (
     GRAMMAR_COACH_NODE,
     TUTOR_NODE,
+    WRITING_COACH_NODE,
     ChatContext,
     ChatGraph,
     build_chat_graph,
@@ -569,3 +571,116 @@ async def test_coaches_share_one_history(
     # Coach subgraphs keep no checkpoints of their own, so their input never lands there.
     dump = await dump_checkpoints(db_session, thread_id)
     assert MEMORY_MARKER not in dump and PRACTICE_MARKER not in dump
+
+
+# --- free chat handed to writing_coach (task 38.4) ---
+
+ESSAY = " ".join(["Last summer I goes to the beach with my family and we swims every day."] * 5)
+
+
+class FakeClassifier:
+    def __init__(self, route: Route = Route.WRITING_COACH) -> None:
+        self.route = route
+        self.calls: list[tuple[str, str]] = []
+
+    async def __call__(
+        self, ctx: TenantProviderContext, text: str, previous: str, config: RunnableConfig
+    ) -> Route:
+        self.calls.append((text, previous))
+        return self.route
+
+
+def use_classifier(monkeypatch: pytest.MonkeyPatch, route: Route) -> FakeClassifier:
+    classifier = FakeClassifier(route)
+    monkeypatch.setattr(chat_graph, "classify", classifier)
+    return classifier
+
+
+async def _nodes(
+    graph: ChatGraph, thread_id: uuid.UUID, context: ChatContext, text: str
+) -> set[str]:
+    nodes: set[str] = set()
+    async for _namespace, (_chunk, metadata) in graph.astream(
+        {"messages": [HumanMessage(text)]},
+        thread(thread_id),
+        context=context,
+        stream_mode="messages",
+        subgraphs=True,
+    ):
+        assert isinstance(metadata, dict)
+        nodes.add(metadata["langgraph_node"])
+    return nodes
+
+
+async def test_a_piece_of_writing_in_free_chat_goes_to_writing_coach(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = RecordingChatModel(reply="Good effort!")
+    use_model(monkeypatch, model)
+    classifier = use_classifier(monkeypatch, Route.WRITING_COACH)
+    activity = FakeActivity()
+    thread_id = uuid.uuid4()
+
+    await graph.ainvoke(
+        {"messages": [HumanMessage("Hi")]}, thread(thread_id), context=ChatContext(providers)
+    )
+    context = ChatContext(providers, tools=FakeTools(), activity=activity, classify=True)
+    nodes = await _nodes(graph, thread_id, context, ESSAY)
+
+    assert nodes == {WRITING_COACH_NODE}
+    # The classifier saw the message and the tutor's previous reply.
+    assert classifier.calls == [(ESSAY, "Good effort!")]
+    [handoff] = [s for s in activity.steps if s.name == "handoff"]
+    assert handoff.summary == Handoff(coach="writing_coach")
+    # The coach replies without tools, with its own guidance.
+    prompt = str(model.seen[-1][0].content)
+    assert load_prompt("writing_coach") in prompt
+    assert TOOLS_MARKER not in prompt
+
+
+async def test_short_messages_stay_with_the_tutor_without_a_call(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_model(monkeypatch, RecordingChatModel())
+    classifier = use_classifier(monkeypatch, Route.WRITING_COACH)
+    activity = FakeActivity()
+
+    short = " ".join(["word"] * 59)  # Q38a: under 60 English words
+    context = ChatContext(providers, activity=activity, classify=True)
+    nodes = await _nodes(graph, uuid.uuid4(), context, short)
+
+    assert nodes == {TUTOR_NODE}
+    assert classifier.calls == []
+    assert all(s.name != "handoff" for s in activity.steps)
+
+
+async def test_only_free_chat_is_classified(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_model(monkeypatch, RecordingChatModel())
+    classifier = use_classifier(monkeypatch, Route.WRITING_COACH)
+
+    # Planning and daily conversations (classify off) and practice conversations.
+    tutor = await _nodes(graph, uuid.uuid4(), ChatContext(providers), ESSAY)
+    practice = ChatContext(
+        providers, practice=FakePractice(), route=Route.GRAMMAR_COACH, classify=True
+    )
+    coach = await _nodes(graph, uuid.uuid4(), practice, ESSAY)
+
+    assert (tutor, coach) == ({TUTOR_NODE}, {GRAMMAR_COACH_NODE})
+    assert classifier.calls == []
+
+
+async def test_writing_the_classifier_keeps_with_the_tutor_records_nothing(
+    graph: ChatGraph, providers: TenantProviderContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    use_model(monkeypatch, RecordingChatModel())
+    classifier = use_classifier(monkeypatch, Route.TUTOR)
+    activity = FakeActivity()
+
+    context = ChatContext(providers, activity=activity, classify=True)
+    nodes = await _nodes(graph, uuid.uuid4(), context, ESSAY)
+
+    assert nodes == {TUTOR_NODE}
+    assert len(classifier.calls) == 1
+    assert all(s.name != "handoff" for s in activity.steps)

@@ -324,6 +324,12 @@ class Turn:
     def route(self) -> Route:
         return route_for(self.focus_kc_id)
 
+    @property
+    def free_chat(self) -> bool:
+        """A learner's message in free chat: the supervisor may hand it to another
+        coach (task 38.4)."""
+        return self.route is Route.TUTOR and self.planning is None and self.text is not None
+
 
 def _conflict(code: str, message: str) -> HTTPException:
     return api_error(status.HTTP_409_CONFLICT, code, message)
@@ -532,6 +538,7 @@ async def _reply(
         ),
         activity=DatabaseActivity(sessionmaker, user.id, turn.conversation_id, turn.message_id),
         route=route,
+        classify=turn.free_chat,
         practice=practice,
         tools=tools,
         planning=planning,

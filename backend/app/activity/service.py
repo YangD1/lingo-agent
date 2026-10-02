@@ -100,6 +100,13 @@ class ToolsUnavailable(Summary):
     """`tools`: the model refused tool calls, so the turn was answered without them."""
 
 
+class Handoff(Summary):
+    """`handoff`: the supervisor's classifier gave a free-chat turn to another coach
+    (ADR 0023 §3, Q37b); turns that stay with the tutor record nothing."""
+
+    coach: str
+
+
 @dataclass(frozen=True)
 class StepSpec:
     kind: ActivityKind
@@ -113,6 +120,7 @@ STEPS: dict[str, StepSpec] = {
     "vocab_collect": StepSpec("background", WordsCollected),
     "summarize": StepSpec("background", SummaryUpdate),
     "tools": StepSpec("step", ToolsUnavailable),
+    "handoff": StepSpec("step", Handoff),
     # One per tool (app/cards/tools.py), call_id = the model's tool call id.
     "propose_word_book": StepSpec("tool", CardShown),
     "propose_learning_goal": StepSpec("tool", CardShown),

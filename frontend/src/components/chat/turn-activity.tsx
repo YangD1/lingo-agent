@@ -11,6 +11,7 @@ import {
   type ContextRead,
   digest,
   type GrammarTags,
+  type Handoff,
   type KCRef,
   type MemoryChanges,
   type MemoryRef,
@@ -40,6 +41,7 @@ const STEP_NAMES = [
   "vocab_collect",
   "summarize",
   "tools",
+  "handoff",
   ...TOOL_NAMES,
 ] as const;
 type StepName = (typeof STEP_NAMES)[number];
@@ -56,9 +58,14 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
   if (activities.length === 0 && !waiting) return null;
 
   const d = digest(activities);
+  const coachName = (coach: string) => {
+    const key = `coaches.${coach}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : coach;
+  };
   const parts = [
     d.practiced && t("practice"),
     d.planned && t("planning"),
+    d.handedTo && t("handedTo", { coach: coachName(d.handedTo) }),
     d.memoriesRead > 0 && t("read", { n: d.memoriesRead }),
     d.memoriesSaved > 0 && t("saved", { n: d.memoriesSaved }),
     d.memoriesDeleted > 0 && t("deleted", { n: d.memoriesDeleted }),
@@ -279,6 +286,11 @@ function Step({
     }
     case "summarize":
       return <p>{t("summaryUpdated")}</p>;
+    case "handoff": {
+      const coach = (a.summary as Handoff).coach;
+      const key = `coaches.${coach}` as Parameters<typeof t>[0];
+      return <p>{t("handoffRead", { coach: t.has(key) ? t(key) : coach })}</p>;
+    }
   }
 }
 

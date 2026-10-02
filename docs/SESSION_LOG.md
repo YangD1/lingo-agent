@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 任务 38.4 完成（自由对话分类）
+
+- **做了什么**：`agents/routing.py`（`Route.WRITING_COACH`、`worth_classifying`〔≥ 60 个英文单词，Q38a〕、`classify`〔task `route`，`RouteDecision` 结构化输出，8 秒超时，任何失败留 tutor〕）；`prompts/route.md`；`chat_graph.supervisor` 对 `ChatContext.classify=True` 的自由对话先筛再分类，转给非 tutor 时记活动 `handoff`（`Handoff(coach)`）；writing_coach 子图暂为不带工具的点评（`prompts/writing_coach.md`，38.5 换成调批改服务 + 卡片）；`api/chat.py` `Turn.free_chat` → `stream_reply(classify=)`；`providers.*.yaml` 加 `route` 路由（便宜模型、温度 0）；`features.yaml` `chat_message` 下登记 `route`；前端活动显示“交给了写作教练”（`digest.handedTo`、`coaches` 文案）；`docs/agent-tools.md` 加两行。routing 单测 11、图测试 4 个新增，`make lint` 干净，相关 Vitest 98 全过。
+- **未完成**：无。全量 pytest 1203、Vitest 317 全过（`test_usage` / `test_usage_features` 两处断言随 `features.yaml` 新增 `route` 同步）。
+- **下一步**：38.5 writing_coach 子图（调 `writing/service`、同步等结果、卡片；处理 tutor 留下工具消息后转 writing_coach 的厂商兼容问题）。
+- **踩坑**：`NoModelConfiguredError` 构造要 task 和 refs，测试里直接用没连接的 `make_ctx()` 触发更省事。
+
+---
+
 ## 2026-10-02 · 任务 38.3 完成（写作接口）
 
 - **做了什么**：`api/writing.py`（提交 / 历史 / 详情 / 删除 / 固定题目）、`writing/prompts.yaml` + `prompts.py`、`service.recent / get / delete_submission`、`main.py` 注册路由、`tests/conftest.py` 的测试 app 加 `writing_worker`；`docs/agent-tools.md` 写作一节补接口。pytest 1190 全过。

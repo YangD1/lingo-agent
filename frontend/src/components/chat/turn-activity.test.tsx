@@ -48,6 +48,14 @@ describe("TurnActivity", () => {
     expect(screen.getByText(/doesn't support tools/)).toBeInTheDocument();
   });
 
+  it("says when a turn was handed to the writing coach", () => {
+    show({ activities: [step("handoff", { coach: "writing_coach" }, { kind: "step" })] });
+    const line = screen.getByRole("button", { expanded: false });
+    expect(line).toHaveTextContent("handed to the writing coach");
+    fireEvent.click(line);
+    expect(screen.getByText(/looked like a piece of your writing/)).toBeInTheDocument();
+  });
+
   it("shows one line, and the details when opened", () => {
     show({
       activities: [

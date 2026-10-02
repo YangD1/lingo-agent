@@ -52,6 +52,12 @@ describe("digest", () => {
     expect(d).toMatchObject({ planned: true, cardsShown: 2, failed: ["suggest_practice"] });
   });
 
+  it("names the coach a turn was handed to", () => {
+    expect(digest([]).handedTo).toBeNull();
+    const d = digest([step("handoff", { coach: "writing_coach" }, { kind: "step" })]);
+    expect(d.handedTo).toBe("writing_coach");
+  });
+
   it("counts nothing from failed or skipped steps", () => {
     const d = digest([
       step("reflect_memory", {}, { status: "failed" }),

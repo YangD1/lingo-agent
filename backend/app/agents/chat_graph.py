@@ -47,10 +47,11 @@ from app.activity.service import (
     ActivityStatus,
     CardShown,
     ContextRead,
+    Handoff,
     Step,
     timed,
 )
-from app.agents.routing import Route
+from app.agents.routing import Route, classify, worth_classifying
 from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
 from app.chat.planning import PlanningBrief, PlanningSource, render_planning
@@ -74,7 +75,8 @@ SUPERVISOR_NODE = "supervisor"
 # the same name, which is what streamed tokens are tagged with.
 TUTOR_NODE = Route.TUTOR.value
 GRAMMAR_COACH_NODE = Route.GRAMMAR_COACH.value
-COACH_NODES = frozenset({TUTOR_NODE, GRAMMAR_COACH_NODE})
+WRITING_COACH_NODE = Route.WRITING_COACH.value
+COACH_NODES = frozenset({TUTOR_NODE, GRAMMAR_COACH_NODE, WRITING_COACH_NODE})
 TOOLS_NODE = "tools"
 
 # Tool round trips per turn; the tutor's last call then has no tools and must answer.
@@ -110,6 +112,8 @@ class ChatContext:
     planning: PlanningSource | None = None
     # The coach that answers this turn (ADR 0023 §3).
     route: Route = Route.TUTOR
+    # Free chat: the supervisor may classify the turn and hand it to another coach.
+    classify: bool = False
 
 
 class ChatState(MessagesState):
@@ -248,6 +252,16 @@ async def grammar_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict
     history, has_images = await _with_attachments(state["messages"], runtime.context.attachments)
     task = "vision" if has_images else "chat"
     reply = await _call(runtime, task, state, history, False, False, get_config(), PRACTICE_CUE)
+    return {"messages": [reply]}
+
+
+async def writing_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
+    """Free chat handed over for a piece of the learner's writing (task 38.4); it
+    replies without tools."""
+    history, has_images = await _with_attachments(state["messages"], runtime.context.attachments)
+    task = "vision" if has_images else "chat"
+    guided: ChatState = {**state, "practice": load_prompt("writing_coach")}
+    reply = await _call(runtime, task, guided, history, False, False, get_config(), PLAN_CUE)
     return {"messages": [reply]}
 
 
@@ -419,10 +433,28 @@ async def _with_attachments(
 
 async def supervisor(
     state: ChatState, runtime: Runtime[ChatContext]
-) -> Command[Literal["tutor", "grammar_coach"]]:
+) -> Command[Literal["tutor", "grammar_coach", "writing_coach"]]:
     """Hand the turn to its coach. The route is decided before the run from what is
-    certain about the conversation (ADR 0023 §3); no model is called here."""
-    return Command(goto=runtime.context.route.value)
+    certain about the conversation (ADR 0023 §3); only a long enough free-chat message
+    is classified (Q38a), and a handoff is shown to the learner (Q37b)."""
+    route = runtime.context.route
+    messages = state["messages"]
+    latest = messages[-1] if messages else None
+    if (
+        runtime.context.classify
+        and route is Route.TUTOR
+        and isinstance(latest, HumanMessage)
+        and worth_classifying(latest.text)
+    ):
+        previous = next(
+            (m.text for m in reversed(messages) if isinstance(m, AIMessage) and m.text), ""
+        )
+        with timed() as watch:
+            route = await classify(runtime.context.providers, latest.text, previous, get_config())
+        if route is not Route.TUTOR:
+            handoff = Handoff(coach=route.value)
+            await report(runtime, Step("handoff", summary=handoff, duration_ms=watch.ms))
+    return Command(goto=route.value)
 
 
 def _tutor_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatState, ChatState]:
@@ -440,6 +472,14 @@ def _grammar_coach_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatSta
     builder.add_node(GRAMMAR_COACH_NODE, grammar_coach)
     builder.add_edge(START, GRAMMAR_COACH_NODE)
     builder.add_edge(GRAMMAR_COACH_NODE, END)
+    return builder.compile(checkpointer=False)
+
+
+def _writing_coach_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatState, ChatState]:
+    builder = StateGraph(ChatState, context_schema=ChatContext)
+    builder.add_node(WRITING_COACH_NODE, writing_coach)
+    builder.add_edge(START, WRITING_COACH_NODE)
+    builder.add_edge(WRITING_COACH_NODE, END)
     return builder.compile(checkpointer=False)
 
 
@@ -461,8 +501,10 @@ def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
     builder.add_node(SUPERVISOR_NODE, supervisor)
     builder.add_node(TUTOR_NODE, _tutor_graph())
     builder.add_node(GRAMMAR_COACH_NODE, _grammar_coach_graph())
+    builder.add_node(WRITING_COACH_NODE, _writing_coach_graph())
     builder.add_edge(START, LOAD_CONTEXT_NODE)
     builder.add_edge(LOAD_CONTEXT_NODE, SUPERVISOR_NODE)
     builder.add_edge(TUTOR_NODE, END)
     builder.add_edge(GRAMMAR_COACH_NODE, END)
+    builder.add_edge(WRITING_COACH_NODE, END)
     return builder.compile(checkpointer=checkpointer)

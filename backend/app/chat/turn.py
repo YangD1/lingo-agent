@@ -145,6 +145,7 @@ async def stream_reply(
     tools: TutorTools | None = None,
     planning: PlanningSource | None = None,
     route: Route = Route.TUTOR,
+    classify: bool = False,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -179,6 +180,7 @@ async def stream_reply(
                 tools=tools,
                 planning=planning,
                 route=route,
+                classify=classify,
             ):
                 queue.put_nowait(event)
         finally:
@@ -213,6 +215,7 @@ async def _run_graph(
     tools: TutorTools | None,
     planning: PlanningSource | None,
     route: Route,
+    classify: bool,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     text_id: str | None = None  # the tutor message whose text is streaming
@@ -238,6 +241,7 @@ async def _run_graph(
                 tools=tools,
                 planning=planning,
                 route=route,
+                classify=classify,
             ),
             stream_mode=["messages", "custom"],
             subgraphs=True,
