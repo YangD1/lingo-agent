@@ -53,6 +53,8 @@ PLACEMENT_STATUSES = ("in_progress", "done", "abandoned")
 PLACEMENT_STAGES = ("vocab", "grammar")
 # planning: after a placement test (ADR 0015 §6); daily: the dashboard's (ADR 0016).
 CONVERSATION_PURPOSES = ("planning", "daily")
+# A writing submission is reviewed in the background (Q38c).
+WRITING_STATUSES = ("pending", "done", "failed")
 TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
@@ -366,6 +368,9 @@ class KCEvidence(Base):
         Index("ix_kc_evidence_user_id_created_at", "user_id", "created_at"),
         Index("ix_kc_evidence_user_id_kc_id_created_at", "user_id", "kc_id", "created_at"),
         Index("ix_kc_evidence_attempt_id", "attempt_id"),
+        Index("ix_kc_evidence_writing_id", "writing_id"),
+        # Writing mistakes always say which submission they came from; nothing else does.
+        CheckConstraint("(source = 'writing') = (writing_id IS NOT NULL)", name="writing_source"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -392,6 +397,11 @@ class KCEvidence(Base):
     # One find_fix answer gives two rows, recognition and production (ADR 0021 §1).
     format: Mapped[str | None] = mapped_column(String(20))
     attempt_id: Mapped[int | None] = mapped_column(ForeignKey("attempts.id", ondelete="SET NULL"))
+    # Writing mistakes (source `writing`): the submission. Deleting it deletes them
+    # (Q38e), and mastery is replayed.
+    writing_id: Mapped[int | None] = mapped_column(
+        ForeignKey("writing_submissions.id", ondelete="CASCADE")
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -871,3 +881,41 @@ class Attempt(Base):
     # Explanation shown, and the grader's other mistakes when a model graded it.
     feedback: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WritingSubmission(Base):
+    """A piece of writing and its review (P2 plan §4.2, ADR 0023 §5).
+
+    From `/writing` or from a conversation (`conversation_id`); both are reviewed by
+    the same service. The four scores are shown only and never feed mastery; the
+    mistakes become `kc_evidence` rows that point back here.
+    """
+
+    __tablename__ = "writing_submissions"
+    __table_args__ = (
+        CheckConstraint(_in("status", WRITING_STATUSES), name="status"),
+        Index("ix_writing_submissions_user_id_created_at", "user_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # Kept when the conversation is deleted: the submission is the learner's to delete.
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL")
+    )
+    # The task the learner wrote to (a listed prompt or their own); empty when none.
+    prompt: Mapped[str] = mapped_column(Text, server_default="")
+    text: Mapped[str] = mapped_column(Text)
+    word_count: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20))
+    # The review (`app/writing/review.py`): per sentence, the original, the corrected
+    # sentence and its mistakes; null until done.
+    corrections: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    # Task, coherence, vocabulary, grammar: a level and one-line reason each.
+    scores: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    summary: Mapped[str | None] = mapped_column(Text)
+    model: Mapped[str | None] = mapped_column(String(200))
+    # Why the review failed, as an error code; never model output.
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -7,7 +7,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.exercise.formats import Choice4, parse_body
-from app.db.models import Attempt, Exercise, ExerciseSet, KCEvidence, KCMastery, User
+from app.db.models import (
+    Attempt,
+    Exercise,
+    ExerciseSet,
+    KCEvidence,
+    KCMastery,
+    User,
+    WritingSubmission,
+)
 
 KC = "g.past_simple_regular"
 BODY = Choice4.model_validate(
@@ -98,7 +106,13 @@ async def test_evidence_format_checks(
 @pytest.mark.parametrize("source", ["writing", "reading"])
 async def test_new_sources_without_format(db_session: AsyncSession, source: str) -> None:
     user = await _user(db_session)
-    db_session.add(evidence(user, source=source, format=None))
+    writing_id = None
+    if source == "writing":  # writing evidence names its submission (task 38.1)
+        submission = WritingSubmission(user_id=user.id, text="x", word_count=1, status="done")
+        db_session.add(submission)
+        await db_session.flush()
+        writing_id = submission.id
+    db_session.add(evidence(user, source=source, format=None, writing_id=writing_id))
     await db_session.flush()
 
 

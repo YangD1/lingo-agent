@@ -48,6 +48,7 @@ from app.placement.service import PlacementRuntime  # noqa: E402
 from app.providers import net_guard  # noqa: E402
 
 BUSINESS_TABLES = (
+    "writing_submissions",
     "placement_item_stats",
     "placement_sessions",
     "review_logs",

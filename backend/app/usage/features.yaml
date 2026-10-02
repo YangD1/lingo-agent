@@ -96,6 +96,14 @@ features:
         timing: now
         default: {input_tokens: 7500, output_tokens: 300}
 
+  # "Submit" on /writing (P2 plan §4.2): one review of the whole text, run in the
+  # background while the page waits for it (Q38c).
+  writing_submit:
+    calls:
+      - task: writing_review
+        timing: now
+        default: {input_tokens: 9000, output_tokens: 1500}
+
   # "Talk it over with the tutor" in the placement result's conversation (ADR 0015 §6,
   # 0016 §4): the tutor's opening of the planning conversation; later turns, and the
   # dashboard's daily conversation (which has no opening), are chat_message.
