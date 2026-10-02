@@ -31,9 +31,11 @@ from app.settings import Settings  # noqa: E402
 Settings.model_config["env_file"] = None
 
 # Imported after the environment is prepared.
+from app.adaptive.exercise.worker import PracticeWorker  # noqa: E402
 from app.adaptive.placement.words import DatabaseWords  # noqa: E402
 from app.adaptive.rules import get_rules  # noqa: E402
 from app.agents.chat_graph import build_chat_graph  # noqa: E402
+from app.agents.exercise_graph import build_exercise_graph  # noqa: E402
 from app.agents.placement_graph import build_placement_graph  # noqa: E402
 from app.attachments.handlers import default_handlers  # noqa: E402
 from app.attachments.processor import AttachmentProcessor  # noqa: E402
@@ -162,7 +164,13 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         app.state.reflection_worker = ReflectionWorker(
             app.state.sessionmaker, app.state.chat_graph, enabled=False
         )
+        # Without a model configured, sets come from the placement bank (Q33d).
+        # Generating the next set ahead is off unless a test switches it on.
+        app.state.practice_worker = PracticeWorker(
+            app.state.sessionmaker, build_exercise_graph(), prefetch_enabled=False
+        )
         yield app
+        await app.state.practice_worker.stop()
         await app.state.reflection_worker.stop()
         await app.state.attachment_processor.stop()
 
