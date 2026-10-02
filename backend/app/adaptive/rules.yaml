@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-02.3"
+version: "2026-10-02.4"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -207,6 +207,12 @@ advice:
   max_candidates: 6
   # Suggest a retest once the latest finished placement test is this old.
   retest_days: 60
+  # Or earlier, once this share of the grammar points at the level the latest test gave
+  # is learned (mastery_gate), but not within `retest_min_days` of that test (Q50a).
+  retest_learned_share: 0.7
+  retest_min_days: 14
+  # "Not now" on a test reminder silences the same reason for this many days (Q50c).
+  reminder_snooze_days: 14
   # Grammar practice: a KC not yet mastered with a counted mistake in conversation
   # within this many days, at most this many KCs.
   grammar_days: 14
@@ -220,6 +226,7 @@ advice:
     grammar_practice: 0.7
     vocab_screen: 0.6
     vocab_learn: 0.5
+    retest_progress: 0.75
     retest: 0.4
   # Urgency of countable actions is n / (n + half): half-way at `half`, so a few due
   # words matter less than many, without a cliff. Grammar counts mistakes weighted by

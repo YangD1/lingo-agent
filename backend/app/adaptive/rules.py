@@ -194,6 +194,7 @@ AdvicePriority = Literal[
     "grammar_practice",
     "vocab_screen",
     "vocab_learn",
+    "retest_progress",
     "retest",
 ]
 AdviceHalf = Literal["vocab_review", "vocab_learn", "grammar_practice"]
@@ -202,6 +203,9 @@ AdviceHalf = Literal["vocab_review", "vocab_learn", "grammar_practice"]
 class AdviceRules(_Strict):
     max_candidates: int = Field(ge=1, le=20)
     retest_days: int = Field(ge=1)
+    retest_learned_share: OpenProbability
+    retest_min_days: int = Field(ge=0)
+    reminder_snooze_days: int = Field(ge=1)
     grammar_days: int = Field(ge=1)
     max_grammar: int = Field(ge=0)
     priority: dict[AdvicePriority, Annotated[float, Field(gt=0)]]
