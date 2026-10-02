@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-10-02 · 任务 50 完成（测试提醒）
+
+- **做了什么**：拆成 50.1–50.6，Q50d–g 按推荐确认。50.1 `advice/reminder.py`（`decide` / `load` / `current`，规则 `2026-10-02.4`）；50.2 `reminder_dismissals` + 迁移 `72f41c4740dd`、`GET /placement/reminder`、`POST /placement/reminder/dismiss`；50.3 建议候选改用提醒（`retest_progress` 0.75）、`describe` 按原因、`daily.md` 第一条回复带原因提一次、被搁置的 `GET /advice` 不给页面；50.4 `components/placement/placement-reminder.tsx`，引导条改用它，删掉 `bannerFor`、`usePlacementBannerClosed`、`retest_due`；50.5 练习落地页（never / resume，练习页专用文案）和汇总（progress / age）；50.6 E2E `placement-reminder.spec.ts`、文档、Docker。make lint 干净，pytest 1129、Vitest 315、E2E 46 全过。
+- **未完成**：无。提交在本地，**未推送**。
+- **下一步**：推送并看 CI；用户实测提醒（可以在 `/learner` 看哪一级学会了多少，或在开发库里把一个测试的 `finished_at` 往前改 60 天看 age 提醒）；然后回到 P2 看板下一个任务。
+- **踩坑**：① 练习页测试用 `api.mockResolvedValueOnce` 按顺序排队，新组件多一次请求就会打乱队列，所以在测试里单独 mock `@/lib/placement` 的两个函数。② next-intl 的 `t()` 不接受拼出来的 key，要写成明确的字面量。③ 规则文件改任何东西都要升 `version`，会让所有学习者的掌握度在下次读取时重放一次、预生成的练习组过期。
+
 ## 2026-10-02 · 任务 35 完成（练习接口、练习页、入口）
 
 - **做了什么**：35.1–35.5 见看板（指定语法点的组、继续没做完的组、开组掌握度快照；`api/practice.py` 五个接口；学习者模型“学会的条件”；`/practice` 页；“做一组题 / 对话练习”入口）。35.6：`fake_llm.py` 加出题、审题、批改的假回复，新 `frontend/e2e/practice-set.spec.ts` 两个流程，`practice.spec.ts` 改按钮名；修了 E2E 发现的 500（见踩坑）；`docs/agent-tools.md`、P2 计划落地记录。make lint 干净，pytest 1110、Vitest 311、E2E 45 全过；Docker 重建，迁移 head `27b21e3b464b`。
