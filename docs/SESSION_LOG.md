@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-10-02 · 任务 36 已拆分（最小评估集），未开工
+
+- **做了什么**：把任务 36 拆成 36.1–36.4，写进看板。Q36a–d 按推荐确认：a 回放按“任务 + 消息和结构的哈希”对，对不上就失败并提示重录；b 真实模型用开发库里指定账号租户的连接，走 provider 层；c 门槛是坏题拒 ≥ 90%、好题过 ≥ 90%、批改判对 ≥ 90%，写在数据集文件里；d 回放模式跟 pytest / CI 一起跑。用户决定：产品做完整之前不再逐个任务手工实测，每个功能用 E2E 覆盖主流程。
+- **未完成**：36.1–36.4 都没动代码，`backend/evals/` 还不存在。
+- **下一步**：做 36.1。
+  - 要接入的入口：critic 是 `app/adaptive/exercise/messages.py` 的 `critic_messages` → `drafts.critic_report_model` → `drafts.judge`；批改是 `grader.grade_messages` → `Graded` → `grader.verdict`。
+  - 真实模型从 `app/providers/llm.py` 的 `get_structured_llm(ctx, task, schema)` 走，`ctx` 是 `TenantProviderContext`，需要按账号从开发库加载。
+  - pytest 的 `testpaths` 目前只有 `tests`（`backend/pyproject.toml`），要把 `evals` 加进去（Q36d）。
+- **踩坑**：无。
+
 ## 2026-10-02 · 任务 50 完成（测试提醒）
 
 - **做了什么**：拆成 50.1–50.6，Q50d–g 按推荐确认。50.1 `advice/reminder.py`（`decide` / `load` / `current`，规则 `2026-10-02.4`）；50.2 `reminder_dismissals` + 迁移 `72f41c4740dd`、`GET /placement/reminder`、`POST /placement/reminder/dismiss`；50.3 建议候选改用提醒（`retest_progress` 0.75）、`describe` 按原因、`daily.md` 第一条回复带原因提一次、被搁置的 `GET /advice` 不给页面；50.4 `components/placement/placement-reminder.tsx`，引导条改用它，删掉 `bannerFor`、`usePlacementBannerClosed`、`retest_due`；50.5 练习落地页（never / resume，练习页专用文案）和汇总（progress / age）；50.6 E2E `placement-reminder.spec.ts`、文档、Docker。make lint 干净，pytest 1129、Vitest 315、E2E 46 全过。
