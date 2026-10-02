@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-10-02 · 任务 32 完成
+
+- **做了什么**：Q32a–d 按推荐确认（学会后对话 / 写作再错记 Again；p 跌破 weak 撤销学会、进度清零；候选 = 等级窗口 −2…+1 + 有证据的，没入学测按 A2；先识别后产出），写进 ADR 0021。32.1 `rules.yaml` 版本 `2026-10-02.2`，`practice` 加选题参数。32.2 `app/adaptive/learned.py`：从证据重放“学会”与 FSRS，第一次复习评 Easy，每组练习一次复习。32.3 `mastery.refresh` 连 attempts → exercises 拿练习组，写新列。32.4 `app/adaptive/exercise/planner.py`：`plan()`。pytest 959 全过。
+- **未完成**：无。`frontend/Dockerfile` 可选代理构建参数仍未决。
+- **下一步**：任务 33 出题子图（generate → critic → 重生成 → 题库兜底 + 后台预生成下一组）。开工前拆子任务，需要定的点：调用 `plan()` 时组装 `KCState` 的查询（`recent_mistakes`、`has_own_sentence` 从 `kc_evidence` 算，`ability` 取 `skill_estimates` 的 grammar）；`exercise_generate` / `exercise_critic` 的提示词和结构化输出（输出直接用 `formats.py` 的模型，`rewrite_own` 的 `evidence_id` 由代码填）；题库兜底从 `placement/items.yaml` 按 KC 和难度挑 choice4；`features.yaml` 登记 `practice_set`；`docs/agent-tools.md` 和 providers YAML 加新 task 的默认路由。
+- **踩坑**：① 练习答错的证据必须带计入的严重度（照入学测写 `wrong_choice` / `medium`），否则 `bkt.counted` 会丢掉它（任务 34 要注意）。② 数据库读出的时间带会话时区，py-fsrs 只收 UTC。③ 现有 BKT 参数下，从 0.05 起答对三次（含一道产出题）就到 0.975，光看 p 判“学会”太快，这也是门槛要加题型和跨天的原因；P2 实测时再看要不要调 `p_learn`。④ 会话里还挂着的 ORM 对象会被 `update()` 同步改掉，测试里先取值再改。
+
 ## 2026-10-02 · 任务 30 收尾 + 任务 31 完成
 
 - **做了什么**：用户 review 通过任务 30。任务 31 拆成 31.1–31.4，Q31a–c 按推荐确认（语法点 FSRS 从证据重放；“没再错”= 前 14 天对话和写作里没有计入错误；“跨天”= 答对首末相隔 ≥ 20 小时，不按自然日），写进 ADR 0021 §7。31.1 `app/adaptive/exercise/formats.py`（六种题型的 Pydantic 模型、`parse_body`、`parse_response`、`normalize`、`SPECS` 写明判法和证据类型）。31.2 `rules.yaml` 版本 `2026-10-02.1`：`guess_by_format` 补齐，新增 `practice`、`mastery_gate`；`rules.py` 对应模型。31.3 迁移 `3b9536dae2f6`：`exercise_sets` / `exercises` / `attempts`，`kc_evidence` 加来源、`format`、`attempt_id`，`kc_mastery` 加“学会”进度和 FSRS 列；开发库已升到这个版本。31.4 pytest 880、ruff、mypy 全过。
