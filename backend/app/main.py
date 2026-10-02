@@ -6,11 +6,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
+from app.adaptive.exercise.worker import PracticeWorker
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.placement.items import get_item_bank
 from app.adaptive.placement.words import DatabaseWords
 from app.adaptive.rules import get_rules
 from app.agents.chat_graph import build_chat_graph
+from app.agents.exercise_graph import build_exercise_graph
 from app.agents.placement_graph import build_placement_graph
 from app.api import (
     activity,
@@ -86,6 +88,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         enabled=settings.memory_reflection_enabled,
     )
     await app.state.reflection_worker.recover()
+    app.state.practice_worker = PracticeWorker(app.state.sessionmaker, build_exercise_graph())
+    interrupted = await app.state.practice_worker.recover()
+    if interrupted:
+        logger.warning("%d practice sets were mid-generation at the last shutdown", interrupted)
     usage_writer = UsageWriter(app.state.sessionmaker)
     usage_writer.start()
     set_usage_sink(usage_writer.submit)
@@ -98,6 +104,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await app.state.reflection_worker.stop()
         except TimeoutError:
             logger.warning("reflection did not stop within 5s")
+        try:
+            async with asyncio.timeout(5):
+                # Sets cut off here are marked failed; the learner just starts another.
+                await app.state.practice_worker.stop()
+        except TimeoutError:
+            logger.warning("practice set generation did not stop within 5s")
         try:
             async with asyncio.timeout(5):
                 await app.state.attachment_processor.stop()

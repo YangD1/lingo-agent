@@ -782,6 +782,9 @@ class ExerciseSet(Base):
     status: Mapped[str] = mapped_column(String(20))
     # The planner's output: one entry per item (KC, format, target difficulty).
     kc_plan: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    # rules.yaml version it was planned under: a set generated ahead of time is
+    # replanned when the rules changed since (Q33e).
+    rules_version: Mapped[str] = mapped_column(String(50), server_default="")
     # Why generation failed, as an error code; never model output.
     error_code: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

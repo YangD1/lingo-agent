@@ -1,9 +1,10 @@
 """Practice sets in the database (ADR 0021 §3-§4)."""
 
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import CursorResult, update
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.exercise_graph import MadeItem, SetResult
@@ -50,3 +51,36 @@ async def save_result(
         session.add_all(_row(user_id, set_id, item, "ok") for item in result.items)
     await session.flush()
     return True
+
+
+@dataclass(frozen=True, slots=True)
+class HowMade:
+    """How a set's items came about, for the learner to see (ADR 0013 §3): counts and
+    model names only, never the rejected items or the critic's reasons."""
+
+    written: int
+    from_bank: int
+    # Drafts the critic turned down before the learner saw the set.
+    rejected: int
+    writers: tuple[str, ...]
+    reviewers: tuple[str, ...]
+
+
+async def how_made(session: AsyncSession, user_id: uuid.UUID, set_id: uuid.UUID) -> HowMade:
+    rows = (
+        await session.execute(
+            select(Exercise.status, Exercise.bank_item_id, Exercise.model, Exercise.critic).where(
+                Exercise.user_id == user_id, Exercise.set_id == set_id
+            )
+        )
+    ).all()
+    shown = [r for r in rows if r.status != "rejected"]
+    return HowMade(
+        written=sum(1 for r in shown if r.bank_item_id is None),
+        from_bank=sum(1 for r in shown if r.bank_item_id is not None),
+        rejected=sum(1 for r in rows if r.status == "rejected"),
+        writers=tuple(sorted({r.model for r in shown if r.model})),
+        reviewers=tuple(
+            sorted({r.critic["model"] for r in shown if r.critic and r.critic.get("model")})
+        ),
+    )

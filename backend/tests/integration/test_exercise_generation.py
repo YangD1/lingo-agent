@@ -48,6 +48,14 @@ async def test_items_and_rejects_are_stored_and_read_back(db_session: AsyncSessi
     written = ok[0]
     assert written.model == "fake:writer" and written.critic is not None
     assert written.critic["verdict"] == "pass" and written.ratings
+    assert await service.how_made(db_session, user_id, set_id) == service.HowMade(
+        written=5,
+        from_bank=1,
+        rejected=1 + rounds,
+        writers=("fake:writer",),
+        reviewers=("fake:critic",),
+    )
+    assert (await service.how_made(db_session, uuid.uuid4(), set_id)).written == 0
 
 
 async def test_a_failed_set_keeps_its_error_and_no_items(db_session: AsyncSession) -> None:
