@@ -4,7 +4,7 @@ import { MessageCircle, RotateCcw, Trash2 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 
 import { CatLoading } from "@/components/brand/lingo-cat";
 import { useDescribeError } from "@/components/settings/use-describe-error";
@@ -244,8 +244,7 @@ function Review({ submission: s }: { submission: Submission }) {
               </h3>
               {added.length > 0 && (
                 <p>
-                  {t("words.added")}{" "}
-                  <span lang="en">{added.map((w) => w.word).join(", ")}</span>
+                  {t.rich("words.added", { words: added.map((w) => w.word).join(", "), w: english })}
                   {" · "}
                   <Link href="/vocab/mine" className="text-primary hover:underline">
                     {t("words.manage")}
@@ -254,7 +253,7 @@ function Review({ submission: s }: { submission: Submission }) {
               )}
               {known.length > 0 && (
                 <p className="text-muted-foreground">
-                  {t("words.existing")} <span lang="en">{known.map((w) => w.word).join(", ")}</span>
+                  {t.rich("words.existing", { words: known.map((w) => w.word).join(", "), w: english })}
                 </p>
               )}
             </section>
@@ -282,6 +281,8 @@ function Review({ submission: s }: { submission: Submission }) {
     </>
   );
 }
+
+const english = (chunks: ReactNode) => <span lang="en">{chunks}</span>;
 
 function Sentence({ sentence, kcs }: { sentence: SentenceCorrection; kcs: Map<string, KCName> }) {
   const t = useTranslations("writing.review");

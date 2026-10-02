@@ -28,6 +28,8 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Placement test.** About 10 minutes: up to 40 vocabulary and 20 grammar questions, adaptive, with no model involved. It sets your CEFR level. It can also mark your word book's words that you very likely know, all at once: you confirm first, and you can undo it.
 - **Dashboard.** Word book progress, grammar mastery, skill estimates, common mistakes and a study calendar, plus today's conversation with the tutor. The algorithm picks what is worth doing and offers it as quick replies; the tutor talks it over with you, with cards you can confirm. One conversation a day, created with your first message, so opening the dashboard calls no model. Without a model you get the algorithm's picks as links.
 - **Focused practice.** Start a conversation on one grammar point from the dashboard or the Learner model page. The tutor opens it and steers every turn toward that point.
+- **Practice sets.** On the **Grammar practice** page, a set of short exercises (multiple choice, fill in the blank, find and fix, transform, translate, rewrite your own sentence) on the grammar points worth practising now. A model writes the items, a second model call (the critic) checks each one before you see it, and answers are graded by code where possible, by a model otherwise. Every answer is evidence for mastery; a point counts as learned only after correct answers on different days. You can flag a bad item.
+- **Writing feedback.** On the **Writing** page, write 20–800 words on a task for your level, one of your own, or none. Each sentence comes back with its mistakes marked (tap one for the explanation and grammar point) and the corrected sentence below, plus four scores (task, coherence, vocabulary, grammar) and overall feedback. The mistakes go into your learner model; the scores are only shown. Paste a long piece of your writing into chat and it is handed to the writing coach, who reviews it the same way and links to the result. Deleting a piece removes its mistakes from your learner model too.
 - **The tutor can act, with your consent.** In chat, the tutor can propose a word book or a learning goal as a card. Nothing changes until you confirm, and you can undo it. After the placement test, a planning conversation on the result page turns the result into a plan.
 
 **Transparency**
@@ -42,7 +44,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
 - **English and Chinese UI.**
 
-Not built yet (see [docs/PLAN.md](docs/PLAN.md)): the full adaptive engine (diagnosis, exercise generation with a critic, daily plans), graded news reading, grammar GraphRAG and writing feedback (P2); optional server-side read-aloud and pre-generated word pronunciations (see ADR 0018), shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
+Not built yet (see [docs/PLAN.md](docs/PLAN.md)): daily plans, graded news reading and grammar GraphRAG (P2); optional server-side read-aloud and pre-generated word pronunciations (see ADR 0018), shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
 
 ## Quick start (Docker)
 

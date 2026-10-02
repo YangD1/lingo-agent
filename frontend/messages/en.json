@@ -1291,8 +1291,8 @@
       "untitled": "No task",
       "words": {
         "heading": "New words",
-        "added": "Put on your word list:",
-        "existing": "Already learning:",
+        "added": "Put on your word list: <w>{words}</w>",
+        "existing": "Already learning: <w>{words}</w>",
         "manage": "Manage your word list"
       },
       "fromChat": "From a conversation with your tutor (open it)",

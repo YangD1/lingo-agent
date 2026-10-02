@@ -75,7 +75,8 @@ async def classify(
             decision = await llm.ainvoke(
                 [SystemMessage(load_prompt(TASK)), HumanMessage(prompt)], config=config
             )
+        # Inside the try: a reply without the tool call parses to None.
+        return Route(decision.route)
     except Exception:
         logger.warning("route classification failed; the tutor answers", exc_info=True)
         return Route.TUTOR
-    return Route(decision.route)

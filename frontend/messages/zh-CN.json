@@ -1291,8 +1291,8 @@
       "untitled": "没有题目",
       "words": {
         "heading": "生词",
-        "added": "已收进生词本：",
-        "existing": "已经在学：",
+        "added": "已收进生词本：<w>{words}</w>",
+        "existing": "已经在学：<w>{words}</w>",
         "manage": "管理生词本"
       },
       "fromChat": "来自和私教的对话（打开对话）",

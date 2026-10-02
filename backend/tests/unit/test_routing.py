@@ -37,6 +37,8 @@ def _serve(monkeypatch: pytest.MonkeyPatch, answer: Any) -> list[Any]:
         seen.append(messages)
         if isinstance(answer, BaseException):
             raise answer
+        if answer is None:
+            return None  # type: ignore[return-value]
         if answer == "slow":
             await asyncio.sleep(1)
         return RouteDecision(route=answer if answer != "slow" else "writing_coach")
@@ -60,6 +62,15 @@ async def test_classify_follows_the_model(monkeypatch: pytest.MonkeyPatch) -> No
 
 async def test_a_failed_call_stays_with_the_tutor(monkeypatch: pytest.MonkeyPatch) -> None:
     _serve(monkeypatch, RuntimeError("provider down"))
+
+    assert await classify(make_ctx(), "text", "", {}) is Route.TUTOR
+
+
+async def test_a_reply_without_the_tool_call_stays_with_the_tutor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A model that answers in text instead of calling the tool parses to None.
+    _serve(monkeypatch, None)
 
     assert await classify(make_ctx(), "text", "", {}) is Route.TUTOR
 

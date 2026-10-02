@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-03 · 任务 39 完成（39.3 E2E 和收尾）
+
+- **做了什么**：`e2e/fake_llm.py` 加 `RouteDecision` / `Review`，聊天图里流式的强制工具调用（`tool_choice`）也按工具流式回；`e2e/writing.spec.ts` 两条（写作页提交 → 结果 → 历史 → 删除；对话长文 → 写作教练 → 卡片 → 结果页 → 链回对话）；修 `app/agents/routing.py` `classify`：模型没调工具时结构化结果是 None，原来在 try 外抛 AttributeError 打断整轮，现在交回私教（`tests/unit/test_routing.py` 加用例）；结果页生词一行改 `t.rich`（中文冒号后不再多空格）；README 中英加“语法练习”（任务 35 漏写）和“写作批改”。`make lint` 干净，pytest 1210、Vitest 333、E2E 48 全过。
+- **未完成**：无。本地领先 origin 约 21 个提交未推送；Docker 未重建（迁移 head `5e1a7c3d9b20`）。
+- **下一步**：任务 51（模型停用开关，Q51a–d 已确认），开工前先拆子任务和用户确认。推送和 Docker 重建可以找个节点一起做。
+- **踩坑**：LangGraph 按消息流式时，节点里用同一个 config 调的结构化输出也会以 `stream: true` 发出；假模型要按 `tool_choice` 识别并流式回工具调用。用户要求回复用中文。
+
+---
+
 ## 2026-10-03 · 任务 39.2 完成（结果页）
 
 - **做了什么**：`/writing/[id]` 结果页（`components/writing/writing-review.tsx`）：轮询、逐句对照、评分、总评、生词、链回对话、失败重新提交、删除；`lib/writing.ts` 的 `markMistakes` / `paragraphs`；`GET /writing/{id}` 带 `conversation_id`。Vitest 333、writing 相关 pytest 27 全过，lint 干净。

@@ -21,6 +21,9 @@ Practice sets (ADR 0021): the generator writes the same item per format whatever
 grammar point, the critic passes them all answering as the key does, and the grader
 marks an open answer wrong with "walk" -> "walks" as another mistake (an answer equal
 to the reference is graded by code and never reaches it).
+Writing (ADR 0023): a long free-chat message that asks to "review my writing" is routed
+to writing_coach, anything else to the tutor; the review marks each "he/she/it like" as
+a third-person -s mistake and puts the words written in double quotes on the word list.
 """
 
 import asyncio
@@ -68,6 +71,11 @@ PROPOSED_BOOK = {"book_id": "oxford3000", "daily_new": 10}
 CHINESE_MODE = "mainly in Chinese"
 EXAMPLE_WORD = re.compile(r"^Word: (.+)$", re.MULTILINE)
 TRANSLATE_TARGET = re.compile(r"^Target language: (.+)$", re.MULTILINE)
+# backend/app/agents/routing.py classify and backend/app/writing/review.py review_messages.
+ROUTE_MESSAGE = "## Learner's message\n"
+WRITING_ASK = re.compile(r"review my writing", re.IGNORECASE)
+NUMBERED_SENTENCE = re.compile(r"^\[(\d+)\] (.+)$", re.MULTILINE)
+QUOTED_WORD = re.compile(r'"([A-Za-z]+)"')
 
 
 # Practice items per format (backend/app/adaptive/exercise/drafts.py Draft) and the key
@@ -78,15 +86,26 @@ PRACTICE_DRAFTS: dict[str, dict[str, Any]] = {
         "options": ["works", "work", "working", "is work"],
         "correct": "works",
     },
-    "cloze": {"stem": "She ___ coffee every morning.", "hint": "drink", "accepted": ["drinks"]},
-    "find_fix": {"segments": ["He ", "go ", "to work."], "wrong_segment": 1, "accepted": ["goes "]},
+    "cloze": {
+        "stem": "She ___ coffee every morning.",
+        "hint": "drink",
+        "accepted": ["drinks"],
+    },
+    "find_fix": {
+        "segments": ["He ", "go ", "to work."],
+        "wrong_segment": 1,
+        "accepted": ["goes "],
+    },
     "transform": {
         "instruction": "Start with 'My sister'.",
         "source": "I play tennis.",
         "accepted": ["My sister plays tennis."],
     },
     "translate": {"source": "她走路上班。", "accepted": ["She walks to work."]},
-    "rewrite_own": {"instruction": "Correct the sentence.", "accepted": ["She likes music."]},
+    "rewrite_own": {
+        "instruction": "Correct the sentence.",
+        "accepted": ["She likes music."],
+    },
 }
 PRACTICE_KEYS: dict[str, tuple[str, int | None]] = {
     "choice4": ("works", None),
@@ -106,19 +125,25 @@ RATINGS = {
 }
 
 
-def practice_section(messages: list[dict[str, Any]], title: str) -> list[dict[str, Any]]:
+def practice_section(
+    messages: list[dict[str, Any]], title: str
+) -> list[dict[str, Any]]:
     """The JSON list after `title` in the last message (backend/app/adaptive/exercise/messages.py)."""
     content = text_of(messages[-1]["content"]) if messages else ""
     if title not in content:
         return []
     start = content.index(title) + len(title)
     end = content.find("\n\n", start)
-    items: list[dict[str, Any]] = json.loads(content[start : end if end != -1 else None])
+    items: list[dict[str, Any]] = json.loads(
+        content[start : end if end != -1 else None]
+    )
     return items
 
 
 def rated() -> dict[str, Any]:
-    return {k: {"level": v, "reason": "Typical for the level."} for k, v in RATINGS.items()}
+    return {
+        k: {"level": v, "reason": "Typical for the level."} for k, v in RATINGS.items()
+    }
 
 
 def text_of(content: Any) -> str:
@@ -147,10 +172,14 @@ def system_text(messages: list[dict[str, Any]]) -> str:
 
 
 def reply_for(messages: list[dict[str, Any]]) -> str:
-    if messages and messages[-1]["role"] == "tool":  # the turn goes on after a tool call
+    if (
+        messages and messages[-1]["role"] == "tool"
+    ):  # the turn goes on after a tool call
         return "I've put a suggestion on a card. Confirm it if it suits you."
     last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
-    images = sum(p.get("type") == "image_url" for p in last) if isinstance(last, list) else 0
+    images = (
+        sum(p.get("type") == "image_url" for p in last) if isinstance(last, list) else 0
+    )
     last = text_of(last)
     if last.startswith(OPENING_CUE) and (point := practice_point(messages)):
         return f"Let's practise: {point}."
@@ -162,7 +191,9 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
             return "我们主要用中文聊。"
         return "We mainly talk in English."
     if "what do you remember" in last.lower():
-        return "I remember: " + (" | ".join(remembered_facts(messages)) or "nothing yet")
+        return "I remember: " + (
+            " | ".join(remembered_facts(messages)) or "nothing yet"
+        )
     if "long" in last.lower():
         return " ".join(f"word{i}" for i in range(40))
     seen = f"I can see {images} image(s). " if images else ""
@@ -182,7 +213,9 @@ def reflection(messages: list[dict[str, Any]]) -> dict[str, Any]:
         if remember := REMEMBER.search(text):
             facts.append(remember.group(1).strip())
         if message_id:
-            words += [{"message": message_id, "word": w} for w in ASKED_WORD.findall(text)]
+            words += [
+                {"message": message_id, "word": w} for w in ASKED_WORD.findall(text)
+            ]
         if message_id and (third := THIRD_PERSON.search(text)):
             if third.group(1):
                 used.append({"message": message_id, "kc_id": THIRD_PERSON_KC})
@@ -198,10 +231,45 @@ def reflection(messages: list[dict[str, Any]]) -> dict[str, Any]:
                     }
                 )
     return {
-        "memory_ops": [{"action": "add", "content": f"{f[0].upper()}{f[1:]}."} for f in facts],
+        "memory_ops": [
+            {"action": "add", "content": f"{f[0].upper()}{f[1:]}."} for f in facts
+        ],
         "mistakes": mistakes,
         "used_correctly": used,
         "vocab_candidates": words,
+    }
+
+
+def writing_review(prompt: str) -> dict[str, Any]:
+    """A review of the numbered sentences: only those with a mistake, fixed scores."""
+    sentences: list[dict[str, Any]] = []
+    for line in NUMBERED_SENTENCE.finditer(prompt):
+        index, text = int(line.group(1)), line.group(2)
+        if not (third := THIRD_PERSON.search(text)) or third.group(1):
+            continue
+        wrong = third.group(0)
+        sentences.append(
+            {
+                "index": index,
+                "corrected": text.replace(wrong, wrong + "s", 1),
+                "mistakes": [
+                    {
+                        "kc_id": THIRD_PERSON_KC,
+                        "error_type": "omission",
+                        "severity": "medium",
+                        "original": wrong,
+                        "correction": wrong + "s",
+                        "explanation": "Add -s to the verb after he, she or it.",
+                    }
+                ],
+            }
+        )
+    score = {"score": 3, "reason": "Fine for the level."}
+    return {
+        "sentences": sentences,
+        "scores": {k: score for k in ("task", "coherence", "vocabulary", "grammar")},
+        "summary": "A clear piece of writing; watch the verb endings.",
+        "vocab_candidates": QUOTED_WORD.findall(prompt),
     }
 
 
@@ -258,6 +326,11 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
             ],
         }
     prompt = text_of(messages[-1]["content"]) if messages else ""
+    if name == "RouteDecision":
+        message = prompt.split(ROUTE_MESSAGE, 1)[-1]
+        return {"route": "writing_coach" if WRITING_ASK.search(message) else "tutor"}
+    if name == "Review":
+        return writing_review(prompt)
     if name == "WordExamples" and (word := EXAMPLE_WORD.search(prompt)):
         w = word.group(1)
         return {
@@ -295,7 +368,10 @@ def tool_reply(
                             {
                                 "id": "call_fake",
                                 "type": "function",
-                                "function": {"name": name, "arguments": json.dumps(arguments)},
+                                "function": {
+                                    "name": name,
+                                    "arguments": json.dumps(arguments),
+                                },
                             }
                         ],
                     },
@@ -313,7 +389,9 @@ def chunk(model: str, delta: dict[str, Any], **extra: Any) -> str:
         "object": "chat.completion.chunk",
         "created": int(time.time()),
         "model": model,
-        "choices": [{"index": 0, "delta": delta, "finish_reason": None}] if delta else [],
+        "choices": [{"index": 0, "delta": delta, "finish_reason": None}]
+        if delta
+        else [],
         **extra,
     }
     return f"data: {json.dumps(body)}\n\n"
@@ -324,7 +402,11 @@ def tutor_tool_call(
 ) -> tuple[str, dict[str, Any]] | None:
     """The tool the tutor calls this time, if any: only right after a learner message."""
     names = {t["function"]["name"] for t in tools}
-    if "propose_word_book" not in names or not messages or messages[-1]["role"] != "user":
+    if (
+        "propose_word_book" not in names
+        or not messages
+        or messages[-1]["role"] != "user"
+    ):
         return None
     if not WORD_BOOK.search(text_of(messages[-1]["content"])):
         return None
@@ -354,11 +436,24 @@ async def completions(request: Request) -> StreamingResponse | JSONResponse:
     model = body.get("model", "fake")
     if body.get("tools") and not body.get("stream"):
         return tool_reply(model, body["tools"], body.get("messages", []))
-    if body.get("tools") and (call := tutor_tool_call(body["tools"], body.get("messages", []))):
+    if body.get("tools") and body.get("tool_choice") not in (None, "auto"):
+        # Structured output inside the chat graph is streamed (routing.classify).
+        name = body["tools"][0]["function"]["name"]
+        usage = {"prompt_tokens": 42, "completion_tokens": 10, "total_tokens": 52}
+        return stream_tool_call(
+            model, name, tool_arguments(name, body["messages"]), usage
+        )
+    if body.get("tools") and (
+        call := tutor_tool_call(body["tools"], body.get("messages", []))
+    ):
         usage = {"prompt_tokens": 42, "completion_tokens": 10, "total_tokens": 52}
         return stream_tool_call(model, *call, usage)
     text = reply_for(body.get("messages", []))
-    usage = {"prompt_tokens": 42, "completion_tokens": len(text.split()), "total_tokens": 0}
+    usage = {
+        "prompt_tokens": 42,
+        "completion_tokens": len(text.split()),
+        "total_tokens": 0,
+    }
     usage["total_tokens"] = usage["prompt_tokens"] + usage["completion_tokens"]
 
     if not body.get("stream"):
