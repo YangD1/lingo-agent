@@ -123,6 +123,15 @@ items:
       wrong_segment: 2
       accepted: ["bought "]
       explanation: buy 是不规则动词，过去式是 bought。
+  fix_negative: &fix_negative
+    format: find_fix
+    kc: g.present_simple_questions_negatives
+    content:
+      segments: ["My sister ", "don't ", "like spicy food."]
+    answer:
+      wrong_segment: 1
+      accepted: ["doesn't "]
+      explanation: 主语是第三人称单数，否定用 doesn't。
   fix_agreement: &fix_agreement
     format: find_fix
     kc: g.subject_verb_agreement
@@ -183,8 +192,8 @@ cases:
   - {id: own-article-dropped, item: *own_article, response: {text: "I want to be engineer."}, correct: false}
 
   # --- find_fix: the right piece, a fix not on the list ---
-  - {id: fix-irregular-got, item: *fix_irregular, response: {segment: 2, fix: "got"}, correct: true}
   - {id: fix-irregular-base-form, item: *fix_irregular, response: {segment: 2, fix: "buy"}, correct: false}
   - {id: fix-irregular-perfect, item: *fix_irregular, response: {segment: 2, fix: "have bought"}, correct: false}
-  - {id: fix-agreement-was, item: *fix_agreement, response: {segment: 1, fix: "was"}, correct: true}
+  - {id: fix-negative-does-not, item: *fix_negative, response: {segment: 1, fix: "does not"}, correct: true}
+  - {id: fix-negative-not, item: *fix_negative, response: {segment: 1, fix: "not"}, correct: false}
   - {id: fix-agreement-were, item: *fix_agreement, response: {segment: 1, fix: "were"}, correct: false}

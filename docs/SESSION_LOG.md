@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 任务 36.4 完成，任务 36 完成（评估集录制）
+
+- **做了什么**：用用户临时给的 gpt-5.5（OpenAI 兼容中转）在开发库临时账号上跑了三次真实模型，录制 `evals/cassettes/critic.json`（44 次）和 `grader.json`（31 次）入库，文件里没有密钥；临时账号、租户和连接已用 SQL 删除（没有删账号接口）。结果：坏题拒 24/26、好题过 18/18、批改判对 31/31。实测带来的改动：`prompts/exercise_critic.md` 说明 `rewrite_own` 的原句是学习者自己写的；两条有歧义的用例换掉；好题的生成器难度评分按真实 critic 校准；critic 失败详情显示评分差异。文档：`evals/README.md`、P2 计划落地记录、ADR 0005。pytest 1157 全过。
+- **未完成**：无。已知 critic 弱点留在集里：事实错误（`translate-yangtze-longest`）、a / the 两个都对（`choice4-a-or-the`）。
+- **下一步**：任务 37（Supervisor 路由），开工前先拆子任务、和用户确认。本地领先 origin 若干提交，未推送。
+- **踩坑**：生成器难度评分不进 critic 的提示词，所以改它不影响录制键，可以录完再校准。手写评分时 A1 题的词汇不能标 below_target。同一用例三次运行结果会变（a / the 那条），单次录制只是一份样本。
+
+---
+
 ## 2026-10-02 · 任务 36.3 完成（批改评估集）
 
 - **做了什么**：`evals/datasets/grader.yaml` 31 条（只收代码判不了、真的会走到模型的答案：开放题不在参考答案里的、find_fix 选对位置但改法不在列表里的）+ `evals/grader.py`（走 `grade_messages` → `exercise_grade` → `grader.verdict`；`verdict_right` 门槛 90%，`other_mistakes_found` / `no_extra_mistakes` 只报告不设门槛）；登记到 `EVALUATORS`。单测 6 个；pytest 1155 全过。
@@ -15,7 +24,7 @@
 
 ## 2026-10-02 · 任务 36.2 完成（critic 评估集）
 
-- **做了什么**：`evals/datasets/critic.yaml`（坏题 25 条，六类缺陷；好题 18 条，六种题型各 3）+ `evals/critic.py`（一题一次调用，走 `critic_messages` → `exercise_critic` → `drafts.judge`，生成器难度从用例的 `ratings` 用 `prior_difficulty` 算）；登记到 `EVALUATORS`；没有录制文件时 `make eval` 和 `evals/test_replay.py` 跳过并提示录制。单测 5 个；pytest 1149 全过。
+- **做了什么**：`evals/datasets/critic.yaml`（坏题 26 条，六类缺陷；好题 18 条，六种题型各 3）+ `evals/critic.py`（一题一次调用，走 `critic_messages` → `exercise_critic` → `drafts.judge`，生成器难度从用例的 `ratings` 用 `prior_difficulty` 算）；登记到 `EVALUATORS`；没有录制文件时 `make eval` 和 `evals/test_replay.py` 跳过并提示录制。单测 5 个；pytest 1149 全过。
 - **未完成**：critic 还没录制（36.4）。好题的难度评分是手写的，真实 critic 评分若普遍偏离超过 `critic_max_gap`（0.7），好题会因“难度评分不一致”被拒——36.4 实测时看 `good_passed` 的失败原因，属于用例评分不合理就改用例，属于 critic 问题就记下来。
 - **下一步**：36.3 批改评估集：`evals/grader.py`，用例组成 `ExerciseBody` + `Response`（`formats` 里的 response 模型），走 `grader.grade_messages` → `exercise_grade`（`grader.TASK`）→ `grader.verdict`；指标判对率 + 其他错误语法点命中。可照 `evals/critic.py` 和 `tests/unit/test_evals_critic.py` 的写法。
 - **踩坑**：YAML 1.1 里裸写的 `on` / `yes` 会读成布尔值，选项要加引号（格式校验会拦下）。

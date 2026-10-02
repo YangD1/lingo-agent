@@ -99,18 +99,18 @@ cases:
 
   # --- bad: more than one right answer ---
 
-  - id: choice4-must-or-might
+  - id: choice4-perfect-or-past
     expect: reject
     flaw: two_right
-    kc: g.modals_possibility
-    ratings: {vocabulary: below_target, syntax: moderate, cues: partial, distractors: one_plausible}
+    kc: g.present_perfect_vs_past_simple
+    ratings: {vocabulary: below_target, syntax: simple, cues: none, distractors: one_plausible}
     format: choice4
     content:
-      stem: She ___ be at home; her car is outside.
-      options: [must, might, mustn't, needn't]
+      stem: She ___ in London for five years.
+      options: [has lived, lived, lives, is living]
     answer:
-      correct: must
-      explanation: The car outside is strong evidence, so "must" shows certainty.
+      correct: has lived
+      explanation: '"For five years" up to now needs the present perfect.'
 
   - id: choice4-a-or-the
     expect: reject
@@ -373,7 +373,7 @@ cases:
   - id: good-choice4-irregular-past
     expect: pass
     kc: g.past_simple_irregular
-    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    ratings: {vocabulary: at_target, syntax: simple, cues: explicit, distractors: weak}
     format: choice4
     content:
       stem: Last night I ___ a strange dream.
@@ -421,7 +421,7 @@ cases:
   - id: good-cloze-present-continuous
     expect: pass
     kc: g.present_continuous
-    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    ratings: {vocabulary: at_target, syntax: simple, cues: explicit, distractors: weak}
     format: cloze
     content:
       stem: Look! The children ___ in the garden.
@@ -468,7 +468,7 @@ cases:
   - id: good-find-fix-an
     expect: pass
     kc: g.articles_basic
-    ratings: {vocabulary: below_target, syntax: moderate, cues: partial, distractors: weak}
+    ratings: {vocabulary: at_target, syntax: moderate, cues: none, distractors: one_plausible}
     format: find_fix
     content:
       segments: ["She is ", "a ", "honest woman ", "who helps everyone."]
@@ -492,7 +492,7 @@ cases:
   - id: good-transform-question
     expect: pass
     kc: g.question_formation
-    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    ratings: {vocabulary: at_target, syntax: simple, cues: none, distractors: one_plausible}
     format: transform
     content:
       instruction: Turn the sentence into a yes/no question.
@@ -586,7 +586,7 @@ cases:
   - id: good-rewrite-own-an
     expect: pass
     kc: g.articles_basic
-    ratings: {vocabulary: below_target, syntax: simple, cues: partial, distractors: weak}
+    ratings: {vocabulary: at_target, syntax: simple, cues: none, distractors: one_plausible}
     format: rewrite_own
     content:
       instruction: Rewrite your sentence correctly.

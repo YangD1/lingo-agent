@@ -1,0 +1,368 @@
+{
+ "05c6b370b2bfe479": {
+  "case": "own-article-rephrased",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你正确使用了冠词 **an**，因为 **engineer** 以元音音素开头，所以要说 **an engineer**，不是 **a engineer**。你把 “I want to be...” 改成 “I'd like to be...” 也很自然，意思仍然符合题目要求。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "136e30c7f63b4721": {
+  "case": "experience-past-simple",
+  "output": {
+   "correct": false,
+   "corrected": "Have you been to Beijing?",
+   "explanation": "你的句子使用了过去简单时 “Did you go...”，意思更像是在问某个过去时间是否去了北京。题目要求用现在完成时来问人生经历，应该用 “Have you been to Beijing?” 或 “Have you ever been to Beijing?”。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "2c058aabf8cf6408": {
+  "case": "passive-fronted-time",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你的句子正确使用了过去时被动语态：was + past participle（stolen）。把时间状语 Last night 放在句首也很自然，意思和参考答案相同。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "36db58bdbf115a04": {
+  "case": "reported-wrong-pronoun",
+  "output": {
+   "correct": false,
+   "corrected": "Tom said that he was busy that day.",
+   "explanation": "你的时态转换是对的：直接引语中的 “am” 变成了 “was”，而 “today” 也正确变成了 “that day”。但是人称代词需要根据说话者改变：Tom 说的是他自己忙，所以 “I” 应改为 “he”。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "442ef37a31c54a95": {
+  "case": "fix-negative-does-not",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你改得正确。主语“My sister”是第三人称单数，所以一般现在时否定句要用“does not / doesn’t + 动词原形”，你用了“does not like”，结构正确。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "4dd35eb8c34c0f71": {
+  "case": "question-no-auxiliary",
+  "output": {
+   "correct": false,
+   "corrected": "Does she live in Shanghai?",
+   "explanation": "你的句子只是把陈述句加了问号，语序和动词形式没有变。一般现在时第三人称单数的 yes/no 问句要用助动词 Does 放在主语前面，后面的动词用原形 live：Does she live in Shanghai?",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "502d97f3d4d564b3": {
+  "case": "fix-agreement-were",
+  "output": {
+   "correct": false,
+   "corrected": "The list of names was on the desk next to the window.",
+   "explanation": "这里真正的主语是单数名词 “The list”，不是复数名词 “names”。所以动词应该用单数形式；如果说现在的位置，用 “is”，如果按你句子的过去时，则应改为 “was”，不能用 “were”。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "5beb8128d3df958b": {
+  "case": "fix-irregular-base-form",
+  "output": {
+   "correct": false,
+   "corrected": "Last week I bought a new bike.",
+   "explanation": "这里需要用一般过去时，因为句子有过去时间状语“Last week”。动词 buy 的不规则过去式是 bought，不是 buy；参考答案是 “Last week I bought a new bike.”",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "77b98855f0fde6f2": {
+  "case": "own-third-person-ing",
+  "output": {
+   "correct": false,
+   "corrected": "My father works in a hospital.",
+   "explanation": "这里主语“My father”是第三人称单数，所以一般现在时动词要加 -s：works。你的答案用了“working”，这是现在分词，不能单独作一般现在时的谓语；正确句子是“My father works in a hospital.”",
+   "other_mistakes": [
+    {
+     "correction": "works",
+     "error_type": "wrong_form",
+     "kc_id": "g.present_continuous",
+     "original": "working",
+     "severity": "medium"
+    }
+   ]
+  },
+  "task": "exercise_grade"
+ },
+ "783ea1b8e862ba6d": {
+  "case": "conditional-article-slip",
+  "output": {
+   "correct": true,
+   "corrected": "If I had a car, I would drive to work.",
+   "explanation": "你的第二条件句结构用得正确：If + 过去式（had），主句用 would + 动词原形（drive）。参考答案用了 could，强调“能够”；你的 would 也自然，表示“会开车去上班”。不过英语中通常说 “drive to work”，不加 the。",
+   "other_mistakes": [
+    {
+     "correction": "work",
+     "error_type": "addition",
+     "kc_id": "g.articles_generic",
+     "original": "the work",
+     "severity": "medium"
+    }
+   ]
+  },
+  "task": "exercise_grade"
+ },
+ "787992d36ed02ce4": {
+  "case": "first-conditional-will-in-if",
+  "output": {
+   "correct": false,
+   "corrected": "If it rains tomorrow, we will stay at home.",
+   "explanation": "你的结果从句 “we will stay at home” 用得对：will + 动词原形。问题在 if 条件句里：第一条件句要用现在时表示将来，所以应说 “If it rains tomorrow”，不能说 “If it will rain tomorrow”。",
+   "other_mistakes": [
+    {
+     "correction": "rains",
+     "error_type": "wrong_form",
+     "kc_id": "g.first_conditional",
+     "original": "will rain",
+     "severity": "medium"
+    }
+   ]
+  },
+  "task": "exercise_grade"
+ },
+ "78e395902418e4fb": {
+  "case": "superlative-watched",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你的句子正确使用了最高级结构 “the best”。“watched” 在这里也很自然，意思和参考答案中的 “seen” 基本相同。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "7d470f48225547a7": {
+  "case": "own-article-dropped",
+  "output": {
+   "correct": false,
+   "corrected": "I want to be an engineer.",
+   "explanation": "这里需要在单数可数名词“engineer”前使用冠词。因为“engineer”以元音音素开头，所以应该说“an engineer”，不是省略冠词。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "7e9156700e58cefe": {
+  "case": "experience-visited",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你的句子正确使用了现在完成时：Have you ever visited Beijing? 结构是 have + 过去分词 visited，用来询问人生经历。参考答案用 been to Beijing，你用 visited Beijing 也很自然，意思相近。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "845758f8ec782577": {
+  "case": "fix-irregular-perfect",
+  "output": {
+   "correct": false,
+   "corrected": "Last week I bought a new bike.",
+   "explanation": "这里有明确的过去时间 “Last week”，所以应该用一般过去时的不规则动词形式。你把 “buyed” 改成了过去分词结构 “have bought”，但本题要改成不规则过去式 “bought”。",
+   "other_mistakes": [
+    {
+     "correction": "bought",
+     "error_type": "wrong_form",
+     "kc_id": "g.present_perfect_vs_past_simple",
+     "original": "have bought",
+     "severity": "medium"
+    }
+   ]
+  },
+  "task": "exercise_grade"
+ },
+ "871c267aa172531b": {
+  "case": "first-conditional-contracted",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你的句子正确使用了第一条件句：if 从句用一般现在时 “if it rains tomorrow”，主句用 will + 动词原形 “we’ll stay”。“We’ll” 是 “We will” 的自然缩写，意思和参考答案一致。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "8d2955e690f128ab": {
+  "case": "own-third-person-rephrased",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你的句子正确使用了第三人称单数现在时：主语“My dad”是单数，所以动词用“works”。虽然你把“father”改成了“dad”，把“in”改成了“at”，但意思自然，目标语法点也正确。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "9efa6c0cfcca6c35": {
+  "case": "going-to-lessons",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你的句子正确使用了 “am going to + 动词原形” 来表达明年的计划。虽然参考答案是 “learn to drive”，但 “take driving lessons” 也自然地表达了“学开车”的意思。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "a86ccf7af7e6c7da": {
+  "case": "superlative-participle-slip",
+  "output": {
+   "correct": true,
+   "corrected": "This is the best movie I have ever seen.",
+   "explanation": "你正确使用了最高级结构：the best，符合“最好的电影”的意思。句子的错误不在最高级，而是在现在完成时中，have ever 后面应该用过去分词 seen，不是过去式 saw。",
+   "other_mistakes": [
+    {
+     "correction": "seen",
+     "error_type": "wrong_form",
+     "kc_id": "g.past_participle_forms",
+     "original": "saw",
+     "severity": "medium"
+    }
+   ]
+  },
+  "task": "exercise_grade"
+ },
+ "b1998b1eca4e3045": {
+  "case": "reported-on-that-day",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你的转述结构是正确的：用了 “Tom said that …”，并把直接引语中的 “I am” 变成了 “he was”。你也把 “today” 改成了 “that day”；“on that day” 虽然比参考答案的 “that day” 稍不自然，但语法上可以接受。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "b515ffa7b2813b3a": {
+  "case": "superlative-most-good",
+  "output": {
+   "correct": false,
+   "corrected": "This is the best movie I have ever seen.",
+   "explanation": "你的句子意思清楚，但最高级形式用错了。good 的最高级是不规则形式 the best，不能说 the most good；参考答案是 “This is the best movie I have ever seen.”",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "c136e2991afdce9f": {
+  "case": "first-conditional-pronoun-slip",
+  "output": {
+   "correct": true,
+   "corrected": "If it rains tomorrow, my parents and I will stay at home.",
+   "explanation": "你正确使用了第一条件句：if 从句用现在时 “If it rains tomorrow”，主句用 “will + 动词原形” 表示将来可能发生的情况。你的句子和参考答案意思基本一致，只是主语位置应该用 “I”，所以是 “my parents and I”。",
+   "other_mistakes": [
+    {
+     "correction": "I",
+     "error_type": "wrong_form",
+     "kc_id": "g.subject_pronouns",
+     "original": "me",
+     "severity": "medium"
+    }
+   ]
+  },
+  "task": "exercise_grade"
+ },
+ "c506add011fe2f5c": {
+  "case": "own-irregular-comma-splice",
+  "output": {
+   "correct": true,
+   "corrected": "Yesterday I bought a new phone. It is very good.",
+   "explanation": "你正确地把不规则过去式 buyed 改成了 bought，符合过去时间 Yesterday 的用法。参考答案也是 “Yesterday I bought a new phone.”；你后面加了一句描述手机的话，不影响目标语法。",
+   "other_mistakes": [
+    {
+     "correction": "Yesterday I bought a new phone. It is very good.",
+     "error_type": "wrong_choice",
+     "kc_id": "g.sentence_boundaries",
+     "original": "Yesterday I bought a new phone, it is very good.",
+     "severity": "medium"
+    }
+   ]
+  },
+  "task": "exercise_grade"
+ },
+ "c745748410cf98f5": {
+  "case": "passive-active-form",
+  "output": {
+   "correct": false,
+   "corrected": "My bike was stolen last night.",
+   "explanation": "你没有正确使用被动语态。过去时被动语态需要用 was/were + 过去分词，所以应该说 “My bike was stolen last night.”，而不是 “My bike stole last night.”",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "cbf3167d06ded0df": {
+  "case": "own-irregular-present",
+  "output": {
+   "correct": false,
+   "corrected": "Yesterday I bought a new phone.",
+   "explanation": "你没有正确使用不规则动词 buy 的过去式。因为句子里有 Yesterday，表示过去发生的事，buy 应该改成过去式 bought，而不是 buy。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "d34294bb52f33f09": {
+  "case": "own-irregular-reordered",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你正确使用了不规则动词 buy 的过去式 bought。句子意思和参考答案一样，只是把 yesterday 放在句末，这也是自然正确的。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "d3d55075ece4d14f": {
+  "case": "going-to-ing",
+  "output": {
+   "correct": false,
+   "corrected": "I'm going to learn to drive next year.",
+   "explanation": "你用了 “I'm going to”，方向是对的，表示“打算”。但是 “be going to” 后面要接动词原形，所以应说 “going to learn”，不能说 “going to learning”。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "d84450080e367120": {
+  "case": "conditional-would",
+  "output": {
+   "correct": true,
+   "corrected": null,
+   "explanation": "你的句子正确使用了第二条件句：If + 过去式（had），主句用 would + 动词原形（drive）。参考答案用 could 表示“能够开车”，而你用 would 表示“会开车去”，意思稍有不同，但仍然自然并符合这个假设情境。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "db6b30928c1f28d1": {
+  "case": "passive-wrong-tense",
+  "output": {
+   "correct": false,
+   "corrected": "My bike was stolen last night.",
+   "explanation": "你正确地用了被动语态的结构“be + 过去分词”：stolen 是正确的过去分词。但是题目要求保留过去时，时间状语 last night 表示过去，所以 be 动词要用 was，而不是 is。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "dd497a08b982e93a": {
+  "case": "conditional-real-form",
+  "output": {
+   "correct": false,
+   "corrected": "If I had a car, I could drive to work.",
+   "explanation": "你用了“If I have..., I can...”，这是第一条件句/真实条件，表示将来可能发生的情况。原句的意思是现在没有车，所以不能开车上班；要表达这种与现在事实相反的假设，应使用第二条件句：If + 过去式，would/could + 动词原形。",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ },
+ "ffc6fb78ff9bae93": {
+  "case": "fix-negative-not",
+  "output": {
+   "correct": false,
+   "corrected": "My sister doesn't like spicy food.",
+   "explanation": "这里需要用一般现在时的否定形式：主语是第三人称单数“My sister”，所以要用 doesn't + 动词原形。你写的“not like”少了助动词 does，正确是“My sister doesn't like spicy food.”",
+   "other_mistakes": []
+  },
+  "task": "exercise_grade"
+ }
+}

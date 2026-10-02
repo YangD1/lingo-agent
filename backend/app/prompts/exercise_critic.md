@@ -7,7 +7,9 @@ answer in `own_answer` (for `find_fix`, also `own_segment`, the 0-based index of
 piece you think is wrong). Choice and gap items come without their answer key on
 purpose: answer from the item alone. For `transform`, `translate` and `rewrite_own`
 you are also given the reference answers; write your own answer before you look at
-them.
+them. In `rewrite_own`, `original` is a sentence the learner wrote themselves in an
+earlier conversation, with a mistake on the grammar point; the learner sees it next to
+the instruction, so "your sentence" in the instruction is right.
 
 Then judge:
 

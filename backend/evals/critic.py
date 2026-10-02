@@ -114,6 +114,13 @@ class CriticEval:
             )
             passed = verdict.ok
             detail = "passed" if verdict.ok else "; ".join(verdict.reasons)
+            changed = {
+                k: f"{item.case.ratings[k]} -> {v}"
+                for k, v in verdict.ratings.items()
+                if v != item.case.ratings[k]
+            }
+            if changed:
+                detail += f"\ncritic rated differently: {changed}"
         if item.case.flaw is None:
             return CaseResult(case.id, {"good_passed": passed}, detail)
         rejected = not passed
