@@ -146,6 +146,16 @@
 | 作答与批改 | `adaptive/exercise/answer.py` `answer`；代码判 `grading.py`；模型判 `grader.py`，提示词 `prompts/exercise_grade.md` | 题目（含答案）、学习者答案；模型只收到题面、参考答案、目标语法点和语法点清单，讲解语言取画像，不含其他个人信息 | `attempts`（每题只记第一次，`feedback` 存讲解、改正、其他错误、批改模型名）；`kc_evidence`（`source=exercise`，目标语法点按题型记识别 / 产出，其他错误各记一条，KC 必须在清单里且不是目标语法点）；重放 `kc_mastery`；`skill_estimates` grammar 走一步 Elo；`exercise_sets` 状态 ready → in_progress → done。批改模型失败时什么都不写，学习者重交 | `llm/exercise_grade`（默认路由） | 练习页每题的批改结果；`/learner` 页面的证据（可删除） |
 | 举报有问题的题 | `adaptive/exercise/answer.py` `report` | 这题的作答 | `exercises.status=reported`；删掉这题作答产生的全部证据并重放掌握度（作答本身保留；语法能力那一步 Elo 不回退） | 无 | 练习页“这题有问题”；重复举报不变 |
 
+## 写作批改（P2 计划 §4.2，任务 38）
+
+`/writing` 和对话里的 writing_coach 用同一个服务（`writing/service.py`）。提交后在后台批改（Q38c）：`/writing` 轮询状态，writing_coach 等结果。不属于任何对话的提交不写 `agent_activities`，批改记录本身（逐句修改、评分、证据、收进生词本的词、模型名）就是公示；从对话来的提交由 writing_coach 在那一轮记一步活动（任务 38.5）。
+
+| 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
+|---|---|---|---|---|---|
+| 提交 | `writing/service.py` `create`（长度 20–800 个英文单词、最多 6000 字符，不合格直接拒绝，不调模型）→ `writing/worker.py` `WritingWorker.submit` | 学习者的文字和题目 | `writing_submissions`（`pending`；重启时还在 `pending` 的标 `failed/interrupted`） | 无 | 写作页（任务 39） |
+| 批改 | `writing/service.py` `review`；提示词 `prompts/writing_review.md`，校验 `writing/review.py` `check` | 按句编号的原文、题目、画像等级（没有时按 A2）和讲解语言、语法点清单；不含其他个人信息 | `writing_submissions`：逐句修改（只保留语法点在清单里、错误片段确实在这句里的错误）、四维评分和理由（只展示，不进掌握度）、总评、模型名；`kc_evidence`（`source=writing`、产出、带 `writing_id`；同一篇里同一语法点只计一次）；重放 `kc_mastery`（学会后再错记 Again）。失败时只记 `failed` 和错误码 | `llm/writing_review` | 写作页逐句对照和评分；`/learner` 的证据（可删除）；删除这条写作记录连带删除它的证据 |
+| 收生词 | `writing/service.py` `collect_words`（同反思的规则：单个英文单词，最多 5 个，词库里查得到的才收） | 批改给出的生词候选 | `user_cards`（`source=auto`，已有卡片的不动）；`writing_submissions.words` | 无 | 写作页显示收进了哪些词；生词本里可删除 |
+
 ## 入学测（独立页面，不经过模型）
 
 入学测是学习者主动做的测试，不调用任何模型：选题、判分、定级都是纯函数（`adaptive/placement/`），LangGraph 子图只负责编排和断点续做。不写 `agent_activities`（活动挂在对话的某一轮上，入学测不属于任何对话），结果页本身就是公示。

@@ -45,6 +45,7 @@ from app.providers.llm import get_providers_config
 from app.settings import Settings, get_settings
 from app.usage.recorder import set_usage_sink
 from app.usage.writer import UsageWriter
+from app.writing.worker import WritingWorker
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     interrupted = await app.state.practice_worker.recover()
     if interrupted:
         logger.warning("%d practice sets were mid-generation at the last shutdown", interrupted)
+    app.state.writing_worker = WritingWorker(app.state.sessionmaker)
+    interrupted = await app.state.writing_worker.recover()
+    if interrupted:
+        logger.warning("%d writing reviews were running at the last shutdown", interrupted)
     usage_writer = UsageWriter(app.state.sessionmaker)
     usage_writer.start()
     set_usage_sink(usage_writer.submit)
@@ -111,6 +116,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await app.state.practice_worker.stop()
         except TimeoutError:
             logger.warning("practice set generation did not stop within 5s")
+        try:
+            async with asyncio.timeout(5):
+                # Reviews cut off here are marked failed; the learner submits again.
+                await app.state.writing_worker.stop()
+        except TimeoutError:
+            logger.warning("writing review did not stop within 5s")
         try:
             async with asyncio.timeout(5):
                 await app.state.attachment_processor.stop()

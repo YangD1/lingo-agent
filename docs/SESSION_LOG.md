@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 任务 38.1、38.2 完成（写作记录与批改服务）
+
+- **做了什么**：38.1（上一会话做完并提交 `01dbef6`，但会话因请求超过 32MB 中断，没写交接，这里补上）：`writing_submissions` 表、`kc_evidence.writing_id` 及约束、`writing/text.py`、`writing/review.py`、提示词、`features.yaml`。38.2：`writing/service.py`（`create` / `review` / `save` / `collect_words` / `fail`）、`writing/worker.py` `WritingWorker`、`main.py` 启停、迁移 `b13e7f785be1`（`writing_submissions.words`）、`mastery.observation` 把一篇写作当一轮、`docs/agent-tools.md` 的“写作批改”一节。pytest 1184 全过。
+- **未完成**：无。本地领先 origin 约 13 个提交未推送；Docker 未重建。
+- **下一步**：38.3 接口（`api/writing.py`：`POST /writing` 调 `service.create` + `commit` + `request.app.state.writing_worker.submit`，`LengthError.code` 返回 422；`GET /writing`、`GET /writing/{id}`、`DELETE /writing/{id}` 删除后要对受影响的 KC 调 `mastery.refresh`（证据由外键级联删）；`GET /writing/prompts` 固定题目按等级）。
+- **踩坑**：对话很长时（大量读文件、长看板行）会超过单次请求 32MB 上限，只能新开会话；读文件尽量用 `grep` / `sed -n` 取片段。`agent_activities.conversation_id` 不可空，不属于对话的后台步骤没法写活动记录。项目的 mypy 只检查 `app evals`，`tests/` 里有 33 个旧错误不在门禁里。
+
+---
+
 ## 2026-10-02 · 任务 37 完成（Supervisor 主图）
 
 - **做了什么**：Q37a–c 按推荐确认（自由对话分类和路由活动步骤挪到 38；确定信号的路由不记步骤；coach 用子图）。37.1 `agents/routing.py` + `_reply` 按路由组装来源；37.2 主图 `load_context → supervisor → {tutor, grammar_coach}`，`supervisor` 返回 `Command(goto=route)`，开场提示按 coach 定，`_run_graph` 用 `subgraphs=True`；37.3 ADR 0023 / P2 计划落地记录、`docs/agent-tools.md`。pytest 1165、E2E 46 全过。

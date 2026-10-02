@@ -27,7 +27,8 @@ def observation(row: KCEvidence, group: uuid.UUID | None = None) -> Observation:
         correct=row.correct,
         evidence=cast(Evidence, row.evidence),
         at=row.created_at,
-        turn=row.message_id,
+        # One piece of writing is one turn: a mistake repeated in it counts once.
+        turn=row.message_id or (f"writing:{row.writing_id}" if row.writing_id else None),
         severity=cast(Severity | None, row.severity),
         source=row.source,
         format=row.format,

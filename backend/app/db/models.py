@@ -914,6 +914,9 @@ class WritingSubmission(Base):
     # Task, coherence, vocabulary, grammar: a level and one-line reason each.
     scores: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     summary: Mapped[str | None] = mapped_column(Text)
+    # Words put on the learner's list from this text: word id, word, and whether it
+    # was added (False: they already had a card). Null until done.
+    words: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     model: Mapped[str | None] = mapped_column(String(200))
     # Why the review failed, as an error code; never model output.
     error_code: Mapped[str | None] = mapped_column(String(64))

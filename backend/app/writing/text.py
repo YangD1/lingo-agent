@@ -23,6 +23,18 @@ def word_count(text: str) -> int:
     return len(_WORD.findall(text))
 
 
+def length_error(text: str) -> str | None:
+    """Why this text cannot be reviewed (Q38f), as an error code; None when it can."""
+    if len(text) > MAX_CHARS:
+        return "too_long"
+    words = word_count(text)
+    if words < MIN_WORDS:
+        return "too_short"
+    if words > MAX_WORDS:
+        return "too_long"
+    return None
+
+
 @dataclass(frozen=True, slots=True)
 class Sentence:
     index: int
