@@ -127,6 +127,16 @@ def generated_set_model(rules: Rules) -> type[BaseModel]:
     )
 
 
+def drafts_in(output: BaseModel) -> list[Draft]:
+    """The drafts of a `generated_set_model` output."""
+    return list(cast(Any, output).items)
+
+
+def ratings_of(item: "Draft | Review") -> BaseModel:
+    """The rubric ratings of a draft or review made with this module's schemas."""
+    return cast(BaseModel, cast(Any, item).ratings)
+
+
 class DraftError(ValueError):
     """A draft that does not make a valid item of its planned format."""
 
@@ -214,6 +224,11 @@ def critic_report_model(rules: Rules) -> type[BaseModel]:
     )
 
 
+def reviews_in(output: BaseModel) -> list[Review]:
+    """The reviews of a `critic_report_model` output."""
+    return list(cast(Any, output).reviews)
+
+
 @dataclass(frozen=True, slots=True)
 class Verdict:
     ok: bool
@@ -251,7 +266,7 @@ def judge(
 ) -> Verdict:
     """Pass only when the critic finds nothing wrong, solves a closed item as the key
     does, and rates its difficulty close to the generator's rating (Q33a)."""
-    critic_difficulty, levels = difficulty(kc, cast(Any, review).ratings, rules)
+    critic_difficulty, levels = difficulty(kc, ratings_of(review), rules)
     reasons: list[str] = []
     for ok, name in (
         (review.answer_ok, "answer is not right or not the only one"),
