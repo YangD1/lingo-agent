@@ -33,7 +33,7 @@ backend/app/
   memory/      长期记忆抽取与读取、学习者模型
   adaptive/    BKT/Elo 掌握度、诊断、选题规划、练习生成 + critic
   providers/   llm / embedding / asr / tts / pronunciation / realtime
-  services/    fsrs、cefr、vocab、news、graph(neo4j)
+  services/    fsrs、cefr、vocab、news
   scheduler/   APScheduler 任务
   prompts/     提示词模板（不在代码里内联长提示词）
   db/          SQLAlchemy 模型 + Alembic 迁移

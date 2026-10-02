@@ -97,22 +97,7 @@ services:
     mem_limit: 1g
     restart: unless-stopped
 
-  # Reserved for later phases (grammar GraphRAG in P2, caching); no P0 code uses them.
-  neo4j:
-    image: neo4j:5-community
-    profiles: [neo4j]
-    environment:
-      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-}
-      NEO4J_server_memory_heap_max__size: 512m
-      NEO4J_server_memory_pagecache_size: 256m
-    ports:
-      - "127.0.0.1:7474:7474"
-      - "127.0.0.1:7687:7687"
-    volumes:
-      - neo4j-data:/data
-    mem_limit: 1g
-    restart: unless-stopped
-
+  # Reserved for later caching / rate limiting; no code uses it yet.
   redis:
     image: redis:8-alpine
     profiles: [redis]
@@ -151,6 +136,5 @@ services:
 volumes:
   pgdata:
   phoenix-data:
-  neo4j-data:
   redis-data:
   asr-models:

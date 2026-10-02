@@ -1,0 +1,46 @@
+# 0021 · 练习引擎：题型、选题、出题与 critic、批改、“学会”判定
+
+- **状态**：已采纳（2026-10-02，任务 30；Q5–Q8、Q13 按推荐确认）
+- **日期**：2026-10-02
+- **影响**：新增 `exercise_sets`、`exercises`、`attempts` 表；`kc_evidence.source` 加 `exercise` / `writing` / `reading`，新增可空列 `format`、`attempt_id`；`kc_mastery` 加 `formats_passed`、`days_passed` 和 FSRS 状态列；`rules.yaml` 加选题和“学会”参数、各题型猜中率；新增模型任务 `exercise_generate`、`exercise_critic`、`exercise_grade`（`features.yaml` 登记 `practice_set`、`practice_grade`）；新增 `backend/evals/`。细节见 `docs/plans/P2-adaptive-reading-writing.md` §3。
+
+## 背景
+P1 的学习者模型只有“对话里的错误 → 证据 → BKT”一条输入，入学测是固定的 90 道 choice4。PLAN 第二·五节的闭环（诊断 → 选题 → 生成 → 校验 → 批改 → 证据）还缺后半段。P2 要补上，同时守住两条约束：掌握度只由算法根据证据更新（ADR 0010、0012）；LLM 生成的题必须过 critic 才能给学习者（CLAUDE.md）。
+
+## 决定
+1. **题型（Q5）**：第一批六种全做。
+
+   | format | 证据类型 | 判对 |
+   |---|---|---|
+   | `choice4` | recognition | 代码比对 |
+   | `cloze` | recognition | 代码比对（规范化 + 可接受答案列表） |
+   | `find_fix` | 找错 recognition；改法 production | 位置代码比对；改法先比可接受列表，不在列表里交给批改模型 |
+   | `transform` | production | 批改模型 |
+   | `translate` | production | 批改模型 |
+   | `rewrite_own` | production | 批改模型 |
+
+   `rewrite_own` 取学习者最近 30 天、来自对话的计入错误的 `kc_evidence.original`。每种题型在 `rules.yaml` 的 `elo.guess_by_format` 登记猜中率（开放题接近 0）。
+
+2. **选题是纯算法**（`adaptive/planner.py`，单测）：优先级 = 薄弱度 × 重要度 × 到期 ×（P2d 起）诊断加成；一组约 10 题，约 70% 薄弱 KC、30% 已掌握或到期 KC，同一 KC 不连续、同一题型不连续超过两题；用语法 Elo 能力值和题目 rubric 难度算预计正确率，给生成器 0.80–0.85 的目标难度（85% 规则）。参数放 `rules.yaml`，改了就升版本号（ADR 0012）。
+
+3. **出题子图**：`plan → generate → critic → (重生成，最多 2 轮) → persist`，用 mock LLM 做图测试。
+   - `generate`（`exercise_generate`）一次结构化调用出一组题；输入 KC 说明与常见错误、目标难度、题型、记忆里的兴趣和职业（个性化语境）、`rewrite_own` 的原句。
+   - `critic`（`exercise_critic`，可路由到另一个模型）先**不看标准答案**独立作答，再对照检查：答案唯一且正确、确实考这个 KC、难度在目标附近、没有事实或文化错误。不通过的带理由回到 `generate`；两轮仍不过就丢弃，缺的题用入学测题库（按 KC 和难度）补。critic 的判定、理由和独立作答都存在 `exercises.critic`。
+   - 学习者可以对单题点“这题有问题”：题目标为 `reported`，这题的作答不计证据。
+
+4. **出题时机（Q7）**：开始一组时现生成（约 10–20 秒，等待时显示 hop 猫和进度）；做完一组后，用同一个后台 worker 的方式（参照 `memory/worker.py`）为下一组预生成。预生成登记为 `timing: background`，受 ADR 0025 的每日上限约束，学习者可关。
+
+5. **题目归属（Q8）**：生成的题按学习者私有（带个人语境），不跨用户、不跨租户共享；入学测 `items.yaml` 是全局兜底题库。
+
+6. **批改（Q6）**：代码能判的直接判；开放题交给 `exercise_grade`（结构化输出）：目标 KC 判对 / 判错（只有两档）、讲解与正误对比、答案里**其他**语法错误（KC id 必须在清单里，严重度规则同对话反思）。目标 KC 的结果按题型的证据类型记一条；其他错误各自记证据。批改模型只判断“这一次答得对不对”，掌握度仍由 BKT 根据证据更新。每次作答写 `attempts` 和 `kc_evidence`（`source=exercise`，`format` 按题型，`attempt_id` 指回作答），然后刷新掌握度；作答后按 Elo 校准题目难度（同入学测）。
+
+7. **“学会”与语法点 FSRS**：“学会”= `p_mastery ≥ mastered` **且** ≥ 3 种题型答对 **且** 跨 ≥ 2 天 **且** 最近 N 轮对话里没有同 KC 的计入错误（N 和阈值放 `rules.yaml`）。第一次“学会”时给这个 KC 建 FSRS 状态（复用 `fsrs` 库和单词的参数），到期后进入选题的“到期”部分；练习里答对 / 答错映射为 Good / Again。学习者模型页显示这四项条件的进度。
+
+8. **最小评估集（Q13）**：P2a 就建 `backend/evals/`（pytest 驱动，ADR 0005）：critic 能拒掉一组已知坏题（答案不唯一、答案错、考错了 KC）；批改能判对一组已知答案。默认用录制下来的模型输出回放（不调用真实 API，CI 可跑）；加参数可以用真实模型跑。学习者“报告有问题”的题作为以后补充评估集的候选。CI 回归和看板留到 P4。
+
+## 取舍
+- 六种题型一起做，比先做三种代码能判的多了批改模型的调用和评估工作；但只有选择和填空的话练习会很死板，`rewrite_own` 正是个性化的核心，所以一次做全。
+- 开放题只有对错两档，部分正确的信息靠“其他错误另记证据”保留，不改 BKT 公式；代价是“目标结构用对了但不太自然”这类答案只能判对，讲解里说明。
+- 题目私有意味着每组都要花 token；租户共享题库能省，但要去掉个人语境，和“个性化语境”目标冲突。以后如果 token 成为问题，可以把 critic 通过、没有个人语境的题再做共享。
+- 现生成第一组要等 10–20 秒；每晚批量预生成能免等，但会给不练习的人也花 token，而且要先有定时任务。后台预生成下一组是折中。
+- critic 和生成用同一个模型时会有同样的盲点，所以 `exercise_critic` 是独立的路由，租户可以配不同的模型；评估集用来量化 critic 的效果。

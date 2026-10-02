@@ -1,9 +1,10 @@
 """The grammar KC catalog: stable ids the whole learner model hangs off (ADR 0010 §1).
 
 `grammar.yaml` is hand-reviewed content checked into the repo. Its ids are referenced by
-`kc_mastery`, `mistakes`, the placement item bank and (P2) the Neo4j grammar graph, so an
-id is never renamed once shipped. The file is validated at startup: a broken catalog
-would otherwise surface as reflection silently dropping every tagged mistake.
+`kc_mastery`, `mistakes`, the placement item bank and (P2) the grammar graph in
+`kc_edges` (ADR 0022), so an id is never renamed once shipped. The file is validated at
+startup: a broken catalog would otherwise surface as reflection silently dropping every
+tagged mistake.
 """
 
 from functools import cache

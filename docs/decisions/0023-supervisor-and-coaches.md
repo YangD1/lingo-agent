@@ -1,0 +1,25 @@
+# 0023 · Supervisor 主图与各 coach 子图
+
+- **状态**：已采纳（2026-10-02，任务 30；D4、Q9、Q10 按推荐确认）
+- **日期**：2026-10-02
+- **影响**：`agents/chat_graph.py` 的主图改为 `load_context → supervisor → {tutor, grammar_coach, writing_coach, reading_coach}`；`api/chat.py::_reply` 里按会话类型分支的逻辑挪进路由；新增模型任务 `route`（只有自由对话才调）；新增 `writing_submissions` 表、`/writing` 页；`conversations.purpose` 加 `writing` / `reading`；活动公示多一个“路由”步骤。
+
+## 背景
+P1 的对话图是 `START → load_context → tutor ⇄ tools → END`（ADR 0015 §1）。不同会话的行为差异写在 `api/chat.py::_reply` 里：有 `focus_kc_id` 的语法练习会话不给工具；`purpose` 为 planning / daily 的会话给有限的工具；自由对话给全部工具。P2 要加写作和阅读，各自需要不同的提示词、工具和上下文（作文、文章），继续在 `_reply` 里堆 if 会越来越难维护，也不符合 PLAN 的 Supervisor 设计（ADR 0009 把它从 P1 移到了 P2）。
+
+## 决定
+1. **时机（Q9）**：P2b 有了第二个 coach（写作）时再加 Supervisor，P2a 不动对话图。
+2. **主图**：`START → load_context → supervisor → 某个 coach → END`。每个 coach 是子图，有自己的提示词和工具集，内部仍是 `coach ⇄ tools` 的循环（工具轮数上限、并行、失败作为结果返回等规则不变，ADR 0013）；所有 coach 共享 `ChatContext` 和同一个 checkpoint 线程，切换 coach 不丢历史。
+3. **路由先看确定的信号，不调模型**：
+   - 会话有 `focus_kc_id` → grammar_coach（不给工具，同现在）；
+   - `purpose` 为 planning / daily → tutor（有限工具，同现在）；
+   - 从 `/writing`、`/reading` 发起的会话（`purpose` 为 writing / reading）→ 对应 coach。
+   只有自由对话才调用一次轻量结构化分类（task `route`，可以配便宜模型）：判断这一轮要不要转给写作 / 阅读 / 语法 coach。分类失败、超时或置信度低，都留在 tutor。路由结果是一个 Pydantic 枚举，不解析自由文本。
+4. **`_reply` 只负责组装 context**：各会话类型的提示词和工具范围由路由决定，`_reply` 不再按类型分支。
+5. **写作入口（Q10）**：独立的 `/writing` 页（写作框、字数统计、逐句对照、历史）和对话内批改（学习者在对话里贴作文，路由给 writing_coach）共用同一个批改服务（task `writing_review`）和 `writing_submissions` 记录；对话里的回复带一张卡片，链到这条记录。写作批改的错误按 ADR 0012 记证据（`source=writing`，production）；四维评分只展示，不进掌握度。
+6. **公示**：路由结果作为一个步骤（例如“交给了写作 coach”）出现在“私教做了什么”里（ADR 0013），同步 `docs/agent-tools.md`；`route` 调用登记到 `features.yaml`（ADR 0014）。
+
+## 取舍
+- 只有自由对话才多一次分类调用，其他会话零额外延迟和 token；代价是自由对话里学习者突然要改作文时，要靠分类模型识别出来。分类出错的后果只是“由 tutor 回答”，tutor 本身也能讲语法和改句子，风险可控。
+- 每轮都用模型路由更灵活，但只有一个 coach 时没有意义，而且每轮多一次调用。
+- coach 共享一个 checkpoint 线程，历史连续；但各 coach 的提示词要注意不被别的 coach 留下的工具消息带偏，图测试里覆盖切换场景。

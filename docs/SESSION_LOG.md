@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-02 · P2 Q5–Q13 确认 + 任务 30 ADR
+
+- **做了什么**：Q5–Q13 全部按推荐确认，写回计划 §10 和看板（提交 734e01f）。任务 30：写 ADR 0021（练习引擎）、0022（图谱存 Postgres）、0023（Supervisor 与 coach）、0024（阅读来源与版权）、0025（定时任务与后台上限）；ADR 0001 标注被取代部分；PLAN 全面同步（去掉 Neo4j、interrupt、VOA）；compose 删 neo4j 服务和卷，`.env.example` 删 `NEO4J_*`，CLAUDE.md 和 `kc/catalog.py` 注释同步。
+- **D3 修订**：核实发现 VOA Learning English 的 RSS 全停在 2025 年 3–4 月、只有摘要；Wikinews 已关闭；The Conversation 是 CC BY-ND（不能改写）。用户改定内置 NASA 新闻稿（公有领域，RSS 带全文）+ Global Voices（CC BY 3.0，RSS 带全文，跳过 NC-ND 转载）+ 自加 RSS。
+- **未完成**：任务 30 等用户 review ADR（看板里列了我按推荐定的细节）后标 [x]。`frontend/Dockerfile` 可选代理构建参数仍未决。
+- **下一步**：用户 review 通过 → 任务 30 标 [x] → 任务 31（数据表与迁移 + 题型定义 + `rules.yaml` 新参数），开工前先把 31 的子任务写进看板。
+- **踩坑**：本地如果用过 `--profile neo4j`，会留下孤立的 `neo4j-data` 卷，需要手动 `docker volume rm`。
+
 ## 2026-10-02 · P2 计划与任务拆分
 
 - **做了什么**：推送任务 29 到 86f065e，用户实测一轮通过，P1 收尾完成。用子 agent 摸清了 P2 相关现状（见下“现状要点”），写了 `docs/plans/P2-adaptive-reading-writing.md`（Demo 定义、五个子阶段、依赖、练习引擎 / Supervisor 与写作 / 阅读与定时任务 / 图谱与诊断 / 每日计划、表汇总、任务顺序、决定）。用户已确认 D1–D4：顺序 练习引擎 → 写作 → 阅读 → 图谱诊断 → 每日计划；语法图谱存 Postgres（不用 Neo4j）；阅读来源 VOA Learning English + 自加 RSS；Supervisor 按原计划。看板 P2 段拆成任务 30–49，原“后台预生成 AI 例句”并入任务 44。
