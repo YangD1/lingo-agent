@@ -120,6 +120,14 @@ test-backend: ## pytest against the lingo_test database (needs dev-db)
 test-frontend: ## Vitest
 	cd frontend && $(PNPM) test
 
+.PHONY: eval
+eval: ## Evaluation sets replayed from their recordings (no key or database needed)
+	cd backend && uv run python -m evals $(ARGS)
+
+.PHONY: eval-live
+eval-live: ## Evaluation sets on real models: ARGS='--email <account> [--record] [name ...]'
+	cd backend && uv run python -m evals --live $(ARGS)
+
 .PHONY: e2e
 e2e: ## Playwright end-to-end tests (needs dev-db; starts its own backend, fake model and frontend)
 	cd frontend && $(PNPM) e2e
@@ -127,14 +135,14 @@ e2e: ## Playwright end-to-end tests (needs dev-db; starts its own backend, fake 
 .PHONY: ci
 ci: ## Run what CI runs, in the same order (needs dev-db; the docker job is `make build`)
 	cd backend && uv sync --locked && uv run ruff check . && uv run ruff format --check . \
-		&& uv run mypy app && uv run pytest
+		&& uv run mypy app evals && uv run pytest
 	cd frontend && $(PNPM) install --frozen-lockfile && $(PNPM) lint && $(PNPM) typecheck \
 		&& $(PNPM) test && $(PNPM) build
 	cd frontend && CI=true $(PNPM) e2e
 
 .PHONY: lint
 lint: ## ruff + mypy (backend), eslint + typecheck (frontend)
-	cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy app
+	cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy app evals
 	cd frontend && $(PNPM) lint && $(PNPM) typecheck
 
 .PHONY: fmt

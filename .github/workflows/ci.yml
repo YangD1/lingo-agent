@@ -46,7 +46,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run mypy app
+      - run: uv run mypy app evals
       # Migrations are covered here: the test session downgrades to base and upgrades to
       # head on the empty database before any test runs.
       - run: uv run pytest

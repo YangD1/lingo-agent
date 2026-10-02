@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 任务 36.1 完成（评估框架）
+
+- **做了什么**：建 `backend/evals/`：数据集 YAML（`thresholds` + `cases`）、报告（每条用例若干指标的对错）、录制 / 回放模型（键 = 任务 + 消息 + 输出结构的哈希，对不上抛 `CassetteMiss` 提示重录）、真实模型走 `get_structured_llm` 并可录制、`python -m evals` CLI（`--live --email`、`--record`）、`make eval` / `make eval-live`、pytest 回放（`testpaths` 加 `evals`）、mypy 覆盖 `evals`（Makefile 和 CI）。单测 15 个；pytest 1144 全过。
+- **未完成**：`evals/registry.py` 的 `EVALUATORS` 还是空的；`evals/datasets/`、`evals/cassettes/` 没有文件。
+- **下一步**：36.2 critic 数据集与评估器。评估器实现 `runner.Evaluator`（`name` + `run_case(case, model)`），用 `model.structured(case.id, "exercise_critic", drafts.critic_report_model(rules), critic_messages(...))` 拿报告，再 `drafts.judge`；登记到 `EVALUATORS`。用例里的题目要能组成 `ItemBrief`（看 `inputs.ItemBrief` 的字段）和 `ExerciseBody`（`formats.parse_body`）。录制要到 36.4 才有，之前回放会因 `CassetteMiss` 失败——36.2/36.3 用单测里的假模型验证评估器逻辑，`test_replay.py` 在录制入库前要能跳过没有录制文件的数据集，或者 36.2 先不登记到 `EVALUATORS`，到 36.4 再登记。
+- **踩坑**：argparse 的 `nargs="*"` 配 `choices` 在没给参数时会报错，改为手动校验名字。
+
+---
+
 ## 2026-10-02 · 任务 36 已拆分（最小评估集），未开工
 
 - **做了什么**：把任务 36 拆成 36.1–36.4，写进看板。Q36a–d 按推荐确认：a 回放按“任务 + 消息和结构的哈希”对，对不上就失败并提示重录；b 真实模型用开发库里指定账号租户的连接，走 provider 层；c 门槛是坏题拒 ≥ 90%、好题过 ≥ 90%、批改判对 ≥ 90%，写在数据集文件里；d 回放模式跟 pytest / CI 一起跑。用户决定：产品做完整之前不再逐个任务手工实测，每个功能用 E2E 覆盖主流程。
