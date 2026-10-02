@@ -43,8 +43,6 @@ export type Placement = {
   result: PlacementResult | null;
   created_at: string;
   finished_at: string | null;
-  /** Finished long enough ago (rules.yaml `advice.retest_days`) to suggest a retest. */
-  retest_due: boolean;
 };
 
 export type Answer = { yes: boolean } | { choice: number };
@@ -68,12 +66,24 @@ export const answerPlacement = (id: string, questionId: string, answer: Answer) 
 /** backend/app/advice/reminder.py Reason: why to take the placement test now (task 50). */
 export type ReminderReason = "resume" | "never" | "progress" | "age";
 
-export type BannerKind = "start" | "resume" | "retest";
+/** backend/app/api/placement.py ReminderOut. */
+export type PlacementReminder = {
+  reason: ReminderReason;
+  /** Sent back with "Not now". */
+  key: string;
+  /** Days since the last finished test, its level and that level's grammar points
+   * learned out of all; null when never tested or for a test left halfway. */
+  days_since: number | null;
+  level: CefrLevel | null;
+  learned: number | null;
+  total: number | null;
+  /** The learner said "Not now" to this reason lately: show nothing unasked. */
+  snoozed: boolean;
+};
 
-/** What the chat page's banner offers: nothing once a test is done, until a retest is due. */
-export function bannerFor(latest: Placement | null): BannerKind | null {
-  if (latest === null || latest.status === "abandoned") return "start";
-  if (latest.status === "in_progress") return "resume";
-  return latest.retest_due ? "retest" : null;
-}
+/** The reminder to take (or retake) the test; null when there is nothing to remind of. */
+export const fetchPlacementReminder = () => api<PlacementReminder | null>("/placement/reminder");
 
+/** "Not now": the same reason stays quiet for a while (rules.yaml `reminder_snooze_days`). */
+export const dismissPlacementReminder = (key: string) =>
+  api<void>("/placement/reminder/dismiss", { method: "POST", json: { key } });

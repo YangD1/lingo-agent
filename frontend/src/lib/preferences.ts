@@ -5,7 +5,6 @@ import { useCallback, useSyncExternalStore } from "react";
  * be unavailable (private mode, blocked site data), and then the default applies.
  */
 const SHOW_ACTIVITY_KEY = "lingo.showAgentActivity";
-const PLACEMENT_BANNER_KEY = "lingo.placementBannerClosed";
 const CHANGE_EVENT = "lingo:preferences";
 // What this page set, for when storage refuses it.
 const fallback = new Map<string, string>();
@@ -53,12 +52,4 @@ export function useShowActivity(): [boolean, (show: boolean) => void] {
   const [value, set] = useStored(SHOW_ACTIVITY_KEY);
   const setShow = useCallback((show: boolean) => set(String(show)), [set]);
   return [value !== "false", setShow];
-}
-
-/**
- * Which placement banner ("start" / "resume") the learner closed. Closing one doesn't
- * hide the other: a test started and left halfway is still worth a reminder.
- */
-export function usePlacementBannerClosed(): [string | null, (kind: string) => void] {
-  return useStored(PLACEMENT_BANNER_KEY);
 }

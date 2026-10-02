@@ -95,7 +95,7 @@ async def test_a_whole_test(client: AsyncClient, db_session: AsyncSession) -> No
 
     latest = (await client.get("/placement/latest")).json()
     assert latest["id"] == session_id and latest["status"] == "done"
-    assert latest["retest_due"] is False
+    assert (await client.get("/placement/reminder")).json() is None
     profile = await db_session.scalar(select(UserProfile))
     assert profile is not None and profile.cefr_level == result["cefr"]
     placed = await db_session.scalar(
@@ -116,7 +116,8 @@ async def test_a_whole_test(client: AsyncClient, db_session: AsyncSession) -> No
         .values(finished_at=PlacementSession.finished_at - timedelta(days=60))
     )
     await db_session.commit()
-    assert (await client.get("/placement/latest")).json()["retest_due"] is True
+    reminder = (await client.get("/placement/reminder")).json()
+    assert reminder["reason"] == "age" and reminder["key"] == f"age:{session_id}"
 
     # A new start after a finished test begins a new one.
     again = await post(client, "/placement", {})

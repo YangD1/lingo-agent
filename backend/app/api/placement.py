@@ -5,7 +5,7 @@ leaves out the answers themselves, which name the items.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Request, status
@@ -78,14 +78,11 @@ class PlacementOut(BaseModel):
     result: ResultOut | None
     created_at: datetime
     finished_at: datetime | None
-    # Finished at least `advice.retest_days` ago: time for a retest.
-    retest_due: bool
 
 
 def _out(s: Status) -> PlacementOut:
     p = s.placement
     result: dict[str, Any] | None = p.result
-    retest_after = timedelta(days=get_rules().advice.retest_days)
     return PlacementOut(
         id=p.id,
         status=p.status,
@@ -95,9 +92,6 @@ def _out(s: Status) -> PlacementOut:
         result=ResultOut.model_validate(result) if result else None,
         created_at=p.created_at,
         finished_at=p.finished_at,
-        retest_due=p.status == "done"
-        and p.finished_at is not None
-        and datetime.now(UTC) - p.finished_at >= retest_after,
     )
 
 

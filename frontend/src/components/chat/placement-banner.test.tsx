@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Placement } from "@/lib/placement";
+import type { PlacementReminder } from "@/lib/placement";
 
 import en from "../../../messages/en.json";
 import { PlacementBanner } from "./placement-banner";
@@ -14,16 +14,15 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   api,
 }));
 
-const placement = (status: Placement["status"], retestDue = false): Placement => ({
-  id: "p1",
-  status,
-  stage: "vocab",
-  answered: 3,
-  question: null,
-  result: null,
-  created_at: "2026-09-30T00:00:00Z",
-  finished_at: status === "done" ? "2026-07-01T00:00:00Z" : null,
-  retest_due: retestDue,
+const reminder = (over: Partial<PlacementReminder>): PlacementReminder => ({
+  reason: "never",
+  key: "never",
+  days_since: null,
+  level: null,
+  learned: null,
+  total: null,
+  snoozed: false,
+  ...over,
 });
 
 function show() {
@@ -35,58 +34,69 @@ function show() {
 }
 
 beforeEach(() => api.mockReset());
-afterEach(() => window.localStorage.clear());
 
 describe("PlacementBanner", () => {
-  it("invites a learner who never took the test, until closed", async () => {
-    api.mockResolvedValue(null);
-    const { unmount } = show();
+  it("invites a learner who never took the test; Not now goes to the server", async () => {
+    api.mockResolvedValue(reminder({}));
+    show();
     expect(await screen.findByRole("link", { name: "Take the test" })).toHaveAttribute(
       "href",
       "/placement",
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    api.mockResolvedValue(undefined);
+    await userEvent.click(screen.getByRole("button", { name: "Not now" }));
+
     expect(screen.queryByTestId("placement-banner")).not.toBeInTheDocument();
-    unmount();
-    show();
-    await vi.waitFor(() => expect(api).toHaveBeenCalledTimes(2));
-    expect(screen.queryByTestId("placement-banner")).not.toBeInTheDocument();
+    expect(api).toHaveBeenLastCalledWith("/placement/reminder/dismiss", {
+      method: "POST",
+      json: { key: "never" },
+    });
   });
 
-  it("still reminds of a test left halfway after the invitation was closed", async () => {
-    window.localStorage.setItem("lingo.placementBannerClosed", "start");
-    api.mockResolvedValue(placement("in_progress"));
-    show();
-    expect(await screen.findByRole("link", { name: "Continue" })).toBeInTheDocument();
-  });
-
-  it("says nothing once a test is done", async () => {
-    api.mockResolvedValue(placement("done"));
-    show();
-    await vi.waitFor(() => expect(api).toHaveBeenCalled());
-    expect(screen.queryByTestId("placement-banner")).not.toBeInTheDocument();
-  });
-
-  it("suggests a retest once the last test is over 60 days old, until closed", async () => {
-    window.localStorage.setItem("lingo.placementBannerClosed", "start");
-    api.mockResolvedValue(placement("done", true));
-    const first = show();
-    expect(await screen.findByRole("link", { name: "Retake" })).toHaveAttribute(
-      "href",
-      "/placement",
+  it("says why a retest is due", async () => {
+    api.mockResolvedValue(
+      reminder({
+        reason: "progress",
+        key: "progress:p1",
+        days_since: 20,
+        level: "B1",
+        learned: 24,
+        total: 33,
+      }),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    show();
+    expect(
+      await screen.findByText(
+        "You've learned 24 of the 33 B1 grammar points. Retake the test to see if you've moved up a level.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Retake" })).toHaveAttribute("href", "/placement");
+  });
+
+  it("reminds of a test left halfway, and of an old one", async () => {
+    api.mockResolvedValue(reminder({ reason: "resume", key: "resume:p2" }));
+    const first = show();
+    expect(await screen.findByRole("link", { name: "Continue" })).toBeInTheDocument();
     first.unmount();
 
-    const second = show();
+    api.mockResolvedValue(reminder({ reason: "age", key: "age:p1", days_since: 75 }));
+    show();
+    expect(
+      await screen.findByText("Your last placement test was 75 days ago. Retake it to see your progress."),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing when there is nothing to remind of, or after Not now", async () => {
+    api.mockResolvedValue(null);
+    const first = show();
+    await vi.waitFor(() => expect(api).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("placement-banner")).not.toBeInTheDocument();
+    first.unmount();
+
+    api.mockResolvedValue(reminder({ snoozed: true }));
+    show();
     await vi.waitFor(() => expect(api).toHaveBeenCalledTimes(2));
     expect(screen.queryByTestId("placement-banner")).not.toBeInTheDocument();
-
-    // A later test's retest reminder is not silenced by closing this one.
-    second.unmount();
-    api.mockResolvedValue({ ...placement("done", true), finished_at: "2026-12-01T00:00:00Z" });
-    show();
-    expect(await screen.findByRole("link", { name: "Retake" })).toBeInTheDocument();
   });
 });

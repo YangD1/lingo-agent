@@ -248,15 +248,6 @@
         "link": "shortcut to a page"
       }
     },
-    "placementBanner": {
-      "start": "Take the placement test first: about 10 minutes, and your tutor adjusts explanations and practice to your level.",
-      "resume": "You have a placement test left halfway; pick it up where you stopped.",
-      "startAction": "Take the test",
-      "resumeAction": "Continue",
-      "close": "Close",
-      "retest": "It's been over 60 days since your last placement test. Retake it to see your progress.",
-      "retestAction": "Retake"
-    },
     "practice": {
       "label": "Grammar practice: {kc}",
       "evidence": "See the evidence",
@@ -1222,5 +1213,16 @@
       "exercises": "Practise with questions",
       "chat": "Practise in conversation"
     }
+  },
+  "placementReminder": {
+    "never": "Take the placement test first: about 10 minutes, and your tutor adjusts explanations and practice to your level.",
+    "resume": "You have a placement test left halfway; pick it up where you stopped.",
+    "progress": "You've learned {learned} of the {total} {level} grammar points. Retake the test to see if you've moved up a level.",
+    "age": "Your last placement test was {days} days ago. Retake it to see your progress.",
+    "neverAction": "Take the test",
+    "resumeAction": "Continue",
+    "progressAction": "Retake",
+    "ageAction": "Retake",
+    "notNow": "Not now"
   }
 }

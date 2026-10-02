@@ -248,15 +248,6 @@
         "link": "页面直达"
       }
     },
-    "placementBanner": {
-      "start": "先做个入学测吧：大约 10 分钟，私教会按你的水平调整讲解和练习。",
-      "resume": "你有一次入学测还没做完，可以接着做。",
-      "startAction": "开始入学测",
-      "resumeAction": "继续",
-      "close": "关闭提示",
-      "retest": "距离上次入学测已经超过 60 天，重测一次看看进步吧。",
-      "retestAction": "重新测试"
-    },
     "practice": {
       "label": "语法练习：{kc}",
       "evidence": "查看依据",
@@ -1222,5 +1213,16 @@
       "exercises": "做一组题",
       "chat": "对话练习"
     }
+  },
+  "placementReminder": {
+    "never": "先做个入学测吧：大约 10 分钟，私教会按你的水平调整讲解和练习。",
+    "resume": "你有一次入学测还没做完，可以接着做。",
+    "progress": "{level} 的语法点你已经学会了 {learned}/{total}，重测一次，看看能不能升到下一级。",
+    "age": "距离上次入学测已经 {days} 天了，重测一次看看进步吧。",
+    "neverAction": "开始入学测",
+    "resumeAction": "继续",
+    "progressAction": "重新测试",
+    "ageAction": "重新测试",
+    "notNow": "以后再说"
   }
 }
