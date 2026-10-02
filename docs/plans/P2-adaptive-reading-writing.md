@@ -86,6 +86,7 @@
 - `critic`（task `exercise_critic`，可路由到不同模型）：**不看标准答案**先独立作答，再对照：答案是否唯一且正确、是否真的考这个 KC、难度是否在目标附近、是否有文化或事实错误。不通过的题带理由回到 `generate` 重写；两轮仍不通过就丢弃，不足的用题库兜底。
 - 生成时机（Q7）：开始一组时现生成（等待时显示 hop 猫和进度），做完一组后后台预生成下一组。
 - 学习者点“这题有问题”：题目标为 `reported`，不计证据，记入评估集候选（Q13）。
+- **落地记录（任务 33，2026-10-02）**：Q33a–g 已确认，细节写在 ADR 0021 §3、§4。代码：`adaptive/exercise/inputs.py`（选题输入）、`drafts.py`（扁平 schema、组装、`judge`）、`messages.py`、`bank.py`（题库补位四档）、`service.py`（存库、`how_made`）、`worker.py`（`PracticeWorker`）、`agents/exercise_graph.py`；`rules.yaml` `2026-10-02.3`；迁移 `9f45cf7f00b8`（`exercise_sets.rules_version`）。没入学测的新学习者按 A2，A2 窗口多数语法点先验 p ≥ 0.4，所以第一组几乎全是产出题，实测时留意；入学测和重测提醒另立任务 50。
 
 ### 3.5 批改
 
