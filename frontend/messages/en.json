@@ -130,7 +130,8 @@
     "expand": "Expand sidebar",
     "close": "Close",
     "account": "Account",
-    "practice": "Grammar practice"
+    "practice": "Grammar practice",
+    "writing": "Writing"
   },
   "chat": {
     "newChat": "New chat",
@@ -900,7 +901,10 @@
     "exercise_not_found": "This question doesn't exist.",
     "not_answerable": "This question can no longer be answered.",
     "invalid_response": "That answer doesn't fit this question. Please answer again.",
-    "grading_failed": "Grading failed and your answer wasn't saved. Please submit it again."
+    "grading_failed": "Grading failed and your answer wasn't saved. Please submit it again.",
+    "writing_too_short": "Too short: write at least 20 English words.",
+    "writing_too_long": "Too long: 800 English words and 6000 characters at most.",
+    "writing_not_found": "This piece of writing wasn't found; it may have been deleted."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1071,7 +1075,7 @@
   "aiBadge": {
     "label": "Uses AI: what it does and roughly how many tokens",
     "feature": {
-      "chat_message": "Your tutor's reply is written by an AI model. After it, the tutor reviews the turn in the background to update your memories, mistakes and words.",
+      "chat_message": "Your tutor's reply is written by an AI model. After it, the tutor reviews the turn in the background to update your memories, mistakes and words. A longer message (60+ English words) is first checked by an AI model to see whether it is your own writing; if so, the writing coach reviews it sentence by sentence.",
       "chat_image": "An AI model reads each image first, so the tutor can talk about it. The reply to that message also comes from the image-reading model.",
       "chat_pdf": "PDFs with a text layer are read without AI. Scanned pages are read by an AI model, one call per page.",
       "chat_audio": "Your recording is turned into text by a speech-to-text model.",
@@ -1081,7 +1085,8 @@
       "practice_grade": "Open answers (rewrites, translations, fixing your own sentence) and fixes not in an item's answer list are graded by an AI model: it judges the tested grammar point, explains, and points out other grammar mistakes in your answer. Multiple choice and fill-in answers are graded by code, without AI. Only your first answer to each item is graded.",
       "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the tutor can find it later.",
       "word_examples": "An AI model writes two example sentences for this word at your level. They are saved, so the next time anyone asks for this word at this level, no model is called.",
-      "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls."
+      "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls.",
+      "writing_submit": "An AI model reviews your writing sentence by sentence: it finds and explains grammar mistakes, scores four aspects, writes overall feedback and puts unknown words on your word list. Mistakes go into your learner model; scores are only shown."
     },
     "task": {
       "chat": "Reply",
@@ -1097,7 +1102,9 @@
       "exercise_critic": "Review items",
       "exercise_grade": "Grade answers",
       "word_examples": "Example sentences",
-      "translate": "Translate"
+      "translate": "Translate",
+      "route": "Is it a piece of writing?",
+      "writing_review": "Writing review"
     },
     "timing": {
       "now": "right away",
@@ -1241,6 +1248,41 @@
     "notNow": "Not now",
     "practice": {
       "never": "You haven't taken the placement test yet. Take it first so the questions fit your level, or practise now at the default level."
+    }
+  },
+  "writing": {
+    "title": "Writing",
+    "description": "Write something in English and an AI model reviews it sentence by sentence: it marks and explains grammar mistakes and scores four aspects. Mistakes go into your learner model; scores are only shown.",
+    "task": {
+      "heading": "Task",
+      "level": "Task level",
+      "loading": "Loading tasks",
+      "own": "My own task",
+      "none": "No task",
+      "ownLabel": "Your task",
+      "ownPlaceholder": "e.g. Write an email asking your teacher for a day off"
+    },
+    "text": {
+      "label": "Your text",
+      "placeholder": "Write in English here…",
+      "count": "{n, plural, one {# English word} other {# English words}}",
+      "range": "{min}–{max} allowed",
+      "tooShort": "write at least {min}",
+      "tooLong": "{max} at most, please cut some",
+      "draft": "Your draft is saved in this browser and cleared once you submit."
+    },
+    "submit": "Submit for review",
+    "submitting": "Submitting…",
+    "history": {
+      "title": "Your writing",
+      "loading": "Loading your writing",
+      "none": "Nothing written yet.",
+      "words": "{n} words",
+      "fromChat": "from a conversation",
+      "pending": "Reviewing",
+      "failed": "Review failed",
+      "noMistakes": "No grammar mistakes",
+      "mistakes": "{n, plural, one {# grammar mistake} other {# grammar mistakes}}"
     }
   }
 }

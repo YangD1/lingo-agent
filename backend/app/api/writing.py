@@ -74,6 +74,7 @@ class SubmissionBriefOut(_Out):
     word_count: int
     status: str
     mistakes: int
+    from_conversation: bool
     created_at: datetime
 
 
@@ -163,6 +164,7 @@ async def list_submissions(
             word_count=row.word_count,
             status=row.status,
             mistakes=len(_mistakes(row)),
+            from_conversation=row.conversation_id is not None,
             created_at=row.created_at,
         )
         for row in rows

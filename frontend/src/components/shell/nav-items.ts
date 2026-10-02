@@ -1,6 +1,7 @@
 import {
   BookOpenIcon,
   ClipboardCheckIcon,
+  FilePenLineIcon,
   LayoutGridIcon,
   type LucideIcon,
   ListChecksIcon,
@@ -15,6 +16,7 @@ export type NavKey =
   | "chat"
   | "vocab"
   | "practice"
+  | "writing"
   | "learner"
   | "placement"
   | "memory"
@@ -31,6 +33,7 @@ export const NAV_GROUPS: { key: "groupLearn" | "groupProgress" | "groupMine"; it
       { key: "chat", href: "/chat", icon: MessageCircleIcon },
       { key: "vocab", href: "/vocab", icon: BookOpenIcon },
       { key: "practice", href: "/practice", icon: PencilLineIcon },
+      { key: "writing", href: "/writing", icon: FilePenLineIcon },
     ],
   },
   {

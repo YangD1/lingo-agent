@@ -57,6 +57,7 @@ async def test_submit_poll_list_and_delete(
 
     [brief] = await call(client, "GET", "/writing", 200)
     assert brief["id"] == submitted["id"] and brief["mistakes"] == 3
+    assert brief["from_conversation"] is False
     assert brief["excerpt"].startswith("Yesterday I walk to the park with my friend. We walk")
 
     assert await db_session.scalar(select(func.count()).select_from(KCMastery)) == 2

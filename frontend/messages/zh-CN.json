@@ -130,7 +130,8 @@
     "expand": "展开侧栏",
     "close": "关闭",
     "account": "账户",
-    "practice": "语法练习"
+    "practice": "语法练习",
+    "writing": "写作"
   },
   "chat": {
     "newChat": "新对话",
@@ -900,7 +901,10 @@
     "exercise_not_found": "这道题不存在。",
     "not_answerable": "这道题已经不能作答了。",
     "invalid_response": "答案格式不对，请重新作答。",
-    "grading_failed": "批改失败了，答案没有保存，请再提交一次。"
+    "grading_failed": "批改失败了，答案没有保存，请再提交一次。",
+    "writing_too_short": "太短了：至少写 20 个英文单词。",
+    "writing_too_long": "太长了：最多 800 个英文单词、6000 个字符。",
+    "writing_not_found": "找不到这篇写作，可能已经删除。"
   },
   "dashboard": {
     "title": "能力看板",
@@ -1071,7 +1075,7 @@
   "aiBadge": {
     "label": "使用 AI：做什么、大约多少 token",
     "feature": {
-      "chat_message": "私教的回复由 AI 模型生成。回复后，私教会在后台复盘这一轮，更新你的记忆、错题和生词。",
+      "chat_message": "私教的回复由 AI 模型生成。回复后，私教会在后台复盘这一轮，更新你的记忆、错题和生词。较长的消息（60 个英文单词以上）会先由 AI 判断是不是你写的作文；是的话交给写作教练逐句批改。",
       "chat_image": "AI 模型先读懂每张图片，私教才能围绕它交流。带图片的那一轮回复也由识图模型生成。",
       "chat_pdf": "带文字层的 PDF 不用 AI 就能读取。扫描页由 AI 模型识别，每页一次调用。",
       "chat_audio": "你的录音由语音转写模型转成文字。",
@@ -1081,7 +1085,8 @@
       "practice_grade": "开放题（改写、翻译、改自己的句子）和不在答案列表里的改法由 AI 模型批改：判断目标语法点对不对，讲解并指出答案里其他的语法错误。选择题和填空由代码批改，不用 AI。每道题只批改第一次作答。",
       "memory_edit": "添加或修改记忆时，向量模型会把它转成向量，方便私教之后检索。",
       "word_examples": "AI 模型按你的等级为这个词写两个例句。例句会保存下来，之后同一等级再查这个词不再调用模型。",
-      "message_translate": "AI 模型翻译这条消息。译文会保存下来，来回切换不再调用模型。"
+      "message_translate": "AI 模型翻译这条消息。译文会保存下来，来回切换不再调用模型。",
+      "writing_submit": "AI 模型逐句批改你的作文：找出语法错误并讲解、按四个方面打分、写总评，不认识的词收进生词本。错误会记入学习者模型，分数只展示。"
     },
     "task": {
       "chat": "回复",
@@ -1097,7 +1102,9 @@
       "exercise_critic": "审题",
       "exercise_grade": "批改",
       "word_examples": "写例句",
-      "translate": "翻译"
+      "translate": "翻译",
+      "route": "判断是不是作文",
+      "writing_review": "批改作文"
     },
     "timing": {
       "now": "立即",
@@ -1241,6 +1248,41 @@
     "notNow": "以后再说",
     "practice": {
       "never": "还没做过入学测：先测一下水平，题目难度会更贴合你；也可以先做一组，按默认难度出题。"
+    }
+  },
+  "writing": {
+    "title": "写作",
+    "description": "写一段英文，AI 逐句批改：标出语法错误并讲解，按四个方面打分。错误会记入学习者模型，分数只展示。",
+    "task": {
+      "heading": "题目",
+      "level": "题目等级",
+      "loading": "正在加载题目",
+      "own": "自己写题目",
+      "none": "不写题目",
+      "ownLabel": "你的题目",
+      "ownPlaceholder": "比如：写一封邮件，向老师请假"
+    },
+    "text": {
+      "label": "你的作文",
+      "placeholder": "Write in English here…",
+      "count": "{n} 个英文单词",
+      "range": "可以写 {min}–{max} 个",
+      "tooShort": "至少写 {min} 个",
+      "tooLong": "最多 {max} 个，请删减一些",
+      "draft": "草稿自动保存在这个浏览器里，提交后清除。"
+    },
+    "submit": "提交批改",
+    "submitting": "正在提交…",
+    "history": {
+      "title": "写作记录",
+      "loading": "正在加载记录",
+      "none": "还没有写作记录。",
+      "words": "{n} 词",
+      "fromChat": "来自对话",
+      "pending": "批改中",
+      "failed": "批改失败",
+      "noMistakes": "没有语法错误",
+      "mistakes": "{n} 处语法错误"
     }
   }
 }
