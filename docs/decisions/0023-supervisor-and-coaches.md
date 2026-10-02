@@ -19,6 +19,12 @@ P1 的对话图是 `START → load_context → tutor ⇄ tools → END`（ADR 00
 5. **写作入口（Q10）**：独立的 `/writing` 页（写作框、字数统计、逐句对照、历史）和对话内批改（学习者在对话里贴作文，路由给 writing_coach）共用同一个批改服务（task `writing_review`）和 `writing_submissions` 记录；对话里的回复带一张卡片，链到这条记录。写作批改的错误按 ADR 0012 记证据（`source=writing`，production）；四维评分只展示，不进掌握度。
 6. **公示**：路由结果作为一个步骤（例如“交给了写作 coach”）出现在“私教做了什么”里（ADR 0013），同步 `docs/agent-tools.md`；`route` 调用登记到 `features.yaml`（ADR 0014）。
 
+## 落地记录（任务 37，2026-10-02）
+- Q37a–c 按推荐确认：自由对话的轻量分类（task `route`）和“转给了某个 coach”的活动步骤挪到任务 38，和 writing_coach 一起上——37 结束时自由对话除了 tutor 没有别的去处，提前分类只会每轮白花一次调用；按确定信号的路由不记活动步骤；coach 用子图。
+- 代码：`agents/routing.py`（`Route`、`route_for(focus_kc_id)`：有语法点 → grammar_coach，其余 → tutor；`purpose` 只决定 tutor 拿到的简报和工具范围，不参与路由）；`api/chat.py::_reply` 按路由组装来源；`chat_graph.py` 主图 `load_context → supervisor → {tutor, grammar_coach}`，`supervisor` 返回 `Command(goto=route)`；开场提示按 coach 定（tutor `plan_opening`、grammar_coach `practice_opening`）；`chat/turn.py` 用 `subgraphs=True` 收子图的 token 和自定义事件。
+- **coach 子图不单独存 checkpoint**（`compile(checkpointer=False)`）：默认情况下子图会把自己的输入写进 `checkpoint_writes`，其中包括不该持久化的学习者记忆和练习指引（ADR 0009 §4），原有的隐私测试抓到了这一点。消息仍由主图保存，历史连续；代价是 coach 内部不能单独中断恢复，目前也用不到。
+- 切换 coach 时别的 coach 留下的工具消息：37 里同一会话的路由固定不变，不会发生；任务 38 加入自由对话分类后，要测 tutor 留下工具调用、下一轮转给不带工具的 coach 的情况（有的厂商要求带工具定义才接受历史里的工具消息）。
+
 ## 取舍
 - 只有自由对话才多一次分类调用，其他会话零额外延迟和 token；代价是自由对话里学习者突然要改作文时，要靠分类模型识别出来。分类出错的后果只是“由 tutor 回答”，tutor 本身也能讲语法和改句子，风险可控。
 - 每轮都用模型路由更灵活，但只有一个 coach 时没有意义，而且每轮多一次调用。

@@ -119,6 +119,7 @@
 - 路由先看确定的信号，不调模型：会话的 `focus_kc_id` → grammar_coach，会话 `purpose`（planning / daily）→ tutor，写作页、阅读页发起的会话 → 对应 coach。只有自由对话才走一次轻量结构化路由（task `route`），判断是否要转给写作 / 阅读 / 语法 coach；分类失败就留在 tutor。
 - 现有的 practice（`focus_kc_id`）分支、planning / daily 分支从 `api/chat.py::_reply` 挪进路由，`_reply` 只负责组装 context。
 - 活动公示：路由结果作为一个 step（“交给了写作 coach”）出现在“私教做了什么”。
+- **落地记录（任务 37，2026-10-02）**：Q37a–c 按推荐确认，细节写在 ADR 0023 落地记录。**和计划不同**：自由对话的轻量分类和路由活动步骤挪到任务 38（37 结束时自由对话没有别的 coach 可转）；按确定信号的路由不记活动步骤。coach 子图不单独存 checkpoint，否则不进 checkpoint 的学习者记忆会被子图的输入带进去。
 
 ### 4.2 写作
 

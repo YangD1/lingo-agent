@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 任务 37 完成（Supervisor 主图）
+
+- **做了什么**：Q37a–c 按推荐确认（自由对话分类和路由活动步骤挪到 38；确定信号的路由不记步骤；coach 用子图）。37.1 `agents/routing.py` + `_reply` 按路由组装来源；37.2 主图 `load_context → supervisor → {tutor, grammar_coach}`，`supervisor` 返回 `Command(goto=route)`，开场提示按 coach 定，`_run_graph` 用 `subgraphs=True`；37.3 ADR 0023 / P2 计划落地记录、`docs/agent-tools.md`。pytest 1165、E2E 46 全过。
+- **未完成**：无。本地领先 origin 约 10 个提交未推送；Docker 未重建（36.4 改了 critic 提示词，37 改了对话图，重建后才生效）。
+- **下一步**：任务 38 先拆子任务、和用户确认。38 现在还包括（Q37a/b）：自由对话的轻量分类（task `route`，Pydantic 枚举，失败留在 tutor，`features.yaml` 登记）和“转给了写作 coach”的活动步骤。新 coach 的接法：`routing.Route` 加值、`chat_graph.py` 加一个子图（`compile(checkpointer=False)`）和 `COACH_NODES`、`supervisor` 的 `Command` 类型、`_reply` 的 `match route` 加分支。要测：tutor 留下工具调用后下一轮转给不带工具的 coach（有的厂商要求带工具定义才接受历史里的工具消息）。
+- **踩坑**：LangGraph 子图默认会自己存 checkpoint，把输入（含 `UntrackedValue` 的学习者记忆、练习指引）写进 `checkpoint_writes`——原有隐私测试抓到，子图改 `checkpointer=False`。子图里的 token 和自定义事件要 `astream(..., subgraphs=True)` 才收得到，返回值变成 `(namespace, mode, part)`。
+
+---
+
 ## 2026-10-02 · 任务 36.4 完成，任务 36 完成（评估集录制）
 
 - **做了什么**：用用户临时给的 gpt-5.5（OpenAI 兼容中转）在开发库临时账号上跑了三次真实模型，录制 `evals/cassettes/critic.json`（44 次）和 `grader.json`（31 次）入库，文件里没有密钥；临时账号、租户和连接已用 SQL 删除（没有删账号接口）。结果：坏题拒 24/26、好题过 18/18、批改判对 31/31。实测带来的改动：`prompts/exercise_critic.md` 说明 `rewrite_own` 的原句是学习者自己写的；两条有歧义的用例换掉；好题的生成器难度评分按真实 critic 校准；critic 失败详情显示评分差异。文档：`evals/README.md`、P2 计划落地记录、ADR 0005。pytest 1157 全过。
