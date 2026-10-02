@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-03 · 任务 38 完成（38.6 收尾）
+
+- **做了什么**：ADR 0023 落地记录、P2 计划 §4.2 落地记录、PLAN 的路由示例改名 `route`。`make lint` 干净，pytest 1209、Vitest 319、E2E 46 全过。
+- **未完成**：无。本地领先 origin 约 17 个提交未推送；Docker 未重建（迁移 head `5e1a7c3d9b20`，开发库已升级）。
+- **下一步**：任务 39（`/writing` 页：写作框与字数、固定题目、提交后轮询、逐句对照、历史、删除；对话卡片链接的 `/writing/{id}`；Vitest + E2E），开工前先拆子任务和用户确认；然后任务 51。
+- **踩坑**：无新的。
+
+---
+
 ## 2026-10-03 · 任务 38.5 完成（writing_coach 批改作文）
 
 - **做了什么**：`chat/writing.py`（`DatabaseWriting` 建批改记录 → worker 批改、最多等 90 秒 → `writing` 卡片 → 告诉 coach 结果）；`chat_graph.writing_coach` 推卡片、记活动 `writing_review`、发给模型的历史去掉工具调用；迁移 `5e1a7c3d9b20`（卡片类型加 `writing`，开发库已升级）；`features.yaml`；前端作文批改卡片和活动步骤；`docs/agent-tools.md`。pytest 1209、Vitest 319 全过，lint 干净。另：用户提出模型停用开关，记为任务 51（Q51a–d 已确认，做完 38 再做）。

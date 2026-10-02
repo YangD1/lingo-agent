@@ -128,6 +128,7 @@
 - 题目：按等级和画像里的目标（考试、兴趣）出，`writing_prompt` 调用可选（也可自己写，不花 token）。
 - `/writing`：写作框（字数统计）、提交、逐句对照视图、历史记录；对话里贴作文时 writing_coach 调同一个服务，回复里给卡片链到这条记录。
 - `features.yaml`：`writing_review`、`writing_prompt`。
+- **落地记录（任务 38，2026-10-02 – 10-03）**：Q38a–f 按推荐确认，路由和 writing_coach 的细节写在 ADR 0023 落地记录。代码：`writing/`（`text.py` 计词分句、`review.py` 结构与代码校验、`service.py` 批改 / 证据 / 掌握度重放 / 收词、`worker.py` 后台批改、`prompts.yaml` 每级 4 条固定题目）、`api/writing.py`、`agents/routing.py` 的分类、`chat/writing.py`；迁移 `c200596b6a4a`（`writing_submissions`、`kc_evidence.writing_id` 级联删除）、`b13e7f785be1`（`words`）、`5e1a7c3d9b20`（卡片类型 `writing`）。**和计划不同**：AI 出题 `writing_prompt` 按 Q38d 挪到后续（要过 critic），这次只有固定题目和学习者自己写的题目，`features.yaml` 没有登记它；长度限制（20–800 词、6000 字符）放在代码里，不进 `rules.yaml`；同一篇里同一语法点的重复错误只计一次证据观测（和对话一条消息一样）。
 
 ---
 

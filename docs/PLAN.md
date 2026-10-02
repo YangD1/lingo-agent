@@ -56,7 +56,7 @@ provider = 模型供应商适配层（配置格式、路由与降级语义见 AD
 llm:
   default: deepseek:deepseek-chat
   routes:
-    router: deepseek:deepseek-chat         # 意图分类，便宜
+    route: deepseek:deepseek-chat          # 自由对话分类（要不要转给写作 coach），便宜
     tutor: anthropic:claude-sonnet-5         # 讲解质量
     memory_extract: openai:gpt-4o-mini
     vision: anthropic:claude-sonnet-5       # 读图、回复带图的那一轮（ADR 0008）
