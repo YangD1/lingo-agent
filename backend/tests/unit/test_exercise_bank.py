@@ -3,10 +3,12 @@
 import random
 from datetime import UTC, datetime, timedelta
 
-from app.adaptive.exercise import bank
+import pytest
+
+from app.adaptive.exercise import bank, planner
 from app.adaptive.exercise.bank import Slot
 from app.adaptive.exercise.planner import target_difficulty
-from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
 from app.adaptive.placement.items import Item, ItemBank, get_item_bank
 from app.adaptive.rules import get_rules
 
@@ -46,12 +48,14 @@ def fill(
     *,
     seen: dict[str, datetime] | None = None,
     weak: tuple[str, ...] = (),
+    wider: tuple[str, ...] = (),
     neighbours: dict[int, str] | None = None,
 ) -> dict[int, str]:
     found = bank.fill(
         slots,
         neighbours=neighbours or {},
         weak_kcs=weak,
+        wider_kcs=wider,
         bank=BANK,
         seen=seen or {},
         ability=ABILITY,
@@ -108,3 +112,36 @@ def test_every_real_bank_item_converts() -> None:
         kc = CATALOG.get(source.kc)
         assert kc is not None
         bank.to_body(source, kc, "zh", random.Random(0))
+
+
+def test_the_level_window_comes_after_the_set_kcs() -> None:
+    old = NOW - timedelta(days=30)
+    seen = {"a.near": NOW, "a.far": NOW, "b.1": old}
+    # The set's own weak KC, even seen long ago, before a fresh one from the window.
+    assert fill([Slot(0, "g.a")], seen=seen, weak=("g.b",), wider=("g.c",)) == {0: "b.1"}
+    seen["b.1"] = NOW
+    assert fill([Slot(0, "g.a")], seen=seen, weak=("g.b",), wider=("g.d", "g.c")) == {0: "d.1"}
+
+
+@pytest.mark.parametrize("level", [None, "A1", "B1", "B2", "C1"])
+def test_without_a_model_a_whole_set_comes_from_the_bank(level: CefrLevel | None) -> None:
+    """Q33g: a set covers about five KCs with about one bank item each; the window's
+    other KCs fill the rest."""
+    ability = RULES.difficulty.cefr_anchor[level or RULES.practice.default_level]
+    for seed in range(20):
+        planned = planner.plan(
+            CATALOG, {}, learner_level=level, ability=ability, now=NOW, rules=RULES, seed=seed
+        )
+        ranked = planner.candidates(CATALOG, {}, learner_level=level, now=NOW, rules=RULES)
+        found = bank.fill(
+            [Slot(i, p.kc_id) for i, p in enumerate(planned)],
+            neighbours={},
+            weak_kcs=[p.kc_id for p in planned if p.role == "weak"],
+            wider_kcs=ranked.weak,
+            bank=get_item_bank(),
+            seen={},
+            ability=ability,
+            now=NOW,
+            rules=RULES,
+        )
+        assert len(found) == RULES.practice.set_size

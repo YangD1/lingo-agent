@@ -162,25 +162,29 @@ def _interleave(items: list[PlannedItem], max_run: int, rng: random.Random) -> l
     return out
 
 
-def plan(
+@dataclass(frozen=True, slots=True)
+class Candidates:
+    # Not learned yet, highest priority first.
+    weak: list[str]
+    # Learned: due ones first (most overdue first), then those coming due soonest.
+    learned: list[str]
+    states: dict[str, KCState]
+
+
+def candidates(
     catalog: GrammarCatalog,
     states: Mapping[str, KCState],
     *,
     learner_level: CefrLevel | None,
-    ability: float,
     now: datetime,
     rules: Rules,
-    seed: int,
     boost: Mapping[str, float] | None = None,
-) -> list[PlannedItem]:
-    """One practice set: at most `practice.set_size` items, fewer when the learner has
-    too few candidate KCs. Same inputs and seed, same plan."""
-    rng = random.Random(seed)
+) -> Candidates:
+    """The KCs a set may practise (Q32c): those within the level window, plus any
+    with evidence, ranked by weakness x importance x recent mistakes (x boost)."""
     practice = rules.practice
     level = learner_level or practice.default_level
     window = practice.importance_by_gap
-
-    # Candidates (Q32c): KCs within the level window, plus any with evidence.
     known: dict[str, KCState] = {}
     gaps: dict[str, int] = {}
     for kc in catalog.kcs:
@@ -204,11 +208,32 @@ def plan(
         )
 
     weak = sorted((k for k, s in known.items() if not s.learned), key=lambda k: (-priority(k), k))
-    # Learned KCs: due ones first (most overdue first), then those coming due soonest.
     learned = sorted(
         (k for k, s in known.items() if s.learned),
         key=lambda k: (known[k].due is None, known[k].due or now, k),
     )
+    return Candidates(weak, learned, known)
+
+
+def plan(
+    catalog: GrammarCatalog,
+    states: Mapping[str, KCState],
+    *,
+    learner_level: CefrLevel | None,
+    ability: float,
+    now: datetime,
+    rules: Rules,
+    seed: int,
+    boost: Mapping[str, float] | None = None,
+) -> list[PlannedItem]:
+    """One practice set: at most `practice.set_size` items, fewer when the learner has
+    too few candidate KCs. Same inputs and seed, same plan."""
+    rng = random.Random(seed)
+    practice = rules.practice
+    ranked = candidates(
+        catalog, states, learner_level=learner_level, now=now, rules=rules, boost=boost
+    )
+    weak, learned, known = ranked.weak, ranked.learned, ranked.states
 
     size = practice.set_size
     used: Counter[Format] = Counter()

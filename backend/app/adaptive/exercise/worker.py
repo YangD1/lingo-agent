@@ -269,6 +269,7 @@ class PracticeWorker:
             learner = await inputs.load(session, user_id, rules=rules, catalog=catalog, now=now)
             planned = inputs.plan_set(learner, catalog=catalog, rules=rules, now=now, seed=seed)
             briefs = inputs.briefs(planned, learner, catalog)
+            wider = inputs.wider_kcs(learner, catalog=catalog, rules=rules, now=now)
             item_bank = await bank.load_bank(session, rules)
             seen = await bank.seen_items(session, user_id)
             provider_ctx = await load_provider_context(session, tenant_id)
@@ -303,5 +304,6 @@ class PracticeWorker:
             seed=seed,
             save=save,
             report=report,
+            wider_kcs=wider,
         )
         await self._graph.ainvoke(start_state(briefs, rules), context=ctx)

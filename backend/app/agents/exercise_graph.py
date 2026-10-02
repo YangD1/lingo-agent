@@ -100,6 +100,9 @@ class ExerciseContext:
     seed: int
     save: Callable[[SetResult], Awaitable[None]]
     report: Callable[[Stage], Awaitable[None]] | None = None
+    # The learner's candidate weak KCs by priority, for bank items past the set's own
+    # KCs (Q33g).
+    wider_kcs: Sequence[str] = ()
 
 
 class _Candidate(TypedDict):
@@ -281,6 +284,7 @@ async def fill(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[
             [bank.Slot(p, by_position[p].kc.id) for p in state["open"]],
             neighbours={p: item.kc_id for p, item in accepted.items()},
             weak_kcs=list(dict.fromkeys(b.kc.id for b in ctx.briefs if b.item.role == "weak")),
+            wider_kcs=ctx.wider_kcs,
             bank=ctx.bank,
             seen=ctx.seen,
             ability=ctx.learner.ability,

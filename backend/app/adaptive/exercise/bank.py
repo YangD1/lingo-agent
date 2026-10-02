@@ -4,7 +4,9 @@ Slots the generator could not fill (the critic rejected its drafts twice, the mo
 failed, or no model is configured) get a choice4 item from `placement/items.yaml`.
 The bank has about one item per KC, so each slot looks, in order, for: an item on its
 own KC the learner has not seen, one they last saw at least `practice.bank_repeat_days`
-ago, then the same on the set's other weak KCs. Within a tier the item nearest the
+ago, then the same on the set's other weak KCs, then on the other weak KCs of the
+learner's level window by planner priority (Q33g: a set covers about five KCs, too
+few to fill a whole set from the bank when there is no model). Within a tier the item nearest the
 slot's target difficulty wins, preferring a KC that does not sit next to the slot.
 A slot nothing fits is dropped; the caller decides whether the set is still big enough.
 """
@@ -39,6 +41,7 @@ def fill(
     *,
     neighbours: Mapping[int, str],
     weak_kcs: Sequence[str],
+    wider_kcs: Sequence[str] = (),
     bank: ItemBank,
     seen: Mapping[str, datetime],
     ability: float,
@@ -49,7 +52,8 @@ def fill(
 
     `neighbours`: the KC at each position already filled, so a substitute avoids
     sitting next to its own KC. `weak_kcs`: the set's weak KCs, which may stand in for
-    a slot whose KC has nothing usable. No bank item is used twice in a set.
+    a slot whose KC has nothing usable; `wider_kcs`, the learner's other candidate KCs
+    in priority order, come after them. No bank item is used twice in a set.
     """
     target = target_difficulty(ability, "choice4", rules)
     repeat_before = now - timedelta(days=rules.practice.bank_repeat_days)
@@ -72,11 +76,14 @@ def fill(
     for slot in sorted(slots, key=lambda s: s.position):
         near = {placed.get(slot.position - 1), placed.get(slot.position + 1)}
         others = [k for k in weak_kcs if k != slot.kc_id]
+        wider = [k for k in wider_kcs if k != slot.kc_id and k not in weak_kcs]
         for kc_ids, fresh in (
             ([slot.kc_id], True),
             ([slot.kc_id], False),
             (others, True),
             (others, False),
+            (wider, True),
+            (wider, False),
         ):
             if options := usable(kc_ids, fresh):
                 best = min(options, key=lambda i: (i.kc in near, abs(i.difficulty - target), i.id))

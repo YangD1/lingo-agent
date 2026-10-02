@@ -175,11 +175,9 @@ async def test_stale_sets_generated_ahead_are_replaced(
     assert (await get_set(maker, fresh)).status == "ready"
 
 
-async def test_without_a_model_the_set_comes_from_the_bank_or_fails(
+async def test_without_a_model_the_set_comes_from_the_bank(
     maker: async_sessionmaker[AsyncSession],
 ) -> None:
-    """The plan's KCs are random; the bank has about one item per KC, so whether five
-    slots can be filled depends on them. Either way nothing half-made is shown."""
     user_id, tenant_id = await learner(maker)
     models = FakeModels(generate_error=NoModelConfiguredError("llm", "exercise_generate", []))
     practice = worker(maker, models)
@@ -187,13 +185,10 @@ async def test_without_a_model_the_set_comes_from_the_bank_or_fails(
     set_id = await practice.start(user_id, tenant_id, "dashboard")
     await practice.wait_idle()
 
-    row = await get_set(maker, set_id)
+    assert (await get_set(maker, set_id)).status == "ready"
     made = await items(maker, set_id)
-    if row.status == "ready":
-        assert len(made) >= RULES.practice.min_items
-        assert all(i.bank_item_id is not None and i.format == "choice4" for i in made)
-    else:
-        assert (row.status, row.error_code, made) == ("failed", "no_llm_configured", [])
+    assert len(made) == RULES.practice.set_size
+    assert all(i.bank_item_id is not None and i.format == "choice4" for i in made)
 
 
 async def test_an_unexpected_error_fails_the_set(

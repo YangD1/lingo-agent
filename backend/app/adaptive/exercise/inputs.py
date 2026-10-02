@@ -16,7 +16,7 @@ from sqlalchemy import Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive import mastery
-from app.adaptive.exercise.planner import KCState, PlannedItem, plan
+from app.adaptive.exercise.planner import KCState, PlannedItem, candidates, plan
 from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, GrammarKC
 from app.adaptive.rules import Rules
 from app.db.models import Exercise, KCEvidence, KCMastery, SkillEstimate, UserProfile
@@ -204,6 +204,13 @@ def plan_set(
         rules=rules,
         seed=seed,
     )
+
+
+def wider_kcs(
+    inputs: LearnerInputs, *, catalog: GrammarCatalog, rules: Rules, now: datetime
+) -> list[str]:
+    """The learner's candidate weak KCs by priority: bank stand-ins (Q33g)."""
+    return candidates(catalog, inputs.states, learner_level=inputs.level, now=now, rules=rules).weak
 
 
 def briefs(
