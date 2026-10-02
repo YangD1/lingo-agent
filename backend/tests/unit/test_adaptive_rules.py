@@ -24,6 +24,8 @@ def test_shipped_rules_load() -> None:
     assert rules.bkt.p_guess["production"] < rules.bkt.p_guess["recognition"]
     assert "low" not in rules.evidence.counted_severities
     assert rules.elo.guess_by_format["choice4"] == 0.25
+    assert rules.practice.target_p.low <= rules.practice.target_p.high
+    assert rules.mastery_gate.min_formats == 3
 
 
 def _set(data: dict[str, Any], path: str, value: Any) -> None:
@@ -61,6 +63,11 @@ def _set(data: dict[str, Any], path: str, value: Any) -> None:
             {"A2": 0.0, "B1": -1.0, "B2": 1.0, "C1": 2.0, "C2": 3.0},
             "must rise",
         ),
+        ("practice.target_p", {"low": 0.9, "high": 0.8}, "must not exceed high"),
+        ("practice.weak_share", 1.2, "less than or equal to 1"),
+        ("practice.set_size", 0, "greater than or equal to 1"),
+        ("mastery_gate.min_formats", 7, "less than or equal to 6"),
+        ("mastery_gate", None, "mastery_gate"),
         ("version", None, "version"),
         ("elo.unknown", 1, "Extra inputs"),
     ],

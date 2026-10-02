@@ -15,6 +15,7 @@ from app.adaptive.exercise.formats import (
     parse_body,
     parse_response,
 )
+from app.adaptive.rules import get_rules
 
 EXPLAIN = "Use the past simple with a finished time like 'yesterday'."
 
@@ -56,6 +57,11 @@ def test_every_format_has_a_spec_and_a_valid_example() -> None:
         body = parse_body(fmt, content, answer)
         assert body.format == fmt
         assert isinstance(body, SPECS[fmt].body)
+
+
+def test_every_format_has_a_guess_rate() -> None:
+    assert set(FORMATS) <= get_rules().elo.guess_by_format.keys()
+    assert get_rules().mastery_gate.min_formats <= len(FORMATS)
 
 
 def test_evidence_and_grading_by_format() -> None:

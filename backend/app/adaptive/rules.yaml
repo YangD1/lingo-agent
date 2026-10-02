@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-09-30.3"
+version: "2026-10-02.1"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -59,9 +59,17 @@ elo:
     alpha: 0.8
     beta: 0.05
   initial_ability: 0.0
-  # Floor on the chance of a correct answer from blind guessing, by item format.
+  # Floor on the chance of a correct answer from blind guessing, by item format
+  # (every practice format of ADR 0021 needs one). A cloze gap has a hint, so a few
+  # forms are plausible; find_fix needs the right piece and the right fix; open
+  # formats cannot be guessed.
   guess_by_format:
     choice4: 0.25
+    cloze: 0.1
+    find_fix: 0.05
+    transform: 0.0
+    translate: 0.0
+    rewrite_own: 0.0
 
 # Prior difficulty of a test or practice item (ADR 0012 §3). The model picks one
 # level per dimension; difficulty = cefr_anchor[target KC level] + sum of offsets.
@@ -220,3 +228,35 @@ advice:
     vocab_review: 20
     vocab_learn: 5
     grammar_practice: 1.5
+
+# Practice sets (ADR 0021 §2-§4, P2 plan §3.3-§3.4).
+practice:
+  # Items in one set.
+  set_size: 10
+  # Share of a set's items on weak KCs; the rest go to mastered or due KCs
+  # (interleaving). The same KC never comes twice in a row.
+  weak_share: 0.7
+  # The same format at most this many times in a row.
+  max_same_format_run: 2
+  # Items aim at a predicted chance of a correct answer (guessing included) in this
+  # range: hard enough to learn from, easy enough to keep going (the "85% rule").
+  target_p:
+    low: 0.80
+    high: 0.85
+  # rewrite_own uses the learner's own counted mistakes from conversation, this recent.
+  rewrite_own_days: 30
+  # Items the critic rejects go back to the generator at most this many times; then
+  # they are dropped and the placement item bank fills the gap.
+  max_regenerations: 2
+
+# When a grammar KC counts as learned (ADR 0021 §7). All conditions hold at one
+# piece of evidence, judged only from evidence up to it, so replaying gives the same
+# answer. From then on the KC's practice answers are scheduled by FSRS.
+mastery_gate:
+  # Besides p_mastery >= bkt.mastered: correct answers in at least this many formats.
+  min_formats: 3
+  # ...with at least this many hours between the first and the last correct answer
+  # ("on two days", without needing the learner's time zone).
+  min_span_hours: 20
+  # ...and no counted mistake on the KC in conversation or writing in the days before.
+  clean_days: 14

@@ -218,6 +218,33 @@ class AdviceRules(_Strict):
         return self
 
 
+class TargetP(_Strict):
+    low: OpenProbability
+    high: OpenProbability
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.low > self.high:
+            raise ValueError("target_p.low must not exceed high")
+        return self
+
+
+class PracticeRules(_Strict):
+    set_size: int = Field(ge=1, le=30)
+    weak_share: Probability
+    max_same_format_run: int = Field(ge=1)
+    target_p: TargetP
+    rewrite_own_days: int = Field(ge=1)
+    max_regenerations: int = Field(ge=0, le=5)
+
+
+class MasteryGateRules(_Strict):
+    # At most the number of practice formats (six, ADR 0021 §1).
+    min_formats: int = Field(ge=1, le=6)
+    min_span_hours: float = Field(ge=0)
+    clean_days: int = Field(ge=0)
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
@@ -227,6 +254,8 @@ class Rules(_Strict):
     vocab: VocabRules
     placement: PlacementRules
     advice: AdviceRules
+    practice: PracticeRules
+    mastery_gate: MasteryGateRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:
