@@ -7,8 +7,8 @@
 ## 2026-10-02 · 任务 35 完成（练习接口、练习页、入口）
 
 - **做了什么**：35.1–35.5 见看板（指定语法点的组、继续没做完的组、开组掌握度快照；`api/practice.py` 五个接口；学习者模型“学会的条件”；`/practice` 页；“做一组题 / 对话练习”入口）。35.6：`fake_llm.py` 加出题、审题、批改的假回复，新 `frontend/e2e/practice-set.spec.ts` 两个流程，`practice.spec.ts` 改按钮名；修了 E2E 发现的 500（见踩坑）；`docs/agent-tools.md`、P2 计划落地记录。make lint 干净，pytest 1110、Vitest 311、E2E 45 全过；Docker 重建，迁移 head `27b21e3b464b`。
-- **未完成**：无。本地领先 origin，未推送。
-- **下一步**：推送并看 CI；然后任务 50（测试提醒，Q50a–c 已确认），开工前先拆子任务。
+- **未完成**：无。已推送到 502a355，CI run 36998731468 四个 job 全绿。
+- **下一步**：新会话开始任务 50（测试提醒，Q50a–c 已确认），开工前先拆子任务。
 - **踩坑**：① `answering.answer()` 在批改前 rollback、结束后 commit，`report()` 也 commit，之后依赖注入的 `user` / `tenant` 对象过期，接口里再读 `user.id` 会触发同步懒加载（async 下报 `MissingGreenlet` → 500）；要在调用前把 id 取出来。② 上一个会话因为对话累积超过 32MB 请求上限而中断（大量 E2E trace / 输出），跑 E2E 时只 tail 结果，不要把 trace 内容读进对话。③ 等后台进程时不要用 `pgrep -f`，它会匹配到自己的 shell。
 
 ## 2026-10-02 · 任务 34 完成（批改）
