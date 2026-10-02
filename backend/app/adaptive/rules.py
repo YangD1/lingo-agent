@@ -236,6 +236,19 @@ class PracticeRules(_Strict):
     target_p: TargetP
     rewrite_own_days: int = Field(ge=1)
     max_regenerations: int = Field(ge=0, le=5)
+    default_level: CefrLevel
+    importance_by_gap: dict[int, Annotated[float, Field(gt=0)]] = Field(min_length=1)
+    recent_mistake_days: int = Field(ge=1)
+    mistake_half: float = Field(gt=0)
+    max_items_per_kc: int = Field(ge=1)
+    production_from_p: Probability
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        gaps = sorted(self.importance_by_gap)
+        if gaps != list(range(gaps[0], gaps[-1] + 1)):
+            raise ValueError("importance_by_gap keys must be consecutive integers")
+        return self
 
 
 class MasteryGateRules(_Strict):
