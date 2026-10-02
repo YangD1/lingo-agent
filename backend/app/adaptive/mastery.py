@@ -1,13 +1,14 @@
 """Keeping kc_mastery in step with kc_evidence (ADR 0012 §2).
 
-kc_mastery is a cache: each row is `bkt.replay` over the KC's evidence, stamped with
-the rules version it was computed under. `refresh` recomputes the KCs whose evidence
-changed; `ensure_current` rebuilds a learner whose rows predate the current rules.
+kc_mastery is a cache: each row is `bkt.replay` and `learned.progress` (ADR 0021 §7)
+over the KC's evidence, stamped with the rules version it was computed under. `refresh`
+recomputes the KCs whose evidence changed; `ensure_current` rebuilds a learner whose
+rows predate the current rules.
 """
 
 import uuid
 from collections.abc import Iterable
-from typing import cast
+from typing import Any, cast
 
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
@@ -15,18 +16,39 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.bkt import Observation, prior, replay
 from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog
+from app.adaptive.learned import Learned, progress
 from app.adaptive.rules import Evidence, Rules, Severity
-from app.db.models import KCEvidence, KCMastery, UserProfile
+from app.db.models import Attempt, Exercise, KCEvidence, KCMastery, UserProfile
 
 
-def observation(row: KCEvidence) -> Observation:
+def observation(row: KCEvidence, group: uuid.UUID | None = None) -> Observation:
+    """`group`: the practice set of the answer the row came from, if any."""
     return Observation(
         correct=row.correct,
         evidence=cast(Evidence, row.evidence),
         at=row.created_at,
         turn=row.message_id,
         severity=cast(Severity | None, row.severity),
+        source=row.source,
+        format=row.format,
+        group=str(group) if group else None,
     )
+
+
+def _learned_columns(learned: Learned) -> dict[str, Any]:
+    card = learned.card
+    return {
+        "formats_passed": list(learned.formats_passed),
+        "correct_span_hours": learned.correct_span_hours,
+        "last_mistake_at": learned.last_mistake_at,
+        "mastered_at": learned.mastered_at,
+        "state": card.state.value if card else None,
+        "step": card.step if card else None,
+        "stability": card.stability if card else None,
+        "difficulty": card.difficulty if card else None,
+        "due": card.due if card else None,
+        "last_review": card.last_review if card else None,
+    }
 
 
 async def refresh(
@@ -49,14 +71,16 @@ async def refresh(
         CefrLevel | None,
         await session.scalar(select(UserProfile.cefr_level).where(UserProfile.user_id == user_id)),
     )
-    rows = await session.scalars(
-        select(KCEvidence)
+    rows = await session.execute(
+        select(KCEvidence, Exercise.set_id)
+        .outerjoin(Attempt, Attempt.id == KCEvidence.attempt_id)
+        .outerjoin(Exercise, Exercise.id == Attempt.exercise_id)
         .where(KCEvidence.user_id == user_id, KCEvidence.kc_id.in_(wanted))
         .order_by(KCEvidence.created_at, KCEvidence.id)
     )
     history: dict[str, list[Observation]] = {kc_id: [] for kc_id in wanted}
-    for row in rows:
-        history[row.kc_id].append(observation(row))
+    for row, set_id in rows:
+        history[row.kc_id].append(observation(row, set_id))
     empty = [kc_id for kc_id, observations in history.items() if not observations]
     if empty:
         await session.execute(
@@ -67,7 +91,8 @@ async def refresh(
             continue
         kc = catalog.get(kc_id)
         assert kc is not None  # filtered above
-        result = replay(observations, prior(kc.cefr, level, rules), rules)
+        p_init = prior(kc.cefr, level, rules)
+        result = replay(observations, p_init, rules)
         values = {
             "p_mastery": result.p_mastery,
             "observations": result.observations,
@@ -75,6 +100,7 @@ async def refresh(
             "produce_correct": result.produce_correct,
             "last_evidence_at": result.last_evidence_at,
             "rules_version": rules.version,
+            **_learned_columns(progress(observations, p_init, rules)),
         }
         await session.execute(
             insert(KCMastery)

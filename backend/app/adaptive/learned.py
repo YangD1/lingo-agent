@@ -17,7 +17,7 @@ observations in order:
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from functools import cache
 
 import fsrs
@@ -79,7 +79,8 @@ class _Walk:
         assert self.card is not None
         rating = rating or (fsrs.Rating.Good if good else fsrs.Rating.Again)
         sched = _scheduler(self.rules.vocab.desired_retention)
-        self.card, _ = sched.review_card(self.card, rating, at)
+        # py-fsrs takes UTC only; times from the database carry the session's zone.
+        self.card, _ = sched.review_card(self.card, rating, at.astimezone(UTC))
 
     def flush(self) -> None:
         if self.group is not None:
@@ -133,7 +134,7 @@ class _Walk:
 
         if self.gate_open(obs.at, p):
             self.mastered_at = obs.at
-            self.card = fsrs.Card(card_id=0, due=obs.at)
+            self.card = fsrs.Card(card_id=0, due=obs.at.astimezone(UTC))
             if obs.source == "exercise" and obs.group is not None:
                 # The rest of this set belongs to the same first review.
                 self.group = (obs.group, obs.at, False)
