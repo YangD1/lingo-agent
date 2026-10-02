@@ -19,7 +19,15 @@ from app.db.session import create_engine, create_sessionmaker
 from app.providers.config import TenantProviderContext
 from app.providers.tenant import load_provider_context
 from app.settings import get_settings
-from evals.models import CASSETTES_DIR, Cassette, CassetteMiss, EvalModel, LiveModel, ReplayModel
+from evals.models import (
+    CASSETTES_DIR,
+    RERECORD_HINT,
+    Cassette,
+    CassetteMiss,
+    EvalModel,
+    LiveModel,
+    ReplayModel,
+)
 from evals.registry import EVALUATORS
 from evals.runner import evaluate
 
@@ -49,7 +57,11 @@ async def run(names: Sequence[str], email: str | None, record: bool) -> int:
         cassette: Cassette | None = None
         model: EvalModel
         if ctx is None:
-            model = ReplayModel(Cassette.load(name))
+            replayed = Cassette.load(name)
+            if not replayed.path.exists():
+                print(f"== {name} ==\nno recordings yet: record them with {RERECORD_HINT}")
+                continue
+            model = ReplayModel(replayed)
         else:
             cassette = Cassette(CASSETTES_DIR / f"{name}.json") if record else None
             model = LiveModel(ctx, cassette)

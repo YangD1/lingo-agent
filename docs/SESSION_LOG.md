@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 任务 36.2 完成（critic 评估集）
+
+- **做了什么**：`evals/datasets/critic.yaml`（坏题 25 条，六类缺陷；好题 18 条，六种题型各 3）+ `evals/critic.py`（一题一次调用，走 `critic_messages` → `exercise_critic` → `drafts.judge`，生成器难度从用例的 `ratings` 用 `prior_difficulty` 算）；登记到 `EVALUATORS`；没有录制文件时 `make eval` 和 `evals/test_replay.py` 跳过并提示录制。单测 5 个；pytest 1149 全过。
+- **未完成**：critic 还没录制（36.4）。好题的难度评分是手写的，真实 critic 评分若普遍偏离超过 `critic_max_gap`（0.7），好题会因“难度评分不一致”被拒——36.4 实测时看 `good_passed` 的失败原因，属于用例评分不合理就改用例，属于 critic 问题就记下来。
+- **下一步**：36.3 批改评估集：`evals/grader.py`，用例组成 `ExerciseBody` + `Response`（`formats` 里的 response 模型），走 `grader.grade_messages` → `exercise_grade`（`grader.TASK`）→ `grader.verdict`；指标判对率 + 其他错误语法点命中。可照 `evals/critic.py` 和 `tests/unit/test_evals_critic.py` 的写法。
+- **踩坑**：YAML 1.1 里裸写的 `on` / `yes` 会读成布尔值，选项要加引号（格式校验会拦下）。
+
+---
+
 ## 2026-10-02 · 任务 36.1 完成（评估框架）
 
 - **做了什么**：建 `backend/evals/`：数据集 YAML（`thresholds` + `cases`）、报告（每条用例若干指标的对错）、录制 / 回放模型（键 = 任务 + 消息 + 输出结构的哈希，对不上抛 `CassetteMiss` 提示重录）、真实模型走 `get_structured_llm` 并可录制、`python -m evals` CLI（`--live --email`、`--record`）、`make eval` / `make eval-live`、pytest 回放（`testpaths` 加 `evals`）、mypy 覆盖 `evals`（Makefile 和 CI）。单测 15 个；pytest 1144 全过。

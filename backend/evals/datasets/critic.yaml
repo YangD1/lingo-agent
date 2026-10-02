@@ -1,0 +1,596 @@
+# Critic evaluation set (task 36.2): can `exercise_critic` + `drafts.judge` turn down
+# known-bad items and let good ones through?
+#
+# Each case is one item, reviewed alone, as the critic node would see it:
+#   expect   reject | pass
+#   flaw     reject only: wrong_key (the key is wrong), two_right (more than one right
+#            answer), off_target (does not test `kc`), unnatural (unnatural English or an
+#            unclear instruction), factual (a factual error), misrated (the generator's
+#            difficulty ratings are far off)
+#   kc       grammar KC id; the learner's level is the KC's unless `level` is given
+#   ratings  the generator's rubric ratings (`judge` compares the critic's with them)
+#   format, content, answer   as in `app/adaptive/exercise/formats.py`; rewrite_own
+#            takes `evidence_id: 1` when it is left out
+#
+# Every item is made up for this set; none comes from a learner.
+
+thresholds:
+  bad_rejected: 0.9
+  good_passed: 0.9
+
+cases:
+  # --- bad: the answer key is wrong ---
+
+  - id: choice4-wrong-key
+    expect: reject
+    flaw: wrong_key
+    kc: g.past_simple_irregular
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: one_plausible}
+    format: choice4
+    content:
+      stem: Yesterday she ___ to the market.
+      options: [go, went, goes, gone]
+    answer:
+      correct: gone
+      explanation: Past simple of "go" after "yesterday".
+
+  - id: cloze-wrong-key
+    expect: reject
+    flaw: wrong_key
+    kc: g.present_perfect_for_since
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: one_plausible}
+    format: cloze
+    content:
+      stem: I have lived in this city ___ 2019.
+    answer:
+      accepted: [for]
+      explanation: Use "for" with a period of time.
+
+  - id: find-fix-wrong-segment
+    expect: reject
+    flaw: wrong_key
+    kc: g.present_simple_third_person
+    ratings: {vocabulary: below_target, syntax: moderate, cues: explicit, distractors: weak}
+    format: find_fix
+    content:
+      segments: ["My brother ", "works ", "in a bank ", "and drive ", "to work every day."]
+    answer:
+      wrong_segment: 1
+      accepted: ["work "]
+      explanation: After "my brother" the verb takes no -s.
+
+  - id: transform-wrong-key
+    expect: reject
+    flaw: wrong_key
+    kc: g.passive_basic
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: transform
+    content:
+      instruction: Rewrite the sentence in the passive.
+      source: The chef cooked the meal.
+    answer:
+      accepted: ["The meal is cooked by the chef."]
+      explanation: The object becomes the subject, followed by be + past participle.
+
+  - id: translate-wrong-key
+    expect: reject
+    flaw: wrong_key
+    kc: g.past_simple_regular
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: translate
+    content:
+      source: 我昨天给妈妈打了电话。
+    answer:
+      accepted: ["I call my mother yesterday."]
+      explanation: "“昨天”说明是过去的事。"
+
+  - id: rewrite-own-wrong-key
+    expect: reject
+    flaw: wrong_key
+    kc: g.past_simple_irregular
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: rewrite_own
+    content:
+      instruction: Rewrite your sentence correctly.
+      original: Yesterday I buyed a new phone.
+    answer:
+      accepted: ["Yesterday I have bought a new phone."]
+      explanation: "“buy” 是不规则动词。"
+
+  # --- bad: more than one right answer ---
+
+  - id: choice4-must-or-might
+    expect: reject
+    flaw: two_right
+    kc: g.modals_possibility
+    ratings: {vocabulary: below_target, syntax: moderate, cues: partial, distractors: one_plausible}
+    format: choice4
+    content:
+      stem: She ___ be at home; her car is outside.
+      options: [must, might, mustn't, needn't]
+    answer:
+      correct: must
+      explanation: The car outside is strong evidence, so "must" shows certainty.
+
+  - id: choice4-a-or-the
+    expect: reject
+    flaw: two_right
+    kc: g.articles_basic
+    ratings: {vocabulary: below_target, syntax: simple, cues: none, distractors: one_plausible}
+    format: choice4
+    content:
+      stem: I saw ___ dog in the park this morning.
+      options: [a, an, the, many]
+    answer:
+      correct: a
+      explanation: The dog is mentioned for the first time.
+
+  - id: choice4-gerund-or-infinitive
+    expect: reject
+    flaw: two_right
+    kc: g.gerund_infinitive
+    ratings: {vocabulary: below_target, syntax: simple, cues: none, distractors: one_plausible}
+    format: choice4
+    content:
+      stem: I started ___ French last year.
+      options: [learning, to learn, learn, learned]
+    answer:
+      correct: learning
+      explanation: '"Start" is followed by the -ing form.'
+
+  - id: cloze-at-or-on-the-weekend
+    expect: reject
+    flaw: two_right
+    kc: g.prepositions_time
+    ratings: {vocabulary: below_target, syntax: simple, cues: none, distractors: weak}
+    format: cloze
+    content:
+      stem: We usually visit my grandparents ___ the weekend.
+    answer:
+      accepted: [at]
+      explanation: We say "at the weekend".
+
+  - id: find-fix-two-wrong-pieces
+    expect: reject
+    flaw: two_right
+    kc: g.plural_nouns
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: find_fix
+    content:
+      segments: ["There are three ", "childs ", "and two ", "woman ", "in the room."]
+    answer:
+      wrong_segment: 1
+      accepted: ["children "]
+      explanation: The plural of "child" is "children".
+
+  # --- bad: does not test its grammar point ---
+
+  - id: choice4-tests-preposition-not-perfect
+    expect: reject
+    flaw: off_target
+    kc: g.present_perfect_experience
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: one_plausible}
+    format: choice4
+    content:
+      stem: Have you ever been ___ Japan?
+      options: [to, in, at, "on"]
+    answer:
+      correct: to
+      explanation: We say "been to" a place.
+
+  - id: cloze-superlative-as-comparative
+    expect: reject
+    flaw: off_target
+    kc: g.comparatives
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: cloze
+    content:
+      stem: She is the ___ student in our class.
+      hint: tall
+    answer:
+      accepted: [tallest]
+      explanation: Use the -est form after "the" when comparing with the whole group.
+
+  - id: transform-negative-as-reported-speech
+    expect: reject
+    flaw: off_target
+    kc: g.reported_statements
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: transform
+    content:
+      instruction: Make the sentence negative.
+      source: He likes coffee.
+    answer:
+      accepted: ["He doesn't like coffee.", "He does not like coffee."]
+      explanation: Use "does not" before the base form.
+
+  - id: find-fix-irregular-past-as-past-continuous
+    expect: reject
+    flaw: off_target
+    kc: g.past_continuous
+    ratings: {vocabulary: below_target, syntax: moderate, cues: partial, distractors: weak}
+    format: find_fix
+    content:
+      segments: ["I ", "was watching TV ", "when the phone ", "ringed."]
+    answer:
+      wrong_segment: 3
+      accepted: ["rang."]
+      explanation: The past simple of "ring" is "rang".
+
+  # --- bad: unnatural English or an unclear task ---
+
+  - id: choice4-unnatural-stem
+    expect: reject
+    flaw: unnatural
+    kc: g.should_advice
+    ratings: {vocabulary: below_target, syntax: moderate, cues: partial, distractors: weak}
+    format: choice4
+    content:
+      stem: If you have the headache of the tooth, you ___ visit the doctor of teeth.
+      options: [should, should to, shoulds, must to]
+    answer:
+      correct: should
+      explanation: '"Should" is followed by the base form.'
+
+  - id: translate-unnatural-reference
+    expect: reject
+    flaw: unnatural
+    kc: g.going_to_future
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: translate
+    content:
+      source: 我打算明年去学开车。
+      instruction: Use "be going to".
+    answer:
+      accepted: ["I am going to go to learn the drive car next year."]
+      explanation: "用 be going to 表示打算。"
+
+  - id: transform-unclear-instruction
+    expect: reject
+    flaw: unnatural
+    kc: g.second_conditional
+    ratings: {vocabulary: below_target, syntax: moderate, cues: none, distractors: weak}
+    format: transform
+    content:
+      instruction: Do it.
+      source: I don't have enough money, so I can't buy a car.
+    answer:
+      accepted: ["If I had enough money, I could buy a car.", "If I had enough money, I would buy a car."]
+      explanation: An unreal present situation takes if + past simple, would/could + verb.
+
+  - id: cloze-unnatural-collocation
+    expect: reject
+    flaw: unnatural
+    kc: g.present_continuous
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: cloze
+    content:
+      stem: Look! My mother ___ the rice in the big electric fire now.
+      hint: make
+    answer:
+      accepted: [is making]
+      explanation: '"Look!" and "now" call for the present continuous.'
+
+  # --- bad: factual errors ---
+
+  - id: choice4-sun-rises-in-the-west
+    expect: reject
+    flaw: factual
+    kc: g.present_simple_third_person
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: choice4
+    content:
+      stem: The sun ___ in the west every morning.
+      options: [rises, rise, rising, is rise]
+    answer:
+      correct: rises
+      explanation: '"The sun" takes a verb with -s.'
+
+  - id: cloze-edison-telephone
+    expect: reject
+    flaw: factual
+    kc: g.passive_basic
+    ratings: {vocabulary: at_target, syntax: simple, cues: explicit, distractors: weak}
+    format: cloze
+    content:
+      stem: The telephone was ___ by Thomas Edison in 1876.
+      hint: invent
+    answer:
+      accepted: [invented]
+      explanation: Passive voice is was + past participle.
+
+  - id: transform-mouse-heavier
+    expect: reject
+    flaw: factual
+    kc: g.comparatives
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: transform
+    content:
+      instruction: Combine the two sentences into one with a comparative adjective.
+      source: A mouse is heavy. An elephant is light.
+    answer:
+      accepted: ["A mouse is heavier than an elephant."]
+      explanation: Short adjectives take -er + than.
+
+  - id: translate-yangtze-longest
+    expect: reject
+    flaw: factual
+    kc: g.superlatives
+    ratings: {vocabulary: at_target, syntax: simple, cues: explicit, distractors: weak}
+    format: translate
+    content:
+      source: 长江是世界上最长的河。
+    answer:
+      accepted: ["The Yangtze is the longest river in the world.", "The Yangtze River is the longest river in the world."]
+      explanation: "“最……”用 the + 最高级。"
+
+  # --- bad: the generator's difficulty ratings are far off ---
+
+  - id: choice4-easy-rated-hard
+    expect: reject
+    flaw: misrated
+    kc: g.be_present
+    ratings: {vocabulary: above_target, syntax: complex, cues: none, distractors: several_plausible}
+    format: choice4
+    content:
+      stem: I ___ a student.
+      options: [am, is, are, be]
+    answer:
+      correct: am
+      explanation: '"I" takes "am".'
+
+  - id: cloze-hard-rated-easy
+    expect: reject
+    flaw: misrated
+    kc: g.past_perfect
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: cloze
+    content:
+      stem: >-
+        By the time the auditors, whose arrival had been postponed twice because of a
+        strike that paralysed the regional rail network, finally reached the
+        headquarters, the board ___ quietly to restructure the subsidiary.
+      hint: resolve
+    answer:
+      accepted: [had resolved, had already resolved]
+      explanation: The board's decision came before the auditors arrived, so use the past perfect.
+
+  - id: transform-easy-rated-hard
+    expect: reject
+    flaw: misrated
+    kc: g.reported_statements
+    ratings: {vocabulary: above_target, syntax: complex, cues: none, distractors: several_plausible}
+    format: transform
+    content:
+      instruction: Report what she said. Start with "She said that".
+      source: "She said, \"I am tired.\""
+    answer:
+      accepted: ["She said that she was tired."]
+      explanation: In reported speech "am" moves back to "was".
+
+  # --- good items ---
+
+  - id: good-choice4-irregular-past
+    expect: pass
+    kc: g.past_simple_irregular
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: choice4
+    content:
+      stem: Last night I ___ a strange dream.
+      options: [had, have, has, having]
+    answer:
+      correct: had
+      explanation: '"Last night" calls for the past simple; the past of "have" is "had".'
+
+  - id: good-choice4-since
+    expect: pass
+    kc: g.present_perfect_for_since
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: one_plausible}
+    format: choice4
+    content:
+      stem: She ___ in Paris since 2015.
+      options: [has lived, lived, lives, is living]
+    answer:
+      correct: has lived
+      explanation: '"Since" + a starting point needs the present perfect.'
+
+  - id: good-choice4-mustnt
+    expect: pass
+    kc: g.modals_obligation
+    ratings: {vocabulary: below_target, syntax: moderate, cues: explicit, distractors: one_plausible}
+    format: choice4
+    content:
+      stem: You ___ smoke in here; it's against the rules.
+      options: [mustn't, don't have to, needn't, have to]
+    answer:
+      correct: mustn't
+      explanation: '"Mustn''t" means it is not allowed; "don''t have to" means it is not necessary.'
+
+  - id: good-cloze-comparative
+    expect: pass
+    kc: g.comparatives
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: cloze
+    content:
+      stem: My new flat is ___ than my old one.
+      hint: big
+    answer:
+      accepted: [bigger]
+      explanation: '"Than" needs the comparative; double the g in "big".'
+
+  - id: good-cloze-present-continuous
+    expect: pass
+    kc: g.present_continuous
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: cloze
+    content:
+      stem: Look! The children ___ in the garden.
+      hint: play
+    answer:
+      accepted: [are playing]
+      explanation: '"Look!" shows it is happening now: am/is/are + -ing.'
+
+  - id: good-cloze-at-oclock
+    expect: pass
+    kc: g.prepositions_time
+    ratings: {vocabulary: below_target, syntax: simple, cues: partial, distractors: weak}
+    format: cloze
+    content:
+      stem: The shop opens ___ 9 o'clock.
+    answer:
+      accepted: [at]
+      explanation: Use "at" with clock times.
+
+  - id: good-find-fix-irregular-past
+    expect: pass
+    kc: g.past_simple_irregular
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: find_fix
+    content:
+      segments: ["Last week ", "I ", "buyed ", "a new bike."]
+    answer:
+      wrong_segment: 2
+      accepted: ["bought "]
+      explanation: '"Buy" is irregular: the past is "bought".'
+
+  - id: good-find-fix-agreement
+    expect: pass
+    kc: g.subject_verb_agreement
+    ratings: {vocabulary: below_target, syntax: simple, cues: partial, distractors: weak}
+    format: find_fix
+    content:
+      segments: ["The list of names ", "are ", "on the desk ", "next to the window."]
+    answer:
+      wrong_segment: 1
+      accepted: ["is "]
+      explanation: The subject is "the list", which is singular.
+
+  - id: good-find-fix-an
+    expect: pass
+    kc: g.articles_basic
+    ratings: {vocabulary: below_target, syntax: moderate, cues: partial, distractors: weak}
+    format: find_fix
+    content:
+      segments: ["She is ", "a ", "honest woman ", "who helps everyone."]
+    answer:
+      wrong_segment: 1
+      accepted: ["an "]
+      explanation: '"Honest" starts with a vowel sound, so use "an".'
+
+  - id: good-transform-passive
+    expect: pass
+    kc: g.passive_basic
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: transform
+    content:
+      instruction: Rewrite the sentence in the passive. Keep the past tense.
+      source: Someone stole my bike last night.
+    answer:
+      accepted: ["My bike was stolen last night.", "My bike was stolen by someone last night."]
+      explanation: Past passive is was/were + past participle; "by someone" can be left out.
+
+  - id: good-transform-question
+    expect: pass
+    kc: g.question_formation
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: transform
+    content:
+      instruction: Turn the sentence into a yes/no question.
+      source: She lives in Shanghai.
+    answer:
+      accepted: ["Does she live in Shanghai?"]
+      explanation: Put "does" before the subject and use the base form of the verb.
+
+  - id: good-transform-reported
+    expect: pass
+    kc: g.reported_statements
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: transform
+    content:
+      instruction: Report the sentence. Start with "Tom said".
+      source: "Tom said, \"I am busy today.\""
+    answer:
+      accepted:
+        - Tom said that he was busy that day.
+        - Tom said he was busy that day.
+        - Tom said that he was busy today.
+        - Tom said he was busy today.
+      explanation: The present "am" moves back to "was", and "I" becomes "he".
+
+  - id: good-translate-experience
+    expect: pass
+    kc: g.present_perfect_experience
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: translate
+    content:
+      source: 你去过北京吗？
+      instruction: Use the present perfect.
+    answer:
+      accepted: ["Have you ever been to Beijing?", "Have you been to Beijing?"]
+      explanation: "问经历用 Have you (ever) been to ...?"
+
+  - id: good-translate-going-to
+    expect: pass
+    kc: g.going_to_future
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: translate
+    content:
+      source: 我打算明年学开车。
+      instruction: Use "be going to".
+    answer:
+      accepted:
+        - I'm going to learn to drive next year.
+        - I am going to learn to drive next year.
+        - I'm going to learn how to drive next year.
+      explanation: "已经打算好的事用 be going to + 动词原形。"
+
+  - id: good-translate-first-conditional
+    expect: pass
+    kc: g.first_conditional
+    ratings: {vocabulary: below_target, syntax: moderate, cues: explicit, distractors: weak}
+    format: translate
+    content:
+      source: 如果明天下雨，我们就待在家里。
+    answer:
+      accepted:
+        - If it rains tomorrow, we will stay at home.
+        - If it rains tomorrow, we'll stay at home.
+        - If it rains tomorrow, we'll stay home.
+        - We will stay at home if it rains tomorrow.
+      explanation: "if 从句用一般现在时，主句用 will。"
+
+  - id: good-rewrite-own-irregular-past
+    expect: pass
+    kc: g.past_simple_irregular
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: rewrite_own
+    content:
+      instruction: Rewrite your sentence correctly.
+      original: Yesterday I buyed a new phone.
+    answer:
+      accepted: ["Yesterday I bought a new phone."]
+      explanation: "buy 的过去式是 bought。"
+
+  - id: good-rewrite-own-third-person
+    expect: pass
+    kc: g.present_simple_third_person
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: rewrite_own
+    content:
+      instruction: Rewrite your sentence correctly.
+      original: My father work in a hospital.
+    answer:
+      accepted: ["My father works in a hospital."]
+      explanation: "主语是第三人称单数，动词加 -s。"
+
+  - id: good-rewrite-own-an
+    expect: pass
+    kc: g.articles_basic
+    ratings: {vocabulary: below_target, syntax: simple, cues: partial, distractors: weak}
+    format: rewrite_own
+    content:
+      instruction: Rewrite your sentence correctly.
+      original: I want to be a engineer.
+    answer:
+      accepted: ["I want to be an engineer."]
+      explanation: "engineer 以元音音素开头，用 an。"
