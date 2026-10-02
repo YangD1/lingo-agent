@@ -25,6 +25,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, deferred, mapped_column
 
+from app.adaptive.exercise.formats import FORMATS
 from app.adaptive.kc.catalog import ERROR_TYPES
 from app.adaptive.rules import EVIDENCE_KINDS, SEVERITIES
 from app.db.base import Base, TimestampMixin
@@ -42,7 +43,7 @@ MEMORY_KINDS = ("fact", "episode")
 CEFR_LEVELS = ("A1", "A2", "B1", "B2", "C1", "C2")
 EXPLANATION_LANGUAGES = ("zh", "en")
 KC_KINDS = ("grammar", "word")
-EVIDENCE_SOURCES = ("chat", "placement")
+EVIDENCE_SOURCES = ("chat", "placement", "exercise", "writing", "reading")
 SKILLS = ("listening", "speaking", "reading", "writing", "grammar", "vocab")
 ACTIVITY_KINDS = ("step", "tool", "mcp", "background")
 ACTIVITY_STATUSES = ("ok", "failed", "skipped")
@@ -55,6 +56,14 @@ CONVERSATION_PURPOSES = ("planning", "daily")
 TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
+# Where a practice set was started from (ADR 0021); prefetch: made in the background
+# after the learner finished a set, waiting for the next one.
+EXERCISE_SET_ORIGINS = ("dashboard", "learner", "card", "plan", "prefetch")
+# generating -> ready -> in_progress -> done; generating -> failed.
+EXERCISE_SET_STATUSES = ("generating", "ready", "in_progress", "done", "failed")
+# rejected: kept for the record, never shown; reported: the learner flagged it, so its
+# answers count as no evidence.
+EXERCISE_STATUSES = ("ok", "rejected", "reported")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -347,12 +356,16 @@ class KCEvidence(Base):
             f"error_type IS NULL OR {_in('error_type', ERROR_TYPES)}", name="error_type"
         ),
         CheckConstraint(f"severity IS NULL OR {_in('severity', SEVERITIES)}", name="severity"),
+        CheckConstraint(f"format IS NULL OR {_in('format', FORMATS)}", name="format"),
+        # Practice answers always say which format they came from; nothing else does.
+        CheckConstraint("(source = 'exercise') = (format IS NOT NULL)", name="format_source"),
         # A mistake always says how and how badly; a success never does.
         CheckConstraint(
             "correct = (error_type IS NULL) AND correct = (severity IS NULL)", name="mistake_fields"
         ),
         Index("ix_kc_evidence_user_id_created_at", "user_id", "created_at"),
         Index("ix_kc_evidence_user_id_kc_id_created_at", "user_id", "kc_id", "created_at"),
+        Index("ix_kc_evidence_attempt_id", "attempt_id"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -375,19 +388,35 @@ class KCEvidence(Base):
     correction: Mapped[str | None] = mapped_column(Text)
     # The error mirrors a pattern of the learner's first language.
     l1_transfer: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Practice answers (source `exercise`): the item's format and the answer itself.
+    # One find_fix answer gives two rows, recognition and production (ADR 0021 §1).
+    format: Mapped[str | None] = mapped_column(String(20))
+    attempt_id: Mapped[int | None] = mapped_column(ForeignKey("attempts.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class KCMastery(TimestampMixin, Base):
     """Cached result of replaying a learner's evidence for one KC (ADR 0012 §2).
 
-    Rows whose `rules_version` differs from rules.yaml are stale and get rebuilt.
+    Rows whose `rules_version` differs from rules.yaml are stale and get rebuilt. The
+    "learned" progress and the FSRS columns are replayed from evidence too (ADR 0021
+    §7): the FSRS state is set once the KC is learned and mirrors `fsrs.Card` like
+    `user_cards`.
     """
 
     __tablename__ = "kc_mastery"
     __table_args__ = (
         CheckConstraint(_in("kind", KC_KINDS), name="kind"),
         CheckConstraint("p_mastery BETWEEN 0 AND 1", name="p_mastery"),
+        CheckConstraint("state IS NULL OR state BETWEEN 1 AND 3", name="state"),
+        CheckConstraint("(mastered_at IS NULL) = (due IS NULL)", name="mastered_due"),
+        # Learned grammar points coming due for review.
+        Index(
+            "ix_kc_mastery_user_id_due",
+            "user_id",
+            "due",
+            postgresql_where="due IS NOT NULL",
+        ),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -402,6 +431,23 @@ class KCMastery(TimestampMixin, Base):
     produce_correct: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     last_evidence_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     rules_version: Mapped[str] = mapped_column(String(50))
+    # Progress towards "learned" (rules.yaml mastery_gate): formats answered correctly
+    # in practice, hours between the first and the last correct practice answer, and
+    # the latest counted mistake in conversation or writing.
+    formats_passed: Mapped[list[str]] = mapped_column(
+        ARRAY(String(20)), default=list, server_default="{}"
+    )
+    correct_span_hours: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    last_mistake_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The evidence time at which all conditions first held.
+    mastered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # fsrs.State: 1 learning, 2 review, 3 relearning.
+    state: Mapped[int | None] = mapped_column(SmallInteger)
+    step: Mapped[int | None] = mapped_column(SmallInteger)
+    stability: Mapped[float | None] = mapped_column(Float)
+    difficulty: Mapped[float | None] = mapped_column(Float)
+    due: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class SkillEstimate(TimestampMixin, Base):
@@ -718,3 +764,86 @@ class PlacementItemStat(TimestampMixin, Base):
     item_id: Mapped[str] = mapped_column(String(100), primary_key=True)
     difficulty: Mapped[float] = mapped_column(Float)
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+
+class ExerciseSet(Base):
+    """One practice set: the planned KCs and formats, then its items (ADR 0021 §3)."""
+
+    __tablename__ = "exercise_sets"
+    __table_args__ = (
+        CheckConstraint(_in("origin", EXERCISE_SET_ORIGINS), name="origin"),
+        CheckConstraint(_in("status", EXERCISE_SET_STATUSES), name="status"),
+        Index("ix_exercise_sets_user_id_created_at", "user_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    origin: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20))
+    # The planner's output: one entry per item (KC, format, target difficulty).
+    kc_plan: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    # Why generation failed, as an error code; never model output.
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Exercise(Base):
+    """One practice item, private to its learner (ADR 0021 §5).
+
+    `content` and `answer` hold the format's models (`adaptive/exercise/formats.py`);
+    `answer` is never sent before the learner has answered. Items the critic rejected
+    are kept with status `rejected` so the critic can be evaluated (ADR 0021 §8).
+    """
+
+    __tablename__ = "exercises"
+    __table_args__ = (
+        CheckConstraint(_in("format", FORMATS), name="format"),
+        CheckConstraint(_in("status", EXERCISE_STATUSES), name="status"),
+        Index("ix_exercises_set_id_position", "set_id", "position"),
+        Index("ix_exercises_user_id_created_at", "user_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    set_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("exercise_sets.id", ondelete="CASCADE"))
+    # Order within the set; rejected items share the slot of the item that replaced them.
+    position: Mapped[int] = mapped_column(SmallInteger)
+    # No FK: KC ids come from the checked-in catalog, as in kc_evidence.
+    kc_id: Mapped[str] = mapped_column(String(100))
+    format: Mapped[str] = mapped_column(String(20))
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    answer: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    # Prior difficulty from the rubric ratings (ADR 0012 §3), kept with the ratings so
+    # the item can be re-priced when the rubric changes.
+    difficulty: Mapped[float] = mapped_column(Float)
+    ratings: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    # The critic's verdict, reasons and its own answer; NULL for bank items.
+    critic: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(10))
+    # Set when the item came from the placement bank instead of the generator.
+    bank_item_id: Mapped[str | None] = mapped_column(String(100))
+    # "<connection>:<model>" that wrote it; NULL for bank items.
+    model: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Attempt(Base):
+    """A learner's answer to one practice item and how it was graded (ADR 0021 §6)."""
+
+    __tablename__ = "attempts"
+    __table_args__ = (
+        Index("ix_attempts_user_id_created_at", "user_id", "created_at"),
+        Index("ix_attempts_exercise_id", "exercise_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    exercise_id: Mapped[int] = mapped_column(ForeignKey("exercises.id", ondelete="CASCADE"))
+    response: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    correct: Mapped[bool] = mapped_column(Boolean)
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    # Explanation shown, and the grader's other mistakes when a model graded it.
+    feedback: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

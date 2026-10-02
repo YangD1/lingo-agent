@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-10-02 · 任务 30 收尾 + 任务 31 完成
+
+- **做了什么**：用户 review 通过任务 30。任务 31 拆成 31.1–31.4，Q31a–c 按推荐确认（语法点 FSRS 从证据重放；“没再错”= 前 14 天对话和写作里没有计入错误；“跨天”= 答对首末相隔 ≥ 20 小时，不按自然日），写进 ADR 0021 §7。31.1 `app/adaptive/exercise/formats.py`（六种题型的 Pydantic 模型、`parse_body`、`parse_response`、`normalize`、`SPECS` 写明判法和证据类型）。31.2 `rules.yaml` 版本 `2026-10-02.1`：`guess_by_format` 补齐，新增 `practice`、`mastery_gate`；`rules.py` 对应模型。31.3 迁移 `3b9536dae2f6`：`exercise_sets` / `exercises` / `attempts`，`kc_evidence` 加来源、`format`、`attempt_id`，`kc_mastery` 加“学会”进度和 FSRS 列；开发库已升到这个版本。31.4 pytest 880、ruff、mypy 全过。
+- **未完成**：无（任务 31 全部完成）。`frontend/Dockerfile` 可选代理构建参数仍未决。
+- **下一步**：任务 32：先拆子任务写进看板。要点：`bkt.replay` 的 `Observation` 加 format 和 source，重放时算 `formats_passed`、`correct_span_hours`、`last_mistake_at`（只算 chat / writing 的计入错误）、`mastered_at`，之后的练习证据按 Good / Again 交给 FSRS（复用单词的 `fsrs` 参数），写回 `mastery.refresh`；find_fix 一次作答产生两条证据，per-turn 上限要按 `attempt_id` 分组；选题优先级权重要加进 `rules.yaml`（再升版本号）；选题纯函数放 `adaptive/exercise/planner.py`。
+- **踩坑**：`rules.py` 不能引用 `exercise/formats.py`（循环引用），“每种题型都有猜中率”放在测试里检查。ruff 的 RUF001 不允许字符串里直接写弯引号，用码点写。
+
 ## 2026-10-02 · P2 Q5–Q13 确认 + 任务 30 ADR
 
 - **做了什么**：Q5–Q13 全部按推荐确认，写回计划 §10 和看板（提交 734e01f）。任务 30：写 ADR 0021（练习引擎）、0022（图谱存 Postgres）、0023（Supervisor 与 coach）、0024（阅读来源与版权）、0025（定时任务与后台上限）；ADR 0001 标注被取代部分；PLAN 全面同步（去掉 Neo4j、interrupt、VOA）；compose 删 neo4j 服务和卷，`.env.example` 删 `NEO4J_*`，CLAUDE.md 和 `kc/catalog.py` 注释同步。
