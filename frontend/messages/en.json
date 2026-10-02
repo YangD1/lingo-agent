@@ -882,7 +882,7 @@
     "invalid_answer": "That answer isn't valid. Please answer again.",
     "placement_not_in_progress": "This placement test was abandoned. Start a new one.",
     "placement_not_found": "This placement test doesn't exist.",
-    "unknown_kc": "That grammar point no longer exists.",
+    "unknown_kc": "There is no such grammar point.",
     "not_practice": "Only a grammar practice or study planning conversation starts by itself.",
     "conversation_started": "This conversation has already started.",
     "card_not_found": "This card doesn't exist or was deleted.",
@@ -890,7 +890,12 @@
     "card_not_applied": "Only a confirmed card can be undone.",
     "card_invalid": "This proposal is no longer valid (for example, the word book was removed).",
     "setting_changed": "You've changed this setting since, so it can't be undone here. Change it on its page instead.",
-    "conflicting_purpose": "A conversation is either for practice or for planning."
+    "conflicting_purpose": "A conversation is either for practice or for planning.",
+    "practice_set_not_found": "This practice set doesn't exist.",
+    "exercise_not_found": "This question doesn't exist.",
+    "not_answerable": "This question can no longer be answered.",
+    "invalid_response": "That answer doesn't fit this question. Please answer again.",
+    "grading_failed": "Grading failed and your answer wasn't saved. Please submit it again."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1117,5 +1122,93 @@
     "unsupported": "This browser can't read aloud.",
     "silent": "{name} (no sound on this device)",
     "silentHint": "Online voices stream from Microsoft's or Google's servers; where those can't be reached they make no sound, and this device's own voices read instead. They are tried again after a reload."
+  },
+  "practice": {
+    "focus": "This set focuses on: {kc}",
+    "generatingNote": "The first set takes about half a minute; the next one is prepared while you practise.",
+    "stage": {
+      "generating": "Writing questions…",
+      "reviewing": "Checking questions…",
+      "rewriting": "Some questions didn't pass the check; rewriting them…",
+      "filling": "Filling in from the question bank…"
+    },
+    "failed": {
+      "title": "This set couldn't be made",
+      "retry": "Try again",
+      "other": "Something went wrong while writing questions. Please try again.",
+      "no_llm_configured": "No model is set up, and the question bank doesn't have enough suitable questions. Add a model connection in Settings.",
+      "generation_failed": "The model couldn't write good questions, and the question bank doesn't have enough. Please try again later.",
+      "interrupted": "The server restarted while writing questions. Please try again.",
+      "expired": "This set waited too long. Please start again."
+    },
+    "landing": {
+      "title": "Grammar practice",
+      "description": "About 10 questions on your weak grammar points, mixed with some you already know.",
+      "how": "The question types rotate: multiple choice, fill in the blank, find and fix the error, transform, translate, and rewrite your own sentences. You see an explanation after each answer, and every question is checked by another model first, so faulty ones don't reach you.",
+      "start": "Start a set",
+      "continue": "Continue your last set",
+      "recent": "Recent sets",
+      "none": "No practice yet.",
+      "mixed": "Mixed practice",
+      "score": "{correct} / {total} right",
+      "resume": "Continue ({answered}/{total})",
+      "failed": "Not made"
+    },
+    "item": {
+      "count": "{n} / {total}",
+      "fromBank": "From the bank",
+      "blank": "blank",
+      "hint": "Hint: {hint}",
+      "prompt": {
+        "choice4": "Choose the answer that fills the blank",
+        "cloze": "Fill in the blank with the right form",
+        "find_fix": "One part of this sentence is wrong: pick it, then fix it",
+        "translate": "Translate into English",
+        "rewrite_own": "You wrote this sentence earlier. Correct it"
+      },
+      "answerLabel": {
+        "cloze": "Your answer",
+        "find_fix": "Change it to",
+        "transform": "Your sentence",
+        "translate": "Your translation",
+        "rewrite_own": "The corrected sentence"
+      },
+      "pickPiece": "Part {n}: {piece}",
+      "choiceKeys": "Press <k>1</k>–<k>4</k> to choose",
+      "findKeys": "Pick the wrong part (or press <k>1</k>–<k>6</k>)",
+      "submit": "Submit",
+      "grading": "Grading…",
+      "enterHint": "Enter to submit, Shift+Enter for a new line",
+      "right": "Correct",
+      "wrong": "Not quite",
+      "yours": "Your answer:",
+      "corrected": "Corrected:",
+      "reference": "Answer:",
+      "otherMistakes": "Other issues in your answer",
+      "reported": "Marked as faulty; it doesn't count towards mastery.",
+      "report": "Report a problem",
+      "reportConfirm": "Report this question as faulty? It won't count towards mastery and is kept to improve the questions.",
+      "next": "Next",
+      "finish": "See results",
+      "reportYes": "Report"
+    },
+    "summary": {
+      "title": "Set finished",
+      "score": "{correct} of {total} right",
+      "kcs": "Grammar points in this set",
+      "answered": "{correct} / {total} right",
+      "notCounted": "Not counted",
+      "firstTime": "First practice, now {after}%",
+      "to": "to",
+      "newlyLearned": "Newly learned",
+      "again": "Another set",
+      "toLearner": "Open the learner model",
+      "madeBy": {
+        "written": "{n} written by {writers}, checked by {reviewers}",
+        "fromBank": "{n} from the question bank",
+        "rejected": "{n} rejected in review",
+        "separator": "; "
+      }
+    }
   }
 }

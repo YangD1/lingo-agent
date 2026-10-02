@@ -882,7 +882,7 @@
     "invalid_answer": "答案格式不对，请重新作答。",
     "placement_not_in_progress": "这次入学测已经放弃，请重新开始。",
     "placement_not_found": "找不到这次入学测。",
-    "unknown_kc": "找不到这个语法点，可能已经下线。",
+    "unknown_kc": "没有这个语法点。",
     "not_practice": "只有语法练习或学习规划对话会自动开始。",
     "conversation_started": "这个对话已经开始了。",
     "card_not_found": "这张卡片不存在或已被删除。",
@@ -890,7 +890,12 @@
     "card_not_applied": "只有已确认的卡片才能撤销。",
     "card_invalid": "这条提议已经失效（比如词书已被移除）。",
     "setting_changed": "你之后又改过这项设置，这里不能撤销了，请到对应页面修改。",
-    "conflicting_purpose": "一个对话只能用于练习或规划，不能同时两者。"
+    "conflicting_purpose": "一个对话只能用于练习或规划，不能同时两者。",
+    "practice_set_not_found": "这组练习不存在。",
+    "exercise_not_found": "这道题不存在。",
+    "not_answerable": "这道题已经不能作答了。",
+    "invalid_response": "答案格式不对，请重新作答。",
+    "grading_failed": "批改失败了，答案没有保存，请再提交一次。"
   },
   "dashboard": {
     "title": "能力看板",
@@ -1117,5 +1122,93 @@
     "unsupported": "这个浏览器不能朗读。",
     "silent": "{name}（这台设备上播不出声）",
     "silentHint": "在线声音要连微软或 Google 的服务器，连不上时没有声音，会自动改用本机的声音。刷新页面后会重新尝试。"
+  },
+  "practice": {
+    "focus": "这组专练：{kc}",
+    "generatingNote": "第一次出题大约需要半分钟；做完这组后，下一组会提前准备好。",
+    "stage": {
+      "generating": "正在出题…",
+      "reviewing": "正在审题…",
+      "rewriting": "有几道题没通过审题，正在重写…",
+      "filling": "正在从题库补题…"
+    },
+    "failed": {
+      "title": "这组题没出成",
+      "retry": "再试一次",
+      "other": "出题时出错了，请再试一次。",
+      "no_llm_configured": "还没有配置模型，题库里能用的题也不够。请先在设置里添加模型连接。",
+      "generation_failed": "模型没能出好题，题库里能用的题也不够。请稍后再试。",
+      "interrupted": "出题时服务重启了，请再试一次。",
+      "expired": "这组题放得太久了，请重新开始。"
+    },
+    "landing": {
+      "title": "语法练习",
+      "description": "一组约 10 题，覆盖你的薄弱语法点，中间穿插已经掌握的点。",
+      "how": "题型轮换：选择、填空、找错改错、句型转换、中译英、改写自己说错过的句子。每题答完马上看到讲解；出的题先由另一个模型审一遍，有问题的题不会给你。",
+      "start": "开始一组",
+      "continue": "继续上次的练习",
+      "recent": "最近的练习",
+      "none": "还没有练习记录。",
+      "mixed": "综合练习",
+      "score": "答对 {correct} / {total}",
+      "resume": "继续（{answered}/{total}）",
+      "failed": "没出成"
+    },
+    "item": {
+      "count": "第 {n} / {total} 题",
+      "fromBank": "题库题",
+      "blank": "空格",
+      "hint": "提示：{hint}",
+      "prompt": {
+        "choice4": "选出填进空格的正确答案",
+        "cloze": "在空格里填上正确的形式",
+        "find_fix": "这句话有一处错误：先点出错的部分，再改正它",
+        "translate": "翻译成英文",
+        "rewrite_own": "这是你之前说过的一句话，请改正它"
+      },
+      "answerLabel": {
+        "cloze": "你的答案",
+        "find_fix": "改成",
+        "transform": "你的句子",
+        "translate": "你的翻译",
+        "rewrite_own": "改正后的句子"
+      },
+      "pickPiece": "第 {n} 段：{piece}",
+      "choiceKeys": "按 <k>1</k>–<k>4</k> 选择",
+      "findKeys": "点出错的那一段（或按 <k>1</k>–<k>6</k>）",
+      "submit": "提交",
+      "grading": "批改中…",
+      "enterHint": "Enter 提交，Shift+Enter 换行",
+      "right": "答对了",
+      "wrong": "答错了",
+      "yours": "你的答案：",
+      "corrected": "改正：",
+      "reference": "参考答案：",
+      "otherMistakes": "答案里的其他问题",
+      "reported": "已标记这题有问题，它不计入掌握度。",
+      "report": "这题有问题",
+      "reportConfirm": "标记这题有问题？它不会计入掌握度，并留作改进出题的样本。",
+      "next": "下一题",
+      "finish": "看结果",
+      "reportYes": "标记"
+    },
+    "summary": {
+      "title": "这组做完了",
+      "score": "答对 {correct} / {total} 题",
+      "kcs": "这组练到的语法点",
+      "answered": "答对 {correct} / {total}",
+      "notCounted": "不计入",
+      "firstTime": "第一次练，现在 {after}%",
+      "to": "变为",
+      "newlyLearned": "新学会",
+      "again": "再来一组",
+      "toLearner": "看学习者模型",
+      "madeBy": {
+        "written": "{n} 题由 {writers} 出题、{reviewers} 审题",
+        "fromBank": "{n} 题来自题库",
+        "rejected": "审题拒掉 {n} 道",
+        "separator": "；"
+      }
+    }
   }
 }

@@ -159,7 +159,7 @@ async def _set_out(
 
 
 class StartIn(BaseModel):
-    origin: Literal["dashboard", "learner", "card", "plan"] = "dashboard"
+    origin: Literal["dashboard", "learner", "card", "plan", "practice"] = "practice"
     # Practise this grammar point (Q35a).
     kc_id: str | None = Field(default=None, max_length=100)
 

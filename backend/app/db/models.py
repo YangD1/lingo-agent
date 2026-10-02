@@ -58,7 +58,7 @@ TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link")
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
 # Where a practice set was started from (ADR 0021); prefetch: made in the background
 # after the learner finished a set, waiting for the next one.
-EXERCISE_SET_ORIGINS = ("dashboard", "learner", "card", "plan", "prefetch")
+EXERCISE_SET_ORIGINS = ("dashboard", "learner", "card", "plan", "practice", "prefetch")
 # generating -> ready -> in_progress -> done; generating -> failed.
 EXERCISE_SET_STATUSES = ("generating", "ready", "in_progress", "done", "failed")
 # rejected: kept for the record, never shown; reported: the learner flagged it, so its
