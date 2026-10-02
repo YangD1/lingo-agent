@@ -9,6 +9,7 @@ export type AiFeature =
   | "practice_start"
   | "plan_start"
   | "practice_set"
+  | "practice_grade"
   | "memory_edit"
   | "word_examples"
   | "message_translate";
@@ -25,6 +26,7 @@ const AI_TASKS = [
   "plan_opening",
   "exercise_generate",
   "exercise_critic",
+  "exercise_grade",
   "word_examples",
   "translate",
   "advice", // no longer called (ADR 0016); past usage records still carry it

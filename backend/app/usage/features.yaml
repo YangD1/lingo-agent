@@ -86,6 +86,16 @@ features:
         timing: background
         default: {input_tokens: 2000, output_tokens: 1500}
 
+  # Grading an answer the code cannot (ADR 0021 §6): open formats, and find_fix with a
+  # fix not in the item's list. One call per such answer, only the first time an item
+  # is answered (Q34b); choice and cloze answers are graded by code. Most of the input
+  # is the grammar catalog, the same on every call.
+  practice_grade:
+    calls:
+      - task: exercise_grade
+        timing: now
+        default: {input_tokens: 7500, output_tokens: 300}
+
   # "Talk it over with the tutor" in the placement result's conversation (ADR 0015 §6,
   # 0016 §4): the tutor's opening of the planning conversation; later turns, and the
   # dashboard's daily conversation (which has no opening), are chat_message.
