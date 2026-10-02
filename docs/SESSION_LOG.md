@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-10-02 · 任务 34.1、34.2 完成
+
+- **做了什么**：34.1 `exercise/grading.py` 代码批改（17 个单测，提交 78b0272）。34.2 `exercise/grader.py` + `prompts/exercise_grade.md`：结构化输出 `Graded`（`correct`、`explanation`、`corrected`、`other_mistakes`），`grade_messages(body, kc, response, explain_in)`，`verdict()` 丢掉目标 KC、清单外 KC、空原文、重复；`features.yaml` 的 `practice_grade`（`exercise_grade` 走默认路由）+ 前端 `ai-usage.ts` 和中英文案。pytest 1060 全过，ruff、mypy、tsc、vitest 干净。提交 b17f261。
+- **未完成**：34.3–34.5 未开始。
+- **下一步**：34.3 作答服务 `exercise/answer.py`。模型调用仿照 `worker.model_calls`：`get_structured_llm(ctx, "exercise_grade", Graded)`，失败时不存作答（Q34d）。find_fix 只有位置对、改法不在列表里时才调模型（`grading.grade` 的返回值告诉你要不要）。
+- **踩坑**：① 上一次会话因请求超过 32MB 中断，34.2 的两个文件是那时留下的未提交文件。② 语法点清单让系统提示词约 7k token，所以用量默认估 7500 输入。③ `frontend/node_modules/.bin/*` 是 shell 脚本，不能用 node 直接跑，要跑 `node_modules/vitest/vitest.mjs`、`node_modules/typescript/bin/tsc`。
+
 ## 2026-10-02 · 任务 33 完成（Q33g 已定），提出任务 50
 
 - **做了什么**：Q33a–f 按推荐确认。33.1 `exercise/inputs.py`（`load` / `plan_set` / `briefs`，含个人档案和讲解语言）；33.2 `exercise/drafts.py`（扁平 schema、`to_body`、`judge`）、`exercise/messages.py`、两个提示词、`rules.yaml` `2026-10-02.3`（`critic_max_gap`、`bank_repeat_days`、`min_items`、`prefetch_max_hours`）、providers 两份 YAML 加 `exercise_critic` 路由、`features.yaml` 的 `practice_set` + 前端文案；33.3 `exercise/bank.py`；33.4 `agents/exercise_graph.py` + `exercise/service.save_result`；33.5 `exercise/worker.py` 的 `PracticeWorker`（接进 `main.py`）、迁移 `9f45cf7f00b8`（开发库已升级）、`service.how_made`。pytest 1030 全过，ruff、mypy、tsc 干净。5 个提交未推送（加上任务 32 共领先 origin 约 15 个）。
