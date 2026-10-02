@@ -8,6 +8,7 @@
 
 - **做了什么**：拆成 50.1–50.6，Q50d–g 按推荐确认。50.1 `advice/reminder.py`（`decide` / `load` / `current`，规则 `2026-10-02.4`）；50.2 `reminder_dismissals` + 迁移 `72f41c4740dd`、`GET /placement/reminder`、`POST /placement/reminder/dismiss`；50.3 建议候选改用提醒（`retest_progress` 0.75）、`describe` 按原因、`daily.md` 第一条回复带原因提一次、被搁置的 `GET /advice` 不给页面；50.4 `components/placement/placement-reminder.tsx`，引导条改用它，删掉 `bannerFor`、`usePlacementBannerClosed`、`retest_due`；50.5 练习落地页（never / resume，练习页专用文案）和汇总（progress / age）；50.6 E2E `placement-reminder.spec.ts`、文档、Docker。make lint 干净，pytest 1129、Vitest 315、E2E 46 全过。
 - **未完成**：无。Docker 全栈实测过（临时账号造出没测过、满 60 天、B1 学会 24/33 三种情况，接口、看板建议卡片、聊天页引导条（含手机宽度）、练习页、以后再说后刷新都对；测完删了账号和它的 tenant）。已推送到 8ce05ef，CI run 37007769203 四个 job 全绿。
+- **真实模型实测**（用户临时提供的 OpenAI 兼容连接，测完账号、租户和连接都已删除）：看板“今天学什么？”第一条回复带原因提重测并给“去测试”卡片；点“以后再说”后页面只剩“选词书”，私教继续给建议时不再提测试、不出卡片；学习者自己问起时私教给“去测试”卡片。
 - **下一步**：用户实测提醒（可以在 `/learner` 看哪一级学会了多少，或在开发库里把一个测试的 `finished_at` 往前改 60 天看 age 提醒）；然后回到 P2 看板下一个任务。
 - **踩坑**：① 练习页测试用 `api.mockResolvedValueOnce` 按顺序排队，新组件多一次请求就会打乱队列，所以在测试里单独 mock `@/lib/placement` 的两个函数。② next-intl 的 `t()` 不接受拼出来的 key，要写成明确的字面量。③ 手工往库里插 `placement_sessions` 造测试时，`user_profiles.cefr_level` 不会跟着写（正式交卷才写回），看板顶部会显示“未评估”，不是 bug。④ 规则文件改任何东西都要升 `version`，会让所有学习者的掌握度在下次读取时重放一次、预生成的练习组过期。
 
