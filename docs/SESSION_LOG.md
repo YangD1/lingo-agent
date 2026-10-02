@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-02 · 任务 38.3 完成（写作接口）
+
+- **做了什么**：`api/writing.py`（提交 / 历史 / 详情 / 删除 / 固定题目）、`writing/prompts.yaml` + `prompts.py`、`service.recent / get / delete_submission`、`main.py` 注册路由、`tests/conftest.py` 的测试 app 加 `writing_worker`；`docs/agent-tools.md` 写作一节补接口。pytest 1190 全过。
+- **未完成**：无。本地领先 origin 约 14 个提交未推送；Docker 未重建。
+- **下一步**：38.4 自由对话分类（`agents/routing.py` 加 `writing_coach`；supervisor 对自由对话先按 Q38a 规则筛〔打字部分 < 60 个英文单词留 tutor〕，再调 task `route`；失败、超时留 tutor；转交记一步活动；`features.yaml` `chat_message` 下登记 `route`）。
+- **踩坑**：测试的 `app` fixture 不跑真正的 lifespan，新 worker 要在 `tests/conftest.py` 里手动挂到 `app.state`。注册时不会建 `user_profiles` 行，测试里要自己加。
+
+---
+
 ## 2026-10-02 · 任务 38.1、38.2 完成（写作记录与批改服务）
 
 - **做了什么**：38.1（上一会话做完并提交 `01dbef6`，但会话因请求超过 32MB 中断，没写交接，这里补上）：`writing_submissions` 表、`kc_evidence.writing_id` 及约束、`writing/text.py`、`writing/review.py`、提示词、`features.yaml`。38.2：`writing/service.py`（`create` / `review` / `save` / `collect_words` / `fail`）、`writing/worker.py` `WritingWorker`、`main.py` 启停、迁移 `b13e7f785be1`（`writing_submissions.words`）、`mastery.observation` 把一篇写作当一轮、`docs/agent-tools.md` 的“写作批改”一节。pytest 1184 全过。

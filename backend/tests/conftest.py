@@ -46,6 +46,7 @@ from app.main import create_app  # noqa: E402
 from app.memory.worker import ReflectionWorker  # noqa: E402
 from app.placement.service import PlacementRuntime  # noqa: E402
 from app.providers import net_guard  # noqa: E402
+from app.writing.worker import WritingWorker  # noqa: E402
 
 BUSINESS_TABLES = (
     "writing_submissions",
@@ -170,7 +171,10 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         app.state.practice_worker = PracticeWorker(
             app.state.sessionmaker, build_exercise_graph(), prefetch_enabled=False
         )
+        # Without a model configured, reviews fail; tests swap in a fake model.
+        app.state.writing_worker = WritingWorker(app.state.sessionmaker)
         yield app
+        await app.state.writing_worker.stop()
         await app.state.practice_worker.stop()
         await app.state.reflection_worker.stop()
         await app.state.attachment_processor.stop()

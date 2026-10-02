@@ -1,0 +1,90 @@
+# Writing tasks listed on /writing, by CEFR level (Q38d): fixed, so listing them costs
+# no tokens. The learner may also write to a task of their own. Lengths follow Q38f
+# (20-800 words); each task says roughly how much to write for its level.
+#
+# id: stable, never reused. en: the task as the learner and the reviewer see it.
+# zh: a short Chinese gloss shown under it.
+
+A1:
+  - id: a1-myself
+    en: "Introduce yourself: your name, where you live, your family and what you like. Write 30-50 words."
+    zh: 介绍你自己：名字、住在哪里、家人和喜欢的东西
+  - id: a1-my-day
+    en: "Describe a normal day for you, from morning to evening. Write 30-50 words."
+    zh: 描述你普通的一天，从早到晚
+  - id: a1-my-room
+    en: "Describe your room or your home. What is in it? Write 30-50 words."
+    zh: 描述你的房间或家里有什么
+  - id: a1-friend
+    en: "Write about your best friend: what they look like and what you do together. Write 30-50 words."
+    zh: 写写你最好的朋友：长什么样、你们一起做什么
+
+A2:
+  - id: a2-last-weekend
+    en: "What did you do last weekend? Write 50-80 words."
+    zh: 你上个周末做了什么
+  - id: a2-email-invite
+    en: "Write an email to a friend inviting them to your birthday party. Say when, where and what you will do. Write 50-80 words."
+    zh: 给朋友写邮件，邀请他参加你的生日聚会：时间、地点、做什么
+  - id: a2-favourite-place
+    en: "Describe your favourite place in your city and explain why you like it. Write 50-80 words."
+    zh: 描述你所在城市里你最喜欢的地方，并说明原因
+  - id: a2-holiday-plan
+    en: "Write about your plans for your next holiday. Write 50-80 words."
+    zh: 写写你下一个假期的计划
+
+B1:
+  - id: b1-memorable-trip
+    en: "Write about a trip you will never forget. What happened, and why was it special? Write 100-150 words."
+    zh: 写一次难忘的旅行：发生了什么、为什么特别
+  - id: b1-complaint
+    en: "You bought something online and it arrived broken. Write an email to the shop explaining the problem and what you want them to do. Write 100-150 words."
+    zh: 网购的东西到货时坏了，给商家写邮件说明问题和你的要求
+  - id: b1-phones-school
+    en: "Should students be allowed to use mobile phones at school? Give your opinion with reasons. Write 100-150 words."
+    zh: 学生在学校里应该可以用手机吗？给出观点和理由
+  - id: b1-skill
+    en: "Describe a skill you learned and how you learned it. Write 100-150 words."
+    zh: 描述一项你学会的技能，以及你是怎么学会的
+
+B2:
+  - id: b2-remote-work
+    en: "Some people think working from home is better than working in an office. Discuss both views and give your own opinion. Write 180-250 words."
+    zh: 有人认为在家办公比在办公室好。讨论两种观点并给出你的看法
+  - id: b2-review
+    en: "Write a review of a book, film or series you enjoyed recently, for a website where readers recommend things to each other. Write 180-250 words."
+    zh: 为推荐网站写一篇你最近喜欢的书、电影或剧集的评论
+  - id: b2-city-problem
+    en: "Choose one problem in the city where you live and suggest practical ways to solve it. Write 180-250 words."
+    zh: 选你所在城市的一个问题，提出可行的解决办法
+  - id: b2-cover-letter
+    en: "Write a cover letter applying for a job you would like, explaining why you are a good fit. Write 180-250 words."
+    zh: 为你想要的一份工作写求职信，说明你为什么合适
+
+C1:
+  - id: c1-ai-jobs
+    en: "To what extent will artificial intelligence change the kind of work people do in the next twenty years? Write an essay of 250-350 words."
+    zh: 未来二十年人工智能会在多大程度上改变人们的工作？写一篇议论文
+  - id: c1-proposal
+    en: "Your organisation wants to improve how new staff or students settle in. Write a proposal describing the current situation and recommending changes. Write 250-350 words."
+    zh: 你的单位想改进新人的适应过程。写一份提案：现状和改进建议
+  - id: c1-tradition
+    en: "Describe a tradition from your culture and reflect on whether it still matters today. Write 250-350 words."
+    zh: 描述你文化中的一个传统，并思考它在今天是否仍然重要
+  - id: c1-failure
+    en: "Write about a time something you tried did not work out, and what it taught you. Write 250-350 words."
+    zh: 写一次你尝试却没成功的经历，以及你从中学到了什么
+
+C2:
+  - id: c2-progress
+    en: "\"Technological progress always comes at a cost.\" Discuss this statement, drawing on examples. Write 300-450 words."
+    zh: “技术进步总要付出代价。”结合例子讨论这一说法
+  - id: c2-language-identity
+    en: "How far does the language we speak shape the way we think and who we are? Write an essay of 300-450 words."
+    zh: 我们说的语言在多大程度上塑造了我们的思维和身份
+  - id: c2-report
+    en: "Write a report for a city council evaluating a public service you use regularly, with evidence and recommendations. Write 300-450 words."
+    zh: 为市政府写一份报告，评估你常用的一项公共服务，给出依据和建议
+  - id: c2-letter-editor
+    en: "Write a letter to the editor responding to a recent public debate you feel strongly about. Write 300-450 words."
+    zh: 就一个你有强烈看法的近期公共争议，给报纸编辑写一封信

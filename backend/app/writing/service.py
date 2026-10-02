@@ -183,3 +183,52 @@ async def fail(maker: async_sessionmaker[AsyncSession], submission_id: int, code
             .values(status="failed", error_code=code)
         )
         await session.commit()
+
+
+async def recent(
+    session: AsyncSession, user_id: uuid.UUID, *, limit: int
+) -> list[WritingSubmission]:
+    """The learner's latest submissions, newest first."""
+    rows = await session.scalars(
+        select(WritingSubmission)
+        .where(WritingSubmission.user_id == user_id)
+        .order_by(WritingSubmission.created_at.desc(), WritingSubmission.id.desc())
+        .limit(limit)
+    )
+    return list(rows)
+
+
+async def get(
+    session: AsyncSession, user_id: uuid.UUID, submission_id: int
+) -> WritingSubmission | None:
+    return await session.scalar(
+        select(WritingSubmission).where(
+            WritingSubmission.id == submission_id, WritingSubmission.user_id == user_id
+        )
+    )
+
+
+async def delete_submission(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    submission_id: int,
+    *,
+    rules: Rules,
+    catalog: GrammarCatalog,
+) -> bool:
+    """Delete a submission and, by cascade, its evidence, then replay the KCs it had
+    evidence on (Q38e); commits. False when the learner has no such submission."""
+    row = await get(session, user_id, submission_id)
+    if row is None:
+        return False
+    await mastery.ensure_current(session, user_id, rules=rules, catalog=catalog)
+    kc_ids = set(
+        await session.scalars(
+            select(KCEvidence.kc_id).where(KCEvidence.writing_id == submission_id).distinct()
+        )
+    )
+    await session.delete(row)
+    await session.flush()
+    await mastery.refresh(session, user_id, kc_ids, rules=rules, catalog=catalog)
+    await session.commit()
+    return True

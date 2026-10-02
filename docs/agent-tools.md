@@ -152,8 +152,9 @@
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
-| 提交 | `writing/service.py` `create`（长度 20–800 个英文单词、最多 6000 字符，不合格直接拒绝，不调模型）→ `writing/worker.py` `WritingWorker.submit` | 学习者的文字和题目 | `writing_submissions`（`pending`；重启时还在 `pending` 的标 `failed/interrupted`） | 无 | 写作页（任务 39） |
+| 提交 | `api/writing.py` `POST /writing`（202，前端轮询 `GET /writing/{id}`）→ `writing/service.py` `create`（长度 20–800 个英文单词、最多 6000 字符，不合格直接拒绝，不调模型）→ `writing/worker.py` `WritingWorker.submit` | 学习者的文字和题目 | `writing_submissions`（`pending`；重启时还在 `pending` 的标 `failed/interrupted`） | 无 | 写作页（任务 39）；`DELETE /writing/{id}` 删除记录、连带证据并重放掌握度（收进生词本的词留在生词本，在那里删） |
 | 批改 | `writing/service.py` `review`；提示词 `prompts/writing_review.md`，校验 `writing/review.py` `check` | 按句编号的原文、题目、画像等级（没有时按 A2）和讲解语言、语法点清单；不含其他个人信息 | `writing_submissions`：逐句修改（只保留语法点在清单里、错误片段确实在这句里的错误）、四维评分和理由（只展示，不进掌握度）、总评、模型名；`kc_evidence`（`source=writing`、产出、带 `writing_id`；同一篇里同一语法点只计一次）；重放 `kc_mastery`（学会后再错记 Again）。失败时只记 `failed` 和错误码 | `llm/writing_review` | 写作页逐句对照和评分；`/learner` 的证据（可删除）；删除这条写作记录连带删除它的证据 |
+| 固定题目 | `api/writing.py` `GET /writing/prompts`，题目在 `writing/prompts.yaml`（每级 4 条，Q38d） | 画像等级（没有时按 A2） | 无 | 无 | 写作页选题 |
 | 收生词 | `writing/service.py` `collect_words`（同反思的规则：单个英文单词，最多 5 个，词库里查得到的才收） | 批改给出的生词候选 | `user_cards`（`source=auto`，已有卡片的不动）；`writing_submissions.words` | 无 | 写作页显示收进了哪些词；生词本里可删除 |
 
 ## 入学测（独立页面，不经过模型）

@@ -30,6 +30,7 @@ from app.api import (
     providers,
     usage,
     vocab,
+    writing,
 )
 from app.api.errors import install_error_handlers
 from app.attachments.handlers import default_handlers
@@ -157,6 +158,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(advice.router)
     app.include_router(cards.router)
+    app.include_router(writing.router)
     return app
 
 
