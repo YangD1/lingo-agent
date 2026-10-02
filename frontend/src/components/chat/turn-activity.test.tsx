@@ -56,6 +56,23 @@ describe("TurnActivity", () => {
     expect(screen.getByText(/looked like a piece of your writing/)).toBeInTheDocument();
   });
 
+  it("tells how the writing was reviewed, with a link to the review", () => {
+    show({
+      activities: [
+        step("handoff", { coach: "writing_coach" }, { kind: "step" }),
+        step("writing_review", { submission_id: 7, mistakes: 3 }, { kind: "step" }),
+      ],
+    });
+    const line = screen.getByRole("button", { expanded: false });
+    expect(line).toHaveTextContent("reviewed your writing");
+    fireEvent.click(line);
+    expect(screen.getByText(/3 grammar mistakes found/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See the review" })).toHaveAttribute(
+      "href",
+      "/writing/7",
+    );
+  });
+
   it("shows one line, and the details when opened", () => {
     show({
       activities: [

@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-03 · 任务 38.5 完成（writing_coach 批改作文）
+
+- **做了什么**：`chat/writing.py`（`DatabaseWriting` 建批改记录 → worker 批改、最多等 90 秒 → `writing` 卡片 → 告诉 coach 结果）；`chat_graph.writing_coach` 推卡片、记活动 `writing_review`、发给模型的历史去掉工具调用；迁移 `5e1a7c3d9b20`（卡片类型加 `writing`，开发库已升级）；`features.yaml`；前端作文批改卡片和活动步骤；`docs/agent-tools.md`。pytest 1209、Vitest 319 全过，lint 干净。另：用户提出模型停用开关，记为任务 51（Q51a–d 已确认，做完 38 再做）。
+- **未完成**：无。卡片和活动里的 `/writing/{id}` 链接要等任务 39 的页面。
+- **下一步**：38.6 收尾（ADR 0023 落地记录、P2 计划、`agent-tools.md` / `features.yaml` 核对、`make lint` / `make test` / `make e2e`）→ 任务 39 → 任务 51。
+- **踩坑**：失败的活动步骤不带摘要（`_summary_json`），别往摘要里塞错误码；英文 ICU 文案里 `=0 {no ...}` 会被 `messages.test.ts` 当成占位符 `no`，改用 one / other；ruff ASYNC109 不让 async 函数用 `timeout` 参数名。
+
+---
+
 ## 2026-10-02 · 任务 38.4 完成（自由对话分类）
 
 - **做了什么**：`agents/routing.py`（`Route.WRITING_COACH`、`worth_classifying`〔≥ 60 个英文单词，Q38a〕、`classify`〔task `route`，`RouteDecision` 结构化输出，8 秒超时，任何失败留 tutor〕）；`prompts/route.md`；`chat_graph.supervisor` 对 `ChatContext.classify=True` 的自由对话先筛再分类，转给非 tutor 时记活动 `handoff`（`Handoff(coach)`）；writing_coach 子图暂为不带工具的点评（`prompts/writing_coach.md`，38.5 换成调批改服务 + 卡片）；`api/chat.py` `Turn.free_chat` → `stream_reply(classify=)`；`providers.*.yaml` 加 `route` 路由（便宜模型、温度 0）；`features.yaml` `chat_message` 下登记 `route`；前端活动显示“交给了写作教练”（`digest.handedTo`、`coaches` 文案）；`docs/agent-tools.md` 加两行。routing 单测 11、图测试 4 个新增，`make lint` 干净，相关 Vitest 98 全过。

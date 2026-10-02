@@ -37,6 +37,7 @@ from app.chat.turn import (
     new_message_id,
     stream_reply,
 )
+from app.chat.writing import DatabaseWriting
 from app.db.models import Attachment, Conversation
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
 from app.memory.context import DatabaseLearner
@@ -509,6 +510,7 @@ async def _reply(
     practice: DatabasePractice | None = None
     tools: DatabaseTutorTools | None = None
     planning: DatabasePlanning | None = None
+    writing: DatabaseWriting | None = None
     match route:
         case Route.GRAMMAR_COACH:
             # Practice stays on its grammar point: no tools (ADR 0015 §2).
@@ -525,6 +527,15 @@ async def _reply(
                 turn.message_id,
                 scope=planning.scope if planning else None,
             )
+            if turn.free_chat:  # the supervisor may hand it to writing_coach
+                writing = DatabaseWriting(
+                    sessionmaker,
+                    request.app.state.writing_worker,
+                    user_id=user.id,
+                    tenant_id=turn.providers.tenant_id,
+                    conversation_id=turn.conversation_id,
+                    turn_id=turn.message_id,
+                )
     async for event in stream_reply(
         graph,
         conversation_id=turn.conversation_id,
@@ -539,6 +550,7 @@ async def _reply(
         activity=DatabaseActivity(sessionmaker, user.id, turn.conversation_id, turn.message_id),
         route=route,
         classify=turn.free_chat,
+        writing=writing,
         practice=practice,
         tools=tools,
         planning=planning,

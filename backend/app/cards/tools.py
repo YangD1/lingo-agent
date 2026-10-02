@@ -16,7 +16,8 @@ from app.adaptive.kc.catalog import get_grammar_catalog
 from app.memory.reflection import EXAM_TAGS
 from app.services.vocab.books import BOOKS, get_book
 
-CardKind = Literal["word_book", "learning_goal", "practice", "link"]
+# "writing" is put by writing_coach, not by a tool (task 38.5).
+CardKind = Literal["word_book", "learning_goal", "practice", "link", "writing"]
 LinkKind = Literal["vocab_review", "vocab_screen", "placement", "learner", "word_books"]
 LINK_KINDS: tuple[LinkKind, ...] = (
     "vocab_review",

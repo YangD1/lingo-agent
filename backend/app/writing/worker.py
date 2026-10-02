@@ -55,11 +55,12 @@ class WritingWorker:
             self._run(submission_id, user_id, tenant_id), name=f"writing-{submission_id}"
         )
 
-    async def wait(self, submission_id: int) -> None:
-        """Until this submission's review has finished here, however it ended."""
+    async def wait(self, submission_id: int, at_most: float | None = None) -> None:
+        """Until this submission's review has finished here, however it ended, or
+        `at_most` seconds have passed; the review itself is never cancelled."""
         task = self._tasks.get(submission_id)
         if task is not None:
-            await asyncio.gather(task, return_exceptions=True)
+            await asyncio.wait({task}, timeout=at_most)
 
     async def recover(self) -> int:
         """At startup: submissions left pending by the last process never finish."""

@@ -56,6 +56,7 @@ from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
 from app.chat.planning import PlanningBrief, PlanningSource, render_planning
 from app.chat.practice import PracticeSource, render_practice
+from app.chat.writing import WritingSource, failed
 from app.memory.context import (
     LearnerContext,
     LearnerSource,
@@ -114,6 +115,8 @@ class ChatContext:
     route: Route = Route.TUTOR
     # Free chat: the supervisor may classify the turn and hand it to another coach.
     classify: bool = False
+    # Reviews writing_coach's text (task 38.5); None where a caller has none.
+    writing: WritingSource | None = None
 
 
 class ChatState(MessagesState):
@@ -256,13 +259,47 @@ async def grammar_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict
 
 
 async def writing_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
-    """Free chat handed over for a piece of the learner's writing (task 38.4); it
-    replies without tools."""
+    """Free chat handed over for a piece of the learner's writing: the text is always
+    reviewed (Q38b), a card links to the review, and the coach comments on it briefly,
+    without tools."""
     history, has_images = await _with_attachments(state["messages"], runtime.context.attachments)
     task = "vision" if has_images else "chat"
-    guided: ChatState = {**state, "practice": load_prompt("writing_coach")}
-    reply = await _call(runtime, task, guided, history, False, False, get_config(), PLAN_CUE)
+    source = runtime.context.writing
+    latest = next((m.text for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
+    if source is None:
+        outcome = failed()
+    else:
+        with timed() as watch:
+            try:
+                outcome = await source.review(latest)
+            except Exception:  # the coach can still reply without the review
+                logger.exception("reviewing the learner's writing failed")
+                outcome = failed()
+        if outcome.card is not None:
+            runtime.stream_writer({"card": outcome.card})
+        step = Step("writing_review", outcome.status, outcome.summary, watch.ms)
+        await report(runtime, step)
+    guided: ChatState = {**state, "practice": outcome.guidance}
+    reply = await _call(
+        runtime, task, guided, without_tool_calls(history), False, False, get_config(), PLAN_CUE
+    )
     return {"messages": [reply]}
+
+
+def without_tool_calls(messages: Sequence[BaseMessage]) -> list[BaseMessage]:
+    """History for a coach without tools: the tutor's earlier tool calls and their
+    results are left out (some vendors refuse tool messages in a request without tool
+    definitions); the text of those replies stays."""
+    kept: list[BaseMessage] = []
+    for message in messages:
+        if isinstance(message, ToolMessage):
+            continue
+        if isinstance(message, AIMessage) and message.tool_calls:
+            if message.text:
+                kept.append(AIMessage(message.text, id=message.id))
+            continue
+        kept.append(message)
+    return kept
 
 
 async def _call(

@@ -208,7 +208,8 @@
         "suggest_practice": "Practice suggestion",
         "suggest_link": "Page shortcut",
         "tools": "Tools",
-        "handoff": "Handoff"
+        "handoff": "Handoff",
+        "writing_review": "Writing review"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -239,8 +240,11 @@
       "cards": "showed {n, plural, one {# card} other {# cards}}",
       "planning": "went through your placement result",
       "handedTo": "handed to the {coach}",
+      "writingReviewed": "reviewed your writing",
       "planningRead": "Planning guidance: your latest placement result, the grammar points it found weak, and what the learning engine suggests",
       "handoffRead": "This message looked like a piece of your writing, so the tutor handed it to the {coach} for feedback.",
+      "writingReviewRead": "Reviewed your text sentence by sentence: {n, plural, one {# grammar mistake} other {# grammar mistakes}} found, and added to your learner model.",
+      "writingReviewLink": "See the review",
       "cardShown": "Showed a card: {card}",
       "toolFailed": "A card couldn't be shown ({step}); the tutor was told why.",
       "toolsUnavailable": "The model doesn't support tools, so the tutor answered with links instead of cards.",
@@ -308,6 +312,11 @@
         "never": "Never taken",
         "lastTest": "Last taken {n} days ago",
         "weak": "{n, plural, one {# grammar point} other {# grammar points}} to work on"
+      },
+      "writing": {
+        "title": "Writing review",
+        "body": "Every correction, four scores and the explanations are in the review.",
+        "action": "See the line-by-line review"
       }
     },
     "planning": {

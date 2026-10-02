@@ -33,6 +33,11 @@ features:
       - task: route
         timing: now
         default: {input_tokens: 500, output_tokens: 15}
+      # Only when route handed the message to writing_coach: the same review as
+      # /writing (Q38b); the coach's reply after it is the chat call above.
+      - task: writing_review
+        timing: now
+        default: {input_tokens: 9000, output_tokens: 1500}
       # Reflection after each reply: memory, grammar tags, words; every few turns it
       # also rewrites the conversation summary.
       - task: reflect

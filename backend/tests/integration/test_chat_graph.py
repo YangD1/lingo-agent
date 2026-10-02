@@ -632,9 +632,11 @@ async def test_a_piece_of_writing_in_free_chat_goes_to_writing_coach(
     assert classifier.calls == [(ESSAY, "Good effort!")]
     [handoff] = [s for s in activity.steps if s.name == "handoff"]
     assert handoff.summary == Handoff(coach="writing_coach")
-    # The coach replies without tools, with its own guidance.
+    # The coach replies without tools, with its own guidance (no review here: the
+    # context has no writing source).
     prompt = str(model.seen[-1][0].content)
-    assert load_prompt("writing_coach") in prompt
+    assert "feedback on the learner's writing" in prompt
+    assert load_prompt("writing_failed") in prompt
     assert TOOLS_MARKER not in prompt
 
 

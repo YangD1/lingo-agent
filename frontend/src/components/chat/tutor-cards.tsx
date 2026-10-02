@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Compass, Flag, Target } from "lucide-react";
+import { BookOpen, Compass, Flag, PenLine, Target } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
@@ -27,10 +27,17 @@ export function TutorCards({ cards, onDecide }: { cards: TutorCard[]; onDecide: 
   );
 }
 
-const ICONS = { word_book: BookOpen, learning_goal: Flag, practice: Target, link: Compass };
+const ICONS = {
+  word_book: BookOpen,
+  learning_goal: Flag,
+  practice: Target,
+  link: Compass,
+  writing: PenLine,
+};
 
 function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
   const Icon = ICONS[card.kind];
+  if (!Icon) return null; // from a newer backend
   return (
     <div
       className="flex gap-3 rounded-lg border bg-card px-3.5 py-3 text-[13px]"
@@ -59,6 +66,7 @@ function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
         )}
         {card.kind === "practice" && <Practice card={card} />}
         {card.kind === "link" && <LinkCard card={card} />}
+        {card.kind === "writing" && <WritingCard card={card} />}
       </div>
     </div>
   );
@@ -194,6 +202,25 @@ function LinkCard({ card }: { card: TutorCard }) {
       <div>
         <Link href={LINK_HREFS[kind]} className={buttonVariants({ size: "sm" })}>
           {t(`${kind}.action`)}
+        </Link>
+      </div>
+    </>
+  );
+}
+
+/** writing_coach's review of the learner's text, line by line on the writing page. */
+function WritingCard({ card }: { card: TutorCard }) {
+  const t = useTranslations("chat.cards.writing");
+  return (
+    <>
+      <p className="text-sm font-semibold">{t("title")}</p>
+      <p className="text-xs text-muted-foreground">{t("body")}</p>
+      <div>
+        <Link
+          href={`/writing/${String(card.params.submission_id)}`}
+          className={buttonVariants({ size: "sm" })}
+        >
+          {t("action")}
         </Link>
       </div>
     </>

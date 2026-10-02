@@ -96,7 +96,8 @@
 | 读取练习指引（只在练习会话） | `chat/practice.py` `DatabasePractice`，在 `load_context` 里 | 会话的 `focus_kc_id`；该语法点的目录信息、掌握度档位（不给模型数字）、最近 2 条对话错误原句 → 改正 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `practice_kc` | 无 | 对话顶部“语法练习：…”和“查看依据”；`/learner` 删除证据后下一轮就不再使用 |
 | 选择由谁回复（supervisor） | `agents/chat_graph.py` `supervisor`；会话层面的路由在开跑前由 `agents/routing.py` `route_for` 定 | 会话有没有练习语法点（`focus_kc_id`） | 无 | 无（ADR 0023 §3） | 不单独显示：练习会话由 grammar_coach 回复，其余（含规划、今天的学习）由 tutor 回复，会话本身已经说明了这一点（Q37b） |
 | 自由对话分类（只在自由对话，任务 38.4） | `agents/routing.py` `worth_classifying` → `classify`，在 `supervisor` 里；提示词 `prompts/route.md` | 学习者这条消息（打字的部分，不含附件）和私教上一条回复的末尾 600 字符 | 只在转给别的 coach 时记活动 `handoff`（`coach`）；留在 tutor 不记 | 消息不少于 60 个英文单词时调 `llm/route`（结构化输出，最多等 8 秒）；更短的不调（Q38a）。没配模型、出错、超时都留在 tutor | 回复下“私教做了什么”：“交给了写作教练” |
-| 写作点评（writing_coach，任务 38.4 起） | `agents/chat_graph.py` writing_coach 子图：`writing_coach`，不带工具；指引 `prompts/writing_coach.md`（38.5 改为调写作批改服务并给卡片） | 对话历史、学习者上下文、本轮附件 | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
+| 写作点评（writing_coach） | `agents/chat_graph.py` writing_coach 子图：`writing_coach`，不带工具；指引 `prompts/writing_coach.md`（批改结果填进去；失败用 `writing_failed.md`，超时用 `writing_pending.md`） | 对话历史（去掉私教以前的工具调用和工具结果，只留回复文字，因为有的厂商不接受没有工具定义的工具消息）、学习者上下文、本轮附件、本轮的批改结果（总评、四维评分、按严重度排的前 8 处修改） | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
+| 批改作文（只在转给 writing_coach 的那一轮，Q38b） | `chat/writing.py` `DatabaseWriting.review` → `writing/service.py` `create`（带 `conversation_id`）→ `WritingWorker.submit` / `wait`（最多等 90 秒，超时不取消，批改在后台做完）→ 卡片 `kind=writing`（`tool_call_id` = `writing-<id>`） | 学习者这条消息的文字（同 `/writing` 的批改输入） | `writing_submissions`、`kc_evidence`、`kc_mastery`、生词本（同“写作批改”一节）；`tutor_cards`；活动 `writing_review`（`submission_id`、错误数；失败时只记 failed） | `llm/writing_review` | 回复下的“作文批改”卡片和“私教做了什么”，都链到 `/writing/{id}`（页面在任务 39）；删除这条写作记录连带删除它的证据 |
 | 私教回复（tutor） | `agents/chat_graph.py` tutor 子图：`tutor`（⇄ `tools`，见上一节） | 对话历史、学习者上下文、规划简报、本轮附件、本会话最近的卡片 | checkpoint（对话历史，含工具调用和结果，由主图保存；子图自己不存 checkpoint）；`tutor_cards` | `llm/chat`；带图片时 `llm/vision`；工具之后的回复记为 `chat_tools` | 对话页；删除会话即删除 |
 | 练习会话回复（grammar_coach） | `agents/chat_graph.py` grammar_coach 子图：`grammar_coach`，不带工具 | 对话历史、学习者上下文、练习指引、本轮附件 | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
 
@@ -150,7 +151,7 @@
 
 ## 写作批改（P2 计划 §4.2，任务 38）
 
-`/writing` 和对话里的 writing_coach 用同一个服务（`writing/service.py`）。提交后在后台批改（Q38c）：`/writing` 轮询状态，writing_coach 等结果。不属于任何对话的提交不写 `agent_activities`，批改记录本身（逐句修改、评分、证据、收进生词本的词、模型名）就是公示；从对话来的提交由 writing_coach 在那一轮记一步活动（任务 38.5）。
+`/writing` 和对话里的 writing_coach 用同一个服务（`writing/service.py`）。提交后在后台批改（Q38c）：`/writing` 轮询状态，writing_coach 等结果。不属于任何对话的提交不写 `agent_activities`，批改记录本身（逐句修改、评分、证据、收进生词本的词、模型名）就是公示；从对话来的提交由 writing_coach 在那一轮记一步活动 `writing_review`，并在回复下放一张卡片（见“对话流程中的步骤”）。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|

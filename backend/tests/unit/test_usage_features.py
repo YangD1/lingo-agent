@@ -31,6 +31,7 @@ def test_shipped_catalog_loads() -> None:
         ("chat", "now"),
         ("chat_tools", "now"),
         ("route", "now"),
+        ("writing_review", "now"),
         ("reflect", "background"),
         ("memory", "background"),
     ]

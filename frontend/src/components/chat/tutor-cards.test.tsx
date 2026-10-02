@@ -106,4 +106,14 @@ describe("TutorCards", () => {
     expect(screen.getByTestId("card-live")).toHaveTextContent("待复习 12 个 · 今天还剩 5 个新词");
     expect(screen.getByRole("link", { name: "去复习" })).toHaveAttribute("href", "/vocab/review");
   });
+
+  it("links writing_coach's review, and skips kinds it doesn't know", () => {
+    show([
+      card({ id: "w1", kind: "writing", params: { submission_id: 7 }, status: "info" }),
+      card({ id: "x1", kind: "future_kind" as TutorCard["kind"], status: "info" }),
+    ]);
+    expect(screen.getByText("作文批改")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看逐句批改" })).toHaveAttribute("href", "/writing/7");
+    expect(screen.getAllByTestId("tutor-card")).toHaveLength(1);
+  });
 });

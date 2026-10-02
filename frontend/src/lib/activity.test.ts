@@ -56,6 +56,9 @@ describe("digest", () => {
     expect(digest([]).handedTo).toBeNull();
     const d = digest([step("handoff", { coach: "writing_coach" }, { kind: "step" })]);
     expect(d.handedTo).toBe("writing_coach");
+    expect(d.writingReviewed).toBe(false);
+    const reviewed = digest([step("writing_review", { submission_id: 7, mistakes: 0 })]);
+    expect(reviewed.writingReviewed).toBe(true);
   });
 
   it("counts nothing from failed or skipped steps", () => {

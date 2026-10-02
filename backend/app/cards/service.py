@@ -302,6 +302,8 @@ def describe(card: TutorCard) -> str:
         case "practice":
             kc = get_grammar_catalog().get(p["kc_id"])
             what = f"practise {kc.name_en if kc else p['kc_id']}"
+        case "writing":
+            what = "open the line-by-line review of the learner's writing"
         case _:
             what = f"open the {p['kind']} page"
     return f"{what} ({_STATUS_TEXT.get(card.status, card.status)})"

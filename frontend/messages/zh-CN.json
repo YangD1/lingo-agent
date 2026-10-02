@@ -208,7 +208,8 @@
         "suggest_practice": "建议练习",
         "suggest_link": "页面直达",
         "tools": "工具",
-        "handoff": "转交"
+        "handoff": "转交",
+        "writing_review": "批改作文"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -239,8 +240,11 @@
       "cards": "展示了 {n} 张卡片",
       "planning": "参考了你的入学测结果",
       "handedTo": "交给了{coach}",
+      "writingReviewed": "批改了你的作文",
       "planningRead": "规划依据：最近一次入学测结果、测出的薄弱语法点、学习引擎的建议",
       "handoffRead": "这条消息像是你写的一段英文，私教把它交给了{coach}来点评。",
+      "writingReviewRead": "逐句批改了你这段文字：找到 {n} 处语法问题，已记入学习者模型。",
+      "writingReviewLink": "查看批改",
       "cardShown": "展示了卡片：{card}",
       "toolFailed": "有一张卡片没能展示（{step}），已把原因告诉私教。",
       "toolsUnavailable": "当前模型不支持工具调用，私教改用链接代替卡片回答。",
@@ -308,6 +312,11 @@
         "never": "还没测过",
         "lastTest": "上次是 {n} 天前",
         "weak": "{n} 个语法点需要加强"
+      },
+      "writing": {
+        "title": "作文批改",
+        "body": "逐句修改、四项评分和讲解都在批改记录里。",
+        "action": "查看逐句批改"
       }
     },
     "planning": {

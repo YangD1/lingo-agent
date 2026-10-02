@@ -295,9 +295,10 @@ async def test_estimates_average_recent_successful_calls(
     body = response.json()
     assert body["window"] == 20
     features = by_feature(body)
-    chat, tools, route, reflect, embed = features["chat_message"]
+    chat, tools, route, review, reflect, embed = features["chat_message"]
     assert (tools["task"], tools["source"]) == ("chat_tools", "default")
     assert (route["task"], route["timing"]) == ("route", "now")
+    assert (review["task"], review["timing"]) == ("writing_review", "now")
     assert chat["task"] == "chat"
     assert (chat["source"], chat["samples"]) == ("history", 20)
     assert (chat["input_tokens"], chat["output_tokens"]) == (2000, 200)

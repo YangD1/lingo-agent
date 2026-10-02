@@ -23,6 +23,8 @@ export type ContextRead = {
 };
 /** The supervisor gave a free-chat turn to another coach (ADR 0023 §3). */
 export type Handoff = { coach: string };
+/** writing_coach had the learner's text reviewed (task 38.5). */
+export type WritingReviewed = { submission_id: number; mistakes: number };
 /** A tool call of the tutor (ADR 0015): the card it showed, if any. */
 export type CardShown = { card_id: string | null; card_kind: string | null };
 /** Activity names of the tutor's tools (backend app/cards/tools.py). */
@@ -93,6 +95,8 @@ export type TurnDigest = {
   planned: boolean;
   /** The coach a free-chat turn was handed to, if any. */
   handedTo: string | null;
+  /** The learner's text was reviewed (writing_coach). */
+  writingReviewed: boolean;
   /** Cards the tutor showed with tool calls. */
   cardsShown: number;
   profileUpdated: boolean;
@@ -114,6 +118,7 @@ export function digest(activities: Activity[]): TurnDigest {
     practiced: false,
     planned: false,
     handedTo: null,
+    writingReviewed: false,
     cardsShown: 0,
     profileUpdated: false,
     mistakes: 0,
@@ -134,6 +139,8 @@ export function digest(activities: Activity[]): TurnDigest {
       d.planned ||= Boolean(s.planning);
     } else if (a.name === "handoff") {
       d.handedTo = (a.summary as Handoff).coach;
+    } else if (a.name === "writing_review") {
+      d.writingReviewed = true;
     } else if (a.kind === "tool") {
       if ((a.summary as CardShown).card_id) d.cardsShown += 1;
     } else if (a.name === "reflect_memory") {

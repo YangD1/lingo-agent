@@ -107,6 +107,14 @@ class Handoff(Summary):
     coach: str
 
 
+class WritingReviewed(Summary):
+    """`writing_review`: writing_coach had the learner's text reviewed (task 38.5).
+    `mistakes` stays 0 while the review is still running when the reply starts."""
+
+    submission_id: int
+    mistakes: int = 0
+
+
 @dataclass(frozen=True)
 class StepSpec:
     kind: ActivityKind
@@ -121,6 +129,7 @@ STEPS: dict[str, StepSpec] = {
     "summarize": StepSpec("background", SummaryUpdate),
     "tools": StepSpec("step", ToolsUnavailable),
     "handoff": StepSpec("step", Handoff),
+    "writing_review": StepSpec("step", WritingReviewed),
     # One per tool (app/cards/tools.py), call_id = the model's tool call id.
     "propose_word_book": StepSpec("tool", CardShown),
     "propose_learning_goal": StepSpec("tool", CardShown),

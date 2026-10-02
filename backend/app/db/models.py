@@ -55,7 +55,7 @@ PLACEMENT_STAGES = ("vocab", "grammar")
 CONVERSATION_PURPOSES = ("planning", "daily")
 # A writing submission is reviewed in the background (Q38c).
 WRITING_STATUSES = ("pending", "done", "failed")
-TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link")
+TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link", "writing")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
 # Where a practice set was started from (ADR 0021); prefetch: made in the background
