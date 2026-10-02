@@ -8,17 +8,18 @@ it reminds again.
 """
 
 import uuid
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive import mastery
 from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog
 from app.adaptive.rules import Rules
-from app.db.models import KCMastery, PlacementSession
+from app.db.models import KCMastery, PlacementSession, ReminderDismissal
 
 Reason = Literal["resume", "never", "progress", "age"]
 
@@ -50,6 +51,8 @@ class Reminder:
     level: CefrLevel | None = None
     learned: int | None = None
     total: int | None = None
+    # "Not now" on this key within `advice.reminder_snooze_days`: say nothing unasked.
+    snoozed: bool = False
 
 
 def decide(signals: ReminderSignals, rules: Rules, *, now: datetime) -> Reminder | None:
@@ -121,5 +124,30 @@ async def current(
     catalog: GrammarCatalog,
     now: datetime | None = None,
 ) -> Reminder | None:
-    found = await load(session, user_id, rules=rules, catalog=catalog)
-    return decide(found, rules, now=now or datetime.now(UTC))
+    """The reminder with its snooze; may rebuild stale mastery rows, the caller commits."""
+    now = now or datetime.now(UTC)
+    found = decide(await load(session, user_id, rules=rules, catalog=catalog), rules, now=now)
+    if found is None:
+        return None
+    dismissed = await session.scalar(
+        select(ReminderDismissal.dismissed_at).where(
+            ReminderDismissal.user_id == user_id, ReminderDismissal.key == found.key
+        )
+    )
+    quiet = timedelta(days=rules.advice.reminder_snooze_days)
+    return replace(found, snoozed=dismissed is not None and now - dismissed < quiet)
+
+
+async def dismiss(
+    session: AsyncSession, user_id: uuid.UUID, key: str, *, now: datetime | None = None
+) -> None:
+    """Record "Not now" on `key` as of `now`; does not commit."""
+    now = now or datetime.now(UTC)
+    await session.execute(
+        insert(ReminderDismissal)
+        .values(user_id=user_id, key=key, dismissed_at=now)
+        .on_conflict_do_update(
+            index_elements=[ReminderDismissal.user_id, ReminderDismissal.key],
+            set_={"dismissed_at": now},
+        )
+    )

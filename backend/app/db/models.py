@@ -750,6 +750,22 @@ class PlacementSession(TimestampMixin, Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class ReminderDismissal(Base):
+    """A learner's "Not now" on a reminder (task 50, Q50c).
+
+    `key` names the reminder and its reason (app/advice/reminder.py); the same key stays
+    quiet for `advice.reminder_snooze_days`, a new reason has a new key.
+    """
+
+    __tablename__ = "reminder_dismissals"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    dismissed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class PlacementItemStat(TimestampMixin, Base):
     """Calibrated difficulty of one grammar item (ADR 0012 §3); global, not per tenant.
 

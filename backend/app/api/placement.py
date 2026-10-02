@@ -11,8 +11,10 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, Field
 
+from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.placement.flow import AnswerInput, InvalidAnswerError
 from app.adaptive.rules import get_rules
+from app.advice import reminder
 from app.api.errors import api_error
 from app.deps import CurrentUser, SessionDep
 from app.placement import service
@@ -132,6 +134,66 @@ async def latest(
     if placement is None:
         return None
     return _out(await service.status(session, runtime, user.id, placement.id))
+
+
+class ReminderOut(BaseModel):
+    """Why to take the test now (task 50); `key` goes back with "Not now"."""
+
+    reason: reminder.Reason
+    key: str
+    # Days since the last finished test, its level and that level's grammar points
+    # learned out of all; null when never tested or for a test left halfway.
+    days_since: int | None
+    level: Level | None
+    learned: int | None
+    total: int | None
+    # The learner said "Not now" to this reason lately: show nothing unasked.
+    snoozed: bool
+
+
+@router.get("/reminder")
+async def get_reminder(user: CurrentUser, session: SessionDep) -> ReminderOut | None:
+    """The placement-test reminder, if any; null when there is nothing to remind of."""
+    user_id = user.id
+    found = await reminder.current(
+        session, user_id, rules=get_rules(), catalog=get_grammar_catalog()
+    )
+    await session.commit()  # stale mastery rows may have been rebuilt
+    if found is None:
+        return None
+    return ReminderOut(
+        reason=found.reason,
+        key=found.key,
+        days_since=found.days_since,
+        level=found.level,
+        learned=found.learned,
+        total=found.total,
+        snoozed=found.snoozed,
+    )
+
+
+class DismissIn(BaseModel):
+    key: str = Field(max_length=100)
+
+
+@router.post("/reminder/dismiss", status_code=status.HTTP_204_NO_CONTENT)
+async def dismiss_reminder(body: DismissIn, user: CurrentUser, session: SessionDep) -> None:
+    """Say "Not now": the same reason stays quiet for `advice.reminder_snooze_days`.
+
+    Only the current reminder's key is accepted, so a stale page cannot silence a reason
+    it never showed.
+    """
+    user_id = user.id
+    found = await reminder.current(
+        session, user_id, rules=get_rules(), catalog=get_grammar_catalog()
+    )
+    if found is None or found.key != body.key:
+        await session.rollback()
+        raise api_error(
+            status.HTTP_409_CONFLICT, "reminder_changed", "that reminder is no longer current"
+        )
+    await reminder.dismiss(session, user_id, body.key)
+    await session.commit()
 
 
 @router.get("/{session_id}")
