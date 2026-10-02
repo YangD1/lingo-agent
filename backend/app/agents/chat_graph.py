@@ -49,6 +49,7 @@ from app.activity.service import (
     Step,
     timed,
 )
+from app.agents.routing import Route
 from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
 from app.chat.planning import PlanningBrief, PlanningSource, render_planning
@@ -97,6 +98,8 @@ class ChatContext:
     tools: TutorTools | None = None
     # A study-planning conversation's brief (ADR 0015 §6); None elsewhere.
     planning: PlanningSource | None = None
+    # The coach that answers this turn (ADR 0023 §3).
+    route: Route = Route.TUTOR
 
 
 class ChatState(MessagesState):

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.activity.service import ActivitySink
 from app.agents.chat_graph import TUTOR_NODE, ChatContext, ChatGraph
+from app.agents.routing import Route
 from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
 from app.cards.tools import TutorTools
@@ -143,6 +144,7 @@ async def stream_reply(
     practice: PracticeSource | None = None,
     tools: TutorTools | None = None,
     planning: PlanningSource | None = None,
+    route: Route = Route.TUTOR,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -176,6 +178,7 @@ async def stream_reply(
                 practice=practice,
                 tools=tools,
                 planning=planning,
+                route=route,
             ):
                 queue.put_nowait(event)
         finally:
@@ -209,6 +212,7 @@ async def _run_graph(
     practice: PracticeSource | None,
     tools: TutorTools | None,
     planning: PlanningSource | None,
+    route: Route,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     text_id: str | None = None  # the tutor message whose text is streaming
@@ -225,7 +229,14 @@ async def _run_graph(
                 "tags": ["chat"],
             },
             context=ChatContext(
-                providers, attachments, learner, activity, practice, tools, planning
+                providers=providers,
+                attachments=attachments,
+                learner=learner,
+                activity=activity,
+                practice=practice,
+                tools=tools,
+                planning=planning,
+                route=route,
             ),
             stream_mode=["messages", "custom"],
         ):

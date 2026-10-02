@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.activity.service import DatabaseActivity
 from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
+from app.agents.routing import Route, route_for
 from app.api.attachments import AttachmentOut
 from app.api.errors import api_error
 from app.api.vocab import TimeZone
@@ -319,6 +320,10 @@ class Turn:
     # A planning or daily conversation: the turn gets the learning engine's brief.
     planning: PlanningPurpose | None
 
+    @property
+    def route(self) -> Route:
+        return route_for(self.focus_kc_id)
+
 
 def _conflict(code: str, message: str) -> HTTPException:
     return api_error(status.HTTP_409_CONFLICT, code, message)
@@ -494,8 +499,26 @@ async def _reply(
     turn: Turn, request: Request, user: CurrentUser, graph: ChatGraphDep
 ) -> AsyncIterator[ServerSentEvent]:
     sessionmaker = request.app.state.sessionmaker
-    # Read once per turn, for the prompt and for the cards the tools may show.
-    planning = DatabasePlanning(sessionmaker, user.id, turn.planning) if turn.planning else None
+    route = turn.route
+    practice: DatabasePractice | None = None
+    tools: DatabaseTutorTools | None = None
+    planning: DatabasePlanning | None = None
+    match route:
+        case Route.GRAMMAR_COACH:
+            # Practice stays on its grammar point: no tools (ADR 0015 §2).
+            assert turn.focus_kc_id is not None  # route_for
+            practice = DatabasePractice(sessionmaker, user.id, turn.focus_kc_id)
+        case Route.TUTOR:
+            # Read once per turn, for the prompt and for the cards the tools may show.
+            if turn.planning:
+                planning = DatabasePlanning(sessionmaker, user.id, turn.planning)
+            tools = DatabaseTutorTools(
+                sessionmaker,
+                user.id,
+                turn.conversation_id,
+                turn.message_id,
+                scope=planning.scope if planning else None,
+            )
     async for event in stream_reply(
         graph,
         conversation_id=turn.conversation_id,
@@ -508,19 +531,9 @@ async def _reply(
             sessionmaker, user.id, turn.conversation_id, memory_embedder(turn.providers)
         ),
         activity=DatabaseActivity(sessionmaker, user.id, turn.conversation_id, turn.message_id),
-        practice=DatabasePractice(sessionmaker, user.id, turn.focus_kc_id)
-        if turn.focus_kc_id
-        else None,
-        # Practice conversations stay on their grammar point: no tools (ADR 0015 §2).
-        tools=None
-        if turn.focus_kc_id
-        else DatabaseTutorTools(
-            sessionmaker,
-            user.id,
-            turn.conversation_id,
-            turn.message_id,
-            scope=planning.scope if planning else None,
-        ),
+        route=route,
+        practice=practice,
+        tools=tools,
         planning=planning,
     ):
         if isinstance(event, CardEvent):  # the card itself, like GET .../cards items
