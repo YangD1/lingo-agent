@@ -101,6 +101,8 @@ async def test_after_a_tool_call_the_next_turn_is_reviewed_by_writing_coach(
     )
     assert evidence == 3
     assert [c["kind"] for c in await cards(client, conversation)] == ["link", "writing"]
+    detail = (await client.get(f"/writing/{submission.id}")).json()
+    assert detail["from_conversation"] is True and detail["conversation_id"] == conversation
 
     rows = await activity(client, conversation)
     assert step(rows, "handoff")["summary"] == {"coach": "writing_coach"}

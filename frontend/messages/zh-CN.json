@@ -1283,6 +1283,53 @@
       "failed": "批改失败",
       "noMistakes": "没有语法错误",
       "mistakes": "{n} 处语法错误"
+    },
+    "review": {
+      "back": "← 写作",
+      "missing": "找不到这篇写作，可能已经删除。",
+      "toWriting": "回到写作页",
+      "untitled": "没有题目",
+      "words": {
+        "heading": "生词",
+        "added": "已收进生词本：",
+        "existing": "已经在学：",
+        "manage": "管理生词本"
+      },
+      "fromChat": "来自和私教的对话（打开对话）",
+      "fromDeletedChat": "来自和私教的对话（对话已删除）",
+      "pending": "正在逐句批改…",
+      "pendingNote": "长一点的文章可能要几十秒，可以先离开，批改会在后台完成。",
+      "failed": {
+        "title": "这次没能批改",
+        "no_llm_configured": "还没有配置可用的模型，请先到设置里添加模型连接。",
+        "review_failed": "批改模型出错了，可以稍后重新提交。",
+        "interrupted": "批改被服务重启打断了，可以重新提交。",
+        "other": "批改没有完成，可以重新提交。",
+        "again": "重新提交"
+      },
+      "summary": "总评",
+      "noMistakes": "没有发现语法错误",
+      "mistakes": "{n} 处语法错误，已记入学习者模型",
+      "scores": {
+        "heading": "四项评分",
+        "task": "完成题目",
+        "coherence": "连贯",
+        "vocabulary": "词汇",
+        "grammar": "语法",
+        "value": "{n} / 5",
+        "note": "分数只供参考，不计入掌握度；掌握度只看具体的语法错误。"
+      },
+      "model": "批改模型：{model}",
+      "sentences": "逐句批改",
+      "sentencesHint": "标出的地方是错误，点一下看讲解；箭头后面是改好的句子。",
+      "mistakeLabel": "错误：{text}，点击查看讲解",
+      "corrected": "改后：",
+      "delete": {
+        "button": "删除这篇",
+        "title": "删除这篇写作？",
+        "description": "会连带删除它在学习者模型里留下的错误记录，并重新计算掌握度。收进生词本的词会保留。"
+      },
+      "wordCount": "{n} 个英文单词"
     }
   }
 }

@@ -5,6 +5,7 @@ A submission is reviewed in the background (Q38c): `POST` answers `pending` at o
 the page polls `GET /writing/{id}` until it is `done` or `failed`.
 """
 
+import uuid
 from datetime import datetime
 from typing import Annotated, Any, cast
 
@@ -61,6 +62,8 @@ class SubmissionOut(_Out):
     words: list[dict[str, Any]] | None
     model: str | None
     from_conversation: bool
+    # The conversation it came from, while it still exists (writing_coach, task 38.5).
+    conversation_id: uuid.UUID | None
     created_at: datetime
     reviewed_at: datetime | None
     # The KCs named in `corrections`, for their names.
@@ -115,6 +118,7 @@ def _out(row: WritingSubmission) -> SubmissionOut:
         words=row.words,
         model=row.model,
         from_conversation=row.conversation_id is not None,
+        conversation_id=row.conversation_id,
         created_at=row.created_at,
         reviewed_at=row.reviewed_at,
         kcs=kcs,

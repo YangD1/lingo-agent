@@ -1283,6 +1283,53 @@
       "failed": "Review failed",
       "noMistakes": "No grammar mistakes",
       "mistakes": "{n, plural, one {# grammar mistake} other {# grammar mistakes}}"
+    },
+    "review": {
+      "back": "← Writing",
+      "missing": "This piece of writing wasn't found; it may have been deleted.",
+      "toWriting": "Back to Writing",
+      "untitled": "No task",
+      "words": {
+        "heading": "New words",
+        "added": "Put on your word list:",
+        "existing": "Already learning:",
+        "manage": "Manage your word list"
+      },
+      "fromChat": "From a conversation with your tutor (open it)",
+      "fromDeletedChat": "From a conversation with your tutor (since deleted)",
+      "pending": "Reviewing sentence by sentence…",
+      "pendingNote": "A longer text can take a few dozen seconds. You can leave: the review finishes in the background.",
+      "failed": {
+        "title": "The review couldn't be done",
+        "no_llm_configured": "No model is set up yet. Add a model connection in Settings first.",
+        "review_failed": "The review model failed. You can submit it again later.",
+        "interrupted": "A server restart interrupted the review. You can submit it again.",
+        "other": "The review didn't finish. You can submit it again.",
+        "again": "Submit again"
+      },
+      "summary": "Overall",
+      "noMistakes": "No grammar mistakes found",
+      "mistakes": "{n, plural, one {# grammar mistake} other {# grammar mistakes}}, added to your learner model",
+      "scores": {
+        "heading": "Scores",
+        "task": "Task",
+        "coherence": "Coherence",
+        "vocabulary": "Vocabulary",
+        "grammar": "Grammar",
+        "value": "{n} / 5",
+        "note": "Scores are for reference and don't count towards mastery; only the grammar mistakes do."
+      },
+      "model": "Reviewed by {model}",
+      "sentences": "Sentence by sentence",
+      "sentencesHint": "Marked parts are mistakes; tap one for the explanation. The corrected sentence follows the arrow.",
+      "mistakeLabel": "Mistake: {text}, show the explanation",
+      "corrected": "Corrected:",
+      "delete": {
+        "button": "Delete",
+        "title": "Delete this piece of writing?",
+        "description": "Its mistakes are removed from your learner model too, and mastery is recalculated. Words put on your word list stay there."
+      },
+      "wordCount": "{n, plural, one {# English word} other {# English words}}"
     }
   }
 }

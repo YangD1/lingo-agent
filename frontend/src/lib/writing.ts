@@ -43,6 +43,8 @@ export type Submission = {
   words: CollectedWord[] | null;
   model: string | null;
   from_conversation: boolean;
+  /** The conversation it came from, while that still exists. */
+  conversation_id: string | null;
   created_at: string;
   reviewed_at: string | null;
   kcs: KCName[];
@@ -130,4 +132,42 @@ export function clearDraft(): void {
   } catch {
     // Nothing to clear.
   }
+}
+
+/** A piece of a sentence: plain, or the wrong part of the mistake at `mistake`. */
+export type Piece = { text: string; mistake: number | null };
+
+/**
+ * The sentence cut around its mistakes' wrong parts, each at its first occurrence;
+ * a part overlapping an earlier one, or not found, stays unmarked (its mistake is
+ * still listed with the sentence).
+ */
+export function markMistakes(sentence: string, mistakes: WritingMistake[]): Piece[] {
+  const spans: { start: number; end: number; mistake: number }[] = [];
+  mistakes.forEach((m, i) => {
+    const start = m.original ? sentence.indexOf(m.original) : -1;
+    if (start < 0) return;
+    const end = start + m.original.length;
+    if (spans.some((s) => start < s.end && s.start < end)) return;
+    spans.push({ start, end, mistake: i });
+  });
+  spans.sort((a, b) => a.start - b.start);
+  const pieces: Piece[] = [];
+  let at = 0;
+  for (const s of spans) {
+    if (s.start > at) pieces.push({ text: sentence.slice(at, s.start), mistake: null });
+    pieces.push({ text: sentence.slice(s.start, s.end), mistake: s.mistake });
+    at = s.end;
+  }
+  if (at < sentence.length) pieces.push({ text: sentence.slice(at), mistake: null });
+  return pieces;
+}
+
+/** Sentences grouped by paragraph, in order. */
+export function paragraphs(corrections: SentenceCorrection[]): SentenceCorrection[][] {
+  const groups = new Map<number, SentenceCorrection[]>();
+  for (const s of [...corrections].sort((a, b) => a.index - b.index)) {
+    groups.set(s.paragraph, [...(groups.get(s.paragraph) ?? []), s]);
+  }
+  return [...groups.keys()].sort((a, b) => a - b).map((k) => groups.get(k)!);
 }

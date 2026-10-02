@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-03 · 任务 39.2 完成（结果页）
+
+- **做了什么**：`/writing/[id]` 结果页（`components/writing/writing-review.tsx`）：轮询、逐句对照、评分、总评、生词、链回对话、失败重新提交、删除；`lib/writing.ts` 的 `markMistakes` / `paragraphs`；`GET /writing/{id}` 带 `conversation_id`。Vitest 333、writing 相关 pytest 27 全过，lint 干净。
+- **未完成**：39.3（假模型加 `writing_review` / `route` 结构化输出；E2E 两条；README；`make lint` / `make test` / `make e2e`）。本地领先 origin 约 20 个提交未推送；Docker 未重建。
+- **下一步**：39.3，然后任务 51。
+- **踩坑**：上一轮会话因为累积的工具输出过大（请求超过 32MB）中断，测试文件写完还没跑；新会话接着跑测试，只有一处断言写错（`kcName` 不带等级）。Bash 里用 `pnpm` 会撞上 nvm 包装函数，改用 `~/.nvm/versions/node/v24.14.0/bin/node node_modules/...` 直接跑 tsc / eslint / vitest。
+
+---
+
 ## 2026-10-03 · 任务 38 完成（38.6 收尾）
 
 - **做了什么**：ADR 0023 落地记录、P2 计划 §4.2 落地记录、PLAN 的路由示例改名 `route`。`make lint` 干净，pytest 1209、Vitest 319、E2E 46 全过。
