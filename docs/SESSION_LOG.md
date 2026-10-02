@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-02 · P2 计划与任务拆分
+
+- **做了什么**：推送任务 29 到 86f065e，用户实测一轮通过，P1 收尾完成。用子 agent 摸清了 P2 相关现状（见下“现状要点”），写了 `docs/plans/P2-adaptive-reading-writing.md`（Demo 定义、五个子阶段、依赖、练习引擎 / Supervisor 与写作 / 阅读与定时任务 / 图谱与诊断 / 每日计划、表汇总、任务顺序、决定）。用户已确认 D1–D4：顺序 练习引擎 → 写作 → 阅读 → 图谱诊断 → 每日计划；语法图谱存 Postgres（不用 Neo4j）；阅读来源 VOA Learning English + 自加 RSS；Supervisor 按原计划。看板 P2 段拆成任务 30–49，原“后台预生成 AI 例句”并入任务 44。
+- **现状要点**（开工时不用再查）：对话图 `agents/chat_graph.py` 是 `load_context → tutor ⇄ tools`，`MAX_TOOL_ROUNDS=2`；会话分支在 `api/chat.py::_reply`（`focus_kc_id` 练习无工具、`purpose` planning/daily 有限工具、自由对话全部工具）；`kc/grammar.yaml` 119 个 KC，约 109 个有 `prerequisites`，`catalog.py` 已校验无环；`kc_evidence.source` 只有 chat / placement（check 约束），没有题型列；`rules.yaml` 的 `elo.guess_by_format` 只有 choice4；入学测 `items.yaml` 90 道 choice4 可作兜底题库；没有题目 / 作答 / critic / APScheduler / `backend/evals`；后台任务可照 `memory/worker.py` 的 `ReflectionWorker`；结构化调用范例 `chat/translate.py`、`memory/reflection.py`、`services/vocab/examples.py`。
+- **未完成**：Q5–Q13（计划 §10，题型范围、开放题判对、出题时机、题目复用、Supervisor 路由、写作入口、每日计划确认方式、后台调用上限、评估集）还没和用户确认；ADR 0021–0025 未写（任务 30）。`frontend/Dockerfile` 可选代理构建参数仍未决。
+- **下一步**：新会话：① 和用户确认 Q5–Q13，结果写回计划 §10 和看板；② 任务 30（ADR + PLAN 同步 + 删 neo4j profile）；③ 任务 31 起按顺序做，开工每个任务前把子任务写进看板。
+- **踩坑**：无新坑。
+
 ## 2026-10-02 · 推送任务 28，任务 29 猫咪动画
 
 - **做了什么**：推送 28 个提交到 4b9b324，CI run 36905913966 全绿。用户放入 `docs/design/lingo-cat-motion/`（logo 猫六种情绪），拆成任务 29，Q29a–d 已确认（头像本身播 ai 动画、所有空状态和错误都用猫、骨架屏保留、done 每次都播）。29.1 设计包入库（删 Zone.Identifier）。29.2 `components/brand/lingo-cat.tsx`（`LingoCat`、`Delayed`、`CatLoading`）+ `lingo-cat.css`（`globals.css` 引入），i18n `cat` 命名空间。29.3 `EmptyState` 去掉 `icon` 改画猫；新增 `ui/error-text.tsx`，替换 20 多处一行错误；对话页 `message-list.tsx` 的 `waiting()` 时头像位置放 ai 猫、不画空气泡；复习完成 / 入学测结果 done；翻译、AI 例句、查词放 16px 猫。29.4 临时截图脚本对照浅色 / 深色 / 减少动态效果，整页失败改为大号 oops；修 `i18n.spec` 偶发冲突。Docker 只重建了前端。
