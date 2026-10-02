@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-10-02 · 任务 34 完成（批改）
+
+- **做了什么**：34.3 `adaptive/exercise/answer.py`：`answer()`（代码判 / 模型判 → `attempts` + `kc_evidence` → `mastery.refresh` → 组状态）和 `report()`（标 `reported`、删证据重放、保留作答），都自己提交；`worker.structured_call` 抽出来供批改复用。34.4 同文件 `_update_ability`：每次计入的作答走一步 Elo，没有记录时从等级锚点起步。34.5 文档：agent-tools、ADR 0021 §6、P2 计划。集成测试 15 个，pytest 1075 全过，ruff、mypy 干净。提交 1d3492e、6062901 和本条。
+- **未完成**：无。任务 34 全部完成；本地领先 origin 约 27 个提交，未推送。
+- **下一步**：任务 35（练习页与接口），开工前先拆子任务。接口要点：`worker.start()` 拿 set id，`stage()` 给进度；作答调 `answer.answer(..., grade_call=worker.structured_call(ctx, config, "exercise_grade"))`，`config` 带 `metadata.user_id`，这样 `llm_usage` 能记到人；`Answered.set_done` 或 `report()` 返回 True 时调 `practice_worker.prefetch(user_id, tenant_id)`；异常映射：`ExerciseNotFoundError` → 404，`NotAnswerableError` → 409，`InvalidResponseError` → 422，`GradingFailedError` → 503（请重交）；`exercises.answer` 只在作答后返回。前端挂 `practice_set`、`practice_grade` 的 AiBadge。
+- **踩坑**：① `answer()` 在模型调用前 `session.rollback()` 结束读事务，所以调用方不能在同一个 session 里留着没提交的写入。② 同一学习者对**不同**题并发作答、且还没有 grammar 能力记录时，两边可能同时插入 `skill_estimates`，会撞主键；练习页是一题一题交的，暂不处理。③ 举报不回退 Elo，ADR 0021 §6 已写明。
+
 ## 2026-10-02 · 任务 34.1、34.2 完成
 
 - **做了什么**：34.1 `exercise/grading.py` 代码批改（17 个单测，提交 78b0272）。34.2 `exercise/grader.py` + `prompts/exercise_grade.md`：结构化输出 `Graded`（`correct`、`explanation`、`corrected`、`other_mistakes`），`grade_messages(body, kc, response, explain_in)`，`verdict()` 丢掉目标 KC、清单外 KC、空原文、重复；`features.yaml` 的 `practice_grade`（`exercise_grade` 走默认路由）+ 前端 `ai-usage.ts` 和中英文案。pytest 1060 全过，ruff、mypy、tsc、vitest 干净。提交 b17f261。

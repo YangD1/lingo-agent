@@ -75,7 +75,7 @@
 
 - **优先级** = 薄弱度（1 − p_mastery）× 重要度（KC 等级与学习者等级的距离、最近 30 天错误次数）× 到期（FSRS 到期的已掌握 KC 加权）× 诊断加成（P2d 之后）。
 - **交错**：一组 10 题里约 70% 来自薄弱 KC，30% 来自已掌握或到期 KC；同一 KC 不连续出现，同一题型不连续超过两题。
-- **85% 规则**：用学习者的语法 Elo 能力值和题目 rubric 难度算预计正确率，目标 0.80–0.85；选题时给生成器“目标难度”，作答后 Elo 校准题目难度（同入学测）。
+- **85% 规则**：用学习者的语法 Elo 能力值和题目 rubric 难度算预计正确率，目标 0.80–0.85；选题时给生成器“目标难度”，作答后 Elo 更新学习者的语法能力（Q34c：练习题不校准难度）。
 - 参数全部放 `rules.yaml`（ADR 0012 的做法），改参数换版本号。
 
 ### 3.4 出题子图（LangGraph，mock LLM 集成测试）
@@ -87,6 +87,7 @@
 - 生成时机（Q7）：开始一组时现生成（等待时显示 hop 猫和进度），做完一组后后台预生成下一组。
 - 学习者点“这题有问题”：题目标为 `reported`，不计证据，记入评估集候选（Q13）。
 - **落地记录（任务 33，2026-10-02）**：Q33a–g 已确认，细节写在 ADR 0021 §3、§4。代码：`adaptive/exercise/inputs.py`（选题输入）、`drafts.py`（扁平 schema、组装、`judge`）、`messages.py`、`bank.py`（题库补位四档）、`service.py`（存库、`how_made`）、`worker.py`（`PracticeWorker`）、`agents/exercise_graph.py`；`rules.yaml` `2026-10-02.3`；迁移 `9f45cf7f00b8`（`exercise_sets.rules_version`）。没入学测的新学习者按 A2，A2 窗口多数语法点先验 p ≥ 0.4，所以第一组几乎全是产出题，实测时留意；入学测和重测提醒另立任务 50。
+- **落地记录（任务 34，2026-10-02）**：Q34a–f 已确认，细节写在 ADR 0021 §6。代码：`adaptive/exercise/grading.py`（代码批改）、`grader.py` + `prompts/exercise_grade.md`（批改模型，`features.yaml` 的 `practice_grade`）、`answer.py`（`answer` / `report`，证据、掌握度重放、Elo、组状态）；`worker.structured_call` 抽出供批改复用。没有新迁移。任务 35 的接口在组完成（`Answered.set_done` 或 `report` 返回 True）时调 `practice_worker.prefetch`。
 
 ### 3.5 批改
 
