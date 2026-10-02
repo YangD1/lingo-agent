@@ -106,4 +106,12 @@ def verdict(graded: Graded, kc: GrammarKC, catalog: GrammarCatalog) -> Verdict:
     return Verdict(graded.correct, graded.explanation.strip(), corrected, tuple(kept))
 
 
-__all__: Sequence[str] = ("TASK", "Graded", "OtherMistake", "Verdict", "grade_messages", "verdict")
+__all__: Sequence[str] = (
+    "TASK",
+    "Graded",
+    "OtherMistake",
+    "Verdict",
+    "grade_messages",
+    "learner_answer",
+    "verdict",
+)

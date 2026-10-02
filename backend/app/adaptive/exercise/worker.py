@@ -89,23 +89,28 @@ class _AnsweredBy(BaseCallbackHandler):
             self.model = self._started.pop(run_id)
 
 
+def structured_call(
+    ctx: TenantProviderContext, config: RunnableConfig, task: str
+) -> StructuredCall:
+    """A structured call on `task`'s route that notes which model answered."""
+
+    async def invoke(messages: Sequence[BaseMessage], schema: type[BaseModel]) -> ModelReply:
+        answered = _AnsweredBy()
+        run: RunnableConfig = {
+            **config,
+            "callbacks": [answered],
+            "tags": [*config.get("tags", []), task],
+        }
+        output = await get_structured_llm(ctx, task, schema).ainvoke(messages, config=run)
+        return ModelReply(output, answered.model)
+
+    return invoke
+
+
 def model_calls(
     ctx: TenantProviderContext, config: RunnableConfig
 ) -> tuple[StructuredCall, StructuredCall]:
-    def call(task: str) -> StructuredCall:
-        async def invoke(messages: Sequence[BaseMessage], schema: type[BaseModel]) -> ModelReply:
-            answered = _AnsweredBy()
-            run: RunnableConfig = {
-                **config,
-                "callbacks": [answered],
-                "tags": [*config.get("tags", []), task],
-            }
-            output = await get_structured_llm(ctx, task, schema).ainvoke(messages, config=run)
-            return ModelReply(output, answered.model)
-
-        return invoke
-
-    return call(GENERATE_TASK), call(CRITIC_TASK)
+    return structured_call(ctx, config, GENERATE_TASK), structured_call(ctx, config, CRITIC_TASK)
 
 
 class PracticeWorker:
