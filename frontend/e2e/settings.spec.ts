@@ -70,7 +70,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await page.getByRole("link", { name: "设置" }).click();
   const usage = page.getByRole("table", { name: "用量" });
   await expect(async () => {
-    await page.getByRole("button", { name: "刷新" }).click();
+    await page.getByRole("button", { name: "刷新", exact: true }).click();
     await expect(usage.locator("tbody tr")).toHaveCount(1, { timeout: 1000 });
     await expect(usage.locator("tbody tr td").nth(2)).toHaveText("4", { timeout: 1000 });
   }).toPass({ timeout: 15_000 });

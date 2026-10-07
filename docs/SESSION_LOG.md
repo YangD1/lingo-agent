@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-10-07 · 任务 40 完成（定时任务框架 + 后台每日上限 + 设置页开关）
+
+- **做了什么**：Q40a–f 按推荐确认后做完 40.1–40.5，每个子任务单独提交。`backend/app/scheduler/`：`jobs.py`（`Job`、`JobContext`、`JOBS` 暂为空）、`service.py`（`Scheduler`：APScheduler 3.11.3 只负责触发，运行、防重叠、`scheduler_runs` 记录、启动时修复被打断的运行并补跑错过的周期）、`budget.py`（`llm_usage.background` 按 UTC 当天汇总，`tenants.background_daily_tokens` 默认 100,000）、`prefs.py`（学习者开关登记，现在只有 `practice_prefetch`）；`api/background.py`（`/me/background`、`/tenant/background`）；`PracticeWorker.prefetch` 判学习者开关和上限，预生成的调用带 `background: True`；前端设置页“后台任务”一节（`background-section.tsx`）；`SCHEDULER_ENABLED`（`.env.example`、compose 注释写明单实例，E2E 后端关掉）。迁移 `71d583d62096`、`d4236aefe2d0`、`94afd2b1f522`（开发库已升级）。文档：agent-tools 新一节、ADR 0025 和 P2 计划落地记录、README 中英。
+- **验证**：`make lint` 干净；`make test` pytest 1249、Vitest 340 全过；`make e2e` 50 全过（新增 `background.spec.ts`）。
+- **未完成**：没推送（本地领先 origin 6 个提交），Docker 没重建，CI 没跑。
+- **下一步**：推送并看 CI、重建 Docker（要等用户确认）；然后任务 41（RSS 抓取，第一个真实定时任务：在 `scheduler/jobs.py` 的 `JOBS` 里加，任务函数返回跳过原因，开始前用 `budget.load` 判上限；抓取本身不调模型，预改写是任务 42）。
+- **踩坑**：Playwright 的 `getByRole(name)` 默认按子串匹配，新加的“刷新…”“保存…”按钮会和页面上已有的同名按钮冲突，起名要避开或用 `exact`；`page.goto` 去一个只差 `#hash` 的同一地址不会重新加载页面；没有 `owner/admin` 身份的成员在 P0 找不到个人租户（接口 500），所以 403 分支只能像 `test_usage.py` 那样直接测依赖函数；`llm_usage` 是 `UsageWriter` 每 2 秒成批写的，E2E 里断言“没有后台用量”前要先等一会儿。
+
+---
+
 ## 2026-10-07 · 任务 51 完成（51.3 收尾）
 
 - **做了什么**：`docs/decisions/0026-model-switches.md`（两级开关、解析规则、取舍），ADR 0007 头部加“补充见 0026”，`docs/PLAN.md` provider 一段同步；`frontend/e2e/model-switches.spec.ts`（行开关关 → 对话 409 `models_disabled` 带去设置 → 打开恢复 → 连接开关关 → 行标“连接已停用”、对话报没配置 → 打开），顺带截图看了浅色 / 深色下关闭状态的开关；README 中英各补一句。`make lint` 干净，`make test` 全过（pytest 1222、Vitest 337），`make e2e` 49 全过。

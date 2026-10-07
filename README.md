@@ -36,6 +36,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 - **What the tutor did.** Under each reply you can expand what the tutor read, which tools it called, and what it wrote down afterwards. [docs/agent-tools.md](docs/agent-tools.md) lists every tool and background step.
 - **AI usage labels.** Each feature that calls a model has an "AI" badge. It shows which model tasks run and roughly how many tokens each use costs, before you click.
+- **Background work you control.** Work the tutor does while you are away (for now, preparing your next practice set) can be switched off item by item under Settings → Background work. Owners set a daily token budget for all background calls (0 turns them off); what you start yourself is never limited. Scheduled jobs run inside the single backend process, so deploy one backend instance.
 
 **Platform**
 

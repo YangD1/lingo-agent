@@ -798,7 +798,7 @@
     "background": {
       "title": "Background work",
       "description": "The tutor prepares some things while you are away. Each can be switched off; it is then done when you need it, with a short wait.",
-      "refresh": "Refresh",
+      "refresh": "Refresh background work",
       "budgetExhausted": "Today's background budget is used up; it resets tomorrow (UTC). What you start yourself still works.",
       "budgetOff": "An admin switched off all background model calls. What you start yourself still works.",
       "features": {
@@ -810,7 +810,7 @@
       "budgetTitle": "Daily background budget",
       "budgetHint": "How many tokens background calls (ones no learner is waiting for) may use per day, from midnight UTC. Checked before each piece of background work starts, so the last one may go slightly over. 0 switches all background calls off. Chat, grading and other things learners start are never limited.",
       "dailyTokens": "Daily limit (tokens)",
-      "save": "Save",
+      "save": "Save limit",
       "usedToday": "Used today: {used} / {limit} tokens",
       "jobsTitle": "Scheduled jobs",
       "schedulerOff": "Scheduled jobs are not running (SCHEDULER_ENABLED=false).",

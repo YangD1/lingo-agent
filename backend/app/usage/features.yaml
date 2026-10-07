@@ -9,7 +9,10 @@
 #   section  provider section (llm / embedding / asr); default llm
 #   route    the route task it runs on, when not the same as `task`
 #   timing   now: the learner waits for it; background: after the reply, off the
-#            request path
+#            request path. Work nobody waits for (scheduled jobs, generating ahead)
+#            also passes `background: True` in the run metadata, so it counts against
+#            the tenant's daily background budget (ADR 0025 §5), and gets a learner
+#            switch in app/scheduler/prefs.py
 #   per      what one call covers: call / image / page (scanned PDF pages only)
 #   default  estimate without history: input/output tokens, or audio_seconds for asr
 #   history  false when the call is never recorded in llm_usage (embeddings)

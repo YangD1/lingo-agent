@@ -19,7 +19,7 @@
 | `memory_edit` | `/memory` 记忆列表（添加、修改） | `memory` 向量化 |
 | `word_examples` | 私教气泡里单词气泡的“AI 例句”（ADR 0017）；复习卡片背面的“AI 例句”（ADR 0020） | `word_examples`（立即；同租户同词同等级只调一次，之后读缓存） |
 | `message_translate` | 私教气泡下的“看中文 / 看英文”（ADR 0017） | `translate`（立即；每条消息每种语言只调一次，之后读缓存） |
-| `practice_set` | `/practice` 落地页“开始一组 / 继续上次的练习”、总结页“再来一组”；学习者模型每个语法点、私教练习卡片、看板建议里的“做一组题” | `exercise_generate` + `exercise_critic`（立即；被拒的题最多再重写审两轮）；做完一组后在后台为下一组再各调一次 |
+| `practice_set` | `/practice` 落地页“开始一组 / 继续上次的练习”、总结页“再来一组”；学习者模型每个语法点、私教练习卡片、看板建议里的“做一组题”；设置“后台任务”里的“预先出好下一组练习” | `exercise_generate` + `exercise_critic`（立即；被拒的题最多再重写审两轮）；做完一组后在后台为下一组再各调一次（学习者可关，计入后台每日额度） |
 | `practice_grade` | `/practice` 开放题的提交按钮旁（也和 `practice_set` 一起挂在开组入口）；find_fix 的改法不在答案列表里时同样调用 | `exercise_grade`（立即；每题只批第一次作答；选择题、填空、和参考答案一致的答案由代码判，不调模型） |
 
 设置页的“测试连接”不挂标记：只给管理员用，每次几个 token，且不走路由（ADR 0014 §4）。
@@ -141,13 +141,28 @@
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
-| 开始一组 / 预生成下一组 | `api/practice.py` `POST /practice/sets` → `adaptive/exercise/worker.py` `PracticeWorker.start` / `prefetch`（先继续最近一组没做完的；指定语法点时该语法点最多占 `max_items_per_kc` 题，不用预生成组；组做完或最后一题被举报时预生成下一组） | 学习者现有的练习组；指定的语法点 | `exercise_sets`（`generating`；预生成组 `origin=prefetch`，没人开始过的超过 24 小时或规则变了标 `failed/expired`） | 无 | 练习页；预生成的开关在任务 40 接入设置页 |
+| 开始一组 / 预生成下一组 | `api/practice.py` `POST /practice/sets` → `adaptive/exercise/worker.py` `PracticeWorker.start` / `prefetch`（先继续最近一组没做完的；指定语法点时该语法点最多占 `max_items_per_kc` 题，不用预生成组；组做完或最后一题被举报时预生成下一组） | 学习者现有的练习组；指定的语法点 | `exercise_sets`（`generating`；预生成组 `origin=prefetch`，没人开始过的超过 24 小时或规则变了标 `failed/expired`） | 无 | 练习页；预生成是后台工作：学习者可在设置“后台任务”里关掉（`practice_prefetch`，默认开），租户当天后台额度用完时不预生成（见“后台工作与定时任务”一节） |
 | 选题 | `adaptive/exercise/inputs.py`、`planner.py`（纯算法） | `kc_mastery`、近 30 天计入错误、`skill_estimates`（grammar）、画像等级；`rewrite_own` 取近 30 天对话里自己的错句（优先没出过题的） | `exercise_sets.kc_plan`、`rules_version` | 无 | 练习页显示每题的语法点；`/learner` 删除证据后下一组就不再使用那句话 |
 | 出题 | `agents/exercise_graph.py` `generate`，提示词 `prompts/exercise_generate.md` | 计划里的语法点（说明、常见错误）、目标难度、学习者等级、讲解语言、画像的职业 / 目标 / 考试 / 兴趣、最近 8 条事实记忆、`rewrite_own` 的原句和改正；重写时附被拒草稿和理由 | 无（草稿先给审题） | `llm/exercise_generate`（走默认路由） | — |
 | 审题 | 同上 `critic`，提示词 `prompts/exercise_critic.md`，判定 `adaptive/exercise/drafts.py` `judge` | 学习者能看到的题面；开放题的参考答案；语法点说明；不含个人信息和答案 | `exercises`：通过的 `status=ok`，被拒的 `status=rejected`（只用于评估审题，不给学习者），`critic` 存判定、理由、独立作答、两方评级和模型名 | `llm/exercise_critic`（默认先用另一家模型，温度 0） | 练习页的“这组题怎么来的” |
 | 题库补位 | `adaptive/exercise/bank.py` | 入学测题库、学习者做过的题库题（入学测和练习） | `exercises`（`bank_item_id`，`critic` 为空） | 无 | 练习页标“题库题” |
 | 作答与批改 | `adaptive/exercise/answer.py` `answer`；代码判 `grading.py`；模型判 `grader.py`，提示词 `prompts/exercise_grade.md` | 题目（含答案）、学习者答案；模型只收到题面、参考答案、目标语法点和语法点清单，讲解语言取画像，不含其他个人信息 | `attempts`（每题只记第一次，`feedback` 存讲解、改正、其他错误、批改模型名）；`kc_evidence`（`source=exercise`，目标语法点按题型记识别 / 产出，其他错误各记一条，KC 必须在清单里且不是目标语法点）；重放 `kc_mastery`；`skill_estimates` grammar 走一步 Elo；`exercise_sets` 状态 ready → in_progress → done。批改模型失败时什么都不写，学习者重交 | `llm/exercise_grade`（默认路由） | 练习页每题的批改结果；`/learner` 页面的证据（可删除） |
 | 举报有问题的题 | `adaptive/exercise/answer.py` `report` | 这题的作答 | `exercises.status=reported`；删掉这题作答产生的全部证据并重放掌握度（作答本身保留；语法能力那一步 Elo 不回退） | 无 | 练习页“这题有问题”；重复举报不变 |
+
+## 后台工作与定时任务（ADR 0025，任务 40）
+
+不是学习者当下点出来的模型调用都算后台工作：定时任务（`backend/app/scheduler/jobs.py` 登记，进程内 APScheduler 触发）和事件触发的预备工作（现在只有练习预生成）。回复后的记忆反思属于对话本身，学习者自己提交后在后台批改的写作也是学习者在等的，都不算。
+
+- **每日上限**：租户级 `tenants.background_daily_tokens`（默认 100,000，0 = 关闭全部后台调用），owner / admin 在设置“后台任务”里改。用量是 `llm_usage` 里 `background = true` 的行，按 UTC 零点切天；每项后台工作开始前检查，最后一项可能略超。用完后当天跳过，定时任务记跳过原因 `budget_exhausted`。
+- **学习者开关**：`backend/app/scheduler/prefs.py` 登记每种为学习者做的后台工作和默认值，存 `user_background_prefs`；设置“后台任务”里每项一个开关，旁边挂对应功能的 AI 标记。额度用完或被关闭时学习者只看到一句提示，不看数字。
+- **运行记录**：`scheduler_runs` 记每个定时任务的上次开始 / 结束 / 成功、状态和跳过原因、错误（异常类型和消息，不含学习者内容）；管理员在设置页看到。启动时上次停机打断的标为出错，错过了一个周期的补跑一次。
+- **新增后台工作时**：在 `features.yaml` 登记为 `timing: background`、调用 metadata 带 `background: True`、在 `prefs.py` 登记开关（为学习者做的）、在本节表格加一行。
+
+| 后台工作 | 触发 | 代码 | 模型任务 | 学习者开关（默认） | 学习者在哪里能看到 / 撤销 |
+|---|---|---|---|---|---|
+| 预生成下一组练习 | 做完一组或最后一题被举报（事件） | `adaptive/exercise/worker.py` `PracticeWorker.prefetch` | `llm/exercise_generate`、`llm/exercise_critic`（`background`） | `practice_prefetch`（开） | 设置“后台任务”；练习页“这组题怎么来的” |
+
+定时任务目前还没有（第一个是任务 41 的 RSS 抓取）。
 
 ## 写作批改（P2 计划 §4.2，任务 38）
 

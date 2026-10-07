@@ -103,7 +103,7 @@ describe("BackgroundSection", () => {
     expect(screen.getByText("Today's background budget was used up.")).toBeInTheDocument();
 
     const input = screen.getByLabelText("Daily limit (tokens)");
-    const save = screen.getByRole("button", { name: "Save" });
+    const save = screen.getByRole("button", { name: "Save limit" });
     expect(save).toBeDisabled(); // unchanged
     await userEvent.clear(input);
     await userEvent.type(input, "0");

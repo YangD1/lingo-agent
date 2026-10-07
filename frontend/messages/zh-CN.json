@@ -798,7 +798,7 @@
     "background": {
       "title": "后台任务",
       "description": "私教在你不操作的时候也会替你做一些准备，每一项都可以关掉。关掉后需要时会现做，只是要多等一会儿。",
-      "refresh": "刷新",
+      "refresh": "刷新后台任务",
       "budgetExhausted": "今天的后台额度已用完，明天（UTC）恢复。你点的功能不受影响。",
       "budgetOff": "管理员关闭了全部后台调用。你点的功能不受影响。",
       "features": {
@@ -810,7 +810,7 @@
       "budgetTitle": "后台每日上限",
       "budgetHint": "后台调用（不是学习者当下点出来的）每天最多用多少 token，按 UTC 零点切天。开始一项后台工作前检查，最后一项可能略超。0 表示关闭全部后台调用。对话、批改等学习者当下用的功能不受限。",
       "dailyTokens": "每天上限（token）",
-      "save": "保存",
+      "save": "保存上限",
       "usedToday": "今天已用 {used} / {limit} token",
       "jobsTitle": "定时任务",
       "schedulerOff": "定时任务没有在运行（SCHEDULER_ENABLED=false）。",

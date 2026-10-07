@@ -26,3 +26,12 @@ P2 开始出现不由学习者当下操作触发的模型调用：抓取 RSS 后
 - 不用 APScheduler 的持久化 job store：任务都在代码里定义，持久化反而会让改了代码后的旧任务残留；补跑靠 `scheduler_runs` 自己判断，更透明。
 - 也可以照 `ReflectionWorker` 自己写 asyncio 循环，少一个依赖；但 cron 表达式、错过执行的处理、合并重叠执行这些都要自己写，APScheduler 3.x 是成熟的纯 Python 库，内存占用很小。
 - 默认上限是猜的保守值，P2 Demo 实测后按实际用量再调。按 UTC 切天对不在 UTC 时区的学习者会有偏差，上限只是成本保护，不追求精确。
+
+## 落地记录（任务 40，2026-10-07）
+Q40a–f 按推荐确认。
+- **调度**（40.1）：`backend/app/scheduler/jobs.py` 定义 `Job`（名字 + APScheduler trigger + `async run(ctx) -> 跳过原因 | None`）和 `JOBS`（任务 40 时为空，第一个是任务 41 的 RSS 抓取）；`service.py` 的 `Scheduler`：APScheduler 只负责触发（`coalesce`），运行在自己的 asyncio 任务里，同一任务正在跑时新的触发丢掉；`scheduler_runs` 记开始、结束、上次成功、状态（running / ok / skipped / error）、跳过原因、错误。启动时把上次停机打断的标 error，再对“上次结束后又到了一个周期”或从没跑过的任务补跑一次。`SCHEDULER_ENABLED`（默认 true；E2E 后端关掉，pytest 不跑 lifespan，测试直接调任务）。
+- **记账与上限**（40.2，Q40a、Q40b）：`llm_usage.background`，调用时 metadata 带 `background: True`（预生成和现生成共用 task 名，所以不靠 task 名区分）；`tenants.background_daily_tokens`（默认 100,000，≥ 0）；`scheduler/budget.py` 汇总当天（UTC）后台输入 + 输出 token，每项后台工作开始前判，允许最后一项略超。
+- **开关**（40.3，Q40c）：`user_background_prefs`（没有行用默认值），功能登记在 `scheduler/prefs.py`，目前只有 `practice_prefetch`（默认开）。接口 `GET/PUT /me/background`（学习者只看到额度状态 ok / exhausted / off）、`GET/PUT /tenant/background`（owner / admin：上限、今天已用、各任务运行情况）。**和计划不同**：`PracticeWorker.prefetch_enabled` 保留为进程级总开关（测试用），学习者开关另外判。
+- **设置页**（40.4、Q40e）：“后台任务”一节，学习者开关挂对应功能的 AI 标记；额度用完 / 关闭只显示一句提示，不打断。
+- 迁移：`71d583d62096`（`scheduler_runs`）、`d4236aefe2d0`（`llm_usage.background`、`tenants.background_daily_tokens`）、`94afd2b1f522`（`user_background_prefs`）。
+
