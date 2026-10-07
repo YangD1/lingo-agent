@@ -77,6 +77,21 @@ class Scheduler:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
 
+    @property
+    def running(self) -> bool:
+        return self._scheduler is not None
+
+    @property
+    def job_names(self) -> list[str]:
+        return list(self._jobs)
+
+    def next_run(self, name: str) -> datetime | None:
+        """When the schedule fires this job next; None while the scheduler is not running."""
+        if self._scheduler is None:
+            return None
+        job = self._scheduler.get_job(name)
+        return job.next_run_time if job is not None else None
+
     def trigger(self, name: str) -> bool:
         """Run a job now; False when it is already running."""
         job = self._jobs[name]

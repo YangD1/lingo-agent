@@ -46,9 +46,12 @@ from app.main import create_app  # noqa: E402
 from app.memory.worker import ReflectionWorker  # noqa: E402
 from app.placement.service import PlacementRuntime  # noqa: E402
 from app.providers import net_guard  # noqa: E402
+from app.scheduler.jobs import JOBS  # noqa: E402
+from app.scheduler.service import Scheduler  # noqa: E402
 from app.writing.worker import WritingWorker  # noqa: E402
 
 BUSINESS_TABLES = (
+    "user_background_prefs",
     "scheduler_runs",
     "writing_submissions",
     "placement_item_stats",
@@ -174,6 +177,8 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         )
         # Without a model configured, reviews fail; tests swap in a fake model.
         app.state.writing_worker = WritingWorker(app.state.sessionmaker)
+        # Not started: tests run jobs themselves.
+        app.state.scheduler = Scheduler(app.state.sessionmaker, JOBS)
         yield app
         await app.state.writing_worker.stop()
         await app.state.practice_worker.stop()

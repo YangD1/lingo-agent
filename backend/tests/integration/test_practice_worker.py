@@ -18,6 +18,7 @@ from app.db.models import Exercise, ExerciseSet, Tenant, TenantMember
 from app.db.session import create_sessionmaker
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
+from app.scheduler import prefs
 from tests.unit.test_exercise_graph import FakeModels
 
 RULES = get_rules()
@@ -233,6 +234,18 @@ async def test_prefetch_can_be_switched_off(maker: async_sessionmaker[AsyncSessi
     user_id, tenant_id = await learner(maker)
     practice = worker(maker, FakeModels())
     practice.prefetch_enabled = False
+
+    assert await practice.prefetch(user_id, tenant_id) is None
+
+
+async def test_the_learner_can_switch_prefetch_off(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    user_id, tenant_id = await learner(maker)
+    practice = worker(maker, FakeModels())
+    async with maker() as session:
+        await prefs.set_enabled(session, user_id, prefs.PRACTICE_PREFETCH, False)
+        await session.commit()
 
     assert await practice.prefetch(user_id, tenant_id) is None
 

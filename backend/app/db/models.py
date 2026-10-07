@@ -958,3 +958,21 @@ class SchedulerRun(Base):
     last_skip_reason: Mapped[str | None] = mapped_column(String(64))
     # Exception type and message of the last failed run, cut short; no learner content.
     last_error: Mapped[str | None] = mapped_column(String(500))
+
+
+class UserBackgroundPref(Base):
+    """A learner's switch for one background feature (ADR 0025 §6).
+
+    No row: the feature's default from `app/scheduler/prefs.py`.
+    """
+
+    __tablename__ = "user_background_prefs"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    feature: Mapped[str] = mapped_column(String(64), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

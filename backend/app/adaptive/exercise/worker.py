@@ -47,7 +47,7 @@ from app.db.models import ExerciseSet
 from app.providers.config import TenantProviderContext
 from app.providers.llm import get_structured_llm
 from app.providers.tenant import load_provider_context
-from app.scheduler import budget
+from app.scheduler import budget, prefs
 
 logger = logging.getLogger(__name__)
 
@@ -168,11 +168,14 @@ class PracticeWorker:
         return set_id
 
     async def prefetch(self, user_id: uuid.UUID, tenant_id: uuid.UUID) -> uuid.UUID | None:
-        """Generate the learner's next set in the background, unless one is waiting or
-        the tenant's background budget for today is used up (ADR 0025 §5)."""
+        """Generate the learner's next set in the background, unless one is waiting, the
+        learner switched it off, or the tenant's background budget for today is used up
+        (ADR 0025 §5-6). `prefetch_enabled` turns it off for the whole process (tests)."""
         if not self.prefetch_enabled:
             return None
         async with self._lock(user_id), self._sessionmaker() as session:
+            if not await prefs.is_enabled(session, user_id, prefs.PRACTICE_PREFETCH):
+                return None
             if (await budget.load(session, tenant_id, self._clock())).exhausted:
                 logger.info("background budget used up; not generating ahead for %s", user_id)
                 return None
