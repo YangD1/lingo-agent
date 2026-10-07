@@ -47,6 +47,7 @@ from app.db.models import ExerciseSet
 from app.providers.config import TenantProviderContext
 from app.providers.llm import get_structured_llm
 from app.providers.tenant import load_provider_context
+from app.scheduler import budget
 
 logger = logging.getLogger(__name__)
 
@@ -167,10 +168,14 @@ class PracticeWorker:
         return set_id
 
     async def prefetch(self, user_id: uuid.UUID, tenant_id: uuid.UUID) -> uuid.UUID | None:
-        """Generate the learner's next set in the background, unless one is waiting."""
+        """Generate the learner's next set in the background, unless one is waiting or
+        the tenant's background budget for today is used up (ADR 0025 §5)."""
         if not self.prefetch_enabled:
             return None
         async with self._lock(user_id), self._sessionmaker() as session:
+            if (await budget.load(session, tenant_id, self._clock())).exhausted:
+                logger.info("background budget used up; not generating ahead for %s", user_id)
+                return None
             await self._expire(session, user_id)
             # Not while a set is being generated either: the next one is planned
             # from the answers to this one.
@@ -178,7 +183,7 @@ class PracticeWorker:
                 await session.commit()
                 return None
             set_id = await self._create(session, user_id, "prefetch", started=False)
-        self._spawn(set_id, user_id, tenant_id)
+        self._spawn(set_id, user_id, tenant_id, background=True)
         return set_id
 
     async def recover(self) -> int:
@@ -278,16 +283,25 @@ class PracticeWorker:
         await session.commit()
         return row.id
 
-    def _spawn(self, set_id: uuid.UUID, user_id: uuid.UUID, tenant_id: uuid.UUID) -> None:
+    def _spawn(
+        self,
+        set_id: uuid.UUID,
+        user_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        *,
+        background: bool = False,
+    ) -> None:
         self._stages[set_id] = "generating"
         self._tasks[set_id] = asyncio.create_task(
-            self._run(set_id, user_id, tenant_id), name=f"practice-{set_id}"
+            self._run(set_id, user_id, tenant_id, background), name=f"practice-{set_id}"
         )
 
-    async def _run(self, set_id: uuid.UUID, user_id: uuid.UUID, tenant_id: uuid.UUID) -> None:
+    async def _run(
+        self, set_id: uuid.UUID, user_id: uuid.UUID, tenant_id: uuid.UUID, background: bool
+    ) -> None:
         try:
             async with self._slots:
-                await self._generate(set_id, user_id, tenant_id)
+                await self._generate(set_id, user_id, tenant_id, background)
         except Exception:
             logger.exception("practice set %s failed", set_id)
             await self._fail(set_id, "generation_failed")
@@ -307,7 +321,9 @@ class PracticeWorker:
             )
             await session.commit()
 
-    async def _generate(self, set_id: uuid.UUID, user_id: uuid.UUID, tenant_id: uuid.UUID) -> None:
+    async def _generate(
+        self, set_id: uuid.UUID, user_id: uuid.UUID, tenant_id: uuid.UUID, background: bool
+    ) -> None:
         rules, catalog = get_rules(), get_grammar_catalog()
         now = self._clock()
         seed = secrets.randbits(31)
@@ -330,8 +346,12 @@ class PracticeWorker:
                 .values(kc_plan=[asdict(p) for p in planned], rules_version=rules.version)
             )
             await session.commit()
-        # llm_usage attributes the calls to this learner.
-        config: RunnableConfig = {"metadata": {"user_id": str(user_id)}, "tags": ["practice"]}
+        # llm_usage attributes the calls to this learner; a set generated ahead counts
+        # against the background budget, even if the learner opens it mid-generation.
+        config: RunnableConfig = {
+            "metadata": {"user_id": str(user_id), "background": background},
+            "tags": ["practice"],
+        }
         generate, critique = self._calls(provider_ctx, config)
 
         async def save(result: SetResult) -> None:

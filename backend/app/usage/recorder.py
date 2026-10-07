@@ -12,7 +12,8 @@ keyed by conversation id gets `conversation_id` for free. Missing ids are fine
 
 A run may also set `usage_task` to record the call under another task than the one
 that routed it, e.g. a practice opening served by the chat model but not counted as a
-learner's chat turn.
+learner's chat turn. Work nobody is waiting for that counts against the tenant's daily
+background budget (ADR 0025 §5) sets `background: True`.
 
 Only metadata is recorded - never prompts, completions or exception messages.
 """
@@ -62,6 +63,7 @@ class UsageRecord:
     is_fallback: bool
     error_code: str | None
     audio_seconds: float | None = None
+    background: bool = False
 
 
 UsageSink = Callable[[UsageRecord], None]
@@ -73,6 +75,7 @@ class _PendingRun:
     user_id: uuid.UUID | None
     conversation_id: uuid.UUID | None
     task: str | None
+    background: bool
 
 
 def _as_uuid(value: Any) -> uuid.UUID | None:
@@ -132,6 +135,7 @@ class UsageRecorder(BaseCallbackHandler):
             user_id=_as_uuid(meta.get("user_id")),
             conversation_id=_as_uuid(meta.get("conversation_id") or meta.get("thread_id")),
             task=str(meta["usage_task"])[:64] if meta.get("usage_task") else None,
+            background=meta.get("background") is True,
         )
 
     def on_llm_end(
@@ -183,6 +187,7 @@ class UsageRecorder(BaseCallbackHandler):
             status=status,
             is_fallback=labels.is_fallback,
             error_code=error_code,
+            background=run.background,
         )
         try:
             self._sink(record)

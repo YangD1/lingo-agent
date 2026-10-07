@@ -75,11 +75,18 @@ def _in(column: str, values: tuple[str, ...]) -> str:
 
 class Tenant(TimestampMixin, Base):
     __tablename__ = "tenants"
-    __table_args__ = (CheckConstraint(_in("kind", TENANT_KINDS), name="kind"),)
+    __table_args__ = (
+        CheckConstraint(_in("kind", TENANT_KINDS), name="kind"),
+        CheckConstraint("background_daily_tokens >= 0", name="background_daily_tokens"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200))
     kind: Mapped[str] = mapped_column(String(20))
+    # Tokens background work may use per UTC day (ADR 0025 §5); 0 turns it all off.
+    background_daily_tokens: Mapped[int] = mapped_column(
+        Integer, default=100_000, server_default="100000"
+    )
 
 
 class User(TimestampMixin, Base):
@@ -211,6 +218,9 @@ class LLMUsage(Base):
     # Speech-to-text is billed by audio length, not tokens; NULL when the vendor
     # doesn't report it (ADR 0008 §5).
     audio_seconds: Mapped[float | None] = mapped_column(Float)
+    # Made by background work nobody was waiting for: counts against the tenant's daily
+    # background budget (ADR 0025 §5).
+    background: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

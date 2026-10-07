@@ -14,7 +14,7 @@ from app.adaptive.exercise.worker import PracticeWorker
 from app.adaptive.rules import get_rules
 from app.agents.exercise_graph import StructuredCall, build_exercise_graph
 from app.auth.service import register_user
-from app.db.models import Exercise, ExerciseSet, TenantMember
+from app.db.models import Exercise, ExerciseSet, Tenant, TenantMember
 from app.db.session import create_sessionmaker
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
@@ -51,12 +51,17 @@ async def learner(maker: async_sessionmaker[AsyncSession]) -> tuple[uuid.UUID, u
 
 
 def worker(
-    maker: async_sessionmaker[AsyncSession], models: FakeModels, clock: Clock | None = None
+    maker: async_sessionmaker[AsyncSession],
+    models: FakeModels,
+    clock: Clock | None = None,
+    configs: list[RunnableConfig] | None = None,
 ) -> PracticeWorker:
     def calls(
         ctx: TenantProviderContext, config: RunnableConfig
     ) -> tuple[StructuredCall, StructuredCall]:
         assert config["metadata"]["user_id"]  # llm_usage knows whose calls these are
+        if configs is not None:
+            configs.append(config)
         return models.generate, models.critique
 
     return PracticeWorker(maker, build_exercise_graph(), calls=calls, clock=clock or Clock())
@@ -230,6 +235,38 @@ async def test_prefetch_can_be_switched_off(maker: async_sessionmaker[AsyncSessi
     practice.prefetch_enabled = False
 
     assert await practice.prefetch(user_id, tenant_id) is None
+
+
+async def test_sets_generated_ahead_count_as_background(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    user_id, tenant_id = await learner(maker)
+    configs: list[RunnableConfig] = []
+    practice = worker(maker, FakeModels(), configs=configs)
+
+    await practice.start(user_id, tenant_id, "learner")
+    await practice.wait_idle()
+    await practice.prefetch(user_id, tenant_id)
+    await practice.wait_idle()
+
+    assert [c["metadata"]["background"] for c in configs] == [False, True]
+
+
+async def test_no_prefetch_once_the_background_budget_is_used_up(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    user_id, tenant_id = await learner(maker)
+    practice = worker(maker, FakeModels())
+    async with maker() as session:
+        await session.execute(
+            update(Tenant).where(Tenant.id == tenant_id).values(background_daily_tokens=0)
+        )
+        await session.commit()
+
+    assert await practice.prefetch(user_id, tenant_id) is None
+    # The learner's own sets are never stopped by it.
+    assert await practice.start(user_id, tenant_id, "learner") is not None
+    await practice.wait_idle()
 
 
 async def test_an_unfinished_set_is_resumed_before_a_new_one(

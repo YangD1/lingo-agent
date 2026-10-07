@@ -292,3 +292,14 @@ def test_stream_usage_is_on_by_default(kind: str) -> None:
 def test_stream_usage_can_be_switched_off_per_connection() -> None:
     model = llm.build_chat_model(resolved("openai_compatible", stream_usage=False), task="chat")
     assert getattr(model, "stream_usage") is False  # noqa: B009
+
+
+async def test_background_work_is_marked() -> None:
+    records: list[UsageRecord] = []
+    model = metered(records)
+    await model.ainvoke([HumanMessage(PROMPT)], config={"metadata": {"background": True}})
+    await model.ainvoke([HumanMessage(PROMPT)], config={"metadata": {"background": "yes"}})
+    await model.ainvoke([HumanMessage(PROMPT)])
+
+    # Only a real True counts against the background budget (ADR 0025 §5).
+    assert [r.background for r in records] == [True, False, False]
