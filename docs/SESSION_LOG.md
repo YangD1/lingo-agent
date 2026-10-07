@@ -8,7 +8,7 @@
 
 - **做了什么**：Q41a–h 确认（Q41h：加只给 RSS 用的 `FEED_HTTP_PROXY`）。41.1 表和迁移 `a982263b9709`、内置源登记（9781526）；41.2 抓取、解析、清洗、来源规则（352df1a）；41.3 `rss_fetch` 定时任务（e341656）；41.4 `/reading/feeds`、`/reading/articles` 接口（26b2377）；41.5 ADR 0024 修订和落地记录、P2 计划、agent-tools、README 中英、E2E 断言更新。
 - **验证**：`make lint` 干净；`make test` pytest 1293、Vitest 340 全过；`make e2e` 50 全过。实抓：NASA 10 条留 5，Global Voices 15 条留 12，第二次请求都是 304。
-- **未完成**：没推送（本地领先 origin 7 个提交），CI 没跑，Docker 没重建（开发库已迁移到 `a982263b9709`）。
+- **未完成**：没推送（本地领先 origin 6 个提交），CI 没跑，Docker 没重建（开发库已迁移到 `a982263b9709`）。
 - **下一步**：推送、CI、重建 Docker（要等用户确认；compose 里要设 `COMPOSE_FEED_HTTP_PROXY=http://host.docker.internal:7890`，代理要监听 127.0.0.1 以外的地址，否则容器里抓不到 Global Voices）→ 任务 42（分级改写 + 理解题），先拆子任务。任务 42/43 加 `article_versions`、`reading_sessions` 后，`refresh.py` 的 90 天清理要保留被引用的文章。
 - **踩坑**：本机 DNS 解析不了 globalvoices.org，代理模式下解析失败的名字要交给代理；NASA 的 `content:encoded` 是整页 HTML（导航、轮播、相关推荐、联系人），要按 class 和结尾标记截断；Global Voices 正文里的 CC 标记是图片说明；不能在全量 pytest 跑的同时再跑别的 pytest（同一个测试库，TRUNCATE 死锁）；httpx2 的 `is_redirect` 把 304 也算进去；新表要加进 `tests/conftest.py` 的 `BUSINESS_TABLES`；Bash 里直接用 `pnpm` 会撞上 nvm 的 shell 函数递归，用 `PATH=~/.nvm/versions/node/v24.14.0/bin:/usr/bin:/bin` 再调 `node_modules/.bin/…`。
 
