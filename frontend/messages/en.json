@@ -701,7 +701,12 @@
       "address": "Address",
       "key": "Key",
       "lastTest": "Last test",
-      "lastOk": "Working · {when}"
+      "lastOk": "Working · {when}",
+      "enabledSwitch": "Use {name}",
+      "off": "Off",
+      "offHint": "Off: no feature uses this connection. Its settings and key are kept; turn it back on any time.",
+      "switchedOn": "Connection turned on.",
+      "switchedOff": "Connection turned off."
     },
     "route": {
       "source": {
@@ -749,7 +754,14 @@
           "none": "Not set up: voice messages can't be transcribed until you add a model here."
         }
       },
-      "fallback": "Fallback"
+      "fallback": "Fallback",
+      "rowSwitch": "Use {ref}",
+      "rowOff": "Off",
+      "connectionOff": "Connection off",
+      "connectionMissing": "Connection deleted",
+      "allOff": "Every model here is switched off. Turn one on to use this.",
+      "switchedOn": "{ref} is on.",
+      "switchedOff": "{ref} is off and will be skipped."
     },
     "usage": {
       "title": "Usage",
@@ -904,7 +916,8 @@
     "grading_failed": "Grading failed and your answer wasn't saved. Please submit it again.",
     "writing_too_short": "Too short: write at least 20 English words.",
     "writing_too_long": "Too long: 800 English words and 6000 characters at most.",
-    "writing_not_found": "This piece of writing wasn't found; it may have been deleted."
+    "writing_not_found": "This piece of writing wasn't found; it may have been deleted.",
+    "models_disabled": "Every model for this is switched off. Turn one back on in Settings."
   },
   "dashboard": {
     "title": "Dashboard",

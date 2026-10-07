@@ -86,6 +86,8 @@ export type TaskRoute = {
   task: string;
   models: string[];
   params: Record<string, unknown>;
+  // Refs from `models` switched off: kept in the chain, never called (ADR 0026).
+  disabled: string[];
   overridden: boolean;
   // What actually runs now and which layer it came from (ADR 0007 §3).
   effective: string[];

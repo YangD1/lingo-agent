@@ -8,6 +8,7 @@ import { AutocompleteInput } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Switch } from "@/components/ui/switch";
 import { Tag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
@@ -40,7 +41,10 @@ const TASK_KEY: Record<RouteTask, string> = {
 // A connection's default model is a chat model: only a good first guess for these.
 const TEXT_TASKS = new Set<RouteTask>(["chat", "reflect"]);
 
-type Row = { key: number; connection: string; model: string };
+// `off`: switched off in this route, kept in the chain but never called (ADR 0026).
+type Row = { key: number; connection: string; model: string; off: boolean };
+// Why a row in the saved chain does or doesn't run.
+type RowState = "on" | "off" | "connectionOff" | "connectionMissing";
 // Per connection name: its chat models, or why they aren't there (the user can still type one).
 type Catalogs = Record<string, string[] | "loading" | "failed">;
 
@@ -62,6 +66,7 @@ export function RouteSection({
   const [rows, setRows] = useState<Row[] | null>(null); // null = not editing
   const [catalogs, setCatalogs] = useState<Catalogs>({});
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
   const nextKey = useRef(0);
 
   const load = () =>
@@ -74,19 +79,32 @@ export function RouteSection({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable in effect
   useEffect(() => void load(), [connections]);
 
-  const row = (connection: string, model: string): Row => ({
+  const row = (connection: string, model: string, off = false): Row => ({
     key: nextKey.current++,
     connection,
     model,
+    off,
   });
+
+  // The chain as the tenant saved it (switched-off rows and rows whose connection is off
+  // included), or what runs now when nothing is saved: the YAML route may name connections
+  // this tenant doesn't have.
+  const shown = route ? (route.overridden ? route.models : route.effective) : [];
+
+  function stateOf(ref: string): RowState {
+    if (route?.disabled.includes(ref)) return "off";
+    const c = connections.find((x) => x.name === ref.slice(0, ref.indexOf(":")));
+    if (!c) return "connectionMissing";
+    return c.enabled ? "on" : "connectionOff";
+  }
 
   function startEditing() {
     if (!route) return;
     setMessage(null);
-    // Start from what runs now, so editing is "adjust this", never a blank page.
-    const initial = route.effective.flatMap((ref) => {
+    // Start from the chain shown, so editing is "adjust this", never a blank page.
+    const initial = shown.flatMap((ref) => {
       const i = ref.indexOf(":");
-      return i > 0 ? [row(ref.slice(0, i), ref.slice(i + 1))] : [];
+      return i > 0 ? [row(ref.slice(0, i), ref.slice(i + 1), route.disabled.includes(ref))] : [];
     });
     setRows(initial.length > 0 ? initial : [newRow()]);
   }
@@ -94,6 +112,29 @@ export function RouteSection({
   function newRow(): Row {
     const c = connections[0];
     return row(c?.name ?? "", TEXT_TASKS.has(task) ? (c?.default_model ?? "") : "");
+  }
+
+  async function put(models: string[], disabled: string[]): Promise<boolean> {
+    setMessage(null);
+    setBusy(true);
+    try {
+      setRoute(await api<TaskRoute>(path, { method: "PUT", json: { models, disabled } }));
+      return true;
+    } catch (e) {
+      setMessage({ ok: false, text: describe(e) });
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Switching a row saves at once; on a route never saved, that saves the chain shown.
+  async function toggle(ref: string, on: boolean) {
+    if (!route) return;
+    const disabled = on ? route.disabled.filter((x) => x !== ref) : [...route.disabled, ref];
+    if (await put(shown, disabled)) {
+      setMessage({ ok: true, text: t(on ? "switchedOn" : "switchedOff", { ref }) });
+    }
   }
 
   function loadCatalog(name: string) {
@@ -123,17 +164,16 @@ export function RouteSection({
   const duplicate = new Set(refs).size !== refs.length;
 
   async function save() {
-    setMessage(null);
-    try {
-      setRoute(
-        await api<TaskRoute>(path, { method: "PUT", json: { models: refs } }),
-      );
+    const disabled = (rows ?? []).flatMap((r, i) => (r.off ? [refs[i]] : []));
+    if (await put(refs, disabled)) {
       setRows(null);
       setMessage({ ok: true, text: t("saved") });
-    } catch (e) {
-      setMessage({ ok: false, text: describe(e) });
     }
   }
+
+  // "Fallback" marks the rows after the first one that actually runs.
+  const firstOn = shown.findIndex((ref) => stateOf(ref) === "on");
+  const allOff = !!route && route.effective.length === 0 && route.disabled.length > 0;
 
   async function reset() {
     setMessage(null);
@@ -156,22 +196,56 @@ export function RouteSection({
       <CardContent className="flex flex-col gap-3">
         {route && rows === null && (
           <>
-            <p className="text-xs text-muted-foreground" data-testid={`route-source-${task}`}>
-              {route.effective_source
-                ? t(`source.${route.effective_source}`)
-                : t(`tasks.${task}.none`)}
-            </p>
-            {route.effective.length > 0 && (
+            {allOff ? (
+              <ErrorText size="xs">{t("allOff")}</ErrorText>
+            ) : (
+              <p className="text-xs text-muted-foreground" data-testid={`route-source-${task}`}>
+                {route.effective_source
+                  ? t(`source.${route.effective_source}`)
+                  : t(`tasks.${task}.none`)}
+              </p>
+            )}
+            {shown.length > 0 && (
               <ol className="flex flex-col gap-1.5 text-sm" aria-label={t(`tasks.${task}.title`)}>
-                {route.effective.map((m, i) => (
-                  <li key={m} className="flex min-w-0 items-center gap-2">
-                    <span className="w-4 shrink-0 text-right font-mono text-xs text-muted-foreground">
-                      {i + 1}.
-                    </span>
-                    <span data-slot="route-ref" className="truncate font-mono text-[13px]">{m}</span>
-                    {i > 0 && <Tag variant="outline">{t("fallback")}</Tag>}
-                  </li>
-                ))}
+                {shown.map((m, i) => {
+                  const state = stateOf(m);
+                  return (
+                    <li
+                      key={m}
+                      data-state={state}
+                      className="flex min-w-0 items-center gap-2"
+                    >
+                      <span className="w-4 shrink-0 text-right font-mono text-xs text-muted-foreground">
+                        {i + 1}.
+                      </span>
+                      <span
+                        data-slot="route-ref"
+                        className={cn(
+                          "truncate font-mono text-[13px]",
+                          state !== "on" && "text-muted-foreground line-through",
+                        )}
+                      >
+                        {m}
+                      </span>
+                      {state === "on" && i > firstOn && <Tag variant="outline">{t("fallback")}</Tag>}
+                      {state === "off" && <Tag variant="outline">{t("rowOff")}</Tag>}
+                      {state === "connectionOff" && (
+                        <Tag variant="outline">{t("connectionOff")}</Tag>
+                      )}
+                      {state === "connectionMissing" && (
+                        <Tag variant="outline">{t("connectionMissing")}</Tag>
+                      )}
+                      <Switch
+                        size="sm"
+                        className="ml-auto"
+                        aria-label={t("rowSwitch", { ref: m })}
+                        checked={state !== "off"}
+                        disabled={busy}
+                        onCheckedChange={(on) => void toggle(m, on)}
+                      />
+                    </li>
+                  );
+                })}
               </ol>
             )}
             <div className="flex gap-2">
@@ -201,7 +275,13 @@ export function RouteSection({
               {rows.map((r, i) => {
                 const catalog = catalogs[r.connection];
                 return (
-                  <li key={r.key} className="flex flex-wrap items-center gap-2 py-2.5">
+                  <li
+                    key={r.key}
+                    className={cn(
+                      "flex flex-wrap items-center gap-2 py-2.5",
+                      r.off && "opacity-60",
+                    )}
+                  >
                     <span className="w-4 shrink-0 text-right font-mono text-xs text-muted-foreground">
                       {i + 1}.
                     </span>
@@ -244,7 +324,14 @@ export function RouteSection({
                         className="font-mono"
                       />
                     </div>
-                    <div className="ml-auto flex">
+                    <div className="ml-auto flex items-center">
+                      <Switch
+                        size="sm"
+                        className="mr-1.5"
+                        aria-label={t("rowSwitch", { ref: refs[i] })}
+                        checked={!r.off}
+                        onCheckedChange={(on) => update(r.key, { off: !on })}
+                      />
                       <Button
                         size="icon-sm"
                         variant="ghost"
@@ -291,7 +378,7 @@ export function RouteSection({
               <ErrorText>{t("duplicate")}</ErrorText>
             )}
             <div className="flex gap-2">
-              <Button size="sm" onClick={save} disabled={incomplete || duplicate}>
+              <Button size="sm" onClick={save} disabled={busy || incomplete || duplicate}>
                 {t("save")}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setRows(null)}>

@@ -16,7 +16,12 @@ import { cn } from "@/lib/utils";
 import type { AttachmentTray, PendingAttachment } from "./use-attachments";
 
 /** Failures that mean "set up a model in Settings" rather than "try again". */
-export const SETTINGS_ERRORS = new Set(["no_llm_configured", "no_vision_model", "no_asr_model"]);
+export const SETTINGS_ERRORS = new Set([
+  "no_llm_configured",
+  "no_vision_model",
+  "no_asr_model",
+  "models_disabled",
+]);
 
 // Readings and transcripts can be corrected before sending; documents are shown as is.
 const EDITABLE: ReadonlySet<AttachmentKind> = new Set(["image", "audio"]);

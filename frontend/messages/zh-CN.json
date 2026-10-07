@@ -701,7 +701,12 @@
       "address": "地址",
       "key": "密钥",
       "lastTest": "最近测试",
-      "lastOk": "可用 · {when}"
+      "lastOk": "可用 · {when}",
+      "enabledSwitch": "启用 {name}",
+      "off": "已停用",
+      "offHint": "已停用：所有功能都不会用这个连接，配置和密钥都保留，随时可以打开。",
+      "switchedOn": "已启用这个连接。",
+      "switchedOff": "已停用这个连接。"
     },
     "route": {
       "source": {
@@ -749,7 +754,14 @@
           "none": "未配置：添加模型之前，无法转写语音消息。"
         }
       },
-      "fallback": "备用"
+      "fallback": "备用",
+      "rowSwitch": "使用 {ref}",
+      "rowOff": "已停用",
+      "connectionOff": "连接已停用",
+      "connectionMissing": "连接已删除",
+      "allOff": "这个功能的模型都停用了，打开一个才能使用。",
+      "switchedOn": "已启用 {ref}。",
+      "switchedOff": "已停用 {ref}，调用时会跳过它。"
     },
     "usage": {
       "title": "用量",
@@ -904,7 +916,8 @@
     "grading_failed": "批改失败了，答案没有保存，请再提交一次。",
     "writing_too_short": "太短了：至少写 20 个英文单词。",
     "writing_too_long": "太长了：最多 800 个英文单词、6000 个字符。",
-    "writing_not_found": "找不到这篇写作，可能已经删除。"
+    "writing_not_found": "找不到这篇写作，可能已经删除。",
+    "models_disabled": "这个功能的模型都停用了，请到设置里打开一个。"
   },
   "dashboard": {
     "title": "能力看板",

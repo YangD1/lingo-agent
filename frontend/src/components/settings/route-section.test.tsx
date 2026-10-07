@@ -19,6 +19,7 @@ const route = (overrides: Partial<TaskRoute>): TaskRoute => ({
   task: "chat",
   models: [],
   params: {},
+  disabled: [],
   overridden: false,
   effective: [],
   effective_source: null,
@@ -108,7 +109,97 @@ describe("RouteSection", () => {
     await waitFor(() =>
       expect(api).toHaveBeenCalledWith("/tenant/routes/llm/reflect", {
         method: "PUT",
-        json: { models: ["relay:chat-model"] },
+        json: { models: ["relay:chat-model"], disabled: [] },
+      }),
+    );
+  });
+
+  // --- switching models off (ADR 0026) ----------------------------------------------
+
+  it("switches a row off at once, saving the chain that was shown", async () => {
+    const OPENAI: Connection = { ...RELAY, id: "c2", name: "openai" };
+    const chat = route({
+      task: "chat",
+      effective: ["relay:a", "openai:b"],
+      effective_source: "auto",
+    });
+    api.mockImplementation(async (path: string, init?: { method?: string }) => {
+      if (path === "/tenant/routes") return [chat];
+      if (init?.method === "PUT")
+        return route({
+          task: "chat",
+          models: ["relay:a", "openai:b"],
+          disabled: ["relay:a"],
+          overridden: true,
+          effective: ["openai:b"],
+          effective_source: "override",
+        });
+    });
+    show("chat", [RELAY, OPENAI]);
+
+    await userEvent.click(await screen.findByRole("switch", { name: "Use relay:a" }));
+
+    expect(api).toHaveBeenCalledWith("/tenant/routes/llm/chat", {
+      method: "PUT",
+      json: { models: ["relay:a", "openai:b"], disabled: ["relay:a"] },
+    });
+    expect(await screen.findByRole("switch", { name: "Use relay:a" })).not.toBeChecked();
+    expect(screen.getByRole("status")).toHaveTextContent("relay:a is off");
+    const [first, second] = screen.getAllByRole("listitem");
+    expect(first).toHaveAttribute("data-state", "off");
+    expect(first).toHaveTextContent("Off");
+    // The first row that runs is the primary now, not a fallback.
+    expect(second).toHaveAttribute("data-state", "on");
+    expect(second).not.toHaveTextContent("Fallback");
+  });
+
+  it("marks rows whose connection is off or gone, and says when nothing is left", async () => {
+    const OFF: Connection = { ...RELAY, id: "c2", name: "openai", enabled: false };
+    const chat = route({
+      task: "chat",
+      models: ["relay:a", "openai:b", "gone:c"],
+      disabled: ["relay:a"],
+      overridden: true,
+      effective: [],
+      effective_source: null,
+    });
+    api.mockImplementation(async (path: string) => (path === "/tenant/routes" ? [chat] : undefined));
+    show("chat", [RELAY, OFF]);
+
+    expect(await screen.findByText(/Every model here is switched off/)).toBeInTheDocument();
+    const rows = screen.getAllByRole("listitem");
+    expect(rows.map((r) => r.getAttribute("data-state"))).toEqual([
+      "off",
+      "connectionOff",
+      "connectionMissing",
+    ]);
+    expect(rows[1]).toHaveTextContent("Connection off");
+    expect(rows[2]).toHaveTextContent("Connection deleted");
+  });
+
+  it("keeps switched-off rows when the order is edited", async () => {
+    const OPENAI: Connection = { ...RELAY, id: "c2", name: "openai" };
+    const chat = route({
+      task: "chat",
+      models: ["relay:a", "openai:b"],
+      disabled: ["openai:b"],
+      overridden: true,
+      effective: ["relay:a"],
+      effective_source: "override",
+    });
+    api.mockImplementation(async (path: string) => (path === "/tenant/routes" ? [chat] : undefined));
+    show("chat", [RELAY, OPENAI]);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Edit order" }));
+    expect(screen.getByRole("switch", { name: "Use openai:b" })).not.toBeChecked();
+    await userEvent.click(screen.getAllByRole("button", { name: "Move up" })[1]);
+    await userEvent.click(screen.getByRole("switch", { name: "Use relay:a" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(api).toHaveBeenCalledWith("/tenant/routes/llm/chat", {
+        method: "PUT",
+        json: { models: ["openai:b", "relay:a"], disabled: ["openai:b", "relay:a"] },
       }),
     );
   });

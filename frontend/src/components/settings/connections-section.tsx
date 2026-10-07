@@ -11,10 +11,12 @@ import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Switch } from "@/components/ui/switch";
 import { Tag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
 import { modelsOfRefs, recommendModel } from "@/lib/models";
+import { cn } from "@/lib/utils";
 import {
   type Connection,
   type ConnectionTest,
@@ -195,6 +197,18 @@ function ConnectionItem({
       }
     });
 
+  // Off keeps the key and every setting; no feature calls it until it's back on (ADR 0026).
+  const setEnabled = (enabled: boolean) =>
+    run(async () => {
+      onUpdated(
+        await api<Connection>(`/tenant/connections/${c.id}`, {
+          method: "PATCH",
+          json: { enabled },
+        }),
+      );
+      setResult({ ok: true, text: t(enabled ? "switchedOn" : "switchedOff") });
+    });
+
   const remove = () =>
     run(async () => {
       await api(`/tenant/connections/${c.id}`, { method: "DELETE" });
@@ -203,10 +217,23 @@ function ConnectionItem({
 
   const saved = c.default_model ?? "";
   return (
-    <li className="flex flex-col gap-3 rounded-lg border p-3.5" data-testid={`connection-${c.name}`}>
+    <li
+      className="flex flex-col gap-3 rounded-lg border p-3.5"
+      data-testid={`connection-${c.name}`}
+      data-enabled={c.enabled}
+    >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold">{c.name}</span>
+        <Switch
+          aria-label={t("enabledSwitch", { name: c.name })}
+          checked={c.enabled}
+          disabled={busy}
+          onCheckedChange={(on) => void setEnabled(on)}
+        />
+        <span className={cn("font-semibold", !c.enabled && "text-muted-foreground")}>
+          {c.name}
+        </span>
         <Tag variant="outline">{c.kind}</Tag>
+        {!c.enabled && <Tag variant="outline">{t("off")}</Tag>}
         {!editing && (
           <div className="ml-auto flex items-center">
             <Button size="sm" variant="ghost" onClick={() => setEditing(true)} disabled={busy}>
@@ -228,6 +255,7 @@ function ConnectionItem({
           </div>
         )}
       </div>
+      {!c.enabled && <p className="text-xs text-muted-foreground">{t("offHint")}</p>}
       <dl className="grid gap-x-6 gap-y-2 text-[13px] md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1.4fr)]">
         <div className="flex min-w-0 flex-col gap-0.5">
           <dt className="text-xs text-muted-foreground">{t("address")}</dt>

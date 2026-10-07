@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-07 · 任务 51.2 完成（模型停用开关前端）
+
+- **做了什么**：新增 `frontend/src/components/ui/switch.tsx`；`components/settings/connections-section.tsx` `ConnectionItem` 加 `setEnabled` 和开关、“已停用”标记与说明；`components/settings/route-section.tsx` 改为显示 `shown`（自定义时是 `route.models`，否则是 `effective`），`stateOf` 区分 on / off / connectionOff / connectionMissing，每行开关走 `toggle` 立即 `PUT`，编辑时 `Row.off` 跟着保存；`lib/types.ts` `TaskRoute.disabled`；`chat/attachment-tray.tsx` `SETTINGS_ERRORS` 加 `models_disabled`；中英文案。测试：`route-section.test.tsx` 新加 3 条，新建 `connections-section.test.tsx`。eslint、tsc 干净，Vitest 337 全过。
+- **未完成**：51.3 收尾（ADR 0026、PLAN 同步、E2E：停用后对话报 `models_disabled`、打开后恢复；`make lint` / `make test` / `make e2e`）。
+- **下一步**：51.3。E2E 可以顺便截一张设置页的图，看看开关在浅色和深色主题下的样子。
+- **踩坑**：测试里模拟的 `api` 对 PUT 返回 `undefined`，组件里判断 `route` 要用 `!!route`，不能写 `route !== null`。
+
+---
+
 ## 2026-10-07 · 任务 51.1 完成（模型停用开关后端）
 
 - **做了什么**：看板记上 CI run 37037309179 四个 job 全绿、Docker 已重建；Q51e（新错误码 `models_disabled`）、Q51f（只是连接关掉时照旧退回默认模型）按推荐确认。51.1：迁移 `9c4d2e6f1a37` 加 `tenant_model_routes.disabled`；`app/providers/config.py` `RouteSpec.disabled` + 子集校验、`resolve_route_with_source` 跳过停用行且有停用行时不退回；`app/providers/errors.py` `NoModelConfiguredError(disabled=True)` → `models_disabled`；`app/providers/tenant.py` 加载 `disabled`；`app/credentials/service.py` `put_route` 存 `disabled`、`_rename` 同步改；`app/api/providers.py` `RoutePut` / `TaskRouteOut` 带 `disabled`，`_test_purpose` 把停用行算在链里；`app/api/chat.py` `_no_model_message`。测试：`tests/unit/test_provider_config.py` 6 条、`tests/integration/test_model_settings_api.py` 5 条、`tests/integration/test_chat_send.py` 1 条。ruff、mypy 干净，pytest 1222 全过。
