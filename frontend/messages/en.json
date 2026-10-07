@@ -828,7 +828,9 @@
       "skip": {
         "budget_exhausted": "Today's background budget was used up."
       },
-      "jobs": {}
+      "jobs": {
+        "rss_fetch": "Fetch reading feeds (RSS)"
+      }
     }
   },
   "placement": {

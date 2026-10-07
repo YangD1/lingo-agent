@@ -828,7 +828,9 @@
       "skip": {
         "budget_exhausted": "今天的后台额度已用完。"
       },
-      "jobs": {}
+      "jobs": {
+        "rss_fetch": "抓取阅读来源（RSS）"
+      }
     }
   },
   "placement": {

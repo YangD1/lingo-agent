@@ -51,6 +51,9 @@ from app.scheduler.service import Scheduler  # noqa: E402
 from app.writing.worker import WritingWorker  # noqa: E402
 
 BUSINESS_TABLES = (
+    "articles",
+    "feed_subscriptions",
+    "feeds",
     "user_background_prefs",
     "scheduler_runs",
     "writing_submissions",

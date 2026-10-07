@@ -9,10 +9,14 @@ success", so running it twice does no harm. Each one that calls a model also goe
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from apscheduler.triggers.base import BaseTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from app.services.news.refresh import fetch_due_feeds
+from app.settings import get_settings
 
 
 @dataclass(frozen=True)
@@ -36,5 +40,14 @@ class Job:
     run: JobFunc
 
 
-# Filled in by the tasks that add jobs: RSS fetching first (task 41).
-JOBS: tuple[Job, ...] = ()
+async def rss_fetch(ctx: JobContext) -> str | None:
+    """Fetch the feeds learners read (ADR 0024 §6). No model calls, so no budget check."""
+    await fetch_due_feeds(ctx.sessionmaker, now=ctx.now, proxy=get_settings().feed_http_proxy)
+    return None
+
+
+JOBS: tuple[Job, ...] = (
+    # Each feed has its own next-fetch time (with back-off); the job only looks for
+    # due ones, so its own period is the shortest a feed waits.
+    Job("rss_fetch", IntervalTrigger(hours=2, timezone=UTC), rss_fetch),
+)
