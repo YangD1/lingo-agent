@@ -43,6 +43,8 @@ from app.memory.worker import ReflectionWorker
 from app.observability import setup_tracing, shutdown_tracing
 from app.placement.service import PlacementRuntime
 from app.providers.llm import get_providers_config
+from app.scheduler.jobs import JOBS
+from app.scheduler.service import Scheduler
 from app.settings import Settings, get_settings
 from app.usage.recorder import set_usage_sink
 from app.usage.writer import UsageWriter
@@ -102,9 +104,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     usage_writer = UsageWriter(app.state.sessionmaker)
     usage_writer.start()
     set_usage_sink(usage_writer.submit)
+    app.state.scheduler = Scheduler(app.state.sessionmaker, JOBS)
+    if settings.scheduler_enabled:
+        await app.state.scheduler.start()
     try:
         yield
     finally:
+        try:
+            async with asyncio.timeout(5):
+                # Cut-off runs are marked failed at the next start, then caught up.
+                await app.state.scheduler.stop()
+        except TimeoutError:
+            logger.warning("scheduled jobs did not stop within 5s")
         try:
             async with asyncio.timeout(5):
                 # Cursors live in the database: the next start picks up where this left.

@@ -49,6 +49,7 @@ from app.providers import net_guard  # noqa: E402
 from app.writing.worker import WritingWorker  # noqa: E402
 
 BUSINESS_TABLES = (
+    "scheduler_runs",
     "writing_submissions",
     "placement_item_stats",
     "placement_sessions",

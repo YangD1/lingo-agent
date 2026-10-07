@@ -45,6 +45,9 @@ services:
       CREDENTIALS_ENCRYPTION_KEYS: ${CREDENTIALS_ENCRYPTION_KEYS:-}
       PROVIDER_ALLOW_PRIVATE_NETWORKS: ${PROVIDER_ALLOW_PRIVATE_NETWORKS:-false}
       MEMORY_REFLECTION_ENABLED: ${MEMORY_REFLECTION_ENABLED:-true}
+      # Scheduled jobs run inside this process (ADR 0025): keep one backend replica
+      # with one uvicorn worker, or every copy runs every job.
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
       # Address of the `asr` service below as seen from this container (speaches preset).
       SPEACHES_BASE_URL: http://asr:8000/v1
       OTEL_TRACING_ENABLED: ${OTEL_TRACING_ENABLED:-false}

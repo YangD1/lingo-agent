@@ -38,6 +38,8 @@ os.environ.update(
     # The fake LLM server listens on localhost.
     PROVIDER_ALLOW_PRIVATE_NETWORKS="true",
     LANGSMITH_TRACING="false",
+    # Tests drive background work themselves; no scheduled jobs firing mid-test.
+    SCHEDULER_ENABLED="false",
 )
 
 

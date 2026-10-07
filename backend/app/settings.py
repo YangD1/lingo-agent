@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     # tenant's `reflect` route. Off = no new memories, existing ones are still used.
     memory_reflection_enabled: bool = True
 
+    # Scheduled background jobs (ADR 0025). Off in tests, which call the jobs directly.
+    # Run one backend process only: each process would run every job.
+    scheduler_enabled: bool = True
+
     # Where `make vocab-import` downloads ECDICT from; empty = the pinned GitHub copy.
     # A mirror must serve the same file: it is checked against the pinned sha256.
     ecdict_url: str = ""

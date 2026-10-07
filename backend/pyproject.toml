@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20,<2",
     "anyio>=4.15,<5",
+    "apscheduler>=3.11.3,<4",
     "cryptography>=46,<50",
     "email-validator>=2,<3",
     "fastapi>=0.141,<1",
@@ -59,6 +60,11 @@ select = ["E", "F", "I", "B", "UP", "ASYNC", "RUF"]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# APScheduler 3.x ships no type information; only used in app/scheduler/.
+module = ["apscheduler", "apscheduler.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # Ships no type information (no py.typed); only used in app/attachments/documents.py.

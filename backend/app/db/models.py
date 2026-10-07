@@ -55,6 +55,7 @@ PLACEMENT_STAGES = ("vocab", "grammar")
 CONVERSATION_PURPOSES = ("planning", "daily")
 # A writing submission is reviewed in the background (Q38c).
 WRITING_STATUSES = ("pending", "done", "failed")
+SCHEDULER_RUN_STATUSES = ("running", "ok", "skipped", "error")
 TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link", "writing")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
@@ -924,3 +925,26 @@ class WritingSubmission(Base):
     error_code: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SchedulerRun(Base):
+    """How a scheduled job last went (ADR 0025 §3), one row per job name.
+
+    Read at startup to catch up a missed period once, and shown to tenant admins on the
+    settings page. Jobs themselves work from "new since the last success".
+    """
+
+    __tablename__ = "scheduler_runs"
+    __table_args__ = (
+        CheckConstraint(_in("last_status", SCHEDULER_RUN_STATUSES), name="last_status"),
+    )
+
+    job: Mapped[str] = mapped_column(String(64), primary_key=True)
+    last_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_status: Mapped[str] = mapped_column(String(10))
+    # Why the last run was skipped (e.g. today's background budget is used up).
+    last_skip_reason: Mapped[str | None] = mapped_column(String(64))
+    # Exception type and message of the last failed run, cut short; no learner content.
+    last_error: Mapped[str | None] = mapped_column(String(500))
