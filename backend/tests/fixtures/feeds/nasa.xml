@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+  <title>NASA</title>
+  <link>https://www.nasa.gov</link>
+  <item>
+    <title>APOD: 2026 October 7 – A Made-Up Nebula</title>
+    <link>https://science.nasa.gov/image-article/apod-2026-october-7-a-made-up-nebula/</link>
+    <guid isPermaLink="false">https://www.nasa.gov/?p=1</guid>
+    <pubDate>Wed, 07 Oct 2026 04:05:00 +0000</pubDate>
+    <category><![CDATA[APOD]]></category>
+    <content:encoded><![CDATA[<p>An imaginary nebula glows in this picture.</p>]]></content:encoded>
+  </item>
+  <item>
+    <title>NASA to Cover a Pretend Spacecraft Departure</title>
+    <link>https://www.nasa.gov/news-release/nasa-to-cover-a-pretend-departure/</link>
+    <guid isPermaLink="false">https://www.nasa.gov/?p=2</guid>
+    <pubDate>Tue, 06 Oct 2026 18:31:40 +0000</pubDate>
+    <content:encoded><![CDATA[<p>Watch live coverage of the pretend departure beginning at noon.</p><p>-end-</p><p>Jane Doe</p><p>202-555-0100</p>]]></content:encoded>
+  </item>
+  <item>
+    <title>Pretend Sea Ice Reaches Its Yearly Low</title>
+    <link>https://science.nasa.gov/earth/pretend-sea-ice/</link>
+    <dc:creator><![CDATA[Sam Writer]]></dc:creator>
+    <guid isPermaLink="false">https://www.nasa.gov/?p=3</guid>
+    <pubDate>Wed, 07 Oct 2026 04:00:00 +0000</pubDate>
+    <category><![CDATA[Sea Ice]]></category>
+    <category><![CDATA[Earth Observatory]]></category>
+    <content:encoded><![CDATA[<div class="hds-module wp-block-nasa-blocks-secondary-navigation"><nav class="usa-breadcrumb"><ol><li><a href="https://science.nasa.gov/">Science</a></li><li><a href="https://science.nasa.gov/earth">Earth</a></li></ol></nav><button type="button"><span>Earth Observatory</span><svg viewBox="0 0 4 4"><path d="m1 1z"/></svg></button></div>
+<div class="wp-block-nasa-blocks-article-intro"><div class="article-header"><p class="label carbon-60">2 min read</p><h1>Another Story's Headline That Leaked In</h1></div></div>
+<p class="label">4 min read</p>
+<h2 class="wp-block-heading">Pretend Sea Ice Reaches Its Yearly Low</h2>
+<p class="wp-block-paragraph">A thin layer of frozen seawater covers the northern ocean for most of the year. It grows during the long dark winter and shrinks again when the sun returns in spring, so scientists watch the lowest point of every year very closely because it tells them how the region is changing over time.</p>
+<figure class="hds-media"><img src="https://example.com/ice.jpg" alt="Ice"/><figcaption class="hds-caption-text">Image credit: Someone, CC BY-NC-ND 2.0</figcaption></figure>
+<p class="wp-block-paragraph">This year the ice reached its smallest area in the middle of September. Satellites measured the edge of the ice every day, and the team compared the numbers with the average of the last thirty years. The result was lower than the long-term average, although it was not a new record for the whole period.</p>
+<h3 class="wp-block-heading">Thinner Ice</h3>
+<p class="wp-block-paragraph">The area is only part of the story. Older ice that survives several summers is thicker and stronger than young ice, which forms in a single winter. Over the decades the share of old ice has become much smaller, and that means the cover is easier to break and quicker to melt when warm water and wind arrive.</p>
+<ul class="wp-block-list"><li>Satellites have watched the ice since the late seventies.</li><li>Ships and buoys check the thickness on the surface.</li></ul>
+<p class="wp-block-paragraph">Researchers say that one year cannot show a trend by itself. They look at many years together, and they also study the weather of each summer, because a cloudy and cool season can slow the melting even when the general direction is clear. Next spring they will measure the winter maximum again.</p>
+<p class="wp-block-paragraph">The maps in this story were made from the daily measurements. Readers can compare the edge of the ice in each September with the edge in the following March, when the cover is largest, and see how both have moved north during the period that the satellites have been recording the region every single day.</p>
+<p>2026-067</p>
+<p>News Media Contacts</p><p>Jane Doe</p><p>202-555-0100</p>
+<div class="hds-content-lists"><div class="hds-content-item"><p class="label">7 min read</p><h3><a href="https://science.nasa.gov/x">A Related Story</a></h3><p>Teaser text for a related story that is not part of this article at all.</p><p class="label">Article</p></div></div>
+<h2>Keep Exploring</h2><h3>Discover More from NASA Earth Science</h3>]]></content:encoded>
+  </item>
+</channel>
+</rss>

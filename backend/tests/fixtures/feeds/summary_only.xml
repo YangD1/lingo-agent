@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>A Pretend Daily</title>
+  <link>https://daily.example</link>
+  <item>
+    <title>Pretend city opens a new library &amp; park</title>
+    <link>https://daily.example/library</link>
+    <guid>https://daily.example/library</guid>
+    <pubDate>Wed, 07 Oct 2026 09:00:00 GMT</pubDate>
+    <description>&lt;p&gt;The new library has a garden on the roof. &lt;a href="https://daily.example/library"&gt;Read more&lt;/a&gt;&lt;/p&gt;</description>
+  </item>
+  <item>
+    <title>Item without a link</title>
+    <guid>no-link-1</guid>
+    <description>Nothing to link to.</description>
+  </item>
+  <item>
+    <title>Item from the future</title>
+    <link>https://daily.example/future</link>
+    <pubDate>Fri, 01 Jan 2100 00:00:00 GMT</pubDate>
+    <description>Dated far ahead.</description>
+  </item>
+</channel>
+</rss>

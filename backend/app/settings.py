@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # Scheduled background jobs (ADR 0025). Off in tests, which call the jobs directly.
     # Run one backend process only: each process would run every job.
     scheduler_enabled: bool = True
+    # HTTP proxy for fetching RSS feeds only (Q41h); empty = connect directly. The proxy
+    # resolves names itself, so addresses are checked once before each request and
+    # redirect hop instead of on every connect (no defence against DNS rebinding).
+    feed_http_proxy: str = ""
 
     # Where `make vocab-import` downloads ECDICT from; empty = the pinned GitHub copy.
     # A mirror must serve the same file: it is checked against the pinned sha256.
