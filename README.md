@@ -39,7 +39,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 **Platform**
 
-- **Bring your own models.** Each account adds model connections in the app: a preset (DeepSeek, Anthropic, OpenAI, Qwen, Groq, SiliconFlow, …) or any OpenAI-compatible endpoint. API keys are encrypted in the database. The app lists the models a connection offers; you choose the model order per task, with automatic fallback.
+- **Bring your own models.** Each account adds model connections in the app: a preset (DeepSeek, Anthropic, OpenAI, Qwen, Groq, SiliconFlow, …) or any OpenAI-compatible endpoint. API keys are encrypted in the database. The app lists the models a connection offers; you choose the model order per task, with automatic fallback. A connection, or a single model in a task's order, can be switched off and back on without losing its settings.
 - **Attachments in chat.** Images (read by a vision model); PDF, DOCX, TXT and Markdown documents (scanned PDF pages go to the vision model); voice messages recorded in the browser and audio files (transcribed by a speech-to-text model). You can check and correct the extracted text before sending.
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
 - **English and Chinese UI.**

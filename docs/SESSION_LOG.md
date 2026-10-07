@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-07 · 任务 51 完成（51.3 收尾）
+
+- **做了什么**：`docs/decisions/0026-model-switches.md`（两级开关、解析规则、取舍），ADR 0007 头部加“补充见 0026”，`docs/PLAN.md` provider 一段同步；`frontend/e2e/model-switches.spec.ts`（行开关关 → 对话 409 `models_disabled` 带去设置 → 打开恢复 → 连接开关关 → 行标“连接已停用”、对话报没配置 → 打开），顺带截图看了浅色 / 深色下关闭状态的开关；README 中英各补一句。`make lint` 干净，`make test` 全过（pytest 1222、Vitest 337），`make e2e` 49 全过。
+- **未完成**：无。本地领先 origin 3 个提交（51.1、51.2、51.3）未推送；Docker 未重建（开发库已在 `9c4d2e6f1a37`）。
+- **下一步**：推送并看 CI、`make up` 重建 Docker；然后任务 40（定时任务框架 + 后台每日上限 + 设置页开关，ADR 0025 已采纳），开工前先拆子任务和用户确认。
+- **踩坑**：截图里只看了开关的关闭状态，打开状态用的是主色，没有单独截图。
+
+---
+
 ## 2026-10-07 · 任务 51.2 完成（模型停用开关前端）
 
 - **做了什么**：新增 `frontend/src/components/ui/switch.tsx`；`components/settings/connections-section.tsx` `ConnectionItem` 加 `setEnabled` 和开关、“已停用”标记与说明；`components/settings/route-section.tsx` 改为显示 `shown`（自定义时是 `route.models`，否则是 `effective`），`stateOf` 区分 on / off / connectionOff / connectionMissing，每行开关走 `toggle` 立即 `PUT`，编辑时 `Row.off` 跟着保存；`lib/types.ts` `TaskRoute.disabled`；`chat/attachment-tray.tsx` `SETTINGS_ERRORS` 加 `models_disabled`；中英文案。测试：`route-section.test.tsx` 新加 3 条，新建 `connections-section.test.tsx`。eslint、tsc 干净，Vitest 337 全过。

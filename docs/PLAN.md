@@ -51,7 +51,7 @@ FastAPI (Python 3.12, uv)
 ```
 
 ### “provider” 解释
-provider = 模型供应商适配层（配置格式、路由与降级语义见 ADR 0002；**key 由租户在应用内配置并加密存库，租户可自定义 base_url、模型和路由，见 ADR 0004；连接可自动发现模型、设默认模型，路由匹配不上时自动用默认模型兜底，见 ADR 0007；看图用 `llm.vision` 路由、语音转写用 `asr` 一节，都走租户连接且不自动兜底，见 ADR 0008**）。代码只调用统一接口（`get_llm("tutor")`），实际用哪家由 YAML/环境变量决定。LangChain 的 `init_chat_model` + OpenAI 兼容 `base_url` 可以覆盖 DeepSeek / Claude / OpenAI / 通义 / GLM / Ollama。再按**任务**配置模型：
+provider = 模型供应商适配层（配置格式、路由与降级语义见 ADR 0002；**key 由租户在应用内配置并加密存库，租户可自定义 base_url、模型和路由，见 ADR 0004；连接可自动发现模型、设默认模型，路由匹配不上时自动用默认模型兜底，见 ADR 0007；连接和功能链里的单个模型都可以停用、保留配置，停用的模型不参与兜底，见 ADR 0026；看图用 `llm.vision` 路由、语音转写用 `asr` 一节，都走租户连接且不自动兜底，见 ADR 0008**）。代码只调用统一接口（`get_llm("tutor")`），实际用哪家由 YAML/环境变量决定。LangChain 的 `init_chat_model` + OpenAI 兼容 `base_url` 可以覆盖 DeepSeek / Claude / OpenAI / 通义 / GLM / Ollama。再按**任务**配置模型：
 ```yaml
 llm:
   default: deepseek:deepseek-chat
