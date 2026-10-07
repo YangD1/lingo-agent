@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-07 · 任务 40 推送与 Docker 重建，任务 41 拆分
+
+- **做了什么**：推送到 9c165b3，CI run 37640864594 四个 job 全绿；Docker 全栈重建（迁移 head `94afd2b1f522`，`/healthz` 200，开发库数据没动）。实抓了 NASA 和 Global Voices 两个 feed，把任务 41 拆成 41.1–41.5，写了 Q41a–g。
+- **未完成**：Q41a–g 等用户确认，41.1 没开工。
+- **下一步**：用户确认后从 41.1 开始。
+- **踩坑**：Global Voices 正文里的 CC BY-NC-ND 等标记是图片说明，不是文章许可；合作方转载要看“originally published by …”。ADR 0024 第 1 条要按 Q41a 的结论修订。NASA 新闻稿 feed 里混着 APOD。
+
+---
+
 ## 2026-10-07 · 任务 40 完成（定时任务框架 + 后台每日上限 + 设置页开关）
 
 - **做了什么**：Q40a–f 按推荐确认后做完 40.1–40.5，每个子任务单独提交。`backend/app/scheduler/`：`jobs.py`（`Job`、`JobContext`、`JOBS` 暂为空）、`service.py`（`Scheduler`：APScheduler 3.11.3 只负责触发，运行、防重叠、`scheduler_runs` 记录、启动时修复被打断的运行并补跑错过的周期）、`budget.py`（`llm_usage.background` 按 UTC 当天汇总，`tenants.background_daily_tokens` 默认 100,000）、`prefs.py`（学习者开关登记，现在只有 `practice_prefetch`）；`api/background.py`（`/me/background`、`/tenant/background`）；`PracticeWorker.prefetch` 判学习者开关和上限，预生成的调用带 `background: True`；前端设置页“后台任务”一节（`background-section.tsx`）；`SCHEDULER_ENABLED`（`.env.example`、compose 注释写明单实例，E2E 后端关掉）。迁移 `71d583d62096`、`d4236aefe2d0`、`94afd2b1f522`（开发库已升级）。文档：agent-tools 新一节、ADR 0025 和 P2 计划落地记录、README 中英。
