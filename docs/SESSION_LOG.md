@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-07 · 任务 51.1 完成（模型停用开关后端）
+
+- **做了什么**：看板记上 CI run 37037309179 四个 job 全绿、Docker 已重建；Q51e（新错误码 `models_disabled`）、Q51f（只是连接关掉时照旧退回默认模型）按推荐确认。51.1：迁移 `9c4d2e6f1a37` 加 `tenant_model_routes.disabled`；`app/providers/config.py` `RouteSpec.disabled` + 子集校验、`resolve_route_with_source` 跳过停用行且有停用行时不退回；`app/providers/errors.py` `NoModelConfiguredError(disabled=True)` → `models_disabled`；`app/providers/tenant.py` 加载 `disabled`；`app/credentials/service.py` `put_route` 存 `disabled`、`_rename` 同步改；`app/api/providers.py` `RoutePut` / `TaskRouteOut` 带 `disabled`，`_test_purpose` 把停用行算在链里；`app/api/chat.py` `_no_model_message`。测试：`tests/unit/test_provider_config.py` 6 条、`tests/integration/test_model_settings_api.py` 5 条、`tests/integration/test_chat_send.py` 1 条。ruff、mypy 干净，pytest 1222 全过。
+- **未完成**：51.2 前端（连接卡片开关、路由卡片每行开关和灰显、`models_disabled` 文案），51.3 收尾（ADR 0026、PLAN、E2E）。开发库已迁移到 `9c4d2e6f1a37`；Docker 未重建（新列有默认值，旧镜像照常能用）。
+- **下一步**：51.2，先看 `frontend/src` 里设置页连接卡片和路由卡片的组件，以及错误码文案表。
+- **踩坑**：`RouteSpec._normalize` 会把 dict 里除 `models` 外的键都当成调用参数，新加的 `disabled` 要单独排除；mypy 只查 `app evals`（`tests` 里有原来就有的类型报错，不在 `make lint` 范围内）。
+
+---
+
 ## 2026-10-03 · 任务 39 完成（39.3 E2E 和收尾）
 
 - **做了什么**：`e2e/fake_llm.py` 加 `RouteDecision` / `Review`，聊天图里流式的强制工具调用（`tool_choice`）也按工具流式回；`e2e/writing.spec.ts` 两条（写作页提交 → 结果 → 历史 → 删除；对话长文 → 写作教练 → 卡片 → 结果页 → 链回对话）；修 `app/agents/routing.py` `classify`：模型没调工具时结构化结果是 None，原来在 try 外抛 AttributeError 打断整轮，现在交回私教（`tests/unit/test_routing.py` 加用例）；结果页生词一行改 `t.rich`（中文冒号后不再多空格）；README 中英加“语法练习”（任务 35 漏写）和“写作批改”。`make lint` 干净，pytest 1210、Vitest 333、E2E 48 全过。

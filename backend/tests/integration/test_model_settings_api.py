@@ -767,3 +767,125 @@ async def test_speech_routes_need_a_transcription_api(client: AsyncClient) -> No
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "invalid_provider_config"
     assert "speech-to-text" in response.json()["detail"]["message"]
+
+
+# --- switching models off (ADR 0026) -----------------------------------------------------
+
+
+async def test_disabled_rows_stay_in_the_route_and_never_run(client: AsyncClient) -> None:
+    await login(client)
+    await create(
+        client,
+        name="dd",
+        kind="openai_compatible",
+        base_url="https://relay.example.com/v1",
+        api_key=SECRET,
+        default_model="relay-model",
+    )
+    await create(client, preset="openai", api_key=SECRET)
+
+    put = await client.put(
+        "/tenant/routes/llm/chat",
+        json={"models": ["dd:a", "openai:b"], "disabled": ["dd:a"]},
+    )
+    assert put.status_code == 200, put.text
+    route = _chat_route((await client.get("/tenant/routes")).json())
+    assert (route["models"], route["disabled"]) == (["dd:a", "openai:b"], ["dd:a"])
+    assert route["effective"] == ["openai:b"]
+
+    # Every row off: nothing runs, not even the connections' default models (Q51c).
+    off = await client.put(
+        "/tenant/routes/llm/chat",
+        json={"models": ["dd:a", "openai:b"], "disabled": ["dd:a", "openai:b"]},
+    )
+    assert (off.json()["effective"], off.json()["effective_source"]) == ([], None)
+
+    # Back on: runs again, in chain order.
+    on = await client.put("/tenant/routes/llm/chat", json={"models": ["dd:a", "openai:b"]})
+    assert (on.json()["disabled"], on.json()["effective"]) == ([], ["dd:a", "openai:b"])
+
+
+async def test_disabling_a_model_outside_the_route_is_rejected(client: AsyncClient) -> None:
+    await login(client)
+    await create(client, preset="openai", api_key=SECRET)
+    response = await client.put(
+        "/tenant/routes/llm/chat", json={"models": ["openai:a"], "disabled": ["openai:b"]}
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "invalid_provider_config"
+    assert "not in the route" in response.text
+
+
+async def test_switched_off_connection_leaves_every_route_and_comes_back(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await login(client)
+    relay = await create(
+        client,
+        name="dd",
+        kind="openai_compatible",
+        base_url="https://relay.example.com/v1",
+        api_key=SECRET,
+        default_model="relay-model",
+    )
+    await create(
+        client,
+        name="backup",
+        kind="openai_compatible",
+        base_url="https://backup.example.com/v1",
+        api_key=SECRET,
+        default_model="backup-model",
+    )
+    await client.put("/tenant/routes/llm/chat", json={"models": ["dd:a"]})
+    tenant_id = uuid.UUID((await client.get("/auth/me")).json()["tenant"]["id"])
+    before = (await load_provider_context(db_session, tenant_id)).version
+
+    url = f"/tenant/connections/{relay['id']}"
+    off = await client.patch(url, json={"enabled": False})
+    assert (off.status_code, off.json()["enabled"]) == (200, False)
+    # No row was switched off, so the other connections' default models step in (Q51f).
+    route = _chat_route((await client.get("/tenant/routes")).json())
+    assert (route["effective"], route["effective_source"]) == (["backup:backup-model"], "auto")
+    # The version is part of every model cache key: cached models of "dd" are not reused.
+    db_session.expire_all()
+    after = await load_provider_context(db_session, tenant_id)
+    assert after.version != before and "dd" not in after.connections
+
+    await client.patch(url, json={"enabled": True})
+    route = _chat_route((await client.get("/tenant/routes")).json())
+    assert (route["effective"], route["effective_source"]) == (["dd:a"], "override")
+
+
+async def test_rename_rewrites_disabled_refs_too(client: AsyncClient) -> None:
+    await login(client)
+    relay = await create(
+        client, name="dd", kind="openai_compatible", base_url="https://relay.example.com/v1"
+    )
+    await create(client, preset="openai", api_key=SECRET)
+    await client.put(
+        "/tenant/routes/llm/chat",
+        json={"models": ["dd:a", "openai:b"], "disabled": ["dd:a"]},
+    )
+    await client.patch(f"/tenant/connections/{relay['id']}", json={"name": "relay"})
+    route = _chat_route((await client.get("/tenant/routes")).json())
+    assert (route["models"], route["disabled"]) == (["relay:a", "openai:b"], ["relay:a"])
+    assert route["effective"] == ["openai:b"]
+
+
+async def test_disabled_vision_model_is_still_tested_as_vision(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FakeModel:
+        async def ainvoke(self, messages: Any) -> AIMessage:
+            return AIMessage("Red")
+
+    monkeypatch.setattr(service, "build_chat_model", lambda *a, **k: FakeModel())
+    await login(client)
+    conn = await create(
+        client, name="relay", kind="openai_compatible", base_url="https://relay.example.com/v1"
+    )
+    await client.put(
+        "/tenant/routes/llm/vision", json={"models": ["relay:eyes"], "disabled": ["relay:eyes"]}
+    )
+    response = await client.post(f"/tenant/connections/{conn['id']}/test", json={"model": "eyes"})
+    assert response.json()["purpose"] == "vision"

@@ -23,6 +23,7 @@ from app.providers.config import (
     TenantProviderContext,
     resolve_route,
     resolve_route_with_source,
+    route_for,
 )
 from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 from app.providers.llm import get_providers_config
@@ -45,6 +46,7 @@ class TaskRouteOut(BaseModel):
     task: str
     models: list[str]
     params: dict[str, Any]
+    disabled: list[str]
     overridden: bool
     # What actually runs for this tenant right now, and which layer it came from
     # (ADR 0007 §3); empty / None when nothing is usable yet.
@@ -140,6 +142,8 @@ class RoutePut(BaseModel):
 
     models: Annotated[list[str], Field(min_length=1, max_length=5)]
     params: CallParams = CallParams()
+    # Refs from `models` to keep in the chain but never call (ADR 0026).
+    disabled: Annotated[list[str], Field(max_length=5)] = []
 
 
 def _bad_request(exc: Exception) -> HTTPException:
@@ -276,8 +280,12 @@ async def _test_purpose(
     ctx = await load_provider_context(session, tenant_id)
 
     def on_route(section: Section, task: str) -> bool:
+        config = get_providers_config()
         try:
-            chain = resolve_route(get_providers_config(), ctx, section, task)
+            # A switched-off model still belongs to the route it sits in.
+            if f"{conn.name}:{model}" in route_for(config, ctx, section, task).disabled:
+                return True
+            chain = resolve_route(config, ctx, section, task)
         except NoModelConfiguredError:
             return False
         return any((m.connection, m.model) == (conn.name, model) for m in chain)
@@ -324,6 +332,7 @@ def _task_route_out(
         task=task,
         models=route.models,
         params=route.params,
+        disabled=route.disabled,
         overridden=overridden,
         effective=effective,
         effective_source=effective_source,
@@ -365,6 +374,7 @@ async def put_route(
             task=task,
             models=body.models,
             params=body.params,
+            disabled=body.disabled,
         )
     except ProviderConfigError as exc:
         raise _bad_request(exc) from exc

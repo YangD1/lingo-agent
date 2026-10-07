@@ -64,7 +64,10 @@ async def load_provider_context(
     return TenantProviderContext(
         tenant_id=tenant_id,
         connections=specs,
-        routes={(r.section, r.task): RouteSpec(models=r.models, params=r.params) for r in routes},
+        routes={
+            (r.section, r.task): RouteSpec(models=r.models, params=r.params, disabled=r.disabled)
+            for r in routes
+        },
         version=_fingerprint(connections, routes),
     )
 

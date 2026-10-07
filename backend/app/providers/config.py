@@ -56,6 +56,8 @@ class RouteSpec(BaseModel):
 
     models: list[str]
     params: dict[str, Any] = {}
+    # Refs from `models` the tenant switched off: kept in the chain, never called (ADR 0026).
+    disabled: list[str] = []
 
     @model_validator(mode="before")
     @classmethod
@@ -67,8 +69,12 @@ class RouteSpec(BaseModel):
             return {"models": value}
         if isinstance(value, dict) and "params" not in value:
             models = value.get("models")
-            params = {k: v for k, v in value.items() if k != "models"}
-            return {"models": [models] if isinstance(models, str) else models, "params": params}
+            params = {k: v for k, v in value.items() if k not in ("models", "disabled")}
+            return {
+                "models": [models] if isinstance(models, str) else models,
+                "params": params,
+                "disabled": value.get("disabled", []),
+            }
         return value
 
     @model_validator(mode="after")
@@ -79,6 +85,9 @@ class RouteSpec(BaseModel):
             connection, _, model = ref.partition(":")
             if not connection or not model:
                 raise ValueError(f"model ref {ref!r} must look like '<connection>:<model>'")
+        for ref in self.disabled:
+            if ref not in self.models:
+                raise ValueError(f"disabled model {ref!r} is not in the route")
         return self
 
 
@@ -223,11 +232,16 @@ def resolve_route_with_source(
     config: ProvidersConfig, ctx: TenantProviderContext, section: Section, task: str
 ) -> tuple[list[ResolvedModel], RouteSource]:
     """Tenant override > YAML route; if neither matches a connection, each connection's
-    default model in creation order (llm only, and not speech-to-text models)."""
+    default model in creation order (llm only, and not speech-to-text models).
+
+    Models switched off in the route are skipped, and a route with any of them never falls
+    back to default models: the tenant chose what this task may use (ADR 0026)."""
     route = route_for(config, ctx, section, task)
     source: RouteSource = "override" if (section, task) in ctx.routes else "default"
     resolved: list[ResolvedModel] = []
     for ref in route.models:
+        if ref in route.disabled:
+            continue
         name, _, model = ref.partition(":")
         conn = ctx.connections.get(name)
         if conn is None:
@@ -236,6 +250,8 @@ def resolve_route_with_source(
             )
             continue
         resolved.append(_resolved(config, conn, model, route))
+    if not resolved and route.disabled:
+        raise NoModelConfiguredError(section, task, route.models, disabled=True)
     if not resolved and section == "llm" and (section, task) not in CAPABILITY_TASKS:
         # Imported here: model_catalog imports this module.
         from app.providers.model_catalog import looks_like_speech_to_text

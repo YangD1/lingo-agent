@@ -374,3 +374,25 @@ async def test_a_lone_relay_connection_chats_through_its_default_model(
     assert [(r.connection_name, r.model, r.status) for r in usage_records] == [
         ("dd", "relay-model", "ok")
     ]
+
+
+async def test_switched_off_chat_models_refuse_until_one_is_back_on(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR 0026: every row off means no chat, not a quiet fall back to default models."""
+    fake_models(monkeypatch)
+    await login(client)
+    await connect(client, "deepseek")
+    conversation_id = await new_conversation(client)
+    route = {"models": ["deepseek:deepseek-chat"], "disabled": ["deepseek:deepseek-chat"]}
+    assert (await client.put("/tenant/routes/llm/chat", json=route)).status_code == 200
+
+    status, _, body = await send(client, conversation_id)
+    assert (status, body["detail"]["code"]) == (409, "models_disabled")
+    assert "switched off" in body["detail"]["message"]
+    assert await history(client, conversation_id) == []
+
+    route["disabled"] = []
+    assert (await client.put("/tenant/routes/llm/chat", json=route)).status_code == 200
+    status, events, _ = await send(client, conversation_id)
+    assert status == 200 and events[-1][0] == "done"

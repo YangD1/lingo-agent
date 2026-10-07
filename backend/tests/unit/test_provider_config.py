@@ -223,3 +223,61 @@ def test_no_default_models_still_means_not_configured() -> None:
     ctx = make_ctx(conn("relay", "openai_compatible"))
     with pytest.raises(NoModelConfiguredError):
         resolve_route(make_config(), ctx, "llm", "chat")
+
+
+# --- switched-off models (ADR 0026) ------------------------------------------------------
+
+
+def test_disabled_models_are_skipped_and_the_rest_keep_their_order() -> None:
+    ctx = make_ctx(
+        conn("relay", "openai_compatible"),
+        conn("openai"),
+        routes={
+            ("llm", "chat"): RouteSpec(
+                models=["relay:a", "openai:b", "relay:c"], disabled=["openai:b"]
+            )
+        },
+    )
+    chain, source = resolve_route_with_source(make_config(), ctx, "llm", "chat")
+    assert (refs(chain), source) == (["relay:a", "relay:c"], "override")
+
+
+def test_all_disabled_never_falls_back_to_default_models() -> None:
+    ctx = make_ctx(
+        conn("relay", "openai_compatible", default_model="relay-model"),
+        routes={("llm", "chat"): RouteSpec(models=["relay:a"], disabled=["relay:a"])},
+    )
+    with pytest.raises(NoModelConfiguredError) as info:
+        resolve_route(make_config(), ctx, "llm", "chat")
+    assert info.value.code == "models_disabled"
+
+
+def test_disabled_rows_left_with_only_missing_connections_do_not_fall_back() -> None:
+    # The usable row is switched off and the other one's connection is gone: still strict.
+    ctx = make_ctx(
+        conn("relay", "openai_compatible", default_model="relay-model"),
+        routes={("llm", "chat"): RouteSpec(models=["relay:a", "deleted:b"], disabled=["relay:a"])},
+    )
+    with pytest.raises(NoModelConfiguredError) as info:
+        resolve_route(make_config(), ctx, "llm", "chat")
+    assert info.value.code == "models_disabled"
+
+
+def test_disabled_vision_and_speech_routes_use_the_disabled_code() -> None:
+    ctx = make_ctx(
+        conn("openai"),
+        routes={("llm", "vision"): RouteSpec(models=["openai:v"], disabled=["openai:v"])},
+    )
+    with pytest.raises(NoModelConfiguredError) as info:
+        resolve_route(make_config(), ctx, "llm", "vision")
+    assert info.value.code == "models_disabled"
+
+
+def test_disabled_must_be_part_of_the_route() -> None:
+    with pytest.raises(ValueError, match="not in the route"):
+        RouteSpec(models=["openai:a"], disabled=["openai:b"])
+
+
+def test_disabled_is_not_mistaken_for_a_call_param() -> None:
+    route = RouteSpec.model_validate({"models": ["openai:a"], "disabled": ["openai:a"]})
+    assert (route.params, route.disabled) == ({}, ["openai:a"])

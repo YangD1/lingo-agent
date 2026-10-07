@@ -225,13 +225,19 @@ async def _rename(session: AsyncSession, conn: ProviderConnection, new_name: str
     routes = await session.scalars(
         select(TenantModelRoute).where(TenantModelRoute.tenant_id == conn.tenant_id)
     )
+
+    def renamed(refs: list[str]) -> list[str]:
+        # A new list, so SQLAlchemy sees the JSONB column change.
+        return [
+            new_prefix + ref[len(old_prefix) :] if ref.startswith(old_prefix) else ref
+            for ref in refs
+        ]
+
     for route in routes:
         if any(ref.startswith(old_prefix) for ref in route.models):
-            # A new list, so SQLAlchemy sees the JSONB column change.
-            route.models = [
-                new_prefix + ref[len(old_prefix) :] if ref.startswith(old_prefix) else ref
-                for ref in route.models
-            ]
+            route.models = renamed(route.models)
+            # Switched-off refs must keep matching their entries in `models`.
+            route.disabled = renamed(route.disabled)
     conn.name = new_name
 
 
@@ -420,11 +426,12 @@ async def put_route(
     task: str,
     models: list[str],
     params: CallParams,
+    disabled: list[str] | None = None,
 ) -> TenantModelRoute:
     if task not in known_tasks(config, section):
         raise ProviderConfigError(f"unknown {section} task {task!r}")
     try:
-        route = RouteSpec(models=models, params=params.to_dict())
+        route = RouteSpec(models=models, params=params.to_dict(), disabled=disabled or [])
     except ValueError as exc:
         raise ProviderConfigError(str(exc)) from exc
     connections = {c.name: c for c in await list_connections(session, tenant_id)}
@@ -450,6 +457,7 @@ async def put_route(
         session.add(existing)
     existing.models = route.models
     existing.params = route.params
+    existing.disabled = route.disabled
     await session.commit()
     return existing
 

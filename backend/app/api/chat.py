@@ -274,7 +274,7 @@ async def translate_message(
             status.HTTP_404_NOT_FOUND, "message_not_found", "no such tutor message"
         ) from exc
     except NoModelConfiguredError as exc:
-        raise _conflict(exc.code, "No chat model is configured. Add one in Settings.") from exc
+        raise _conflict(exc.code, _no_model_message(exc, "chat")) from exc
     except Exception as exc:
         # Details stay in the server log; vendor errors can echo input.
         logger.exception("translating a message in conversation %s failed", conversation_id)
@@ -433,8 +433,14 @@ async def _providers_for(
         get_chat_models(providers, task)  # resolves the route (and warms the cache)
     except NoModelConfiguredError as exc:
         what = "image-capable" if task == "vision" else "chat"
-        raise _conflict(exc.code, f"No {what} model is configured. Add one in Settings.") from exc
+        raise _conflict(exc.code, _no_model_message(exc, what)) from exc
     return providers
+
+
+def _no_model_message(exc: NoModelConfiguredError, what: str) -> str:
+    if exc.code == "models_disabled":
+        return f"Every {what} model is switched off. Turn one back on in Settings."
+    return f"No {what} model is configured. Add one in Settings."
 
 
 async def _message_attachments(
@@ -460,7 +466,8 @@ async def _message_attachments(
     responses={
         404: {"description": "conversation_not_found or attachment_not_found"},
         409: {
-            "description": "no_llm_configured, no_vision_model, conversation_busy, "
+            "description": "no_llm_configured, no_vision_model, models_disabled, "
+            "conversation_busy, "
             "attachment_not_ready or attachment_sent"
         },
         422: {"description": "validation_error, invalid_attachments or too_many_images"},
@@ -484,7 +491,8 @@ async def send_message(
     responses={
         404: {"description": "conversation_not_found"},
         409: {
-            "description": "not_practice, no_llm_configured, conversation_busy or "
+            "description": "not_practice, no_llm_configured, models_disabled, "
+            "conversation_busy or "
             "conversation_started"
         },
     },

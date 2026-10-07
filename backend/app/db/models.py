@@ -177,6 +177,8 @@ class TenantModelRoute(TimestampMixin, Base):
     # Ordered "<connection name>:<model>" refs: primary first, then fallbacks.
     models: Mapped[list[str]] = mapped_column(JSONB)
     params: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    # Refs from `models` switched off: kept in the chain, never called (ADR 0026).
+    disabled: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
 
 
 class LLMUsage(Base):
