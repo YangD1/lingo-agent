@@ -1,5 +1,7 @@
 // Response shapes of the backend API (backend/app/api/*).
 
+import type { AiFeature } from "@/lib/ai-usage";
+
 export type User = { id: string; email: string; display_name: string | null };
 export type Tenant = { id: string; name: string; kind: string };
 export type Me = { user: User; tenant: Tenant };
@@ -140,4 +142,31 @@ export type Memory = {
   source_title: string | null;
   created_at: string;
   updated_at: string;
+};
+
+/** backend/app/api/background.py (ADR 0025 §5-6). */
+export type BudgetState = "ok" | "exhausted" | "off";
+export type BackgroundFeature = {
+  key: string;
+  enabled: boolean;
+  default: boolean;
+  usage_feature: AiFeature;
+};
+export type MyBackground = { features: BackgroundFeature[]; budget: BudgetState };
+export type SchedulerJob = {
+  job: string;
+  next_run_at: string | null;
+  last_started_at: string | null;
+  last_finished_at: string | null;
+  last_success_at: string | null;
+  last_status: "running" | "ok" | "skipped" | "error" | null;
+  last_skip_reason: string | null;
+  last_error: string | null;
+};
+export type TenantBackground = {
+  daily_tokens: number;
+  used_today: number;
+  budget: BudgetState;
+  scheduler_running: boolean;
+  jobs: SchedulerJob[];
 };

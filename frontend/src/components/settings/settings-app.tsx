@@ -1,6 +1,14 @@
 "use client";
 
-import { ChartColumn, Eye, ListOrdered, type LucideIcon, Plug, Volume2 } from "lucide-react";
+import {
+  CalendarClock,
+  ChartColumn,
+  Eye,
+  ListOrdered,
+  type LucideIcon,
+  Plug,
+  Volume2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
@@ -8,6 +16,7 @@ import { api } from "@/lib/api";
 import type { Connection, Presets } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+import { BackgroundSection } from "./background-section";
 import { RouteSection } from "./route-section";
 import { ConnectionsSection } from "./connections-section";
 import { DisplaySection } from "./display-section";
@@ -20,6 +29,7 @@ const SECTIONS = [
   { id: "routes", icon: ListOrdered },
   { id: "display", icon: Eye },
   { id: "read-aloud", icon: Volume2 },
+  { id: "background", icon: CalendarClock },
   { id: "usage", icon: ChartColumn },
 ] as const satisfies readonly { id: string; icon: LucideIcon }[];
 
@@ -60,6 +70,7 @@ export function SettingsApp() {
             )}
             <DisplaySection />
             <ReadAloudSection />
+            <BackgroundSection />
             <UsageSection />
           </div>
           <aside className="max-lg:hidden">
