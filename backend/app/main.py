@@ -46,6 +46,7 @@ from app.placement.service import PlacementRuntime
 from app.providers.llm import get_providers_config
 from app.scheduler.jobs import JOBS
 from app.scheduler.service import Scheduler
+from app.services.news.sources import sync_builtin_feeds
 from app.settings import Settings, get_settings
 from app.usage.recorder import set_usage_sink
 from app.usage.writer import UsageWriter
@@ -72,6 +73,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     get_item_bank()  # refuse to start with a broken placement item bank
     tracer_provider = setup_tracing(settings)
     init_state(app, settings)
+    async with app.state.sessionmaker() as session:
+        await sync_builtin_feeds(session)
+        await session.commit()
     interrupted = await fail_interrupted(app.state.sessionmaker)
     if interrupted:
         logger.warning("%d attachments were mid-processing at the last shutdown", interrupted)

@@ -10,6 +10,7 @@ dependencies = [
     "cryptography>=46,<50",
     "email-validator>=2,<3",
     "fastapi>=0.141,<1",
+    "feedparser>=6.0.14,<7",
     "fsrs>=6.3,<7",
     "httpcore2>=2.13,<3",
     "httpx2>=2.13,<3",
@@ -74,6 +75,11 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 # Ships no type information; only used by app/services/vocab/import_tatoeba.py.
 module = ["opencc", "opencc.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Ships no type information; only used by app/services/news/.
+module = ["feedparser", "feedparser.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

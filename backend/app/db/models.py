@@ -56,6 +56,9 @@ CONVERSATION_PURPOSES = ("planning", "daily")
 # A writing submission is reviewed in the background (Q38c).
 WRITING_STATUSES = ("pending", "done", "failed")
 SCHEDULER_RUN_STATUSES = ("running", "ok", "skipped", "error")
+# How an article may be used (ADR 0024 §3): public_domain and cc_by may be rewritten;
+# unknown (a learner's own feed) is shown only to that learner's tenant.
+ARTICLE_LICENSES = ("public_domain", "cc_by", "unknown")
 TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link", "writing")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
@@ -976,3 +979,106 @@ class UserBackgroundPref(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class Feed(TimestampMixin, Base):
+    """An RSS / Atom feed (ADR 0024).
+
+    Built-in feeds have no tenant and a `builtin_key`; they are listed in
+    `app/services/news/sources.py` and synced at startup. A learner's own feed belongs
+    to their tenant, one row per address (Q41e); who reads it is `feed_subscriptions`.
+    """
+
+    __tablename__ = "feeds"
+    __table_args__ = (
+        CheckConstraint(_in("license", ARTICLE_LICENSES), name="license"),
+        CheckConstraint("(tenant_id IS NULL) = (builtin_key IS NOT NULL)", name="builtin"),
+        Index("uq_feeds_builtin_key", "builtin_key", unique=True),
+        Index(
+            "uq_feeds_tenant_id_url",
+            "tenant_id",
+            "url",
+            unique=True,
+            postgresql_where="tenant_id IS NOT NULL",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE")
+    )
+    builtin_key: Mapped[str | None] = mapped_column(String(64))
+    url: Mapped[str] = mapped_column(String(2000))
+    # From the feed itself once fetched; the address until then.
+    title: Mapped[str] = mapped_column(String(300))
+    site_url: Mapped[str | None] = mapped_column(String(2000))
+    # What every article from this feed is marked as, unless the source rules say
+    # otherwise for one article.
+    license: Mapped[str] = mapped_column(String(20))
+    # Conditional request headers from the last 200 response (ADR 0024 §6).
+    etag: Mapped[str | None] = mapped_column(String(500))
+    last_modified: Mapped[str | None] = mapped_column(String(100))
+    last_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # NULL: due now. Pushed back after each fetch, further after failures (Q41f).
+    next_fetch_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failures: Mapped[int] = mapped_column(SmallInteger, default=0, server_default="0")
+    # Error code of the last failed fetch; NULL once one succeeds.
+    last_error: Mapped[str | None] = mapped_column(String(64))
+    # Who added a learner's own feed; kept when they leave, the tenant owns it.
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+
+
+class FeedSubscription(Base):
+    """Whether a learner reads a feed (Q41e).
+
+    No row for a built-in feed: subscribed; a row with `subscribed` false opts out.
+    A learner's own feeds always have a row while they follow them.
+    """
+
+    __tablename__ = "feed_subscriptions"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    feed_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("feeds.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    subscribed: Mapped[bool] = mapped_column(Boolean)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Article(Base):
+    """One entry of a feed, cleaned to plain paragraphs (Q41c).
+
+    Full text stays in the deployment's own database only (ADR 0024 §4). Entries a
+    source rule skips (Q41a, Q41b) are never stored.
+    """
+
+    __tablename__ = "articles"
+    __table_args__ = (
+        CheckConstraint(_in("license", ARTICLE_LICENSES), name="license"),
+        UniqueConstraint("feed_id", "guid"),
+        Index("ix_articles_feed_id_published_at", "feed_id", "published_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    feed_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("feeds.id", ondelete="CASCADE"))
+    # The entry's id in the feed (its link when there is none), hashed when too long.
+    guid: Mapped[str] = mapped_column(String(500))
+    url: Mapped[str] = mapped_column(String(2000))
+    title: Mapped[str] = mapped_column(String(500))
+    author: Mapped[str | None] = mapped_column(String(300))
+    # The feed's date, or when it was fetched when the feed gives none.
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Paragraphs separated by blank lines; headings and list items are their own
+    # paragraphs. No markup.
+    body: Mapped[str] = deferred(mapped_column(Text, nullable=False))
+    # The feed gave only a summary (Q41d): shown with a link out, never rewritten.
+    summary_only: Mapped[bool] = mapped_column(Boolean)
+    license: Mapped[str] = mapped_column(String(20))
+    word_count: Mapped[int] = mapped_column(Integer)
+    # The feed's own categories, for topic filters later (task 43).
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String(100)), server_default="{}")
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
