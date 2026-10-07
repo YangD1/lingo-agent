@@ -17,7 +17,7 @@ PLAN 原计划的阅读来源是 BBC / VOA Learning English / NPR / Guardian 等
 - BBC、NPR、Guardian 的内容有版权；Guardian 开放平台要申请 key，条款限制较多。
 
 ## 决定
-1. **内置来源**：NASA 新闻稿、Global Voices。两个都直接用 RSS 里的全文，不抓网页。Global Voices 正文里标了 NC-ND（或其他非 CC BY 许可）的文章跳过，不入库。
+1. **内置来源**：NASA 新闻稿、Global Voices。两个都直接用 RSS 里的全文，不抓网页。~~Global Voices 正文里标了 NC-ND（或其他非 CC BY 许可）的文章跳过，不入库。~~ **2026-10-07 修订（任务 41，Q41a）**：实抓发现正文里的 CC BY-NC-ND / BY-NC / BY-SA 都是图片说明，不是文章的许可；合作方转载写成“This article / story was originally published by 〈机构〉… republished here with permission / under a partnership agreement”。改为：入库时去掉所有图片和图片说明，有这类转载声明的整篇跳过，其余标 `cc_by`。NASA 跳过 APOD（文字和图片作者不是 NASA）和不到 250 词的通知（Q41b）。
 2. **学习者自加 RSS**：学习者可以加任意 RSS / Atom 地址（抓取复用 `providers/net_guard.py` 的 SSRF 防护，ADR 0004）。feed 带全文就用全文；只有摘要的条目在列表里标“只有摘要”，阅读页显示摘要并链到原文，不做分级改写。是否引入正文抽取（如 `trafilatura`，依赖 lxml）留到任务 41 实测内存后再定。
 3. **出处与许可**：每篇文章存来源、原文链接、作者（有的话）和许可标记（`public_domain` / `cc_by` / `unknown`）。阅读页始终显示出处、原文链接和许可；改写过的文章写明“按你的等级改写”，CC BY 的写明许可和改动说明。`unknown`（学习者自加的源）只在这个学习者自己的阅读页显示。
 4. **存储**：抓来的全文只存在部署方自己的数据库里，不进仓库（CLAUDE.md），不提供公开的分享或导出接口。内置来源的 `articles` 全局共用；学习者自加的源按租户隔离。
@@ -29,3 +29,11 @@ PLAN 原计划的阅读来源是 BBC / VOA Learning English / NPR / Guardian 等
 - Global Voices 原文偏长、偏难，改写时按等级截取或摘编；改写会损失细节，所以阅读页总是能切回原文链接。
 - VOA Learning English 2015–2025 的存档（公有领域，本来就是给学习者写的）很合适做静态文库，但要逐篇抓网页、写解析器，P2 不做；以后要做时另开任务。
 - 只有摘要的自加 feed 体验较差；正文抽取会多一个依赖和内存，也更容易碰到版权问题，先不做。
+
+## 落地记录（任务 41，2026-10-07）
+Q41a–h 按推荐确认。
+- **表**（41.1）：`feeds`（`tenant_id` 为空 = 内置，带 `builtin_key`；自加源按（租户、地址）唯一；条件请求信息、下次抓取时间、连续失败次数、错误码）、`feed_subscriptions`（内置源没有行 = 订阅，取消才写 `subscribed=false`）、`articles`（(feed, guid) 唯一，正文是纯文本段落，`summary_only`、`license`、`word_count`、`tags`）。内置源登记在 `services/news/sources.py`，启动时同步。迁移 `a982263b9709`。依赖 `feedparser` 6.0.14（BSD-2-Clause，导入约 +9 MB）。
+- **抓取与清洗**（41.2）：`fetch.py`（`net_guard` 直连；或走 `FEED_HTTP_PROXY`，Q41h：当前网络下 Global Voices 只能走代理，此时自己跟随跳转、每一跳先查地址，本机 DNS 解析不了的名字交给代理；20 秒、5 MB、最多 3 次跳转）、`parse.py`、`clean.py`（纯文本段落，Q41c）、`rules.py`（第 1 条的规则）。**正文抽取不引入**（Q41d）：只给摘要的条目标 `summary_only`（不到 150 词），阅读页显示摘要和原文链接，不改写。
+- **定时任务**（41.3）：`rss_fetch` 每 2 小时，只抓到期且有人读的 feed，最多 4 个并发，每个 feed 单独事务；连续失败 3 次后间隔翻倍，最长 24 小时（Q41f）；超过 90 天的文章不收、并删除（Q41g；任务 42/43 加上改写和阅读记录后要保留有引用的）。
+- **接口**（41.4）：`/reading/feeds`（列出、添加、订阅开关、删除自加源）、`/reading/articles`（按订阅、游标分页）。每人最多订阅 20 个自加源（Q41e）；添加新地址先抓一次，抓不到不保存。
+- 实抓（2026-10-07）：NASA 10 条留 5，Global Voices 15 条留 12；两个源第二次请求都是 304。测试用手写 fixture，不提交抓来的正文。

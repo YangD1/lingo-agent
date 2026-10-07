@@ -171,6 +171,7 @@ The Docker stack is meant to run on a small server. Before exposing it:
 - Set `APP_ENV=prod` and `PROVIDERS_CONFIG=config/providers.prod.yaml`. In prod the login cookie is only sent over HTTPS, so put an HTTPS reverse proxy in front of port 3000.
 - Keep `PROVIDER_ALLOW_PRIVATE_NETWORKS=false`.
 - Only the frontend port is public; Postgres and the backend listen on 127.0.0.1.
+- The backend fetches the reading feeds every two hours. If some sources are unreachable from your server's network, set `FEED_HTTP_PROXY` (or `COMPOSE_FEED_HTTP_PROXY` for the compose backend); it is used for feeds only, and it checks addresses less strictly than a direct fetch (see `.env.example`).
 
 ## Contributing
 
@@ -181,3 +182,5 @@ Issues and pull requests are welcome. Please run `make ci` before opening a pull
 [MIT](LICENSE)
 
 Data used at runtime, downloaded by the import commands and not included in this repository: the word list from [ECDICT](https://github.com/skywind3000/ECDICT) (MIT) and example sentences from [Tatoeba](https://tatoeba.org) ([CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)).
+
+Reading articles are fetched by the backend from RSS feeds and kept only in your own database: [NASA news](https://www.nasa.gov/news-release/feed/) (US government work, public domain; Astronomy Picture of the Day is skipped) and [Global Voices](https://globalvoices.org) (CC BY 3.0; stories republished from partners are skipped). Feeds that learners add themselves are shown only inside their own tenant.

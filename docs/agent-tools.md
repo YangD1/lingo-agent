@@ -161,8 +161,9 @@
 | 后台工作 | 触发 | 代码 | 模型任务 | 学习者开关（默认） | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
 | 预生成下一组练习 | 做完一组或最后一题被举报（事件） | `adaptive/exercise/worker.py` `PracticeWorker.prefetch` | `llm/exercise_generate`、`llm/exercise_critic`（`background`） | `practice_prefetch`（开） | 设置“后台任务”；练习页“这组题怎么来的” |
+| 抓取阅读来源（`rss_fetch`） | 定时，每 2 小时（ADR 0024 §6） | `services/news/refresh.py` `fetch_due_feeds`（抓取 `fetch.py`、解析 `parse.py`、清洗 `clean.py`、来源规则 `rules.py`） | 无（不调模型，不占后台额度） | 没有开关：取消订阅某个源它就不再为你抓；所有人都不读的源不抓 | 管理员在设置“后台任务”看到上次运行；阅读来源的上次抓取时间和错误见 `GET /reading/feeds`（阅读页在任务 43） |
 
-定时任务目前还没有（第一个是任务 41 的 RSS 抓取）。
+`rss_fetch` 读写的是公开的 RSS，不读任何学习者数据：只抓有人订阅的 feed（内置源默认订阅），写 `articles`（正文转成纯文本段落，图片和图片说明不存）和 feed 上的条件请求信息、失败次数、错误码；连续失败 3 次后间隔翻倍，最长 24 小时；超过 90 天的文章删除。经 `net_guard` 直连，设了 `FEED_HTTP_PROXY` 时走代理（每一跳先查地址）。
 
 ## 写作批改（P2 计划 §4.2，任务 38）
 

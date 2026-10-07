@@ -146,6 +146,7 @@
 - 内置源（D3，2026-10-02 修订，见 ADR 0024）：NASA 新闻稿 RSS（美国政府作品，公有领域）、Global Voices RSS（CC BY 3.0，允许改写；标了 CC BY-NC-ND 的转载文章跳过）。两者 RSS 都带全文。原定的 VOA Learning English 所有 feed 自 2025 年 3–4 月起停更，不再内置。学习者可加自己的 RSS。
 - 表：`feeds`（全局内置 + 用户自加，url、标题、上次抓取、etag）、`feed_subscriptions`（user、feed、topics）、`articles`（feed、url、标题、发布时间、原文正文、来源许可标记）、`article_versions`（article、目标 CEFR、改写正文、词表、理解题 JSONB、生成模型）、`reading_sessions`（user、article_version、开始 / 完成、点过的词、题目作答）。
 - 抓来的全文只在部署方自己的数据库里，不进仓库（CLAUDE.md）；非公有领域来源的界面上始终显示出处和原文链接。
+- **落地记录（任务 41，2026-10-07）**：Q41a–h 按推荐确认，细节见 ADR 0024 落地记录。和上面不同的地方：Global Voices 的许可不看正文里的 CC 标记（那些是图片说明），改为按转载声明跳过；NASA 跳过 APOD 和短通知；`feed_subscriptions` 没有 `topics`（文章存 RSS 分类 `tags`，话题筛选放到任务 43）；加了只用于抓 RSS 的 `FEED_HTTP_PROXY`。代码在 `services/news/`、`api/reading.py`，定时任务 `rss_fetch`。迁移 `a982263b9709`。
 
 ### 5.3 分级改写与阅读页
 

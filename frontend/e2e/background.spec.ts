@@ -40,7 +40,8 @@ test("background work: the learner switches it off, the budget turns it all off 
   const prefetch = section.getByRole("switch", { name: "预先出好下一组练习" });
   await expect(prefetch).toBeChecked();
   await expect(section).toContainText("今天已用 0 / 100,000 token");
-  await expect(section).toContainText("还没有定时任务。");
+  // The first scheduled job (task 41); it never runs here.
+  await expect(section).toContainText("抓取阅读来源（RSS）");
   // The E2E backend runs with SCHEDULER_ENABLED=false.
   await expect(section).toContainText("定时任务没有在运行");
 

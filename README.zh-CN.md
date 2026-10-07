@@ -170,6 +170,7 @@ docs/            PLAN.md（设计）、PROGRESS.md（进度）、decisions/（AD
 - 设置 `APP_ENV=prod` 和 `PROVIDERS_CONFIG=config/providers.prod.yaml`。prod 模式下登录 cookie 只通过 HTTPS 发送，所以要在 3000 端口前面加一个 HTTPS 反向代理。
 - 保持 `PROVIDER_ALLOW_PRIVATE_NETWORKS=false`。
 - 只有前端端口对外；Postgres 和后端只监听 127.0.0.1。
+- 后端每两小时抓一次阅读来源。服务器网络连不上某些来源时，设置 `FEED_HTTP_PROXY`（compose 里的后端用 `COMPOSE_FEED_HTTP_PROXY`）；它只用于抓 RSS，对地址的检查比直连宽松（见 `.env.example`）。
 
 ## 参与贡献
 
@@ -180,3 +181,5 @@ docs/            PLAN.md（设计）、PROGRESS.md（进度）、decisions/（AD
 [MIT](LICENSE)
 
 运行时用到的数据由导入命令下载，不包含在仓库里：词库来自 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT），例句来自 [Tatoeba](https://tatoeba.org)（[CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)）。
+
+阅读文章由后端从 RSS 抓取，只存在你自己的数据库里：[NASA 新闻](https://www.nasa.gov/news-release/feed/)（美国政府作品，公有领域；跳过“每日天文图”APOD）和 [Global Voices](https://globalvoices.org)（CC BY 3.0；跳过从合作方转载的文章）。学习者自己添加的源只在添加者所在的租户里显示。
