@@ -8,6 +8,7 @@
 
 - **做了什么**：推送 aebe1b0，CI run 37751813041 四个 job 全绿。拆了任务 42，用户授权 Q42a–i 一律按推荐。42.1 `article_versions` + 迁移 `7aeed833bec4` + `rules.yaml` 的 `reading:`（版本升到 `2026-10-08.1`，会让已有掌握度重放、预生成的练习组过期）（802133e）；42.2 代码算超纲词表 `services/reading/glossary.py`（5b58f94）；42.3 改写子图 `agents/reading_graph.py` + 三个提示词（15b0060）；42.4 `ReadingWorker`、`POST /reading/articles/{id}/version`、`GET /reading/versions/{id}`、`features.yaml` 的 `reading_rewrite`、前端 task 名（92d9af4）；42.5 定时任务 `article_prerewrite` + 学习者开关（950666f）；42.6 文档：ADR 0024 落地记录、P2 计划 §5.3、`agent-tools.md`、`refresh.py` 保留注释。
 - **验证**：`make lint` 干净；`make test` pytest 1326、Vitest 340 全过；`make e2e` 50 全过。
+- **推送**：e9ef014，CI run 37755052994 四个 job 全绿。
 - **未完成**：Docker 没重建（开发库已迁移到 `7aeed833bec4`）。提示词没用真实模型试过（需要用户的测试 key），改写质量和审题严格度未知。
 - **下一步**：任务 43（`/reading` 页、到期词高亮、理解题 → 阅读 Elo、reading_coach），先拆子任务。43 要做：答案判分（`questions[].answer` 不下发）、阅读记录保留文章、页面挂 `AiBadge feature="reading_rewrite"`、轮询 `stage`、409 时显示原文。可以考虑用真实模型录一批 `reading_critic` 评估样例（像任务 36）。
 - **踩坑**：没配模型时错误码是 `no_llm_configured`，不是 `no_model_configured`；`.py` 里不能写全角括号和弯引号（RUF001），要用 `’` 转义；定时任务只拿得到 sessionmaker，所以 `article_prerewrite` 自己建一个 `ReadingWorker`（测试里 monkeypatch `jobs.make_reading_worker`），并发靠唯一约束兜住。
