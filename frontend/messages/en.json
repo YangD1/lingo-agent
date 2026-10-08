@@ -805,6 +805,10 @@
         "practice_prefetch": {
           "name": "Prepare the next practice set",
           "hint": "After you finish a grammar set, the next one is generated in the background so it opens without a wait."
+        },
+        "article_prerewrite": {
+          "name": "Rewrite new articles ahead",
+          "hint": "When the feeds you follow have new articles, they are rewritten for your level with comprehension questions in the background, so they open without a wait."
         }
       },
       "budgetTitle": "Daily background budget",
@@ -829,7 +833,8 @@
         "budget_exhausted": "Today's background budget was used up."
       },
       "jobs": {
-        "rss_fetch": "Fetch reading feeds (RSS)"
+        "rss_fetch": "Fetch reading feeds (RSS)",
+        "article_prerewrite": "Rewrite new articles for readers' levels"
       }
     }
   },
@@ -1138,7 +1143,8 @@
       "word_examples": "An AI model writes two example sentences for this word at your level. They are saved, so the next time anyone asks for this word at this level, no model is called.",
       "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls.",
       "writing_submit": "An AI model reviews your writing sentence by sentence: it finds and explains grammar mistakes, scores four aspects, writes overall feedback and puts unknown words on your word list. Mistakes go into your learner model; scores are only shown.",
-      "reading_rewrite": "An AI model rewrites this article for your level and writes a few comprehension questions; another model answers each question itself to check it, and a question that fails is rewritten once, then dropped. The rewrite is saved: opening it again at the same level calls no model."
+      "reading_rewrite": "An AI model rewrites this article for your level and writes a few comprehension questions; another model answers each question itself to check it, and a question that fails is rewritten once, then dropped. The rewrite is saved: opening it again at the same level calls no model.",
+      "reading_prerewrite": "In the background every two hours: new articles of the feeds you follow are rewritten for your level with questions, by the same AI calls as opening an article, within the tenant's daily background budget."
     },
     "task": {
       "chat": "Reply",

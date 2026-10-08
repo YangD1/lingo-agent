@@ -57,6 +57,16 @@ def _followed(user_id: uuid.UUID) -> ColumnElement[bool]:
     )
 
 
+async def followed_feed_ids(
+    session: AsyncSession, user_id: uuid.UUID, tenant_id: uuid.UUID
+) -> list[uuid.UUID]:
+    """The feeds this learner reads: built-ins they did not turn off, own feeds of their
+    tenant they follow."""
+    return list(
+        await session.scalars(select(Feed.id).where(_visible(tenant_id), _followed(user_id)))
+    )
+
+
 async def list_feeds(
     session: AsyncSession, user_id: uuid.UUID, tenant_id: uuid.UUID
 ) -> list[FeedView]:

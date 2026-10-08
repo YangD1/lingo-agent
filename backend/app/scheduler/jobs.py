@@ -15,7 +15,11 @@ from apscheduler.triggers.base import BaseTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.adaptive.rules import get_rules
+from app.agents.reading_graph import build_reading_graph
 from app.services.news.refresh import fetch_due_feeds
+from app.services.reading.prerewrite import prerewrite
+from app.services.reading.worker import ReadingWorker
 from app.settings import get_settings
 
 
@@ -46,8 +50,27 @@ async def rss_fetch(ctx: JobContext) -> str | None:
     return None
 
 
+def make_reading_worker(sessionmaker: async_sessionmaker[AsyncSession]) -> ReadingWorker:
+    """The job's own worker (tests swap in fake model calls). The (tenant, article,
+    level) row keeps it from writing a version the app's worker is writing too."""
+    return ReadingWorker(sessionmaker, build_reading_graph(), concurrency=1)
+
+
+async def article_prerewrite(ctx: JobContext) -> str | None:
+    """Rewrite new articles for the levels their readers read at (Q42g); calls models,
+    within the tenant's daily background budget."""
+    worker = make_reading_worker(ctx.sessionmaker)
+    return await prerewrite(ctx.sessionmaker, worker, rules=get_rules(), now=ctx.now)
+
+
 JOBS: tuple[Job, ...] = (
     # Each feed has its own next-fetch time (with back-off); the job only looks for
     # due ones, so its own period is the shortest a feed waits.
     Job("rss_fetch", IntervalTrigger(hours=2, timezone=UTC), rss_fetch),
+    # Half an hour after the fetch, so new articles are in.
+    Job(
+        "article_prerewrite",
+        IntervalTrigger(hours=2, start_date=datetime(2026, 1, 1, 0, 30, tzinfo=UTC), timezone=UTC),
+        article_prerewrite,
+    ),
 )

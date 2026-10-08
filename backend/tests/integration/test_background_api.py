@@ -47,7 +47,13 @@ async def test_learner_switches_default_and_persist(
                 "enabled": True,
                 "default": True,
                 "usage_feature": "practice_set",
-            }
+            },
+            {
+                "key": "article_prerewrite",
+                "enabled": True,
+                "default": True,
+                "usage_feature": "reading_prerewrite",
+            },
         ],
         "budget": "ok",
     }

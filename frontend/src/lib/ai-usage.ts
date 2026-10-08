@@ -14,7 +14,8 @@ export type AiFeature =
   | "word_examples"
   | "message_translate"
   | "writing_submit"
-  | "reading_rewrite";
+  | "reading_rewrite"
+  | "reading_prerewrite";
 
 /** `llm_usage.task` labels the catalog uses; each has a name in messages (aiBadge.task). */
 const AI_TASKS = [

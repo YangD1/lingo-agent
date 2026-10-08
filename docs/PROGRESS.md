@@ -435,8 +435,8 @@
   - [x] 42.2 词表算法 `services/reading/glossary.py`（分词、还原原形、按排名阈值挑词）+ 单测
   - [x] 42.3 改写子图 `agents/reading_graph.py`：rewrite → 代码检查 → critic → 重写被拒的题（一轮）→ save；提示词 `article_rewrite.md`、`reading_questions.md`、`reading_critic.md`；mock LLM 图测试
   - [x] 42.4 服务、worker 与接口：`POST /reading/articles/{id}/version`（按我的等级取或开始生成）、`GET /reading/versions/{id}`（轮询）；权限同文章列表；`features.yaml` 的 `reading_rewrite`；`providers.*.yaml` 不用加路由（和出题一样走 `llm.default`）；前端 `ai-usage.ts` 和文案登记新 task 名；集成测试 10 条
-  - [~] 42.5 后台预改写 `article_prerewrite`：任务登记、预算、开关；`features.yaml` 的 `reading_prerewrite`（background）；集成测试
-  - [ ] 42.6 收尾：ADR 0024 落地记录（含 Q41g 修订）、P2 计划 §5.3、`docs/agent-tools.md`、PLAN 同步；`make lint`、`make test`、`make e2e`
+  - [x] 42.5 后台预改写 `article_prerewrite`：任务登记、预算、开关；`features.yaml` 的 `reading_prerewrite`（background）；集成测试
+  - [~] 42.6 收尾：ADR 0024 落地记录（含 Q41g 修订）、P2 计划 §5.3、`docs/agent-tools.md`、PLAN 同步；`make lint`、`make test`、`make e2e`
 - [ ] 43. `/reading` 页 + 到期词高亮 + 理解题 → 阅读能力 + reading_coach（Vitest + E2E）
 - [ ] 44. 后台预生成 AI 例句（2026-10-02 用户要求记录）：Tatoeba 覆盖不到的词（多半是 GRE 等难词），在排队时为第二天要复习或要学的词提前调用 `word_examples` 并写缓存，翻面就能看到，不用点。要先看 28.2 导入后各词书的覆盖率，再决定做不做、覆盖哪些词书；用任务 40 的后台任务和每日上限，`features.yaml` 登记（timing 为后台）和挂 `AiBadge`，学习者可以关掉
 - **P2d 语法图谱 + 诊断**

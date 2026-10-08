@@ -25,10 +25,14 @@ class BackgroundFeature:
 
 
 PRACTICE_PREFETCH = "practice_prefetch"
+ARTICLE_PREREWRITE = "article_prerewrite"
 
 FEATURES: tuple[BackgroundFeature, ...] = (
     # After a set is done, the next one is generated so it starts without a wait.
     BackgroundFeature(PRACTICE_PREFETCH, default=True, usage_feature="practice_set"),
+    # New articles of the feeds the learner follows are rewritten for their level, so
+    # they open without a wait (Q42g).
+    BackgroundFeature(ARTICLE_PREREWRITE, default=True, usage_feature="reading_prerewrite"),
 )
 _BY_KEY = {feature.key: feature for feature in FEATURES}
 

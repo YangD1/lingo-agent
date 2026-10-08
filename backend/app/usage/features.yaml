@@ -128,6 +128,23 @@ features:
         timing: now
         default: {input_tokens: 1300, output_tokens: 300}
 
+  # Rewriting new articles ahead of time (Q42g): every 2 hours, the newest articles
+  # of the feeds a learner follows are rewritten for their level, the same calls as
+  # reading_rewrite, within the tenant's daily background budget.
+  reading_prerewrite:
+    calls:
+      - task: article_rewrite
+        timing: background
+        default: {input_tokens: 3500, output_tokens: 1300}
+      - task: reading_critic
+        route: exercise_critic
+        timing: background
+        default: {input_tokens: 1500, output_tokens: 500}
+      - task: reading_questions
+        route: article_rewrite
+        timing: background
+        default: {input_tokens: 1300, output_tokens: 300}
+
   # "Submit" on /writing (P2 plan §4.2): one review of the whole text, run in the
   # background while the page waits for it (Q38c).
   writing_submit:
