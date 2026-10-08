@@ -224,3 +224,27 @@ async def test_another_learners_session_is_not_found(
             404,
             "session_not_found",
         )
+
+
+async def test_the_list_marks_rewritten_and_read_and_filters_by_feed(
+    client: AsyncClient, app: FastAPI, db_session: AsyncSession
+) -> None:
+    await login(client)
+    opened = await add_article(db_session)
+    other = await add_article(db_session)
+    await open_ready(client, app, opened)
+
+    body = (await client.get("/reading/articles")).json()
+    flags = {a["id"]: (a["rewritten"], a["read"]) for a in body["articles"]}
+    assert flags == {opened: (True, True), other: (False, False)}
+
+    nasa = body["articles"][0]["feed_id"]
+    only = (await client.get("/reading/articles", params={"feed_id": nasa})).json()
+    assert {a["id"] for a in only["articles"]} == {opened, other}
+    gv = next(
+        f["id"]
+        for f in (await client.get("/reading/feeds")).json()["feeds"]
+        if f["title"] == "Global Voices"
+    )
+    empty = (await client.get("/reading/articles", params={"feed_id": gv})).json()
+    assert empty["articles"] == []

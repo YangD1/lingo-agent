@@ -28,6 +28,7 @@ const conversation = (over: Partial<Conversation>): Conversation => ({
   updated_at: "2026-10-01T08:05:00Z",
   focus_kc: null,
   purpose: "planning",
+  article_id: null,
   ...over,
 });
 const ready: Advice = {

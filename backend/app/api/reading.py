@@ -208,8 +208,15 @@ class ArticleOut(ArticleBriefOut):
     site_url: str | None
 
 
+class ArticleItemOut(ArticleBriefOut):
+    # A version at my level is ready: opening it calls no model (Q43f).
+    rewritten: bool
+    # I have opened it before.
+    read: bool
+
+
 class ArticlesOut(BaseModel):
-    articles: list[ArticleBriefOut]
+    articles: list[ArticleItemOut]
     # Pass as `before` for the next page; null on the last.
     next_cursor: str | None
 
@@ -258,17 +265,43 @@ async def list_articles(
     session: SessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 30,
     before: str | None = None,
+    feed_id: uuid.UUID | None = None,
 ) -> ArticlesOut:
-    """Newest first, from the feeds this learner follows."""
+    """Newest first, from the feeds this learner follows (or one of them)."""
     views = await feeds.list_articles(
         session,
         user.id,
         tenant.id,
         limit=limit,
         before=_parse_cursor(before) if before else None,
+        feed_id=feed_id,
+    )
+    ids = [v.article.id for v in views]
+    level = await versions.reading_level(session, user.id, get_rules())
+    rewritten = set(
+        await session.scalars(
+            select(ArticleVersion.article_id).where(
+                ArticleVersion.tenant_id == tenant.id,
+                ArticleVersion.level == level,
+                ArticleVersion.status == "ready",
+                ArticleVersion.article_id.in_(ids),
+            )
+        )
+    )
+    read = set(
+        await session.scalars(
+            select(ReadingSession.article_id).where(
+                ReadingSession.user_id == user.id, ReadingSession.article_id.in_(ids)
+            )
+        )
     )
     return ArticlesOut(
-        articles=[ArticleBriefOut.model_validate(_brief(v)) for v in views],
+        articles=[
+            ArticleItemOut.model_validate(
+                {**_brief(v), "rewritten": v.article.id in rewritten, "read": v.article.id in read}
+            )
+            for v in views
+        ],
         next_cursor=_cursor(views[-1]) if len(views) == limit else None,
     )
 

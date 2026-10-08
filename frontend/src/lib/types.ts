@@ -18,6 +18,8 @@ export type Conversation = {
    * "daily": the dashboard's conversation of the day (ADR 0016).
    */
   purpose: "planning" | "daily" | null;
+  /** The article a reading conversation is about (Q43h); null otherwise or once it is gone. */
+  article_id: number | null;
 };
 export type AttachmentKind = "image" | "audio" | "document";
 /** backend/app/api/attachments.py AttachmentOut (ADR 0008). */

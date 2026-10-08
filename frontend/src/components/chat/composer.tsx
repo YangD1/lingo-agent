@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
+import type { AiFeature } from "@/lib/ai-usage";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorText } from "@/components/ui/error-text";
@@ -33,12 +34,22 @@ type Props = {
   onStop: () => void;
   /** Above the input row: the language switch. */
   toolbar?: ReactNode;
+  /** What sending calls (ADR 0014): reading_coach in a reading conversation. */
+  sendFeature?: AiFeature;
 };
 
 const clock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
-export function Composer({ streaming, disabled, tray, onSend, onStop, toolbar }: Props) {
+export function Composer({
+  streaming,
+  disabled,
+  tray,
+  onSend,
+  onStop,
+  toolbar,
+  sendFeature = "chat_message",
+}: Props) {
   const t = useTranslations("chat");
   const [text, setText] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -193,7 +204,7 @@ export function Composer({ streaming, disabled, tray, onSend, onStop, toolbar }:
                   <ArrowUp />
                   {t("send")}
                 </Button>
-                <AiBadge feature="chat_message" corner />
+                <AiBadge feature={sendFeature} corner />
               </div>
             )}
           </div>

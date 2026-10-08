@@ -131,7 +131,8 @@
     "close": "Close",
     "account": "Account",
     "practice": "Grammar practice",
-    "writing": "Writing"
+    "writing": "Writing",
+    "reading": "Reading"
   },
   "chat": {
     "newChat": "New chat",
@@ -368,7 +369,11 @@
       "earlier": "Earlier"
     },
     "tutor": "Tutor",
-    "typing": "The tutor is replying"
+    "typing": "The tutor is replying",
+    "reading": {
+      "label": "About an article you are reading: ask about words, sentences or what it means.",
+      "back": "Back to the article"
+    }
   },
   "memory": {
     "edit": "Edit",
@@ -965,7 +970,20 @@
     "writing_too_short": "Too short: write at least 20 English words.",
     "writing_too_long": "Too long: 800 English words and 6000 characters at most.",
     "writing_not_found": "This piece of writing wasn't found; it may have been deleted.",
-    "models_disabled": "Every model for this is switched off. Turn one back on in Settings."
+    "models_disabled": "Every model for this is switched off. Turn one back on in Settings.",
+    "feed_not_found": "That feed no longer exists.",
+    "article_not_found": "That article no longer exists.",
+    "invalid_url": "Enter an http(s) address of an RSS or Atom feed.",
+    "feed_limit": "You already follow as many feeds of your own as you can. Turn one off first.",
+    "feed_unreachable": "No feed could be read at that address.",
+    "feed_builtin": "Built-in feeds can only be turned off, not deleted.",
+    "version_not_found": "That version no longer exists.",
+    "summary_only": "This feed gives only a summary: read the article at its source.",
+    "not_rewritable": "This article’s license allows no rewriting, so you read the original.",
+    "level_above": "At your level you read the original.",
+    "session_not_found": "Reading session not found.",
+    "no_questions": "This text has no questions.",
+    "invalid_answers": "Answer every question first."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1398,6 +1416,91 @@
         "description": "Its mistakes are removed from your learner model too, and mastery is recalculated. Words put on your word list stay there."
       },
       "wordCount": "{n, plural, one {# English word} other {# English words}}"
+    }
+  },
+  "reading": {
+    "list": {
+      "title": "Reading",
+      "description": "News from the feeds you follow, rewritten for your level when you open it, with a few comprehension questions.",
+      "manage": "Manage feeds",
+      "filter": "Filter by feed",
+      "all": "All",
+      "loading": "Loading articles…",
+      "loadingMore": "Loading…",
+      "more": "Show more",
+      "empty": "No articles yet",
+      "emptyHint": "Feeds are checked every few hours; new articles show up here.",
+      "noFeeds": "You follow no feeds",
+      "noFeedsHint": "Turn on a built-in feed or add an RSS feed of your own.",
+      "words": "{n, plural, one {# word} other {# words}}",
+      "rewritten": "Rewritten for you",
+      "summaryOnly": "Summary only",
+      "read": "Read"
+    },
+    "feeds": {
+      "title": "Manage feeds",
+      "follow": "Follow {feed}",
+      "builtin": "Built-in",
+      "own": "Added",
+      "license": {
+        "cc_by": "CC BY: rewritten for your level, with credit",
+        "public_domain": "Public domain: rewritten for your level",
+        "unknown": "License unknown: shown as it is, not rewritten"
+      },
+      "lastError": "Last fetch failed ({code})",
+      "confirmDelete": "Delete this feed and its articles for everyone here?",
+      "delete": "Delete {feed}",
+      "addLabel": "Add an RSS feed",
+      "add": "Add",
+      "adding": "Checking…",
+      "addHint": "Fetched once before it is added. Feeds you added: {n} of {max}."
+    },
+    "article": {
+      "back": "All articles",
+      "opening": "Opening the article…",
+      "viewLabel": "Text shown",
+      "viewVersion": "For your level ({level})",
+      "viewOriginal": "Original",
+      "stage": {
+        "rewriting": "Rewriting it for your level…",
+        "reviewing": "Checking the questions…",
+        "fixing": "Rewriting a few questions…"
+      },
+      "generatingHint": "This takes about a minute, only the first time anyone at your level opens it. You can read the original meanwhile.",
+      "failed": "It could not be rewritten this time ({code}). Try again, or read the original.",
+      "retry": "Try again",
+      "reason": {
+        "summary_only": "This feed gives only a summary. Read the whole article at its source.",
+        "not_rewritable": "This article’s license allows no rewriting, so here is the original, without questions.",
+        "level_above": "At your level you read the original, without questions."
+      },
+      "words": "{n, plural, one {# word} other {# words}}",
+      "source": "Original article",
+      "credit": {
+        "cc_by": "Rewritten for your level from {feed}; the original is CC BY 3.0.",
+        "public_domain": "Rewritten for your level from {feed}; the original is in the public domain.",
+        "other": "Rewritten for your level from {feed}."
+      },
+      "originalCredit": "Original text from {feed}.",
+      "author": "by {author}",
+      "readAtSource": "Read it at the source",
+      "dueLegend": "highlighted",
+      "dueCount": "{n, plural, one {# word} other {# words}} due for review today",
+      "glossaryLegend": "underlined",
+      "glossaryCount": "{n, plural, one {# word} other {# words}} above your level",
+      "ask": "Ask the tutor about this article",
+      "askHint": "Opens a conversation where the tutor has the article in front of it."
+    },
+    "quiz": {
+      "title": "Comprehension questions",
+      "submit": "Check my answers",
+      "submitting": "Checking…",
+      "score": "{right} of {n} right",
+      "counted": "This counts toward your reading level.",
+      "notCounted": "Only the first answers count.",
+      "right": "right answer",
+      "wrong": "your answer",
+      "evidence": "In the text:"
     }
   }
 }

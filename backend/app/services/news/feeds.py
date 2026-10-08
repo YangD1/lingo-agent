@@ -198,9 +198,10 @@ async def list_articles(
     *,
     limit: int,
     before: tuple[datetime, int] | None,
+    feed_id: uuid.UUID | None = None,
 ) -> list[ArticleView]:
-    """Newest first from the feeds this learner follows; `before` is the last seen
-    (published_at, id)."""
+    """Newest first from the feeds this learner follows, or only `feed_id` of them;
+    `before` is the last seen (published_at, id)."""
     query = (
         select(Article, Feed)
         .join(Feed, Feed.id == Article.feed_id)
@@ -208,6 +209,8 @@ async def list_articles(
         .order_by(Article.published_at.desc(), Article.id.desc())
         .limit(limit)
     )
+    if feed_id is not None:
+        query = query.where(Feed.id == feed_id)
     if before is not None:
         published_at, article_id = before
         query = query.where(

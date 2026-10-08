@@ -14,6 +14,7 @@ import type { Conversation } from "@/lib/types";
 import { ConversationList } from "./conversation-list";
 import { PlacementBanner } from "./placement-banner";
 import { PracticeBar } from "./practice-bar";
+import { ReadingBar } from "./reading-bar";
 import { TutorPanel } from "./tutor-panel";
 
 // The active conversation lives in `?c=<id>`, updated with the History API so that
@@ -141,7 +142,16 @@ export function ChatApp({
           onTurnFinished={refresh}
           // A practice or planning conversation with nothing in it yet (Q19a, ADR 0015 §6).
           autoOpen={Boolean(active?.focus_kc || active?.purpose === "planning")}
-          header={active?.focus_kc ? <PracticeBar kc={active.focus_kc} /> : <PlacementBanner />}
+          header={
+            active?.focus_kc ? (
+              <PracticeBar kc={active.focus_kc} />
+            ) : active?.article_id ? (
+              <ReadingBar articleId={active.article_id} />
+            ) : (
+              <PlacementBanner />
+            )
+          }
+          sendFeature={active?.article_id ? "reading_coach" : undefined}
           error={practiceError}
         />
       </div>

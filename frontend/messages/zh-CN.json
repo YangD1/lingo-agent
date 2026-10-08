@@ -131,7 +131,8 @@
     "close": "关闭",
     "account": "账户",
     "practice": "语法练习",
-    "writing": "写作"
+    "writing": "写作",
+    "reading": "阅读"
   },
   "chat": {
     "newChat": "新对话",
@@ -368,7 +369,11 @@
       "earlier": "更早"
     },
     "tutor": "私教",
-    "typing": "私教正在回复"
+    "typing": "私教正在回复",
+    "reading": {
+      "label": "关于你正在读的一篇文章：可以问单词、句子或意思。",
+      "back": "回到文章"
+    }
   },
   "memory": {
     "edit": "编辑",
@@ -965,7 +970,20 @@
     "writing_too_short": "太短了：至少写 20 个英文单词。",
     "writing_too_long": "太长了：最多 800 个英文单词、6000 个字符。",
     "writing_not_found": "找不到这篇写作，可能已经删除。",
-    "models_disabled": "这个功能的模型都停用了，请到设置里打开一个。"
+    "models_disabled": "这个功能的模型都停用了，请到设置里打开一个。",
+    "feed_not_found": "这个来源已经不存在了。",
+    "article_not_found": "这篇文章已经不存在了。",
+    "invalid_url": "请输入 RSS 或 Atom 源的 http(s) 地址。",
+    "feed_limit": "你自加的来源已经到上限了，先关掉一个。",
+    "feed_unreachable": "这个地址读不到订阅源。",
+    "feed_builtin": "内置来源只能关闭，不能删除。",
+    "version_not_found": "这个版本已经不存在了。",
+    "summary_only": "这个来源只给摘要，请到原网站阅读全文。",
+    "not_rewritable": "这篇文章的许可不允许改写，显示原文。",
+    "level_above": "你的等级直接读原文。",
+    "session_not_found": "找不到这条阅读记录。",
+    "no_questions": "这篇没有理解题。",
+    "invalid_answers": "请先回答每一道题。"
   },
   "dashboard": {
     "title": "能力看板",
@@ -1398,6 +1416,91 @@
         "description": "会连带删除它在学习者模型里留下的错误记录，并重新计算掌握度。收进生词本的词会保留。"
       },
       "wordCount": "{n} 个英文单词"
+    }
+  },
+  "reading": {
+    "list": {
+      "title": "阅读",
+      "description": "你订阅的来源的新闻，打开时按你的等级改写，并附几道理解题。",
+      "manage": "管理来源",
+      "filter": "按来源筛选",
+      "all": "全部",
+      "loading": "正在加载文章…",
+      "loadingMore": "加载中…",
+      "more": "加载更多",
+      "empty": "还没有文章",
+      "emptyHint": "后台每隔几小时检查一次来源，新文章会出现在这里。",
+      "noFeeds": "你没有订阅任何来源",
+      "noFeedsHint": "打开一个内置来源，或者添加你自己的 RSS 源。",
+      "words": "{n} 词",
+      "rewritten": "已为你改写",
+      "summaryOnly": "只有摘要",
+      "read": "读过"
+    },
+    "feeds": {
+      "title": "管理来源",
+      "follow": "订阅 {feed}",
+      "builtin": "内置",
+      "own": "自加",
+      "license": {
+        "cc_by": "CC BY：按你的等级改写，注明出处",
+        "public_domain": "公有领域：按你的等级改写",
+        "unknown": "许可未知：原样显示，不改写"
+      },
+      "lastError": "上次抓取失败（{code}）",
+      "confirmDelete": "删除这个来源和它的文章？这里的所有人都会看不到。",
+      "delete": "删除 {feed}",
+      "addLabel": "添加 RSS 源",
+      "add": "添加",
+      "adding": "正在检查…",
+      "addHint": "添加前会先抓取一次。你自加的来源：{n} / {max}。"
+    },
+    "article": {
+      "back": "全部文章",
+      "opening": "正在打开文章…",
+      "viewLabel": "显示的文字",
+      "viewVersion": "你的等级（{level}）",
+      "viewOriginal": "原文",
+      "stage": {
+        "rewriting": "正在按你的等级改写…",
+        "reviewing": "正在检查理解题…",
+        "fixing": "正在重写几道题…"
+      },
+      "generatingHint": "大约需要一分钟，只有你这个等级的第一个人打开时需要等。等待时可以先读原文。",
+      "failed": "这次没能改写（{code}）。可以重试，或者先读原文。",
+      "retry": "重试",
+      "reason": {
+        "summary_only": "这个来源只给摘要，全文请到原网站阅读。",
+        "not_rewritable": "这篇文章的许可不允许改写，这里显示原文，没有理解题。",
+        "level_above": "你的等级直接读原文，没有理解题。"
+      },
+      "words": "{n} 词",
+      "source": "原文链接",
+      "credit": {
+        "cc_by": "按你的等级改写自 {feed}，原文采用 CC BY 3.0 许可。",
+        "public_domain": "按你的等级改写自 {feed}，原文属于公有领域。",
+        "other": "按你的等级改写自 {feed}。"
+      },
+      "originalCredit": "原文来自 {feed}。",
+      "author": "作者 {author}",
+      "readAtSource": "去原网站阅读",
+      "dueLegend": "黄色高亮",
+      "dueCount": "{n} 个今天该复习的词",
+      "glossaryLegend": "虚下划线",
+      "glossaryCount": "{n} 个超出你等级的词",
+      "ask": "就这篇文章问私教",
+      "askHint": "打开一个会话，私教能看到这篇文章。"
+    },
+    "quiz": {
+      "title": "理解题",
+      "submit": "提交答案",
+      "submitting": "正在判分…",
+      "score": "答对 {right} / {n}",
+      "counted": "这次计入你的阅读能力。",
+      "notCounted": "只有第一次作答计分。",
+      "right": "正确答案",
+      "wrong": "你的答案",
+      "evidence": "原文依据："
     }
   }
 }

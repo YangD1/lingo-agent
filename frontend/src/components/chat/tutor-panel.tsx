@@ -7,6 +7,7 @@ import { type DragEvent, type ReactNode, useEffect, useRef, useState } from "rea
 
 import { buttonVariants } from "@/components/ui/button";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
+import type { AiFeature } from "@/lib/ai-usage";
 import { useShowActivity } from "@/lib/preferences";
 import type { Attachment, Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,8 @@ type Props = {
   empty?: (actions: EmptyActions) => ReactNode;
   /** An error from outside the panel, e.g. starting the conversation failed. */
   error?: ApiErrorLike | null;
+  /** What sending a message calls, for the input box's AI badge. */
+  sendFeature?: AiFeature;
   className?: string;
 };
 
@@ -65,6 +68,7 @@ export function TutorPanel({
   header,
   empty,
   error: outerError = null,
+  sendFeature,
   className,
 }: Props) {
   const t = useTranslations("chat");
@@ -160,6 +164,7 @@ export function TutorPanel({
         onSend={session.send}
         onStop={session.stop}
         toolbar={<LanguageSwitch />}
+        sendFeature={sendFeature}
       />
     </section>
   );

@@ -18,6 +18,7 @@ const conversation = (id: string, focus: Conversation["focus_kc"]): Conversation
   updated_at: "",
   focus_kc: focus,
   purpose: null,
+  article_id: null,
 });
 
 describe("practice conversations", () => {
