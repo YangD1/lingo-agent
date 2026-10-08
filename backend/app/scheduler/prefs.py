@@ -3,7 +3,7 @@
 Each entry is one kind of background work done for a learner, with its default and the
 `features.yaml` feature whose estimates the settings page shows next to its switch.
 Tasks that add background work add an entry here: article rewriting (42), AI example
-sentences (44, off by default), the weekly diagnosis (46).
+sentences (44, off by default), the diagnosis (46).
 """
 
 import uuid
@@ -27,6 +27,7 @@ class BackgroundFeature:
 PRACTICE_PREFETCH = "practice_prefetch"
 ARTICLE_PREREWRITE = "article_prerewrite"
 WORD_EXAMPLES_PREFETCH = "word_examples_prefetch"
+DIAGNOSIS = "diagnosis"
 
 FEATURES: tuple[BackgroundFeature, ...] = (
     # After a set is done, the next one is generated so it starts without a wait.
@@ -37,6 +38,9 @@ FEATURES: tuple[BackgroundFeature, ...] = (
     # AI example sentences for the coming day's words that have no real sentence, so
     # the card shows them when turned over (task 44).
     BackgroundFeature(WORD_EXAMPLES_PREFETCH, default=True, usage_feature="word_examples_prefetch"),
+    # The tutor's diagnosis of root causes behind repeated grammar mistakes: weekly, and
+    # after a practice set with enough new mistakes (Q46b).
+    BackgroundFeature(DIAGNOSIS, default=True, usage_feature="diagnosis"),
 )
 _BY_KEY = {feature.key: feature for feature in FEATURES}
 

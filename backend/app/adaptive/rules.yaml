@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-08.2"
+version: "2026-10-08.3"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -349,3 +349,29 @@ graph:
   prerequisite_depth: 3
   # Latest mistakes shown per KC (the KC itself, its prerequisites and confusables).
   mistakes_per_kc: 3
+
+# The tutor's diagnosis (P2 plan §6.2, Q46a-e): root-cause hypotheses over a KC's
+# prerequisite chain and confusables, written by a model, checked by code.
+diagnosis:
+  # KCs looked at: not learned, with at least `min_mistakes` counted mistakes (any
+  # source but placement) in the last `mistake_days` days; the `max_kcs` with the
+  # highest practice priority, in one call. None qualifies: no call.
+  max_kcs: 3
+  min_mistakes: 3
+  mistake_days: 30
+  # Weekly: a learner is diagnosed again this many days after the last diagnosis,
+  # if counted mistakes came since.
+  interval_days: 7
+  # After a practice set: at least this many hours since the last diagnosis (as
+  # mastery_gate.min_span_hours: "another day") and this many counted mistakes since.
+  after_set_min_hours: 20
+  after_set_min_mistakes: 3
+  # A hypothesis is kept only with at least this many valid evidence citations (one
+  # mistake is no pattern); at most `max_hypotheses` are kept.
+  min_evidence: 2
+  max_hypotheses: 3
+  # Practice priority of the KCs a diagnosis names is multiplied by `boost`, for
+  # `boost_days` after it, until the KC is learned. The model's confidence is shown,
+  # never used here.
+  boost: 1.5
+  boost_days: 14

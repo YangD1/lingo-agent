@@ -823,6 +823,10 @@
         "word_examples_prefetch": {
           "name": "Write AI example sentences ahead",
           "hint": "For words you will review or learn in the next day that have no real example sentence, AI sentences are written in the background, so the card shows them when you turn it over."
+        },
+        "diagnosis": {
+          "name": "The tutor's diagnosis",
+          "hint": "For grammar points you keep getting wrong, the tutor looks for likely root causes in the background, across their prerequisites and the points they are often confused with, quoting your own sentences, and practice brings the related points up more often. Weekly, and after a practice set with many new mistakes."
         }
       },
       "budgetTitle": "Daily background budget",
@@ -1174,7 +1178,8 @@
       "reading_rewrite": "An AI model rewrites this article for your level and writes a few comprehension questions; another model answers each question itself to check it, and a question that fails is rewritten once, then dropped. The rewrite is saved: opening it again at the same level calls no model.",
       "reading_coach": "The reading coach answers your questions about this article: each message sends the article (the version for your level, or the beginning of the original) with the conversation, so a reply reads more than a chat turn. Afterwards, as in any chat, memory and grammar notes are updated in the background.",
       "reading_prerewrite": "In the background every two hours: new articles of the feeds you follow are rewritten for your level with questions, by the same AI calls as opening an article, within the tenant's daily background budget.",
-      "word_examples_prefetch": "In the background every six hours: for the words you will review or learn in the next day that have no real example sentence, the same AI call as the \"AI examples\" button writes two sentences at your level, at most 30 words a time, within the tenant's daily background budget. Learners at the same level share them."
+      "word_examples_prefetch": "In the background every six hours: for the words you will review or learn in the next day that have no real example sentence, the same AI call as the \"AI examples\" button writes two sentences at your level, at most 30 words a time, within the tenant's daily background budget. Learners at the same level share them.",
+      "diagnosis": "In the background at most weekly (also after a practice set with many new mistakes, at most daily): the AI model reads up to 3 grammar points you keep getting wrong, their prerequisites and the points they are often confused with, and your latest mistakes, and suggests root causes. Conclusions that cannot quote your own sentences are dropped. Within the tenant's daily background budget."
     },
     "task": {
       "chat": "Reply",
@@ -1196,7 +1201,8 @@
       "article_rewrite": "Rewrite the article and write questions",
       "reading_critic": "Review the questions",
       "reading_questions": "Rewrite questions",
-      "reading_coach": "Reading coach reply"
+      "reading_coach": "Reading coach reply",
+      "diagnose": "Diagnose root causes"
     },
     "timing": {
       "now": "right away",

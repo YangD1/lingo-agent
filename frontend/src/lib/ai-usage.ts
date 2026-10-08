@@ -17,7 +17,8 @@ export type AiFeature =
   | "reading_rewrite"
   | "reading_coach"
   | "reading_prerewrite"
-  | "word_examples_prefetch";
+  | "word_examples_prefetch"
+  | "diagnosis";
 
 /** `llm_usage.task` labels the catalog uses; each has a name in messages (aiBadge.task). */
 const AI_TASKS = [
@@ -40,6 +41,7 @@ const AI_TASKS = [
   "reading_critic",
   "reading_questions",
   "reading_coach",
+  "diagnose",
   "advice", // no longer called (ADR 0016); past usage records still carry it
 ] as const;
 export type AiTask = (typeof AI_TASKS)[number];

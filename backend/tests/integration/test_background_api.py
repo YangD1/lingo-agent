@@ -60,6 +60,12 @@ async def test_learner_switches_default_and_persist(
                 "default": True,
                 "usage_feature": "word_examples_prefetch",
             },
+            {
+                "key": "diagnosis",
+                "enabled": True,
+                "default": True,
+                "usage_feature": "diagnosis",
+            },
         ],
         "budget": "ok",
     }

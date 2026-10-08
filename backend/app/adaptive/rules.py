@@ -312,6 +312,19 @@ class GraphRules(_Strict):
     mistakes_per_kc: int = Field(ge=0, le=10)
 
 
+class DiagnosisRules(_Strict):
+    max_kcs: int = Field(ge=1, le=5)
+    min_mistakes: int = Field(ge=1)
+    mistake_days: int = Field(ge=1)
+    interval_days: int = Field(ge=1)
+    after_set_min_hours: float = Field(ge=0.0)
+    after_set_min_mistakes: int = Field(ge=1)
+    min_evidence: int = Field(ge=1)
+    max_hypotheses: int = Field(ge=1, le=5)
+    boost: float = Field(ge=1.0, le=5.0)
+    boost_days: int = Field(ge=1)
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
@@ -325,6 +338,7 @@ class Rules(_Strict):
     mastery_gate: MasteryGateRules
     reading: ReadingRules
     graph: GraphRules
+    diagnosis: DiagnosisRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:

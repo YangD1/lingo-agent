@@ -199,6 +199,15 @@ features:
         timing: background
         default: {input_tokens: 350, output_tokens: 120}
 
+  # The tutor's diagnosis (P2 plan §6.2): one call over up to 3 weak KCs with their
+  # prerequisites, confusables and latest mistakes; daily look for learners due a
+  # weekly one, and after a practice set with enough new mistakes (Q46b).
+  diagnosis:
+    calls:
+      - task: diagnose
+        timing: background
+        default: {input_tokens: 3000, output_tokens: 600}
+
   # "Show in Chinese / English" under a tutor message (ADR 0017 §4): once per message
   # and language; switching back makes no call.
   message_translate:

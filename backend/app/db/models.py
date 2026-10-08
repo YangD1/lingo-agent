@@ -76,6 +76,9 @@ EXERCISE_SET_STATUSES = ("generating", "ready", "in_progress", "done", "failed")
 # rejected: kept for the record, never shown; reported: the learner flagged it, so its
 # answers count as no evidence.
 EXERCISE_STATUSES = ("ok", "rejected", "reported")
+# What started a diagnosis (Q46b): the daily look for learners due a weekly one, or a
+# finished practice set with enough new mistakes.
+DIAGNOSIS_TRIGGERS = ("weekly", "after_set")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -1188,3 +1191,40 @@ class ReadingSession(Base):
     # When the learner opened it last.
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Diagnosis(Base):
+    """The tutor's root-cause hypotheses about a learner's grammar mistakes (P2 plan
+    §6.2, ADR 0022).
+
+    `root_causes` holds only hypotheses that survived the code checks (Q46c):
+    [{"hypothesis", "kc_ids", "evidence_ids", "confidence", "suggestion"}], written in
+    `language`; an empty list when none did. A run that made no call leaves no row.
+    """
+
+    __tablename__ = "diagnoses"
+    __table_args__ = (
+        CheckConstraint(_in("trigger", DIAGNOSIS_TRIGGERS), name="trigger"),
+        CheckConstraint(_in("language", EXPLANATION_LANGUAGES), name="language"),
+        Index("ix_diagnoses_user_id_created_at", "user_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    trigger: Mapped[str] = mapped_column(String(20))
+    # The KCs whose neighborhoods were shown to the model (Q46a).
+    target_kc_ids: Mapped[list[str]] = mapped_column(ARRAY(String(100)))
+    root_causes: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, server_default="[]"
+    )
+    language: Mapped[str] = mapped_column(String(5))
+    # Newest kc_evidence id when it ran: mistakes after it are "new" for the next one.
+    evidence_upto: Mapped[int | None] = mapped_column(BigInteger)
+    # "<connection>:<model>" that wrote it.
+    model: Mapped[str | None] = mapped_column(String(200))
+    rules_version: Mapped[str] = mapped_column(String(50))
+    # The fact memory summing it up (Q46d); NULL once the learner deleted it.
+    memory_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("memories.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
