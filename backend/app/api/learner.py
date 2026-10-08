@@ -2,17 +2,19 @@
 deleting them (ADR 0010, P1 plan §7). Everything here is the current user's own data."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 
 from app.adaptive import learner
+from app.adaptive.diagnosis import view as diagnosis_view
 from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
 from app.adaptive.learner import MasteryState
 from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.deps import CurrentUser, SessionDep
+from app.scheduler import prefs
 
 router = APIRouter(prefix="/learner", tags=["learner"])
 
@@ -99,6 +101,54 @@ class EvidencePage(BaseModel):
     total: int
 
 
+class DiagnosisKCOut(BaseModel):
+    kc_id: str
+    name_en: str
+    name_zh: str
+    cefr: CefrLevel
+    learned: bool
+
+
+class CitedMistakeOut(BaseModel):
+    id: int
+    kc_id: str
+    source: str
+    original: str | None
+    correction: str | None
+    conversation_id: uuid.UUID | None
+    conversation_title: str | None
+    created_at: datetime
+
+
+class RootCauseOut(BaseModel):
+    hypothesis: str
+    # Root first.
+    kcs: list[DiagnosisKCOut]
+    confidence: str
+    suggestion: str
+    # The cited mistakes still stored; `cited` counts the deleted ones too (Q47d).
+    evidence: list[CitedMistakeOut]
+    cited: int
+
+
+class DiagnosisOut(BaseModel):
+    id: uuid.UUID
+    created_at: datetime
+    language: str
+    root_causes: list[RootCauseOut]
+    boost_until: datetime
+    boost_active: bool
+
+
+class DiagnosisPage(BaseModel):
+    # The learner's switch for background diagnosis.
+    enabled: bool
+    # The latest diagnosis that found something (Q47a).
+    diagnosis: DiagnosisOut | None
+    # The latest diagnosis at all; later than `diagnosis` when that one found nothing.
+    checked_at: datetime | None
+
+
 class Deleted(BaseModel):
     deleted: int
 
@@ -140,6 +190,61 @@ async def get_learner(user: CurrentUser, session: SessionDep) -> LearnerOut:
         skills=[SkillOut.model_validate(s, from_attributes=True) for s in overview.skills],
         thresholds=Thresholds(mastered=rules.bkt.mastered, weak=rules.bkt.weak),
         gate=GateOut.model_validate(rules.mastery_gate, from_attributes=True),
+    )
+
+
+@router.get("/diagnosis")
+async def get_diagnosis(user: CurrentUser, session: SessionDep) -> DiagnosisPage:
+    found = await diagnosis_view.latest(
+        session, user.id, rules=get_rules(), catalog=get_grammar_catalog(), now=datetime.now(UTC)
+    )
+    enabled = await prefs.is_enabled(session, user.id, prefs.DIAGNOSIS)
+    await session.commit()  # stale mastery rows may have been rebuilt
+    d = found.diagnosis
+    return DiagnosisPage(
+        enabled=enabled,
+        checked_at=found.checked_at,
+        diagnosis=None
+        if d is None
+        else DiagnosisOut(
+            id=d.id,
+            created_at=d.created_at,
+            language=d.language,
+            boost_until=d.boost_until,
+            boost_active=d.boost_active,
+            root_causes=[
+                RootCauseOut(
+                    hypothesis=c.hypothesis,
+                    kcs=[
+                        DiagnosisKCOut(
+                            kc_id=k.kc.id,
+                            name_en=k.kc.name_en,
+                            name_zh=k.kc.name_zh,
+                            cefr=k.kc.cefr,
+                            learned=k.learned,
+                        )
+                        for k in c.kcs
+                    ],
+                    confidence=c.confidence,
+                    suggestion=c.suggestion,
+                    evidence=[
+                        CitedMistakeOut(
+                            id=e.row.id,
+                            kc_id=e.row.kc_id,
+                            source=e.row.source,
+                            original=e.row.original,
+                            correction=e.row.correction,
+                            conversation_id=e.row.conversation_id,
+                            conversation_title=e.conversation_title,
+                            created_at=e.row.created_at,
+                        )
+                        for e in c.evidence
+                    ],
+                    cited=c.cited,
+                )
+                for c in d.causes
+            ],
+        ),
     )
 
 

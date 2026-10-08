@@ -20,7 +20,14 @@ from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, GrammarKC
 from app.adaptive.placement.grammar_test import cefr_for
 from app.adaptive.placement.writeback import latest_result
 from app.adaptive.rules import Rules
-from app.db.models import Conversation, KCEvidence, KCMastery, SkillEstimate
+from app.db.models import (
+    Conversation,
+    Diagnosis,
+    KCEvidence,
+    KCMastery,
+    Memory,
+    SkillEstimate,
+)
 
 type MasteryState = Literal["mastered", "learning", "weak"]
 
@@ -207,13 +214,21 @@ async def delete_evidence(
 
 
 async def delete_all(session: AsyncSession, user_id: uuid.UUID) -> int:
-    """Delete the learner's evidence, mastery, skill estimates and grammar tags;
-    commits. Returns the number of evidence rows deleted."""
+    """Delete the learner's evidence, mastery, skill estimates, grammar tags and the
+    tutor's diagnoses of them with the memories they wrote (Q47c); commits. Returns the
+    number of evidence rows deleted."""
     result: CursorResult[Any] = await session.execute(  # type: ignore[assignment]
         delete(KCEvidence).where(KCEvidence.user_id == user_id)
     )
     await session.execute(delete(KCMastery).where(KCMastery.user_id == user_id))
     await session.execute(delete(SkillEstimate).where(SkillEstimate.user_id == user_id))
     await activity.forget_grammar_tags(session, user_id)
+    memory_ids = select(Diagnosis.memory_id).where(
+        Diagnosis.user_id == user_id, Diagnosis.memory_id.is_not(None)
+    )
+    await session.execute(
+        delete(Memory).where(Memory.user_id == user_id, Memory.id.in_(memory_ids))
+    )
+    await session.execute(delete(Diagnosis).where(Diagnosis.user_id == user_id))
     await session.commit()
     return result.rowcount
