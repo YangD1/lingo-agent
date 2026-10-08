@@ -516,8 +516,8 @@
   - Q46h（已确认，按推荐）接口和页面：读取诊断的接口和“私教的诊断”区块都放任务 47，46 不加界面（同任务 45 的做法）
   - [x] 46.1 表与参数（pytest 1363、Vitest 358 全过，`make lint` 干净）：`Diagnosis` 模型 + 迁移 `b1e62314d079`（开发库已升级，往返通过）：user（删号级联）、trigger `weekly / after_set`、`target_kc_ids`、`root_causes` JSONB（只存校验通过的假设，全被丢掉时为空列表；没调模型不留行）、language、`evidence_upto`（诊断时最新的证据 id，之后的错误算“新”的，比时间戳稳）、model、rules_version、`memory_id`（记忆删了置空）；没加 tenant 列，和 `exercise_sets` 一样从 user 取；`rules.yaml` `diagnosis:`（Q46a–e 的数，版本 `2026-10-08.3`）+ `DiagnosisRules`；`prefs.DIAGNOSIS`（默认开）；`features.yaml` `diagnosis`（task `diagnose`，background）；设置页开关和 AI 标记的中英文案、`ai-usage.ts` 类型；`BUSINESS_TABLES`
   - [x] 46.2 诊断调用（单测 12 + 集成测试 2 全过，ruff、mypy 干净）：`adaptive/diagnosis/context.py`（`pick_targets` 纯函数：选题排序里没学会的、`diagnosis.mistake_days` 内算数错误 ≥ `min_mistakes` 的前 `max_kcs` 个；`load_context` 用 `inputs.load` + `planner.candidates` 排序、`graph.neighborhood` 取邻域；`DiagnosisContext` 记下给模型看过的 KC、每个证据 id 属于哪个 KC、每个邻域的 KC 集合；`render` 拼用户消息，每个 KC 带等级、掌握度、说明、常见错误和带编号的错句）；`checks.py`（`DiagnosisOut` 结构化输出，`check` 按 Q46c：KC 只留给看过的，证据要么在假设的 KC 上、要么和它在同一个邻域里，去重后 < `min_evidence` 丢弃，最多 `max_hypotheses` 条；`diagnose` 用 `StructuredCall`，返回校验后的假设和作答模型）；`prompts/diagnose.md`；providers dev / prod 加 `diagnose` 路由（temperature 0.2）；`inputs.counted_mistakes` 抽出来（可按时间和“证据 id 之后”数，46.4 判“新错误”用）
-  - [~] 46.3 服务与记忆：`run_diagnosis`（开关、上限、后台记账、存表、写 / 更新记忆）；集成测试
-  - [ ] 46.4 触发：定时任务 `diagnosis`（每天一次）+ 练习组结束后排后台诊断；集成测试
+  - [x] 46.3 服务与记忆（集成测试 4 个全过，ruff、mypy 干净）：`adaptive/diagnosis/service.py` `run_diagnosis(sessionmaker, user, tenant, trigger)`：开关关了 / 租户额度用完 / 没有够格的语法点时跳过、不调模型、不留行（返回原因）；调用 metadata 带 `background: True`（计入后台额度）；`evidence_upto` 取调用前的最新证据 id；存表后按 Q46d 写记忆：有假设时用第一条写成“私教的诊断：…”，上次诊断的记忆还在就原地更新（`update_memory`，向量清掉），被删了就新写一条，没有假设时不动旧记忆；模型或连接出错直接抛给触发方。`calls` 可注入（测试用假调用）。踩坑：提交后再读 ORM 属性会触发懒加载报 MissingGreenlet，id 先生成好
+  - [~] 46.4 触发：定时任务 `diagnosis`（每天一次）+ 练习组结束后排后台诊断；集成测试
   - [ ] 46.5 选题加成：练习输入读最近有效诊断 → `boost`；单测 + 集成测试
   - [ ] 46.6 评估集与评估器（Q46g）
   - [ ] 46.7 收尾：`agent-tools.md`、ADR 0022 / P2 计划落地记录、PLAN 同步、看板和交接；`make lint`、`make test` 全过
