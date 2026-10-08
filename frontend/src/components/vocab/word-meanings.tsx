@@ -38,7 +38,13 @@ export function WordMeanings({ card }: { card: Card }) {
           <SenseLine key={i} sense={sense} className="text-[17px] leading-[1.6]" />
         ))}
       </ul>
-      <WordExamples wordId={word.id} sentences={card.sentences} forms={card.forms} />
+      <WordExamples
+        key={word.id}
+        wordId={word.id}
+        sentences={card.sentences}
+        forms={card.forms}
+        cached={card.ai_examples}
+      />
       {more.length > 0 && (
         // Native <details>: closed by default, keyboard and screen-reader friendly for free.
         <details className="group border-t pt-3" data-testid="review-more">

@@ -37,6 +37,7 @@ const card = (id: number, spelling: string, overrides: Partial<Card> = {}): Card
     },
   ],
   forms: [spelling, `${spelling}s`],
+  ai_examples: [],
   ...overrides,
 });
 
@@ -193,6 +194,24 @@ describe("ReviewApp", () => {
     expect(ai.querySelector("strong")).toHaveTextContent("apple");
     expect(screen.getByTestId("review-examples")).toHaveTextContent("Written by AI");
     expect(screen.queryByRole("button", { name: "AI examples" })).not.toBeInTheDocument();
+  });
+
+  it("shows AI examples written ahead of time without asking", async () => {
+    api.mockResolvedValueOnce(
+      queue([
+        card(1, "apple", {
+          sentences: [],
+          ai_examples: [{ en: "I ate an apple.", zh: "我吃了一个苹果。" }],
+        }),
+      ]),
+    );
+    show();
+    await screen.findByRole("heading", { name: "apple" });
+    await userEvent.keyboard(" ");
+    expect(screen.getByTestId("review-ai-examples")).toHaveTextContent("I ate an apple.");
+    expect(screen.getByTestId("review-examples")).toHaveTextContent("Written by AI");
+    expect(screen.queryByRole("button", { name: "AI examples" })).not.toBeInTheDocument();
+    expect(api).toHaveBeenCalledTimes(1);
   });
 
   it("in new-word mode, points to the reviews still due", async () => {

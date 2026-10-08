@@ -15,20 +15,23 @@ import { LingoCat } from "@/components/brand/lingo-cat";
 /**
  * Example sentences on the back of a flashcard (task 28.4, ADR 0020): real ones from
  * Tatoeba, each linked to its page there; AI ones only when the learner asks, since each
- * uncached word is a model call.
+ * uncached word is a model call, unless they were already written (ahead of time, task 44).
  */
 export function WordExamples({
   wordId,
   sentences,
   forms,
+  cached = [],
 }: {
   wordId: number;
   sentences: SourcedExample[];
   forms: string[];
+  /** AI sentences the queue already has for this word. */
+  cached?: Example[];
 }) {
   const t = useTranslations("vocab.review.examples");
   const describe = useDescribeError();
-  const [ai, setAi] = useState<Example[] | null>(null);
+  const [ai, setAi] = useState<Example[] | null>(cached.length > 0 ? cached : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

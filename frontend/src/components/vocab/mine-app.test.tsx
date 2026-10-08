@@ -24,6 +24,7 @@ const card = (id: number, spelling: string, overrides: Partial<Card> = {}): Card
   intervals: [60, 330, 600, 1_296_000],
   sentences: [],
   forms: [],
+  ai_examples: [],
   ...overrides,
 });
 

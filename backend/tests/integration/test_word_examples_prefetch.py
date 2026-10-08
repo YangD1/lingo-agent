@@ -86,6 +86,7 @@ def card(user_id: uuid.UUID, word_id: int, due: timedelta) -> UserCard:
         status="learning",
         state=2,
         stability=3.0,
+        difficulty=5.0,
         due=NOW + due,
     )
 
@@ -227,3 +228,22 @@ async def test_invalid_sentences_are_skipped_and_errors_stop_the_tenant(
     assert model.words == ["go", "middle"]
     assert await cached(db_session) == set()
     assert "less" in ids
+
+
+async def test_the_queue_shows_cached_sentences_without_calling(
+    client: AsyncClient, app: FastAPI, db_session: AsyncSession, model: FakeModel
+) -> None:
+    user_id, _ = await learner(client, db_session)
+    await setup(db_session, user_id)
+    await db_session.execute(update(UserCard).values(due=datetime.now(UTC) - timedelta(minutes=1)))
+    await db_session.commit()
+    assert await run(app) is None
+    calls = len(model.words)
+
+    response = await client.get("/vocab/queue")
+    assert response.status_code == 200, response.text
+    cards = {c["word"]["word"]: c for c in [*response.json()["reviews"], *response.json()["new"]]}
+    assert cards["go"]["ai_examples"] == [{"en": "I like go.", "zh": "我喜欢。"}]
+    assert cards["us"]["ai_examples"] == [{"en": "I like us.", "zh": "我喜欢。"}]
+    assert cards["common"]["ai_examples"] == []  # has a real sentence
+    assert len(model.words) == calls

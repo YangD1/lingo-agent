@@ -2,7 +2,7 @@
 word list (ADR 0011, P1 plan §6). Everything here is the current user's own data."""
 
 import logging
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
@@ -13,7 +13,6 @@ from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.db.models import UserCard, Word, WordSentence
 from app.deps import CurrentTenant, CurrentUser, SessionDep
-from app.memory.service import get_profile
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.services.vocab import examples, mine, placement_known, progress, screening
@@ -56,6 +55,11 @@ class ExampleOut(BaseModel):
     url: str | None
 
 
+class Sentence(BaseModel):
+    en: str
+    zh: str
+
+
 class CardOut(BaseModel):
     word: WordOut
     # None for a book word never met; the rest mirror `user_cards`.
@@ -69,6 +73,9 @@ class CardOut(BaseModel):
     sentences: list[ExampleOut]
     # The word and its inflections, lowercase, to pick the word out of a sentence.
     forms: list[str]
+    # AI sentences already cached at the learner's level (queue only, Q44f); the card
+    # shows them without the button. Empty when none.
+    ai_examples: list[Sentence] = []
 
 
 class BookOut(BaseModel):
@@ -176,11 +183,6 @@ class LookupOut(BaseModel):
     on_list: bool
 
 
-class Sentence(BaseModel):
-    en: str
-    zh: str
-
-
 class ExamplesOut(BaseModel):
     sentences: list[Sentence]
     # The level they were written for.
@@ -198,7 +200,11 @@ def _word(word: Word) -> WordOut:
 
 
 def _card(
-    word: Word, card: UserCard | None, now: datetime, sentences: Sequence[WordSentence]
+    word: Word,
+    card: UserCard | None,
+    now: datetime,
+    sentences: Sequence[WordSentence],
+    ai: Sequence[dict[str, str]] = (),
 ) -> CardOut:
     return CardOut(
         word=_word(word),
@@ -211,17 +217,23 @@ def _card(
             ExampleOut(en=s.en, zh=s.zh, source=s.source, url=sentence_page(s)) for s in sentences
         ],
         forms=sorted(forms_of(word.word, word.exchange, lemma=False)),
+        ai_examples=[Sentence(**s) for s in ai],
     )
 
 
 async def _cards(
-    session: SessionDep, items: Iterable[tuple[Word, UserCard | None]]
+    session: SessionDep,
+    items: Iterable[tuple[Word, UserCard | None]],
+    ai: Mapping[int, list[dict[str, str]]] | None = None,
 ) -> list[CardOut]:
-    """Cards with their example sentences, read in one query."""
+    """Cards with their example sentences, read in one query; `ai` adds cached AI ones."""
     pairs = list(items)
     found = await sentences_for(session, (word.id for word, _ in pairs))
     now = datetime.now(UTC)
-    return [_card(word, card, now, found.get(word.id, [])) for word, card in pairs]
+    return [
+        _card(word, card, now, found.get(word.id, []), (ai or {}).get(word.id, ()))
+        for word, card in pairs
+    ]
 
 
 def _pairs(items: Iterable[QueueItem]) -> list[tuple[Word, UserCard | None]]:
@@ -277,6 +289,7 @@ async def put_book(body: BookIn, user: CurrentUser, session: SessionDep) -> Resp
 @router.get("/queue")
 async def get_queue(
     user: CurrentUser,
+    tenant: CurrentTenant,
     session: SessionDep,
     tz: TimeZone = None,
     mode: Literal["all", "new"] = "all",
@@ -288,7 +301,15 @@ async def get_queue(
         session, user.id, rules=get_rules(), tz=await learner_zone(session, user.id, tz)
     )
     reviews = [] if mode == "new" else _pairs(queue.reviews)
-    cards = await _cards(session, [*reviews, *_pairs(queue.new)])
+    pairs = [*reviews, *_pairs(queue.new)]
+    # Only reads the cache (written by the button or ahead of time); never calls a model.
+    ai = await examples.cached_for(
+        session,
+        tenant.id,
+        (word.id for word, _ in pairs),
+        await examples.level_for(session, user.id),
+    )
+    cards = await _cards(session, pairs, ai)
     return QueueOut(
         reviews=cards[: len(reviews)],
         new=cards[len(reviews) :],
@@ -409,8 +430,7 @@ async def post_examples(
     word = await session.get(Word, word_id)
     if word is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "word_not_found", "no such word")
-    profile = await get_profile(session, user.id)
-    cefr = (profile.cefr_level if profile else None) or examples.DEFAULT_LEVEL
+    cefr = await examples.level_for(session, user.id)
     ctx = await load_provider_context(session, tenant.id)
     try:
         sentences = await examples.examples(

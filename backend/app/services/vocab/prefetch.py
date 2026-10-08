@@ -4,9 +4,10 @@
 For each learner who left the switch on: the cards due within
 `vocab.examples_prefetch.ahead_hours` and the next day's new words (queue order), those
 with no Tatoeba sentence and no cached AI sentences at the learner's level, at most
-`per_learner` of them. The level is the one the "AI examples" button uses, so the
-cache serves both. The tenant's daily background budget is checked before each word (it
-may end a little past it, Q40b); a provider error stops that tenant for this run.
+`per_learner` of them. The level is the one the "AI examples" button uses
+(`examples.level_for`), so the cache serves both. The tenant's daily background
+budget is checked before each word (it may end a little past it, Q40b); a provider
+error stops that tenant for this run.
 """
 
 import logging
@@ -21,7 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive.rules import Rules
 from app.db.models import TenantMember, UserCard, UserWordBook, Word, WordExample, WordSentence
-from app.memory.service import get_profile
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.scheduler import budget, prefs
@@ -29,12 +29,6 @@ from app.services.vocab import examples
 from app.services.vocab.queue import daily_limit, next_new
 
 logger = logging.getLogger(__name__)
-
-
-async def learner_level(session: AsyncSession, user_id: uuid.UUID) -> str:
-    """The level the "AI examples" button writes at (`POST /vocab/words/{id}/examples`)."""
-    profile = await get_profile(session, user_id)
-    return (profile.cefr_level if profile else None) or examples.DEFAULT_LEVEL
 
 
 def _uncovered(tenant_id: uuid.UUID, level: str) -> tuple[ColumnElement[bool], ...]:
@@ -126,7 +120,7 @@ async def _tenant(
     written = 0
     for user_id in learners:
         async with sessionmaker() as session:
-            level = await learner_level(session, user_id)
+            level = await examples.level_for(session, user_id)
             words = await words_for(session, user_id, tenant_id, level, rules=rules, now=now)
         for word in words:
             async with sessionmaker() as session:

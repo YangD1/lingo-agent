@@ -464,8 +464,8 @@
   - Q44e（已确认，按推荐）等级：和点“AI 例句”按钮时同一个等级（学习者 CEFR，没有就 `DEFAULT_LEVEL`），保证缓存命中；改了等级旧缓存不删
   - Q44f（已确认，按推荐）前端：复习卡背面如果已有该等级的 AI 缓存，翻面直接显示（标“AI 生成”，不再要点）；没有缓存时仍是按钮。队列接口只读缓存，不调模型
   - [x] 44.1 后端（pytest 1346 全过，ruff、mypy 干净）：`services/vocab/prefetch.py`（`words_for` 挑词：24 小时内到期的复习卡按到期先后 + `queue.next_new` 下一批 `daily_limit` 个新词，去掉有 Tatoeba 例句或本租户该等级已有缓存的，截到 `per_learner`；`prefetch` 按租户逐词调 `examples.examples`，metadata 带 `background: True`，每词前判每日上限；句子不合格跳过留给下次，没配模型或模型出错停掉该租户本轮）；`queue.py` 抽出 `next_new`、`daily_limit` 共用；`rules.yaml` `vocab.examples_prefetch`（`ahead_hours` 24、`per_learner` 30）；`prefs.WORD_EXAMPLES_PREFETCH`（默认开）；定时任务 `word_examples_prefetch` 每 6 小时（UTC 01:15 起）；`features.yaml` `word_examples_prefetch`（`timing: background`）；`agent-tools.md` 两处。集成测试 `test_word_examples_prefetch.py` 7 个（挑词与只生成一次、经定时任务入口、每人上限、关掉开关、额度用完、没配模型、不合格跳过 + 出错停止），`test_background_api` 加新开关
-  - [~] 44.2 接口与前端：队列 `CardOut` 带已缓存的 AI 例句；复习卡背面直接显示；设置页开关和 `AiBadge`；Vitest
-  - [ ] 44.3 收尾：E2E（预生成后翻面直接看到 AI 例句、关掉开关后不生成）、ADR 0020 落地记录、P2 计划落地记录、README、lint / pytest / Vitest / E2E
+  - [x] 44.2 接口与前端（pytest 相关 190 + 预生成 8 全过，Vitest 358、tsc、eslint 干净）：`GET /vocab/queue` 的卡片加 `ai_examples`（`examples.cached_for` 一次查出本租户该等级的缓存，只读不调模型；其他接口为空列表）；等级统一走 `examples.level_for`（按钮、预生成、队列共用）；`WordExamples` 收 `cached`，有缓存翻面直接显示并标“AI 生成”、不再出按钮，按词 `key` 重挂；设置“后台任务”按后端清单自动多出“预先写好 AI 例句”开关和 AI 标记（文案、`AiFeature`、用量说明中英）；Vitest 新增 1 个，接口测试新增 1 个
+  - [~] 44.3 收尾：E2E（预生成后翻面直接看到 AI 例句、关掉开关后不生成）、ADR 0020 落地记录、P2 计划落地记录、README、lint / pytest / Vitest / E2E
 - **P2d 语法图谱 + 诊断**
 - [ ] 45. `confusable_with` 起草 → 用户审核；`kc_edges` 同步与递归查询（`adaptive/graph.py`，单测）
 - [ ] 46. 诊断 Agent + `diagnoses` 表 + 记忆写入 + 选题加成（集成测试）

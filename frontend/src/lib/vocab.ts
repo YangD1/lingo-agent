@@ -27,6 +27,8 @@ export type Card = {
   sentences: SourcedExample[];
   /** The word and its inflections, lowercase, to pick it out of a sentence. */
   forms: string[];
+  /** AI sentences already cached at the learner's level (task 44); shown without the button. */
+  ai_examples: Example[];
 };
 
 export type BookProgress = {

@@ -819,6 +819,10 @@
         "article_prerewrite": {
           "name": "Rewrite new articles ahead",
           "hint": "When the feeds you follow have new articles, they are rewritten for your level with comprehension questions in the background, so they open without a wait."
+        },
+        "word_examples_prefetch": {
+          "name": "Write AI example sentences ahead",
+          "hint": "For words you will review or learn in the next day that have no real example sentence, AI sentences are written in the background, so the card shows them when you turn it over."
         }
       },
       "budgetTitle": "Daily background budget",
@@ -844,7 +848,8 @@
       },
       "jobs": {
         "rss_fetch": "Fetch reading feeds (RSS)",
-        "article_prerewrite": "Rewrite new articles for readers' levels"
+        "article_prerewrite": "Rewrite new articles for readers' levels",
+        "word_examples_prefetch": "Write AI example sentences for the coming day's words"
       }
     }
   },
@@ -1168,7 +1173,8 @@
       "writing_submit": "An AI model reviews your writing sentence by sentence: it finds and explains grammar mistakes, scores four aspects, writes overall feedback and puts unknown words on your word list. Mistakes go into your learner model; scores are only shown.",
       "reading_rewrite": "An AI model rewrites this article for your level and writes a few comprehension questions; another model answers each question itself to check it, and a question that fails is rewritten once, then dropped. The rewrite is saved: opening it again at the same level calls no model.",
       "reading_coach": "The reading coach answers your questions about this article: each message sends the article (the version for your level, or the beginning of the original) with the conversation, so a reply reads more than a chat turn. Afterwards, as in any chat, memory and grammar notes are updated in the background.",
-      "reading_prerewrite": "In the background every two hours: new articles of the feeds you follow are rewritten for your level with questions, by the same AI calls as opening an article, within the tenant's daily background budget."
+      "reading_prerewrite": "In the background every two hours: new articles of the feeds you follow are rewritten for your level with questions, by the same AI calls as opening an article, within the tenant's daily background budget.",
+      "word_examples_prefetch": "In the background every six hours: for the words you will review or learn in the next day that have no real example sentence, the same AI call as the \"AI examples\" button writes two sentences at your level, at most 30 words a time, within the tenant's daily background budget. Learners at the same level share them."
     },
     "task": {
       "chat": "Reply",

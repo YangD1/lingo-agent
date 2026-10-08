@@ -6,7 +6,7 @@ checked in code to use the word or one of its forms; sentences that don't are dr
 
 import re
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
@@ -16,6 +16,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Word, WordExample
+from app.memory.service import get_profile
 from app.prompts import load_prompt
 from app.providers.config import TenantProviderContext
 from app.providers.llm import get_structured_llm
@@ -83,6 +84,29 @@ async def cached(
             WordExample.cefr == cefr,
         )
     )
+
+
+async def cached_for(
+    session: AsyncSession, tenant_id: uuid.UUID, word_ids: Iterable[int], cefr: str
+) -> dict[int, list[dict[str, str]]]:
+    """Cached sentences of several words in one query; words without are absent."""
+    ids = set(word_ids)
+    if not ids:
+        return {}
+    rows = await session.execute(
+        select(WordExample.word_id, WordExample.sentences).where(
+            WordExample.tenant_id == tenant_id,
+            WordExample.word_id.in_(ids),
+            WordExample.cefr == cefr,
+        )
+    )
+    return {word_id: sentences for word_id, sentences in rows.all()}
+
+
+async def level_for(session: AsyncSession, user_id: uuid.UUID) -> str:
+    """The level a learner's sentences are written at: their CEFR, else the default."""
+    profile = await get_profile(session, user_id)
+    return (profile.cefr_level if profile else None) or DEFAULT_LEVEL
 
 
 async def examples(
