@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-10-08 · 任务 46 诊断 Agent，完成
+
+- **做了什么**：任务 45 推送后 CI run 37787550927 全绿。任务 46 拆成 46.1–46.7，用户确认 Q46a–h 全按推荐。46.1 `Diagnosis` 模型 + 迁移 `b1e62314d079`、`rules.yaml` `diagnosis:`（版本 `2026-10-08.3`）、`prefs.DIAGNOSIS`、`features.yaml` `diagnosis`、设置页文案；46.2 `adaptive/diagnosis/context.py`（`pick_targets`、`load_context`、`render`）、`checks.py`（`DiagnosisOut`、`check`、`diagnose_messages`、`diagnose`）、`prompts/diagnose.md`、providers `diagnose` 路由、`inputs.counted_mistakes`；46.3 `service.py` `run_diagnosis`（开关、额度、存表、记忆原地更新）；46.4 `triggers.py`（`due`、`diagnose_due`、`DiagnosisWorker.after_set`）、定时任务 `diagnosis`（每天 UTC 03:45）、`/practice` 作答 / 举报结束一组时调用；46.5 `boost.py`、`LearnerInputs.boost`、`planner.candidates` 让被加成的 KC 在窗口外也算候选；46.6 `evals/diagnosis.py` + 数据集 12 条；46.7 文档。
+- **验证**：`make lint` 干净；pytest 1396 + 1 跳过（诊断回放没录制）、Vitest 358、E2E 53 全过。开发库已迁移到 `b1e62314d079`（往返通过）。
+- **提交**：666b70a（46.1）、ac7ebd8（46.2）、93f908a（46.3）、6bf8c9a（46.4）、43bede5（46.5）、513555e（46.6）、本次（46.7）；未推送，Docker 未重建。
+- **未完成**：诊断评估集还没用真模型录制（`make eval-live ARGS='--email … --record'`，要用户的测试 key，用时再问）。
+- **下一步**：推送并看 CI；任务 47（学习者模型页“私教的诊断”：读取接口、区块、证据点了跳到原句，Vitest + E2E），开工前先拆子任务、和用户确认。E2E 的假模型（`fake_llm.py`）还没有 `DiagnosisOut` 的回复，47 做 E2E 时要加。
+- **踩坑**：提交后再读 ORM 对象属性会懒加载、报 MissingGreenlet，`run_diagnosis` 先生成 id；被加成的前置语法点如果在等级窗口外、没有证据，先验掌握度高，×1.5 后也不一定排得进一组（看板 46.5 有说明，留到任务 49 实测看）；预生成的下一组和诊断同时开始，下一组用不上这次加成。
+
+---
+
 ## 2026-10-08 · 任务 45 语法图谱，完成
 
 - **做了什么**：拆成 45.1–45.5，用户确认 Q45a–g 全按推荐。45.1 `catalog.py` 加 `confusable_with` 和校验（只写在一边、等级差 ≤ 2、每个 KC ≤ 3、不和直接前置重复），`confusables()` / `confusable_pairs()`；45.2 `grammar.yaml` 自审 24 对，理由列在看板；45.3 `kc_edges` 表（迁移 `3a568a1e98f8`）、`adaptive/graph_sync.py`（比对后有差别才重写，lifespan 调用）、`make kc-sync`；45.4 `adaptive/graph.py`（`prerequisite_chain` 递归 CTE、`confusables`、`neighborhood` 带掌握度和最近错误证据）、`rules.yaml` `graph:`（版本 `2026-10-08.2`）；45.5 ADR 0022 落地记录、P2 计划。

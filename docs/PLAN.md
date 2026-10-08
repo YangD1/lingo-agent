@@ -90,7 +90,7 @@ speech:
 ```
 1. **证据采集**：对话、写作、阅读题、背词、口语里出现的每个错误，都由 LLM 用结构化输出打上标签：`{知识点 KC id, 错误类型, 原句, 改正, 严重度, 是否母语迁移}`。KC（knowledge component）= 语法点、单词或技能子项，和语法图谱节点共用 id。
 2. **学习者模型（算法）**：每个 KC 维护掌握度 `p_mastery`：语法 KC 用贝叶斯知识追踪 BKT，入学测和技能估计用 Elo 逻辑模型（题目难度用 Elo 按作答校准；入学测里学习者能力每题后对全部作答做最大后验拟合，与作答顺序无关，见 ADR 0010 落地记录），单词直接取 FSRS 的可提取性（读时现算，不存，见 ADR 0010）。**语法 KC 也接入 FSRS**，错误模式像单词一样有“到期复习”。区分两种证据：做题时答对（识别）和自由表达中用对（产出）。后者权重更高，这是“真正学会”的信号。
-3. **诊断 Agent（LLM + GraphRAG）**：每次学习结束和每周各跑一次。输入是低掌握度 KC 和错误证据，沿图谱查前置依赖和同类易错点，输出**带证据引用的根因假设**，例如“虚拟语气错 6 次，其中 4 次是 would have done 形式错误 → 根因：完成时掌握度 0.38”。结果写入长期记忆，并展示给用户。
+3. **诊断 Agent（LLM + GraphRAG）**：每周一次，做完一组练习后新错误够多时也跑（每人每天最多一次）。输入是低掌握度 KC 和错误证据，沿图谱查前置依赖和同类易错点，输出**带证据引用的根因假设**，例如“虚拟语气错 6 次，其中 4 次是 would have done 形式错误 → 根因：完成时掌握度 0.38”。结果写入长期记忆，并展示给用户。
 4. **选题规划（算法）**：优先级 = 薄弱度 × 重要度（CEFR 等级、使用频率）× 是否到期。按 **85% 规则**控制难度，让预估正确率保持在 80–85% 左右，也就是“有挑战但做得出来”。
 5. **练习生成（LLM）** —— “科学好记、不死板”靠这些学习科学原则落地：
    - **提取练习**（retrieval practice）：主动回忆，而不是重读讲解
@@ -127,7 +127,7 @@ speech:
 - `kc_mastery`（user, kc_id, kind[word/grammar/skill], p_mastery, recog_correct, produce_correct, formats_passed, fsrs_state）
 - `exercise_sets`（一组练习：kc_plan, status, 来源）、`exercises`（按学习者私有：kc_id, format, content, answer, difficulty, critic JSONB, status[ok/rejected/reported]）、`attempts`（user, exercise_id, response, correct, latency, feedback），见 ADR 0021
 - `writing_submissions`（prompt, text, 逐句 corrections, 四维 scores，可选 conversation_id；ADR 0023）
-- `diagnoses`（user, period, root_causes JSONB, evidence_refs）
+- `diagnoses`（user, trigger, target_kc_ids, root_causes JSONB（假设里带 evidence_ids）, evidence_upto, language, memory_id；见 ADR 0022 落地记录）
 - 词书（按 exam tag 的虚拟分组，定义在代码里，ADR 0011）、`user_word_book`（当前词书、每日新词数、筛选进度）、`word_enrichment_cache`（例句、记忆法）
 - `feeds`（内置 + 学习者自加）、`feed_subscriptions`（user, feed, topics）、`articles`（feed, url, 正文, 许可标记）、`article_versions`（租户, 目标等级, 改写正文, 词表, 理解题）、`reading_sessions`（ADR 0024）
 - `scheduler_runs`（定时任务上次运行，ADR 0025）、`daily_plans`（user, 日期, items, status）
