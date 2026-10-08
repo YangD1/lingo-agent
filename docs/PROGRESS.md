@@ -456,6 +456,16 @@
   - [x] 43.5 前端阅读页（Vitest 357 全过） `/reading/[id]`：取版本与轮询、原文回退、单词气泡、到期词和词表标记、出处许可、理解题与结果、“问私教”、`AiBadge`；Vitest。落地：`components/reading/reading-article.tsx`（每 2 秒轮询生成中的版本，等待时先显示原文；失败显示错误码和“重试”；“你的等级 / 原文”切换；到期词 `data-due` 黄色高亮、词表 `data-glossary` 虚下划线，原文没有词表；出处行按许可写；“就这篇文章问私教”建会话后跳 `/chat?c=`）、`reading-quiz.tsx`（全部选完才能交，判完显示对错、正确选项和原文依据，再打开显示上次结果）；聊天页阅读会话顶栏 `chat/reading-bar.tsx`（回到文章），输入框 AI 标记换成 `reading_coach`；前端 `Conversation` 加 `article_id`
   - [x] 43.6 收尾（pytest 1339、Vitest 357、E2E 52 全过，`make lint` 干净）：E2E `reading.spec.ts` 两条（假模型补 `ArticleRewrite`、`QuestionSet`、`QuestionReviews`；`run_backend.py` 灌两篇 NASA 文章）、ADR 0023 / 0024 落地记录（含 Q43h 对 ADR 0023 的修订）、P2 计划、`agent-tools.md`、README 中英（阅读一条、状态改为 P2 进行中）；Docker 已重建，迁移 head `ab322160460f`，`/healthz` 200，空闲内存 backend 221MiB / frontend 55MiB / postgres 170MiB
 - [ ] 44. 后台预生成 AI 例句（2026-10-02 用户要求记录）：Tatoeba 覆盖不到的词（多半是 GRE 等难词），在排队时为第二天要复习或要学的词提前调用 `word_examples` 并写缓存，翻面就能看到，不用点。要先看 28.2 导入后各词书的覆盖率，再决定做不做、覆盖哪些词书；用任务 40 的后台任务和每日上限，`features.yaml` 登记（timing 为后台）和挂 `AiBadge`，学习者可以关掉
+  - 覆盖率（2026-10-08，开发库，有 Tatoeba 例句的词 / 词书总词数）：中考 98.7%、牛津 3000 95.1%、高考 92.8%、四级 89.1%、考研 82.0%、六级 75.8%、雅思 71.6%、托福 51.8%、GRE 30.8%（缺 5,190 词）。有例句的词里 3,751 个只有 1 句。结论：考研往上缺口明显，值得做。AI 例句每词约 470 token（`features.yaml` 估计），按词书全量预生成 GRE 一本约 240 万 token，太贵；按“每人明天要用的词”生成，每人每天几十个词、约 1–2 万 token
+  - Q44a（已确认，按推荐）范围：不按词书划，按学习者：未来 24 小时到期的复习卡 + 明天的新词（词书顺序里下一批 `daily_new` 个），其中没有 Tatoeba 例句、也没有该等级 AI 缓存的才生成；手动 / 自动收的词同样适用
+  - Q44b（已确认，按推荐）时机：定时任务 `word_examples_prefetch` 每 6 小时一次，往后看 24 小时；租户每日上限用完就停
+  - Q44c（已确认，按推荐）每人每次上限：最多 30 个词（放 `rules.yaml`），超出的留给下一次或点按钮
+  - Q44d（已确认，按推荐）默认开关：默认开，和练习预生成、文章预改写一致；学习者在设置页“后台任务”可关
+  - Q44e（已确认，按推荐）等级：和点“AI 例句”按钮时同一个等级（学习者 CEFR，没有就 `DEFAULT_LEVEL`），保证缓存命中；改了等级旧缓存不删
+  - Q44f（已确认，按推荐）前端：复习卡背面如果已有该等级的 AI 缓存，翻面直接显示（标“AI 生成”，不再要点）；没有缓存时仍是按钮。队列接口只读缓存，不调模型
+  - [x] 44.1 后端（pytest 1346 全过，ruff、mypy 干净）：`services/vocab/prefetch.py`（`words_for` 挑词：24 小时内到期的复习卡按到期先后 + `queue.next_new` 下一批 `daily_limit` 个新词，去掉有 Tatoeba 例句或本租户该等级已有缓存的，截到 `per_learner`；`prefetch` 按租户逐词调 `examples.examples`，metadata 带 `background: True`，每词前判每日上限；句子不合格跳过留给下次，没配模型或模型出错停掉该租户本轮）；`queue.py` 抽出 `next_new`、`daily_limit` 共用；`rules.yaml` `vocab.examples_prefetch`（`ahead_hours` 24、`per_learner` 30）；`prefs.WORD_EXAMPLES_PREFETCH`（默认开）；定时任务 `word_examples_prefetch` 每 6 小时（UTC 01:15 起）；`features.yaml` `word_examples_prefetch`（`timing: background`）；`agent-tools.md` 两处。集成测试 `test_word_examples_prefetch.py` 7 个（挑词与只生成一次、经定时任务入口、每人上限、关掉开关、额度用完、没配模型、不合格跳过 + 出错停止），`test_background_api` 加新开关
+  - [~] 44.2 接口与前端：队列 `CardOut` 带已缓存的 AI 例句；复习卡背面直接显示；设置页开关和 `AiBadge`；Vitest
+  - [ ] 44.3 收尾：E2E（预生成后翻面直接看到 AI 例句、关掉开关后不生成）、ADR 0020 落地记录、P2 计划落地记录、README、lint / pytest / Vitest / E2E
 - **P2d 语法图谱 + 诊断**
 - [ ] 45. `confusable_with` 起草 → 用户审核；`kc_edges` 同步与递归查询（`adaptive/graph.py`，单测）
 - [ ] 46. 诊断 Agent + `diagnoses` 表 + 记忆写入 + 选题加成（集成测试）

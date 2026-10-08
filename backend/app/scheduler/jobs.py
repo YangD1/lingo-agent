@@ -20,6 +20,7 @@ from app.agents.reading_graph import build_reading_graph
 from app.services.news.refresh import fetch_due_feeds
 from app.services.reading.prerewrite import prerewrite
 from app.services.reading.worker import ReadingWorker
+from app.services.vocab.prefetch import prefetch
 from app.settings import get_settings
 
 
@@ -63,6 +64,12 @@ async def article_prerewrite(ctx: JobContext) -> str | None:
     return await prerewrite(ctx.sessionmaker, worker, rules=get_rules(), now=ctx.now)
 
 
+async def word_examples_prefetch(ctx: JobContext) -> str | None:
+    """AI example sentences for the coming day's words without a real one (task 44);
+    calls models, within the tenant's daily background budget."""
+    return await prefetch(ctx.sessionmaker, rules=get_rules(), now=ctx.now)
+
+
 JOBS: tuple[Job, ...] = (
     # Each feed has its own next-fetch time (with back-off); the job only looks for
     # due ones, so its own period is the shortest a feed waits.
@@ -72,5 +79,11 @@ JOBS: tuple[Job, ...] = (
         "article_prerewrite",
         IntervalTrigger(hours=2, start_date=datetime(2026, 1, 1, 0, 30, tzinfo=UTC), timezone=UTC),
         article_prerewrite,
+    ),
+    # Looks a day ahead; every 6 hours catches cards rescheduled in between.
+    Job(
+        "word_examples_prefetch",
+        IntervalTrigger(hours=6, start_date=datetime(2026, 1, 1, 1, 15, tzinfo=UTC), timezone=UTC),
+        word_examples_prefetch,
     ),
 )

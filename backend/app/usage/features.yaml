@@ -189,6 +189,16 @@ features:
         timing: now
         default: {input_tokens: 350, output_tokens: 120}
 
+  # Writing them ahead of time (task 44): every 6 hours, for the words a learner will
+  # review or learn in the next day that have no Tatoeba sentence, the same call as
+  # word_examples, at most vocab.examples_prefetch.per_learner words per learner and
+  # within the tenant's daily background budget.
+  word_examples_prefetch:
+    calls:
+      - task: word_examples
+        timing: background
+        default: {input_tokens: 350, output_tokens: 120}
+
   # "Show in Chinese / English" under a tutor message (ADR 0017 §4): once per message
   # and language; switching back makes no call.
   message_translate:

@@ -54,6 +54,12 @@ async def test_learner_switches_default_and_persist(
                 "default": True,
                 "usage_feature": "reading_prerewrite",
             },
+            {
+                "key": "word_examples_prefetch",
+                "enabled": True,
+                "default": True,
+                "usage_feature": "word_examples_prefetch",
+            },
         ],
         "budget": "ok",
     }

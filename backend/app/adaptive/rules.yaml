@@ -130,6 +130,12 @@ vocab:
     # When at least this share of a batch is known, the next batch also skips one
     # more window, among rarer words.
     skip_ratio: 0.8
+  # AI example sentences written ahead of time (task 44), for words with no Tatoeba
+  # sentence: the cards due within `ahead_hours` and the next day's new words, at most
+  # `per_learner` words per learner per run.
+  examples_prefetch:
+    ahead_hours: 24
+    per_learner: 30
 
 # Placement test (ADR 0010 §4, P1 plan §6).
 placement:

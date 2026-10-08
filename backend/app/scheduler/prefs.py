@@ -26,6 +26,7 @@ class BackgroundFeature:
 
 PRACTICE_PREFETCH = "practice_prefetch"
 ARTICLE_PREREWRITE = "article_prerewrite"
+WORD_EXAMPLES_PREFETCH = "word_examples_prefetch"
 
 FEATURES: tuple[BackgroundFeature, ...] = (
     # After a set is done, the next one is generated so it starts without a wait.
@@ -33,6 +34,9 @@ FEATURES: tuple[BackgroundFeature, ...] = (
     # New articles of the feeds the learner follows are rewritten for their level, so
     # they open without a wait (Q42g).
     BackgroundFeature(ARTICLE_PREREWRITE, default=True, usage_feature="reading_prerewrite"),
+    # AI example sentences for the coming day's words that have no real sentence, so
+    # the card shows them when turned over (task 44).
+    BackgroundFeature(WORD_EXAMPLES_PREFETCH, default=True, usage_feature="word_examples_prefetch"),
 )
 _BY_KEY = {feature.key: feature for feature in FEATURES}
 

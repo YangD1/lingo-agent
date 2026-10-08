@@ -24,6 +24,7 @@
 | `reading_rewrite` | `/reading` 列表页标题旁、阅读页的版本切换和“正在改写”提示旁（打开文章时 `POST /reading/articles/{id}/session` 取版本） | `article_rewrite`（改写 + 出题）、`reading_critic`（走 `exercise_critic` 路由）、被拒的题再加 `reading_questions`（走 `article_rewrite` 路由）；同租户同篇同等级只调一次，之后读缓存 |
 | `reading_coach` | 阅读页的“就这篇文章问私教”；阅读会话的输入框“发送” | `reading_coach`（立即，走 `chat` 路由，每轮带上文章，所以比普通一轮读得多）；`reflect`、`memory` 向量化（回复后在后台） |
 | `reading_prerewrite` | 设置“后台任务”的“预先改写新文章”开关旁 | 同 `reading_rewrite`，全部 `background` |
+| `word_examples_prefetch` | 设置“后台任务”的“预先写好 AI 例句”开关旁 | 同 `word_examples`，`background`；每词一次，同租户同等级共用缓存 |
 
 设置页的“测试连接”不挂标记：只给管理员用，每次几个 token，且不走路由（ADR 0014 §4）。
 
@@ -171,6 +172,7 @@
 | 预生成下一组练习 | 做完一组或最后一题被举报（事件） | `adaptive/exercise/worker.py` `PracticeWorker.prefetch` | `llm/exercise_generate`、`llm/exercise_critic`（`background`） | `practice_prefetch`（开） | 设置“后台任务”；练习页“这组题怎么来的” |
 | 抓取阅读来源（`rss_fetch`） | 定时，每 2 小时（ADR 0024 §6） | `services/news/refresh.py` `fetch_due_feeds`（抓取 `fetch.py`、解析 `parse.py`、清洗 `clean.py`、来源规则 `rules.py`） | 无（不调模型，不占后台额度） | 没有开关：取消订阅某个源它就不再为你抓；所有人都不读的源不抓 | 管理员在设置“后台任务”看到上次运行；阅读来源的上次抓取时间和错误见阅读页“管理来源” |
 | 预先改写新文章（`article_prerewrite`） | 定时，每 2 小时，`rss_fetch` 后错开 30 分钟（Q42g） | `services/reading/prerewrite.py` `prerewrite` → `ReadingWorker.generate`（任务自己建一个 worker，一篇一篇写） | `llm/article_rewrite`、`llm/exercise_critic`（记为 `reading_critic`）、被拒的题 `llm/article_rewrite`（记为 `reading_questions`），都是 `background` | `article_prerewrite`（开） | 设置“后台任务”；改写版本标 `background`，阅读页和当场改写的一样 |
+| 预先写好 AI 例句（`word_examples_prefetch`） | 定时，每 6 小时（任务 44） | `services/vocab/prefetch.py` `prefetch`：未来 24 小时到期的复习卡 + 下一批新词里没有 Tatoeba 例句、本租户这个等级也没缓存的，每人每次最多 `vocab.examples_prefetch.per_learner` 个，逐词调 `services/vocab/examples.py` `examples`；没配模型或模型出错就停掉这个租户本轮 | `llm/word_examples`（`background`） | `word_examples_prefetch`（开） | 设置“后台任务”；复习卡背面直接显示，标“AI 生成”；写进 `word_examples`（租户、词、等级），和点“AI 例句”按钮共用 |
 
 `rss_fetch` 读写的是公开的 RSS，不读任何学习者数据：只抓有人订阅的 feed（内置源默认订阅），写 `articles`（正文转成纯文本段落，图片和图片说明不存）和 feed 上的条件请求信息、失败次数、错误码；连续失败 3 次后间隔翻倍，最长 24 小时；超过 90 天的文章删除。经 `net_guard` 直连，设了 `FEED_HTTP_PROXY` 时走代理（每一跳先查地址）。
 

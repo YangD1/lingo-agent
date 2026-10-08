@@ -77,8 +77,7 @@ async def _new_allowance(
             UserCard.first_reviewed_at < end,
         )
     )
-    limit = plan.daily_new if plan and plan.daily_new is not None else rules.vocab.daily_new
-    return limit, started or 0
+    return daily_limit(plan, rules), started or 0
 
 
 async def daily_queue(
@@ -110,34 +109,46 @@ async def daily_queue(
     limit, started = await _new_allowance(session, user_id, plan, rules=rules, tz=tz, now=now)
     left = max(0, limit - started)
 
-    new: list[QueueItem] = []
-    if left:
-        own = await session.execute(
-            select(UserCard, Word)
-            .join(Word, Word.id == UserCard.word_id)
-            .where(*_own_new(user_id))
-            .order_by(UserCard.created_at, UserCard.id)
-            .limit(left)
-        )
-        new = [QueueItem(word=word, card=card) for card, word in own.all()]
     book = get_book(plan.book_id) if plan else None
-    if book and len(new) < left:
-        fresh = await session.scalars(
-            select(Word)
-            .where(book.words(), ~_has_card(user_id))
-            .order_by(Word.frq.asc().nulls_last(), Word.bnc.asc().nulls_last(), Word.id)
-            .limit(left - len(new))
-        )
-        new += [QueueItem(word=word, card=None) for word in fresh]
-
     return DailyQueue(
         reviews=reviews,
-        new=new,
+        new=await next_new(session, user_id, plan, left),
         reviews_due=reviews_due or 0,
         new_limit=limit,
         new_started=started,
         book_id=book.id if book else None,
     )
+
+
+async def next_new(
+    session: AsyncSession, user_id: uuid.UUID, plan: UserWordBook | None, n: int
+) -> list[QueueItem]:
+    """The next `n` new words in queue order: the learner's own, then the book's."""
+    new: list[QueueItem] = []
+    if n <= 0:
+        return new
+    own = await session.execute(
+        select(UserCard, Word)
+        .join(Word, Word.id == UserCard.word_id)
+        .where(*_own_new(user_id))
+        .order_by(UserCard.created_at, UserCard.id)
+        .limit(n)
+    )
+    new = [QueueItem(word=word, card=card) for card, word in own.all()]
+    book = get_book(plan.book_id) if plan else None
+    if book and len(new) < n:
+        fresh = await session.scalars(
+            select(Word)
+            .where(book.words(), ~_has_card(user_id))
+            .order_by(Word.frq.asc().nulls_last(), Word.bnc.asc().nulls_last(), Word.id)
+            .limit(n - len(new))
+        )
+        new += [QueueItem(word=word, card=None) for word in fresh]
+    return new
+
+
+def daily_limit(plan: UserWordBook | None, rules: Rules) -> int:
+    return plan.daily_new if plan and plan.daily_new is not None else rules.vocab.daily_new
 
 
 @dataclass(frozen=True, slots=True)
