@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+
 import { expect, type Page, test } from "@playwright/test";
 
 import { register, uniqueEmail, useFakeModel } from "./helpers";
@@ -88,6 +90,70 @@ test("the back of a card shows real example sentences, and AI ones when asked", 
   await expect(ai).toContainText("我每天都 go。");
   await expect(examples).toContainText("AI 生成");
   await expect(examples.getByRole("button", { name: "AI 例句" })).toHaveCount(0);
+});
+
+/** Flip a background switch and wait until the backend has it (the switch moves at once). */
+async function flip(page: Page, name: string) {
+  const saved = page.waitForResponse(
+    (r) => r.url().includes("/me/background/") && r.request().method() === "PUT" && r.ok(),
+  );
+  await page.locator("#background").getByRole("switch", { name }).click();
+  await saved;
+}
+
+/** One `word_examples_prefetch` run for this learner only (e2e/prefetch_examples.py). */
+function prefetchExamples(email: string) {
+  execFileSync("uv", ["run", "--project", "../backend", "python", "e2e/prefetch_examples.py", email], {
+    stdio: "inherit",
+  });
+}
+
+test("AI examples written ahead show when the card turns over, unless switched off (task 44)", async ({
+  page,
+}) => {
+  const email = uniqueEmail();
+  await register(page, email);
+  await useFakeModel(page);
+  await page.goto("/vocab");
+  await page.getByTestId(`book-${OXFORD}`).getByRole("button", { name: "学这本" }).click();
+
+  // On by default, with its AI badge. Switched off, nothing is written ahead.
+  await page.goto("/settings#background");
+  const prefetch = page.locator("#background").getByRole("switch", { name: "预先写好 AI 例句" });
+  await expect(prefetch).toBeChecked();
+  await expect(
+    page.locator("#background").getByTestId("ai-badge-word_examples_prefetch"),
+  ).toBeVisible();
+  await flip(page, "预先写好 AI 例句");
+  await expect(prefetch).not.toBeChecked();
+  prefetchExamples(email);
+
+  const examples = page.getByTestId("review-examples");
+  const turnOverThe = async () => {
+    await page.goto("/vocab/review");
+    await expect(page.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "显示答案" }).click();
+    await expect(examples).toBeVisible();
+  };
+  await turnOverThe();
+  await expect(page.getByTestId("review-ai-examples")).toHaveCount(0);
+  await expect(examples.getByRole("button", { name: "AI 例句" })).toBeVisible();
+
+  // On again: the coming new words without a Tatoeba sentence ("the") get sentences,
+  // shown at once; "go" has real ones, so none are written for it.
+  await page.goto("/settings#background");
+  await flip(page, "预先写好 AI 例句");
+  await expect(prefetch).toBeChecked();
+  prefetchExamples(email);
+  await turnOverThe();
+  await expect(page.getByTestId("review-ai-examples")).toContainText("I the every day.");
+  await expect(examples).toContainText("AI 生成");
+  await expect(examples.getByRole("button", { name: "AI 例句" })).toHaveCount(0);
+  await page.keyboard.press("4");
+  await expect(page.getByRole("heading", { name: "go", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "显示答案" }).click();
+  await expect(page.getByTestId("review-ai-examples")).toHaveCount(0);
+  await expect(examples.getByRole("button", { name: "AI 例句" })).toBeVisible();
 });
 
 test("add a word to my list by an inflected form, then remove it", async ({ page }) => {

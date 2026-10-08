@@ -156,6 +156,7 @@
 - reading_coach：对话里问“这篇文章里的 X 是什么意思 / 帮我总结”，带文章上下文回答。
 - **落地记录（任务 42，2026-10-08）**：Q42a–i 按推荐确认，细节见 ADR 0024 落地记录。和上面不同的地方：超纲词表由代码按 ECDICT 词频排名算，不让模型列；理解题审题走独立提示词 `reading_critic`（共用 `exercise_critic` 路由），不复用练习的 critic 提示词，因为要看文章；学习者自加源（`unknown`）不改写；改写版本不阻止 90 天清理。代码在 `services/reading/`、`agents/reading_graph.py`、`api/reading.py`，定时任务 `article_prerewrite`。迁移 `7aeed833bec4`。
 - **落地记录（任务 43，2026-10-08）**：Q43a–j 按推荐确认，细节见 ADR 0024 落地记录。和上面不同的地方：列表不做话题筛选（RSS 分类太杂），没有按等级筛选（每篇按学习者自己的等级改写）；reading_coach 只由阅读页“问私教”发起的会话进入，自由对话的分类器不转给它（修订 §4 路由那条的“阅读 coach”）；阅读能力和语法同一刻度换算到 CEFR。代码在 `services/reading/sessions.py`、`chat/reading.py`、`api/reading.py`，前端 `/reading`、`/reading/[id]`。迁移 `ab322160460f`。
+- **落地记录（任务 44，2026-10-08）**：先统计覆盖率（中考 98.7% … 托福 51.8%、GRE 30.8%），决定做，但不按词书全量（GRE 一本约 240 万 token），按学习者第二天要用的词。Q44a–f 按推荐确认，细节见 ADR 0020 修订。代码 `services/vocab/prefetch.py`、定时任务 `word_examples_prefetch`（每 6 小时）、`GET /vocab/queue` 卡片的 `ai_examples`；不加迁移。
 
 ---
 

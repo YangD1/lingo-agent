@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-10-08 · 任务 44 后台预生成 AI 例句，完成
+
+- **做了什么**：先统计各词书 Tatoeba 覆盖率（中考 98.7%、牛津 3000 95.1%、高考 92.8%、四级 89.1%、考研 82.0%、六级 75.8%、雅思 71.6%、托福 51.8%、GRE 30.8%），用户按推荐确认 Q44a–f。44.1 `services/vocab/prefetch.py`（`words_for` 挑词 + `prefetch_tenant` + `prefetch`）、`queue.py` 抽出 `next_new` / `daily_limit`、`rules.yaml` `vocab.examples_prefetch`、开关 `word_examples_prefetch`、定时任务每 6 小时、`features.yaml`、`agent-tools.md`；44.2 `GET /vocab/queue` 卡片带 `ai_examples`（`examples.cached_for`，只读缓存），等级统一 `examples.level_for`，前端 `WordExamples` 有缓存直接显示；44.3 E2E、`e2e/prefetch_examples.py`、ADR 0020 修订、P2 计划、README。
+- **验证**：`make lint` 干净；pytest 1347、Vitest 358、E2E 53 全过。
+- **提交**：df79309（44.1）、4a72eb6（44.2）、44.3 本次提交；未推送，Docker 未重建。
+- **未完成**：无。真实模型下 AI 例句质量和任务 28 的按钮相同，没额外试。
+- **下一步**：推送并看 CI；然后任务 45（`confusable_with` 起草 → 审核、`kc_edges`）。
+- **踩坑**：设置页开关是乐观更新，E2E 要等 `PUT /me/background/...` 返回再跑后台任务；按租户入口要自己判断学习者开关，不能只在外层过滤。
+
+---
+
 ## 2026-10-08 · 任务 43.6 收尾，任务 43 完成
 
 - **做了什么**：上一个会话写完 E2E 的文章灌入后因请求过大（>32MB，截图累积）中断，本会话接上。`frontend/e2e/reading.spec.ts` 两条：列表 → 打开 → 等改写（标题变成 “Rover news”）→ 词表虚下划线 → 气泡加生词本 → 5 题答 4 对、计分、再打开看到结果、列表“读过 / 已为你改写” → 生词本有词 → 看板阅读能力有值 → “问私教”回复带文章标题；读原文 + 只有摘要的文章去原网站。假模型 `fake_llm.py` 补 `ArticleRewrite`、`QuestionSet`、`QuestionReviews`，reading_coach 按 `<article title=…>` 应答；`run_backend.py` `seed_articles` 往内置 NASA 源灌两篇。文档：ADR 0024 任务 43 落地记录，ADR 0023 修订“任务 43 加进分类枚举”并加落地记录，P2 计划 §5.3 落地记录，`agent-tools.md` 去掉“任务 43”占位，README 中英加“分级新闻阅读”、后台任务说明、状态改为 P2 进行中。

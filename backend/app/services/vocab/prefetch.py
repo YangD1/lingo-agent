@@ -92,8 +92,7 @@ async def _learners(session: AsyncSession) -> dict[uuid.UUID, list[uuid.UUID]]:
         )
     )
     for tenant_id, user_id in members.all():
-        if await prefs.is_enabled(session, user_id, prefs.WORD_EXAMPLES_PREFETCH):
-            by_tenant[tenant_id].append(user_id)
+        by_tenant[tenant_id].append(user_id)
     return by_tenant
 
 
@@ -106,7 +105,7 @@ class _TenantStopped(Exception):
         self.written = written
 
 
-async def _tenant(
+async def prefetch_tenant(
     sessionmaker: async_sessionmaker[AsyncSession],
     tenant_id: uuid.UUID,
     learners: Sequence[uuid.UUID],
@@ -114,12 +113,15 @@ async def _tenant(
     rules: Rules,
     now: datetime,
 ) -> int:
-    """Writes the tenant's learners' sentences; returns how many words got them."""
+    """Writes sentences for the learners who left the switch on; returns how many words
+    got them."""
     async with sessionmaker() as session:
         ctx = await load_provider_context(session, tenant_id)
     written = 0
     for user_id in learners:
         async with sessionmaker() as session:
+            if not await prefs.is_enabled(session, user_id, prefs.WORD_EXAMPLES_PREFETCH):
+                continue
             level = await examples.level_for(session, user_id)
             words = await words_for(session, user_id, tenant_id, level, rules=rules, now=now)
         for word in words:
@@ -154,7 +156,9 @@ async def prefetch(
     out_of_budget = 0
     for tenant_id, learners in by_tenant.items():
         try:
-            written += await _tenant(sessionmaker, tenant_id, learners, rules=rules, now=now)
+            written += await prefetch_tenant(
+                sessionmaker, tenant_id, learners, rules=rules, now=now
+            )
         except _TenantStopped as stop:
             logger.info("word_examples_prefetch stopped for %s: %s", tenant_id, stop.reason)
             written += stop.written
