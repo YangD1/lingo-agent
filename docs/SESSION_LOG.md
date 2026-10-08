@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-08 · 任务 47 学习者模型页“私教的诊断”，完成
+
+- **做了什么**：任务 46 推送到 a41901e，CI run 37797059893 四个 job 全绿。任务 47 拆成 47.1–47.6，Q47a–g 全按推荐。47.1 `adaptive/diagnosis/view.py` `latest` + `GET /learner/diagnosis`，`learner.delete_all` 一并删诊断和它写的记忆；47.2 `view.delete_diagnosis` + `DELETE /learner/diagnoses/{id}`（只有删的是写了共用记忆最新内容的那次才删记忆）；47.3 `KCOut.prerequisites` / `confusables`；47.4 `components/learner/diagnosis-card.tsx`、`kc-item.tsx` 的前置 / 易混、`lib/learner.ts`、中英文案，学习者页测试改成按路径返回假数据；47.5 `e2e/diagnosis.spec.ts`、`fake_llm.py` 的 `DiagnosisOut`、`helpers.answerPractice`；47.6 文档。
+- **验证**：`make lint` 干净；pytest 1403 + 1 跳过、Vitest 362、E2E 54 全过。无迁移。
+- **提交**：1810c3b（47.1）、6904231（47.2）、9894648（47.3）、e3bc12b（47.4）、c0ea66a（47.5）、本次（47.6）；未推送，Docker 未重建。
+- **未完成**：诊断评估集仍没用真模型录制（要用户的测试 key）。
+- **下一步**：推送并看 CI；任务 48（每日计划算法 + `daily_plans` + `propose_daily_plan` 工具 + 确认卡 + 看板清单），开工前先拆子任务、和用户确认。
+- **踩坑**：JSONB 列判非空用 `func.jsonb_array_length(...) > 0`，不要和 `[]` 比；测试里提交后再读 ORM 对象的 id 会懒加载报 MissingGreenlet，先把 id 存下来；学习者页一次发两个请求后，按调用顺序 `mockResolvedValueOnce` 的测试会错位，改用按路径路由的 `serve()`。
+
 ## 2026-10-08 · 任务 46 诊断 Agent，完成
 
 - **做了什么**：任务 45 推送后 CI run 37787550927 全绿。任务 46 拆成 46.1–46.7，用户确认 Q46a–h 全按推荐。46.1 `Diagnosis` 模型 + 迁移 `b1e62314d079`、`rules.yaml` `diagnosis:`（版本 `2026-10-08.3`）、`prefs.DIAGNOSIS`、`features.yaml` `diagnosis`、设置页文案；46.2 `adaptive/diagnosis/context.py`（`pick_targets`、`load_context`、`render`）、`checks.py`（`DiagnosisOut`、`check`、`diagnose_messages`、`diagnose`）、`prompts/diagnose.md`、providers `diagnose` 路由、`inputs.counted_mistakes`；46.3 `service.py` `run_diagnosis`（开关、额度、存表、记忆原地更新）；46.4 `triggers.py`（`due`、`diagnose_due`、`DiagnosisWorker.after_set`）、定时任务 `diagnosis`（每天 UTC 03:45）、`/practice` 作答 / 举报结束一组时调用；46.5 `boost.py`、`LearnerInputs.boost`、`planner.candidates` 让被加成的 KC 在窗口外也算候选；46.6 `evals/diagnosis.py` + 数据集 12 条；46.7 文档。
