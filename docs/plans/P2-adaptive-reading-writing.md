@@ -167,6 +167,7 @@
 - 真相源仍是 `adaptive/kc/grammar.yaml`：已有 `prerequisites`，新增 `confusable_with`（同类易错，LLM 起草 → 用户审核，同任务 6 的做法）。
 - 启动时（或 `make kc-sync`）同步到 `kc_edges`（from_kc、to_kc、kind `prerequisite/confusable`），用递归 CTE 查前置链（深度 ≤ 3）并直接 join 学习者的 `kc_mastery`、`kc_evidence`。查询封装在 `adaptive/graph.py`，以后要换图数据库只改这一层。
 - GraphRAG 检索：给定薄弱 KC → 前置链 + 易混 KC → 各自掌握度、最近证据（原句 / 改正）→ 拼成诊断上下文。
+- **落地记录（任务 45，2026-10-08）**：Q45a–g 按推荐确认，细节见 ADR 0022 落地记录。和上面不同的地方：易混对子自审后是 24 对，比预计少，因为很多经典易混已经是前置关系或单独的对比 KC；同步改为启动时先比对、有差别才重写；“最近证据”只取错误证据（每个 KC 3 条），拼提示词留给任务 46。代码在 `adaptive/graph.py`、`adaptive/graph_sync.py`，迁移 `3a568a1e98f8`，规则版本 `2026-10-08.2`。
 
 ### 6.2 诊断 Agent
 

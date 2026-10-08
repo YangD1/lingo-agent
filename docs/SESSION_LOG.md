@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-10-08 · 任务 45 语法图谱，完成
+
+- **做了什么**：拆成 45.1–45.5，用户确认 Q45a–g 全按推荐。45.1 `catalog.py` 加 `confusable_with` 和校验（只写在一边、等级差 ≤ 2、每个 KC ≤ 3、不和直接前置重复），`confusables()` / `confusable_pairs()`；45.2 `grammar.yaml` 自审 24 对，理由列在看板；45.3 `kc_edges` 表（迁移 `3a568a1e98f8`）、`adaptive/graph_sync.py`（比对后有差别才重写，lifespan 调用）、`make kc-sync`；45.4 `adaptive/graph.py`（`prerequisite_chain` 递归 CTE、`confusables`、`neighborhood` 带掌握度和最近错误证据）、`rules.yaml` `graph:`（版本 `2026-10-08.2`）；45.5 ADR 0022 落地记录、P2 计划。
+- **验证**：`make lint` 干净；pytest 1363 全过。开发库已迁移，`make kc-sync` 实测写入成功。
+- **提交**：59f6139（45.1）、94813ab（45.2）、19a4e00（45.3）、本次（45.4–45.5）；未推送，Docker 未重建。
+- **未完成**：无。
+- **下一步**：推送并看 CI；然后任务 46（诊断 Agent：`diagnose` 结构化调用、`diagnoses` 表、记忆写入、选题加成；用 `graph.neighborhood` 拼上下文，用 `Mistake.evidence_id` 校验引用）。开工前先拆子任务、和用户确认。
+- **踩坑**：规则版本一升，所有学习者的 `kc_mastery` 会在下次读取时重放，这是预期行为。易混对子数比计划估计少，原因是清单设计（一个错误只归一个 KC、对比单独成 KC），不是漏了；`test_shipped_confusables` 下限设 15。
+
+---
+
 ## 2026-10-08 · 任务 44 后台预生成 AI 例句，完成
 
 - **做了什么**：先统计各词书 Tatoeba 覆盖率（中考 98.7%、牛津 3000 95.1%、高考 92.8%、四级 89.1%、考研 82.0%、六级 75.8%、雅思 71.6%、托福 51.8%、GRE 30.8%），用户按推荐确认 Q44a–f。44.1 `services/vocab/prefetch.py`（`words_for` 挑词 + `prefetch_tenant` + `prefetch`）、`queue.py` 抽出 `next_new` / `daily_limit`、`rules.yaml` `vocab.examples_prefetch`、开关 `word_examples_prefetch`、定时任务每 6 小时、`features.yaml`、`agent-tools.md`；44.2 `GET /vocab/queue` 卡片带 `ai_examples`（`examples.cached_for`，只读缓存），等级统一 `examples.level_for`，前端 `WordExamples` 有缓存直接显示；44.3 E2E、`e2e/prefetch_examples.py`、ADR 0020 修订、P2 计划、README。

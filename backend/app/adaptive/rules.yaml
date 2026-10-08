@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-08.1"
+version: "2026-10-08.2"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -342,3 +342,10 @@ reading:
   # this many articles published in the last `prerewrite_days` days.
   prerewrite_per_feed: 2
   prerewrite_days: 3
+
+# Grammar graph queries (ADR 0022 §3): what diagnosing a weak KC looks at around it.
+graph:
+  # How many prerequisite levels to walk up from the KC (1 = direct prerequisites).
+  prerequisite_depth: 3
+  # Latest mistakes shown per KC (the KC itself, its prerequisites and confusables).
+  mistakes_per_kc: 3

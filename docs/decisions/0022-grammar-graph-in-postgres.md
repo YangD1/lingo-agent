@@ -22,3 +22,14 @@ PLAN 原计划用 Neo4j Community 存语法知识图谱，再叠加用户的 `MA
 - 放弃了 Neo4j 的可视化（Browser）和 Cypher 的表达力。对百级节点、深度 ≤ 3 的查询，递归 CTE 足够，而且能和掌握度在一个查询里 join；要给学习者看图，前端自己画就行。
 - 以后如果加入大量语法资料做向量召回，或者 KC 增长到上万，再评估 Apache AGE（Postgres 扩展，不多一个服务）或独立图数据库；`graph.py` 这一层就是为此留的。
 - 已经用 `docker compose --profile neo4j` 起过 Neo4j 的本地环境会留下一个孤立的 `neo4j-data` 卷，需要手动 `docker volume rm`。P0–P1 没有任何代码写过它，没有数据损失。
+
+## 落地记录（任务 45，2026-10-08）
+Q45a–g 按推荐确认。
+
+- **易混关系的标准**：只收学习者实际会互相顶替的两两关系；已经是直接前置关系的一对不标；两个 KC 的等级相差不超过 2 级；每个 KC 双向合计最多 3 个。`catalog.py` 校验这几条（`MAX_CONFUSABLES`、`MAX_CONFUSABLE_LEVEL_GAP`）。
+- **YAML 写法**：每一对只写在等级低的 KC 下（同级写在 id 小的下），加载时补成双向；写反或两边都写会报错。`GrammarCatalog.confusables(kc_id)` 返回双向结果。
+- **清单**：自审后共 24 对（理由逐对列在看板任务 45.2），比预计的 40–70 少。很多经典易混已经在清单里另有表达：有的是前置关系（used to → be used to、条件句之间），有的是单独的对比 KC（现在完成时与一般过去时、将来时的选择），所以不重复标。
+- **存储与同步**：`kc_edges` 由迁移 `3a568a1e98f8` 建表，三列主键以 `from_kc` 开头，正好是遍历方向，所以不另建索引。`adaptive/graph_sync.py` 先比对边集，有差别才在调用方事务里删掉重写；后端启动时调用，也可以用 `make kc-sync`。
+- **查询**：`adaptive/graph.py` 有 `prerequisite_chain`（递归 CTE；同一个 KC 从多条路径到达时只保留最短距离）、`confusables`、`neighborhood`。`neighborhood` 先 `ensure_current`，返回目标 KC、前置链（带 `required_by`）和易混 KC，每个都带掌握度（没有证据时为空）和最近几条错误证据（只取错误，带 `evidence_id`，供任务 46 校验引用）。易混 KC 如果已在前置链里，只在前置链里列一次。参数在 `rules.yaml` 的 `graph:`（`prerequisite_depth` 3、`mistakes_per_kc` 3），规则版本升为 `2026-10-08.2`。拼成提示词文本留给任务 46。
+- **不变的**：不调模型，没有界面（显示放到任务 47），`features.yaml` 和 `agent-tools.md` 不用改。
+

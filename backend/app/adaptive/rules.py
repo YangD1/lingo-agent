@@ -307,6 +307,11 @@ class ReadingRules(_Strict):
         return self
 
 
+class GraphRules(_Strict):
+    prerequisite_depth: int = Field(ge=1, le=5)
+    mistakes_per_kc: int = Field(ge=0, le=10)
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
@@ -319,6 +324,7 @@ class Rules(_Strict):
     practice: PracticeRules
     mastery_gate: MasteryGateRules
     reading: ReadingRules
+    graph: GraphRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:
