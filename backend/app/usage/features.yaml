@@ -109,6 +109,25 @@ features:
         timing: now
         default: {input_tokens: 7500, output_tokens: 300}
 
+  # Opening an article on /reading (ADR 0024 §5, Q42f): when no version at the
+  # learner's level is cached for the tenant, one call rewrites it and writes the
+  # comprehension questions, one reviews the questions (on the exercise_critic route);
+  # rejected questions are rewritten and reviewed once more (fewer each). A cached
+  # version makes no call.
+  reading_rewrite:
+    calls:
+      - task: article_rewrite
+        timing: now
+        default: {input_tokens: 3500, output_tokens: 1300}
+      - task: reading_critic
+        route: exercise_critic
+        timing: now
+        default: {input_tokens: 1500, output_tokens: 500}
+      - task: reading_questions
+        route: article_rewrite
+        timing: now
+        default: {input_tokens: 1300, output_tokens: 300}
+
   # "Submit" on /writing (P2 plan §4.2): one review of the whole text, run in the
   # background while the page waits for it (Q38c).
   writing_submit:

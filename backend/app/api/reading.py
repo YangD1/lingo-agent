@@ -1,4 +1,5 @@
-"""Reading sources (ADR 0024, Q41e): the feeds a learner follows and their articles.
+"""Reading (ADR 0024): the feeds a learner follows (Q41e), their articles, and articles
+rewritten for the learner's level (Q42f).
 
 The reading page itself is task 43; these are its data.
 """
@@ -7,14 +8,16 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.errors import api_error
-from app.db.models import TenantMember
+from app.db.models import ArticleVersion, TenantMember
 from app.deps import CurrentTenant, CurrentUser, SessionDep, SettingsDep
 from app.services.news import feeds
 from app.services.news.feeds import ArticleView, FeedError, FeedView
+from app.services.reading.versions import ReadingError
+from app.services.reading.worker import ReadingWorker
 
 router = APIRouter(prefix="/reading", tags=["reading"])
 
@@ -30,14 +33,28 @@ _ERRORS: dict[str, tuple[int, str]] = {
     "feed_unreachable": (status.HTTP_422_UNPROCESSABLE_CONTENT, "could not read a feed there"),
     "feed_builtin": (status.HTTP_409_CONFLICT, "built-in feeds cannot be deleted"),
     "forbidden": (status.HTTP_403_FORBIDDEN, "only who added the feed or an admin can delete it"),
+    "version_not_found": (status.HTTP_404_NOT_FOUND, "version not found"),
+    # Not rewritten (Q42a, Q42i, Q41d): the page shows the original instead.
+    "summary_only": (status.HTTP_409_CONFLICT, "only a summary: read it at the source"),
+    "not_rewritable": (status.HTTP_409_CONFLICT, "this article's license allows no rewriting"),
+    "level_above": (status.HTTP_409_CONFLICT, "your level reads the original"),
 }
 
 
-def _raise(exc: FeedError) -> NoReturn:
+def get_worker(request: Request) -> ReadingWorker:
+    worker: ReadingWorker = request.app.state.reading_worker
+    return worker
+
+
+WorkerDep = Annotated[ReadingWorker, Depends(get_worker)]
+
+
+def _raise(exc: FeedError | ReadingError) -> NoReturn:
     code, message = _ERRORS[exc.code]
-    error = api_error(code, exc.code, f"{message}: {exc.detail}" if exc.detail else message)
-    if exc.detail:
-        error.detail["reason"] = exc.detail  # type: ignore[index]
+    detail = exc.detail if isinstance(exc, FeedError) else None
+    error = api_error(code, exc.code, f"{message}: {detail}" if detail else message)
+    if detail:
+        error.detail["reason"] = detail  # type: ignore[index]
     raise error from exc
 
 
@@ -259,3 +276,96 @@ async def get_article(
     return ArticleOut.model_validate(
         {**_brief(view), "body": view.article.body, "site_url": view.feed.site_url}
     )
+
+
+class GlossaryWordOut(BaseModel):
+    word: str
+    word_id: int
+    # As first used in the text, lowercase.
+    form: str
+
+
+class QuestionOut(BaseModel):
+    question: str
+    options: list[str]
+
+
+class VersionOut(BaseModel):
+    id: uuid.UUID
+    article: ArticleBriefOut
+    level: str
+    # generating -> ready | failed.
+    status: str
+    # While generating: rewriting, reviewing (the critic), fixing (rejected questions).
+    stage: str | None
+    error_code: str | None
+    title: str | None
+    paragraphs: list[str]
+    word_count: int
+    glossary: list[GlossaryWordOut]
+    # Without answers (task 43 grades them); empty when none passed the critic.
+    questions: list[QuestionOut]
+
+
+def _version_out(version: ArticleVersion, view: ArticleView, worker: ReadingWorker) -> VersionOut:
+    return VersionOut(
+        id=version.id,
+        article=ArticleBriefOut.model_validate(_brief(view)),
+        level=version.level,
+        status=version.status,
+        stage=worker.stage(version.id) if version.status == "generating" else None,
+        error_code=version.error_code,
+        title=version.title,
+        paragraphs=version.paragraphs,
+        word_count=version.word_count,
+        glossary=[GlossaryWordOut.model_validate(w) for w in version.glossary],
+        questions=[
+            QuestionOut(question=q["question"], options=q["options"]) for q in version.questions
+        ],
+    )
+
+
+async def _load_version(
+    session: SessionDep, version_id: uuid.UUID, tenant_id: uuid.UUID
+) -> tuple[ArticleVersion, ArticleView]:
+    version = await session.get(ArticleVersion, version_id, populate_existing=True)
+    if version is None or version.tenant_id != tenant_id:
+        raise FeedError("version_not_found")
+    try:
+        view = await feeds.get_article(session, version.article_id, tenant_id)
+    except FeedError as exc:  # the feed was deleted, or is another tenant's
+        raise FeedError("version_not_found") from exc
+    return version, view
+
+
+@router.post("/articles/{article_id}/version")
+async def open_version(
+    article_id: int,
+    user: CurrentUser,
+    tenant: CurrentTenant,
+    session: SessionDep,
+    worker: WorkerDep,
+) -> VersionOut:
+    """The article at my level: the cached version, or one being written now (poll
+    `GET /reading/versions/{id}` while `status` is `generating`)."""
+    try:
+        version_id = await worker.request(user.id, tenant.id, article_id)
+        version, view = await _load_version(session, version_id, tenant.id)
+    except (FeedError, ReadingError) as exc:
+        _raise(exc)
+    return _version_out(version, view, worker)
+
+
+@router.get("/versions/{version_id}")
+async def get_version(
+    version_id: uuid.UUID,
+    user: CurrentUser,
+    tenant: CurrentTenant,
+    session: SessionDep,
+    worker: WorkerDep,
+) -> VersionOut:
+    try:
+        version, view = await _load_version(session, version_id, tenant.id)
+    except FeedError as exc:
+        _raise(exc)
+    return _version_out(version, view, worker)

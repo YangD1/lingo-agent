@@ -1137,7 +1137,8 @@
       "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the tutor can find it later.",
       "word_examples": "An AI model writes two example sentences for this word at your level. They are saved, so the next time anyone asks for this word at this level, no model is called.",
       "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls.",
-      "writing_submit": "An AI model reviews your writing sentence by sentence: it finds and explains grammar mistakes, scores four aspects, writes overall feedback and puts unknown words on your word list. Mistakes go into your learner model; scores are only shown."
+      "writing_submit": "An AI model reviews your writing sentence by sentence: it finds and explains grammar mistakes, scores four aspects, writes overall feedback and puts unknown words on your word list. Mistakes go into your learner model; scores are only shown.",
+      "reading_rewrite": "An AI model rewrites this article for your level and writes a few comprehension questions; another model answers each question itself to check it, and a question that fails is rewritten once, then dropped. The rewrite is saved: opening it again at the same level calls no model."
     },
     "task": {
       "chat": "Reply",
@@ -1155,7 +1156,10 @@
       "word_examples": "Example sentences",
       "translate": "Translate",
       "route": "Is it a piece of writing?",
-      "writing_review": "Writing review"
+      "writing_review": "Writing review",
+      "article_rewrite": "Rewrite the article and write questions",
+      "reading_critic": "Review the questions",
+      "reading_questions": "Rewrite questions"
     },
     "timing": {
       "now": "right away",

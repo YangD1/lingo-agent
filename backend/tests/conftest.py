@@ -37,6 +37,7 @@ from app.adaptive.rules import get_rules  # noqa: E402
 from app.agents.chat_graph import build_chat_graph  # noqa: E402
 from app.agents.exercise_graph import build_exercise_graph  # noqa: E402
 from app.agents.placement_graph import build_placement_graph  # noqa: E402
+from app.agents.reading_graph import build_reading_graph  # noqa: E402
 from app.attachments.handlers import default_handlers  # noqa: E402
 from app.attachments.processor import AttachmentProcessor  # noqa: E402
 from app.db.migrate import alembic_config, setup_checkpointer  # noqa: E402
@@ -48,9 +49,11 @@ from app.placement.service import PlacementRuntime  # noqa: E402
 from app.providers import net_guard  # noqa: E402
 from app.scheduler.jobs import JOBS  # noqa: E402
 from app.scheduler.service import Scheduler  # noqa: E402
+from app.services.reading.worker import ReadingWorker  # noqa: E402
 from app.writing.worker import WritingWorker  # noqa: E402
 
 BUSINESS_TABLES = (
+    "article_versions",
     "articles",
     "feed_subscriptions",
     "feeds",
@@ -180,9 +183,12 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         )
         # Without a model configured, reviews fail; tests swap in a fake model.
         app.state.writing_worker = WritingWorker(app.state.sessionmaker)
+        # Without a model configured, rewrites fail; tests swap in fake calls.
+        app.state.reading_worker = ReadingWorker(app.state.sessionmaker, build_reading_graph())
         # Not started: tests run jobs themselves.
         app.state.scheduler = Scheduler(app.state.sessionmaker, JOBS)
         yield app
+        await app.state.reading_worker.stop()
         await app.state.writing_worker.stop()
         await app.state.practice_worker.stop()
         await app.state.reflection_worker.stop()

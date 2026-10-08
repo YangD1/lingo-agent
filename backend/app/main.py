@@ -14,6 +14,7 @@ from app.adaptive.rules import get_rules
 from app.agents.chat_graph import build_chat_graph
 from app.agents.exercise_graph import build_exercise_graph
 from app.agents.placement_graph import build_placement_graph
+from app.agents.reading_graph import build_reading_graph
 from app.api import (
     activity,
     advice,
@@ -48,6 +49,7 @@ from app.providers.llm import get_providers_config
 from app.scheduler.jobs import JOBS
 from app.scheduler.service import Scheduler
 from app.services.news.sources import sync_builtin_feeds
+from app.services.reading.worker import ReadingWorker
 from app.settings import Settings, get_settings
 from app.usage.recorder import set_usage_sink
 from app.usage.writer import UsageWriter
@@ -107,6 +109,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     interrupted = await app.state.writing_worker.recover()
     if interrupted:
         logger.warning("%d writing reviews were running at the last shutdown", interrupted)
+    app.state.reading_worker = ReadingWorker(app.state.sessionmaker, build_reading_graph())
+    interrupted = await app.state.reading_worker.recover()
+    if interrupted:
+        logger.warning("%d article rewrites were running at the last shutdown", interrupted)
     usage_writer = UsageWriter(app.state.sessionmaker)
     usage_writer.start()
     set_usage_sink(usage_writer.submit)
@@ -140,6 +146,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await app.state.writing_worker.stop()
         except TimeoutError:
             logger.warning("writing review did not stop within 5s")
+        try:
+            async with asyncio.timeout(5):
+                # Rewrites cut off here are marked failed; opening the article retries.
+                await app.state.reading_worker.stop()
+        except TimeoutError:
+            logger.warning("article rewriting did not stop within 5s")
         try:
             async with asyncio.timeout(5):
                 await app.state.attachment_processor.stop()

@@ -13,7 +13,8 @@ export type AiFeature =
   | "memory_edit"
   | "word_examples"
   | "message_translate"
-  | "writing_submit";
+  | "writing_submit"
+  | "reading_rewrite";
 
 /** `llm_usage.task` labels the catalog uses; each has a name in messages (aiBadge.task). */
 const AI_TASKS = [
@@ -32,6 +33,9 @@ const AI_TASKS = [
   "translate",
   "route",
   "writing_review",
+  "article_rewrite",
+  "reading_critic",
+  "reading_questions",
   "advice", // no longer called (ADR 0016); past usage records still carry it
 ] as const;
 export type AiTask = (typeof AI_TASKS)[number];
