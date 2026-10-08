@@ -31,6 +31,7 @@ from app.settings import Settings  # noqa: E402
 Settings.model_config["env_file"] = None
 
 # Imported after the environment is prepared.
+from app.adaptive.diagnosis.triggers import DiagnosisWorker  # noqa: E402
 from app.adaptive.exercise.worker import PracticeWorker  # noqa: E402
 from app.adaptive.placement.words import DatabaseWords  # noqa: E402
 from app.adaptive.rules import get_rules  # noqa: E402
@@ -184,6 +185,8 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         app.state.practice_worker = PracticeWorker(
             app.state.sessionmaker, build_exercise_graph(), prefetch_enabled=False
         )
+        # Off unless a test switches it on (`enabled = True`) and swaps in fake calls.
+        app.state.diagnosis_worker = DiagnosisWorker(app.state.sessionmaker, enabled=False)
         # Without a model configured, reviews fail; tests swap in a fake model.
         app.state.writing_worker = WritingWorker(app.state.sessionmaker)
         # Without a model configured, rewrites fail; tests swap in fake calls.
@@ -194,6 +197,7 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         await app.state.reading_worker.stop()
         await app.state.writing_worker.stop()
         await app.state.practice_worker.stop()
+        await app.state.diagnosis_worker.stop()
         await app.state.reflection_worker.stop()
         await app.state.attachment_processor.stop()
 

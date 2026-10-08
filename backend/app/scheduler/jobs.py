@@ -15,6 +15,8 @@ from apscheduler.triggers.base import BaseTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.adaptive.diagnosis.triggers import diagnose_due
+from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.agents.reading_graph import build_reading_graph
 from app.services.news.refresh import fetch_due_feeds
@@ -70,6 +72,14 @@ async def word_examples_prefetch(ctx: JobContext) -> str | None:
     return await prefetch(ctx.sessionmaker, rules=get_rules(), now=ctx.now)
 
 
+async def diagnosis(ctx: JobContext) -> str | None:
+    """Diagnose learners due a weekly diagnosis (Q46b); calls models, within the tenant's
+    daily background budget."""
+    return await diagnose_due(
+        ctx.sessionmaker, rules=get_rules(), catalog=get_grammar_catalog(), now=ctx.now
+    )
+
+
 JOBS: tuple[Job, ...] = (
     # Each feed has its own next-fetch time (with back-off); the job only looks for
     # due ones, so its own period is the shortest a feed waits.
@@ -85,5 +95,11 @@ JOBS: tuple[Job, ...] = (
         "word_examples_prefetch",
         IntervalTrigger(hours=6, start_date=datetime(2026, 1, 1, 1, 15, tzinfo=UTC), timezone=UTC),
         word_examples_prefetch,
+    ),
+    # Daily, at a quiet hour: each learner is due once a week at most (Q46b).
+    Job(
+        "diagnosis",
+        IntervalTrigger(hours=24, start_date=datetime(2026, 1, 1, 3, 45, tzinfo=UTC), timezone=UTC),
+        diagnosis,
     ),
 )

@@ -853,7 +853,8 @@
       "jobs": {
         "rss_fetch": "Fetch reading feeds (RSS)",
         "article_prerewrite": "Rewrite new articles for readers' levels",
-        "word_examples_prefetch": "Write AI example sentences for the coming day's words"
+        "word_examples_prefetch": "Write AI example sentences for the coming day's words",
+        "diagnosis": "The tutor's diagnosis (at most weekly per learner)"
       }
     }
   },

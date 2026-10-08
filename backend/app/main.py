@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
+from app.adaptive.diagnosis.triggers import DiagnosisWorker
 from app.adaptive.exercise.worker import PracticeWorker
 from app.adaptive.graph_sync import sync_kc_edges
 from app.adaptive.kc.catalog import get_grammar_catalog
@@ -108,6 +109,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     interrupted = await app.state.practice_worker.recover()
     if interrupted:
         logger.warning("%d practice sets were mid-generation at the last shutdown", interrupted)
+    app.state.diagnosis_worker = DiagnosisWorker(app.state.sessionmaker)
     app.state.writing_worker = WritingWorker(app.state.sessionmaker)
     interrupted = await app.state.writing_worker.recover()
     if interrupted:
@@ -143,6 +145,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await app.state.practice_worker.stop()
         except TimeoutError:
             logger.warning("practice set generation did not stop within 5s")
+        try:
+            async with asyncio.timeout(5):
+                # A diagnosis cut off here leaves nothing; the daily job catches up.
+                await app.state.diagnosis_worker.stop()
+        except TimeoutError:
+            logger.warning("diagnosis did not stop within 5s")
         try:
             async with asyncio.timeout(5):
                 # Reviews cut off here are marked failed; the learner submits again.

@@ -54,7 +54,7 @@ async def run_diagnosis(
     rules: Rules,
     catalog: GrammarCatalog,
     now: datetime,
-    calls: CallFactory = structured_call,
+    calls: CallFactory | None = None,
 ) -> Outcome:
     """Diagnose the learner unless switched off, out of budget or with nothing to look
     at. Raises NoModelConfiguredError or the provider's error from the call."""
@@ -76,7 +76,8 @@ async def run_diagnosis(
         ctx = await load_provider_context(session, tenant_id)
 
     config: RunnableConfig = {"metadata": {"user_id": str(user_id), "background": True}}
-    causes, model = await diagnose(calls(ctx, config, TASK), context, language, rules)
+    call = (calls or structured_call)(ctx, config, TASK)
+    causes, model = await diagnose(call, context, language, rules)
 
     async with sessionmaker() as session:
         memory_id = await _remember(session, user_id, tenant_id, causes, language)

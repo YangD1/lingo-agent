@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Query, Request, status
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.adaptive.diagnosis.triggers import DiagnosisWorker
 from app.adaptive.exercise import answer as answering
 from app.adaptive.exercise import views
 from app.adaptive.exercise.formats import (
@@ -41,6 +42,14 @@ def get_worker(request: Request) -> PracticeWorker:
 
 
 WorkerDep = Annotated[PracticeWorker, Depends(get_worker)]
+
+
+def get_diagnosis_worker(request: Request) -> DiagnosisWorker:
+    worker: DiagnosisWorker = request.app.state.diagnosis_worker
+    return worker
+
+
+DiagnosisDep = Annotated[DiagnosisWorker, Depends(get_diagnosis_worker)]
 
 
 class _Out(BaseModel):
@@ -245,6 +254,7 @@ async def answer(
     tenant: CurrentTenant,
     session: SessionDep,
     worker: WorkerDep,
+    diagnosis: DiagnosisDep,
 ) -> AnsweredOut:
     """Grade the learner's first answer to an item; answering again returns the first
     result. On 503 nothing was stored and the learner can submit again."""
@@ -289,6 +299,7 @@ async def answer(
         ) from exc
     if result.set_done:
         await worker.prefetch(user_id, tenant_id)
+        diagnosis.after_set(user_id, tenant_id)
     _, item = await _item_out(session, worker, user_id, exercise_id)
     return AnsweredOut(item=item, set_done=result.set_done)
 
@@ -300,6 +311,7 @@ async def report(
     tenant: CurrentTenant,
     session: SessionDep,
     worker: WorkerDep,
+    diagnosis: DiagnosisDep,
 ) -> AnsweredOut:
     """The learner says the item is wrong: its answer stops counting."""
     user_id, tenant_id = user.id, tenant.id  # `report` commits, which expires `user`
@@ -311,5 +323,6 @@ async def report(
         raise _item_not_found() from exc
     if set_done:
         await worker.prefetch(user_id, tenant_id)
+        diagnosis.after_set(user_id, tenant_id)
     _, item = await _item_out(session, worker, user_id, exercise_id)
     return AnsweredOut(item=item, set_done=set_done)

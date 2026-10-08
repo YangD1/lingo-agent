@@ -61,6 +61,8 @@ async def bank_keys(db: AsyncSession, set_id: str) -> dict[str, str]:
 
 
 async def test_a_whole_set(client: AsyncClient, app: FastAPI, db_session: AsyncSession) -> None:
+    diagnosed: list[tuple[uuid.UUID, uuid.UUID]] = []
+    app.state.diagnosis_worker.after_set = lambda *ids: diagnosed.append(ids)
     await login(client)
     assert await get(client, "/practice/sets") == []
 
@@ -95,6 +97,8 @@ async def test_a_whole_set(client: AsyncClient, app: FastAPI, db_session: AsyncS
     for item in rest:
         answered = await post(client, f"/practice/exercises/{item['id']}/answer", right(item, keys))
     assert answered["set_done"]
+    # Only the answer that finished the set asks for a diagnosis (Q46b).
+    assert len(diagnosed) == 1
 
     done = await get(client, f"/practice/sets/{state['id']}")
     assert done["status"] == "done" and done["finished_at"]
@@ -123,6 +127,8 @@ async def test_finishing_a_set_prepares_the_next(
     client: AsyncClient, app: FastAPI, db_session: AsyncSession
 ) -> None:
     app.state.practice_worker.prefetch_enabled = True
+    diagnosed: list[tuple[uuid.UUID, uuid.UUID]] = []
+    app.state.diagnosis_worker.after_set = lambda *ids: diagnosed.append(ids)
     await login(client)
     state = await ready_set(client, app, {})
     keys = await bank_keys(db_session, state["id"])
@@ -133,6 +139,7 @@ async def test_finishing_a_set_prepares_the_next(
     # Reporting the last open item finishes the set too.
     reported = await post(client, f"/practice/exercises/{last['id']}/report", {})
     assert reported["set_done"]
+    assert len(diagnosed) == 1
     assert reported["item"]["status"] == "reported" and reported["item"]["answer"]
     await app.state.practice_worker.wait_idle()
     ahead = await db_session.scalar(

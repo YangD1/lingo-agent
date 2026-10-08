@@ -853,7 +853,8 @@
       "jobs": {
         "rss_fetch": "抓取阅读来源（RSS）",
         "article_prerewrite": "按等级预先改写新文章",
-        "word_examples_prefetch": "为接下来一天的单词预先写 AI 例句"
+        "word_examples_prefetch": "为接下来一天的单词预先写 AI 例句",
+        "diagnosis": "私教的诊断（每人每周最多一次）"
       }
     }
   },
