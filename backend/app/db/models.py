@@ -43,6 +43,8 @@ MEMORY_KINDS = ("fact", "episode")
 CEFR_LEVELS = ("A1", "A2", "B1", "B2", "C1", "C2")
 EXPLANATION_LANGUAGES = ("zh", "en")
 KC_KINDS = ("grammar", "word")
+# Edges of the grammar graph (ADR 0022).
+KC_EDGE_KINDS = ("prerequisite", "confusable")
 EVIDENCE_SOURCES = ("chat", "placement", "exercise", "writing", "reading")
 SKILLS = ("listening", "speaking", "reading", "writing", "grammar", "vocab")
 ACTIVITY_KINDS = ("step", "tool", "mcp", "background")
@@ -483,6 +485,23 @@ class KCMastery(TimestampMixin, Base):
     difficulty: Mapped[float | None] = mapped_column(Float)
     due: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class KCEdge(Base):
+    """One edge of the grammar graph, synced from grammar.yaml (ADR 0022).
+
+    Global read-only data, rewritten by `adaptive.graph_sync` whenever the catalog
+    changes; query it through `adaptive.graph`. A prerequisite edge points from a KC to
+    a KC it requires; a confusable pair is stored in both directions.
+    """
+
+    __tablename__ = "kc_edges"
+    # The primary key leads with from_kc, which is the direction every walk takes.
+    __table_args__ = (CheckConstraint(_in("kind", KC_EDGE_KINDS), name="kind"),)
+
+    from_kc: Mapped[str] = mapped_column(String(100), primary_key=True)
+    to_kc: Mapped[str] = mapped_column(String(100), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), primary_key=True)
 
 
 class SkillEstimate(TimestampMixin, Base):

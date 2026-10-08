@@ -84,6 +84,10 @@ dev-db: ## Start only postgres (host port 5433)
 migrate: ## Apply database migrations to DATABASE_URL (from .env)
 	cd backend && uv run python -m app.db.migrate
 
+.PHONY: kc-sync
+kc-sync: ## Sync the grammar graph (kc_edges) from grammar.yaml into DATABASE_URL (the backend also does this at startup)
+	cd backend && uv run python -m app.adaptive.graph_sync
+
 .PHONY: vocab-import
 vocab-import: ## Import the ECDICT word list into DATABASE_URL (downloads to data/; CSV=path to use a local copy)
 	cd backend && uv run python -m app.services.vocab.import_ecdict $(if $(CSV),--csv $(abspath $(CSV)))

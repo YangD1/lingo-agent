@@ -501,8 +501,8 @@
     22. `comparatives` ↔ `comparatives_advanced`：-er than 和 as … as 拼在一起（“as tall than”），或用 very 修饰比较级
     23. `conjunctions_because_so` ↔ `purpose_clauses`：表结果的 so 和表目的的 so that 混用
     24. `polite_requests` ↔ `verb_patterns_basic`：like doing 和 would like to do 混用（“I like a coffee”“Would you like going”）
-  - [~] 45.3 `kc_edges` 表（`from_kc`、`to_kc`、`kind` ∈ prerequisite / confusable，三列主键；prerequisite 边从 KC 指向它的前置，confusable 两个方向各存一条）+ 迁移 + `adaptive/graph_sync.py`（比对后重写）+ lifespan 调用 + `make kc-sync`；集成测试（首次写入、无变化不写、改了 YAML 后重写）
-  - [ ] 45.4 `adaptive/graph.py`：`prerequisite_chain(kc, depth)`（递归 CTE，带深度、去重、按深度排序）、`confusables(kc)`、`neighborhood(session, user, kc)`（链 + 易混，各带 `kc_mastery` 和最近 N 条 `kc_evidence`）；`rules.yaml` 加 `graph.prerequisite_depth`、`graph.evidence_per_kc`，升规则版本；集成测试（多层链截断、菱形去重、只看本人证据、没有掌握度的 KC 也返回）
+  - [x] 45.3 `kc_edges`（集成测试 3 个 + 单测全过，mypy 干净）：表 `kc_edges`（`from_kc`、`to_kc`、`kind` ∈ prerequisite / confusable，三列主键；前置边从 KC 指向它的前置，易混两个方向各一条；主键以 `from_kc` 开头，正好是遍历方向，不另建索引）+ 迁移 `3a568a1e98f8`；`adaptive/graph_sync.py`（`catalog_edges` 从清单算边集，`sync_kc_edges` 比对后有差别才在调用方事务里删掉重写，返回是否改了）；lifespan 在同步内置订阅源的同一个事务里调用；`make kc-sync`（开发库实测：第一次写入、第二次“already up to date”）；测试库 `kc_edges` 每个测试后清空
+  - [~] 45.4 `adaptive/graph.py`：`prerequisite_chain(kc, depth)`（递归 CTE，带深度、去重、按深度排序）、`confusables(kc)`、`neighborhood(session, user, kc)`（链 + 易混，各带 `kc_mastery` 和最近 N 条 `kc_evidence`）；`rules.yaml` 加 `graph.prerequisite_depth`、`graph.evidence_per_kc`，升规则版本；集成测试（多层链截断、菱形去重、只看本人证据、没有掌握度的 KC 也返回）
   - [ ] 45.5 收尾：`make lint`、pytest；ADR 0022 落地记录、P2 计划、PLAN；不调模型，`features.yaml` 和 `agent-tools.md` 不用改
 - [ ] 46. 诊断 Agent + `diagnoses` 表 + 记忆写入 + 选题加成（集成测试）
 - [ ] 47. 学习者模型页“私教的诊断”（Vitest + E2E）

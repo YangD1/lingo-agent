@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.adaptive.exercise.worker import PracticeWorker
+from app.adaptive.graph_sync import sync_kc_edges
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.placement.items import get_item_bank
 from app.adaptive.placement.words import DatabaseWords
@@ -78,6 +79,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_state(app, settings)
     async with app.state.sessionmaker() as session:
         await sync_builtin_feeds(session)
+        if await sync_kc_edges(session):
+            logger.info("grammar graph (kc_edges) synced from grammar.yaml")
         await session.commit()
     interrupted = await fail_interrupted(app.state.sessionmaker)
     if interrupted:
