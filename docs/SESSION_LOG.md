@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-10-08 · Docker 里走代理抓 Global Voices
+
+- **做了什么**：用户在 `.wslconfig` 的 `[experimental]` 下加了 `hostAddressLoopback=true`，在 `.env` 里设了 `COMPOSE_FEED_HTTP_PROXY=http://192.168.1.13:7890`（Windows 局域网 IP，不是 `host.docker.internal`），然后执行了 `make up`。在后端容器里手动对 `global_voices` 跑了 `refresh_feed`：新增 11 篇，4 篇因 `republished` 跳过，`failures` 清零。`.env.example` 加了 WSL 说明。
+- **未完成**：没推送（本地领先 origin 7 个提交），CI 没跑。
+- **下一步**：任务 42（分级改写 + 理解题），先拆子任务。
+- **踩坑**：WSL mirrored 网络下，容器要用 Windows 局域网 IP 连 Windows 上的代理；局域网 IP 变了，`.env` 要跟着改。不要开 TUN 模式（fake-ip 会让所有 RSS 地址被当成内网地址拒绝）。
+
+---
+
 ## 2026-10-08 · 任务 41 完成（RSS 抓取 + 阅读来源接口）
 
 - **做了什么**：Q41a–h 确认（Q41h：加只给 RSS 用的 `FEED_HTTP_PROXY`）。41.1 表和迁移 `a982263b9709`、内置源登记（9781526）；41.2 抓取、解析、清洗、来源规则（352df1a）；41.3 `rss_fetch` 定时任务（e341656）；41.4 `/reading/feeds`、`/reading/articles` 接口（26b2377）；41.5 ADR 0024 修订和落地记录、P2 计划、agent-tools、README 中英、E2E 断言更新。
