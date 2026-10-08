@@ -21,6 +21,7 @@ from app.attachments.service import link_to_message
 from app.cards.tools import TutorTools
 from app.chat.planning import PlanningSource
 from app.chat.practice import PracticeSource
+from app.chat.reading import ReadingSource
 from app.chat.service import REPLY_PART_SEPARATOR, thread_config
 from app.chat.writing import WritingSource
 from app.db.models import Attachment, Conversation
@@ -148,6 +149,7 @@ async def stream_reply(
     route: Route = Route.TUTOR,
     classify: bool = False,
     writing: WritingSource | None = None,
+    reading: ReadingSource | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -184,6 +186,7 @@ async def stream_reply(
                 route=route,
                 classify=classify,
                 writing=writing,
+                reading=reading,
             ):
                 queue.put_nowait(event)
         finally:
@@ -220,6 +223,7 @@ async def _run_graph(
     route: Route,
     classify: bool,
     writing: WritingSource | None,
+    reading: ReadingSource | None,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     text_id: str | None = None  # the tutor message whose text is streaming
@@ -247,6 +251,7 @@ async def _run_graph(
                 route=route,
                 classify=classify,
                 writing=writing,
+                reading=reading,
             ),
             stream_mode=["messages", "custom"],
             subgraphs=True,

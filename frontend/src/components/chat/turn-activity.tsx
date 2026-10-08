@@ -12,6 +12,7 @@ import {
   digest,
   type GrammarTags,
   type Handoff,
+  type ReadingContextRead,
   type WritingReviewed,
   type KCRef,
   type MemoryChanges,
@@ -44,6 +45,7 @@ const STEP_NAMES = [
   "tools",
   "handoff",
   "writing_review",
+  "reading_context",
   ...TOOL_NAMES,
 ] as const;
 type StepName = (typeof STEP_NAMES)[number];
@@ -69,6 +71,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
     d.planned && t("planning"),
     d.handedTo && t("handedTo", { coach: coachName(d.handedTo) }),
     d.writingReviewed && t("writingReviewed"),
+    d.articleRead && t("readArticle"),
     d.memoriesRead > 0 && t("read", { n: d.memoriesRead }),
     d.memoriesSaved > 0 && t("saved", { n: d.memoriesSaved }),
     d.memoriesDeleted > 0 && t("deleted", { n: d.memoriesDeleted }),
@@ -302,6 +305,16 @@ function Step({
           <Link href={`/writing/${s.submission_id}`} className={FOOT_LINK}>
             {t("writingReviewLink")}
           </Link>
+        </p>
+      );
+    }
+    case "reading_context": {
+      const s = a.summary as ReadingContextRead;
+      return (
+        <p>
+          {s.level
+            ? t("readingReadVersion", { level: s.level, words: s.words })
+            : t("readingReadOriginal", { words: s.words })}
         </p>
       );
     }

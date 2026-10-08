@@ -18,6 +18,12 @@ def test_practice_conversations_go_to_grammar_coach() -> None:
     assert route_for("g.past_simple_irregular") is Route.GRAMMAR_COACH
 
 
+def test_reading_conversations_go_to_reading_coach() -> None:
+    # Q43h: a fixed signal, no classification; once the article is gone, the tutor.
+    assert route_for(None, 7) is Route.READING_COACH
+    assert route_for(None, None) is Route.TUTOR
+
+
 def test_free_planning_and_daily_conversations_stay_with_the_tutor() -> None:
     # Planning and daily conversations have no grammar point: the tutor answers them,
     # with their brief and limited tools.

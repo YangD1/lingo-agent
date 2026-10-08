@@ -210,7 +210,8 @@
         "suggest_link": "Page shortcut",
         "tools": "Tools",
         "handoff": "Handoff",
-        "writing_review": "Writing review"
+        "writing_review": "Writing review",
+        "reading_context": "Reading the article"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -246,6 +247,9 @@
       "handoffRead": "This message looked like a piece of your writing, so the tutor handed it to the {coach} for feedback.",
       "writingReviewRead": "Reviewed your text sentence by sentence: {n, plural, one {# grammar mistake} other {# grammar mistakes}} found, and added to your learner model.",
       "writingReviewLink": "See the review",
+      "readingReadVersion": "Read the article you asked about: the version for {level}, {words} words.",
+      "readingReadOriginal": "Read the article you asked about: the original, {words} words.",
+      "readArticle": "read the article",
       "cardShown": "Showed a card: {card}",
       "toolFailed": "A card couldn't be shown ({step}); the tutor was told why.",
       "toolsUnavailable": "The model doesn't support tools, so the tutor answered with links instead of cards.",
@@ -256,7 +260,8 @@
         "link": "shortcut to a page"
       },
       "coaches": {
-        "writing_coach": "writing coach"
+        "writing_coach": "writing coach",
+        "reading_coach": "reading coach"
       }
     },
     "practice": {
@@ -1144,6 +1149,7 @@
       "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls.",
       "writing_submit": "An AI model reviews your writing sentence by sentence: it finds and explains grammar mistakes, scores four aspects, writes overall feedback and puts unknown words on your word list. Mistakes go into your learner model; scores are only shown.",
       "reading_rewrite": "An AI model rewrites this article for your level and writes a few comprehension questions; another model answers each question itself to check it, and a question that fails is rewritten once, then dropped. The rewrite is saved: opening it again at the same level calls no model.",
+      "reading_coach": "The reading coach answers your questions about this article: each message sends the article (the version for your level, or the beginning of the original) with the conversation, so a reply reads more than a chat turn. Afterwards, as in any chat, memory and grammar notes are updated in the background.",
       "reading_prerewrite": "In the background every two hours: new articles of the feeds you follow are rewritten for your level with questions, by the same AI calls as opening an article, within the tenant's daily background budget."
     },
     "task": {
@@ -1165,7 +1171,8 @@
       "writing_review": "Writing review",
       "article_rewrite": "Rewrite the article and write questions",
       "reading_critic": "Review the questions",
-      "reading_questions": "Rewrite questions"
+      "reading_questions": "Rewrite questions",
+      "reading_coach": "Reading coach reply"
     },
     "timing": {
       "now": "right away",

@@ -4,13 +4,14 @@
 
 ---
 
-## 2026-10-08 · 任务 43.1–43.2（阅读记录与理解题判分）
+## 2026-10-08 · 任务 43.1–43.3（阅读记录、理解题判分、reading_coach）
 
 - **做了什么**：拆了任务 43（43.1–43.6），用户授权 Q43a–j 一律按推荐。43.1 `reading_sessions` 表 + `conversations.article_id` / purpose `reading`，迁移 `ab322160460f`（d254c66）。43.2 服务 `services/reading/sessions.py`（`open_session`、`get_session`、`answered_version`、`answer`、`due_words`）和接口 `POST /reading/articles/{id}/session`、`POST /reading/sessions/{id}/answers`、`GET /reading/sessions/{id}/marks?original=`；`learner._skill` 和 `dashboard._skill_point` 把 reading 放到语法同一刻度（Q43c）。
-- **验证**：`make lint` 干净；pytest 1333 全过（新增 `test_reading_sessions.py` 7 条）。
-- **未完成**：43.3–43.6。
-- **下一步**：43.3 reading_coach（`routing` 固定信号、`chat/reading.py`、`prompts/reading_coach.md`、`POST /conversations` 接受 `article_id`、活动步骤 `reading_context`、`features.yaml`、`agent-tools.md`）。
-- **踩坑**：上一个会话因请求过大（>32MB）中断，`sessions.py` 写完没提交，本会话核对后接上。`Article.body` 是延迟加载列，接口里要用 `select(Article.body)` 取，不能 `session.get(Article).body`（MissingGreenlet）。“今天到期”按复习队列口径（现在 + `learn_ahead_minutes`），不是按时区算今天结束。
+- **验证**：43.2 时 pytest 1333 全过（新增 `test_reading_sessions.py` 7 条）。
+- **43.3**：`Route.READING_COACH`（`route_for(focus_kc_id, article_id)`，不进分类器）；`chat/reading.py` `DatabaseReading`（我等级的 ready 版本，没有就原文前 1,500 词按段截断）+ `render_reading`；`prompts/reading_coach.md`、`reading_unavailable.md`；`chat_graph.reading_coach` 子图（不带工具，`usage_task=reading_coach`，活动 `reading_context`）；`POST /conversations` 接受 `article_id`（和 `focus_kc_id` / `purpose` 互斥，404 `article_not_found`，复用没开口的同篇会话），`ConversationOut.article_id`；`features.yaml` 的 `reading_coach`；前端 `ai-usage.ts`、活动明细、文案；`agent-tools.md` 补了 43.2 / 43.3 的行。测试：`test_reading_coach.py` 4 条、`test_routing.py` 1 条、Vitest 1 条；pytest 1338、Vitest 341 全过，`make lint` 干净。
+- **未完成**：43.4–43.6。前端 `Conversation` 类型还没加 `article_id`（43.5 做“问私教”时加）；ADR 0023 落地记录里“任务 43 加进枚举”的修订留到 43.6。
+- **下一步**：43.4 前端列表页（`lib/reading.ts`、`/reading` 列表、来源筛选、管理来源抽屉、导航项、文案、Vitest）。
+- **踩坑**：上一个会话因请求过大（>32MB）中断，`sessions.py` 写完没提交，本会话核对后接上。`Article.body` 是延迟加载列，接口里要用 `select(Article.body)` 取，不能 `session.get(Article).body`（MissingGreenlet）。“今天到期”按复习队列口径（现在 + `learn_ahead_minutes`），不是按时区算今天结束。Python `str.replace` 会替换所有匹配：给 `chat_graph.py` 加边时误把 `add_edge` 加进了 writing_coach 子图，LangGraph 报 “edge starting at unknown node”。ICU 消息里嵌套 `{x, select, …{x}}` 会让中英占位符检查失败，拆成两条。
 
 ---
 

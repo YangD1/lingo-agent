@@ -25,6 +25,8 @@ export type ContextRead = {
 export type Handoff = { coach: string };
 /** writing_coach had the learner's text reviewed (task 38.5). */
 export type WritingReviewed = { submission_id: number; mistakes: number };
+/** reading_coach was given the article: its version's level, or null for the original. */
+export type ReadingContextRead = { article_id: number; level: string | null; words: number };
 /** A tool call of the tutor (ADR 0015): the card it showed, if any. */
 export type CardShown = { card_id: string | null; card_kind: string | null };
 /** Activity names of the tutor's tools (backend app/cards/tools.py). */
@@ -97,6 +99,8 @@ export type TurnDigest = {
   handedTo: string | null;
   /** The learner's text was reviewed (writing_coach). */
   writingReviewed: boolean;
+  /** reading_coach read the article (Q43i). */
+  articleRead: boolean;
   /** Cards the tutor showed with tool calls. */
   cardsShown: number;
   profileUpdated: boolean;
@@ -119,6 +123,7 @@ export function digest(activities: Activity[]): TurnDigest {
     planned: false,
     handedTo: null,
     writingReviewed: false,
+    articleRead: false,
     cardsShown: 0,
     profileUpdated: false,
     mistakes: 0,
@@ -141,6 +146,8 @@ export function digest(activities: Activity[]): TurnDigest {
       d.handedTo = (a.summary as Handoff).coach;
     } else if (a.name === "writing_review") {
       d.writingReviewed = true;
+    } else if (a.name === "reading_context") {
+      d.articleRead = true;
     } else if (a.kind === "tool") {
       if ((a.summary as CardShown).card_id) d.cardsShown += 1;
     } else if (a.name === "reflect_memory") {

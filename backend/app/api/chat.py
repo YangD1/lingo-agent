@@ -28,6 +28,7 @@ from app.chat import service, translate
 from app.chat.locks import ConversationLocks
 from app.chat.planning import DatabasePlanning, PlanningPurpose
 from app.chat.practice import DatabasePractice
+from app.chat.reading import DatabaseReading
 from app.chat.service import ConversationNotFoundError
 from app.chat.turn import (
     OPENING_TURN_ID,
@@ -48,6 +49,8 @@ from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.providers.llm import get_chat_models
 from app.providers.tenant import load_provider_context
+from app.services.news import feeds
+from app.services.news.feeds import FeedError
 from app.services.vocab.scheduler import learner_zone
 
 logger = logging.getLogger(__name__)
@@ -72,6 +75,9 @@ class ConversationOut(BaseModel):
     # "planning": a study-planning conversation (ADR 0015 §6); "daily": the dashboard's
     # conversation of the day (ADR 0016); None otherwise.
     purpose: PlanningPurpose | None = None
+    # The article a reading conversation is about (Q43h); None otherwise, or once the
+    # article is gone.
+    article_id: int | None = None
 
     @classmethod
     def of(cls, conversation: Conversation) -> "ConversationOut":
@@ -83,6 +89,7 @@ class ConversationOut(BaseModel):
             updated_at=conversation.updated_at,
             focus_kc=FocusKcOut.model_validate(kc, from_attributes=True) if kc else None,
             purpose=_purpose(conversation),
+            article_id=conversation.article_id,
         )
 
 
@@ -94,6 +101,8 @@ class ConversationIn(BaseModel):
     # "planning": a study-planning conversation (ADR 0015 §6); "daily": today's
     # dashboard conversation, returned if it exists (ADR 0016). Not with focus_kc_id.
     purpose: PlanningPurpose | None = None
+    # An article id: asks reading_coach about it (Q43h). Not with the other two.
+    article_id: int | None = None
     # The UI's locale, for the practice title; the cookie is only set once the
     # learner picks a language by hand.
     locale: Annotated[str | None, Field(max_length=10)] = None
@@ -152,6 +161,7 @@ async def get_todays_conversation(
             "description": "an unstarted practice conversation on the same KC, an "
             "empty planning conversation, or today's daily conversation, reused"
         },
+        404: {"description": "article_not_found"},
         422: {"description": "validation_error, unknown_kc or conflicting_purpose"},
     },
 )
@@ -167,11 +177,12 @@ async def create_conversation(
     body = body or ConversationIn()
     focus = None
     conversation = None
-    if body.focus_kc_id is not None and body.purpose is not None:
+    given = (body.focus_kc_id, body.purpose, body.article_id)
+    if sum(x is not None for x in given) > 1:
         raise api_error(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "conflicting_purpose",
-            "a conversation is for practice or for planning, not both",
+            "a conversation is for practice, planning or an article, only one",
         )
     if body.purpose == "planning":
         conversation = await service.unstarted_planning(session, graph, user.id)
@@ -198,6 +209,15 @@ async def create_conversation(
                 status.HTTP_422_UNPROCESSABLE_CONTENT, "unknown_kc", "unknown grammar point"
             )
         conversation = await service.unstarted_practice(session, graph, user.id, focus.id)
+    article = None
+    if body.article_id is not None:
+        try:
+            article = (await feeds.get_article(session, body.article_id, tenant.id)).article
+        except FeedError as exc:
+            raise api_error(
+                status.HTTP_404_NOT_FOUND, "article_not_found", "article not found"
+            ) from exc
+        conversation = await service.unstarted_reading(session, graph, user.id, article.id)
     if conversation is not None:
         response.status_code = status.HTTP_200_OK
     else:
@@ -207,6 +227,7 @@ async def create_conversation(
             user.id,
             focus=focus,
             purpose=body.purpose,
+            article=article,
             locale=locale,
         )
     # Starting afresh is when the conversation the learner left gets its summary.
@@ -320,10 +341,12 @@ class Turn:
     focus_kc_id: str | None
     # A planning or daily conversation: the turn gets the learning engine's brief.
     planning: PlanningPurpose | None
+    # A reading conversation's article (Q43h).
+    article_id: int | None = None
 
     @property
     def route(self) -> Route:
-        return route_for(self.focus_kc_id)
+        return route_for(self.focus_kc_id, self.article_id)
 
     @property
     def free_chat(self) -> bool:
@@ -382,6 +405,7 @@ async def start_turn(
             message_id,
             conversation.focus_kc_id,
             _purpose(conversation),
+            conversation.article_id,
         )
     finally:
         locks.release(conversation.id)
@@ -519,11 +543,21 @@ async def _reply(
     tools: DatabaseTutorTools | None = None
     planning: DatabasePlanning | None = None
     writing: DatabaseWriting | None = None
+    reading: DatabaseReading | None = None
     match route:
         case Route.GRAMMAR_COACH:
             # Practice stays on its grammar point: no tools (ADR 0015 §2).
             assert turn.focus_kc_id is not None  # route_for
             practice = DatabasePractice(sessionmaker, user.id, turn.focus_kc_id)
+        case Route.READING_COACH:
+            # Asking about an article: no tools either (Q43i).
+            assert turn.article_id is not None  # route_for
+            reading = DatabaseReading(
+                sessionmaker,
+                user_id=user.id,
+                tenant_id=turn.providers.tenant_id,
+                article_id=turn.article_id,
+            )
         case Route.TUTOR:
             # Read once per turn, for the prompt and for the cards the tools may show.
             if turn.planning:
@@ -559,6 +593,7 @@ async def _reply(
         route=route,
         classify=turn.free_chat,
         writing=writing,
+        reading=reading,
         practice=practice,
         tools=tools,
         planning=planning,

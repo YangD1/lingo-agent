@@ -115,6 +115,15 @@ class WritingReviewed(Summary):
     mistakes: int = 0
 
 
+class ReadingContextRead(Summary):
+    """`reading_context`: reading_coach was given the article (Q43i): the version at
+    the learner's level (`level`), or the original's beginning (`level` None)."""
+
+    article_id: int
+    level: str | None = None
+    words: int
+
+
 @dataclass(frozen=True)
 class StepSpec:
     kind: ActivityKind
@@ -130,6 +139,7 @@ STEPS: dict[str, StepSpec] = {
     "tools": StepSpec("step", ToolsUnavailable),
     "handoff": StepSpec("step", Handoff),
     "writing_review": StepSpec("step", WritingReviewed),
+    "reading_context": StepSpec("step", ReadingContextRead),
     # One per tool (app/cards/tools.py), call_id = the model's tool call id.
     "propose_word_book": StepSpec("tool", CardShown),
     "propose_learning_goal": StepSpec("tool", CardShown),

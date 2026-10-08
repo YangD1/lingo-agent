@@ -48,6 +48,7 @@ from app.activity.service import (
     CardShown,
     ContextRead,
     Handoff,
+    ReadingContextRead,
     Step,
     timed,
 )
@@ -56,6 +57,7 @@ from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
 from app.chat.planning import PlanningBrief, PlanningSource, render_planning
 from app.chat.practice import PracticeSource, render_practice
+from app.chat.reading import ReadingSource, render_reading
 from app.chat.writing import WritingSource, failed
 from app.memory.context import (
     LearnerContext,
@@ -77,7 +79,8 @@ SUPERVISOR_NODE = "supervisor"
 TUTOR_NODE = Route.TUTOR.value
 GRAMMAR_COACH_NODE = Route.GRAMMAR_COACH.value
 WRITING_COACH_NODE = Route.WRITING_COACH.value
-COACH_NODES = frozenset({TUTOR_NODE, GRAMMAR_COACH_NODE, WRITING_COACH_NODE})
+READING_COACH_NODE = Route.READING_COACH.value
+COACH_NODES = frozenset({TUTOR_NODE, GRAMMAR_COACH_NODE, WRITING_COACH_NODE, READING_COACH_NODE})
 TOOLS_NODE = "tools"
 
 # Tool round trips per turn; the tutor's last call then has no tools and must answer.
@@ -88,6 +91,8 @@ TOOL_TIMEOUT_SECONDS = 15
 # The tutor's calls after tool results: recorded apart from "chat", which the dashboard
 # counts as the learner's turns (ADR 0015 §7).
 TOOLS_USAGE_TASK = "chat_tools"
+# reading_coach's replies, likewise apart from "chat" (Q43i).
+READING_USAGE_TASK = "reading_coach"
 # What a coach is told when it speaks first: only planning conversations (the tutor's)
 # and practice conversations (grammar_coach's) open by themselves.
 PLAN_CUE = "plan_opening"
@@ -117,6 +122,8 @@ class ChatContext:
     classify: bool = False
     # Reviews writing_coach's text (task 38.5); None where a caller has none.
     writing: WritingSource | None = None
+    # reading_coach's article (Q43h); None where a caller has none.
+    reading: ReadingSource | None = None
 
 
 class ChatState(MessagesState):
@@ -282,6 +289,40 @@ async def writing_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict
     guided: ChatState = {**state, "practice": outcome.guidance}
     reply = await _call(
         runtime, task, guided, without_tool_calls(history), False, False, get_config(), PLAN_CUE
+    )
+    return {"messages": [reply]}
+
+
+async def reading_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
+    """A conversation opened from an article (Q43h): each turn the coach is given the
+    article, at the learner's level when that version is ready, and answers about it,
+    without tools (Q43i). It never speaks first."""
+    history, has_images = await _with_attachments(state["messages"], runtime.context.attachments)
+    task = "vision" if has_images else "chat"
+    source = runtime.context.reading
+    focus = None
+    if source is not None:
+        with timed() as watch:
+            try:
+                focus = await source.load()
+            except Exception:  # the coach can still reply, saying it can't see the article
+                logger.exception("loading the article for reading_coach failed")
+        if focus is None:
+            step = Step("reading_context", "failed", duration_ms=watch.ms)
+        else:
+            read = ReadingContextRead(
+                article_id=focus.article_id, level=focus.level, words=focus.words
+            )
+            step = Step("reading_context", summary=read, duration_ms=watch.ms)
+        await report(runtime, step)
+    guided: ChatState = {**state, "practice": render_reading(focus)}
+    config = get_config()
+    config = {
+        **config,
+        "metadata": {**config.get("metadata", {}), "usage_task": READING_USAGE_TASK},
+    }
+    reply = await _call(
+        runtime, task, guided, without_tool_calls(history), False, False, config, PLAN_CUE
     )
     return {"messages": [reply]}
 
@@ -470,7 +511,7 @@ async def _with_attachments(
 
 async def supervisor(
     state: ChatState, runtime: Runtime[ChatContext]
-) -> Command[Literal["tutor", "grammar_coach", "writing_coach"]]:
+) -> Command[Literal["tutor", "grammar_coach", "writing_coach", "reading_coach"]]:
     """Hand the turn to its coach. The route is decided before the run from what is
     certain about the conversation (ADR 0023 §3); only a long enough free-chat message
     is classified (Q38a), and a handoff is shown to the learner (Q37b)."""
@@ -520,6 +561,14 @@ def _writing_coach_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatSta
     return builder.compile(checkpointer=False)
 
 
+def _reading_coach_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatState, ChatState]:
+    builder = StateGraph(ChatState, context_schema=ChatContext)
+    builder.add_node(READING_COACH_NODE, reading_coach)
+    builder.add_edge(START, READING_COACH_NODE)
+    builder.add_edge(READING_COACH_NODE, END)
+    return builder.compile(checkpointer=False)
+
+
 def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
     """START -> load_context -> supervisor -> a coach -> END (ADR 0023 §2). Coaches are
     subgraphs on the same thread: they read and extend one history.
@@ -539,9 +588,11 @@ def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
     builder.add_node(TUTOR_NODE, _tutor_graph())
     builder.add_node(GRAMMAR_COACH_NODE, _grammar_coach_graph())
     builder.add_node(WRITING_COACH_NODE, _writing_coach_graph())
+    builder.add_node(READING_COACH_NODE, _reading_coach_graph())
     builder.add_edge(START, LOAD_CONTEXT_NODE)
     builder.add_edge(LOAD_CONTEXT_NODE, SUPERVISOR_NODE)
     builder.add_edge(TUTOR_NODE, END)
     builder.add_edge(GRAMMAR_COACH_NODE, END)
     builder.add_edge(WRITING_COACH_NODE, END)
+    builder.add_edge(READING_COACH_NODE, END)
     return builder.compile(checkpointer=checkpointer)

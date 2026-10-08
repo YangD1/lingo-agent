@@ -210,7 +210,8 @@
         "suggest_link": "页面直达",
         "tools": "工具",
         "handoff": "转交",
-        "writing_review": "批改作文"
+        "writing_review": "批改作文",
+        "reading_context": "读取文章"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -246,6 +247,9 @@
       "handoffRead": "这条消息像是你写的一段英文，私教把它交给了{coach}来点评。",
       "writingReviewRead": "逐句批改了你这段文字：找到 {n} 处语法问题，已记入学习者模型。",
       "writingReviewLink": "查看批改",
+      "readingReadVersion": "读了你问的这篇文章：{level} 改写版，{words} 词。",
+      "readingReadOriginal": "读了你问的这篇文章：原文，{words} 词。",
+      "readArticle": "读了这篇文章",
       "cardShown": "展示了卡片：{card}",
       "toolFailed": "有一张卡片没能展示（{step}），已把原因告诉私教。",
       "toolsUnavailable": "当前模型不支持工具调用，私教改用链接代替卡片回答。",
@@ -256,7 +260,8 @@
         "link": "页面直达"
       },
       "coaches": {
-        "writing_coach": "写作教练"
+        "writing_coach": "写作教练",
+        "reading_coach": "阅读教练"
       }
     },
     "practice": {
@@ -1144,6 +1149,7 @@
       "message_translate": "AI 模型翻译这条消息。译文会保存下来，来回切换不再调用模型。",
       "writing_submit": "AI 模型逐句批改你的作文：找出语法错误并讲解、按四个方面打分、写总评，不认识的词收进生词本。错误会记入学习者模型，分数只展示。",
       "reading_rewrite": "AI 模型按你的等级改写这篇文章，并出几道理解题；另一个模型先自己做一遍再审题，没通过的题重写一次，还不行就不出。改写结果会保存下来，同一等级的人再打开不再调用模型。",
+      "reading_coach": "阅读教练回答你关于这篇文章的问题：每条消息都会连同这篇文章（你这个等级的改写版，没有就是原文开头）一起发给模型，所以一轮比普通聊天读得多。回复后和普通聊天一样，在后台更新记忆和语法记录。",
       "reading_prerewrite": "后台每两小时一次：你订阅的来源有新文章时，用和打开文章时一样的 AI 调用按你的等级改写并出题，计入租户的后台每日上限。"
     },
     "task": {
@@ -1165,7 +1171,8 @@
       "writing_review": "批改作文",
       "article_rewrite": "改写文章并出题",
       "reading_critic": "审理解题",
-      "reading_questions": "重写理解题"
+      "reading_questions": "重写理解题",
+      "reading_coach": "阅读教练回复"
     },
     "timing": {
       "now": "立即",

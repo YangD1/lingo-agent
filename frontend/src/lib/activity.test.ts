@@ -61,6 +61,12 @@ describe("digest", () => {
     expect(reviewed.writingReviewed).toBe(true);
   });
 
+  it("notes that reading_coach read the article, unless that failed", () => {
+    const read = step("reading_context", { article_id: 3, level: "A2", words: 300 });
+    expect(digest([read]).articleRead).toBe(true);
+    expect(digest([step("reading_context", {}, { status: "failed" })]).articleRead).toBe(false);
+  });
+
   it("counts nothing from failed or skipped steps", () => {
     const d = digest([
       step("reflect_memory", {}, { status: "failed" }),
