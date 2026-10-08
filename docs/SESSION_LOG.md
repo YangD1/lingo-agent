@@ -8,7 +8,7 @@
 
 - **做了什么**：先统计各词书 Tatoeba 覆盖率（中考 98.7%、牛津 3000 95.1%、高考 92.8%、四级 89.1%、考研 82.0%、六级 75.8%、雅思 71.6%、托福 51.8%、GRE 30.8%），用户按推荐确认 Q44a–f。44.1 `services/vocab/prefetch.py`（`words_for` 挑词 + `prefetch_tenant` + `prefetch`）、`queue.py` 抽出 `next_new` / `daily_limit`、`rules.yaml` `vocab.examples_prefetch`、开关 `word_examples_prefetch`、定时任务每 6 小时、`features.yaml`、`agent-tools.md`；44.2 `GET /vocab/queue` 卡片带 `ai_examples`（`examples.cached_for`，只读缓存），等级统一 `examples.level_for`，前端 `WordExamples` 有缓存直接显示；44.3 E2E、`e2e/prefetch_examples.py`、ADR 0020 修订、P2 计划、README。
 - **验证**：`make lint` 干净；pytest 1347、Vitest 358、E2E 53 全过。
-- **提交**：df79309（44.1）、4a72eb6（44.2）、44.3 本次提交；未推送，Docker 未重建。
+- **提交**：df79309（44.1）、4a72eb6（44.2）、34d991d（44.3）；已推送，CI run 37776938944 四个 job 全绿；Docker 未重建。
 - **未完成**：无。真实模型下 AI 例句质量和任务 28 的按钮相同，没额外试。
 - **下一步**：推送并看 CI；然后任务 45（`confusable_with` 起草 → 审核、`kc_edges`）。
 - **踩坑**：设置页开关是乐观更新，E2E 要等 `PUT /me/background/...` 返回再跑后台任务；按租户入口要自己判断学习者开关，不能只在外层过滤。
