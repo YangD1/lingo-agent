@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive import mastery
+from app.adaptive.kc.catalog import get_grammar_catalog
 from app.db.models import PlacementSession, SkillEstimate, User, UserProfile
 from app.memory.reflection import Reflection, TaggedMistake, UsedCorrectly
 from tests.integration.test_activity_api import activity
@@ -108,8 +109,27 @@ async def test_lists_the_grammar_points_met_weakest_first_with_their_evidence(
         "last_mistake_at": kcs[THIRD_PERSON]["last_mistake_at"],
         "mastered_at": None,
         "due": None,
+        "prerequisites": kcs[THIRD_PERSON]["prerequisites"],
+        "confusables": kcs[THIRD_PERSON]["confusables"],
     }
     assert kcs[THIRD_PERSON]["last_mistake_at"] is not None  # the conversation mistake
+    # The grammar graph, with names: a prerequisite need not be listed itself (Q47e).
+    catalog = get_grammar_catalog()
+    for kc_id in kcs:
+        kc = catalog.get(kc_id)
+        assert kc is not None
+        assert [r["kc_id"] for r in kcs[kc_id]["prerequisites"]] == list(kc.prerequisites)
+        assert [r["kc_id"] for r in kcs[kc_id]["confusables"]] == list(catalog.confusables(kc_id))
+    regular = catalog.get("g.past_simple_regular")
+    assert regular is not None
+    assert kcs[PAST]["prerequisites"] == [
+        {
+            "kc_id": regular.id,
+            "name_en": regular.name_en,
+            "name_zh": regular.name_zh,
+            "cefr": regular.cefr,
+        }
+    ]
     # A low-severity slip is stored and shown, but BKT does not use it.
     assert kcs[ARTICLES]["observations"] == 0 and kcs[ARTICLES]["mistakes"] == 1
     assert kcs[PAST]["produce_correct"] == 1 and kcs[PAST]["mistakes"] == 0

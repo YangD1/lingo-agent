@@ -2,6 +2,7 @@
 deleting them (ADR 0010, P1 plan §7). Everything here is the current user's own data."""
 
 import uuid
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Response, status
@@ -9,7 +10,7 @@ from pydantic import BaseModel
 
 from app.adaptive import learner
 from app.adaptive.diagnosis import view as diagnosis_view
-from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
+from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, get_grammar_catalog
 from app.adaptive.learner import MasteryState
 from app.adaptive.rules import get_rules
 from app.api.errors import api_error
@@ -17,6 +18,13 @@ from app.deps import CurrentUser, SessionDep
 from app.scheduler import prefs
 
 router = APIRouter(prefix="/learner", tags=["learner"])
+
+
+class RelatedKCOut(BaseModel):
+    kc_id: str
+    name_en: str
+    name_zh: str
+    cefr: CefrLevel
 
 
 class KCOut(BaseModel):
@@ -42,6 +50,10 @@ class KCOut(BaseModel):
     last_mistake_at: datetime | None
     mastered_at: datetime | None
     due: datetime | None
+    # The grammar graph (ADR 0022, Q47e): direct prerequisites, and points it is
+    # confused with.
+    prerequisites: list[RelatedKCOut]
+    confusables: list[RelatedKCOut]
 
 
 class LevelOut(BaseModel):
@@ -156,7 +168,8 @@ class Deleted(BaseModel):
 @router.get("")
 async def get_learner(user: CurrentUser, session: SessionDep) -> LearnerOut:
     rules = get_rules()
-    overview = await learner.overview(session, user.id, rules=rules, catalog=get_grammar_catalog())
+    catalog = get_grammar_catalog()
+    overview = await learner.overview(session, user.id, rules=rules, catalog=catalog)
     await session.commit()  # stale rows may have been rebuilt
     seen: dict[CefrLevel, int] = {}
     for s in overview.kcs:
@@ -180,6 +193,8 @@ async def get_learner(user: CurrentUser, session: SessionDep) -> LearnerOut:
                 last_mistake_at=s.mastery.last_mistake_at,
                 mastered_at=s.mastery.mastered_at,
                 due=s.mastery.due,
+                prerequisites=_related(catalog, s.kc.prerequisites),
+                confusables=_related(catalog, catalog.confusables(s.kc.id)),
             )
             for s in overview.kcs
         ],
@@ -191,6 +206,14 @@ async def get_learner(user: CurrentUser, session: SessionDep) -> LearnerOut:
         thresholds=Thresholds(mastered=rules.bkt.mastered, weak=rules.bkt.weak),
         gate=GateOut.model_validate(rules.mastery_gate, from_attributes=True),
     )
+
+
+def _related(catalog: GrammarCatalog, kc_ids: Iterable[str]) -> list[RelatedKCOut]:
+    return [
+        RelatedKCOut(kc_id=kc.id, name_en=kc.name_en, name_zh=kc.name_zh, cefr=kc.cefr)
+        for kc_id in kc_ids
+        if (kc := catalog.get(kc_id)) is not None
+    ]
 
 
 @router.get("/diagnosis")
