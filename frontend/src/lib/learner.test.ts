@@ -22,6 +22,8 @@ const kc = (overrides: Partial<KCStatus>): KCStatus => ({
   last_mistake_at: null,
   mastered_at: null,
   due: null,
+  prerequisites: [],
+  confusables: [],
   ...overrides,
 });
 

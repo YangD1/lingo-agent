@@ -450,6 +450,42 @@
     }
   },
   "learner": {
+    "diagnosis": {
+      "title": "Tutor's diagnosis",
+      "never": "When you keep making mistakes on the same grammar point, your tutor looks for the cause: once a week, and after a practice set.",
+      "nothingYet": "Looked on {date}; no pattern found yet.",
+      "off": "Tutor's diagnosis is off. You can turn it on in <link>Settings</link>.",
+      "offNow": "Diagnosis is off, so this won't be updated. You can turn it on in <link>Settings</link>.",
+      "dated": "Diagnosed on {date}. Until {until}, practice favours these grammar points.",
+      "datedOld": "Diagnosed on {date}; it no longer affects practice.",
+      "older": "Older diagnosis",
+      "checkedSince": "Looked again on {date}; nothing new found.",
+      "causes": "Likely causes",
+      "lies": "It lies in:",
+      "someLearned": "Some already learned",
+      "confidence": {
+        "low": "Confidence: low",
+        "medium": "Confidence: medium",
+        "high": "Confidence: high"
+      },
+      "suggestion": "Try: ",
+      "showEvidence": "Show the {n, plural, one {# mistake} other {# mistakes}} it cites",
+      "someDeleted": "{m} of the {n} cited mistakes deleted",
+      "allDeleted": "All {n} cited mistakes deleted",
+      "evidence": "Cited mistakes",
+      "placementWrong": "Wrong in the placement test",
+      "from": "From “{title}”",
+      "untitled": "Untitled conversation",
+      "sources": {
+        "placement": "From the placement test",
+        "exercise": "From practice",
+        "writing": "From writing",
+        "reading": "From reading",
+        "chatDeleted": "Conversation deleted"
+      },
+      "delete": "This diagnosis is wrong",
+      "confirmDelete": "Delete this diagnosis? Practice will stop favouring the grammar points it names, and the memory it wrote will be deleted too. This can't be undone."
+    },
     "grammar": {
       "title": "Grammar mastery",
       "description": "Worked out from your mistakes and correct uses in conversation: {mastered}% or more counts as mastered, below {weak}% as weak. Open one to see why; if a tag is wrong, delete it and the mastery is recomputed.",
@@ -511,7 +547,9 @@
         "span": "Right answers spread over {value} / {target} hours",
         "cleanNever": "No mistakes since in conversation or writing",
         "clean": "Days since the last mistake in conversation or writing: {value} / {target}"
-      }
+      },
+      "prerequisites": "Builds on:",
+      "confusables": "Often confused with:"
     },
     "skills": {
       "title": "Skill estimates",
@@ -535,7 +573,7 @@
     },
     "clear": {
       "title": "Delete all learning records",
-      "description": "Deletes all grammar evidence, mastery and skill estimates, and the grammar tags under “What the tutor did” in conversations. Memories and conversations stay.",
+      "description": "Deletes all grammar evidence, mastery and skill estimates, the grammar tags under “What the tutor did” in conversations, and the tutor's diagnoses with the memory they wrote. Other memories and conversations stay.",
       "button": "Delete all learning records",
       "confirm": "Delete all learning records? This cannot be undone."
     }

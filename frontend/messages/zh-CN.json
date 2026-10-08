@@ -450,6 +450,42 @@
     }
   },
   "learner": {
+    "diagnosis": {
+      "title": "私教的诊断",
+      "never": "同一个语法点反复出错后，私教会找找背后的原因：每周看一次，做完一组练习后也会看。",
+      "nothingYet": "{date} 看过一次，还没发现规律。",
+      "off": "私教的诊断已关闭，可以在<link>设置</link>里打开。",
+      "offNow": "诊断已关闭，之后不会再更新；可以在<link>设置</link>里打开。",
+      "dated": "{date} 诊断。到 {until}，练习会优先出这些语法点的题。",
+      "datedOld": "{date} 诊断，已不再影响练习选题。",
+      "older": "较早的诊断",
+      "checkedSince": "{date} 又看了一次，没发现新规律。",
+      "causes": "可能的原因",
+      "lies": "问题在：",
+      "someLearned": "其中有已学会的",
+      "confidence": {
+        "low": "把握：低",
+        "medium": "把握：中",
+        "high": "把握：高"
+      },
+      "suggestion": "建议：",
+      "showEvidence": "看引用的 {n} 条错句",
+      "someDeleted": "引用的 {n} 条里有 {m} 条已删除",
+      "allDeleted": "引用的 {n} 条错句都已删除",
+      "evidence": "引用的错句",
+      "placementWrong": "入学测答错",
+      "from": "来自“{title}”",
+      "untitled": "未命名会话",
+      "sources": {
+        "placement": "来自入学测",
+        "exercise": "来自练习",
+        "writing": "来自写作",
+        "reading": "来自阅读",
+        "chatDeleted": "会话已删除"
+      },
+      "delete": "这次诊断不对",
+      "confirmDelete": "删掉这次诊断？练习不再优先出它指出的语法点，它写的那条记忆也会删掉。删除后无法恢复。"
+    },
     "grammar": {
       "title": "语法掌握度",
       "description": "根据你在对话中的错误和正确用法计算：{mastered}% 以上算已掌握，低于 {weak}% 算薄弱。点开一项可以看到依据；打标不对的可以删掉，掌握度会重新计算。",
@@ -511,7 +547,9 @@
         "span": "答对跨度 {value} / {target} 小时",
         "cleanNever": "对话和写作里没再错过",
         "clean": "距上次在对话或写作里说错 {value} / {target} 天"
-      }
+      },
+      "prerequisites": "先要会：",
+      "confusables": "容易和这些混淆："
     },
     "skills": {
       "title": "技能估计",
@@ -535,7 +573,7 @@
     },
     "clear": {
       "title": "删除所有学习记录",
-      "description": "删除全部语法证据、掌握度和技能估计，以及对话下“私教做了什么”里的语法标注。记忆和对话不受影响。",
+      "description": "删除全部语法证据、掌握度和技能估计，对话下“私教做了什么”里的语法标注，以及私教的诊断和它写的记忆。其他记忆和对话不受影响。",
       "button": "删除所有学习记录",
       "confirm": "删除所有学习记录？删除后无法恢复。"
     }

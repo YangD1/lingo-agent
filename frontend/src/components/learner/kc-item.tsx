@@ -27,6 +27,7 @@ import {
   kcName,
   learnedChecks,
   type MasteryGate,
+  type RelatedKC,
 } from "@/lib/learner";
 import { cn } from "@/lib/utils";
 import { ErrorText } from "@/components/ui/error-text";
@@ -46,6 +47,8 @@ export function KCItem({
   gate,
   mastered,
   initiallyOpen,
+  isListed,
+  onJump,
   onChanged,
 }: {
   kc: KCStatus;
@@ -53,6 +56,9 @@ export function KCItem({
   /** p_mastery a learned grammar point needs (thresholds.mastered). */
   mastered: number;
   initiallyOpen: boolean;
+  /** Whether a grammar point is in the list too, to jump to it. */
+  isListed: (kcId: string) => boolean;
+  onJump: (kcId: string) => void;
   /** Evidence was deleted: the mastery needs reloading. */
   onChanged: () => void;
 }) {
@@ -159,6 +165,12 @@ export function KCItem({
         <div id={detailsId} className="flex flex-col gap-2 pb-3 pl-[26px] text-[13px]">
           <PracticeChoices kcId={kc.kc_id} origin="learner" className="self-start" />
           <LearnedProgress kc={kc} gate={gate} mastered={mastered} />
+          {kc.prerequisites.length > 0 && (
+            <Related label={t("prerequisites")} kcs={kc.prerequisites} isListed={isListed} onJump={onJump} />
+          )}
+          {kc.confusables.length > 0 && (
+            <Related label={t("confusables")} kcs={kc.confusables} isListed={isListed} onJump={onJump} />
+          )}
           {error && (
             <ErrorText>{error}</ErrorText>
           )}
@@ -262,6 +274,42 @@ export function KCItem({
         </div>
       )}
     </li>
+  );
+}
+
+/** Grammar points linked in the grammar graph (ADR 0022); listed ones open on click. */
+function Related({
+  label,
+  kcs,
+  isListed,
+  onJump,
+}: {
+  label: string;
+  kcs: RelatedKC[];
+  isListed: (kcId: string) => boolean;
+  onJump: (kcId: string) => void;
+}) {
+  const locale = useLocale();
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      {kcs.map((k) =>
+        isListed(k.kc_id) ? (
+          <button
+            key={k.kc_id}
+            type="button"
+            onClick={() => onJump(k.kc_id)}
+            className="font-medium text-primary hover:underline"
+          >
+            {kcName(k, locale)}
+          </button>
+        ) : (
+          <span key={k.kc_id} className="font-medium">
+            {kcName(k, locale)}
+          </span>
+        ),
+      )}
+    </p>
   );
 }
 

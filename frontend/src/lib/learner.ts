@@ -30,7 +30,13 @@ export type KCStatus = {
   /** Once learned: when, and when the grammar point is due for review. */
   mastered_at: string | null;
   due: string | null;
+  /** The grammar graph (ADR 0022): direct prerequisites, and points it is confused with.
+   * They need not be in `kcs`. */
+  prerequisites: RelatedKC[];
+  confusables: RelatedKC[];
 };
+
+export type RelatedKC = { kc_id: string; name_en: string; name_zh: string; cefr: CefrLevel };
 
 /** What "learned" takes (rules.yaml mastery_gate), besides mastery >= thresholds.mastered. */
 export type MasteryGate = { min_formats: number; min_span_hours: number; clean_days: number };
@@ -75,6 +81,48 @@ export type Evidence = {
 
 export type EvidencePage = { evidence: Evidence[]; total: number };
 
+/** A mistake a diagnosis cites (backend/app/api/learner.py CitedMistakeOut). */
+export type CitedMistake = {
+  id: number;
+  kc_id: string;
+  source: "chat" | "placement" | "exercise" | "writing" | "reading";
+  original: string | null;
+  correction: string | null;
+  conversation_id: string | null;
+  conversation_title: string | null;
+  created_at: string;
+};
+
+export type RootCause = {
+  hypothesis: string;
+  /** Root first. */
+  kcs: (RelatedKC & { learned: boolean })[];
+  confidence: "low" | "medium" | "high";
+  suggestion: string;
+  /** The cited mistakes still stored; `cited` counts the deleted ones too. */
+  evidence: CitedMistake[];
+  cited: number;
+};
+
+export type Diagnosis = {
+  id: string;
+  created_at: string;
+  language: "zh" | "en";
+  root_causes: RootCause[];
+  /** Until when practice favours the grammar points it names. */
+  boost_until: string;
+  boost_active: boolean;
+};
+
+export type DiagnosisPage = {
+  /** The learner's switch for background diagnosis. */
+  enabled: boolean;
+  /** The latest diagnosis that found something. */
+  diagnosis: Diagnosis | null;
+  /** The latest diagnosis at all: later than `diagnosis` when that one found nothing. */
+  checked_at: string | null;
+};
+
 export const fetchLearner = () => api<LearnerModel>("/learner");
 
 export const fetchEvidence = (kcId: string) =>
@@ -82,6 +130,17 @@ export const fetchEvidence = (kcId: string) =>
 
 export const deleteEvidence = (id: number) =>
   api<void>(`/learner/evidence/${id}`, { method: "DELETE" });
+
+export const fetchDiagnosis = () => api<DiagnosisPage>("/learner/diagnosis");
+
+export const deleteDiagnosis = (id: string) =>
+  api<void>(`/learner/diagnoses/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+/** The diagnosis was looked at again later and found nothing new (a minute's slack). */
+export const checkedSince = (page: DiagnosisPage): boolean =>
+  page.diagnosis !== null &&
+  page.checked_at !== null &&
+  new Date(page.checked_at).getTime() - new Date(page.diagnosis.created_at).getTime() > 60_000;
 
 export const deleteLearner = () => api<{ deleted: number }>("/learner", { method: "DELETE" });
 

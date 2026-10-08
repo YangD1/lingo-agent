@@ -533,8 +533,8 @@
   - [x] 47.1 读取接口（集成测试 5 个 + 原学习者接口测试全过，ruff、mypy 干净）：`adaptive/diagnosis/view.py` `latest`（最近一次有结论的诊断 + 最近一次诊断时间 `checked_at`；每条结论的语法点按引用顺序、不在目录里的跳过、带“已学会”；证据按引用顺序只给还在的，`cited` 记引用总数；`boost_until` / `boost_active`）；`GET /learner/diagnosis`（另带诊断开关 `enabled`）；`learner.delete_all` 一并删诊断和它们写的记忆
   - [x] 47.2 删除（集成测试 2 个全过，ruff、mypy 干净）：`view.delete_diagnosis` + `DELETE /learner/diagnoses/{id}`（204；别人的或不存在 404）；加成从表里算，删了即取消；记忆是几次诊断原地共用的一条，只有删的是写它最新内容的那次才连带删掉。删掉最近一次后，页面会显示更早一次有结论的诊断（仍按 Q47a）
   - [x] 47.3 图谱字段（学习者接口测试全过，ruff、mypy 干净）：`KCOut` 加 `prerequisites`（直接前置）、`confusables`（双向），每项带 id、中英文名和等级（前置语法点不一定在列表里，前端要能直接显示名字）
-  - [~] 47.4 前端：“私教的诊断”区块（结论、把握程度、建议、指向的语法点、“去练习”、证据可展开、删除确认、空状态）和语法点里的前置 / 易混（按 Q47e）；中英文案；Vitest
-  - [ ] 47.5 E2E：`fake_llm.py` 加 `DiagnosisOut` 回复；做一组练习在同一语法点错 3 次 → 学习者模型页出现诊断 → 展开证据 → 删除
+  - [x] 47.4 前端（Vitest 362 全过，tsc、eslint 干净）：`learner/diagnosis-card.tsx`（学习者模型页顶部；没诊断过 / 看过没规律 / 开关关了各一行说明，关了带设置页链接；有诊断时：日期和加成到哪天、过了 14 天标“较早的诊断”、之后又看过一次没新规律时加一行；每条结论带指向的语法点（在列表里的可点，点了打开并滚到那一项）、把握程度、建议、从第一个没学会的语法点开始的练习入口、“看引用的 N 条错句”展开原句 → 改正和来源、已删除的条数；“这次诊断不对”确认后删除）；`kc-item.tsx` 展开后显示“先要会 / 容易和这些混淆”，在列表里的可点；`lib/learner.ts` 类型和 `fetchDiagnosis` / `deleteDiagnosis`；中英文案，“删除所有学习记录”说明加上诊断和它写的记忆；学习者页测试改成按路径返回假数据（页面同时读模型和诊断）
+  - [~] 47.5 E2E：`fake_llm.py` 加 `DiagnosisOut` 回复；做一组练习在同一语法点错 3 次 → 学习者模型页出现诊断 → 展开证据 → 删除
   - [ ] 47.6 收尾：`agent-tools.md`（页面能看到诊断）、ADR 0022 和 P2 计划落地记录、PLAN；`make lint`、pytest、Vitest、E2E
 - **P2e 每日计划**
 - [ ] 48. 每日计划算法 + `daily_plans` + `propose_daily_plan` 工具 + 确认卡 + 看板清单（单测 + E2E）

@@ -17,7 +17,10 @@ import { CefrTag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
 import {
   CEFR_LEVELS,
+  deleteDiagnosis,
   deleteLearner,
+  type DiagnosisPage,
+  fetchDiagnosis,
   fetchLearner,
   filterKcs,
   type KCFilter,
@@ -26,6 +29,7 @@ import {
   type SkillEstimate,
 } from "@/lib/learner";
 
+import { DiagnosisCard } from "./diagnosis-card";
 import { KCItem, STATE_BAR } from "./kc-item";
 
 const SKILLS = ["grammar", "vocab", "reading", "listening", "speaking", "writing"] as const;
@@ -33,7 +37,8 @@ const emptyButton = buttonVariants({ size: "sm", variant: "outline" });
 
 /**
  * The learner model (ADR 0010): grammar mastery computed from evidence, with the evidence
- * itself, skill estimates, and deleting all of it. `focusKc` opens one grammar point.
+ * itself, the tutor's diagnosis, skill estimates, and deleting all of it. `focusKc` opens
+ * one grammar point; so does a grammar point named in the diagnosis or another one.
  */
 export function LearnerApp({ focusKc }: { focusKc: string | null }) {
   const t = useTranslations("learner");
@@ -44,23 +49,59 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<KCFilter>({ level: "all", state: "all" });
+  const [diagnosis, setDiagnosis] = useState<DiagnosisPage | null>(null);
+  const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
+  // The opened grammar point; `n` remounts it, so jumping to it again scrolls again.
+  const [focus, setFocus] = useState({ kc: focusKc, n: 0 });
 
   const load = useCallback(
     () => fetchLearner().then(setModel, (e: unknown) => setError(describe(e))),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- describe is stable enough
     [],
   );
+  const loadDiagnosis = useCallback(
+    () =>
+      fetchDiagnosis().then(
+        (page) => {
+          setDiagnosis(page);
+          setDiagnosisError(null);
+        },
+        (e: unknown) => setDiagnosisError(describe(e)),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- describe is stable enough
+    [],
+  );
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadDiagnosis();
+  }, [load, loadDiagnosis]);
+
+  const isListed = (kcId: string) => model?.kcs.some((kc) => kc.kc_id === kcId) ?? false;
+  function jump(kcId: string) {
+    setFilter({ level: "all", state: "all" });
+    setFocus((f) => ({ kc: kcId, n: f.n + 1 }));
+  }
+
+  async function removeDiagnosis(id: string) {
+    setBusy(true);
+    setDiagnosisError(null);
+    try {
+      await deleteDiagnosis(id);
+      await loadDiagnosis();
+    } catch (e) {
+      setDiagnosisError(describe(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function clear() {
     setBusy(true);
     setError(null);
     try {
       await deleteLearner();
-      await load();
+      await Promise.all([load(), loadDiagnosis()]);
     } catch (e) {
       setError(describe(e));
     } finally {
@@ -96,6 +137,14 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
             // Nothing loaded: the whole area failed, so the big oops cat.
             <EmptyState tone="error" title={error} />
           ))}
+        <DiagnosisCard
+          page={diagnosis}
+          error={diagnosisError}
+          busy={busy}
+          isListed={isListed}
+          onJump={jump}
+          onDelete={(id) => void removeDiagnosis(id)}
+        />
         <Card data-testid="learner-grammar">
           <CardHeader>
             <CardTitle>{t("grammar.title")}</CardTitle>
@@ -175,11 +224,13 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
                   <ul className="flex flex-col divide-y border-b" aria-label={t("grammar.title")}>
                     {shown.map((kc) => (
                       <KCItem
-                        key={kc.kc_id}
+                        key={kc.kc_id === focus.kc ? `${kc.kc_id}:${focus.n}` : kc.kc_id}
                         kc={kc}
                         gate={model.gate}
                         mastered={model.thresholds.mastered}
-                        initiallyOpen={kc.kc_id === focusKc}
+                        initiallyOpen={kc.kc_id === focus.kc}
+                        isListed={isListed}
+                        onJump={jump}
                         onChanged={() => void load()}
                       />
                     ))}
