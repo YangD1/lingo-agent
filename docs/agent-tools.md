@@ -21,6 +21,8 @@
 | `message_translate` | 私教气泡下的“看中文 / 看英文”（ADR 0017） | `translate`（立即；每条消息每种语言只调一次，之后读缓存） |
 | `practice_set` | `/practice` 落地页“开始一组 / 继续上次的练习”、总结页“再来一组”；学习者模型每个语法点、私教练习卡片、看板建议里的“做一组题”；设置“后台任务”里的“预先出好下一组练习” | `exercise_generate` + `exercise_critic`（立即；被拒的题最多再重写审两轮）；做完一组后在后台为下一组再各调一次（学习者可关，计入后台每日额度） |
 | `practice_grade` | `/practice` 开放题的提交按钮旁（也和 `practice_set` 一起挂在开组入口）；find_fix 的改法不在答案列表里时同样调用 | `exercise_grade`（立即；每题只批第一次作答；选择题、填空、和参考答案一致的答案由代码判，不调模型） |
+| `reading_rewrite` | 阅读页打开一篇文章（`POST /reading/articles/{id}/version`；入口在任务 43 的 `/reading`） | `article_rewrite`（改写 + 出题）、`reading_critic`（走 `exercise_critic` 路由）、被拒的题再加 `reading_questions`（走 `article_rewrite` 路由）；同租户同篇同等级只调一次，之后读缓存 |
+| `reading_prerewrite` | 设置“后台任务”的“预先改写新文章”开关旁 | 同 `reading_rewrite`，全部 `background` |
 
 设置页的“测试连接”不挂标记：只给管理员用，每次几个 token，且不走路由（ADR 0014 §4）。
 
@@ -151,7 +153,7 @@
 
 ## 后台工作与定时任务（ADR 0025，任务 40）
 
-不是学习者当下点出来的模型调用都算后台工作：定时任务（`backend/app/scheduler/jobs.py` 登记，进程内 APScheduler 触发）和事件触发的预备工作（现在只有练习预生成）。回复后的记忆反思属于对话本身，学习者自己提交后在后台批改的写作也是学习者在等的，都不算。
+不是学习者当下点出来的模型调用都算后台工作：定时任务（`backend/app/scheduler/jobs.py` 登记，进程内 APScheduler 触发）和事件触发的预备工作（练习预生成）。回复后的记忆反思属于对话本身，学习者自己提交后在后台批改的写作也是学习者在等的，都不算。
 
 - **每日上限**：租户级 `tenants.background_daily_tokens`（默认 100,000，0 = 关闭全部后台调用），owner / admin 在设置“后台任务”里改。用量是 `llm_usage` 里 `background = true` 的行，按 UTC 零点切天；每项后台工作开始前检查，最后一项可能略超。用完后当天跳过，定时任务记跳过原因 `budget_exhausted`。
 - **学习者开关**：`backend/app/scheduler/prefs.py` 登记每种为学习者做的后台工作和默认值，存 `user_background_prefs`；设置“后台任务”里每项一个开关，旁边挂对应功能的 AI 标记。额度用完或被关闭时学习者只看到一句提示，不看数字。
@@ -162,8 +164,21 @@
 |---|---|---|---|---|---|
 | 预生成下一组练习 | 做完一组或最后一题被举报（事件） | `adaptive/exercise/worker.py` `PracticeWorker.prefetch` | `llm/exercise_generate`、`llm/exercise_critic`（`background`） | `practice_prefetch`（开） | 设置“后台任务”；练习页“这组题怎么来的” |
 | 抓取阅读来源（`rss_fetch`） | 定时，每 2 小时（ADR 0024 §6） | `services/news/refresh.py` `fetch_due_feeds`（抓取 `fetch.py`、解析 `parse.py`、清洗 `clean.py`、来源规则 `rules.py`） | 无（不调模型，不占后台额度） | 没有开关：取消订阅某个源它就不再为你抓；所有人都不读的源不抓 | 管理员在设置“后台任务”看到上次运行；阅读来源的上次抓取时间和错误见 `GET /reading/feeds`（阅读页在任务 43） |
+| 预先改写新文章（`article_prerewrite`） | 定时，每 2 小时，`rss_fetch` 后错开 30 分钟（Q42g） | `services/reading/prerewrite.py` `prerewrite` → `ReadingWorker.generate`（任务自己建一个 worker，一篇一篇写） | `llm/article_rewrite`、`llm/exercise_critic`（记为 `reading_critic`）、被拒的题 `llm/article_rewrite`（记为 `reading_questions`），都是 `background` | `article_prerewrite`（开） | 设置“后台任务”；改写版本标 `background`，阅读页和当场改写的一样（任务 43） |
 
 `rss_fetch` 读写的是公开的 RSS，不读任何学习者数据：只抓有人订阅的 feed（内置源默认订阅），写 `articles`（正文转成纯文本段落，图片和图片说明不存）和 feed 上的条件请求信息、失败次数、错误码；连续失败 3 次后间隔翻倍，最长 24 小时；超过 90 天的文章删除。经 `net_guard` 直连，设了 `FEED_HTTP_PROXY` 时走代理（每一跳先查地址）。
+
+## 分级阅读（P2 计划 §5.3，任务 42）
+
+学习者打开一篇文章时，按自己的等级（画像 `cefr_level`，没有时按 A2；C2 读原文）取这个租户已有的改写版本，没有就现写（Q42a、Q42f）。改写版本是租户内共享的缓存（ADR 0024 §5）：同一租户同一篇同一等级只写一次，不含任何个人信息，所以不写 `agent_activities`；版本上记了改写和审题的模型名、被拒的题和理由（只用于评估审题，不给学习者）。只有摘要的文章、许可不允许演绎的文章（学习者自加源，`unknown`）不改写（Q41d、Q42i）。
+
+| 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
+|---|---|---|---|---|---|
+| 取版本 / 开始改写 | `api/reading.py` `POST /reading/articles/{id}/version` → `services/reading/worker.py` `ReadingWorker.request`；轮询 `GET /reading/versions/{id}` | 文章（要对这个租户可见）、学习者等级 | `article_versions`（`generating`；租户 + 文章 + 等级唯一，并发只写一次；失败的再次打开时重试；重启时还在写的标 `failed/interrupted`） | 无 | 阅读页（任务 43） |
+| 改写 + 出题 | `agents/reading_graph.py` `rewrite`，提示词 `prompts/article_rewrite.md`；检查 `services/reading/drafts.py` | 文章标题和正文（最多 3,000 词，按段截断）、目标等级和字数范围；不含学习者信息 | 无（先给审题）；字数超出范围 25% 以上重写一次，再不行版本失败 | `llm/article_rewrite`（默认路由） | — |
+| 审理解题 | 同上 `critic`，提示词 `prompts/reading_critic.md`，判定 `drafts.rejection` | 改写稿、题目和四个选项（不含答案和依据句） | 通过的题进 `article_versions.questions`；被拒的进 `rejected`（含审题的作答和理由）；审题调用失败时一道题都不留 | `llm/exercise_critic` 路由，`llm_usage` 记为 `reading_critic` | 阅读页的理解题 |
+| 重写被拒的题（一轮） | 同上 `questions`，提示词 `prompts/reading_questions.md` | 改写稿、保留的题、被拒的题和理由 | 无（再给审题）；还不过就不出 | `llm/article_rewrite` 路由，记为 `reading_questions` | — |
+| 超纲词表 | `services/reading/glossary.py`（代码，不调模型，Q42c） | 改写稿；ECDICT `words`（词频排名、`exchange` 还原原形） | `article_versions.glossary`、`above_level_share` | 无 | 阅读页（任务 43） |
 
 ## 写作批改（P2 计划 §4.2，任务 38）
 

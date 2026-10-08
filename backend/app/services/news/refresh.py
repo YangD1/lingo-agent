@@ -212,7 +212,8 @@ async def fetch_due_feeds(
 
     async with sessionmaker() as session:
         removed = await session.execute(
-            # Task 42/43: keep articles that have rewrites or reading sessions.
+            # Rewritten versions go with their article (Q42h); task 43 keeps articles
+            # that have reading sessions.
             delete(Article).where(Article.published_at < now - RETENTION)
         )
         await session.commit()

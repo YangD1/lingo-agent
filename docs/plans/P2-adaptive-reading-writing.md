@@ -154,6 +154,7 @@
 - 改写结果按（租户、文章、等级）缓存：同一租户里同一篇文章同一等级只改写一次（用的是该租户的模型和 token，不跨租户共享，见 ADR 0024）。
 - `/reading`：文章列表（来源、等级、话题），阅读器复用单词气泡（悬停查词、朗读、收词），到期词高亮，读完做理解题；理解题作答更新 `skill_estimates.reading`（Elo），涉及的语法点不计证据。
 - reading_coach：对话里问“这篇文章里的 X 是什么意思 / 帮我总结”，带文章上下文回答。
+- **落地记录（任务 42，2026-10-08）**：Q42a–i 按推荐确认，细节见 ADR 0024 落地记录。和上面不同的地方：超纲词表由代码按 ECDICT 词频排名算，不让模型列；理解题审题走独立提示词 `reading_critic`（共用 `exercise_critic` 路由），不复用练习的 critic 提示词，因为要看文章；学习者自加源（`unknown`）不改写；改写版本不阻止 90 天清理。代码在 `services/reading/`、`agents/reading_graph.py`、`api/reading.py`，定时任务 `article_prerewrite`。迁移 `7aeed833bec4`。
 
 ---
 
