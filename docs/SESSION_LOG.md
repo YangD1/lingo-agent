@@ -8,8 +8,9 @@
 
 - **做了什么**：上一个会话写完 E2E 的文章灌入后因请求过大（>32MB，截图累积）中断，本会话接上。`frontend/e2e/reading.spec.ts` 两条：列表 → 打开 → 等改写（标题变成 “Rover news”）→ 词表虚下划线 → 气泡加生词本 → 5 题答 4 对、计分、再打开看到结果、列表“读过 / 已为你改写” → 生词本有词 → 看板阅读能力有值 → “问私教”回复带文章标题；读原文 + 只有摘要的文章去原网站。假模型 `fake_llm.py` 补 `ArticleRewrite`、`QuestionSet`、`QuestionReviews`，reading_coach 按 `<article title=…>` 应答；`run_backend.py` `seed_articles` 往内置 NASA 源灌两篇。文档：ADR 0024 任务 43 落地记录，ADR 0023 修订“任务 43 加进分类枚举”并加落地记录，P2 计划 §5.3 落地记录，`agent-tools.md` 去掉“任务 43”占位，README 中英加“分级新闻阅读”、后台任务说明、状态改为 P2 进行中。
 - **验证**：`make lint` 干净；pytest 1339、Vitest 357、E2E 52 全过。Docker 重建（一次只建一个镜像），迁移 head `ab322160460f`，`/healthz` 200，空闲内存 backend 221MiB / frontend 55MiB / postgres 170MiB。
-- **未完成**：没推送。提示词（改写、审题、reading_coach）仍没用真实模型试过。
-- **下一步**：推送并看 CI；然后任务 44（后台预生成 AI 例句，先看覆盖率再决定做不做）。
+- **推送**：1a072a8，CI run 37770089765 四个 job 全绿。
+- **未完成**：提示词（改写、审题、reading_coach）仍没用真实模型试过。
+- **下一步**：任务 44（后台预生成 AI 例句，先看覆盖率再决定做不做）。
 - **踩坑**：会话里别读截图 / 大图，累积附件会让请求超过 32MB 直接中断，E2E 失败只看文本输出。
 
 ---
