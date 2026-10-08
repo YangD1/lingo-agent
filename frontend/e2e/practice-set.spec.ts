@@ -1,50 +1,10 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { register, uniqueEmail, useFakeModel } from "./helpers";
+import { answerPractice as answer, register, uniqueEmail, useFakeModel } from "./helpers";
 
 test.use({ locale: "zh-CN" });
 
 const KC = "g.present_simple_third_person";
-
-/**
- * Answer the item on screen with the fake model's key (e2e/fake_llm.py), or, for a
- * translation when `wrongTranslation` is set, with a wrong sentence that the grading
- * model marks. Returns the item's format.
- */
-async function answer(page: Page, wrongTranslation: boolean): Promise<string> {
-  const item = page.getByTestId("practice-item");
-  const format = (await item.getAttribute("data-format")) ?? "";
-  switch (format) {
-    case "choice4":
-      await item.getByRole("button", { name: /works$/ }).click();
-      break;
-    case "cloze":
-      await item.getByRole("textbox").fill("drinks");
-      await item.getByRole("textbox").press("Enter");
-      break;
-    case "find_fix":
-      await item.getByRole("button", { name: "第 2 段：go" }).click();
-      await item.getByRole("textbox", { name: "改成" }).fill("goes");
-      await item.getByRole("textbox", { name: "改成" }).press("Enter");
-      break;
-    case "transform":
-      await item.getByRole("textbox").fill("My sister plays tennis.");
-      await item.getByRole("textbox").press("Enter");
-      break;
-    case "translate":
-      await item.getByRole("textbox").fill(wrongTranslation ? "She walk to work." : "She walks to work.");
-      await item.getByRole("textbox").press("Enter");
-      break;
-    case "rewrite_own":
-      await item.getByRole("textbox").fill("She likes music.");
-      await item.getByRole("textbox").press("Enter");
-      break;
-    default:
-      throw new Error(`unexpected format ${format}`);
-  }
-  await expect(page.getByTestId("practice-verdict")).toBeVisible();
-  return format;
-}
 
 test("practice set: written, checked, answered, graded, summed up", async ({ page }) => {
   await register(page, uniqueEmail());

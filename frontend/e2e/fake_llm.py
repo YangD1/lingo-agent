@@ -80,6 +80,9 @@ ROUTE_MESSAGE = "## Learner's message\n"
 WRITING_ASK = re.compile(r"review my writing", re.IGNORECASE)
 NUMBERED_SENTENCE = re.compile(r"^\[(\d+)\] (.+)$", re.MULTILINE)
 QUOTED_WORD = re.compile(r'"([A-Za-z]+)"')
+# A mistake in the diagnosis context (backend/app/adaptive/diagnosis/context.py render).
+DIAGNOSIS_EVIDENCE = re.compile(r"^\s*- evidence (\d+) \(", re.MULTILINE)
+DIAGNOSIS_HYPOTHESIS = "主语是第三人称单数时，你常常漏掉动词的 -s。"  # noqa: RUF001
 
 
 # Practice items per format (backend/app/adaptive/exercise/drafts.py Draft) and the key
@@ -388,6 +391,19 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
         return {"route": "writing_coach" if WRITING_ASK.search(message) else "tutor"}
     if name == "Review":
         return writing_review(prompt)
+    if name == "DiagnosisOut":
+        # One cause on the third-person -s, citing every mistake shown.
+        return {
+            "root_causes": [
+                {
+                    "hypothesis": DIAGNOSIS_HYPOTHESIS,
+                    "kc_ids": [THIRD_PERSON_KC],
+                    "evidence_ids": [int(i) for i in DIAGNOSIS_EVIDENCE.findall(prompt)],
+                    "confidence": "high",
+                    "suggestion": "用 he / she 各说三句日常习惯。",
+                }
+            ]
+        }
     if name == "WordExamples" and (word := EXAMPLE_WORD.search(prompt)):
         w = word.group(1)
         return {
