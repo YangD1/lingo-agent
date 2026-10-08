@@ -13,7 +13,12 @@ from app.adaptive.kc.catalog import (
 )
 
 
-def kc(kc_id: str, cefr: str = "A1", prerequisites: list[str] | None = None) -> dict[str, Any]:
+def kc(
+    kc_id: str,
+    cefr: str = "A1",
+    prerequisites: list[str] | None = None,
+    confusable_with: list[str] | None = None,
+) -> dict[str, Any]:
     return {
         "id": kc_id,
         "name_en": kc_id,
@@ -21,6 +26,7 @@ def kc(kc_id: str, cefr: str = "A1", prerequisites: list[str] | None = None) -> 
         "cefr": cefr,
         "description": f"Uses {kc_id}.",
         "prerequisites": prerequisites or [],
+        "confusable_with": confusable_with or [],
     }
 
 
@@ -56,11 +62,40 @@ def test_loads_valid_catalog(tmp_path: Path) -> None:
              kc("g.c", prerequisites=["g.b"])],
             "prerequisite cycle: g.a -> g.c -> g.b -> g.a",
         ),
+        ([kc("g.a", confusable_with=["g.a"])], "lists itself as confusable"),
+        ([kc("g.a", confusable_with=["g.nope"])], "unknown confusable g.nope"),
+        ([kc("g.a", confusable_with=["g.b", "g.b"]), kc("g.b")], "listed as confusable twice"),
+        # Owner is the lower level, then the smaller id; writing both sides trips this too.
+        ([kc("g.a", "A2", confusable_with=["g.b"]), kc("g.b")], "pair with g.b under g.b"),
+        ([kc("g.a", confusable_with=["g.b"]), kc("g.b", confusable_with=["g.a"])], "under g.a"),
+        ([kc("g.a", confusable_with=["g.b"]), kc("g.b", "A2", ["g.a"])], "linked as prereq"),
+        ([kc("g.a", confusable_with=["g.b"]), kc("g.b", "B2")], "too far apart"),
+        (
+            [kc("g.a", confusable_with=["g.b"]), kc("g.b", confusable_with=["g.c", "g.d", "g.e"]),
+             kc("g.c"), kc("g.d"), kc("g.e")],
+            "g.b has 4 confusable KCs",
+        ),
     ],
 )  # fmt: skip
 def test_rejects_invalid_graph(tmp_path: Path, kcs: list[dict[str, Any]], message: str) -> None:
     with pytest.raises(KCCatalogError, match=message):
         load_grammar_catalog(write(tmp_path, {"kcs": kcs}))
+
+
+def test_confusables_are_symmetric(tmp_path: Path) -> None:
+    kcs = [
+        kc("g.past_simple", "A2", confusable_with=["g.present_perfect"]),
+        kc("g.present_perfect", "B1", confusable_with=["g.used_to"]),
+        kc("g.used_to", "B1"),
+    ]
+    catalog = load_grammar_catalog(write(tmp_path, {"kcs": kcs}))
+    assert catalog.confusables("g.present_perfect") == ("g.past_simple", "g.used_to")
+    assert catalog.confusables("g.used_to") == ("g.present_perfect",)
+    assert catalog.confusables("g.nope") == ()
+    assert catalog.confusable_pairs() == [
+        ("g.past_simple", "g.present_perfect"),
+        ("g.present_perfect", "g.used_to"),
+    ]
 
 
 @pytest.mark.parametrize(

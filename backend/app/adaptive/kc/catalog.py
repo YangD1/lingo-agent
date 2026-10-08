@@ -29,6 +29,11 @@ ERROR_TYPES: tuple[ErrorType, ...] = (
 )
 
 GRAMMAR_CATALOG_PATH = Path(__file__).parent / "grammar.yaml"
+# Confusable pairs are few and hand-reviewed (Q45a-b): more than this per KC means the
+# relation has drifted from "learners swap one for the other" to "same chapter".
+MAX_CONFUSABLES = 3
+# Learners confuse forms they meet at nearby levels; a wider gap is a prerequisite or nothing.
+MAX_CONFUSABLE_LEVEL_GAP = 2
 _ID_PATTERN = r"^g\.[a-z][a-z0-9_]*$"
 
 
@@ -46,6 +51,9 @@ class GrammarKC(BaseModel):
     # One English sentence, shown to the reflection model next to the id.
     description: str = Field(min_length=1)
     prerequisites: tuple[str, ...] = ()
+    # KCs learners use in place of this one (ADR 0022). Each pair is written once, under
+    # its owner (see `_confusable_owner`); the catalog makes it symmetric.
+    confusable_with: tuple[str, ...] = ()
     common_errors: tuple[str, ...] = ()
 
 
@@ -54,6 +62,7 @@ class GrammarCatalog(BaseModel):
 
     kcs: tuple[GrammarKC, ...] = Field(min_length=1)
     _by_id: dict[str, GrammarKC] = PrivateAttr(default_factory=dict)
+    _confusables: dict[str, tuple[str, ...]] = PrivateAttr(default_factory=dict)
 
     @model_validator(mode="after")
     def _check_graph(self) -> Self:
@@ -75,6 +84,7 @@ class GrammarCatalog(BaseModel):
         if cycle := _find_cycle(by_id):
             raise ValueError("prerequisite cycle: " + " -> ".join(cycle))
         self._by_id = by_id
+        self._confusables = _check_confusables(by_id)
         return self
 
     def __contains__(self, kc_id: object) -> bool:
@@ -83,9 +93,55 @@ class GrammarCatalog(BaseModel):
     def get(self, kc_id: str) -> GrammarKC | None:
         return self._by_id.get(kc_id)
 
+    def confusables(self, kc_id: str) -> tuple[str, ...]:
+        """KCs confusable with `kc_id`, in both directions, sorted by id."""
+        return self._confusables.get(kc_id, ())
+
+    def confusable_pairs(self) -> list[tuple[str, str]]:
+        """Each confusable pair once, as (owner, other) in catalog order."""
+        return [(kc.id, other) for kc in self.kcs for other in kc.confusable_with]
+
 
 def _rank(level: CefrLevel) -> int:
     return CEFR_LEVELS.index(level)
+
+
+def _confusable_owner(a: GrammarKC, b: GrammarKC) -> GrammarKC:
+    """The KC a pair is written under: the lower level, then the smaller id."""
+    return min(a, b, key=lambda kc: (_rank(kc.cefr), kc.id))
+
+
+def _check_confusables(by_id: dict[str, GrammarKC]) -> dict[str, tuple[str, ...]]:
+    linked: dict[str, set[str]] = {}
+    for kc in by_id.values():
+        for other_id in kc.confusable_with:
+            if other_id == kc.id:
+                raise ValueError(f"{kc.id} lists itself as confusable")
+            other = by_id.get(other_id)
+            if other is None:
+                raise ValueError(f"{kc.id}: unknown confusable {other_id}")
+            owner = _confusable_owner(kc, other)
+            if owner is not kc:
+                raise ValueError(
+                    f"{kc.id}: write the confusable pair with {other_id} under {owner.id}"
+                )
+            if other_id in linked.get(kc.id, ()):
+                raise ValueError(f"{kc.id} and {other_id} are listed as confusable twice")
+            if other_id in kc.prerequisites or kc.id in other.prerequisites:
+                raise ValueError(f"{kc.id} and {other_id} are already linked as prerequisites")
+            if abs(_rank(kc.cefr) - _rank(other.cefr)) > MAX_CONFUSABLE_LEVEL_GAP:
+                raise ValueError(
+                    f"{kc.id} ({kc.cefr}) and {other_id} ({other.cefr}) are too far apart "
+                    "to be confusable"
+                )
+            linked.setdefault(kc.id, set()).add(other_id)
+            linked.setdefault(other_id, set()).add(kc.id)
+    for kc_id, others in linked.items():
+        if len(others) > MAX_CONFUSABLES:
+            raise ValueError(
+                f"{kc_id} has {len(others)} confusable KCs (at most {MAX_CONFUSABLES})"
+            )
+    return {kc_id: tuple(sorted(others)) for kc_id, others in linked.items()}
 
 
 def _find_cycle(by_id: dict[str, GrammarKC]) -> list[str] | None:

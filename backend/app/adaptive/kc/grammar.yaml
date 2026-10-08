@@ -6,7 +6,13 @@
 #
 # Fields: id (g.<snake_case>), name_en, name_zh, cefr (A1-C2), description (one English
 # sentence, shown to the reflection model), prerequisites (KC ids at the same or a lower
-# level), common_errors (short hints for tagging, not stored anywhere).
+# level), confusable_with (KCs learners use in place of this one; see below),
+# common_errors (short hints for tagging, not stored anywhere).
+#
+# confusable_with (ADR 0022) only lists pairs learners actually swap, at most three per KC,
+# no more than two levels apart and never a pair already linked as prerequisites. Each pair
+# is written once, under the lower-level KC (same level: the smaller id); the catalog makes
+# it symmetric and syncs both kinds of edge into kc_edges.
 #
 # One skill per KC, one owner per error pattern: a form rule shared by many
 # structures (modal + bare verb, past participle forms) is its own KC, and each
