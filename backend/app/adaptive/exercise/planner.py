@@ -185,7 +185,8 @@ def candidates(
 ) -> Candidates:
     """The KCs a set may practise (Q32c): those within the level window, plus any
     with evidence, ranked by weakness x importance x recent mistakes (x boost). A
-    `focus` KC is a candidate even outside the window."""
+    `focus` KC, and one a diagnosis boosts (a prerequisite below the window, say), is
+    a candidate even outside the window."""
     practice = rules.practice
     level = learner_level or practice.default_level
     window = practice.importance_by_gap
@@ -195,7 +196,7 @@ def candidates(
         gap = CEFR_LEVELS.index(level) - CEFR_LEVELS.index(kc.cefr)
         if kc.id in states:
             known[kc.id] = states[kc.id]
-        elif min(window) <= gap <= max(window) or kc.id == focus:
+        elif min(window) <= gap <= max(window) or kc.id == focus or kc.id in (boost or {}):
             known[kc.id] = KCState(p_mastery=prior(kc.cefr, learner_level, rules))
         else:
             continue

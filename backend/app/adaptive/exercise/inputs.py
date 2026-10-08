@@ -8,7 +8,7 @@ the plan into one brief per item, everything the generator needs for it.
 
 import uuid
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Literal, cast
 
@@ -16,6 +16,7 @@ from sqlalchemy import Integer, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive import mastery
+from app.adaptive.diagnosis.boost import load_boost
 from app.adaptive.exercise.planner import KCState, PlannedItem, candidates, plan
 from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, GrammarKC
 from app.adaptive.rules import Rules
@@ -54,6 +55,8 @@ class LearnerInputs:
     facts: Sequence[str]
     # Language of explanations and of translate sources; Chinese unless set to English.
     explain_in: ExplainIn = "zh"
+    # Priority factors for KCs recent diagnoses named (Q46e).
+    boost: Mapping[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +182,8 @@ async def load(
         if row.kc_id in catalog
     }
     facts = [m.content for m in await facts_for_context(session, user_id, limit=CONTEXT_FACTS)]
+    learned = [kc_id for kc_id, state in states.items() if state.learned]
+    boost = await load_boost(session, user_id, learned=learned, rules=rules, now=now)
     return LearnerInputs(
         level,
         ability,
@@ -187,6 +192,7 @@ async def load(
         _personal(profile) if profile else {},
         facts,
         "en" if profile and profile.explanation_language == "en" else "zh",
+        boost,
     )
 
 
@@ -217,6 +223,7 @@ def plan_set(
         now=now,
         rules=rules,
         seed=seed,
+        boost=inputs.boost,
         focus=focus,
     )
 
@@ -225,7 +232,9 @@ def wider_kcs(
     inputs: LearnerInputs, *, catalog: GrammarCatalog, rules: Rules, now: datetime
 ) -> list[str]:
     """The learner's candidate weak KCs by priority: bank stand-ins (Q33g)."""
-    return candidates(catalog, inputs.states, learner_level=inputs.level, now=now, rules=rules).weak
+    return candidates(
+        catalog, inputs.states, learner_level=inputs.level, now=now, rules=rules, boost=inputs.boost
+    ).weak
 
 
 def briefs(

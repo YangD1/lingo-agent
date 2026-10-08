@@ -12,6 +12,7 @@ from app.adaptive.exercise.planner import (
     RECOGNITION,
     KCState,
     PlannedItem,
+    candidates,
     plan,
     target_difficulty,
 )
@@ -138,6 +139,14 @@ def test_diagnosis_boost_lifts_a_kc() -> None:
     items = run(states, catalog=small_catalog(8), learner_level="A1", boost={"g.k6": 3.0})
     assert "g.k6" in {i.kc_id for i in items}
     assert "g.k6" not in {i.kc_id for i in run(states, catalog=small_catalog(8))}
+
+
+def test_a_boosted_kc_below_the_window_is_a_candidate() -> None:
+    # A C1 learner's window starts at B2: an A1 prerequisite a diagnosis named is
+    # practised without evidence of its own.
+    args: dict[str, Any] = {"learner_level": "C1", "now": NOW, "rules": RULES}
+    assert A1[0] not in candidates(CATALOG, {}, **args).weak
+    assert A1[0] in candidates(CATALOG, {}, **args, boost={A1[0]: 1.5}).weak
 
 
 def test_out_of_window_kcs_only_with_evidence() -> None:

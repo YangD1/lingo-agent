@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from app.adaptive.diagnosis.boost import boost_for
 from app.adaptive.diagnosis.checks import DiagnosisOut, RootCauseOut, check, diagnose
 from app.adaptive.diagnosis.context import DiagnosisContext, pick_targets, render
 from app.adaptive.graph import GraphNode, Mistake, Neighborhood, Relation
@@ -152,3 +153,14 @@ async def test_diagnose_sends_the_context_and_checks_the_reply() -> None:
     assert schema is DiagnosisOut
     assert "root causes" in messages[0].content
     assert messages[1].content == render(CONTEXT, "en")
+
+
+def test_boost_names_each_kc_once_and_skips_learned_ones() -> None:
+    diagnoses = [
+        [{"kc_ids": ["g.p", "g.t"]}, {"kc_ids": ["g.c"]}],
+        [{"kc_ids": ["g.p"]}],
+        [],
+    ]
+    factor = RULES.diagnosis.boost
+    assert boost_for(diagnoses, {"g.c"}, RULES) == {"g.p": factor, "g.t": factor}
+    assert boost_for([], set(), RULES) == {}

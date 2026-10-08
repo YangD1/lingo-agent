@@ -12,6 +12,7 @@ from app.adaptive.kc.catalog import CEFR_LEVELS, get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.auth.service import register_user
 from app.db.models import (
+    Diagnosis,
     Exercise,
     ExerciseSet,
     KCEvidence,
@@ -256,3 +257,33 @@ async def test_briefs_give_rewrite_own_the_learner_sentence(db_session: AsyncSes
     )
     assert [b.position for b in others] == list(range(len(others)))
     assert all((b.own_sentence is not None) == (b.item.format == "rewrite_own") for b in others)
+
+
+async def test_recent_diagnoses_boost_the_kcs_they_name(db_session: AsyncSession) -> None:
+    user_id, _ = await learner(db_session)
+
+    def diagnosis(kc_ids: list[str], days_ago: float) -> Diagnosis:
+        return Diagnosis(
+            user_id=user_id,
+            trigger="weekly",
+            target_kc_ids=kc_ids,
+            root_causes=[{"kc_ids": kc_ids, "evidence_ids": [], "hypothesis": "h"}],
+            language="zh",
+            rules_version=RULES.version,
+            created_at=NOW - timedelta(days=days_ago),
+        )
+
+    db_session.add_all(
+        [
+            diagnosis([THIRD, PERFECT], days_ago=3),
+            # Past diagnosis.boost_days.
+            diagnosis([PASSIVE], days_ago=RULES.diagnosis.boost_days + 1),
+        ]
+    )
+    await db_session.flush()
+
+    found = await load(db_session, user_id)
+
+    # Learned KCs are left out too (unit test of boost_for).
+    factor = RULES.diagnosis.boost
+    assert found.boost == {THIRD: factor, PERFECT: factor}
