@@ -210,7 +210,7 @@ def _grammar(overview: learner.Overview) -> dict[CefrLevel, LevelSplit]:
 
 
 def _skill_point(skill: learner.Skill, rules: Rules) -> SkillPoint:
-    if skill.skill == "grammar":
+    if skill.skill in ("grammar", "reading"):  # one scale (Q43c)
         cuts = rules.placement.grammar.cefr_cutpoints
         return SkillPoint(
             skill.skill, skill.cefr, cefr_scale.position(skill.rating, cuts), skill.attempts

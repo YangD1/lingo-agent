@@ -1,7 +1,6 @@
-"""Reading (ADR 0024): the feeds a learner follows (Q41e), their articles, and articles
-rewritten for the learner's level (Q42f).
-
-The reading page itself is task 43; these are its data.
+"""Reading (ADR 0024): the feeds a learner follows (Q41e), their articles, articles
+rewritten for the learner's level (Q42f), and the learner reading one: the session,
+quiz answers and the due words in the text (Q43a, Q43b, Q43d).
 """
 
 import uuid
@@ -10,12 +9,15 @@ from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
 
+from app.adaptive.rules import get_rules
 from app.api.errors import api_error
-from app.db.models import ArticleVersion, TenantMember
+from app.db.models import Article, ArticleVersion, ReadingSession, TenantMember
 from app.deps import CurrentTenant, CurrentUser, SessionDep, SettingsDep
 from app.services.news import feeds
 from app.services.news.feeds import ArticleView, FeedError, FeedView
+from app.services.reading import sessions, versions
 from app.services.reading.versions import ReadingError
 from app.services.reading.worker import ReadingWorker
 
@@ -38,6 +40,12 @@ _ERRORS: dict[str, tuple[int, str]] = {
     "summary_only": (status.HTTP_409_CONFLICT, "only a summary: read it at the source"),
     "not_rewritable": (status.HTTP_409_CONFLICT, "this article's license allows no rewriting"),
     "level_above": (status.HTTP_409_CONFLICT, "your level reads the original"),
+    "session_not_found": (status.HTTP_404_NOT_FOUND, "reading session not found"),
+    "no_questions": (status.HTTP_409_CONFLICT, "this text has no questions to answer"),
+    "invalid_answers": (
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "give one option for each question, in order",
+    ),
 }
 
 
@@ -369,3 +377,147 @@ async def get_version(
     except FeedError as exc:
         _raise(exc)
     return _version_out(version, view, worker)
+
+
+class ResultOut(BaseModel):
+    choice: int
+    correct: bool
+    # Sent only once answered: the right option and the sentence that shows it.
+    answer: int
+    evidence: str
+
+
+class SessionOut(BaseModel):
+    id: uuid.UUID
+    # The original, always there to switch to (Q43g).
+    article: ArticleOut
+    level: str
+    # My version (poll `GET /reading/versions/{id}` while generating); null when the
+    # article is not rewritten for me, then `original_reason` says why (Q43e).
+    version: VersionOut | None
+    original_reason: str | None
+    # The first answers, graded; null until answered.
+    results: list[ResultOut] | None
+    finished_at: datetime | None
+
+
+def _result_out(r: sessions.Result) -> ResultOut:
+    return ResultOut(choice=r.choice, correct=r.correct, answer=r.answer, evidence=r.evidence)
+
+
+@router.post("/articles/{article_id}/session")
+async def open_session(
+    article_id: int,
+    user: CurrentUser,
+    tenant: CurrentTenant,
+    session: SessionDep,
+    worker: WorkerDep,
+) -> SessionOut:
+    """Start reading the article, or carry on: my version (started if needed), or the
+    original when it is not rewritten for me. Once answered, the version stays."""
+    rules = get_rules()
+    try:
+        view = await feeds.get_article(session, article_id, tenant.id)
+    except FeedError as exc:
+        _raise(exc)
+    level = await versions.reading_level(session, user.id, rules)
+    reason: str | None = None
+    version_id = await sessions.answered_version(session, user.id, article_id)
+    if version_id is None:
+        try:
+            version_id = await worker.request(user.id, tenant.id, article_id)
+        except ReadingError as exc:
+            reason = exc.code
+        except FeedError as exc:
+            _raise(exc)
+    reading = await sessions.open_session(
+        session, user.id, article_id, version_id=version_id, level=level, now=datetime.now(UTC)
+    )
+    version = (
+        await session.get(ArticleVersion, reading.version_id, populate_existing=True)
+        if reading.version_id is not None
+        else None
+    )
+    return SessionOut(
+        id=reading.id,
+        article=ArticleOut.model_validate(
+            {**_brief(view), "body": view.article.body, "site_url": view.feed.site_url}
+        ),
+        level=reading.level,
+        version=_version_out(version, view, worker) if version is not None else None,
+        original_reason=reason,
+        results=(
+            [_result_out(r) for r in sessions.results(version, reading.answers)]
+            if version is not None and reading.answers is not None
+            else None
+        ),
+        finished_at=reading.finished_at,
+    )
+
+
+class AnswersIn(BaseModel):
+    # The option picked for each question, in order.
+    choices: list[int] = Field(max_length=20)
+
+
+class ResultsOut(BaseModel):
+    results: list[ResultOut]
+    # Whether these answers counted: only the first ones do (Q43b).
+    counted: bool
+
+
+@router.post("/sessions/{session_id}/answers")
+async def answer_questions(
+    session_id: uuid.UUID, body: AnswersIn, user: CurrentUser, session: SessionDep
+) -> ResultsOut:
+    """Grade the questions; the first answers move my reading ability, later ones
+    only get the stored results back."""
+    try:
+        reading = await sessions.get_session(session, session_id, user.id, lock=True)
+        counted = reading.answers is None
+        results = await sessions.answer(
+            session, reading, body.choices, rules=get_rules(), now=datetime.now(UTC)
+        )
+    except ReadingError as exc:
+        _raise(exc)
+    return ResultsOut(
+        results=[_result_out(r) for r in results],
+        counted=counted,
+    )
+
+
+class DueWordOut(BaseModel):
+    word_id: int
+    # As first used in the text, lowercase.
+    form: str
+
+
+class MarksOut(BaseModel):
+    # Words of the text due for review today, as the review queue counts them (Q43d).
+    due: list[DueWordOut]
+
+
+async def _paragraphs(session: SessionDep, reading: ReadingSession, original: bool) -> list[str]:
+    if not original and reading.version_id is not None:
+        version = await session.get(ArticleVersion, reading.version_id)
+        if version is not None and version.status == "ready":
+            return version.paragraphs
+    body = await session.scalar(select(Article.body).where(Article.id == reading.article_id))
+    return body.split("\n\n") if body is not None else []
+
+
+@router.get("/sessions/{session_id}/marks")
+async def get_marks(
+    session_id: uuid.UUID, user: CurrentUser, session: SessionDep, original: bool = False
+) -> MarksOut:
+    """Marks for the text shown: my version once ready, else (or with `original`) the
+    original. The glossary comes with the version."""
+    try:
+        reading = await sessions.get_session(session, session_id, user.id)
+    except ReadingError as exc:
+        _raise(exc)
+    paragraphs = await _paragraphs(session, reading, original)
+    due = await sessions.due_words(
+        session, user.id, paragraphs, rules=get_rules(), now=datetime.now(UTC)
+    )
+    return MarksOut(due=[DueWordOut.model_validate(d) for d in due])

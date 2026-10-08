@@ -115,7 +115,8 @@ async def overview(
 
 def _skill(row: SkillEstimate, placement: dict[str, Any] | None, rules: Rules) -> Skill:
     skill = Skill(row.skill, row.rating, row.attempts)
-    if row.skill == "grammar":
+    # Reading is on the grammar scale (Q43c): both are Elo against the level anchors.
+    if row.skill in ("grammar", "reading"):
         return replace(skill, cefr=cefr_for(row.rating, rules))
     vocab = placement.get("vocab") if placement else None
     if row.skill == "vocab" and isinstance(vocab, dict):
