@@ -143,3 +143,10 @@ def test_shipped_error_examples_have_one_owner() -> None:
         for hint in k.common_errors:
             for example in re.findall(r'"([^"]+)"', hint):
                 assert owners.setdefault(example, k.id) == k.id, (example, owners[example], k.id)
+
+
+def test_shipped_confusables() -> None:
+    catalog = load_grammar_catalog()
+    # Hand-reviewed pairs (task 45); a big jump means the "learners swap them" bar slipped.
+    assert 15 <= len(catalog.confusable_pairs()) <= 70
+    assert catalog.confusables("g.will_future") == ("g.going_to_future",)

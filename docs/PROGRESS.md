@@ -476,8 +476,32 @@
   - Q45f（已确认，按推荐）查询范围：推荐任务 45 的 `graph.py` 做到“给定学习者和一个 KC → 前置链（深度上限 `rules.yaml` 默认 3）+ 易混 KC，每个带掌握度和最近 N 条证据（原句 / 改正，N 默认 3，也放 `rules.yaml`）”，返回结构化数据；拼成提示词文本留给任务 46 的诊断。备选：45 只做纯图查询，掌握度和证据 join 放到 46
   - Q45g（已确认，按推荐）界面：推荐任务 45 不加界面；学习者模型页显示“容易和 X 混淆 / 先要会 Y”放到任务 47 和诊断一起做。备选：45 就在学习者模型页每个语法点下显示易混和前置
   - [x] 45.1 清单 schema（单测 25 全过，ruff、mypy 干净）：`GrammarKC.confusable_with`；校验引用存在、不指向自己、不和直接前置重复、等级差 ≤ 2（`MAX_CONFUSABLE_LEVEL_GAP`）、按 Q45c 只写在等级低 / 同级 id 小的一边（写反或两边都写报“write the confusable pair with X under Y”）、每个 KC 双向合计 ≤ 3（`MAX_CONFUSABLES`）；`GrammarCatalog.confusables(kc_id)` 返回双向结果、`confusable_pairs()` 每对一次（给 45.3 同步用）；`grammar.yaml` 文件头写明规则
-  - [~] 45.2 起草 `grammar.yaml` 的 `confusable_with` + 自审（按 Q45a / Q45d），看板列出全部对子和理由；仓库清单测试（对子数量范围、每个 KC 上限）
-  - [ ] 45.3 `kc_edges` 表（`from_kc`、`to_kc`、`kind` ∈ prerequisite / confusable，三列主键；prerequisite 边从 KC 指向它的前置，confusable 两个方向各存一条）+ 迁移 + `adaptive/graph_sync.py`（比对后重写）+ lifespan 调用 + `make kc-sync`；集成测试（首次写入、无变化不写、改了 YAML 后重写）
+  - [x] 45.2 起草 + 自审（单测 26 全过）：24 对，比预计的 40–70 少。原因：很多经典易混已经在清单里另有表达，比如前置关系（used to → be used to、各条件句之间、被动 → 使役）或单独的对比 KC（现在完成时与一般过去时、将来时的选择、一般现在时与现在进行时）。按“宁缺毋滥”，不为凑数加只是同一章节的。仓库清单测试：对子数 15–70。全部对子（写在前者下）和理由：
+    1. `be_present` ↔ `present_simple_questions_negatives`：be 和 do 当助动词时互相顶替（“I am not like it”“Do you happy?”）
+    2. `past_simple_be` ↔ `past_simple_questions_negatives`：过去时里 was 和 did 互相顶替（“I wasn't went”“Did you tired?”）
+    3. `going_to_future` ↔ `will_future`：A2 阶段 going to 和 will 不分场合混用
+    4. `present_simple_vs_continuous` ↔ `used_to`：用 used to 表示现在的习惯（“I used to get up early”想说“我平时”），本该用一般现在时
+    5. `present_simple_vs_continuous` ↔ `present_perfect_for_since`：持续到现在的状态用一般现在时（“I live here for five years”）
+    6. `past_perfect` ↔ `present_perfect_vs_past_simple`：把过去完成时当成“更过去”，用在单个过去事件上，本该用一般过去时或现在完成时
+    7. `modals_obligation` ↔ `should_advice`：must / have to 和 should 的语气强弱混用，给建议时说成必须
+    8. `modals_obligation` ↔ `modal_perfect`：用 must have done 表示“过去不得不”（应为 had to），或反过来
+    9. `there_is_are` ↔ `dummy_it`：there 和形式主语 it 互相顶替（“There is important to…”“It has a lake in the park”）
+    10. `infinitive_of_purpose` ↔ `gerund_after_prepositions`：表目的用 for + 动词 / 动名词，本该用 to do（“for buy milk”）
+    11. `gerund_after_prepositions` ↔ `gerund_infinitive`：介词 to 和不定式 to 分不清（“look forward to see you”）
+    12. `verb_object_patterns` ↔ `reporting_verbs`：把 want sb to do 套到 suggest 上（“He suggested me to go”）
+    13. `verb_object_patterns` ↔ `causative_have_get`：make / let sb do 和 have / get sth done 混用（“I had done my car”“I cut my hair”指别人剪）
+    14. `verb_object_patterns` ↔ `subjunctive`：insist / suggest 后套用宾语 + 不定式（“I insist him to come”），本该用 that + 动词原形
+    15. `defining_relative_clauses` ↔ `noun_clauses`：what 和 which / that 互相顶替（“the thing what I want”“I understand which you mean”）
+    16. `too_enough` ↔ `so_such`：用 too 表示“很、非常”（“too delicious”），本该用 so / very
+    17. `linkers_contrast` ↔ `sentence_boundaries`：however 当连词用、逗号连接两个句子（“It rained, however we went out”），本该用 although / but 或分句
+    18. `so_neither_agreement` ↔ `either_neither`：否定句后用 too / Me too（“I don't like it too”），本该用 either / neither
+    19. `dependent_prepositions` ↔ `phrasal_verbs`：分不清介词动词和可分短语动词，代词位置放错（“pick up it”“look it after”）
+    20. `first_conditional` ↔ `future_time_clauses`：“如果”和“当……时”对应的 if / when 混用（一定会发生的事用 if，或反过来）
+    21. `modal_perfect` ↔ `third_conditional`：should have / would have / could have 混用（表后悔说成 would have）
+    22. `comparatives` ↔ `comparatives_advanced`：-er than 和 as … as 拼在一起（“as tall than”），或用 very 修饰比较级
+    23. `conjunctions_because_so` ↔ `purpose_clauses`：表结果的 so 和表目的的 so that 混用
+    24. `polite_requests` ↔ `verb_patterns_basic`：like doing 和 would like to do 混用（“I like a coffee”“Would you like going”）
+  - [~] 45.3 `kc_edges` 表（`from_kc`、`to_kc`、`kind` ∈ prerequisite / confusable，三列主键；prerequisite 边从 KC 指向它的前置，confusable 两个方向各存一条）+ 迁移 + `adaptive/graph_sync.py`（比对后重写）+ lifespan 调用 + `make kc-sync`；集成测试（首次写入、无变化不写、改了 YAML 后重写）
   - [ ] 45.4 `adaptive/graph.py`：`prerequisite_chain(kc, depth)`（递归 CTE，带深度、去重、按深度排序）、`confusables(kc)`、`neighborhood(session, user, kc)`（链 + 易混，各带 `kc_mastery` 和最近 N 条 `kc_evidence`）；`rules.yaml` 加 `graph.prerequisite_depth`、`graph.evidence_per_kc`，升规则版本；集成测试（多层链截断、菱形去重、只看本人证据、没有掌握度的 KC 也返回）
   - [ ] 45.5 收尾：`make lint`、pytest；ADR 0022 落地记录、P2 计划、PLAN；不调模型，`features.yaml` 和 `agent-tools.md` 不用改
 - [ ] 46. 诊断 Agent + `diagnoses` 表 + 记忆写入 + 选题加成（集成测试）

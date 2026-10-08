@@ -38,6 +38,7 @@ kcs:
     name_zh: be 动词现在时（am / is / are）
     cefr: A1
     description: Choosing am, is or are to match the subject, including in negatives and questions.
+    confusable_with: [g.present_simple_questions_negatives]
     common_errors:
       - "leaving out be before an adjective, noun or place (\"She very busy\", \"He in Beijing\")"
       - "be used together with a main verb (\"I am agree\", \"I am live in Beijing\")"
@@ -115,6 +116,7 @@ kcs:
     cefr: A1
     description: Using there is/there are to say that something exists or is somewhere.
     prerequisites: [g.be_present, g.plural_nouns]
+    confusable_with: [g.dummy_it]
     common_errors:
       - "have for existence (\"There have many people\", \"In the park has a lake\")"
       - "is/are not matching the first noun (\"There is many problems\")"
@@ -242,6 +244,7 @@ kcs:
     cefr: A2
     description: Using was/were to match the subject when talking about the past.
     prerequisites: [g.be_present]
+    confusable_with: [g.past_simple_questions_negatives]
     common_errors:
       - "was after you/we/they (\"They was\")"
       - "present form for a finished past time (\"Yesterday I am tired\")"
@@ -300,6 +303,7 @@ kcs:
     cefr: A2
     description: Choosing the present simple for habits and facts and the present continuous for temporary actions in progress.
     prerequisites: [g.present_simple_third_person, g.present_continuous]
+    confusable_with: [g.used_to, g.present_perfect_for_since]
     common_errors:
       - "continuous for routines (\"Every morning I am drinking tea\")"
       - "simple for something happening now (\"Look, it rains\")"
@@ -310,6 +314,7 @@ kcs:
     cefr: A2
     description: Using am/is/are going to + base verb for intentions and predictions based on present evidence.
     prerequisites: [g.be_present]
+    confusable_with: [g.will_future]
     common_errors:
       - "leaving out be (\"I going to study\")"
       - "-ing after going to (\"going to visiting\")"
@@ -356,6 +361,7 @@ kcs:
     cefr: A2
     description: Forming comparatives with -er or more, followed by than.
     prerequisites: [g.adjective_position]
+    confusable_with: [g.comparatives_advanced]
     common_errors:
       - "double comparatives (\"more bigger\")"
       - "-er on long adjectives (\"beautifuller\")"
@@ -396,6 +402,7 @@ kcs:
     cefr: A2
     description: "Expressing obligation, prohibition and lack of obligation, noting that mustn't and don't have to differ."
     prerequisites: [g.modal_forms]
+    confusable_with: [g.should_advice, g.modal_perfect]
     common_errors:
       - "mustn't used to mean 'not necessary'"
       - "must for past obligation where had to is needed (\"Yesterday I must work late\")"
@@ -413,6 +420,7 @@ kcs:
     cefr: A2
     description: Making requests with can/could/would you and offers or wishes with would like.
     prerequisites: [g.modal_forms]
+    confusable_with: [g.verb_patterns_basic]
     common_errors:
       - "'like' for a polite wish (\"I like a coffee\" meaning \"I'd like\")"
       - "-ing after would like (\"Would you like going\")"
@@ -432,6 +440,7 @@ kcs:
     cefr: A2
     description: Using to + base verb to explain why someone does something.
     prerequisites: [g.verb_patterns_basic]
+    confusable_with: [g.gerund_after_prepositions]
     common_errors:
       - "'for' + verb (\"I went there for buy milk\")"
 
@@ -441,6 +450,7 @@ kcs:
     cefr: A2
     description: Using because for a reason and so for a result, but not both in one sentence.
     prerequisites: [g.conjunctions_basic]
+    confusable_with: [g.purpose_clauses]
     common_errors:
       - "because and so together (\"Because it rained, so we stayed\")"
 
@@ -474,6 +484,7 @@ kcs:
     cefr: A2
     description: Putting too before an adjective, enough after an adjective and before a noun.
     prerequisites: [g.adjective_position]
+    confusable_with: [g.so_such]
     common_errors:
       - "enough before an adjective (\"enough big\")"
       - "too used to mean 'very' in a positive sense (\"too delicious\")"
@@ -534,6 +545,7 @@ kcs:
     cefr: B1
     description: Using had + past participle for an event that happened before another past event.
     prerequisites: [g.past_simple_irregular, g.past_participle_forms]
+    confusable_with: [g.present_perfect_vs_past_simple]
     common_errors:
       - past perfect where the order is already clear or for a single past event
 
@@ -582,6 +594,7 @@ kcs:
     cefr: B1
     description: Using if + present, will + base verb for likely future situations.
     prerequisites: [g.zero_conditional, g.will_future]
+    confusable_with: [g.future_time_clauses]
     common_errors:
       - "will in the if-clause (\"If it will rain\")"
 
@@ -612,6 +625,7 @@ kcs:
     cefr: B1
     description: Identifying people and things with who, which, that, whose and where, and omitting object pronouns.
     prerequisites: [g.subject_pronouns]
+    confusable_with: [g.noun_clauses]
     common_errors:
       - "an extra pronoun inside the clause (\"the man who I met him\")"
       - "subject relative pronoun left out (\"There are many people want to help\")"
@@ -663,6 +677,7 @@ kcs:
     cefr: B1
     description: Using want/ask/tell/allow + object + to-infinitive, and make/let + object + base verb.
     prerequisites: [g.verb_patterns_basic, g.object_pronouns]
+    confusable_with: [g.reporting_verbs, g.causative_have_get, g.subjunctive]
     common_errors:
       - "that-clause after want (\"I want that you come\")"
       - "to after make/let (\"make me to feel\", \"let him to go\")"
@@ -673,6 +688,7 @@ kcs:
     cefr: B1
     description: "Using the -ing form after prepositions, including the 'to' of look forward to, object to and be committed to."
     prerequisites: [g.verb_patterns_basic]
+    confusable_with: [g.gerund_infinitive]
     common_errors:
       - "\"look forward to see you\""
       - "base verb after a preposition (\"interested in learn\", \"before go\", \"without say\")"
@@ -692,6 +708,7 @@ kcs:
     cefr: B1
     description: Using the preposition that goes with a verb, adjective or noun, such as depend on, good at, interested in or reason for.
     prerequisites: [g.prepositions_place]
+    confusable_with: [g.phrasal_verbs]
     common_errors:
       - "a wrong or extra preposition (\"discuss about\", \"married with\", \"good in\")"
       - "a missing preposition (\"listen music\", \"wait me\")"
@@ -729,6 +746,7 @@ kcs:
     cefr: B1
     description: Using although + clause, despite/in spite of + noun or -ing, and however between sentences.
     prerequisites: [g.conjunctions_because_so]
+    confusable_with: [g.sentence_boundaries]
     common_errors:
       - "although and but together (\"Although it was late, but we stayed\")"
       - "despite + clause (\"despite it was raining\", \"despite of\")"
@@ -789,6 +807,7 @@ kcs:
     cefr: B1
     description: Agreeing with so/neither + auxiliary + subject, matching the auxiliary of the first sentence.
     prerequisites: [g.present_simple_questions_negatives]
+    confusable_with: [g.either_neither]
     common_errors:
       - "wrong auxiliary (\"I went there. - So am I\")"
       - "\"Me too\" after a negative sentence (\"Me neither\")"
@@ -900,6 +919,7 @@ kcs:
     cefr: B2
     description: "Using modal + have + past participle for deductions about the past (must/might/can't have) and for regret, criticism or unnecessary actions (should/could/needn't have)."
     prerequisites: [g.modals_possibility, g.should_advice, g.past_participle_forms]
+    confusable_with: [g.third_conditional]
     common_errors:
       - "must had / should went: modal + past form instead of have + participle (\"He must had left\", \"I should went\")"
       - "mustn't have for past impossibility (can't have)"
