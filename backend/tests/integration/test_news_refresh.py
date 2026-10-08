@@ -10,7 +10,15 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.db.models import Article, Feed, FeedSubscription, SchedulerRun, Tenant, User
+from app.db.models import (
+    Article,
+    Feed,
+    FeedSubscription,
+    ReadingSession,
+    SchedulerRun,
+    Tenant,
+    User,
+)
 from app.db.session import create_sessionmaker
 from app.scheduler.jobs import JOBS
 from app.scheduler.service import Scheduler
@@ -232,19 +240,24 @@ async def test_a_bug_in_one_feed_is_recorded_and_backed_off(
 async def test_old_articles_are_removed_and_never_stored(
     maker: async_sessionmaker[AsyncSession], web: Web
 ) -> None:
-    await add_user(maker)
+    reader = await add_user(maker)
     long_after = NOW + timedelta(days=91)
     await fetch_due_feeds(maker, now=NOW, proxy="")
-    assert len(await articles(maker)) == 2
+    stored = await articles(maker)
+    assert len(stored) == 2
+    # Someone read one of them: it stays (Q43a).
+    async with maker() as session:
+        session.add(ReadingSession(user_id=reader.id, article_id=stored[0].id, level="B1"))
+        await session.commit()
 
     # 91 days on, the stored ones are past retention, and the same entries come back
     # in the feed: they are not stored again.
     web.serve("https://www.nasa.gov/news-release/feed/", "nasa.xml", etag='"n2"')
     web.serve("https://globalvoices.org/feed/", "global_voices.xml", etag='"g2"')
     totals = await fetch_due_feeds(maker, now=long_after, proxy="")
-    assert totals["removed"] == 2
+    assert totals["removed"] == 1
     assert totals["skipped_old"] == 6
-    assert await articles(maker) == []
+    assert [a.id for a in await articles(maker)] == [stored[0].id]
 
 
 async def test_the_job_runs_under_the_scheduler(

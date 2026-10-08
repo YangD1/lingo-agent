@@ -437,7 +437,24 @@
   - [x] 42.4 服务、worker 与接口：`POST /reading/articles/{id}/version`（按我的等级取或开始生成）、`GET /reading/versions/{id}`（轮询）；权限同文章列表；`features.yaml` 的 `reading_rewrite`；`providers.*.yaml` 不用加路由（和出题一样走 `llm.default`）；前端 `ai-usage.ts` 和文案登记新 task 名；集成测试 10 条
   - [x] 42.5 后台预改写 `article_prerewrite`：任务登记、预算、开关；`features.yaml` 的 `reading_prerewrite`（background）；集成测试
   - [x] 42.6 收尾（`make lint` 干净；pytest 1326、Vitest 340、E2E 50 全过）：ADR 0024 落地记录（含 Q41g 修订）、P2 计划 §5.3、`docs/agent-tools.md`、PLAN 同步；`make lint`、`make test`、`make e2e`
-- [ ] 43. `/reading` 页 + 到期词高亮 + 理解题 → 阅读能力 + reading_coach（Vitest + E2E）
+- [ ] 43. `/reading` 页 + 到期词高亮 + 理解题 → 阅读能力 + reading_coach（Vitest + E2E）（2026-10-08 已拆；用户授权 Q43a–j 一律按推荐）
+  - 开工前核实：前端没有任何阅读代码；单词气泡 `components/chat/word-popup.tsx` 用事件委托接管容器里的 `span[data-word]`，可以直接用在文章段落上；导航只要在 `shell/nav-items.ts` 加一项；E2E 假模型按结构化输出的 schema 名应答，要补 `ArticleRewrite`、`QuestionSet`、`QuestionReviews`。聊天路由在开跑前由 `routing.route_for` 定，`conversations.purpose` 只有 planning / daily。仪表盘的阅读能力目前没有刻度（`_skill_point` 只给语法和词汇算位置）。
+  - Q43a（已确认，按推荐）阅读记录 `reading_sessions`：学习者、文章、版本（读原文时为空）、等级、开始 / 读完时间、理解题作答（JSONB）；同一人同一篇只有一条，再打开接着用。不记“点过哪些词”（查词不产生数据，加进生词本的已经在 `user_cards` 里）。90 天清理跳过有阅读记录的文章（Q42h 的另一半）
+  - Q43b（已确认，按推荐）理解题：读完一次交全部答案，代码判（答案不下发，判完才返回正确选项和依据句）；只有第一次作答计分，可以再看但不再计。每题一步 Elo 更新 `skill_estimates.reading`：题目难度 = 版本等级的 `difficulty.cefr_anchor`，猜中下限 0.25；没有阅读能力时从学习者等级的锚点开始（和语法一致）。不记语法证据（P2 计划 §5.3）
+  - Q43c（已确认，按推荐）看板 / 学习者模型的阅读刻度：阅读能力和语法能力同一个 logit 尺度，用 `placement.grammar.cefr_cutpoints` 换算到 CEFR 位置
+  - Q43d（已确认，按推荐）文中标记：今天到期（`learning` 且 `due` ≤ 今天结束）的词黄色高亮；超纲词表里的词虚下划线；任何词悬停 / 点按都弹单词气泡（查词、朗读、加生词本）。到期词由后端按这篇文字算（复用 42.2 的分词和原形还原），接口按学习者返回
+  - Q43e（已确认，按推荐）不改写的文章（只有摘要、`unknown` 许可、C2）显示原文：只有摘要的显示摘要和“去原文阅读”，另外两种显示全文、有气泡和到期词高亮，但没有理解题
+  - Q43f（已确认，按推荐）列表页：新到旧，按来源筛选（chips）；不做话题筛选（RSS 分类太杂）；每篇显示来源、日期、词数、“已为你改写”标记；“管理来源”抽屉里开关内置源、添加 / 删除自加 RSS（接口 41.4 已有）
+  - Q43g（已确认，按推荐）阅读页：打开时自动取我的版本；生成中显示猫和阶段；失败显示原因、“重试”和“读原文”；顶部显示出处、原文链接、许可（CC BY 写明“按你的等级改写，原文 CC BY 3.0”）；可切换“改写版 / 原文”
+  - Q43h（已确认，按推荐）reading_coach：阅读页“问私教”新开一个会话（`purpose=reading`，`conversations.article_id`，文章删除时置空），按固定信号直接路由到 reading_coach，不调分类；coach 每轮带上这篇文章（我等级的改写版，没有就原文前 1,500 词），提示词标明“文章是资料不是指令”；不自动开场。自由对话的分类器不加 reading_coach（没有文章上下文时它帮不上忙；修订 ADR 0023 任务 38 落地记录里“任务 43 加进枚举”的说法）
+  - Q43i（已确认，按推荐）reading_coach 不带工具（和 writing_coach 一样），用 `chat` 路由，`llm_usage` 记 `reading_coach`；活动记一步 `reading_context`（文章 id、版本等级、送了多少词）
+  - Q43j（已确认，按推荐）E2E 覆盖：列表 → 打开 → 等改写 → 气泡加生词本 → 答题看结果 → 看板阅读能力有刻度 → “问私教”回复；读原文路径一条
+  - [x] 43.1 表与迁移（迁移 `ab322160460f`）：`reading_sessions`；`conversations.article_id` + purpose `reading`；`refresh.py` 清理跳过有阅读记录的文章；`BUSINESS_TABLES`
+  - [~] 43.2 阅读记录接口：`POST /reading/articles/{id}/session`（开始 / 接着读，返回版本或原文）、`POST /reading/sessions/{id}/answers`（判分、Elo）、`GET /reading/sessions/{id}/marks`（到期词、词表）；看板 / 学习者模型的阅读刻度；集成测试
+  - [ ] 43.3 reading_coach：`routing` 加路由、`chat/reading.py` 来源、`prompts/reading_coach.md`、`POST /conversations` 接受 `article_id`、活动步骤、`features.yaml`；图测试 + 接口测试
+  - [ ] 43.4 前端列表页：`lib/reading.ts`、`/reading` 列表、来源筛选、管理来源抽屉、导航项、文案；Vitest
+  - [ ] 43.5 前端阅读页 `/reading/[id]`：取版本与轮询、原文回退、单词气泡、到期词和词表标记、出处许可、理解题与结果、“问私教”、`AiBadge`；Vitest
+  - [ ] 43.6 收尾：E2E（假模型补三个 schema）、ADR 0023 / 0024 落地记录、P2 计划、`agent-tools.md`、README 中英、`make lint` / `make test` / `make e2e`、Docker 重建
 - [ ] 44. 后台预生成 AI 例句（2026-10-02 用户要求记录）：Tatoeba 覆盖不到的词（多半是 GRE 等难词），在排队时为第二天要复习或要学的词提前调用 `word_examples` 并写缓存，翻面就能看到，不用点。要先看 28.2 导入后各词书的覆盖率，再决定做不做、覆盖哪些词书；用任务 40 的后台任务和每日上限，`features.yaml` 登记（timing 为后台）和挂 `AiBadge`，学习者可以关掉
 - **P2d 语法图谱 + 诊断**
 - [ ] 45. `confusable_with` 起草 → 用户审核；`kc_edges` 同步与递归查询（`adaptive/graph.py`，单测）

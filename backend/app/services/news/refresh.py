@@ -17,7 +17,7 @@ from sqlalchemy import ColumnElement, delete, exists, func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.models import Article, Feed, FeedSubscription, User
+from app.db.models import Article, Feed, FeedSubscription, ReadingSession, User
 from app.services.news.fetch import FeedFetchError, fetch_feed, make_feed_client
 from app.services.news.parse import ParsedFeed, parse_feed
 from app.services.news.rules import Kept, judge
@@ -212,9 +212,12 @@ async def fetch_due_feeds(
 
     async with sessionmaker() as session:
         removed = await session.execute(
-            # Rewritten versions go with their article (Q42h); task 43 keeps articles
-            # that have reading sessions.
-            delete(Article).where(Article.published_at < now - RETENTION)
+            # Rewritten versions go with their article (Q42h); an article someone has
+            # read stays, so their reading history keeps its text (Q43a).
+            delete(Article).where(
+                Article.published_at < now - RETENTION,
+                ~exists().where(ReadingSession.article_id == Article.id),
+            )
         )
         await session.commit()
     totals["removed"] = removed.rowcount  # type: ignore[attr-defined]

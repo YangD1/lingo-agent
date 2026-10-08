@@ -53,6 +53,7 @@ from app.services.reading.worker import ReadingWorker  # noqa: E402
 from app.writing.worker import WritingWorker  # noqa: E402
 
 BUSINESS_TABLES = (
+    "reading_sessions",
     "article_versions",
     "articles",
     "feed_subscriptions",

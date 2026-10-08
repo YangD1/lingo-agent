@@ -52,7 +52,7 @@ CARD_STATUSES = ("new", "learning", "known", "suspended")
 PLACEMENT_STATUSES = ("in_progress", "done", "abandoned")
 PLACEMENT_STAGES = ("vocab", "grammar")
 # planning: after a placement test (ADR 0015 §6); daily: the dashboard's (ADR 0016).
-CONVERSATION_PURPOSES = ("planning", "daily")
+CONVERSATION_PURPOSES = ("planning", "daily", "reading")
 # A writing submission is reviewed in the background (Q38c).
 WRITING_STATUSES = ("pending", "done", "failed")
 SCHEDULER_RUN_STATUSES = ("running", "ok", "skipped", "error")
@@ -144,8 +144,13 @@ class Conversation(TimestampMixin, Base):
     # the catalog is a file, so the id is checked against it when the row is written.
     focus_kc_id: Mapped[str | None] = mapped_column(String(64))
     # What the conversation is for, besides practice (ADR 0015 §6): "planning" is the
-    # study-planning conversation started from the placement result; NULL for free chat.
+    # study-planning conversation started from the placement result; "reading" asks the
+    # reading coach about `article_id` (Q43h); NULL for free chat.
     purpose: Mapped[str | None] = mapped_column(String(20))
+    # The article a reading conversation is about; NULL once the article is gone.
+    article_id: Mapped[int | None] = mapped_column(
+        ForeignKey("articles.id", ondelete="SET NULL"), index=True
+    )
 
 
 class ProviderConnection(TimestampMixin, Base):
@@ -1132,4 +1137,35 @@ class ArticleVersion(Base):
     # Made by the background job (Q42g) rather than for a learner who opened it.
     background: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ReadingSession(Base):
+    """A learner reading an article (Q43a): one per learner and article, picked up
+    again when they come back. Keeps the article from the 90-day cleanup.
+
+    `answers` holds the first answers to the version's questions, the only ones that
+    count: [{"choice": int, "correct": bool}] by question; null until answered.
+    """
+
+    __tablename__ = "reading_sessions"
+    __table_args__ = (
+        CheckConstraint(_in("level", CEFR_LEVELS), name="level"),
+        UniqueConstraint("user_id", "article_id"),
+        Index("ix_reading_sessions_article_id", "article_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    article_id: Mapped[int] = mapped_column(ForeignKey("articles.id", ondelete="CASCADE"))
+    # The version read; NULL while reading the original (Q43e).
+    version_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("article_versions.id", ondelete="SET NULL")
+    )
+    # The learner's level when they opened it.
+    level: Mapped[str] = mapped_column(String(2))
+    answers: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # When the learner opened it last.
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
