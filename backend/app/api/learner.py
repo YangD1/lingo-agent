@@ -248,6 +248,19 @@ async def get_diagnosis(user: CurrentUser, session: SessionDep) -> DiagnosisPage
     )
 
 
+@router.delete("/diagnoses/{diagnosis_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_diagnosis(
+    diagnosis_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> Response:
+    try:
+        await diagnosis_view.delete_diagnosis(session, user.id, diagnosis_id)
+    except diagnosis_view.DiagnosisNotFoundError as exc:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "diagnosis_not_found", "diagnosis not found"
+        ) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/kcs/{kc_id}/evidence")
 async def get_evidence(kc_id: str, user: CurrentUser, session: SessionDep) -> EvidencePage:
     if kc_id not in get_grammar_catalog():

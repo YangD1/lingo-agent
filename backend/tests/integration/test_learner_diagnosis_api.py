@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adaptive.diagnosis.boost import load_boost
 from app.adaptive.rules import get_rules
 from app.db.models import Conversation, Diagnosis, KCEvidence, Memory
 from app.memory.service import add_memory
@@ -172,3 +173,53 @@ async def test_deleting_all_learning_records_deletes_diagnoses_and_their_memory(
     assert await db_session.scalar(count) == 0
     assert await db_session.scalar(select(Memory.id).where(Memory.id == memory_id)) is None
     assert await db_session.scalar(select(Memory.id).where(Memory.id == other_id)) == other_id
+
+
+async def test_deleting_a_diagnosis_ends_its_boost_and_deletes_its_memory(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    user_id, tenant_id = await learner(client, db_session, model=False)
+    memory = await add_memory(
+        db_session, tenant_id=tenant_id, user_id=user_id, kind="fact", content="Diagnosis: x"
+    )
+    memory_id = memory.id
+    old = _diagnosis(user_id, [_cause([THIRD_PERSON], [], "Old.")], days_ago=3, memory_id=memory_id)
+    new = _diagnosis(user_id, [_cause([BE], [], "New.")], days_ago=1, memory_id=memory_id)
+    db_session.add_all([old, new])
+    await db_session.flush()
+    old_id, new_id = old.id, new.id
+    await db_session.commit()
+
+    # An older one: the memory now says what the newer one found, so it stays.
+    response = await client.delete(f"/learner/diagnoses/{old_id}")
+    assert response.status_code == 204, response.text
+    db_session.expire_all()
+    assert await db_session.scalar(select(Memory.id).where(Memory.id == memory_id)) == memory_id
+
+    response = await client.delete(f"/learner/diagnoses/{new_id}")
+    assert response.status_code == 204, response.text
+    db_session.expire_all()
+    assert await db_session.scalar(select(Memory.id).where(Memory.id == memory_id)) is None
+    assert (await _page(client))["diagnosis"] is None
+    boost = await load_boost(db_session, user_id, learned=(), rules=RULES, now=datetime.now(UTC))
+    assert boost == {}
+
+    response = await client.delete(f"/learner/diagnoses/{new_id}")
+    assert response.status_code == 404
+
+
+async def test_another_learners_diagnosis_cannot_be_deleted(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    other, _ = await learner(client, db_session, model=False)
+    row = _diagnosis(other, [_cause([BE], [])])
+    db_session.add(row)
+    await db_session.flush()
+    row_id = row.id
+    await db_session.commit()
+    await learner(client, db_session, model=False)
+
+    response = await client.delete(f"/learner/diagnoses/{row_id}")
+    assert response.status_code == 404
+    db_session.expire_all()
+    assert await db_session.scalar(select(Diagnosis.id).where(Diagnosis.id == row_id)) == row_id

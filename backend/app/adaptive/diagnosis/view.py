@@ -9,13 +9,13 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive import mastery
 from app.adaptive.kc.catalog import GrammarCatalog, GrammarKC
 from app.adaptive.rules import Rules
-from app.db.models import Conversation, Diagnosis, KCEvidence, KCMastery
+from app.db.models import Conversation, Diagnosis, KCEvidence, KCMastery, Memory
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,3 +151,34 @@ async def _titles(
         )
     )
     return {i: title for i, title in rows.all()}
+
+
+class DiagnosisNotFoundError(Exception):
+    pass
+
+
+async def delete_diagnosis(
+    session: AsyncSession, user_id: uuid.UUID, diagnosis_id: uuid.UUID
+) -> None:
+    """Delete a diagnosis the learner disagrees with (Q47c), which ends its boost, and
+    the memory it wrote unless a later diagnosis has rewritten that memory; commits."""
+    row = await session.scalar(
+        select(Diagnosis).where(Diagnosis.id == diagnosis_id, Diagnosis.user_id == user_id)
+    )
+    if row is None:
+        raise DiagnosisNotFoundError(diagnosis_id)
+    memory_id = row.memory_id
+    if memory_id is not None:
+        # Diagnoses update one memory in place (Q46d): it says what the newest one found.
+        newest = await session.scalar(
+            select(Diagnosis.id)
+            .where(Diagnosis.user_id == user_id, Diagnosis.memory_id == memory_id)
+            .order_by(Diagnosis.created_at.desc())
+            .limit(1)
+        )
+        if newest == row.id:
+            await session.execute(
+                delete(Memory).where(Memory.id == memory_id, Memory.user_id == user_id)
+            )
+    await session.delete(row)
+    await session.commit()

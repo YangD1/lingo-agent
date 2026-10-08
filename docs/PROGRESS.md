@@ -531,8 +531,8 @@
   - Q47f（已确认，按推荐）手动诊断：推荐不加“现在诊断”按钮（后台已有两种触发，省额度），区块空状态说明什么时候会诊断、开关在设置页。备选：加按钮（带 AI 标记，每天一次）
   - Q47g（已确认，按推荐）位置：推荐放学习者模型页顶部、等级进度之前；没诊断过时只占一行说明；看板不加。备选：放页底，或看板也显示一条
   - [x] 47.1 读取接口（集成测试 5 个 + 原学习者接口测试全过，ruff、mypy 干净）：`adaptive/diagnosis/view.py` `latest`（最近一次有结论的诊断 + 最近一次诊断时间 `checked_at`；每条结论的语法点按引用顺序、不在目录里的跳过、带“已学会”；证据按引用顺序只给还在的，`cited` 记引用总数；`boost_until` / `boost_active`）；`GET /learner/diagnosis`（另带诊断开关 `enabled`）；`learner.delete_all` 一并删诊断和它们写的记忆
-  - [~] 47.2 删除：`DELETE /learner/diagnoses/{id}`（按 Q47c，连带记忆，加成随之取消）；集成测试
-  - [ ] 47.3 图谱字段：`KCOut` 加 `prerequisites`、`confusables`（从语法目录取）；接口测试
+  - [x] 47.2 删除（集成测试 2 个全过，ruff、mypy 干净）：`view.delete_diagnosis` + `DELETE /learner/diagnoses/{id}`（204；别人的或不存在 404）；加成从表里算，删了即取消；记忆是几次诊断原地共用的一条，只有删的是写它最新内容的那次才连带删掉。删掉最近一次后，页面会显示更早一次有结论的诊断（仍按 Q47a）
+  - [~] 47.3 图谱字段：`KCOut` 加 `prerequisites`、`confusables`（从语法目录取）；接口测试
   - [ ] 47.4 前端：“私教的诊断”区块（结论、把握程度、建议、指向的语法点、“去练习”、证据可展开、删除确认、空状态）和语法点里的前置 / 易混（按 Q47e）；中英文案；Vitest
   - [ ] 47.5 E2E：`fake_llm.py` 加 `DiagnosisOut` 回复；做一组练习在同一语法点错 3 次 → 学习者模型页出现诊断 → 展开证据 → 删除
   - [ ] 47.6 收尾：`agent-tools.md`（页面能看到诊断）、ADR 0022 和 P2 计划落地记录、PLAN；`make lint`、pytest、Vitest、E2E
