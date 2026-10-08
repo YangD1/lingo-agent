@@ -4,14 +4,26 @@
 
 ---
 
-## 2026-10-08 · 任务 43.1–43.3（阅读记录、理解题判分、reading_coach）
+## 2026-10-08 · 任务 43.6 收尾，任务 43 完成
+
+- **做了什么**：上一个会话写完 E2E 的文章灌入后因请求过大（>32MB，截图累积）中断，本会话接上。`frontend/e2e/reading.spec.ts` 两条：列表 → 打开 → 等改写（标题变成 “Rover news”）→ 词表虚下划线 → 气泡加生词本 → 5 题答 4 对、计分、再打开看到结果、列表“读过 / 已为你改写” → 生词本有词 → 看板阅读能力有值 → “问私教”回复带文章标题；读原文 + 只有摘要的文章去原网站。假模型 `fake_llm.py` 补 `ArticleRewrite`、`QuestionSet`、`QuestionReviews`，reading_coach 按 `<article title=…>` 应答；`run_backend.py` `seed_articles` 往内置 NASA 源灌两篇。文档：ADR 0024 任务 43 落地记录，ADR 0023 修订“任务 43 加进分类枚举”并加落地记录，P2 计划 §5.3 落地记录，`agent-tools.md` 去掉“任务 43”占位，README 中英加“分级新闻阅读”、后台任务说明、状态改为 P2 进行中。
+- **验证**：`make lint` 干净；pytest 1339、Vitest 357、E2E 52 全过。Docker 重建（一次只建一个镜像），迁移 head `ab322160460f`，`/healthz` 200，空闲内存 backend 221MiB / frontend 55MiB / postgres 170MiB。
+- **未完成**：没推送。提示词（改写、审题、reading_coach）仍没用真实模型试过。
+- **下一步**：推送并看 CI；然后任务 44（后台预生成 AI 例句，先看覆盖率再决定做不做）。
+- **踩坑**：会话里别读截图 / 大图，累积附件会让请求超过 32MB 直接中断，E2E 失败只看文本输出。
+
+---
+
+## 2026-10-08 · 任务 43.1–43.5（阅读记录、理解题判分、reading_coach、阅读列表页、阅读页）
 
 - **做了什么**：拆了任务 43（43.1–43.6），用户授权 Q43a–j 一律按推荐。43.1 `reading_sessions` 表 + `conversations.article_id` / purpose `reading`，迁移 `ab322160460f`（d254c66）。43.2 服务 `services/reading/sessions.py`（`open_session`、`get_session`、`answered_version`、`answer`、`due_words`）和接口 `POST /reading/articles/{id}/session`、`POST /reading/sessions/{id}/answers`、`GET /reading/sessions/{id}/marks?original=`；`learner._skill` 和 `dashboard._skill_point` 把 reading 放到语法同一刻度（Q43c）。
 - **验证**：43.2 时 pytest 1333 全过（新增 `test_reading_sessions.py` 7 条）。
 - **43.3**：`Route.READING_COACH`（`route_for(focus_kc_id, article_id)`，不进分类器）；`chat/reading.py` `DatabaseReading`（我等级的 ready 版本，没有就原文前 1,500 词按段截断）+ `render_reading`；`prompts/reading_coach.md`、`reading_unavailable.md`；`chat_graph.reading_coach` 子图（不带工具，`usage_task=reading_coach`，活动 `reading_context`）；`POST /conversations` 接受 `article_id`（和 `focus_kc_id` / `purpose` 互斥，404 `article_not_found`，复用没开口的同篇会话），`ConversationOut.article_id`；`features.yaml` 的 `reading_coach`；前端 `ai-usage.ts`、活动明细、文案；`agent-tools.md` 补了 43.2 / 43.3 的行。测试：`test_reading_coach.py` 4 条、`test_routing.py` 1 条、Vitest 1 条；pytest 1338、Vitest 341 全过，`make lint` 干净。
-- **未完成**：43.4–43.6。前端 `Conversation` 类型还没加 `article_id`（43.5 做“问私教”时加）；ADR 0023 落地记录里“任务 43 加进枚举”的修订留到 43.6。
-- **下一步**：43.4 前端列表页（`lib/reading.ts`、`/reading` 列表、来源筛选、管理来源抽屉、导航项、文案、Vitest）。
-- **踩坑**：上一个会话因请求过大（>32MB）中断，`sessions.py` 写完没提交，本会话核对后接上。`Article.body` 是延迟加载列，接口里要用 `select(Article.body)` 取，不能 `session.get(Article).body`（MissingGreenlet）。“今天到期”按复习队列口径（现在 + `learn_ahead_minutes`），不是按时区算今天结束。Python `str.replace` 会替换所有匹配：给 `chat_graph.py` 加边时误把 `add_edge` 加进了 writing_coach 子图，LangGraph 报 “edge starting at unknown node”。ICU 消息里嵌套 `{x, select, …{x}}` 会让中英占位符检查失败，拆成两条。
+- **43.4**：`lib/reading.ts`；`/reading` 列表（`components/reading/reading-list.tsx`：新到旧、来源 chips、加载更多、已为你改写 / 只有摘要 / 读过标记、`AiBadge reading_rewrite`）；管理来源抽屉 `feeds-sheet.tsx`（开关、添加、删除自加源）；导航“阅读”放在“学”组（手机在“更多”里）；后端列表接口加 `feed_id`、`rewritten`、`read`（测试 1 条）；Vitest `reading-list.test.tsx` 6 条。
+- **43.5**：`/reading/[id]` 阅读页 `reading-article.tsx` + 理解题 `reading-quiz.tsx`；`lib/reading.ts` 加会话 / 版本 / 判分 / 到期词接口和 `pieces`（与后端 `_TOKEN` 同规则分词）；聊天页 `reading-bar.tsx`、`Composer` / `TutorPanel` 的 `sendFeature`；Vitest 阅读页 9 条、顶栏 1 条，共 357 全过。
+- **未完成**：43.6。前端 `Conversation` 类型还没加 `article_id`（43.5 做“问私教”时加）；ADR 0023 落地记录里“任务 43 加进枚举”的修订留到 43.6。
+- **下一步**：43.6 收尾：E2E（假模型补 `ArticleRewrite`、`QuestionSet`、`QuestionReviews` 三个 schema；Q43j 覆盖：列表 → 打开 → 等改写 → 气泡加生词本 → 答题看结果 → 看板阅读能力有刻度 → “问私教”回复；读原文一条）、ADR 0023 / 0024 落地记录（含 Q43h 对 ADR 0023 的修订）、P2 计划、README 中英、`make lint` / `make test` / `make e2e`、Docker 重建。
+- **踩坑**：上一个会话因请求过大（>32MB）中断，`sessions.py` 写完没提交，本会话核对后接上。`Article.body` 是延迟加载列，接口里要用 `select(Article.body)` 取，不能 `session.get(Article).body`（MissingGreenlet）。“今天到期”按复习队列口径（现在 + `learn_ahead_minutes`），不是按时区算今天结束。Python `str.replace` 会替换所有匹配：给 `chat_graph.py` 加边时误把 `add_edge` 加进了 writing_coach 子图，LangGraph 报 “edge starting at unknown node”。ICU 消息里嵌套 `{x, select, …{x}}` 会让中英占位符检查失败，拆成两条。eslint 的 react-hooks 规则不允许 effect 里同步 setState（包括调用一个会 setState 的函数），重置状态要放到事件处理里，effect 里只在 `.then` 里 setState。
 
 ---
 

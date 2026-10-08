@@ -8,7 +8,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 **Stack:** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **Status: P1, a working MVP.** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. Reading, writing, the full adaptive engine and voice conversation come next. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
+> **Status: P2 in progress.** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review, places you on the CEFR scale, and now runs practice sets, reviews your writing and rewrites news for your level. Grammar diagnosis, daily plans and voice conversation come next. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
 
 | | |
 |---|---|
@@ -30,13 +30,14 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Focused practice.** Start a conversation on one grammar point from the dashboard or the Learner model page. The tutor opens it and steers every turn toward that point.
 - **Practice sets.** On the **Grammar practice** page, a set of short exercises (multiple choice, fill in the blank, find and fix, transform, translate, rewrite your own sentence) on the grammar points worth practising now. A model writes the items, a second model call (the critic) checks each one before you see it, and answers are graded by code where possible, by a model otherwise. Every answer is evidence for mastery; a point counts as learned only after correct answers on different days. You can flag a bad item.
 - **Writing feedback.** On the **Writing** page, write 20–800 words on a task for your level, one of your own, or none. Each sentence comes back with its mistakes marked (tap one for the explanation and grammar point) and the corrected sentence below, plus four scores (task, coherence, vocabulary, grammar) and overall feedback. The mistakes go into your learner model; the scores are only shown. Paste a long piece of your writing into chat and it is handed to the writing coach, who reviews it the same way and links to the result. Deleting a piece removes its mistakes from your learner model too.
+- **Graded news reading.** The **Reading** page lists new articles from the feeds you follow: NASA news, Global Voices, and RSS feeds you add yourself. Opening one rewrites it for your level (once per level, then cached; it can also be prepared in the background) with five comprehension questions, each checked by a critic. Hover or tap any word for the same word popup as in chat; words due for review today are highlighted, and words above your level are underlined. Your answers update a reading skill estimate shown on the dashboard. You can switch to the original, and **Ask the tutor about this article** opens a conversation with the reading coach, who can see the text. Feeds that only give a summary, or whose license does not allow adaptation, are shown as they are, with a link to the source.
 - **The tutor can act, with your consent.** In chat, the tutor can propose a word book or a learning goal as a card. Nothing changes until you confirm, and you can undo it. After the placement test, a planning conversation on the result page turns the result into a plan.
 
 **Transparency**
 
 - **What the tutor did.** Under each reply you can expand what the tutor read, which tools it called, and what it wrote down afterwards. [docs/agent-tools.md](docs/agent-tools.md) lists every tool and background step.
 - **AI usage labels.** Each feature that calls a model has an "AI" badge. It shows which model tasks run and roughly how many tokens each use costs, before you click.
-- **Background work you control.** Work the tutor does while you are away (for now, preparing your next practice set) can be switched off item by item under Settings → Background work. Owners set a daily token budget for all background calls (0 turns them off); what you start yourself is never limited. Scheduled jobs run inside the single backend process, so deploy one backend instance.
+- **Background work you control.** Work the tutor does while you are away (preparing your next practice set, rewriting new articles for your level) can be switched off item by item under Settings → Background work. Owners set a daily token budget for all background calls (0 turns them off); what you start yourself is never limited. Scheduled jobs run inside the single backend process, so deploy one backend instance.
 
 **Platform**
 
@@ -45,7 +46,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
 - **English and Chinese UI.**
 
-Not built yet (see [docs/PLAN.md](docs/PLAN.md)): daily plans, graded news reading and grammar GraphRAG (P2); optional server-side read-aloud and pre-generated word pronunciations (see ADR 0018), shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
+Not built yet (see [docs/PLAN.md](docs/PLAN.md)): daily plans and grammar GraphRAG (P2); optional server-side read-aloud and pre-generated word pronunciations (see ADR 0018), shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
 
 ## Quick start (Docker)
 

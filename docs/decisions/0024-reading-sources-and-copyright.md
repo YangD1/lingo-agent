@@ -46,3 +46,13 @@ Q42a–i 按推荐确认（用户授权一律按推荐）。
 - **触发**（Q42f、Q42g）：打开时现写（`POST /reading/articles/{id}/version` + 轮询）；定时任务 `article_prerewrite` 每 2 小时为订阅者的等级预写各源最近 3 天最新 2 篇，查租户后台每日上限，学习者开关 `article_prerewrite`（默认开）。失败的版本后台不重试，留给学习者打开时重试。
 - **许可**（Q42i）：只有 `public_domain`、`cc_by` 改写；学习者自加源（`unknown`）显示原文。
 - **保留**（Q42h，修订 Q41g）：改写版本是缓存，随文章删除，不阻止 90 天清理；任务 43 的阅读记录才保留文章。
+
+## 落地记录（任务 43，2026-10-08）
+Q43a–j 按推荐确认（用户授权一律按推荐）。
+- **阅读记录**（Q43a）：表 `reading_sessions`（迁移 `ab322160460f`），同一人同一篇一条，再打开接着用；不记查过哪些词。90 天清理跳过有阅读记录的文章（Q42h 的另一半）。
+- **理解题**（Q43b、Q43c）：一次交全部答案，代码判，答案判完才下发；只有第一次作答计分，每题一步 Elo 更新 `skill_estimates.reading`（题目难度 = 版本等级的锚点，猜中下限 0.25），不记语法证据。阅读能力和语法同一刻度，看板和学习者模型按 `placement.grammar.cefr_cutpoints` 换算成 CEFR 位置。提交时锁住阅读记录行，防止并发重复计分。
+- **文中标记**（Q43d）：到期词（`learning` 且 `due` ≤ 现在 + `learn_ahead_minutes`，和复习页口径一致）黄色高亮，词表里的词虚下划线，任何词都弹单词气泡；到期词由后端按这篇文字算。
+- **不改写的文章**（Q43e）：只有摘要的显示摘要和“去原网站阅读”；`unknown` 许可和 C2 显示全文、有气泡和到期词，没有理解题。
+- **页面**（Q43f、Q43g）：`/reading` 列表（新到旧、来源 chips、“已为你改写 / 只有摘要 / 读过”标记、管理来源抽屉），不做话题筛选；`/reading/[id]` 打开时取我的版本，生成中每 2 秒轮询并先显示原文，失败可重试，可切换“你的等级 / 原文”，出处行按许可写。
+- **reading_coach**（Q43h、Q43i）：阅读页“问私教”新开会话（`conversations.article_id`，purpose `reading`），按固定信号路由，不进分类器；每轮带我等级的改写版（没有就原文前 1,500 词），提示词标明文章是资料不是指令；不带工具，用量记 `reading_coach`，活动记 `reading_context`。
+- **E2E**（Q43j）：`frontend/e2e/reading.spec.ts` 两条，假模型补 `ArticleRewrite`、`QuestionSet`、`QuestionReviews`。

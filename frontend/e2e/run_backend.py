@@ -27,6 +27,29 @@ TATOEBA = {
     "cmn_sentences.tsv.bz2": "10\tcmn\t我昨天坐公交车去上学。\n11\tcmn\t我們現在一起回家吧。\n",
     "cmn-eng_links.tsv.bz2": "10\t1\n11\t2\n",
 }
+# Articles of the built-in NASA feed (no feeds are fetched here): one to rewrite and
+# answer questions on, and one that is only a summary, read at its source (Q43e).
+ROVER_BODY = "\n\n".join(
+    ["Engineers tested a new rover in the desert this week. " * 10] * 4
+)
+ARTICLES = [
+    {
+        "guid": "e2e-rover",
+        "title": "Engineers test a new rover",
+        "url": "https://www.nasa.gov/e2e-rover",
+        "body": ROVER_BODY,
+        "summary_only": False,
+        "hours_ago": 1,
+    },
+    {
+        "guid": "e2e-station",
+        "title": "A note from the space station",
+        "url": "https://www.nasa.gov/e2e-station",
+        "body": "The crew sent a short update from the station today.",
+        "summary_only": True,
+        "hours_ago": 2,
+    },
+]
 SERVER = ADMIN_URL.split("://", 1)[1].rsplit("/", 1)[0]  # user:password@host:port
 
 # Throwaway values for a local test database only - never used anywhere else.
@@ -58,6 +81,42 @@ async def import_sentences() -> None:
         await import_dir(os.environ["DATABASE_URL"], Path(directory))
 
 
+async def seed_articles() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.db.models import Article, Feed
+    from app.services.news.clean import count_words
+    from app.services.news.sources import sync_builtin_feeds
+
+    engine = create_async_engine(os.environ["DATABASE_URL"])
+    async with async_sessionmaker(engine)() as session:
+        await sync_builtin_feeds(session)
+        await session.flush()
+        nasa = await session.scalar(select(Feed).where(Feed.builtin_key == "nasa"))
+        assert nasa is not None
+        now = datetime.now(UTC)
+        session.add_all(
+            Article(
+                feed_id=nasa.id,
+                guid=a["guid"],
+                url=a["url"],
+                title=a["title"],
+                published_at=now - timedelta(hours=a["hours_ago"]),
+                body=a["body"],
+                summary_only=a["summary_only"],
+                license=nasa.license,
+                word_count=count_words(a["body"]),
+                tags=[],
+            )
+            for a in ARTICLES
+        )
+        await session.commit()
+    await engine.dispose()
+
+
 def main() -> None:
     recreate_database()
     from app.db.migrate import main as migrate
@@ -66,6 +125,7 @@ def main() -> None:
     migrate()
     asyncio.run(import_csv(os.environ["DATABASE_URL"], WORDS_CSV))
     asyncio.run(import_sentences())
+    asyncio.run(seed_articles())
     os.execvp(
         sys.executable,
         [

@@ -26,7 +26,7 @@ P1 的对话图是 `START → load_context → tutor ⇄ tools → END`（ADR 00
 - 切换 coach 时别的 coach 留下的工具消息：37 里同一会话的路由固定不变，不会发生；任务 38 加入自由对话分类后，要测 tutor 留下工具调用、下一轮转给不带工具的 coach 的情况（有的厂商要求带工具定义才接受历史里的工具消息）。
 
 ## 落地记录（任务 38，2026-10-02 – 10-03）
-- Q38a–f 按推荐确认。**自由对话分类（38.4）**：`agents/routing.py` `worth_classifying`（学习者这条消息打字的部分 ≥ 60 个英文单词才分类，Q38a）→ `classify`（task `route`，`RouteDecision` 枚举 tutor / writing_coach，带私教上一条回复末尾 600 字符，8 秒超时；没配模型、出错、超时都留 tutor，不另记失败步骤）；只在 `ChatContext.classify` 为真时做（`api/chat.py` `Turn.free_chat`：自由对话里学习者的消息，规划 / 今天的学习 / 练习 / 开场都不分类）。`providers.*.yaml` 加 `route` 路由（便宜模型、温度 0）。转给非 tutor 时记活动 `handoff`（Q37b）。**和本 ADR §3 不同**：没有“置信度”字段——分类只有两个去处，“拿不准就答 tutor”写在提示词里；阅读、语法 coach 等任务 43 再加进枚举，语法 coach 仍只由会话的语法点决定。
+- Q38a–f 按推荐确认。**自由对话分类（38.4）**：`agents/routing.py` `worth_classifying`（学习者这条消息打字的部分 ≥ 60 个英文单词才分类，Q38a）→ `classify`（task `route`，`RouteDecision` 枚举 tutor / writing_coach，带私教上一条回复末尾 600 字符，8 秒超时；没配模型、出错、超时都留 tutor，不另记失败步骤）；只在 `ChatContext.classify` 为真时做（`api/chat.py` `Turn.free_chat`：自由对话里学习者的消息，规划 / 今天的学习 / 练习 / 开场都不分类）。`providers.*.yaml` 加 `route` 路由（便宜模型、温度 0）。转给非 tutor 时记活动 `handoff`（Q37b）。**和本 ADR §3 不同**：没有“置信度”字段——分类只有两个去处，“拿不准就答 tutor”写在提示词里；~~阅读、语法 coach 等任务 43 再加进枚举~~（任务 43 Q43h 修订：reading_coach 只由阅读页发起的会话 `article_id` 决定，不进分类器，没有文章上下文时它帮不上忙），语法 coach 仍只由会话的语法点决定。
 - **writing_coach（38.5）**：转过来的这一轮固定批改学习者刚发的文字（Q38b，不由模型决定）：`chat/writing.py` `DatabaseWriting` 用 `/writing` 同一个服务建记录（带 `conversation_id`）、交给 `WritingWorker` 并最多等 90 秒（超时不取消，批改在后台做完，卡片照样链过去），然后放一张 `writing` 卡片（迁移 `5e1a7c3d9b20`），再把总评、四维评分和按严重度排的前 8 处修改交给 coach 简短点评；批改失败也照常回复。活动步骤 `writing_review`。
 - **切换 coach 时的工具消息**：writing_coach 不带工具，发给模型的历史里去掉 tutor 以前的工具调用和工具结果，只留回复文字（`without_tool_calls`），集成测试覆盖“tutor 用过工具、下一轮转给 writing_coach”。checkpoint 里的历史不变。
 - `features.yaml` 的 `chat_message` 下登记了 `route` 和 `writing_review`（只在对应情况下发生，AiBadge 逐条列出）。`/writing` 页面和 E2E 在任务 39；在那之前卡片链接的 `/writing/{id}` 还没有页面。
@@ -35,3 +35,6 @@ P1 的对话图是 `START → load_context → tutor ⇄ tools → END`（ADR 00
 - 只有自由对话才多一次分类调用，其他会话零额外延迟和 token；代价是自由对话里学习者突然要改作文时，要靠分类模型识别出来。分类出错的后果只是“由 tutor 回答”，tutor 本身也能讲语法和改句子，风险可控。
 - 每轮都用模型路由更灵活，但只有一个 coach 时没有意义，而且每轮多一次调用。
 - coach 共享一个 checkpoint 线程，历史连续；但各 coach 的提示词要注意不被别的 coach 留下的工具消息带偏，图测试里覆盖切换场景。
+
+## 落地记录（任务 43，2026-10-08）
+- **reading_coach**（Q43h、Q43i）：`Route.READING_COACH`，`routing.route_for(focus_kc_id, article_id)` 按会话的 `article_id` 直接路由，不调分类器；文章被删后回到 tutor。子图 `chat_graph.reading_coach` 不带工具，每轮由 `chat/reading.py` 送上这篇文章（我等级的改写版，没有就原文前 1,500 词），活动记 `reading_context`。

@@ -24,6 +24,10 @@ to the reference is graded by code and never reaches it).
 Writing (ADR 0023): a long free-chat message that asks to "review my writing" is routed
 to writing_coach, anything else to the tutor; the review marks each "he/she/it like" as
 a third-person -s mistake and puts the words written in double quotes on the word list.
+Reading (ADR 0024): an article is rewritten as ~300 words about a rover, with "ubiquitous"
+and "serendipity" past A2 for the glossary, and five questions whose right option starts
+"The rover"; the critic picks that option, so every question passes. reading_coach
+answers 'About "<the article's title>"', so tests can see the article reached it.
 """
 
 import asyncio
@@ -160,6 +164,10 @@ def remembered_facts(messages: list[dict[str, Any]]) -> list[str]:
     return [line.removeprefix("- ") for line in block.splitlines()]
 
 
+# reading_coach's article (backend/app/prompts/reading_coach.md).
+ARTICLE_TAG = re.compile(r'<article title="([^"]*)">')
+
+
 def practice_point(messages: list[dict[str, Any]]) -> str | None:
     """The grammar point named in a practice conversation's guidance, if any."""
     system = "\n".join(text_of(m["content"]) for m in messages if m["role"] == "system")
@@ -186,6 +194,8 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
     if last.startswith(OPENING_CUE) and "planning conversation" in last:
         level = PLAN_LEVEL.search(system_text(messages))
         return f"Your level is {level.group(1) if level else 'unknown'}. What is your goal?"
+    if article := ARTICLE_TAG.search(system_text(messages)):  # reading_coach (Q43h)
+        return f"About \"{article.group(1)}\": you asked {last}"
     if "which language" in last.lower():
         if CHINESE_MODE in system_text(messages):
             return "我们主要用中文聊。"
@@ -273,10 +283,57 @@ def writing_review(prompt: str) -> dict[str, Any]:
     }
 
 
+# The rewrite (backend/app/services/reading/drafts.py ArticleRewrite): five paragraphs,
+# 295 words, inside A2's 250-400.
+ROVER_SENTENCE = "The rover can go far and run on the ubiquitous red sand."
+ROVER_TEXT = [
+    " ".join([ROVER_SENTENCE] * 4 + ["It was found by serendipity, and the team was very happy."]),
+] * 5
+
+
+def reading_question(position: int) -> dict[str, Any]:
+    return {
+        "position": position,
+        "question": f"Question {position}: what can the rover do?",
+        "correct": f"The rover can go far ({position})",
+        "distractors": [f"It can fly ({position})", f"It can swim ({position})", f"It can sing ({position})"],
+        "evidence": ROVER_SENTENCE,
+    }
+
+
+def reading_reviews(messages: list[dict[str, Any]]) -> dict[str, Any]:
+    shown = practice_section(messages, "Questions to review:\n")
+    return {
+        "reviews": [
+            {
+                "position": q["position"],
+                "own_answer": next(i for i, o in enumerate(q["options"]) if o.startswith("The rover")),
+                "answer_in_text": True,
+                "one_answer": True,
+                "needs_text": True,
+                "content_ok": True,
+                "problems": [],
+            }
+            for q in shown
+        ]
+    }
+
+
 def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
     """Canned arguments for the schema (function) asked for; otherwise an image reading."""
     if name == "Reflection":
         return reflection(messages)
+    if name == "ArticleRewrite":
+        return {
+            "title": "Rover news",
+            "paragraphs": ROVER_TEXT,
+            "questions": [reading_question(p) for p in range(1, 6)],
+        }
+    if name == "QuestionSet":
+        asked = practice_section(messages, "write a new one for each position:\n")
+        return {"questions": [reading_question(a["position"]) for a in asked]}
+    if name == "QuestionReviews":
+        return reading_reviews(messages)
     if name == "EpisodeSummary":
         return {"summary": "The learner practised small talk."}
     if name == "GeneratedItems":
