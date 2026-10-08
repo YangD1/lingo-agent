@@ -59,6 +59,10 @@ SCHEDULER_RUN_STATUSES = ("running", "ok", "skipped", "error")
 # How an article may be used (ADR 0024 §3): public_domain and cc_by may be rewritten;
 # unknown (a learner's own feed) is shown only to that learner's tenant.
 ARTICLE_LICENSES = ("public_domain", "cc_by", "unknown")
+# Licenses whose articles may be rewritten for a level (Q42i).
+REWRITABLE_LICENSES = ("public_domain", "cc_by")
+# generating -> ready | failed; a failed version is generated again when asked for.
+ARTICLE_VERSION_STATUSES = ("generating", "ready", "failed")
 TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link", "writing")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
@@ -1082,3 +1086,50 @@ class Article(Base):
     # The feed's own categories, for topic filters later (task 43).
     tags: Mapped[list[str]] = mapped_column(ARRAY(String(100)), server_default="{}")
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ArticleVersion(Base):
+    """An article rewritten for one CEFR level, with its comprehension questions.
+
+    A cache (ADR 0024 §5): one per tenant, article and level, written with the tenant's
+    own models and shared by its learners. It goes with its article; reading sessions
+    (task 43) are what keep an article (Q42h).
+    """
+
+    __tablename__ = "article_versions"
+    __table_args__ = (
+        CheckConstraint(_in("level", CEFR_LEVELS), name="level"),
+        CheckConstraint(_in("status", ARTICLE_VERSION_STATUSES), name="status"),
+        UniqueConstraint("tenant_id", "article_id", "level"),
+        Index("ix_article_versions_article_id", "article_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    article_id: Mapped[int] = mapped_column(ForeignKey("articles.id", ondelete="CASCADE"))
+    level: Mapped[str] = mapped_column(String(2))
+    status: Mapped[str] = mapped_column(String(20))
+    # Why generation failed, as an error code; never model output.
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    title: Mapped[str | None] = mapped_column(String(500))
+    # Plain paragraphs, no markup, like `articles.body`.
+    paragraphs: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
+    word_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Words past the level (Q42c): [{"word": lemma, "word_id": int, "form": as used}].
+    glossary: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list, server_default="[]")
+    # Share of the rewrite's lexicon words past the level, for evaluation.
+    above_level_share: Mapped[float | None] = mapped_column(Float)
+    # Questions that passed the critic: [{"question", "options", "answer", "evidence"}];
+    # `answer` is never sent before the learner has answered.
+    questions: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, server_default="[]"
+    )
+    # Questions the critic rejected, with its review, kept to evaluate the critic.
+    rejected: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list, server_default="[]")
+    # "<connection>:<model>" that wrote the rewrite and that reviewed the questions.
+    model: Mapped[str | None] = mapped_column(String(200))
+    critic_model: Mapped[str | None] = mapped_column(String(200))
+    # Made by the background job (Q42g) rather than for a learner who opened it.
+    background: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

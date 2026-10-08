@@ -26,6 +26,7 @@ def test_shipped_rules_load() -> None:
     assert rules.elo.guess_by_format["choice4"] == 0.25
     assert rules.practice.target_p.low <= rules.practice.target_p.high
     assert rules.mastery_gate.min_formats == 3
+    assert rules.reading.levels[0] == "A1"
 
 
 def _set(data: dict[str, Any], path: str, value: Any) -> None:
@@ -72,6 +73,9 @@ def _set(data: dict[str, Any], path: str, value: Any) -> None:
         ("practice.mistake_half", 0, "greater than 0"),
         ("mastery_gate.min_formats", 7, "less than or equal to 6"),
         ("mastery_gate", None, "mastery_gate"),
+        ("reading.levels", ["B1", "A2"], "CEFR order"),
+        ("reading.words.B1", {"min": 600, "max": 400}, "must not exceed max"),
+        ("reading.glossary_rank", {"A1": 1000}, "glossary_rank lacks"),
         ("version", None, "version"),
         ("elo.unknown", 1, "Extra inputs"),
     ],

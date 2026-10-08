@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-02.4"
+version: "2026-10-08.1"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -300,3 +300,39 @@ mastery_gate:
   min_span_hours: 20
   # ...and no counted mistake on the KC in conversation or writing in the days before.
   clean_days: 14
+
+# Graded reading (ADR 0024 §5, P2 plan §5.3). A version of an article is written for
+# one level and cached per tenant, article and level.
+reading:
+  # Levels an article is rewritten for; a learner above the last one reads the
+  # original (Q42a). Learners without a placement level count as practice.default_level.
+  levels: [A1, A2, B1, B2, C1]
+  # Words of the original sent to the model, at most; a longer article is cut at a
+  # paragraph boundary (Q42b).
+  max_source_words: 3000
+  # Length of the rewrite by level, in words. Outside this range by more than
+  # `length_slack` the rewrite is tried once more, then fails.
+  words:
+    A1: {min: 150, max: 250}
+    A2: {min: 250, max: 400}
+    B1: {min: 400, max: 600}
+    B2: {min: 600, max: 850}
+    C1: {min: 800, max: 1100}
+  length_slack: 0.25
+  # Comprehension questions asked for with the rewrite; rejected ones are rewritten
+  # at most `max_regenerations` times, then dropped (Q42d).
+  questions: 5
+  max_regenerations: 1
+  # Glossary (Q42c): words of the rewrite whose frequency rank in the lexicon is past
+  # the level's cut, at most `glossary_max`, in order of first use.
+  glossary_rank:
+    A1: 1000
+    A2: 2000
+    B1: 3500
+    B2: 6000
+    C1: 9000
+  glossary_max: 15
+  # Background rewriting (Q42g): per feed and level a subscriber reads at, the newest
+  # this many articles published in the last `prerewrite_days` days.
+  prerewrite_per_feed: 2
+  prerewrite_days: 3

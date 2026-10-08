@@ -268,6 +268,39 @@ class MasteryGateRules(_Strict):
     clean_days: int = Field(ge=0)
 
 
+class WordRange(_Strict):
+    min: int = Field(ge=1)
+    max: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.min > self.max:
+            raise ValueError("min must not exceed max")
+        return self
+
+
+class ReadingRules(_Strict):
+    levels: list[CefrLevel] = Field(min_length=1)
+    max_source_words: int = Field(ge=100)
+    words: dict[CefrLevel, WordRange]
+    length_slack: Annotated[float, Field(ge=0.0, lt=1.0)]
+    questions: int = Field(ge=1, le=10)
+    max_regenerations: int = Field(ge=0, le=3)
+    glossary_rank: dict[CefrLevel, int]
+    glossary_max: int = Field(ge=0, le=50)
+    prerewrite_per_feed: int = Field(ge=0)
+    prerewrite_days: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if list(self.levels) != [level for level in CEFR_LEVELS if level in self.levels]:
+            raise ValueError("levels must be distinct and in CEFR order")
+        for name, table in (("words", self.words), ("glossary_rank", self.glossary_rank)):
+            if missing := set(self.levels) - set(table):
+                raise ValueError(f"{name} lacks {sorted(missing)}")
+        return self
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
@@ -279,6 +312,7 @@ class Rules(_Strict):
     advice: AdviceRules
     practice: PracticeRules
     mastery_gate: MasteryGateRules
+    reading: ReadingRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:
