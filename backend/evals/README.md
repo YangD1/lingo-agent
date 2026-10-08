@@ -8,6 +8,7 @@ P2 的最小评估集（计划 Q13、任务 36）：检查把关学习者所见�
 |---|---|---|---|
 | `critic` | `datasets/critic.yaml`：坏题 26 条（答案键错、不止一个对、不考目标语法点、英文不自然或指令不清、事实错误、难度标错）、好题 18 条，六种题型都有 | `critic_messages` → `exercise_critic` → `drafts.judge`，一题一次调用 | `bad_rejected` ≥ 90%、`good_passed` ≥ 90% |
 | `grader` | `datasets/grader.yaml`：31 条代码判不了、会交给模型的答案（开放题不在参考答案里、find_fix 选对位置但改法不在列表里），应判对 / 应判错都有，部分带应找出的其他错误 | `grade_messages` → `exercise_grade` → `grader.verdict` | `verdict_right` ≥ 90% |
+| `diagnosis` | `datasets/diagnosis.yaml`：12 条（任务 46.6）。8 条有真规律：前置语法点是根因（过去分词 → 现在完成时、过去完成时 → 第三条件句、三单 → 主谓一致）、易混语法点互相顶替（will / going to、be / do、used to / 一般现在时），一条两个目标各有根因，一条错句里夹着让模型引用不存在证据的“指令”；3 条没有规律（零散错误、只是把语法点说明重复一遍不算根因）；一条英文讲解 | `diagnose_messages` → `diagnose` → `checks.check`，邻域按 `graph.neighborhood` 的规则从语法目录拼出，不需要数据库 | `root_found` ≥ 80%、`no_cause_without_pattern` ≥ 60%、`citations_hold` ≥ 90% |
 
 不设门槛、只报告的指标：critic 的 `rejects:<缺陷>`（看哪类坏题漏过），批改的 `other_mistakes_found`、`no_extra_mistakes`（对的答案没被挑出多余错误）。
 
@@ -29,6 +30,10 @@ make eval-live ARGS='--email you@example.com --record'  # 同上，并重写录�
 ## 什么时候要重录
 
 改了 `prompts/exercise_critic.md`、`prompts/exercise_grade.md`、语法目录、`rules.yaml` 的难度量表，或者改了 `messages.py` / `grader.py` 拼消息的方式，回放就会失败。用一个配好模型的账号跑 `make eval-live ARGS='--email … --record'`，先看报告：失败的用例逐条看原因，分清是用例本身有歧义（改用例）还是模型或提示词的问题（改提示词，或者作为已知弱点留着）。
+
+## 诊断评估集（任务 46.6）
+
+还没有录制：回放时跳过。`citations_hold` 看模型原始输出（代码校验之前）是否只引用了给它看过、且校验认可的语法点和错句；代码校验会把不合格的引用丢掉，所以它衡量的是模型本身，不影响学习者看到的结果。门槛是第一次设的，录制后按报告调整。
 
 ## 当前录制（2026-10-02，gpt-5.5，经 OpenAI 兼容中转）
 

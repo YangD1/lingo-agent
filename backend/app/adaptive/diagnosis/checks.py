@@ -9,7 +9,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from app.adaptive.diagnosis.context import DiagnosisContext, Language, render
@@ -82,10 +82,13 @@ def _unique[T](items: Iterable[T]) -> tuple[T, ...]:
     return tuple(dict.fromkeys(items))
 
 
+def diagnose_messages(context: DiagnosisContext, language: Language) -> list[BaseMessage]:
+    return [SystemMessage(load_prompt(TASK)), HumanMessage(render(context, language))]
+
+
 async def diagnose(
     call: StructuredCall, context: DiagnosisContext, language: Language, rules: Rules
 ) -> tuple[list[RootCause], str | None]:
     """The checked causes and the model that answered (raises the provider's error)."""
-    messages = [SystemMessage(load_prompt(TASK)), HumanMessage(render(context, language))]
-    reply = await call(messages, DiagnosisOut)
+    reply = await call(diagnose_messages(context, language), DiagnosisOut)
     return check(cast(DiagnosisOut, reply.output), context, rules), reply.model
