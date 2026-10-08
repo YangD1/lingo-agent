@@ -67,22 +67,35 @@ class ItemBrief:
     own_sentence: OwnSentence | None = None
 
 
+async def counted_mistakes(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    rules: Rules,
+    since: datetime | None = None,
+    after_evidence: int | None = None,
+) -> dict[str, int]:
+    """Counted mistakes per KC from any source but placement (a test, not use), made
+    at or after `since` and with an evidence id above `after_evidence`."""
+    query = select(KCEvidence.kc_id, func.count()).where(
+        KCEvidence.user_id == user_id,
+        KCEvidence.correct.is_(False),
+        KCEvidence.source != "placement",
+        KCEvidence.severity.in_(rules.evidence.counted_severities),
+    )
+    if since is not None:
+        query = query.where(KCEvidence.created_at >= since)
+    if after_evidence is not None:
+        query = query.where(KCEvidence.id > after_evidence)
+    rows = await session.execute(query.group_by(KCEvidence.kc_id))
+    return {kc_id: count for kc_id, count in rows.all()}
+
+
 async def _recent_mistakes(
     session: AsyncSession, user_id: uuid.UUID, *, rules: Rules, now: datetime
 ) -> dict[str, int]:
-    """Counted mistakes per KC lately, from any source but placement (a test, not use)."""
-    rows = await session.execute(
-        select(KCEvidence.kc_id, func.count())
-        .where(
-            KCEvidence.user_id == user_id,
-            KCEvidence.correct.is_(False),
-            KCEvidence.source != "placement",
-            KCEvidence.severity.in_(rules.evidence.counted_severities),
-            KCEvidence.created_at >= now - timedelta(days=rules.practice.recent_mistake_days),
-        )
-        .group_by(KCEvidence.kc_id)
-    )
-    return {kc_id: count for kc_id, count in rows.all()}
+    since = now - timedelta(days=rules.practice.recent_mistake_days)
+    return await counted_mistakes(session, user_id, rules=rules, since=since)
 
 
 async def _own_sentences(

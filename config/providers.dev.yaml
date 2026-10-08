@@ -76,6 +76,11 @@ llm:
     route:
       models: [deepseek:deepseek-chat, openai:gpt-5-mini, anthropic:claude-sonnet-5]
       temperature: 0
+    # The tutor's diagnosis (P2 plan §6.2): reasoning over the learner's evidence in the
+    # background, checked by code afterwards. Low temperature: an analyst, not a writer.
+    diagnose:
+      models: [deepseek:deepseek-chat, anthropic:claude-sonnet-5, openai:gpt-5-mini]
+      temperature: 0.2
 
 embedding:
   default: openai:text-embedding-3-small
