@@ -561,7 +561,9 @@ async def _reply(
         case Route.TUTOR:
             # Read once per turn, for the prompt and for the cards the tools may show.
             if turn.planning:
-                planning = DatabasePlanning(sessionmaker, user.id, turn.planning)
+                planning = DatabasePlanning(
+                    sessionmaker, user.id, turn.planning, tenant_id=turn.providers.tenant_id
+                )
             tools = DatabaseTutorTools(
                 sessionmaker,
                 user.id,

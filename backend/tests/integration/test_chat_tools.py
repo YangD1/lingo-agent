@@ -174,6 +174,7 @@ async def test_a_proposal_shows_a_card_and_the_reply_goes_on(
     assert offered == [
         "propose_word_book",
         "propose_learning_goal",
+        "propose_daily_plan",
         "suggest_practice",
         "suggest_link",
     ]

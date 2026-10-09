@@ -30,6 +30,7 @@ from app.api import (
     learner,
     memory,
     placement,
+    plan,
     practice,
     providers,
     reading,
@@ -199,6 +200,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(advice.router)
     app.include_router(cards.router)
+    app.include_router(plan.router)
     app.include_router(writing.router)
     app.include_router(reading.router)
     return app

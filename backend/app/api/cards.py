@@ -1,11 +1,12 @@
 """Tutor cards (ADR 0015 §4): list a conversation's cards; apply, decline or undo one."""
 
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from app.adaptive.daily_plan.algorithm import PlanChoice
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.advice.candidates import Signals, signals
@@ -16,7 +17,7 @@ from app.cards.service import CardNotFoundError, CardStateError
 from app.chat.service import ConversationNotFoundError, get_owned_conversation
 from app.db.models import TutorCard
 from app.deps import CurrentUser, SessionDep
-from app.services.vocab.scheduler import learner_zone
+from app.services.vocab.scheduler import learner_zone, zone
 
 router = APIRouter(tags=["cards"])
 
@@ -103,14 +104,40 @@ async def _decide(
 
 _CONFLICTS: dict[int | str, dict[str, Any]] = {
     404: {"description": "card_not_found"},
-    409: {"description": "card_not_pending, card_not_applied, card_invalid or setting_changed"},
+    409: {
+        "description": "card_not_pending, card_not_applied, card_invalid, card_not_adjustable,"
+        " plan_expired or setting_changed"
+    },
 }
 
 
+class PlanChoiceIn(BaseModel):
+    review: int = Field(ge=0)
+    new_words: int = Field(ge=0)
+    practice: bool
+    reading: bool
+    writing: bool
+
+
+class ApplyIn(BaseModel):
+    # A daily plan card adjusted on the card (Q48c); other cards take none.
+    choice: PlanChoiceIn | None = None
+    # The browser's time zone, for which day it is when the profile has none.
+    tz: Annotated[str | None, Field(max_length=64)] = None
+
+
 @router.post("/cards/{card_id}/apply", responses=_CONFLICTS)
-async def apply_card(card_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> CardOut:
+async def apply_card(
+    card_id: uuid.UUID, user: CurrentUser, session: SessionDep, body: ApplyIn | None = None
+) -> CardOut:
     """Carry out a proposal; applying again returns it unchanged."""
-    return await _decide(session, service.apply_card, user.id, card_id)
+    body = body or ApplyIn()
+    choice = PlanChoice(**body.choice.model_dump()) if body.choice else None
+
+    async def apply(session: SessionDep, user_id: uuid.UUID, card_id: uuid.UUID) -> TutorCard:
+        return await service.apply_card(session, user_id, card_id, choice=choice, tz=zone(body.tz))
+
+    return await _decide(session, apply, user.id, card_id)
 
 
 @router.post("/cards/{card_id}/decline", responses=_CONFLICTS)

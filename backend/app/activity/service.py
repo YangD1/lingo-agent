@@ -143,6 +143,7 @@ STEPS: dict[str, StepSpec] = {
     # One per tool (app/cards/tools.py), call_id = the model's tool call id.
     "propose_word_book": StepSpec("tool", CardShown),
     "propose_learning_goal": StepSpec("tool", CardShown),
+    "propose_daily_plan": StepSpec("tool", CardShown),
     "suggest_practice": StepSpec("tool", CardShown),
     "suggest_link": StepSpec("tool", CardShown),
 }

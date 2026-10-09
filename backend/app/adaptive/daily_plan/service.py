@@ -5,7 +5,7 @@ records of the learner's local day."""
 import dataclasses
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -39,7 +39,7 @@ from app.db.models import (
 from app.services.news import feeds
 from app.services.reading.versions import reading_level
 from app.services.vocab.queue import today_counts
-from app.services.vocab.scheduler import day_bounds
+from app.services.vocab.scheduler import day_bounds, learner_zone
 
 # Newest articles from the learner's feeds looked at for today's reading.
 ARTICLES_LOOKED_AT = 30
@@ -224,6 +224,30 @@ async def today(
     return plan
 
 
+async def current(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    *,
+    rules: Rules,
+    now: datetime | None = None,
+) -> DailyPlan:
+    """The learner's latest plan if it is from about today, else today's in their
+    profile's zone; commits. For chat turns, which carry no browser time zone: the
+    dashboard has usually drafted today's plan in the browser's zone already."""
+    now = now or datetime.now(UTC)
+    recent = await session.scalar(
+        select(DailyPlan)
+        .where(DailyPlan.user_id == user_id, DailyPlan.day >= now.date() - timedelta(days=1))
+        .order_by(DailyPlan.day.desc())
+        .limit(1)
+    )
+    if recent is not None:
+        return recent
+    zone = await learner_zone(session, user_id)
+    return await today(session, user_id, tenant_id, rules=rules, tz=zone, now=now)
+
+
 async def _done(
     session: AsyncSession, user_id: uuid.UUID, *, tz: ZoneInfo, now: datetime
 ) -> dict[ItemKind, int]:
@@ -383,6 +407,9 @@ async def undo(
         return plan
     if plan.status != "applied":
         raise PlanStateError("plan_not_applied", "Only a confirmed plan can be undone.")
+    if plan.card_id is not None:
+        # Undoing the card puts back the plan it replaced.
+        raise PlanStateError("plan_from_card", "Undo this plan on the tutor's card.")
     plan.status = "proposed"
     plan.decided_at = None
     await session.commit()

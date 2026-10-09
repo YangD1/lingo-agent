@@ -12,12 +12,15 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 
+from app.adaptive.daily_plan.algorithm import PlanChoice
+from app.adaptive.daily_plan.card import PlanTarget, card_params
 from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.rules import get_rules
 from app.memory.reflection import EXAM_TAGS
 from app.services.vocab.books import BOOKS, get_book
 
 # "writing" is put by writing_coach, not by a tool (task 38.5).
-CardKind = Literal["word_book", "learning_goal", "practice", "link", "writing"]
+CardKind = Literal["word_book", "learning_goal", "practice", "link", "writing", "daily_plan"]
 LinkKind = Literal["vocab_review", "vocab_screen", "placement", "learner", "word_books"]
 LINK_KINDS: tuple[LinkKind, ...] = (
     "vocab_review",
@@ -30,6 +33,8 @@ LINK_KINDS: tuple[LinkKind, ...] = (
 MAX_DAILY_NEW = 200
 MAX_DAILY_MINUTES = 600
 MAX_GOAL_LENGTH = 200
+# The schema's bound; the rules' daily_plan.max_count and today's limits apply after.
+MAX_PLAN_COUNT = 1000
 
 
 def _enum(values: Collection[str]) -> dict[str, JsonValue]:
@@ -80,6 +85,22 @@ class ProposeLearningGoal(_Args):
     )
 
 
+class ProposeDailyPlan(_Args):
+    """Propose a new plan for today, replacing the current one once the learner confirms
+    it on the card. Only in the dashboard's daily conversation. Counts above what is
+    open today (due reviews, new words the word book allows) are lowered, and practice
+    or reading is dropped when there is nothing to practise or read; the card shows the
+    minutes. Nothing changes before the learner confirms."""
+
+    model_config = ConfigDict(title="propose_daily_plan")
+
+    review: int = Field(ge=0, le=MAX_PLAN_COUNT, description="Due words to review.")
+    new_words: int = Field(ge=0, le=MAX_PLAN_COUNT, description="New words to learn.")
+    practice: bool = Field(description="One grammar practice set.")
+    reading: bool = Field(description="One graded article.")
+    writing: bool = Field(description="One short piece of writing for review.")
+
+
 class SuggestPractice(_Args):
     """Show a card that starts a practice conversation on one grammar point."""
 
@@ -101,6 +122,7 @@ class SuggestLink(_Args):
 TOOL_SCHEMAS: tuple[type[_Args], ...] = (
     ProposeWordBook,
     ProposeLearningGoal,
+    ProposeDailyPlan,
     SuggestPractice,
     SuggestLink,
 )
@@ -120,17 +142,20 @@ class CardDraft:
 
     @property
     def has_effect(self) -> bool:
-        return self.kind in ("word_book", "learning_goal")
+        return self.kind in ("word_book", "learning_goal", "daily_plan")
 
 
 @dataclass(frozen=True)
 class CardScope:
     """Limits of a conversation's suggestions; None fields allow anything valid.
 
-    The planning conversation only suggests from the algorithm's candidates (§6)."""
+    The planning conversation only suggests from the algorithm's candidates (§6). A
+    daily plan can only be proposed where `daily_plan` names today's plan (the
+    dashboard's daily conversation, ADR 0027)."""
 
     kc_ids: Collection[str] | None = None
     links: Collection[LinkKind] | None = None
+    daily_plan: PlanTarget | None = None
 
 
 def draft_card(name: str, args: Mapping[str, Any], scope: CardScope | None = None) -> CardDraft:
@@ -160,6 +185,11 @@ def draft_card(name: str, args: Mapping[str, Any], scope: CardScope | None = Non
             if (exam := values.get("target_exam")) is not None and exam not in EXAM_TAGS:
                 raise ToolCallError(f"unknown target_exam {exam!r}")
             return CardDraft("learning_goal", values)
+        case ProposeDailyPlan():
+            if scope.daily_plan is None:
+                raise ToolCallError("a daily plan can only be proposed in today's conversation")
+            choice = PlanChoice(**parsed.model_dump())
+            return CardDraft("daily_plan", card_params(scope.daily_plan, choice, get_rules()))
         case SuggestPractice(kc_id=kc_id):
             if get_grammar_catalog().get(kc_id) is None:
                 raise ToolCallError(f"unknown kc_id {kc_id!r}")

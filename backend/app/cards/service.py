@@ -5,15 +5,21 @@ import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adaptive.daily_plan.algorithm import PlanChoice, PlanInputs
+from app.adaptive.daily_plan.card import PlanTarget, card_params, describe_params
+from app.adaptive.daily_plan.service import local_day
 from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.rules import get_rules
 from app.cards.tools import CardDraft
-from app.db.models import TutorCard, UserProfile, UserWordBook
+from app.db.models import DailyPlan, TutorCard, UserProfile, UserWordBook
 from app.services.vocab.books import get_book
+from app.services.vocab.scheduler import learner_zone
 
 # Recent cards the tutor is reminded of each turn.
 CONTEXT_CARDS = 10
@@ -108,10 +114,22 @@ async def _owned(session: AsyncSession, user_id: uuid.UUID, card_id: uuid.UUID) 
     return card
 
 
-async def apply_card(session: AsyncSession, user_id: uuid.UUID, card_id: uuid.UUID) -> TutorCard:
-    """Carry out a proposal, keeping what it replaces; commits. Applying again is a no-op."""
+async def apply_card(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    card_id: uuid.UUID,
+    *,
+    choice: PlanChoice | None = None,
+    tz: ZoneInfo | None = None,
+) -> TutorCard:
+    """Carry out a proposal, keeping what it replaces; commits. Applying again is a no-op.
+
+    A daily plan card may be adjusted as it is applied (`choice`, Q48c); `tz` is the
+    browser's, used when the profile has no time zone to tell which day it is."""
     card = await _owned(session, user_id, card_id)
-    if card.status == "applied":
+    if choice is not None and card.kind != "daily_plan":
+        raise CardStateError("card_not_adjustable", "Only a daily plan can be adjusted.")
+    if card.status == "applied" and choice is None:
         return card
     if card.status != "proposed":
         raise CardStateError("card_not_pending", "This card has already been handled.")
@@ -119,6 +137,8 @@ async def apply_card(session: AsyncSession, user_id: uuid.UUID, card_id: uuid.UU
         card.before = await _apply_word_book(session, user_id, card.params)
     elif card.kind == "learning_goal":
         card.before = await _apply_goal(session, user_id, card.params)
+    elif card.kind == "daily_plan":
+        card.before = await _apply_daily_plan(session, user_id, card, choice, tz)
     card.status = "applied"
     card.decided_at = datetime.now(UTC)
     await session.commit()
@@ -148,6 +168,8 @@ async def undo_card(session: AsyncSession, user_id: uuid.UUID, card_id: uuid.UUI
         await _undo_word_book(session, user_id, card.params, card.before)
     elif card.kind == "learning_goal":
         await _undo_goal(session, user_id, card.params, card.before)
+    elif card.kind == "daily_plan":
+        await _undo_daily_plan(session, user_id, card, card.before)
     card.status = "undone"
     card.undone_at = datetime.now(UTC)
     await session.commit()
@@ -256,6 +278,60 @@ async def _undo_goal(
     profile.manual_fields = before["manual_fields"]
 
 
+async def _daily_plan(session: AsyncSession, user_id: uuid.UUID, card: TutorCard) -> DailyPlan:
+    plan = await session.scalar(
+        select(DailyPlan)
+        .where(DailyPlan.id == uuid.UUID(card.params["plan_id"]), DailyPlan.user_id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if plan is None:
+        raise CardStateError("card_invalid", "This plan is no longer available.")
+    return plan
+
+
+async def _apply_daily_plan(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    card: TutorCard,
+    choice: PlanChoice | None,
+    tz: ZoneInfo | None,
+) -> dict[str, Any]:
+    """The card's plan becomes today's (ADR 0027 §1), adjusted within the plan's limits."""
+    plan = await _daily_plan(session, user_id, card)
+    now = datetime.now(UTC)
+    zone = tz if tz is not None else await learner_zone(session, user_id)
+    if plan.day != local_day(now, zone):
+        raise CardStateError("plan_expired", "This plan was for another day.")
+    if choice is not None:
+        target = PlanTarget(str(plan.id), plan.day.isoformat(), PlanInputs(**plan.limits))
+        card.params = card_params(target, choice, get_rules())
+    before = {
+        "choice": plan.choice,
+        "status": plan.status,
+        "card_id": str(plan.card_id) if plan.card_id else None,
+        "decided_at": plan.decided_at.isoformat() if plan.decided_at else None,
+    }
+    plan.choice = card.params["choice"]
+    plan.status = "applied"
+    plan.card_id = card.id
+    plan.decided_at = now
+    return before
+
+
+async def _undo_daily_plan(
+    session: AsyncSession, user_id: uuid.UUID, card: TutorCard, before: dict[str, Any]
+) -> None:
+    """Today's plan goes back to what it was before this card."""
+    plan = await _daily_plan(session, user_id, card)
+    if plan.card_id != card.id or plan.choice != card.params["choice"]:
+        raise _changed_since()
+    plan.choice = before["choice"]
+    plan.status = before["status"]
+    plan.card_id = uuid.UUID(before["card_id"]) if before["card_id"] else None
+    plan.decided_at = datetime.fromisoformat(before["decided_at"]) if before["decided_at"] else None
+
+
 # --- rendering ----------------------------------------------------------------------------
 
 
@@ -264,7 +340,10 @@ def card_json(card: TutorCard) -> dict[str, Any]:
     display: dict[str, Any] = {}
     if card.kind == "word_book" and (book := get_book(card.params["book_id"])):
         display["book"] = {"id": book.id, "name_en": book.name_en, "name_zh": book.name_zh}
-    if card.kind == "practice" and (kc := get_grammar_catalog().get(card.params["kc_id"])):
+    kc_id = card.params.get("kc_id") if card.kind == "practice" else None
+    if card.kind == "daily_plan":
+        kc_id = next((i["ref"] for i in card.params["items"] if i["kind"] == "practice"), None)
+    if kc_id is not None and (kc := get_grammar_catalog().get(kc_id)):
         display["kc"] = {"id": kc.id, "name_en": kc.name_en, "name_zh": kc.name_zh, "cefr": kc.cefr}
     return {
         "id": str(card.id),
@@ -304,6 +383,8 @@ def describe(card: TutorCard) -> str:
             what = f"practise {kc.name_en if kc else p['kc_id']}"
         case "writing":
             what = "open the line-by-line review of the learner's writing"
+        case "daily_plan":
+            what = describe_params(p)
         case _:
             what = f"open the {p['kind']} page"
     return f"{what} ({_STATUS_TEXT.get(card.status, card.status)})"
