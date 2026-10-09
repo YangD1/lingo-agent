@@ -854,7 +854,8 @@
       "errors": "错误",
       "fallbacks": "回退",
       "avg_latency_ms": "平均延迟（毫秒）",
-      "total": "合计"
+      "total": "合计",
+      "characters": "朗读字符"
     },
     "display": {
       "title": "显示",

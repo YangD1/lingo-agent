@@ -23,6 +23,7 @@ class UsageRowOut(BaseModel):
     calls: int
     input_tokens: int
     output_tokens: int
+    characters: int
     errors: int
     fallbacks: int
     avg_latency_ms: int

@@ -6,6 +6,7 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from "react"
 
 import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
+import { ReadAloudBadge } from "@/components/speech/read-aloud-badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { ErrorText } from "@/components/ui/error-text";
@@ -275,6 +276,7 @@ function WordCard({
           <Volume2 />
         </Button>
       )}
+      {speakable && <ReadAloudBadge className="self-center" />}
     </div>
   );
 

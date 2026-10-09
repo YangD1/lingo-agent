@@ -854,7 +854,8 @@
       "errors": "Errors",
       "fallbacks": "Fallbacks",
       "avg_latency_ms": "Avg latency (ms)",
-      "total": "Total"
+      "total": "Total",
+      "characters": "Characters read"
     },
     "display": {
       "title": "Display",

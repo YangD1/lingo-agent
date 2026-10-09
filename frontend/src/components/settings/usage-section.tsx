@@ -22,7 +22,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 import { useDescribeError } from "./use-describe-error";
 
-const NUMERIC = ["calls", "input_tokens", "output_tokens", "errors", "fallbacks"] as const;
+const NUMERIC = ["calls", "input_tokens", "output_tokens", "characters", "errors", "fallbacks"] as const;
 
 export function UsageSection() {
   const t = useTranslations("settings.usage");
@@ -48,6 +48,8 @@ export function UsageSection() {
 
   const rows = usage?.rows ?? [];
   const total = (key: (typeof NUMERIC)[number]) => rows.reduce((sum, r) => sum + r[key], 0);
+  // Read-aloud's column only once something was read aloud.
+  const columns = NUMERIC.filter((key) => key !== "characters" || total("characters") > 0);
   const n = (value: number) => format.number(value);
 
   return (
@@ -93,7 +95,7 @@ export function UsageSection() {
                 <tr>
                   <th className="px-3 py-2 font-medium">{t("day")}</th>
                   <th className="px-3 py-2 font-medium">{t("model")}</th>
-                  {NUMERIC.map((key) => (
+                  {columns.map((key) => (
                     <th key={key} className="px-3 py-2 text-right font-medium">
                       {t(key)}
                     </th>
@@ -106,7 +108,7 @@ export function UsageSection() {
                   <tr key={`${r.day}/${r.connection}/${r.model}`} className="border-t">
                     <td className="px-3 py-2">{r.day}</td>
                     <td className="px-3 py-2">{`${r.connection}:${r.model}`}</td>
-                    {NUMERIC.map((key) => (
+                    {columns.map((key) => (
                       <td
                         key={key}
                         className={cn(
@@ -126,7 +128,7 @@ export function UsageSection() {
                   <td className="px-3 py-2 font-sans" colSpan={2}>
                     {t("total")}
                   </td>
-                  {NUMERIC.map((key) => (
+                  {columns.map((key) => (
                     <td key={key} className="px-3 py-2 text-right">
                       {n(total(key))}
                     </td>

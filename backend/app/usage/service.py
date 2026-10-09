@@ -18,6 +18,8 @@ class UsageSummaryRow:
     calls: int
     input_tokens: int
     output_tokens: int
+    # Read-aloud is billed by characters (ADR 0028 §3); 0 for every other call.
+    characters: int
     errors: int
     fallbacks: int
     avg_latency_ms: int
@@ -35,6 +37,7 @@ async def summarize_usage(
             func.count(),
             func.coalesce(func.sum(LLMUsage.input_tokens), 0),
             func.coalesce(func.sum(LLMUsage.output_tokens), 0),
+            func.coalesce(func.sum(LLMUsage.characters), 0),
             func.count(case((LLMUsage.status == "error", 1))),
             func.count(case((LLMUsage.is_fallback, 1))),
             func.coalesce(func.avg(LLMUsage.latency_ms), 0),
@@ -51,9 +54,10 @@ async def summarize_usage(
             calls=row[3],
             input_tokens=int(row[4]),
             output_tokens=int(row[5]),
-            errors=row[6],
-            fallbacks=row[7],
-            avg_latency_ms=round(row[8]),
+            characters=int(row[6]),
+            errors=row[7],
+            fallbacks=row[8],
+            avg_latency_ms=round(row[9]),
         )
         for row in await session.execute(stmt)
     ]

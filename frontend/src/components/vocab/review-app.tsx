@@ -8,6 +8,7 @@ import { type ReactNode, useEffect } from "react";
 import { LogoMark } from "@/components/brand/logo";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
+import { ReadAloudBadge } from "@/components/speech/read-aloud-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress";
@@ -175,6 +176,7 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                         <Volume2 />
                       </Button>
                     )}
+                    {speakable && <ReadAloudBadge />}
                   </div>
                   {flipped && current.word.phonetic && (
                     <p className="font-mono text-muted-foreground">/{current.word.phonetic}/</p>

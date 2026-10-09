@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
+import { ReadAloudBadge } from "@/components/speech/read-aloud-badge";
 import { SpeechSettings } from "@/components/speech/speech-settings";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,7 @@ export function ReplyTools({
           {speaking ? t("stop") : t("read")}
         </Button>
       )}
+      {speakable && <ReadAloudBadge />}
       {speakable && (
         <Popover>
           <PopoverTrigger

@@ -93,4 +93,24 @@ describe("SpeechSettings with a read-aloud service", () => {
     );
     expect(screen.getByTestId("speech-server")).toHaveAttribute("aria-disabled", "true");
   });
+
+  it("marks read-aloud buttons as AI only while the server reads English", async () => {
+    window.localStorage.setItem("lingo.speech", JSON.stringify({ accent: "en-GB" }));
+    await wrap(["en-US"]); // no British voice on the server
+    const { ReadAloudBadge } = await import("./read-aloud-badge");
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <ReadAloudBadge />
+      </NextIntlClientProvider>,
+    );
+    expect(container).toBeEmptyDOMElement();
+
+    act(() => window.localStorage.setItem("lingo.speech", JSON.stringify({ accent: "en-US" })));
+    act(() => window.dispatchEvent(new Event("lingo:speech")));
+    expect(container.querySelector('[data-testid="ai-badge-read_aloud"]')).not.toBeNull();
+
+    act(() => window.localStorage.setItem("lingo.speech", JSON.stringify({ server: false })));
+    act(() => window.dispatchEvent(new Event("lingo:speech")));
+    expect(container).toBeEmptyDOMElement();
+  });
 });

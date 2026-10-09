@@ -120,6 +120,8 @@ export type UsageRow = {
   calls: number;
   input_tokens: number;
   output_tokens: number;
+  /** Read-aloud is billed by characters; 0 for other calls. */
+  characters: number;
   errors: number;
   fallbacks: number;
   avg_latency_ms: number;
