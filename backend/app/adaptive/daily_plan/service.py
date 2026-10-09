@@ -111,11 +111,12 @@ async def _article(
     session: AsyncSession, user_id: uuid.UUID, tenant_id: uuid.UUID, *, rules: Rules
 ) -> int | None:
     """The newest unread article from the learner's feeds, one already rewritten for
-    their level first (no model call needed to open it)."""
+    their level first (no model call needed to open it). Summary-only ones are read at
+    their source, with no questions to finish here, so they are left out."""
     views = await feeds.list_articles(
         session, user_id, tenant_id, limit=ARTICLES_LOOKED_AT, before=None
     )
-    ids = [v.article.id for v in views]
+    ids = [v.article.id for v in views if not v.article.summary_only]
     if not ids:
         return None
     read = set(

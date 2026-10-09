@@ -170,7 +170,10 @@ async def test_reading_and_writing(db_session: AsyncSession) -> None:
         )
 
     newest, rewritten, read = article("newest", 1), article("rewritten", 2), article("read", 0)
-    db_session.add_all([newest, rewritten, read])
+    # Newest of all, but only a summary: never planned.
+    summary = article("summary", 0)
+    summary.summary_only = True
+    db_session.add_all([newest, rewritten, read, summary])
     await db_session.flush()
     level = await reading_level(db_session, user_id, RULES)
     db_session.add_all(
@@ -178,6 +181,7 @@ async def test_reading_and_writing(db_session: AsyncSession) -> None:
             ArticleVersion(
                 tenant_id=tenant_id, article_id=rewritten.id, level=level, status="ready"
             ),
+            ArticleVersion(tenant_id=tenant_id, article_id=summary.id, level=level, status="ready"),
             ReadingSession(user_id=user_id, article_id=read.id, level=level),
             # Wrote 3 days ago: no essay today (writing_gap_days = 7).
             WritingSubmission(
