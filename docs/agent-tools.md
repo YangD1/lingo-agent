@@ -163,7 +163,7 @@
 
 不是学习者当下点出来的模型调用都算后台工作：定时任务（`backend/app/scheduler/jobs.py` 登记，进程内 APScheduler 触发）和事件触发的预备工作（练习预生成）。回复后的记忆反思属于对话本身，学习者自己提交后在后台批改的写作也是学习者在等的，都不算。
 
-- **每日上限**：租户级 `tenants.background_daily_tokens`（默认 100,000，0 = 关闭全部后台调用），owner / admin 在设置“后台任务”里改。用量是 `llm_usage` 里 `background = true` 的行，按 UTC 零点切天；每项后台工作开始前检查，最后一项可能略超。用完后当天跳过，定时任务记跳过原因 `budget_exhausted`。
+- **每日上限**：租户级 `tenants.background_daily_tokens`（默认 300,000，2026-10-09 按真模型实测从 100,000 调高；0 = 关闭全部后台调用），owner / admin 在设置“后台任务”里改。用量是 `llm_usage` 里 `background = true` 的行，按 UTC 零点切天；每项后台工作开始前检查，最后一项可能略超。用完后当天跳过，定时任务记跳过原因 `budget_exhausted`。
 - **学习者开关**：`backend/app/scheduler/prefs.py` 登记每种为学习者做的后台工作和默认值，存 `user_background_prefs`；设置“后台任务”里每项一个开关，旁边挂对应功能的 AI 标记。额度用完或被关闭时学习者只看到一句提示，不看数字。
 - **运行记录**：`scheduler_runs` 记每个定时任务的上次开始 / 结束 / 成功、状态和跳过原因、错误（异常类型和消息，不含学习者内容）；管理员在设置页看到。启动时上次停机打断的标为出错，错过了一个周期的补跑一次。
 - **新增后台工作时**：在 `features.yaml` 登记为 `timing: background`、调用 metadata 带 `background: True`、在 `prefs.py` 登记开关（为学习者做的）、在本节表格加一行。

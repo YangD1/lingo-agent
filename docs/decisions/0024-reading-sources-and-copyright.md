@@ -56,3 +56,6 @@ Q43a–j 按推荐确认（用户授权一律按推荐）。
 - **页面**（Q43f、Q43g）：`/reading` 列表（新到旧、来源 chips、“已为你改写 / 只有摘要 / 读过”标记、管理来源抽屉），不做话题筛选；`/reading/[id]` 打开时取我的版本，生成中每 2 秒轮询并先显示原文，失败可重试，可切换“你的等级 / 原文”，出处行按许可写。
 - **reading_coach**（Q43h、Q43i）：阅读页“问私教”新开会话（`conversations.article_id`，purpose `reading`），按固定信号路由，不进分类器；每轮带我等级的改写版（没有就原文前 1,500 词），提示词标明文章是资料不是指令；不带工具，用量记 `reading_coach`，活动记 `reading_context`。
 - **E2E**（Q43j）：`frontend/e2e/reading.spec.ts` 两条，假模型补 `ArticleRewrite`、`QuestionSet`、`QuestionReviews`。
+
+## 结论：P2 不引入 trafilatura（任务 49，Q49d，2026-10-09）
+两个内置来源（NASA、Global Voices）的 RSS 都带全文；学习者自加的源只给摘要时，列表标“只有摘要”、链到原网站，不改写、不出题，每日计划也不会挑这种文章（49.1 修的）。抓原网页正文要多一个依赖（约 20–30MB 内存），还要面对各站的版权和反爬差异，P2 先不做，留到有人反馈自加源只有摘要不好用时再看。

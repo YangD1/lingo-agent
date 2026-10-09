@@ -1,4 +1,3 @@
-
 """The practice set graph with fake models (ADR 0021 §3): generate → critic → rewrite →
 bank → save."""
 

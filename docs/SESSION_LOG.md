@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-09 · 任务 49.3 完成（按 49.2 实测调整）
+
+- **做了什么**：49.3.1 `SectionSpec.task_params` 按任务设调用参数（`defaults` < `task_params` < 连接 < 路由），两份 providers YAML 给长任务 120 秒、批改 / 反思 60 秒，ADR 0002 补一句（df996a4）。49.3.2 练习组等待预算：`practice.wait_budget_seconds: 150`，`exercise_graph` 的 `critic` 算“已用 + 上一轮耗时 > 预算”就去补位，只对 `start` 生成的组生效，预生成不限；规则版本 `2026-10-09.2`，ADR 0021 补一句（d92a3cd）。49.3.3 `features.yaml` 默认估计按实测改，新租户后台每日上限 300,000（迁移 `c7e2a94d1b05`），ADR 0024 / 0025、P2 计划、`agent-tools.md` 记结论。
+- **验证**：`make lint` 干净；pytest 1438、Vitest 371 全过（Vitest 第一次 `use-attachments.test.ts` 偶发失败一次，重跑都过）。E2E 没跑，留给 49.5 的 `make ci`。
+- **未完成**：49.4（README 截图、P2 一节、PLAN / P2 计划标 P2 完成）、49.5（`make ci`、推送、Docker 重建）。Docker 还是旧代码，迁移只升了开发库（Docker 后端启动时会自动迁移）。
+- **下一步**：49.4。
+- **另记**：实测里反思（reflect）每次输入约 13k token，是一轮对话本身（约 5.4k）的 2 倍多，是对话里最贵的一项；这次没动，值得以后看看能不能缩短它的提示词。
+
 ## 2026-10-09 · 任务 49.1、49.2 完成（P2 全链路 E2E、真模型冒烟）
 
 - **做了什么**：49.1 `e2e/p2-demo.spec.ts`，顺带修了每日计划会挑“只有摘要”文章的问题（1cba634）。49.2 用用户给的 gpt-6.1-sol（OpenAI 兼容中转）在 Docker 全栈临时账号上跑了写作批改、对话 + 反思、练习一组、文章改写、练习后诊断，行为都正常；按 task 汇总了 `llm_usage` 的实际 token 和耗时（数字在看板 49.2）。诊断评估集录制入库 `backend/evals/cassettes/diagnosis.json`，`root_found` 门槛 0.8 → 0.75（两次运行 8/9、7/9），`evals/README.md` 记了结果和漏过的用例。临时账号、租户和连接已用 SQL 按 ID 删除，用户自己的连接（siliconflow、sub2api）没动。

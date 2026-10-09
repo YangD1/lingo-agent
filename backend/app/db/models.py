@@ -100,7 +100,7 @@ class Tenant(TimestampMixin, Base):
     kind: Mapped[str] = mapped_column(String(20))
     # Tokens background work may use per UTC day (ADR 0025 §5); 0 turns it all off.
     background_daily_tokens: Mapped[int] = mapped_column(
-        Integer, default=100_000, server_default="100000"
+        Integer, default=300_000, server_default="300000"
     )
 
 

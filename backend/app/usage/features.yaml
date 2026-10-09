@@ -25,7 +25,7 @@ features:
     calls:
       - task: chat
         timing: now
-        default: {input_tokens: 2500, output_tokens: 300}
+        default: {input_tokens: 5400, output_tokens: 150}
       # Only when the tutor used a tool: its reply after the tool results (ADR 0015 §7).
       - task: chat_tools
         route: chat
@@ -40,12 +40,12 @@ features:
       # /writing (Q38b); the coach's reply after it is the chat call above.
       - task: writing_review
         timing: now
-        default: {input_tokens: 9000, output_tokens: 1500}
+        default: {input_tokens: 6100, output_tokens: 500}
       # Reflection after each reply: memory, grammar tags, words; every few turns it
       # also rewrites the conversation summary.
       - task: reflect
         timing: background
-        default: {input_tokens: 3000, output_tokens: 500}
+        default: {input_tokens: 13000, output_tokens: 200}
       - task: memory
         section: embedding
         timing: background
@@ -88,16 +88,16 @@ features:
     calls:
       - task: exercise_generate
         timing: now
-        default: {input_tokens: 2800, output_tokens: 2200}
+        default: {input_tokens: 6800, output_tokens: 1500}
       - task: exercise_critic
         timing: now
-        default: {input_tokens: 2000, output_tokens: 1500}
+        default: {input_tokens: 5900, output_tokens: 1000}
       - task: exercise_generate
         timing: background
-        default: {input_tokens: 2800, output_tokens: 2200}
+        default: {input_tokens: 6800, output_tokens: 1500}
       - task: exercise_critic
         timing: background
-        default: {input_tokens: 2000, output_tokens: 1500}
+        default: {input_tokens: 5900, output_tokens: 1000}
 
   # Grading an answer the code cannot (ADR 0021 §6): open formats, and find_fix with a
   # fix not in the item's list. One call per such answer, only the first time an item
@@ -107,7 +107,7 @@ features:
     calls:
       - task: exercise_grade
         timing: now
-        default: {input_tokens: 7500, output_tokens: 300}
+        default: {input_tokens: 11900, output_tokens: 150}
 
   # Opening an article on /reading (ADR 0024 §5, Q42f): when no version at the
   # learner's level is cached for the tenant, one call rewrites it and writes the
@@ -118,15 +118,15 @@ features:
     calls:
       - task: article_rewrite
         timing: now
-        default: {input_tokens: 3500, output_tokens: 1300}
+        default: {input_tokens: 6000, output_tokens: 1100}
       - task: reading_critic
         route: exercise_critic
         timing: now
-        default: {input_tokens: 1500, output_tokens: 500}
+        default: {input_tokens: 5400, output_tokens: 350}
       - task: reading_questions
         route: article_rewrite
         timing: now
-        default: {input_tokens: 1300, output_tokens: 300}
+        default: {input_tokens: 5400, output_tokens: 300}
 
   # "Ask the tutor" on the reading page (Q43h): reading_coach answers each message with
   # the article in its prompt (Q43i), so a reply reads more than a chat turn does.
@@ -138,7 +138,7 @@ features:
         default: {input_tokens: 4500, output_tokens: 300}
       - task: reflect
         timing: background
-        default: {input_tokens: 3000, output_tokens: 500}
+        default: {input_tokens: 13000, output_tokens: 200}
       - task: memory
         section: embedding
         timing: background
@@ -152,15 +152,15 @@ features:
     calls:
       - task: article_rewrite
         timing: background
-        default: {input_tokens: 3500, output_tokens: 1300}
+        default: {input_tokens: 6000, output_tokens: 1100}
       - task: reading_critic
         route: exercise_critic
         timing: background
-        default: {input_tokens: 1500, output_tokens: 500}
+        default: {input_tokens: 5400, output_tokens: 350}
       - task: reading_questions
         route: article_rewrite
         timing: background
-        default: {input_tokens: 1300, output_tokens: 300}
+        default: {input_tokens: 5400, output_tokens: 300}
 
   # "Submit" on /writing (P2 plan §4.2): one review of the whole text, run in the
   # background while the page waits for it (Q38c).
@@ -168,7 +168,7 @@ features:
     calls:
       - task: writing_review
         timing: now
-        default: {input_tokens: 9000, output_tokens: 1500}
+        default: {input_tokens: 6100, output_tokens: 500}
 
   # "Talk it over with the tutor" in the placement result's conversation (ADR 0015 §6,
   # 0016 §4): the tutor's opening of the planning conversation; later turns, and the
@@ -206,7 +206,7 @@ features:
     calls:
       - task: diagnose
         timing: background
-        default: {input_tokens: 3000, output_tokens: 600}
+        default: {input_tokens: 7400, output_tokens: 500}
 
   # Today's plan on the dashboard (ADR 0027) is drafted by code and calls no model;
   # the tutor's propose_daily_plan tool runs inside a daily conversation turn

@@ -65,7 +65,7 @@ async def test_counts_only_todays_background_calls_of_the_tenant(
         await session.commit()
 
         found = await budget.load(session, mine, NOW)
-    assert found == budget.Budget(limit=100_000, used=300)
+    assert found == budget.Budget(limit=300_000, used=300)
     assert not found.exhausted
 
 

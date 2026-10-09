@@ -111,7 +111,7 @@ async def test_tenant_budget_and_todays_use(client: AsyncClient, db_session: Asy
     await db_session.commit()
 
     body = (await client.get("/tenant/background")).json()
-    assert (body["daily_tokens"], body["used_today"], body["budget"]) == (100_000, 1000, "ok")
+    assert (body["daily_tokens"], body["used_today"], body["budget"]) == (300_000, 1000, "ok")
     assert body["scheduler_running"] is False
 
     body = (await client.put("/tenant/background", json={"daily_tokens": 1000})).json()
