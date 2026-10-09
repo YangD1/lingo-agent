@@ -19,6 +19,11 @@ vi.mock("./skills-chart", () => ({ SkillsChart: () => <div data-testid="skills-c
 vi.mock("./errors-chart", () => ({ ErrorsChart: () => <div data-testid="errors-chart" /> }));
 // Fetches on its own; tested in today-tutor.test.
 vi.mock("./today-tutor", () => ({ TodayTutor: () => <div data-testid="today" /> }));
+// Today's plan is tested in today-plan.test; here it stays loading.
+vi.mock("@/lib/plan", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/plan")>()),
+  fetchPlan: () => new Promise(() => {}),
+}));
 
 const level = (total: number, seen = 0): LevelSplit => ({
   total,

@@ -1,19 +1,21 @@
 "use client";
 
-import { BookOpen, Compass, Flag, PenLine, Target } from "lucide-react";
+import { BookOpen, CalendarCheck, Compass, Flag, PenLine, Target } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 
+import { PlanEditor, roundMinutes, useItemLabel } from "@/components/plan/plan-editor";
 import { PracticeChoices } from "@/components/practice/practice-choices";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ErrorText } from "@/components/ui/error-text";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { ApiError } from "@/lib/api";
 import { type CardAction, LINK_HREFS, type LinkKind, type TutorCard } from "@/lib/cards";
+import type { PlanCardParams, PlanChoice } from "@/lib/plan";
 import { cn } from "@/lib/utils";
 
-type Decide = (card: TutorCard, action: CardAction) => Promise<void>;
+type Decide = (card: TutorCard, action: CardAction, choice?: PlanChoice) => Promise<void>;
 
 /** The cards the tutor showed on a turn, under its reply (ADR 0015 §4). */
 export function TutorCards({ cards, onDecide }: { cards: TutorCard[]; onDecide: Decide }) {
@@ -33,6 +35,7 @@ const ICONS = {
   practice: Target,
   link: Compass,
   writing: PenLine,
+  daily_plan: CalendarCheck,
 };
 
 function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
@@ -67,6 +70,7 @@ function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
         {card.kind === "practice" && <Practice card={card} />}
         {card.kind === "link" && <LinkCard card={card} />}
         {card.kind === "writing" && <WritingCard card={card} />}
+        {card.kind === "daily_plan" && <DailyPlanCard card={card} onDecide={onDecide} />}
       </div>
     </div>
   );
@@ -124,8 +128,49 @@ function Goal({ card }: { card: TutorCard }) {
   );
 }
 
+/** The tutor's plan for today (ADR 0027): adjustable until confirmed, then it replaces
+ * the plan on the dashboard. */
+function DailyPlanCard({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
+  const t = useTranslations("chat.cards.plan");
+  const label = useItemLabel();
+  const params = card.params as PlanCardParams;
+  const [choice, setChoice] = useState<PlanChoice>(params.choice);
+  const kc = card.display.kc;
+  return (
+    <>
+      <p className="text-sm font-semibold">{t("title")}</p>
+      {card.status === "proposed" ? (
+        <PlanEditor
+          choice={choice}
+          limits={params.limits}
+          estimates={params.estimates}
+          onChange={setChoice}
+        />
+      ) : (
+        <ul className="list-disc pl-4 text-muted-foreground" data-testid="plan-card-items">
+          {params.items.map((item) => (
+            <li key={item.kind}>{label(item.kind, item.count, item.kind === "practice" ? kc : null)}</li>
+          ))}
+          {params.items.length === 0 && <li>{t("empty")}</li>}
+          <li className="list-none text-xs">{t("minutes", { n: roundMinutes(params.minutes) })}</li>
+        </ul>
+      )}
+      <Decision card={card} onDecide={onDecide} choice={choice} />
+    </>
+  );
+}
+
 /** Confirm or decline a proposal; undo it once applied. Nothing changes before "confirm". */
-function Decision({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
+function Decision({
+  card,
+  onDecide,
+  choice,
+}: {
+  card: TutorCard;
+  onDecide: Decide;
+  /** A daily plan card applied as adjusted on it. */
+  choice?: PlanChoice;
+}) {
   const t = useTranslations("chat.cards");
   const errorMessage = useErrorMessage();
   const [busy, setBusy] = useState(false);
@@ -133,7 +178,9 @@ function Decision({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
   const act = (action: CardAction) => {
     setBusy(true);
     setError(null);
-    onDecide(card, action).then(
+    const decided =
+      action === "apply" && choice ? onDecide(card, action, choice) : onDecide(card, action);
+    decided.then(
       () => setBusy(false),
       (e: unknown) => {
         setBusy(false);

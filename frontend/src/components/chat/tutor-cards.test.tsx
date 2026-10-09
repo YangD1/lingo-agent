@@ -116,4 +116,51 @@ describe("TutorCards", () => {
     expect(screen.getByRole("link", { name: "查看逐句批改" })).toHaveAttribute("href", "/writing/7");
     expect(screen.getAllByTestId("tutor-card")).toHaveLength(1);
   });
+
+  it("lets the learner adjust the tutor's plan before confirming it", async () => {
+    const params = {
+      plan_id: "p1",
+      day: "2026-10-09",
+      choice: { review: 0, new_words: 0, practice: false, reading: false, writing: true },
+      items: [{ kind: "writing", minutes: 15, count: null, ref: null }],
+      minutes: 15,
+      limits: { reviews_due: 8, new_left: 0, practice: true, reading: false, max_count: 500 },
+      estimates: { review: 0.25, new_words: 1, practice: 8, reading: 10, writing: 15 },
+    };
+    const proposal = card({ id: "p", kind: "daily_plan", params, display: {} });
+    const onDecide = show([proposal]);
+    expect(screen.getByText("新的今天计划")).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "复习 0 个词：增加" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "确认" }));
+    expect(onDecide).toHaveBeenCalledWith(proposal, "apply", {
+      ...params.choice,
+      review: 5,
+    });
+  });
+
+  it("lists an answered plan card's items", () => {
+    show([
+      card({
+        id: "p",
+        kind: "daily_plan",
+        status: "applied",
+        params: {
+          choice: {},
+          items: [
+            { kind: "review", minutes: 2, count: 8, ref: null },
+            { kind: "practice", minutes: 8, count: null, ref: "g.third" },
+          ],
+          minutes: 10,
+        },
+        display: { kc: { id: "g.third", name_en: "Third person -s", name_zh: "第三人称单数", cefr: "A1" } },
+      }),
+    ]);
+    const items = screen.getByTestId("plan-card-items");
+    expect(items).toHaveTextContent("复习 8 个词");
+    expect(items).toHaveTextContent("做一组语法练习：第三人称单数");
+    expect(items).toHaveTextContent("预计 10 分钟");
+    expect(screen.getByRole("button", { name: "撤销" })).toBeInTheDocument();
+  });
 });

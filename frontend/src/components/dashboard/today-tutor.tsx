@@ -20,6 +20,7 @@ import {
 import { Callout } from "@/components/ui/callout";
 import { type Advice, type AdviceItem, templateKey } from "@/lib/advice";
 import { api } from "@/lib/api";
+import type { TutorCard } from "@/lib/cards";
 import { kcName } from "@/lib/learner";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,14 @@ export const fetchToday = () => api<Conversation | null>(`/conversations/today${
  * message it shows a greeting and quick replies made by rules, and calls no model; the
  * conversation is created with the learner's first message, one per day.
  */
-export function TodayTutor({ onTurnFinished }: { onTurnFinished?: () => void }) {
+export function TodayTutor({
+  onTurnFinished,
+  onCardDecided,
+}: {
+  onTurnFinished?: () => void;
+  /** A card applied, declined or undone here; keep it stable. */
+  onCardDecided?: (card: TutorCard) => void;
+}) {
   const t = useTranslations("dashboard.today");
   const locale = useLocale();
   const { advice, error } = useAdvice();
@@ -85,6 +93,7 @@ export function TodayTutor({ onTurnFinished }: { onTurnFinished?: () => void }) 
             conversationId={conversation?.id ?? null}
             onConversationCreated={setConversation}
             onTurnFinished={onTurnFinished}
+            onCardDecided={onCardDecided}
             createConversation={() =>
               api<Conversation>("/conversations", {
                 method: "POST",

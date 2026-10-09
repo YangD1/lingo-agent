@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type CardAction, decideCard, fetchCards, type TutorCard } from "@/lib/cards";
+import type { PlanChoice } from "@/lib/plan";
 
 /** A conversation's cards by turn; a switch starts empty without an effect resetting it. */
 type Owned = { conversationId: string | null; cards: TutorCard[] };
@@ -10,7 +11,7 @@ type Owned = { conversationId: string | null; cards: TutorCard[] };
 export type CardsView = {
   byTurn: Record<string, TutorCard[]>;
   /** Apply, decline or undo; the card shows the result. Rejects with the ApiError. */
-  decide: (card: TutorCard, action: CardAction) => Promise<void>;
+  decide: (card: TutorCard, action: CardAction, choice?: PlanChoice) => Promise<void>;
 };
 
 function upsert(cards: TutorCard[], card: TutorCard): TutorCard[] {
@@ -24,7 +25,10 @@ function upsert(cards: TutorCard[], card: TutorCard): TutorCard[] {
  * The cards the tutor showed in a conversation (ADR 0015 §4): loaded with it, added as
  * they stream in, and reloaded after each turn for their current status and numbers.
  */
-export function useCards(conversationId: string | null) {
+export function useCards(
+  conversationId: string | null,
+  onDecided?: (card: TutorCard) => void,
+) {
   const [owned, setOwned] = useState<Owned>({ conversationId, cards: [] });
   const current = useRef(conversationId);
   useEffect(() => {
@@ -54,11 +58,12 @@ export function useCards(conversationId: string | null) {
   const add = useCallback((card: TutorCard) => setCards((all) => upsert(all, card)), [setCards]);
 
   const decide = useCallback(
-    async (card: TutorCard, action: CardAction) => {
-      const updated = await decideCard(card.id, action);
+    async (card: TutorCard, action: CardAction, choice?: PlanChoice) => {
+      const updated = await decideCard(card.id, action, choice);
       setCards((all) => upsert(all, updated));
+      onDecided?.(updated);
     },
-    [setCards],
+    [setCards, onDecided],
   );
 
   const cards = owned.conversationId === conversationId ? owned.cards : [];

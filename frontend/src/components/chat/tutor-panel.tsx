@@ -8,6 +8,7 @@ import { type DragEvent, type ReactNode, useEffect, useRef, useState } from "rea
 import { buttonVariants } from "@/components/ui/button";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import type { AiFeature } from "@/lib/ai-usage";
+import type { TutorCard } from "@/lib/cards";
 import { useShowActivity } from "@/lib/preferences";
 import type { Attachment, Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,9 @@ type Props = {
   onConversationCreated: (conversation: Conversation) => void;
   /** After a reply finishes (the backend retitled or bumped the conversation). */
   onTurnFinished?: () => void;
+  /** After the learner applied, declined or undid a card (a daily plan card changes the
+   * dashboard's plan). Keep it stable. */
+  onCardDecided?: (card: TutorCard) => void;
   /** How the conversation is created; a plain one by default. */
   createConversation?: () => Promise<Conversation>;
   /** See useChatSession: false when `createConversation` may return an existing one. */
@@ -62,6 +66,7 @@ export function TutorPanel({
   conversationId,
   onConversationCreated,
   onTurnFinished,
+  onCardDecided,
   createConversation,
   discardRefused,
   autoOpen = false,
@@ -75,7 +80,7 @@ export function TutorPanel({
   const errorMessage = useErrorMessage();
   const [showActivity] = useShowActivity();
   const activity = useActivity(conversationId, showActivity);
-  const cards = useCards(conversationId);
+  const cards = useCards(conversationId, onCardDecided);
   const session = useChatSession(conversationId, {
     onConversationCreated,
     onTurnFinished: () => {

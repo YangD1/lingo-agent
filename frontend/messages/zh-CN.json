@@ -324,6 +324,11 @@
         "title": "作文批改",
         "body": "逐句修改、四项评分和讲解都在批改记录里。",
         "action": "查看逐句批改"
+      },
+      "plan": {
+        "title": "新的今天计划",
+        "empty": "什么都不安排",
+        "minutes": "预计 {n} 分钟"
       }
     },
     "planning": {
@@ -1031,7 +1036,13 @@
     "level_above": "你的等级直接读原文。",
     "session_not_found": "找不到这条阅读记录。",
     "no_questions": "这篇没有理解题。",
-    "invalid_answers": "请先回答每一道题。"
+    "invalid_answers": "请先回答每一道题。",
+    "card_not_adjustable": "只有每日计划卡可以调整数量。",
+    "plan_not_found": "找不到这份计划。",
+    "plan_not_pending": "这份计划已经处理过了。",
+    "plan_not_applied": "只有已确认的计划才能撤销。",
+    "plan_from_card": "这份计划来自私教的卡片，请在那张卡片上撤销。",
+    "plan_expired": "这是之前某一天的计划，已经过期了。"
   },
   "dashboard": {
     "title": "能力看板",
@@ -1197,6 +1208,51 @@
         "resume": "我想把入学测做完",
         "grammar_practice": "我想练一下{kc}"
       }
+    }
+  },
+  "plan": {
+    "title": "今天的计划",
+    "loading": "正在排今天的计划…",
+    "budget": "按你每天 {n} 分钟排的，可以先调整再确认。",
+    "budgetUnset": "你还没设每天学多久，先按 {n} 分钟排；可以在<link>记忆页</link>设置。",
+    "items": {
+      "review": "复习 {n} 个词",
+      "new_words": "学 {n} 个新词",
+      "practice": "做一组语法练习",
+      "practiceKc": "做一组语法练习：{kc}",
+      "reading": "读一篇分级文章",
+      "writing": "写一段短文请私教批改"
+    },
+    "none": {
+      "review": "今天没有到期的词",
+      "new_words": "今天的新词额度用完了，或者还没选词书",
+      "practice": "现在没有要练的语法点",
+      "reading": "订阅里没有没读过的文章",
+      "writing": "随时都可以写"
+    },
+    "upTo": "今天最多 {n}",
+    "minutes": "约 {n} 分钟",
+    "total": "预计 {n} 分钟",
+    "less": "{item}：减少",
+    "more": "{item}：增加",
+    "confirm": "确认计划",
+    "decline": "今天不要计划",
+    "pending": "确认之后，完成的项会在这里自动勾掉。",
+    "declined": "今天不排计划。想要的话，在下面跟私教说一声。",
+    "nothing": "今天没有要做的：没有到期的词、新词额度和要练的内容。",
+    "emptyPlan": "这份计划里没有安排任何事。",
+    "doneCount": "完成 {done}/{total}",
+    "allDone": "今天的计划都完成了！",
+    "fromTutor": "私教按你说的改过",
+    "undo": "撤销",
+    "progress": "{done}/{target}",
+    "doneSr": "（已完成）",
+    "go": {
+      "review": "去复习",
+      "new_words": "去学",
+      "practice": "去练习",
+      "reading": "去读",
+      "writing": "去写"
     }
   },
   "aiBadge": {

@@ -42,7 +42,11 @@ describe("useCards", () => {
 
     api.mockResolvedValueOnce(card("k2", "u2", { kind: "word_book", status: "applied" }));
     await act(() => result.current.decide(result.current.byTurn.u2[0], "apply"));
-    expect(api).toHaveBeenLastCalledWith("/cards/k2/apply", { method: "POST" });
+    // The browser's time zone tells a daily plan card which day it is (jsdom: UTC).
+    expect(api).toHaveBeenLastCalledWith("/cards/k2/apply", {
+      method: "POST",
+      json: { tz: expect.any(String) },
+    });
     expect(result.current.byTurn.u2[0].status).toBe("applied");
   });
 

@@ -1,4 +1,5 @@
 import { api } from "./api";
+import type { PlanChoice } from "./plan";
 import { browserTimeZone } from "./vocab";
 
 /** Pages a link card can lead to (backend/app/cards/tools.py LinkKind). */
@@ -23,9 +24,10 @@ export type TutorCard = {
   id: string;
   /** The learner message of the turn the card was shown in. */
   turn_id: string;
-  kind: "word_book" | "learning_goal" | "practice" | "link" | "writing";
+  kind: "word_book" | "learning_goal" | "practice" | "link" | "writing" | "daily_plan";
   /** word_book: book_id, daily_new; learning_goal: goal, target_exam, daily_minutes;
-   * practice: kc_id; link: kind; writing: submission_id (writing_coach's review). */
+   * practice: kc_id; link: kind; writing: submission_id (writing_coach's review);
+   * daily_plan: PlanCardParams (lib/plan.ts). */
   params: Record<string, unknown>;
   status: CardStatus;
   display: { book?: Named; kc?: Named & { cefr: string } };
@@ -42,6 +44,10 @@ export function fetchCards(conversationId: string): Promise<{ cards: TutorCard[]
   return api<{ cards: TutorCard[] }>(`/conversations/${conversationId}/cards${query}`);
 }
 
-/** 409 card_not_pending / card_not_applied / setting_changed throw ApiError. */
-export const decideCard = (cardId: string, action: CardAction) =>
-  api<TutorCard>(`/cards/${encodeURIComponent(cardId)}/${action}`, { method: "POST" });
+/** 409 card_not_pending / card_not_applied / setting_changed throw ApiError. A daily
+ * plan card may be applied with an adjusted `choice` (Q48c). */
+export const decideCard = (cardId: string, action: CardAction, choice?: PlanChoice) =>
+  api<TutorCard>(`/cards/${encodeURIComponent(cardId)}/${action}`, {
+    method: "POST",
+    ...(action === "apply" ? { json: { tz: browserTimeZone(), ...(choice ? { choice } : {}) } } : {}),
+  });

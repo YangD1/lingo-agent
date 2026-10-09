@@ -324,6 +324,11 @@
         "title": "Writing review",
         "body": "Every correction, four scores and the explanations are in the review.",
         "action": "See the line-by-line review"
+      },
+      "plan": {
+        "title": "A new plan for today",
+        "empty": "Nothing planned",
+        "minutes": "About {n} min"
       }
     },
     "planning": {
@@ -1031,7 +1036,13 @@
     "level_above": "At your level you read the original.",
     "session_not_found": "Reading session not found.",
     "no_questions": "This text has no questions.",
-    "invalid_answers": "Answer every question first."
+    "invalid_answers": "Answer every question first.",
+    "card_not_adjustable": "Only a daily plan card can be adjusted.",
+    "plan_not_found": "This plan wasn't found.",
+    "plan_not_pending": "This plan was already answered.",
+    "plan_not_applied": "Only a confirmed plan can be undone.",
+    "plan_from_card": "This plan came from the tutor's card; undo it on that card.",
+    "plan_expired": "This plan was for another day."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1197,6 +1208,51 @@
         "resume": "I'd like to finish the placement test",
         "grammar_practice": "I'd like to practise {kc}"
       }
+    }
+  },
+  "plan": {
+    "title": "Today's plan",
+    "loading": "Planning today…",
+    "budget": "Planned for your {n} minutes a day. Adjust it, then confirm.",
+    "budgetUnset": "You haven't set how long you study a day, so this assumes {n} minutes. Set it on the <link>memory page</link>.",
+    "items": {
+      "review": "Review {n, plural, one {# word} other {# words}}",
+      "new_words": "Learn {n, plural, one {# new word} other {# new words}}",
+      "practice": "One grammar practice set",
+      "practiceKc": "One grammar practice set: {kc}",
+      "reading": "Read one graded article",
+      "writing": "Write a short text for review"
+    },
+    "none": {
+      "review": "No words are due today",
+      "new_words": "No new words left today, or no word book yet",
+      "practice": "No grammar to practise right now",
+      "reading": "No unread articles in your feeds",
+      "writing": "Any time"
+    },
+    "upTo": "Up to {n} today",
+    "minutes": "about {n} min",
+    "total": "About {n} min",
+    "less": "{item}: fewer",
+    "more": "{item}: more",
+    "confirm": "Confirm plan",
+    "decline": "No plan today",
+    "pending": "Once confirmed, items tick off here as you do them.",
+    "declined": "No plan today. If you want one, tell the tutor below.",
+    "nothing": "Nothing to do today: no due words, no new words left and nothing to practise.",
+    "emptyPlan": "This plan has nothing in it.",
+    "doneCount": "{done}/{total} done",
+    "allDone": "Today's plan is done!",
+    "fromTutor": "adjusted by the tutor",
+    "undo": "Undo",
+    "progress": "{done}/{target}",
+    "doneSr": " (done)",
+    "go": {
+      "review": "Review",
+      "new_words": "Learn",
+      "practice": "Practise",
+      "reading": "Read",
+      "writing": "Write"
     }
   },
   "aiBadge": {

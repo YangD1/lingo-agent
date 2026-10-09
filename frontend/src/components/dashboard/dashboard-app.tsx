@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
 import { useDescribeError } from "@/components/settings/use-describe-error";
@@ -33,7 +33,9 @@ import {
   hasGrammar,
   type SkillPoint,
 } from "@/lib/dashboard";
+import type { TutorCard } from "@/lib/cards";
 import { CEFR_LEVELS, kcName, learnerHref, practiceHref } from "@/lib/learner";
+import { fetchPlan, type Plan } from "@/lib/plan";
 import { practiceSetHref } from "@/lib/practice";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +44,7 @@ import { BookChart } from "./book-chart";
 import { ErrorsChart } from "./errors-chart";
 import { GrammarChart } from "./grammar-chart";
 import { SkillsChart } from "./skills-chart";
+import { TodayPlan } from "./today-plan";
 import { TodayTutor } from "./today-tutor";
 
 /** Skills the dashboard always lists; P1 only measures grammar and vocabulary. */
@@ -60,11 +63,34 @@ export function DashboardApp() {
   const [board, setBoard] = useState<Dashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
+
   const load = () => fetchDashboard().then(setBoard, (e: unknown) => setError(describe(e)));
+  const loadPlan = useCallback(
+    () =>
+      fetchPlan().then(
+        (p) => {
+          setPlan(p);
+          setPlanError(null);
+        },
+        (e: unknown) => setPlanError(describe(e)),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- describe is stable enough
+    [],
+  );
   useEffect(() => {
     void load();
+    void loadPlan();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- describe is stable enough
   }, []);
+  // The tutor's daily plan card replaces (or, undone, restores) the plan shown above it.
+  const onCardDecided = useCallback(
+    (card: TutorCard) => {
+      if (card.kind === "daily_plan") void loadPlan();
+    },
+    [loadPlan],
+  );
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -81,8 +107,9 @@ export function DashboardApp() {
         {board && (
           <>
             <SummaryCards board={board} />
+            <TodayPlan plan={plan} error={planError} onChange={setPlan} onReload={() => void loadPlan()} />
             {/* A turn counts toward today's numbers and the streak. */}
-            <TodayTutor onTurnFinished={() => void load()} />
+            <TodayTutor onTurnFinished={() => void load()} onCardDecided={onCardDecided} />
             <div className="grid items-start gap-3.5 md:grid-cols-2 md:gap-4">
               <BookSection board={board} />
               <SkillsSection board={board} />

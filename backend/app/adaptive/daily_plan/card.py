@@ -25,21 +25,33 @@ class PlanTarget:
     inputs: PlanInputs
 
 
-def choice_of(params: dict[str, Any]) -> PlanChoice:
-    return PlanChoice(**params["choice"])
-
-
 def card_params(target: PlanTarget, choice: PlanChoice, rules: Rules) -> dict[str, Any]:
     """What the card holds: the plan it is for, the choice kept within today's limits,
     and its items with estimated minutes (for showing it, and for the model)."""
-    kept = clamp(choice, target.inputs, rules)
-    plan = items(kept, target.inputs, rules)
+    inputs, per = target.inputs, rules.daily_plan.minutes
+    kept = clamp(choice, inputs, rules)
+    plan = items(kept, inputs, rules)
     return {
         "plan_id": target.plan_id,
         "day": target.day,
         "choice": dataclasses.asdict(kept),
         "items": [dataclasses.asdict(i) for i in plan],
         "minutes": round(total_minutes(plan), 1),
+        # What the card may be adjusted to, and minutes per item for a live total.
+        "limits": {
+            "reviews_due": inputs.reviews_due,
+            "new_left": inputs.new_left,
+            "practice": inputs.practice_kc is not None,
+            "reading": inputs.article_id is not None,
+            "max_count": rules.daily_plan.max_count,
+        },
+        "estimates": {
+            "review": per.review,
+            "new_words": per.new_word,
+            "practice": per.practice,
+            "reading": per.reading,
+            "writing": per.writing,
+        },
     }
 
 
