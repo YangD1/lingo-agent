@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-09.1"
+version: "2026-10-09.2"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -261,6 +261,12 @@ practice:
   # Items the critic rejects go back to the generator at most this many times; then
   # they are dropped and the placement item bank fills the gap.
   max_regenerations: 2
+  # A set the learner is waiting for (not one generated ahead): another round is
+  # started only if, at the pace of the last one, it would end within this many
+  # seconds of the start; otherwise the bank fills the open slots at once. A round
+  # took about 100 s on a reasoning model (task 49.2): three of them kept the
+  # learner waiting five minutes.
+  wait_budget_seconds: 150
   # Candidate KCs: those within the levels of `importance_by_gap`, plus any KC with
   # evidence. Learners without a placement level count as this level.
   default_level: A2

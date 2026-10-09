@@ -379,5 +379,6 @@ class PracticeWorker:
             save=save,
             report=report,
             wider_kcs=wider,
+            wait_budget=None if background else rules.practice.wait_budget_seconds,
         )
         await self._graph.ainvoke(start_state(briefs, rules), context=ctx)

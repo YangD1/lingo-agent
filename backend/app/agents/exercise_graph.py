@@ -3,6 +3,10 @@
     START -> generate -> critic -> (generate again, at most practice.max_regenerations
              more rounds) -> fill -> save -> END
 
+A set the learner is waiting for has a time budget (`practice.wait_budget_seconds`,
+task 49.3): no new round is started that, at the pace of the last one, would end past
+it; the bank fills the open slots instead. A set generated ahead has none.
+
 `generate` drafts every slot still open in one structured call; code turns each draft
 into its format's item (`drafts.to_body`). `critic` reviews the new items in one call
 and `drafts.judge` decides; a rejected item goes back to `generate` with the reasons.
@@ -17,6 +21,7 @@ leaves a `generating` set that the service marks failed.
 """
 
 import random
+import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -103,6 +108,9 @@ class ExerciseContext:
     # The learner's candidate weak KCs by priority, for bank items past the set's own
     # KCs (Q33g).
     wider_kcs: Sequence[str] = ()
+    # Seconds the learner waits at most, roughly; None: generated ahead, no budget.
+    wait_budget: float | None = None
+    clock: Callable[[], float] = time.monotonic
 
 
 class _Candidate(TypedDict):
@@ -127,6 +135,11 @@ class ExerciseState(TypedDict, total=False):
     max_rounds: int
     # Why the model calls stopped: an error code; the open slots go to the bank.
     model_error: str | None
+    # By `ExerciseContext.clock`: when the first round and the latest round started.
+    started_at: float
+    round_started_at: float
+    # Another round would end past the wait budget.
+    out_of_time: bool
     result: SetResult
 
 
@@ -145,6 +158,7 @@ def start_state(briefs: Sequence[ItemBrief], rules: Rules) -> ExerciseState:
         "rejected": [],
         "rounds": 0,
         "model_error": None,
+        "out_of_time": False,
     }
 
 
@@ -160,6 +174,9 @@ async def _report(ctx: ExerciseContext, stage: Stage) -> None:
 async def generate(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[str, Any]:
     ctx = runtime.context
     rounds = state["rounds"]
+    clock: dict[str, Any] = {"round_started_at": ctx.clock()}
+    if rounds == 0:
+        clock["started_at"] = clock["round_started_at"]
     await _report(ctx, "generating" if rounds == 0 else "rewriting")
     by_position = {b.position: b for b in ctx.briefs}
     wanted = [by_position[p] for p in state["open"]]
@@ -170,7 +187,7 @@ async def generate(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> d
             drafts.generated_set_model(ctx.rules),
         )
     except Exception as exc:
-        return {"model_error": _error_code(exc), "rounds": rounds + 1}
+        return {"model_error": _error_code(exc), "rounds": rounds + 1, **clock}
     found = drafts.by_position(drafts.drafts_in(reply.output), [b.position for b in wanted])
     rng = random.Random(ctx.seed * 1000 + rounds)
     candidates: dict[int, _Candidate] = {}
@@ -194,14 +211,22 @@ async def generate(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> d
             "ratings": levels,
             "model": reply.model,
         }
-    return {"candidates": candidates, "feedback": new_feedback, "rounds": rounds + 1}
+    return {"candidates": candidates, "feedback": new_feedback, "rounds": rounds + 1, **clock}
+
+
+def _out_of_time(state: ExerciseState, ctx: ExerciseContext) -> bool:
+    if ctx.wait_budget is None:
+        return False
+    now = ctx.clock()
+    last_round = now - state["round_started_at"]
+    return now - state["started_at"] + last_round > ctx.wait_budget
 
 
 async def critic(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[str, Any]:
     ctx = runtime.context
     candidates = state["candidates"]
     if not candidates:
-        return {}
+        return {"out_of_time": _out_of_time(state, ctx)}
     await _report(ctx, "reviewing")
     by_position = {b.position: b for b in ctx.briefs}
     reviewed = [(by_position[p], c["body"]) for p, c in sorted(candidates.items())]
@@ -265,11 +290,17 @@ async def critic(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dic
         "rejected": rejected,
         "candidates": {},
         "open": sorted(still_open),
+        "out_of_time": _out_of_time(state, ctx),
     }
 
 
 def after_critic(state: ExerciseState) -> str:
-    if state["open"] and state["model_error"] is None and state["rounds"] < state["max_rounds"]:
+    if (
+        state["open"]
+        and state["model_error"] is None
+        and not state["out_of_time"]
+        and state["rounds"] < state["max_rounds"]
+    ):
         return GENERATE_NODE
     return FILL_NODE
 

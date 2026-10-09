@@ -4,6 +4,7 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from langchain_core.runnables import RunnableConfig
@@ -12,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.adaptive.exercise.worker import PracticeWorker
 from app.adaptive.rules import get_rules
-from app.agents.exercise_graph import StructuredCall, build_exercise_graph
+from app.agents.exercise_graph import ExerciseContext, StructuredCall, build_exercise_graph
 from app.auth.service import register_user
 from app.db.models import Exercise, ExerciseSet, Tenant, TenantMember
 from app.db.session import create_sessionmaker
@@ -263,6 +264,34 @@ async def test_sets_generated_ahead_count_as_background(
     await practice.wait_idle()
 
     assert [c["metadata"]["background"] for c in configs] == [False, True]
+
+
+async def test_only_a_set_the_learner_waits_for_has_a_time_budget(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    user_id, tenant_id = await learner(maker)
+    graph = build_exercise_graph()
+    budgets: list[float | None] = []
+
+    class Spy:
+        async def ainvoke(self, state: Any, *, context: ExerciseContext) -> Any:
+            budgets.append(context.wait_budget)
+            return await graph.ainvoke(state, context=context)
+
+    models = FakeModels()
+    practice = PracticeWorker(
+        maker,
+        Spy(),  # type: ignore[arg-type]
+        calls=lambda ctx, config: (models.generate, models.critique),
+        clock=Clock(),
+    )
+
+    await practice.start(user_id, tenant_id, "learner")
+    await practice.wait_idle()
+    await practice.prefetch(user_id, tenant_id)
+    await practice.wait_idle()
+
+    assert budgets == [RULES.practice.wait_budget_seconds, None]
 
 
 async def test_no_prefetch_once_the_background_budget_is_used_up(

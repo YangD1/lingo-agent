@@ -246,6 +246,7 @@ class PracticeRules(_Strict):
     target_p: TargetP
     rewrite_own_days: int = Field(ge=1)
     max_regenerations: int = Field(ge=0, le=5)
+    wait_budget_seconds: float = Field(gt=0)
     default_level: CefrLevel
     importance_by_gap: dict[int, Annotated[float, Field(gt=0)]] = Field(min_length=1)
     recent_mistake_days: int = Field(ge=1)

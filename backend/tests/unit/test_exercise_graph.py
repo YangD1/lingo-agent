@@ -1,3 +1,4 @@
+
 """The practice set graph with fake models (ADR 0021 §3): generate → critic → rewrite →
 bank → save."""
 
@@ -7,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+import pytest
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel
 
@@ -175,8 +177,20 @@ class FakeModels:
 
 
 async def run(
-    models: FakeModels, n: int = 6, seen: dict[str, datetime] | None = None
+    models: FakeModels,
+    n: int = 6,
+    seen: dict[str, datetime] | None = None,
+    *,
+    wait_budget: float | None = None,
+    tick: float = 0.0,
 ) -> tuple[SetResult, list[Stage]]:
+    """`tick`: seconds the fake clock moves on each time it is read."""
+    now = [0.0]
+
+    def clock() -> float:
+        now[0] += tick
+        return now[0]
+
     saved: list[SetResult] = []
     stages: list[Stage] = []
 
@@ -200,6 +214,8 @@ async def run(
         seed=3,
         save=save,
         report=report,
+        wait_budget=wait_budget,
+        clock=clock,
     )
     await GRAPH.ainvoke(start_state(planned, RULES), context=ctx)
     (result,) = saved
@@ -266,6 +282,23 @@ async def test_items_failing_every_round_go_to_the_bank() -> None:
     assert item.bank_item_id is not None and item.critic is None and item.model is None
     assert item.format == "choice4" and item.kc_id == KCS[1]
     assert stages[-1] == "filling"
+
+
+@pytest.mark.parametrize(("budget", "rounds"), [(None, 3), (1000.0, 3), (150.0, 2), (50.0, 1)])
+async def test_a_waiting_learner_gets_no_round_past_the_budget(
+    budget: float | None, rounds: int
+) -> None:
+    # The clock is read once as a round starts and once as its review ends: 40 s a read
+    # makes each round 40 s long, and the n-th round end at 80n - 40 s.
+    assert 1 + RULES.practice.max_regenerations == 3
+    models = FakeModels(bad={(r, 1) for r in range(3)})
+
+    result, stages = await run(models, wait_budget=budget, tick=40.0)
+
+    assert len(models.generated) == rounds
+    assert len(result.rejected) == rounds
+    assert result.error_code is None and result.from_bank == 1
+    assert result.items[1].bank_item_id is not None and stages[-1] == "filling"
 
 
 async def test_a_failing_model_leaves_the_set_to_the_bank() -> None:
