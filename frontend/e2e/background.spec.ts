@@ -39,7 +39,7 @@ test("background work: the learner switches it off, the budget turns it all off 
   await expect(section.getByText("后台任务", { exact: true })).toBeVisible();
   const prefetch = section.getByRole("switch", { name: "预先出好下一组练习" });
   await expect(prefetch).toBeChecked();
-  await expect(section).toContainText("今天已用 0 / 100,000 token");
+  await expect(section).toContainText("今天已用 0 / 300,000 token");
   // The first scheduled job (task 41); it never runs here.
   await expect(section).toContainText("抓取阅读来源（RSS）");
   // The E2E backend runs with SCHEDULER_ENABLED=false.
@@ -55,7 +55,7 @@ test("background work: the learner switches it off, the budget turns it all off 
   // writer's 2 s batches: zero now really means nothing ran in the background.
   await page.waitForTimeout(5_000);
   // The set itself was generated while the learner waited: not background work.
-  await expectUsedToday(page, /今天已用 0 \/ 100,000 token/);
+  await expectUsedToday(page, /今天已用 0 \/ 300,000 token/);
 
   // On again: the next finished set prepares one ahead, which counts as background.
   await page.locator("#background").getByRole("switch", { name: "预先出好下一组练习" }).click();
@@ -65,7 +65,7 @@ test("background work: the learner switches it off, the budget turns it all off 
   await page.goto("/practice");
   await page.getByTestId("practice-start").click();
   await reportEveryItem(page);
-  await expectUsedToday(page, /今天已用 [1-9][\d,]* \/ 100,000 token/);
+  await expectUsedToday(page, /今天已用 [1-9][\d,]* \/ 300,000 token/);
 
   // A limit of 0 switches all background calls off; the learner is told so.
   await page.getByLabel("每天上限（token）").fill("0");

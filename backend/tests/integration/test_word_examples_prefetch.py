@@ -235,7 +235,9 @@ async def test_the_queue_shows_cached_sentences_without_calling(
 ) -> None:
     user_id, _ = await learner(client, db_session)
     await setup(db_session, user_id)
-    await db_session.execute(update(UserCard).values(due=datetime.now(UTC) - timedelta(minutes=1)))
+    # Fixed `NOW`, not the wall clock: already past for the queue, and always inside
+    # the prefetch window that `run` measures from `NOW`.
+    await db_session.execute(update(UserCard).values(due=NOW))
     await db_session.commit()
     assert await run(app) is None
     calls = len(model.words)
