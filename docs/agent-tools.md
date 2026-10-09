@@ -54,7 +54,7 @@
 | `grammar_tagging` | background | `mistakes`（`kc_id`、`error_type`、`severity`、`original`、`correction`）、`used_correctly`（KC id）；每条学习者消息一行。摘要里有错误原句的副本，所以学习者在 `/learner` 删掉一条证据时，这里对应的一项也去掉；“删除所有学习记录”时这些行全部删除 |
 | `vocab_collect` | background | `added`、`existing`（`word_id` + 拼写：新收进生词本的词、已有卡片没有改动的词）；挂在提问的那条学习者消息上，没有收到词的消息不记。接口另返回 `words_on_list`（仍在生词本里的收词），明细据此显示“已移出” |
 | `summarize` | background | `episode_id` |
-| `propose_word_book`、`propose_learning_goal`、`suggest_practice`、`suggest_link` | tool | `card_id`、`card_kind`（出了卡片时；调用被拒记 `failed`、摘要为空）；`call_id` = 模型的 tool call id。卡片本身显示当前状态 |
+| `propose_word_book`、`propose_learning_goal`、`propose_daily_plan`、`suggest_practice`、`suggest_link` | tool | `card_id`、`card_kind`（出了卡片时；调用被拒记 `failed`、摘要为空）；`call_id` = 模型的 tool call id。卡片本身显示当前状态 |
 | `tools` | step | 无；只在厂商拒绝工具调用、这一轮改为不带工具重答时记一行 `skipped` |
 | `handoff` | step | `coach`：自由对话分类后转给的 coach |
 | `writing_review` | step | `submission_id`、`mistakes`（错误数） |
@@ -76,7 +76,7 @@
 - **上限**：一轮最多 2 次工具往返，每次最多 3 个调用（多出的直接返回错误），每个调用 15 秒超时；到上限后最后一次调用不带工具，提示里说明不能再调用。
 - **失败不中断**：参数不合法、超出范围、超时，都作为工具结果（`status=error`）返回给模型，由它向学习者解释；厂商拒绝工具调用（400 / 404 / 422）时这一轮不带工具重答，只能给站内链接（`prompts/tutor_no_tools.md`），活动记 `tools: skipped`。
 - **不带工具的情况**：练习会话（有 `focus_kc_id`）、带图片的一轮、上限已到。
-- **规划对话和看板“今天”对话里的范围**（ADR 0015 §6、0016）：`suggest_practice` 的语法点只能是最近一次入学测答错且还没掌握的（最多 5 个）或建议候选里的，`suggest_link` 只能是建议候选对应的页面或 `/learner`；超出的调用作为错误返回。读不到候选时范围为空（只能出提议卡片）。
+- **规划对话和看板“今天”对话里的范围**（ADR 0015 §6、0016）：`suggest_practice` 的语法点只能是最近一次入学测答错且还没掌握的（最多 5 个）或建议候选里的，`suggest_link` 只能是建议候选对应的页面或 `/learner`；超出的调用作为错误返回。读不到候选时范围为空（只能出提议卡片）。`propose_daily_plan` 只在“今天”对话里能用（ADR 0027），别处调用作为错误返回、不出卡。
 - **幂等**：同一个 tool call id 只写一张卡片；同一轮里同样的提议（类型和参数都相同）复用第一张卡片。
 - **下一轮可见**：本会话最近 10 张卡片及其状态（待确认 / 已确认 / 已拒绝 / 已撤销）放进 system prompt，模型据此不重复提议。
 
@@ -84,6 +84,7 @@
 |---|---|---|---|---|
 | `propose_word_book` | `book_id`（词书清单里的 id）、`daily_new`（可选，0–200） | 提议，`proposed` | `user_word_book`：换书时筛选进度归零，只在给了 `daily_new` 时改每日新词数；卡片记下原来的设置 | 恢复原来的词书、每日新词数和筛选进度（原来没有词书则删掉计划）；之后又改过设置则拒绝（409 `setting_changed`） |
 | `propose_learning_goal` | `goal`（≤200 字）、`target_exam`（考试标签）、`daily_minutes`（1–600），至少一项 | 提议，`proposed` | `user_profiles` 对应字段，并记为学习者手动设置（`manual_fields`，反思不会覆盖）；卡片记下原值 | 恢复原值和原来的 `manual_fields`；之后又改过则 409 `setting_changed` |
+| `propose_daily_plan` | `review`、`new_words`（0–500）、`practice`、`reading`、`writing`（开关） | 提议，`daily_plan`；超过今天总量（到期复习、词书允许的新词，按这一轮现读）的数量调低，没东西可练 / 可读就关掉，预计分钟数由代码按 `rules.yaml` 算；学习者可在卡片上调数量、开关后再确认（`POST /cards/{id}/apply` 带 `{choice, tz}`，代码再收紧一次） | 当天的 `daily_plans`：替换计划内容和上限、状态改为已确认；卡片记下原计划。计划日期已过则 409 `plan_expired` | 换回原计划；之后计划又被改过则 409 `setting_changed` |
 | `suggest_practice` | `kc_id`（语法点清单里的 id） | 链接，`info` | 无（点开即建练习会话，同“开始练习”） | 不需要 |
 | `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_screen`、`placement`、`learner` 之一 | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
 
@@ -221,4 +222,14 @@
 |---|---|---|---|---|---|
 | 生成候选（不调模型） | `advice/candidates.py` → `GET /advice` | 今日待复习 / 剩余新词、当前词书与筛选进度、入学测提醒（`advice/reminder.py`：原因、上次测试的等级和该级语法点学会几个、学习者是否点过“以后再说”）、最近 14 天对话里计入的语法错误（KC、掌握度、最多 2 条原句 → 改正）；chat 路由能否解析出模型（`model_ready`） | 无 | 无 | 看板对话框的问候和快捷回复（带实时数字）；没配模型时显示为直达链接 |
 | 快捷回复 | 前端按候选和界面语言用模板生成；点了就作为学习者的消息发送 | 候选 | 同普通对话的一轮（学习者消息、回复、活动、卡片、反思） | 同 `chat_message` | 对话框和对话页的历史里；删除会话即删除 |
-| 读取今天的依据（每轮） | `chat/planning.py` `DatabasePlanning`（`purpose="daily"`，提示词 `prompts/daily.md`），在 `load_context` 里 | 同规划对话：最近一次入学测结果、该次答错且还没掌握的语法点、候选（入学测提醒带原因；没被搁置时私教第一条回复提一次，点过“以后再说”的只在被问到时给卡片，页面上不显示） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `planning`；同时决定本轮卡片范围（与规划对话相同） | 无 | 回复下“私教做了什么”；`/learner` 删除证据后下一轮就不再使用 |
+| 读取今天的依据（每轮） | `chat/planning.py` `DatabasePlanning`（`purpose="daily"`，提示词 `prompts/daily.md`），在 `load_context` 里 | 今天的计划（状态、每项进度，以及这一轮现读的今天总量，`propose_daily_plan` 按它收紧，ADR 0027）；同规划对话：最近一次入学测结果、该次答错且还没掌握的语法点、候选（入学测提醒带原因；没被搁置时私教第一条回复提一次，点过“以后再说”的只在被问到时给卡片，页面上不显示） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `planning`；同时决定本轮卡片范围（与规划对话相同） | 无 | 回复下“私教做了什么”；`/learner` 删除证据后下一轮就不再使用 |
+
+## 看板的“今天的计划”（ADR 0027）
+
+**不调模型、不是工具、没有定时任务**：学习者当天第一次打开看板（`GET /plan/today?tz=`）时，`adaptive/daily_plan/algorithm.py` 按每天分钟数（画像 `daily_minutes`，没填按 20 分钟）和规则分配复习、新词、一组练习、一篇阅读、写作，存成一行 `daily_plans`（本地日期唯一）。看板上的区块就是确认界面。
+
+| 步骤 | 代码 | 读 | 写 | 学习者在哪里能看到 / 撤销 |
+|---|---|---|---|---|
+| 生成今天的计划 | `adaptive/daily_plan/service.py` `today` | 每天分钟数、今天复习和新词的总量、练习选题第一个语法点、订阅里最新没读过的文章、上次写作时间 | `daily_plans`（`choice` 数量和开关、`limits` 上限、状态 `proposed`） | 看板“今天的计划”：可调数量、确认 / 今天不要 |
+| 确认 / 不要 / 撤销 | `POST /plan/{id}/confirm`（可带调整）、`/decline`、`/undo` | 计划 | `daily_plans` 的 `choice` 和状态；撤销回到待确认 | 同上；私教卡确认的计划只能在卡上撤销 |
+| 进度 | `service.view`，每次读时现算 | 本地当天的复习记录、开始学的新词、完成的练习组、读完的文章、提交的写作 | 无 | 看板清单的勾和进度 |

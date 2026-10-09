@@ -208,6 +208,10 @@ features:
         timing: background
         default: {input_tokens: 3000, output_tokens: 600}
 
+  # Today's plan on the dashboard (ADR 0027) is drafted by code and calls no model;
+  # the tutor's propose_daily_plan tool runs inside a daily conversation turn
+  # (chat_message), so it has no entry of its own.
+
   # "Show in Chinese / English" under a tutor message (ADR 0017 §4): once per message
   # and language; switching back makes no call.
   message_translate:
