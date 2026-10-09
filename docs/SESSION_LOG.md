@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-09 · 任务 49.5 完成，P2 全部完成
+
+- **做了什么**：停掉 asr-1 后重跑 `make ci`，发现并修了两处过期的测试断言（8e33bf0）：① `backend/tests/integration/test_word_examples_prefetch.py::test_the_queue_shows_cached_sentences_without_calling` 用写死的 `NOW` 算预生成窗口，到期时间却取真实时间，过了 2026-10-09 12:00 UTC 必挂，改为 `due=NOW`；② `frontend/e2e/background.spec.ts` 还按旧的新租户后台上限 100,000 断言，49.3.3 已改为 300,000。推送，CI 全绿；Docker 重建并冒烟。
+- **验证**：本地 ruff / mypy / eslint / tsc 干净，pytest 1438、Vitest 371、`build` 全过，E2E 57 全过（改完 E2E 后单独重跑了 lint + E2E，后端和 Vitest 用的是同一份代码）；CI run 37936868983 四个 job 全绿；Docker `/healthz` 200，迁移 head `c7e2a94d1b05`。
+- **未完成**：无。asr-1 停着（省内存），要用语音转写时 `make asr-up`。
+- **下一步**：P3（语音）拆分：读 `docs/PLAN.md` 第四节 P3 和看板里移到 P3 的 25.4、25.5（朗读第 2、3 层），拆任务写进看板 `## P3`，和用户确认后再写代码。
+- **踩坑**：测试里固定 `NOW` 时，所有和它比较的时间都要从 `NOW` 推，不能混用 `datetime.now()`，否则会变成“到某天就挂”的时间炸弹。改了默认值（如后台上限）要搜一遍 `frontend/e2e/` 里写死的数字，49.3.3 只跑了 pytest / Vitest 没发现。Bash 里 `pnpm` 是 nvm 惰性加载函数，会无限递归，要用 `~/.nvm/versions/node/v24.14.0/bin/pnpm` 绝对路径；项目里没有 prettier，前端格式检查用 `pnpm lint`。完整 `make ci` 约 15 分钟（pytest 约 9 分钟）。
+
 ## 2026-10-09 · 任务 49.4 完成（README 截图、标 P2 完成）
 
 - **做了什么**：用临时脚本 `frontend/e2e/_shots.spec.ts`（已删，不入库）在 E2E 栈上截练习、写作、阅读三页的中英截图；README 中英两份：截图表、状态“P2 已完成”、`make eval` 说明、目录结构、架构图、P2 计划和 ADR 链接；`docs/PLAN.md` 第四节 P1、P2 标完成；P2 计划状态改为已完成。
