@@ -13,7 +13,7 @@ PLAN.md 要求所有模型调用都走配置驱动的 provider 层：按任务�
 - 文件分四段：
   - `providers`：厂商**预设**，包括 `kind`（`deepseek` / `anthropic` / `openai` / `openai_compatible`）和默认 `base_url`。~~`api_key_env`~~：已删除，key 由租户在应用内配置（ADR 0004）。可选的 `base_url_env`：该环境变量有值时替换默认 `base_url`（2026-09-29 加入：本地 speaches 从 compose 里的 backend 访问是 `http://asr:8000/v1`，从宿主机访问是 `localhost:8200`，compose 为 backend 设置 `SPEACHES_BASE_URL`）。
   - `defaults`：共享的调用参数（`timeout`、`max_retries`）。
-  - `llm`：`default` 加上 `routes.<task>`。
+  - `llm`：`default` 加上 `routes.<task>`。可选的 `task_params.<task>`：按任务给调用参数，不管走哪条路由、不用写模型链（2026-10-09 任务 49.3 加入：真模型实测里出题、critic、改写、写作批改这类整组 / 整篇的结构化调用要 25–85 秒，默认 30 秒超时不够，这些任务给 120 秒）。叠加顺序：`defaults` < `task_params` < 连接参数 < 路由参数。
   - `embedding`：同上。
 - 模型统一写成 `"<provider 名>:<模型名>"`。每条路由可以写三种形式：单个字符串、列表（主模型 + 降级链）、对象（`models` 加上调用参数覆盖）。
 - `max_retries` 默认设成 1：失败时尽快切到下一个厂商，而不是在同一个厂商上反复重试。

@@ -143,6 +143,39 @@ def test_params_layering_defaults_then_connection_then_route() -> None:
     assert model.params == {"timeout": 60, "max_retries": 3, "temperature": 0.7}
 
 
+def test_task_params_sit_between_defaults_and_the_connection() -> None:
+    config = make_config(
+        llm={
+            "default": ["deepseek:deepseek-chat", "openai:gpt-5-mini"],
+            "routes": {"chat": {"models": ["openai:gpt-5-mini"], "timeout": 45}},
+            "task_params": {"slow": {"timeout": 120}, "chat": {"timeout": 90}},
+        }
+    )
+    # On the default route, and on a task without a route of its own.
+    (model,) = resolve_route(config, make_ctx(conn("openai")), "llm", "slow")
+    assert model.params == {"timeout": 120, "max_retries": 1}
+    # Each model of the auto fallback (no route matches a connection) gets them too.
+    auto = make_ctx(conn("relay", "openai_compatible", default_model="m"))
+    (model,) = resolve_route(config, auto, "llm", "slow")
+    assert model.params["timeout"] == 120
+    # The connection's own params and the route's win.
+    (model,) = resolve_route(config, make_ctx(conn("openai", timeout=200)), "llm", "slow")
+    assert model.params["timeout"] == 200
+    (model,) = resolve_route(config, make_ctx(conn("openai")), "llm", "chat")
+    assert model.params["timeout"] == 45
+    # Other tasks keep the defaults.
+    (model,) = resolve_route(config, make_ctx(conn("openai")), "llm", "other")
+    assert model.params["timeout"] == 30
+
+
+def test_shipped_configs_give_slow_tasks_a_longer_timeout() -> None:
+    for name in ("providers.dev.yaml", "providers.prod.yaml"):
+        config = load_providers_config(REPO_ROOT / "config" / name)
+        timeouts = {t: p["timeout"] for t, p in config.llm.task_params.items()}
+        for task in ("exercise_generate", "exercise_critic", "reading_critic", "writing_review"):
+            assert timeouts[task] > config.defaults["timeout"], (name, task)
+
+
 def test_keyless_connection_is_usable() -> None:
     ctx = make_ctx(conn("openai", key=None))
     (model,) = resolve_route(make_config(), ctx, "llm", "chat")

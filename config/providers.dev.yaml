@@ -81,6 +81,19 @@ llm:
     diagnose:
       models: [deepseek:deepseek-chat, anthropic:claude-sonnet-5, openai:gpt-5-mini]
       temperature: 0.2
+  # Per task, whatever its route (task 49.3): structured calls that write or review
+  # a whole set, article or essay took 25-85 s on a reasoning model (gpt-6.1-sol,
+  # 2026-10-09), past the 30 s default. A tenant's connection timeout still wins.
+  task_params:
+    exercise_generate: {timeout: 120}
+    exercise_critic: {timeout: 120}
+    article_rewrite: {timeout: 120}
+    reading_questions: {timeout: 120}
+    reading_critic: {timeout: 120}
+    writing_review: {timeout: 120}
+    diagnose: {timeout: 120}
+    exercise_grade: {timeout: 60}
+    reflect: {timeout: 60}
 
 embedding:
   default: openai:text-embedding-3-small

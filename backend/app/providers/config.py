@@ -96,6 +96,10 @@ class SectionSpec(BaseModel):
 
     default: RouteSpec
     routes: dict[str, RouteSpec] = {}
+    # Call params by task, whatever its route: over `defaults`, under the connection's
+    # and the route's own params. For tasks that need them without a route of their
+    # own, e.g. a longer timeout for slow structured calls (task 49.3).
+    task_params: dict[str, dict[str, Any]] = {}
 
     def route_for(self, task: str) -> RouteSpec:
         return self.routes.get(task, self.default)
@@ -249,7 +253,7 @@ def resolve_route_with_source(
                 "%s.%s: tenant %s has no connection %r", section, task, ctx.tenant_id, name
             )
             continue
-        resolved.append(_resolved(config, conn, model, route))
+        resolved.append(_resolved(config, conn, model, route, section, task))
     if not resolved and route.disabled:
         raise NoModelConfiguredError(section, task, route.models, disabled=True)
     if not resolved and section == "llm" and (section, task) not in CAPABILITY_TASKS:
@@ -259,7 +263,7 @@ def resolve_route_with_source(
         source = "auto"
         # A speech-only connection's default model can't chat, so it is left out.
         resolved = [
-            _resolved(config, conn, conn.default_model, route)
+            _resolved(config, conn, conn.default_model, route, section, task)
             for conn in ctx.connections.values()
             if conn.default_model and not looks_like_speech_to_text(conn.default_model)
         ]
@@ -269,13 +273,20 @@ def resolve_route_with_source(
 
 
 def _resolved(
-    config: ProvidersConfig, conn: ConnectionSpec, model: str, route: RouteSpec
+    config: ProvidersConfig,
+    conn: ConnectionSpec,
+    model: str,
+    route: RouteSpec,
+    section: Section,
+    task: str,
 ) -> ResolvedModel:
+    spec = config.section(section)
+    by_task = spec.task_params.get(task, {}) if spec is not None else {}
     return ResolvedModel(
         connection=conn.name,
         kind=conn.kind,
         model=model,
         base_url=conn.base_url,
         api_key=conn.api_key,
-        params={**config.defaults, **conn.params, **route.params},
+        params={**config.defaults, **by_task, **conn.params, **route.params},
     )
