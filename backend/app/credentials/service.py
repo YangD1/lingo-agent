@@ -85,9 +85,7 @@ class CallParams(BaseModel):
     stream_usage: bool | None = None
     # tts routes only (ADR 0028 §3): the voice each model reads a language with, keyed by
     # "<connection>:<model>", over the built-in voices. Never sent to a chat SDK.
-    voices: dict[Annotated[str, Field(max_length=200)], dict[Language, VoiceName]] | None = (
-        None
-    )
+    voices: dict[Annotated[str, Field(max_length=200)], dict[Language, VoiceName]] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_none=True)

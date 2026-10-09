@@ -246,6 +246,39 @@ class LLMUsage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class TtsAudio(Base):
+    """Audio a tenant's read-aloud connection made, kept so the same sentence in the same
+    voice is never paid for twice (ADR 0028 §3).
+
+    Per tenant, not shared: each tenant pays for its own calls. Rows past the tenant's
+    size cap are evicted least recently used first, except `pinned` ones (word audio
+    the deployment generated ahead of time, ADR 0028 §4).
+    """
+
+    __tablename__ = "tts_audio"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "key"),
+        Index("ix_tts_audio_tenant_id_last_used_at", "tenant_id", "last_used_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    # sha256 of text, language, voice, speed, connection and model.
+    key: Mapped[str] = mapped_column(String(64))
+    language: Mapped[str] = mapped_column(String(8))
+    connection_name: Mapped[str] = mapped_column(String(64))
+    model: Mapped[str] = mapped_column(String(128))
+    voice: Mapped[str] = mapped_column(String(200))
+    mime_type: Mapped[str] = mapped_column(String(32))
+    audio: Mapped[bytes] = deferred(mapped_column(LargeBinary, nullable=False))
+    size: Mapped[int] = mapped_column(Integer)
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class Attachment(TimestampMixin, Base):
     """A file sent with a chat message (ADR 0008).
 

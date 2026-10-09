@@ -54,6 +54,7 @@ from app.services.reading.worker import ReadingWorker  # noqa: E402
 from app.writing.worker import WritingWorker  # noqa: E402
 
 BUSINESS_TABLES = (
+    "tts_audio",
     "diagnoses",
     "kc_edges",
     "reading_sessions",
