@@ -28,6 +28,7 @@ class DefaultEstimate(_Strict):
     input_tokens: int = Field(default=0, ge=0)
     output_tokens: int = Field(default=0, ge=0)
     audio_seconds: float | None = Field(default=None, gt=0)
+    characters: int | None = Field(default=None, gt=0)
 
 
 class FeatureCall(_Strict):
@@ -47,9 +48,12 @@ class FeatureCall(_Strict):
 
     @model_validator(mode="after")
     def _check(self) -> Self:
-        # Speech-to-text is billed by audio length, everything else by tokens.
+        # Speech-to-text is billed by audio length, text-to-speech by characters,
+        # everything else by tokens.
         if (self.section == "asr") != (self.default.audio_seconds is not None):
             raise ValueError("audio_seconds is required for asr calls and only for them")
+        if (self.section == "tts") != (self.default.characters is not None):
+            raise ValueError("characters is required for tts calls and only for them")
         return self
 
 

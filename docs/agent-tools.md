@@ -14,6 +14,7 @@
 | `chat_image` | 聊天输入框“附件” | `vision`（每张图；带图的那一轮回复也走 `vision`） |
 | `chat_pdf` | 同上 | `vision`（只有扫描页，每页一次） |
 | `chat_audio` | 聊天输入框“录音” | `asr`（按音频秒数） |
+| `read_aloud` | 私教气泡、单词气泡、背单词页的朗读按钮（只在租户配了朗读路由时显示标记；没配时浏览器朗读，不调用模型，ADR 0018、0028） | `tts`（按字符；一次一句；同租户同一句、同声音和语速只合成一次，之后读缓存） |
 | `practice_start` | 看板常错语法点的“对话练”、`/learner` 语法点详情和私教练习卡片的“对话练习” | `practice_opening`（走 `chat` 路由） |
 | `plan_start` | 入学测结果页对话框里的“和私教聊聊这次结果” | `plan_opening`（走 `chat` 路由）；之后每轮同 `chat_message` |
 | `memory_edit` | `/memory` 记忆列表（添加、修改） | `memory` 向量化 |
@@ -30,14 +31,15 @@
 
 ### 对话之外的调用
 
-`word_examples`、`translate` 由学习者在界面上点了才调用，不属于任何一轮对话，所以不写 `agent_activities`（和入学测一样）。缓存命中时不调模型，也不记 `llm_usage`。
+`word_examples`、`translate`、`tts` 由学习者在界面上点了才调用，不属于任何一轮对话，所以不写 `agent_activities`（和入学测一样）。缓存命中时不调模型，也不记 `llm_usage`。
 
 | 调用 | 代码 | 读取 | 写入 | 学习者在哪看到 / 撤销 |
 |---|---|---|---|---|
 | AI 例句 | `services/vocab/examples.py` → `POST /vocab/words/{id}/examples` | 词条（单词、中文释义）、学习者等级（没有时按 A2） | `word_examples`（租户 + 词 + 等级；每句经代码校验含该词或其变形，都不合格时不写） | 单词气泡和复习卡片背面显示；不含个人信息，无需撤销 |
+| 服务端朗读 | `services/speech/read_aloud.py` → `POST /speech/tts`（ADR 0028 §3） | 要读的一句话、语言、学习者的语速（声音由租户的朗读路由决定） | `tts_audio`（租户 + 文本、声音、语速、模型的哈希；租户上限 200MB，先删最久没用的） | 听到的就是结果。只存音频和哈希，不存原文；音频由同租户共用，删除会话时不会跟着删（读私教回复时可能含个人信息），超出上限按最久没用淘汰，删除租户时一起删 |
 | 气泡翻译 | `chat/translate.py` → `POST /conversations/{id}/messages/{message_id}/translate` | 这条私教消息的文本 | `message_translations`（会话 + 消息 + 目标语言，删除会话时一起删） | 私教气泡原位切换显示；随会话删除 |
 
-查词（`GET /vocab/lookup`）和朗读（浏览器 `speechSynthesis`）不调用模型。
+查词（`GET /vocab/lookup`）和浏览器朗读（`speechSynthesis`）不调用模型。
 
 ## 活动记录（学习者看到的“私教做了什么”）
 

@@ -35,7 +35,8 @@ def model(connection: str, name: str, kind: ProviderKind) -> ResolvedModel:
         ("en-US-AvaMultilingualNeural", "azure_speech", "en-GB", "en-GB-SoniaNeural"),
         ("en-US-JennyNeural", "azure_speech", "zh-CN", "zh-CN-XiaoxiaoMultilingualNeural"),
         ("speaches-ai/Kokoro-82M-v1.0-ONNX", "openai_compatible", "en-GB", "bf_emma"),
-        ("speaches-ai/Kokoro-82M-v1.0-ONNX", "openai_compatible", "zh-CN", "zf_xiaoxiao"),
+        # speaches' Kokoro can't read Mandarin (espeak has no "zh").
+        ("speaches-ai/Kokoro-82M-v1.0-ONNX", "openai_compatible", "zh-CN", None),
         (
             "FunAudioLLM/CosyVoice2-0.5B",
             "openai_compatible",
@@ -205,7 +206,7 @@ async def test_every_model_failing_raises(speaker: Any, monkeypatch: pytest.Monk
         await speaker("openai:tts-1").synthesize("Hi", language="en-US")
     assert isinstance(info.value.__cause__, tts.EndpointError)
 
-    with pytest.raises(tts.SpeechSynthesisError):  # nothing can read this language
+    with pytest.raises(tts.NoVoiceError):  # nothing can read this language
         await speaker("local:custom").synthesize("Hi", language="en-US")
 
 

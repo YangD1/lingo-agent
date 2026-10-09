@@ -53,6 +53,17 @@ def test_asr_calls_need_audio_seconds() -> None:
         call(default={"audio_seconds": 10})
 
 
+def test_tts_calls_are_estimated_by_characters() -> None:
+    for feature in get_features().features.values():
+        for c in feature.calls:
+            assert (c.section == "tts") == (c.default.characters is not None)
+    with pytest.raises(ValueError, match="characters"):
+        call(task="tts", section="tts")
+    with pytest.raises(ValueError, match="characters"):
+        call(default={"characters": 60})
+    assert call(task="tts", section="tts", default={"characters": 60}).default.characters == 60
+
+
 def test_unknown_fields_are_rejected(tmp_path: Path) -> None:
     path = tmp_path / "features.yaml"
     path.write_text(

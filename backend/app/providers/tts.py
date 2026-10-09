@@ -47,12 +47,12 @@ AZURE_VOICES: Mapping[Language, str] = {
     "en-GB": "en-GB-SoniaNeural",
     "zh-CN": "zh-CN-XiaoxiaoMultilingualNeural",
 }
-# Kokoro v1.0's American, British and Mandarin voices (female, so a reply that switches
-# language keeps one gender, as in ADR 0018 §1).
+# Kokoro v1.0's American and British voices (female, like the others, so a reply that
+# switches language keeps one gender, ADR 0018 §1). No Mandarin: speaches 0.9 phonemizes
+# with espeak, which has no "zh", and answers 200 with no audio (measured, task 53.4).
 KOKORO_VOICES: Mapping[Language, str] = {
     "en-US": "af_heart",
     "en-GB": "bf_emma",
-    "zh-CN": "zf_xiaoxiao",
 }
 # OpenAI's voices read every language; so do CosyVoice's, named "<model>:<voice>".
 OPENAI_VOICE = "coral"
@@ -69,8 +69,11 @@ class Speech:
 
 
 class SpeechSynthesisError(Exception):
-    """Every model in the route failed (or none has a voice for the language); the last
-    error is chained."""
+    """Every model in the route failed; the last error is chained."""
+
+
+class NoVoiceError(SpeechSynthesisError):
+    """No model in the route has a voice for the language: the browser reads it instead."""
 
 
 class EndpointError(Exception):
@@ -95,7 +98,7 @@ def default_voice(model: ResolvedModel, language: Language) -> str | None:
         return AZURE_VOICES[language]
     lowered = name.lower()
     if "kokoro" in lowered:
-        return KOKORO_VOICES[language]
+        return KOKORO_VOICES.get(language)
     if "cosyvoice" in lowered:
         return f"{name}:{COSYVOICE_VOICE}"
     if model.kind == "openai" or "tts" in lowered:
@@ -142,8 +145,11 @@ class TextToSpeech:
         user_id: uuid.UUID | None = None,
         background: bool = False,
     ) -> Speech:
+        candidates = self.candidates(language)
+        if not candidates:
+            raise NoVoiceError(f"no text-to-speech model has a {language} voice")
         last_error: Exception | None = None
-        for i, (model, voice) in enumerate(self.candidates(language)):
+        for i, (model, voice) in enumerate(candidates):
             started = time.monotonic()
             try:
                 audio = await _synthesize(model, text, language, voice, speed)
@@ -153,7 +159,9 @@ class TextToSpeech:
                 continue
             self._record(model, i, started, text, user_id, background)
             return Speech(audio=audio, connection=model.connection, model=model.model, voice=voice)
-        raise SpeechSynthesisError(f"no text-to-speech model could read {language}") from last_error
+        raise SpeechSynthesisError(
+            f"every text-to-speech model failed on {language}"
+        ) from last_error
 
     def _record(
         self,

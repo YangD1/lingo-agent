@@ -103,6 +103,8 @@ For speech-to-text, the Groq and SiliconFlow presets are the easiest start. Groq
 
 **Local speech-to-text (optional, for development).** `make asr-up` starts [speaches](https://github.com/speaches-ai/speaches) (faster-whisper) on port 8200; the first start downloads the model. It needs about 1.4 GB of RAM while transcribing. Then, with private networks allowed, add a connection from the **Speaches** preset (base URL `http://asr:8000/v1` from the Docker stack, `http://localhost:8200/v1` from a host-run backend) and put `speaches:Systran/faster-whisper-small` on the speech-to-text route. See the comments in [`.env.example`](.env.example).
 
+**Local read-aloud (optional, for development).** The same container also reads aloud with Kokoro: download it once with `curl -X POST http://localhost:8200/v1/models/speaches-ai/Kokoro-82M-v1.0-ONNX`, then put `speaches:speaches-ai/Kokoro-82M-v1.0-ONNX` on the read-aloud route. It reads American and British English only (no Mandarin in speaches 0.9; Chinese is left to the browser). Measured on a development machine: about 0.9 GB of RAM once loaded, 1.5 GB with two requests at once, and about 2 seconds for a 9-second sentence. Without a read-aloud route the browser reads aloud (ADR 0018); in production, use a hosted service such as Azure Speech (ADR 0028).
+
 
 ## Development
 

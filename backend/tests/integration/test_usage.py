@@ -278,6 +278,8 @@ async def test_estimates_average_recent_successful_calls(
         record(tenant_id, input_tokens=0, output_tokens=0),
         record(tenant_id, task="asr", input_tokens=0, output_tokens=0, audio_seconds=8.0),
         record(tenant_id, task="asr", input_tokens=0, output_tokens=0, audio_seconds=12.5),
+        record(tenant_id, task="tts", input_tokens=0, output_tokens=0, characters=40),
+        record(tenant_id, task="tts", input_tokens=0, output_tokens=0, characters=81),
         at=now,
     )
     # Outside the window of the 20 most recent chat calls.
@@ -310,6 +312,8 @@ async def test_estimates_average_recent_successful_calls(
     assert embed["source"] == "default"  # embeddings never land in llm_usage
     (asr,) = features["chat_audio"]
     assert (asr["source"], asr["samples"], asr["audio_seconds"]) == ("history", 2, 10.2)
+    (tts,) = features["read_aloud"]
+    assert (tts["source"], tts["samples"], tts["characters"]) == ("history", 2, 60)
     # No connections yet: nothing would run.
     assert chat["model"] is None and asr["model"] is None
 

@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-09 · 任务 53 完成（服务端朗读后端）
+
+- **做了什么**：53.1 `tts` 路由节、`azure_speech` 连接（speech-only，不进聊天 / 转写、不参与默认兜底）、预设、`llm_usage.characters`（迁移 `c8c4c75cd6e0`）；53.2 `providers/tts.py`（`/audio/speech` 与 Azure SSML 两种，内置声音 + 路由 `voices` 覆盖，按字符记用量）、连接测试 `tts` 用途；53.3 `tts_audio` 缓存（迁移 `87ef738892c1`）、`services/speech/read_aloud.py`、`GET /speech/capabilities`、`POST /speech/tts`；53.4 `features.yaml` 的 `read_aloud`、按字符的估算、`agent-tools.md`、实测本地 Kokoro、ADR 0028 落地记录、README。提交 70ef9de、3e9674f、4f5445d 和本次。
+- **验证**：ruff、格式、mypy 干净；pytest 1479 全过。**前端没动，Vitest 和 E2E 没跑**：设置页现在会从 `/tenant/routes` 收到 `tts` 一节、从预设收到 `azure_speech`，`/usage/estimates` 多了 `characters` 和 `read_aloud`，前端类型和显示放在任务 54 处理，54 要跑 Vitest + E2E。
+- **未完成**：无（53 范围内）。
+- **下一步**：任务 54：前端 `lib/speech.ts` 的 `speak()` 先查 `/speech/capabilities`（`tts_languages`），按句请求 `POST /speech/tts`、逐句播放，409 / 502 / 4 秒没首字节时退回浏览器（`no_tts_voice` 只退回那种语言）；设置页“朗读”路由编辑（`settings/route-section.tsx`、`settings-app.tsx`、`lib/types.ts` 的 section 类型）、Azure 连接（只填区域 → base_url）、连接测试显示 `tts_not_supported`；`AiBadge` 挂 `read_aloud`（只在 `tts` 为真时显示）；E2E 用假朗读服务。
+- **踩坑**：speaches 0.9 的 Kokoro 读中文返回 200 空内容（espeak 没有 zh），所以代码把空音频当失败；容器里 huggingface.co 直连不通，下载模型要 `ASR_HF_ENDPOINT=https://hf-mirror.com docker compose --profile asr up -d asr`（只对这条命令生效，没改 .env）。WebFetch 硅基流动 API 参考页 404，文档在 `docs.siliconflow.cn/cn/userguide/capabilities/text-to-speech`。
+
 ## 2026-10-09 · P3 计划确认，任务 52 完成（ADR 0028–0030）
 
 - **做了什么**：用户确认 P3 计划 D1–D6、Q1–Q8 全部按推荐；写 ADR 0028（`tts` / `pronunciation` 两节、`azure_speech` 连接、朗读缓存、单词发音预生成、跟读证据）、0029（口语练习：情景、speaking_coach、recast、证据过滤、小结）、0030（实时语音：后端中继、`openai_realtime` 先做、限额、工具、挂断后反思）；ADR 0001 / 0018 标注；PLAN 同步。

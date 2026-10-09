@@ -14,6 +14,16 @@ from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 from app.usage.features import FeatureCall, FeatureCatalog, Per, Timing
 
 EstimateSource = Literal["history", "default"]
+# What a call is billed by: speech-to-text by audio length, text-to-speech by characters.
+Unit = Literal["tokens", "audio", "characters"]
+
+
+def unit_of(call: FeatureCall) -> Unit:
+    if call.section == "asr":
+        return "audio"
+    if call.section == "tts":
+        return "characters"
+    return "tokens"
 
 
 @dataclass(frozen=True)
@@ -22,6 +32,7 @@ class TaskHistory:
     input_tokens: int
     output_tokens: int
     audio_seconds: float | None
+    characters: int | None = None
 
 
 @dataclass(frozen=True)
@@ -32,6 +43,7 @@ class CallEstimate:
     input_tokens: int
     output_tokens: int
     audio_seconds: float | None
+    characters: int | None
     samples: int
     source: EstimateSource
     # "<connection>:<model>" the call would run on now; None when none is configured.
@@ -55,6 +67,7 @@ def estimate_call(
             input_tokens=call.default.input_tokens,
             output_tokens=call.default.output_tokens,
             audio_seconds=call.default.audio_seconds,
+            characters=call.default.characters,
             samples=0,
             source="default",
             model=model,
@@ -66,6 +79,7 @@ def estimate_call(
         input_tokens=history.input_tokens,
         output_tokens=history.output_tokens,
         audio_seconds=history.audio_seconds,
+        characters=history.characters,
         samples=history.samples,
         source="history",
         model=model,
@@ -73,12 +87,21 @@ def estimate_call(
 
 
 async def task_history(
-    session: AsyncSession, tenant_id: uuid.UUID, task: str, *, audio: bool, window: int
+    session: AsyncSession, tenant_id: uuid.UUID, task: str, *, unit: Unit, window: int
 ) -> TaskHistory:
     """Averages over the task's last `window` successful calls that reported usage."""
-    reported = LLMUsage.audio_seconds.is_not(None) if audio else LLMUsage.input_tokens > 0
+    reported = {
+        "audio": LLMUsage.audio_seconds.is_not(None),
+        "characters": LLMUsage.characters.is_not(None),
+        "tokens": LLMUsage.input_tokens > 0,
+    }[unit]
     recent = (
-        select(LLMUsage.input_tokens, LLMUsage.output_tokens, LLMUsage.audio_seconds)
+        select(
+            LLMUsage.input_tokens,
+            LLMUsage.output_tokens,
+            LLMUsage.audio_seconds,
+            LLMUsage.characters,
+        )
         .where(
             LLMUsage.tenant_id == tenant_id,
             LLMUsage.task == task,
@@ -96,6 +119,7 @@ async def task_history(
                 func.avg(recent.c.input_tokens),
                 func.avg(recent.c.output_tokens),
                 func.avg(recent.c.audio_seconds),
+                func.avg(recent.c.characters),
             )
         )
     ).one()
@@ -105,6 +129,7 @@ async def task_history(
         input_tokens=round(row[1] or 0),
         output_tokens=round(row[2] or 0),
         audio_seconds=round(float(row[3]), 1) if row[3] is not None else None,
+        characters=round(row[4]) if row[4] is not None else None,
     )
 
 
@@ -132,7 +157,7 @@ async def feature_estimates(
                     session,
                     ctx.tenant_id,
                     call.task,
-                    audio=call.section == "asr",
+                    unit=unit_of(call),
                     window=catalog.window,
                 )
     return [

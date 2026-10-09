@@ -73,7 +73,7 @@ def say(text: str = "Nice to meet you.", **extra: Any) -> dict[str, Any]:
 async def test_without_a_route_the_browser_reads_aloud(client: AsyncClient) -> None:
     await client.post("/auth/register", json={"email": "a@example.com", "password": "password123"})
 
-    assert (await client.get("/speech/capabilities")).json() == {"tts": False}
+    assert (await client.get("/speech/capabilities")).json() == {"tts": False, "tts_languages": []}
     response = await client.post("/speech/tts", json=say())
 
     assert response.status_code == 409
@@ -84,7 +84,10 @@ async def test_second_request_is_served_from_the_cache(
     client: AsyncClient, vendor: Any, db_session: AsyncSession
 ) -> None:
     await setup(client)
-    assert (await client.get("/speech/capabilities")).json() == {"tts": True}
+    assert (await client.get("/speech/capabilities")).json() == {
+        "tts": True,
+        "tts_languages": ["en-US", "en-GB", "zh-CN"],
+    }
 
     first = await client.post("/speech/tts", json=say("  Nice to meet you. "))
     second = await client.post("/speech/tts", json=say())
@@ -111,6 +114,22 @@ async def test_a_fallbacks_audio_is_reused(client: AsyncClient, vendor: Any) -> 
     assert first.content == second.content == b"mp3:two.example.com:2"
     assert second.headers["x-tts-cached"] == "1"
     assert len(vendor.seen) == 2
+
+
+async def test_a_language_without_a_voice_is_left_to_the_browser(
+    client: AsyncClient, vendor: Any
+) -> None:
+    await setup(client)
+    route = {"models": ["one:speaches-ai/Kokoro-82M-v1.0-ONNX"]}
+    assert (await client.put("/tenant/routes/tts/default", json=route)).status_code == 200
+
+    capabilities = (await client.get("/speech/capabilities")).json()
+    response = await client.post("/speech/tts", json={"text": "你好", "language": "zh-CN"})
+
+    assert capabilities == {"tts": True, "tts_languages": ["en-US", "en-GB"]}
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "no_tts_voice"
+    assert vendor.seen == []
 
 
 async def test_every_model_failing_is_a_502(client: AsyncClient, vendor: Any) -> None:

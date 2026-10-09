@@ -10,7 +10,7 @@ from app.api.errors import api_error
 from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
-from app.providers.tts import Language, SpeechSynthesisError, get_tts
+from app.providers.tts import LANGUAGES, Language, NoVoiceError, SpeechSynthesisError, get_tts
 from app.services.speech.read_aloud import read_aloud
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,10 @@ MAX_TEXT_CHARS = 1000
 
 
 class CapabilitiesOut(BaseModel):
-    # The tenant has a read-aloud route: the UI asks the server first.
+    # The tenant has a read-aloud route: the UI asks the server first ...
     tts: bool
+    # ... for these languages; the browser reads the others.
+    tts_languages: list[Language] = []
 
 
 class TtsIn(BaseModel):
@@ -50,10 +52,11 @@ async def capabilities(
 ) -> CapabilitiesOut:
     ctx = await load_provider_context(session, tenant.id)
     try:
-        get_tts(ctx)
+        tts = get_tts(ctx)
     except NoModelConfiguredError:
         return CapabilitiesOut(tts=False)
-    return CapabilitiesOut(tts=True)
+    languages = [lang for lang in LANGUAGES if tts.candidates(lang)]
+    return CapabilitiesOut(tts=bool(languages), tts_languages=languages)
 
 
 @router.post(
@@ -61,7 +64,7 @@ async def capabilities(
     response_class=Response,
     responses={
         200: {"content": {"audio/mpeg": {}}},
-        409: {"description": "no read-aloud model configured"},
+        409: {"description": "no read-aloud model (or voice for the language) configured"},
         502: {"description": "every read-aloud model failed"},
     },
 )
@@ -76,6 +79,10 @@ async def post_tts(
     except NoModelConfiguredError as exc:
         raise api_error(
             status.HTTP_409_CONFLICT, exc.code, "No read-aloud model is configured."
+        ) from exc
+    except NoVoiceError as exc:
+        raise api_error(
+            status.HTTP_409_CONFLICT, "no_tts_voice", "No read-aloud voice for this language."
         ) from exc
     except SpeechSynthesisError as exc:
         # Details stay in the server log; vendor errors can echo input.

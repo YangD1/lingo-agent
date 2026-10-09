@@ -103,6 +103,8 @@ API key 不放在 `.env` 或 YAML 文件里，由每个用户在 **设置** 里�
 
 **本地语音转写（可选，开发用）**：`make asr-up` 会在 8200 端口启动 [speaches](https://github.com/speaches-ai/speaches)（faster-whisper），第一次启动会下载模型，转写时约占 1.4 GB 内存。然后在允许私有网络的前提下，用 **Speaches** 预设添加连接（Docker 里的后端用 `http://asr:8000/v1`，宿主机上的后端用 `http://localhost:8200/v1`），把 `speaches:Systran/faster-whisper-small` 放进“语音转文字”的模型顺序。详见 [`.env.example`](.env.example) 里的注释。
 
+**本地朗读（可选，开发用）**：同一个容器还能用 Kokoro 朗读。先下载一次模型：`curl -X POST http://localhost:8200/v1/models/speaches-ai/Kokoro-82M-v1.0-ONNX`，再把 `speaches:speaches-ai/Kokoro-82M-v1.0-ONNX` 放进“朗读”的模型顺序。它只能读美式和英式英语（speaches 0.9 不支持中文，中文交给浏览器朗读）。开发机上实测：加载后约占 0.9 GB 内存，两个请求同时来时约 1.5 GB，一句 9 秒的英文约 2 秒合成完。没配朗读路由时由浏览器朗读（ADR 0018）；线上建议用 Azure 语音等托管服务（ADR 0028）。
+
 
 ## 本地开发
 

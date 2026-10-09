@@ -53,6 +53,7 @@ class CallEstimateOut(BaseModel):
     input_tokens: int
     output_tokens: int
     audio_seconds: float | None
+    characters: int | None
     samples: int
     source: EstimateSource
     model: str | None
