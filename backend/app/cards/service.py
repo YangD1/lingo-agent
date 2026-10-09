@@ -1,6 +1,7 @@
 """Tutor cards in the database: written by tool calls, applied / declined / undone by
 the learner (ADR 0015 §4)."""
 
+import dataclasses
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -303,16 +304,21 @@ async def _apply_daily_plan(
     zone = tz if tz is not None else await learner_zone(session, user_id)
     if plan.day != local_day(now, zone):
         raise CardStateError("plan_expired", "This plan was for another day.")
+    # Read when the tutor proposed it, so it may allow more than the draft (a word book
+    # chosen since, say).
+    inputs = PlanInputs(**card.params.get("inputs", plan.limits))
     if choice is not None:
-        target = PlanTarget(str(plan.id), plan.day.isoformat(), PlanInputs(**plan.limits))
+        target = PlanTarget(str(plan.id), plan.day.isoformat(), inputs)
         card.params = card_params(target, choice, get_rules())
     before = {
         "choice": plan.choice,
+        "limits": plan.limits,
         "status": plan.status,
         "card_id": str(plan.card_id) if plan.card_id else None,
         "decided_at": plan.decided_at.isoformat() if plan.decided_at else None,
     }
     plan.choice = card.params["choice"]
+    plan.limits = dataclasses.asdict(inputs)
     plan.status = "applied"
     plan.card_id = card.id
     plan.decided_at = now
@@ -327,6 +333,7 @@ async def _undo_daily_plan(
     if plan.card_id != card.id or plan.choice != card.params["choice"]:
         raise _changed_since()
     plan.choice = before["choice"]
+    plan.limits = before["limits"]
     plan.status = before["status"]
     plan.card_id = uuid.UUID(before["card_id"]) if before["card_id"] else None
     plan.decided_at = datetime.fromisoformat(before["decided_at"]) if before["decided_at"] else None

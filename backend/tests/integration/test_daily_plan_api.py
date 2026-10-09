@@ -1,10 +1,13 @@
 """Today's plan over the API, and the tutor's daily plan cards (ADR 0027, task 48.3)."""
 
+import uuid
 from typing import Any
 
 from httpx import AsyncClient
 from langchain_core.messages import ToolMessage
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models import Word
 from tests.integration.test_chat_daily import daily
 from tests.integration.test_chat_send import connect, login, new_conversation, send
 from tests.integration.test_chat_tools import (  # noqa: F401 (fixtures)
@@ -107,7 +110,7 @@ async def test_the_tutor_proposes_a_plan_in_todays_conversation(
     prompt = system_text(messages)
     assert "### Today's plan (drafted, waiting for the learner to confirm it" in prompt
     assert "- One grammar practice set, about 8 min: 0/1 done" in prompt
-    assert "Open today: 0 due words, 0 new words" in prompt
+    assert "Today in all (done and still open): 0 reviews, 0 new words" in prompt
     (card,) = kinds(events, "card")
     assert card["kind"] == "daily_plan" and card["status"] == "proposed"
     params = card["params"]
@@ -175,3 +178,41 @@ async def test_other_cards_take_no_choice(
 
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "card_not_adjustable"
+
+
+async def test_a_proposal_reads_what_is_open_now(
+    client: AsyncClient,
+    script: Script,  # noqa: F811
+    db_session: AsyncSession,
+) -> None:
+    """The plan was drafted before the learner chose a word book: the tutor's plan may
+    still include new words, and confirming it carries the new limits (ADR 0027 §1)."""
+    await login(client)
+    await connect(client, "openai")
+    drafted = await plan(client)
+    assert drafted["limits"]["new_left"] == 0
+    db_session.add_all(
+        [
+            Word(word=f"w{uuid.uuid4().hex[:10]}", translation="释义", tags=["cet4"])
+            for _ in range(4)
+        ]
+    )
+    await db_session.commit()
+    assert (
+        await client.put("/vocab/book", json={"book_id": "cet4", "daily_new": 3})
+    ).status_code == 204
+    conversation = (await daily(client))["id"]
+    args = {"review": 0, "new_words": 10, "practice": True, "reading": False, "writing": False}
+    script.replies = [[tool_call("propose_daily_plan", **args)], "Here you go."]
+
+    _, events, _ = await send(client, conversation, "Add some new words.")
+
+    (card,) = kinds(events, "card")
+    assert card["params"]["choice"]["new_words"] == 3
+    assert card["params"]["limits"]["new_left"] == 3
+    assert (await client.post(f"/cards/{card['id']}/apply", json={})).status_code == 200
+    now = await plan(client)
+    assert now["limits"]["new_left"] == 3 and now["choice"]["new_words"] == 3
+    assert (await client.post(f"/cards/{card['id']}/undo")).status_code == 200
+    back = await plan(client)
+    assert back["limits"]["new_left"] == 0 and back["choice"] == drafted["choice"]

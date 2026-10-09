@@ -71,6 +71,16 @@ FACTS_HEADING = "### Things they have told you\n"
 PLAN_LEVEL = re.compile(r"^- Overall level \(CEFR\): ([A-C][12])", re.MULTILINE)
 WORD_BOOK = re.compile(r"词书|word book", re.IGNORECASE)
 PROPOSED_BOOK = {"book_id": "oxford3000", "daily_new": 10}
+# "I only have 10 minutes today": a lighter plan (backend/app/cards/tools.py ProposeDailyPlan);
+# the backend lowers the counts to what is open today.
+SHORT_ON_TIME = re.compile(r"只有 ?\d+ ?分钟|only have \d+ min", re.IGNORECASE)
+PROPOSED_PLAN = {
+    "review": 0,
+    "new_words": 3,
+    "practice": False,
+    "reading": False,
+    "writing": False,
+}
 # backend/app/prompts/language_zh.md; the examples and translation inputs.
 CHINESE_MODE = "mainly in Chinese"
 EXAMPLE_WORD = re.compile(r"^Word: (.+)$", re.MULTILINE)
@@ -481,7 +491,10 @@ def tutor_tool_call(
         or messages[-1]["role"] != "user"
     ):
         return None
-    if not WORD_BOOK.search(text_of(messages[-1]["content"])):
+    said = text_of(messages[-1]["content"])
+    if "propose_daily_plan" in names and SHORT_ON_TIME.search(said):
+        return "propose_daily_plan", PROPOSED_PLAN
+    if not WORD_BOOK.search(said):
         return None
     return "propose_word_book", PROPOSED_BOOK
 

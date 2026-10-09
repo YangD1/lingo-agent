@@ -155,6 +155,20 @@ async def read_inputs(
         select(UserProfile.daily_minutes).where(UserProfile.user_id == user_id)
     )
     counts = await today_counts(session, user_id, rules=rules, tz=tz, now=now)
+    done = await _done(session, user_id, tz=tz, now=now)
+    # Due words started before today: today's new words coming round again within the
+    # day are part of learning them, as in `_done`.
+    start, _ = day_bounds(now, tz)
+    still_due = await session.scalar(
+        select(func.count())
+        .select_from(UserCard)
+        .where(
+            UserCard.user_id == user_id,
+            UserCard.status == "learning",
+            UserCard.due <= now + timedelta(minutes=rules.vocab.learn_ahead_minutes),
+            UserCard.first_reviewed_at < start,
+        )
+    )
     last_essay = await session.scalar(
         select(func.max(WritingSubmission.created_at)).where(WritingSubmission.user_id == user_id)
     )
@@ -163,8 +177,9 @@ async def read_inputs(
     )
     return PlanInputs(
         minutes=minutes,
-        reviews_due=counts.reviews_due,
-        new_left=counts.new_left,
+        # Whole-day totals, as progress counts them (`_done`).
+        reviews_due=(still_due or 0) + done["review"],
+        new_left=counts.new_left + counts.new_started,
         practice_kc=await _practice_kc(session, user_id, rules=rules, now=now),
         article_id=await _article(session, user_id, tenant_id, rules=rules),
         days_since_writing=days_since_writing,

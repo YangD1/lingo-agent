@@ -14,6 +14,7 @@ rebuilt every turn, so the numbers are current.
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
 
 from sqlalchemy import func, select
@@ -21,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive import mastery
 from app.adaptive.daily_plan import service as daily_plan
-from app.adaptive.daily_plan.algorithm import ItemKind
+from app.adaptive.daily_plan.algorithm import ItemKind, PlanInputs
 from app.adaptive.daily_plan.card import PlanTarget
 from app.adaptive.daily_plan.service import PlanView
 from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
@@ -64,8 +65,10 @@ class PlanningBrief:
     missed: Sequence[MissedKC] = ()
     candidates: Sequence[Candidate] = field(default_factory=list)
     purpose: PlanningPurpose = "planning"
-    # Today's plan (daily conversations only, ADR 0027).
+    # Today's plan (daily conversations only, ADR 0027), and what is open today as of
+    # this turn: a new proposal is bounded by this, not by when the plan was drafted.
     plan: PlanView | None = None
+    open_today: PlanInputs | None = None
 
     def scope(self) -> CardScope:
         """The practice and link cards the tutor may show, and the plan it may replace."""
@@ -76,7 +79,8 @@ class PlanningBrief:
         target = None
         if self.plan is not None:
             p = self.plan.plan
-            target = PlanTarget(str(p.id), p.day.isoformat(), self.plan.inputs)
+            inputs = self.open_today or self.plan.inputs
+            target = PlanTarget(str(p.id), p.day.isoformat(), inputs)
         return CardScope(kc_ids=kc_ids, links=links, daily_plan=target)
 
 
@@ -135,16 +139,20 @@ async def load_brief(
     )
     zone = await learner_zone(session, user_id)
     found = await candidates(session, user_id, rules=rules, catalog=catalog, tz=zone)
-    plan = None
+    plan = open_today = None
     if purpose == "daily" and tenant_id is not None:
         today = await daily_plan.current(session, user_id, tenant_id, rules=rules)
         plan = await daily_plan.view(session, today, rules=rules, tz=zone)
+        open_today = await daily_plan.read_inputs(
+            session, user_id, tenant_id, rules=rules, tz=zone, now=datetime.now(UTC)
+        )
     return PlanningBrief(
         placement=result,
         missed=await _missed(session, user_id),
         candidates=found,
         purpose=purpose,
         plan=plan,
+        open_today=open_today,
     )
 
 
@@ -193,8 +201,8 @@ _ITEM_TEXT: dict[ItemKind, str] = {
 }
 
 
-def _render_plan(view: PlanView) -> list[str]:
-    plan, inputs = view.plan, view.inputs
+def _render_plan(view: PlanView, open_today: PlanInputs | None) -> list[str]:
+    plan, inputs = view.plan, open_today or view.inputs
     lines = [f"### Today's plan ({_PLAN_STATUS.get(plan.status, plan.status)})"]
     for p in view.progress:
         text = _ITEM_TEXT[p.item.kind].format(count=p.item.count)
@@ -204,8 +212,9 @@ def _render_plan(view: PlanView) -> list[str]:
     minutes = f"{inputs.minutes} a day" if inputs.minutes else "not set, 20 assumed"
     lines.append(f"- About {view.minutes:g} min in all; the learner's study time: {minutes}")
     lines.append(
-        f"- Open today: {inputs.reviews_due} due words, {inputs.new_left} new words the word"
-        f" book allows, practice {'possible' if inputs.practice_kc else 'not possible'},"
+        f"- Today in all (done and still open): {inputs.reviews_due} reviews,"
+        f" {inputs.new_left} new words the word book allows,"
+        f" practice {'possible' if inputs.practice_kc else 'not possible'},"
         f" an article {'ready' if inputs.article_id else 'not available'}"
     )
     return lines
@@ -245,6 +254,6 @@ def render_planning(brief: PlanningBrief) -> str:
         lines.append("- Nothing pressing.")
     if brief.plan is not None:
         lines.append("")
-        lines.extend(_render_plan(brief.plan))
+        lines.extend(_render_plan(brief.plan, brief.open_today))
     # replace, not format: mistake examples may contain braces.
     return load_prompt(brief.purpose).replace("{planning_brief}", "\n".join(lines))

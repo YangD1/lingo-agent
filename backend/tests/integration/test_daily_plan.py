@@ -305,3 +305,27 @@ async def test_new_cards_are_not_reviews(db_session: AsyncSession) -> None:
     await review(db_session, user_id, word_id=word_id, rating=3, rules=RULES, now=NOW)
     v = await service.view(db_session, plan, rules=RULES, tz=UTC_ZONE, now=NOW)
     assert {p.item.kind: p.done for p in v.progress}.get("review") == 1
+
+
+async def test_limits_are_whole_day_totals(db_session: AsyncSession) -> None:
+    """A plan first read after some study still counts what was done (ADR 0027 §2)."""
+    user_id, tenant_id = await new_user(db_session)
+    db_session.add(UserWordBook(user_id=user_id, book_id="cet4", daily_new=3))
+    old = await due_cards(db_session, user_id, 3)
+    await words(db_session, 5)
+    # Easy: not due again today.
+    await review(db_session, user_id, word_id=old[0], rating=4, rules=RULES, now=NOW)
+    [fresh] = await words(db_session, 1)
+    await review(db_session, user_id, word_id=fresh, rating=3, rules=RULES, now=NOW)
+
+    plan = await today(db_session, user_id, tenant_id)
+
+    # 2 still due + 1 done (the new word coming round again is not a review);
+    # 2 new allowed + 1 started.
+    assert (plan.limits["reviews_due"], plan.limits["new_left"]) == (3, 3)
+    assert (plan.choice["review"], plan.choice["new_words"]) == (3, 3)
+    v = await service.view(db_session, plan, rules=RULES, tz=UTC_ZONE, now=NOW)
+    assert {p.item.kind: p.done for p in v.progress if p.item.count} == {
+        "review": 1,
+        "new_words": 1,
+    }

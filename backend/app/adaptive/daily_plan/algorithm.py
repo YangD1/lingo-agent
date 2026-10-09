@@ -20,8 +20,11 @@ class PlanInputs:
 
     # The profile's daily minutes; None = not set.
     minutes: int | None
+    # Reviews for the whole day: done so far plus still due, so a plan read after some
+    # study still counts what was done.
     reviews_due: int
-    # New words the word book still allows today (0 without a book).
+    # New words for the whole day: started so far plus what the word book still allows
+    # (0 without a book).
     new_left: int
     # The grammar point the next practice set would start with; None = nothing to practise.
     practice_kc: str | None

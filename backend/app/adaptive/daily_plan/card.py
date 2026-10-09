@@ -37,6 +37,8 @@ def card_params(target: PlanTarget, choice: PlanChoice, rules: Rules) -> dict[st
         "choice": dataclasses.asdict(kept),
         "items": [dataclasses.asdict(i) for i in plan],
         "minutes": round(total_minutes(plan), 1),
+        # What was open when it was proposed; the plan's limits once applied.
+        "inputs": dataclasses.asdict(inputs),
         # What the card may be adjusted to, and minutes per item for a live total.
         "limits": {
             "reviews_due": inputs.reviews_due,
