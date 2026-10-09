@@ -921,7 +921,8 @@
         "rss_fetch": "Fetch reading feeds (RSS)",
         "article_prerewrite": "Rewrite new articles for readers' levels",
         "word_examples_prefetch": "Write AI example sentences for the coming day's words",
-        "diagnosis": "The tutor's diagnosis (at most weekly per learner)"
+        "diagnosis": "The tutor's diagnosis (at most weekly per learner)",
+        "tts_cache_cleanup": "Clear read-aloud audio unused for 30 days"
       }
     }
   },
@@ -1366,7 +1367,11 @@
     "server": "Use the server's voice",
     "serverHint": "This site has a read-aloud service with more natural voices. The first reading of each sentence costs a little; readings are cached. Turned off, only this device's voices are used (in this browser only).",
     "serverDown": "The read-aloud service isn't working on this page, so this device's voices are reading instead. Reload the page to try it again.",
-    "fallbackOnly": "(used when the read-aloud service isn't available)"
+    "fallbackOnly": "(used when the read-aloud service isn't available)",
+    "clearCache": "Clear my read-aloud cache",
+    "clearCacheConfirm": "Delete the server's recordings of sentences read aloud for you? They'll be made (and billed) again next time.",
+    "cacheCleared": "Deleted {count, plural, one {# recording} other {# recordings}}.",
+    "cacheClearFailed": "Couldn't clear it. Please try again later."
   },
   "practice": {
     "focus": "This set focuses on: {kc}",

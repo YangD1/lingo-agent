@@ -3,14 +3,19 @@
 The same text in the same voice, speed and model is synthesized once per tenant; later
 requests are served from `tts_audio` and cost nothing (no llm_usage row). The cache is
 capped per tenant and evicts the least recently used audio first, except pinned rows.
+A reply read aloud may say something personal (Q54c): each row keeps the learner who
+first asked for it, who can clear their rows, and unpinned rows unused for
+`UNUSED_DAYS` are dropped by a daily job.
 """
 
 import hashlib
 import json
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import CursorResult, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +26,7 @@ from app.providers.tts import Language, TextToSpeech, get_tts
 # Per tenant, unpinned rows only. A sentence of mp3 is tens of KB, so this keeps
 # thousands of sentences without growing the database much.
 CACHE_MAX_BYTES = 200 * 1024 * 1024
+UNUSED_DAYS = 30
 
 
 @dataclass(frozen=True)
@@ -78,6 +84,7 @@ async def read_aloud(
         insert(TtsAudio)
         .values(
             tenant_id=ctx.tenant_id,
+            user_id=user_id,
             key=cache_key(text, language, speech.voice, speed, served_by),
             language=language,
             connection_name=speech.connection,
@@ -114,3 +121,21 @@ async def evict(
             TtsAudio.id.in_(select(newest_first.c.id).where(newest_first.c.running > max_bytes))
         )
     )
+
+
+async def clear_user_audio(session: AsyncSession, user_id: uuid.UUID) -> int:
+    """Delete the unpinned audio `user_id` first asked for; returns how many rows."""
+    statement = delete(TtsAudio).where(TtsAudio.user_id == user_id, TtsAudio.pinned.is_(False))
+    result: CursorResult[Any] = await session.execute(statement)  # type: ignore[assignment]
+    await session.commit()
+    return result.rowcount
+
+
+async def drop_unused(session: AsyncSession, now: datetime, days: int = UNUSED_DAYS) -> int:
+    """Delete unpinned audio no one has played for `days` days, in every tenant."""
+    statement = delete(TtsAudio).where(
+        TtsAudio.pinned.is_(False), TtsAudio.last_used_at < now - timedelta(days=days)
+    )
+    result: CursorResult[Any] = await session.execute(statement)  # type: ignore[assignment]
+    await session.commit()
+    return result.rowcount

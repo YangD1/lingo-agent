@@ -36,7 +36,7 @@
 | 调用 | 代码 | 读取 | 写入 | 学习者在哪看到 / 撤销 |
 |---|---|---|---|---|
 | AI 例句 | `services/vocab/examples.py` → `POST /vocab/words/{id}/examples` | 词条（单词、中文释义）、学习者等级（没有时按 A2） | `word_examples`（租户 + 词 + 等级；每句经代码校验含该词或其变形，都不合格时不写） | 单词气泡和复习卡片背面显示；不含个人信息，无需撤销 |
-| 服务端朗读 | `services/speech/read_aloud.py` → `POST /speech/tts`（ADR 0028 §3） | 要读的一句话、语言、学习者的语速（声音由租户的朗读路由决定） | `tts_audio`（租户 + 文本、声音、语速、模型的哈希；租户上限 200MB，先删最久没用的） | 听到的就是结果。只存音频和哈希，不存原文；音频由同租户共用，删除会话时不会跟着删（读私教回复时可能含个人信息），超出上限按最久没用淘汰，删除租户时一起删 |
+| 服务端朗读 | `services/speech/read_aloud.py` → `POST /speech/tts`（ADR 0028 §3） | 要读的一句话、语言、学习者的语速（声音由租户的朗读路由决定） | `tts_audio`（租户 + 文本、声音、语速、模型的哈希；租户上限 200MB，先删最久没用的） | 听到的就是结果。只存音频和哈希，不存原文；音频由同租户共用；每条记下第一次让它生成的学习者（Q54c），朗读设置里“清除我的朗读缓存”删掉自己让生成的那些（`DELETE /speech/tts-cache`），账号删除时一起删；没被预生成固定的音频 30 天没人播就由 `tts_cache_cleanup` 删掉；超出上限按最久没用淘汰，删除租户时一起删 |
 | 气泡翻译 | `chat/translate.py` → `POST /conversations/{id}/messages/{message_id}/translate` | 这条私教消息的文本 | `message_translations`（会话 + 消息 + 目标语言，删除会话时一起删） | 私教气泡原位切换显示；随会话删除 |
 
 查词（`GET /vocab/lookup`）和浏览器朗读（`speechSynthesis`）不调用模型。
@@ -177,6 +177,7 @@
 | 预先改写新文章（`article_prerewrite`） | 定时，每 2 小时，`rss_fetch` 后错开 30 分钟（Q42g） | `services/reading/prerewrite.py` `prerewrite` → `ReadingWorker.generate`（任务自己建一个 worker，一篇一篇写） | `llm/article_rewrite`、`llm/exercise_critic`（记为 `reading_critic`）、被拒的题 `llm/article_rewrite`（记为 `reading_questions`），都是 `background` | `article_prerewrite`（开） | 设置“后台任务”；改写版本标 `background`，阅读页和当场改写的一样 |
 | 预先写好 AI 例句（`word_examples_prefetch`） | 定时，每 6 小时（任务 44） | `services/vocab/prefetch.py` `prefetch`：未来 24 小时到期的复习卡 + 下一批新词里没有 Tatoeba 例句、本租户这个等级也没缓存的，每人每次最多 `vocab.examples_prefetch.per_learner` 个，逐词调 `services/vocab/examples.py` `examples`；没配模型或模型出错就停掉这个租户本轮 | `llm/word_examples`（`background`） | `word_examples_prefetch`（开） | 设置“后台任务”；复习卡背面直接显示，标“AI 生成”；写进 `word_examples`（租户、词、等级），和点“AI 例句”按钮共用 |
 | 私教的诊断（`diagnosis`，任务 46） | 定时，每天 UTC 03:45，挑上次诊断满 7 天、之后又有算数错误的学习者（从没诊断过的要有语法点在 30 天内错满 3 次）；以及做完一组练习（或最后一题被举报）后，距上次诊断满 20 小时、之后新错误合计 ≥ 3 条（事件，`DiagnosisWorker.after_set`，同一学习者同时只跑一个）（Q46b） | `adaptive/diagnosis/`：`triggers.py` 判是否到时候 → `service.py` `run_diagnosis` → `context.py` 挑最多 3 个没学会、30 天内算数错误 ≥ 3 次的语法点，用 `graph.neighborhood` 取它们的前置链、易混语法点、掌握度和最近 3 条错句（带证据编号）→ `checks.py` 调模型并校验：只能引用给它看过的语法点和错句，证据要落在假设的语法点上或同一个邻域里，有效证据少于 2 条的假设丢掉，最多留 3 条（Q46c）；错句是学习者写的，提示词按资料处理 | `llm/diagnose`（`background`；一次调用覆盖全部目标语法点；没有够格的语法点不调） | `diagnosis`（开） | 写 `diagnoses`（目标语法点、校验后的假设、讲解语言、用到的证据截止编号、模型、规则版本）；有假设时写 / 原地更新一条事实记忆“私教的诊断：…”（`/memory` 可改可删，删了下次诊断再写新的；不想再诊断请关开关）；诊断点名、没学会的语法点 14 天内选题优先级 ×1.5（Q46e，系数在 `rules.yaml`，不用模型给的把握程度）。学习者模型页顶部“私教的诊断”区块显示最近一次有结论的诊断：结论、指向的语法点、把握程度、建议、引用的错句（点开显示原句、改正和来源）；“这次诊断不对”可整条删除，加成随之取消，它写的记忆一并删除；“删除所有学习记录”也删诊断（任务 47） |
+| 清理朗读缓存（`tts_cache_cleanup`，任务 54.5） | 定时，每天 UTC 04:20 | `services/speech/read_aloud.py` `drop_unused` | 无（不调模型，不占后台额度） | 没有开关；想立刻删自己的，用朗读设置里的“清除我的朗读缓存” | 删除所有租户里 30 天没人播过、不是预生成固定的朗读音频（Q54c：私教回复读出来的音频可能含个人信息）；设置“后台任务”看到上次运行 |
 
 `rss_fetch` 读写的是公开的 RSS，不读任何学习者数据：只抓有人订阅的 feed（内置源默认订阅），写 `articles`（正文转成纯文本段落，图片和图片说明不存）和 feed 上的条件请求信息、失败次数、错误码；连续失败 3 次后间隔翻倍，最长 24 小时；超过 90 天的文章删除。经 `net_guard` 直连，设了 `FEED_HTTP_PROXY` 时走代理（每一跳先查地址）。
 

@@ -2,12 +2,14 @@
 
 import { Play } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
+import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { Switch } from "@/components/ui/switch";
+import { api } from "@/lib/api";
 import {
   EN_RATE_MAX,
   EN_RATE_MIN,
@@ -76,6 +78,7 @@ export function SpeechSettings() {
           <p className="text-xs text-muted-foreground">
             {server.down ? t("serverDown") : t("serverHint")}
           </p>
+          <ClearCache />
         </div>
       )}
 
@@ -189,6 +192,44 @@ export function SpeechSettings() {
         <p className="text-xs text-muted-foreground" data-testid="silent-voices">
           {t("silentHint")}
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Deletes the audio the server made for this learner's readings (Q54c): a reply read
+ * aloud may say something personal. Those sentences are read (and billed) afresh next time.
+ */
+function ClearCache() {
+  const t = useTranslations("speech");
+  const [state, setState] = useState<"idle" | "busy" | { deleted: number } | "failed">("idle");
+  const clear = async () => {
+    setState("busy");
+    try {
+      setState(await api<{ deleted: number }>("/speech/tts-cache", { method: "DELETE" }));
+    } catch {
+      setState("failed");
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <InlineConfirm question={t("clearCacheConfirm")} confirmLabel={t("clearCache")} onConfirm={() => void clear()}>
+        {(ask) => (
+          <Button size="xs" variant="outline" onClick={ask} disabled={state === "busy"}>
+            {t("clearCache")}
+          </Button>
+        )}
+      </InlineConfirm>
+      {typeof state === "object" && (
+        <span role="status" className="text-muted-foreground">
+          {t("cacheCleared", { count: state.deleted })}
+        </span>
+      )}
+      {state === "failed" && (
+        <span role="alert" className="text-destructive">
+          {t("cacheClearFailed")}
+        </span>
       )}
     </div>
   );

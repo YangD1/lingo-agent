@@ -11,7 +11,7 @@ from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.providers.tts import LANGUAGES, Language, NoVoiceError, SpeechSynthesisError, get_tts
-from app.services.speech.read_aloud import read_aloud
+from app.services.speech.read_aloud import clear_user_audio, read_aloud
 
 logger = logging.getLogger(__name__)
 
@@ -99,3 +99,14 @@ async def post_tts(
             "Cache-Control": "private, max-age=86400",
         },
     )
+
+
+class ClearedOut(BaseModel):
+    deleted: int
+
+
+@router.delete("/tts-cache")
+async def clear_tts_cache(user: CurrentUser, session: SessionDep) -> ClearedOut:
+    """Delete the read-aloud audio this learner's requests put in the cache (Q54c). The
+    next reading of those sentences is synthesized (and billed) again."""
+    return ClearedOut(deleted=await clear_user_audio(session, user.id))

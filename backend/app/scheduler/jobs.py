@@ -22,6 +22,7 @@ from app.agents.reading_graph import build_reading_graph
 from app.services.news.refresh import fetch_due_feeds
 from app.services.reading.prerewrite import prerewrite
 from app.services.reading.worker import ReadingWorker
+from app.services.speech.read_aloud import drop_unused
 from app.services.vocab.prefetch import prefetch
 from app.settings import get_settings
 
@@ -80,6 +81,13 @@ async def diagnosis(ctx: JobContext) -> str | None:
     )
 
 
+async def tts_cache_cleanup(ctx: JobContext) -> str | None:
+    """Drop read-aloud audio unused for 30 days (Q54c). No model calls."""
+    async with ctx.sessionmaker() as session:
+        await drop_unused(session, ctx.now)
+    return None
+
+
 JOBS: tuple[Job, ...] = (
     # Each feed has its own next-fetch time (with back-off); the job only looks for
     # due ones, so its own period is the shortest a feed waits.
@@ -101,5 +109,11 @@ JOBS: tuple[Job, ...] = (
         "diagnosis",
         IntervalTrigger(hours=24, start_date=datetime(2026, 1, 1, 3, 45, tzinfo=UTC), timezone=UTC),
         diagnosis,
+    ),
+    # Daily; a day either way doesn't matter for 30 days unused.
+    Job(
+        "tts_cache_cleanup",
+        IntervalTrigger(hours=24, start_date=datetime(2026, 1, 1, 4, 20, tzinfo=UTC), timezone=UTC),
+        tts_cache_cleanup,
     ),
 )

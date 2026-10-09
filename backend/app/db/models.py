@@ -252,7 +252,9 @@ class TtsAudio(Base):
 
     Per tenant, not shared: each tenant pays for its own calls. Rows past the tenant's
     size cap are evicted least recently used first, except `pinned` ones (word audio
-    the deployment generated ahead of time, ADR 0028 §4).
+    the deployment generated ahead of time, ADR 0028 §4). The audio may say something
+    personal from a reply, so a row keeps who first asked for it (Q54c): that learner
+    can clear it, it goes with their account, and unpinned rows unused for 30 days go.
     """
 
     __tablename__ = "tts_audio"
@@ -263,6 +265,10 @@ class TtsAudio(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    # Who first asked for it; None for pinned word audio.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     # sha256 of text, language, voice, speed, connection and model.
     key: Mapped[str] = mapped_column(String(64))
     language: Mapped[str] = mapped_column(String(8))

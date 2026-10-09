@@ -228,6 +228,70 @@ async def test_eviction_drops_least_recently_used_unpinned_audio(db_session: Asy
     assert keys == {"new", "mid", "word"}
 
 
+async def test_a_learner_clears_the_audio_they_asked_for(
+    client: AsyncClient, vendor: Any, db_session: AsyncSession
+) -> None:
+    from app.db.models import User
+
+    await setup(client)
+    await client.post("/speech/tts", json=say("One."))
+    await client.post("/speech/tts", json=say("Two."))
+    me = await db_session.scalar(select(User))
+    assert me is not None
+    owners = list(await db_session.scalars(select(TtsAudio.user_id)))
+    assert owners == [me.id, me.id]
+    # Word audio the deployment generated ahead of time belongs to no one.
+    db_session.add(
+        TtsAudio(
+            tenant_id=await db_session.scalar(select(TtsAudio.tenant_id).limit(1)),
+            key="word",
+            language="en-US",
+            connection_name="one",
+            model="tts-1",
+            voice="coral",
+            mime_type="audio/mpeg",
+            audio=b"w",
+            size=1,
+            pinned=True,
+        )
+    )
+    await db_session.commit()
+
+    response = await client.delete("/speech/tts-cache")
+
+    assert response.json() == {"deleted": 2}
+    assert list(await db_session.scalars(select(TtsAudio.key))) == ["word"]
+    again = await client.post("/speech/tts", json=say("One."))
+    assert again.headers["x-tts-cached"] == "0"  # read (and billed) afresh
+
+    # The account going takes its audio with it.
+    await db_session.delete(me)
+    await db_session.commit()
+    assert list(await db_session.scalars(select(TtsAudio.key))) == ["word"]
+
+
+async def test_audio_unused_for_30_days_is_dropped(
+    client: AsyncClient, vendor: Any, db_session: AsyncSession
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import update
+
+    await setup(client)
+    await client.post("/speech/tts", json=say("Old."))
+    await client.post("/speech/tts", json=say("Recent."))
+    now = datetime.now(UTC)
+    await db_session.execute(update(TtsAudio).values(last_used_at=now - timedelta(days=31)))
+    recent = await db_session.scalar(select(func.max(TtsAudio.id)))
+    await db_session.execute(
+        update(TtsAudio).where(TtsAudio.id == recent).values(last_used_at=now - timedelta(days=29))
+    )
+    await db_session.commit()
+
+    assert await read_aloud.drop_unused(db_session, now) == 1
+    assert await db_session.scalar(select(func.count()).select_from(TtsAudio)) == 1
+
+
 def test_cache_key_depends_on_everything_that_changes_the_audio() -> None:
     from app.providers.config import ResolvedModel
 

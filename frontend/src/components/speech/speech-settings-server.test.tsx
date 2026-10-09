@@ -26,7 +26,9 @@ async function wrap(languages: string[]) {
       Promise.resolve(
         url === "/api/speech/capabilities"
           ? Response.json({ tts: languages.length > 0, tts_languages: languages })
-          : tts(),
+          : url === "/api/speech/tts-cache"
+            ? Response.json({ deleted: 3 })
+            : tts(),
       ),
     ),
   );
@@ -112,5 +114,18 @@ describe("SpeechSettings with a read-aloud service", () => {
     act(() => window.localStorage.setItem("lingo.speech", JSON.stringify({ server: false })));
     act(() => window.dispatchEvent(new Event("lingo:speech")));
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("clears the learner's own read-aloud audio after asking", async () => {
+    await wrap(["en-US"]);
+    await userEvent.click(screen.getByRole("button", { name: "Clear my read-aloud cache" }));
+    expect(fetch).not.toHaveBeenCalledWith("/api/speech/tts-cache", expect.anything());
+    expect(screen.getByText(/billed\) again next time/)).toBeInTheDocument();
+
+    const confirm = screen.getAllByRole("button", { name: "Clear my read-aloud cache" }).at(-1)!;
+    await userEvent.click(confirm);
+
+    expect(fetch).toHaveBeenCalledWith("/api/speech/tts-cache", expect.objectContaining({ method: "DELETE" }));
+    expect(await screen.findByText("Deleted 3 recordings.")).toBeInTheDocument();
   });
 });

@@ -921,7 +921,8 @@
         "rss_fetch": "抓取阅读来源（RSS）",
         "article_prerewrite": "按等级预先改写新文章",
         "word_examples_prefetch": "为接下来一天的单词预先写 AI 例句",
-        "diagnosis": "私教的诊断（每人每周最多一次）"
+        "diagnosis": "私教的诊断（每人每周最多一次）",
+        "tts_cache_cleanup": "清理 30 天没用的朗读缓存"
       }
     }
   },
@@ -1366,7 +1367,11 @@
     "server": "用服务端声音朗读",
     "serverHint": "部署方配了朗读服务，声音更自然。每句第一次读会产生少量费用，读过的会缓存。关掉后只用这台设备的声音（只对这个浏览器生效）。",
     "serverDown": "朗读服务在这个页面暂时不可用，已改用这台设备的声音。刷新页面后会重新尝试。",
-    "fallbackOnly": "（朗读服务不可用时使用）"
+    "fallbackOnly": "（朗读服务不可用时使用）",
+    "clearCache": "清除我的朗读缓存",
+    "clearCacheConfirm": "删除服务端为你朗读过的句子录音？下次读这些句子会重新生成（并再次计费）。",
+    "cacheCleared": "已删除 {count} 段录音。",
+    "cacheClearFailed": "没能清除，请稍后再试。"
   },
   "practice": {
     "focus": "这组专练：{kc}",
