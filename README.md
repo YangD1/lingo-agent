@@ -8,12 +8,13 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 **Stack:** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **Status: P2 in progress.** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review, places you on the CEFR scale, and now runs practice sets, reviews your writing and rewrites news for your level. It now also diagnoses the root causes of your recurring grammar mistakes and drafts a daily study plan. Voice conversation comes next. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
+> **Status: P2 complete.** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. It runs practice sets checked by a critic, reviews your writing, rewrites news for your level, diagnoses the root causes of your recurring grammar mistakes and drafts a daily study plan. Voice (P3) comes next. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
 
 | | |
 |---|---|
 | ![Chat: the tutor corrects a mistake and shows what it did](docs/screenshots/chat-en.png) | ![Dashboard: CEFR level, vocabulary size, streak and today's plan](docs/screenshots/dashboard-en.png) |
-| ![Vocabulary: today's FSRS queue and word books](docs/screenshots/vocab-en.png) | ![Home page](docs/screenshots/home-en.png) |
+| ![Grammar practice: a wrong translation, graded with the correction and the grammar point](docs/screenshots/practice-en.png) | ![Writing: each sentence corrected, mistakes explained, four scores](docs/screenshots/writing-en.png) |
+| ![Reading: a news article rewritten for A2, words above the level underlined](docs/screenshots/reading-en.png) | ![Vocabulary: today's FSRS queue and word books](docs/screenshots/vocab-en.png) |
 
 <sub>Screenshots use a demo account with scripted model replies.</sub>
 
@@ -48,7 +49,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
 - **English and Chinese UI.**
 
-Not built yet (see [docs/PLAN.md](docs/PLAN.md)): optional server-side read-aloud and pre-generated word pronunciations (see ADR 0018), shadowing and real-time voice conversation (P3); evaluation sets, rate limiting and cost dashboards (P4).
+Not built yet (see [docs/PLAN.md](docs/PLAN.md)): optional server-side read-aloud and pre-generated word pronunciations (see ADR 0018), shadowing and real-time voice conversation (P3); evaluation in CI, rate limiting and cost dashboards (P4).
 
 ## Quick start (Docker)
 
@@ -126,7 +127,10 @@ make e2e      # Playwright; starts its own backend, frontend and a fake model
 make lint     # ruff + mypy, eslint + TypeScript
 make fmt      # format and autofix backend code
 make ci       # everything CI runs, in the same order
+make eval     # evaluation sets (critic, grading, diagnosis) replayed from recorded model replies
 ```
+
+`make eval-live ARGS='--email <account>'` runs the evaluation sets against the models of one of your accounts instead (add `--record` to save new recordings); it calls real APIs and costs tokens.
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs backend checks, frontend checks, the Docker build and the end-to-end tests on every push to `main` and every pull request.
 
@@ -136,10 +140,11 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs backend checks,
 flowchart LR
     B[Browser] -->|:3000| F["Next.js<br/>(pages + /api proxy)"]
     F -->|"HTTP / SSE"| A[FastAPI]
-    A --> G["LangGraph<br/>chat graph + tools ·<br/>placement test"]
+    A --> G["LangGraph<br/>supervisor → coaches + tools ·<br/>practice · writing · reading ·<br/>diagnosis · placement test"]
     G -->|"after each reply"| R["Background reflection<br/>memory · grammar tags ·<br/>word collection"]
-    R --> L["Learner model<br/>(BKT / Elo mastery)"]
-    A --> V["Vocabulary<br/>(FSRS scheduling)"]
+    R --> L["Learner model<br/>(BKT / Elo mastery,<br/>grammar graph)"]
+    A --> V["Vocabulary and grammar reviews<br/>(FSRS scheduling)"]
+    S["Scheduler<br/>feeds · pre-generation ·<br/>daily budget"] --> G
     G --> P["Provider layer<br/>(per-tenant connections,<br/>fallback chains)"]
     R --> P
     P --> M[("Model APIs:<br/>LLM · vision ·<br/>speech-to-text · embeddings")]
@@ -149,11 +154,14 @@ flowchart LR
 The browser only talks to Next.js; the login cookie is httpOnly and requests reach the API through the same-origin proxy. Every model call goes through the provider layer, which builds each tenant's models from their own connections; business code never creates a vendor SDK client or hardcodes a model name. Models understand and write; algorithms keep the books: mastery is updated from evidence by BKT and Elo, reviews are scheduled by FSRS, and the placement test is scored without a model.
 
 ```
-backend/app/     FastAPI app: api/ routes, agents/ LangGraph graphs, providers/ model access,
-                 memory/ long-term memory and reflection, adaptive/ grammar points, mastery
-                 and the placement algorithm, services/vocab/ word books and FSRS,
-                 cards/ tutor tools, advice/, dashboard/, usage/, attachments/, prompts/,
+backend/app/     FastAPI app: api/ routes, agents/ LangGraph graphs (supervisor and coaches),
+                 providers/ model access, memory/ long-term memory and reflection,
+                 adaptive/ grammar points, mastery, grammar graph, practice sets and diagnosis,
+                 placement/, writing/, services/ vocab (word books, FSRS), news (feeds) and
+                 reading (rewrites, questions), scheduler/ background jobs, cards/ tutor tools,
+                 advice/, dashboard/, usage/, attachments/, prompts/,
                  credentials/ key encryption, db/ models and migrations
+backend/evals/   evaluation sets with recorded model replies (make eval)
 backend/tests/   pytest (unit + integration against a real Postgres)
 frontend/        Next.js App Router, shadcn/ui, next-intl; e2e/ Playwright tests
 config/          provider presets and default model order (dev / prod)
@@ -165,7 +173,8 @@ Design documents:
 
 - [docs/PLAN.md](docs/PLAN.md): the full design and roadmap
 - [docs/plans/P1-mvp.md](docs/plans/P1-mvp.md): the P1 implementation plan
-- [docs/decisions/](docs/decisions): architecture decision records, e.g. [provider layer](docs/decisions/0002-provider-layer.md), [tenant credentials](docs/decisions/0004-tenant-credentials.md), [attachments](docs/decisions/0008-multimodal-attachments.md), [long-term memory](docs/decisions/0009-long-term-memory.md), [learner model](docs/decisions/0010-learner-model.md), [vocabulary and FSRS](docs/decisions/0011-vocabulary-and-fsrs.md), [agent tools and disclosure](docs/decisions/0013-agent-tools-and-disclosure.md), [AI usage labels](docs/decisions/0014-ai-usage-disclosure.md), [confirmation cards](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)
+- [docs/plans/P2-adaptive-reading-writing.md](docs/plans/P2-adaptive-reading-writing.md): the P2 implementation plan
+- [docs/decisions/](docs/decisions): architecture decision records, e.g. [provider layer](docs/decisions/0002-provider-layer.md), [tenant credentials](docs/decisions/0004-tenant-credentials.md), [attachments](docs/decisions/0008-multimodal-attachments.md), [long-term memory](docs/decisions/0009-long-term-memory.md), [learner model](docs/decisions/0010-learner-model.md), [vocabulary and FSRS](docs/decisions/0011-vocabulary-and-fsrs.md), [agent tools and disclosure](docs/decisions/0013-agent-tools-and-disclosure.md), [AI usage labels](docs/decisions/0014-ai-usage-disclosure.md), [confirmation cards](docs/decisions/0015-tutor-tools-and-confirmation-cards.md), [exercise engine](docs/decisions/0021-exercise-engine.md), [grammar graph](docs/decisions/0022-grammar-graph-in-postgres.md), [supervisor and coaches](docs/decisions/0023-supervisor-and-coaches.md), [reading sources and copyright](docs/decisions/0024-reading-sources-and-copyright.md), [scheduler and background budget](docs/decisions/0025-scheduler-and-background-budget.md), [daily plan](docs/decisions/0027-daily-plan.md)
 
 ## Deploying
 

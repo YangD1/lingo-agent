@@ -8,12 +8,13 @@
 
 **技术栈：** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **状态：P2 进行中。** 私教能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级，现在还能出语法练习、批改写作、按你的等级改写新闻。还会诊断你反复出错的语法点的根因，并按你每天的时间排好今天的计划。语音对话在后面。见[现在能做什么](#现在能做什么)和[路线图](docs/PLAN.md)。
+> **状态：P2 已完成。** 私教能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级；能出经过 critic 检查的语法练习、批改写作、按你的等级改写新闻，还会诊断你反复出错的语法点的根因，并按你每天的时间排好今天的计划。下一阶段是语音（P3）。见[现在能做什么](#现在能做什么)和[路线图](docs/PLAN.md)。
 
 | | |
 |---|---|
 | ![对话：私教纠错，并列出它做了什么](docs/screenshots/chat-zh.png) | ![看板：CEFR 等级、词汇量、连续学习和今天的学习](docs/screenshots/dashboard-zh.png) |
-| ![背单词：今天的 FSRS 队列和词书](docs/screenshots/vocab-zh.png) | ![首页](docs/screenshots/home-zh.png) |
+| ![语法练习：翻译题答错，给出改正和对应的语法点](docs/screenshots/practice-zh.png) | ![写作：逐句改正、点错误看讲解、四项评分](docs/screenshots/writing-zh.png) |
+| ![阅读：新闻按 A2 改写，超出等级的词标了下划线](docs/screenshots/reading-zh.png) | ![背单词：今天的 FSRS 队列和词书](docs/screenshots/vocab-zh.png) |
 
 <sub>截图用的是演示账号，模型回复是预先写好的。</sub>
 
@@ -48,7 +49,7 @@
 - **用量表**：按天、按模型统计调用次数、token、错误、fallback 次数和延迟。
 - **中英文界面**。
 
-还没做（规划见 [docs/PLAN.md](docs/PLAN.md)）：可选的服务端朗读和单词发音预生成（见 ADR 0018）、跟读和实时语音对话（P3）；评估集、限流和成本看板（P4）。
+还没做（规划见 [docs/PLAN.md](docs/PLAN.md)）：可选的服务端朗读和单词发音预生成（见 ADR 0018）、跟读和实时语音对话（P3）；评估集进 CI、限流和成本看板（P4）。
 
 ## 快速开始（Docker）
 
@@ -126,7 +127,10 @@ make e2e      # Playwright；自己启动后端、前端和一个假模型
 make lint     # ruff + mypy、eslint + TypeScript
 make fmt      # 格式化并自动修复后端代码
 make ci       # 按 CI 的顺序跑一遍 CI 的全部检查
+make eval     # 评估集（critic、批改、诊断），回放录好的模型回复
 ```
+
+`make eval-live ARGS='--email <账号>'` 改用你某个账号配置的模型跑评估集（加 `--record` 保存新的录制）；它会调用真实 API，要花 token。
 
 CI（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）在每次推送到 `main` 和每个 pull request 时运行：后端检查、前端检查、Docker 构建和端到端测试。
 
@@ -136,10 +140,11 @@ CI（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）在每次推送到
 flowchart LR
     B[浏览器] -->|:3000| F["Next.js<br/>（页面 + /api 代理）"]
     F -->|"HTTP / SSE"| A[FastAPI]
-    A --> G["LangGraph<br/>对话图 + 工具 ·<br/>入学测"]
+    A --> G["LangGraph<br/>supervisor → 各 coach + 工具 ·<br/>练习 · 写作 · 阅读 ·<br/>诊断 · 入学测"]
     G -->|"每次回复后"| R["后台反思<br/>记忆 · 语法打标 ·<br/>收词"]
-    R --> L["学习者模型<br/>（BKT / Elo 掌握度）"]
-    A --> V["背单词<br/>（FSRS 调度）"]
+    R --> L["学习者模型<br/>（BKT / Elo 掌握度、<br/>语法图谱）"]
+    A --> V["单词和语法点复习<br/>（FSRS 调度）"]
+    S["定时任务<br/>抓取订阅 · 预生成 ·<br/>每日上限"] --> G
     G --> P["provider 层<br/>（按租户的连接、<br/>fallback 链）"]
     R --> P
     P --> M[("模型 API：<br/>LLM · 看图 ·<br/>语音转写 · embedding")]
@@ -149,10 +154,13 @@ flowchart LR
 浏览器只和 Next.js 通信；登录 cookie 是 httpOnly 的，请求经同源代理到达后端 API。所有模型调用都经过 provider 层，它根据每个租户自己的连接构建模型；业务代码里不直接创建厂商 SDK 客户端，也不写死模型名。模型负责理解和生成，算法负责记账和调度：掌握度由 BKT 和 Elo 根据证据更新，复习由 FSRS 安排，入学测的判分也不经过模型。
 
 ```
-backend/app/     FastAPI 应用：api/ 路由，agents/ LangGraph 图，providers/ 模型访问，
-                 memory/ 长期记忆与反思，adaptive/ 语法点、掌握度和入学测算法，
-                 services/vocab/ 词书与 FSRS，cards/ 私教工具，advice/，dashboard/，
+backend/app/     FastAPI 应用：api/ 路由，agents/ LangGraph 图（supervisor 和各 coach），
+                 providers/ 模型访问，memory/ 长期记忆与反思，
+                 adaptive/ 语法点、掌握度、语法图谱、练习组和诊断，placement/，writing/，
+                 services/ 下的 vocab（词书与 FSRS）、news（订阅源）、reading（改写和理解题），
+                 scheduler/ 定时任务，cards/ 私教工具，advice/，dashboard/，
                  usage/，attachments/，prompts/，credentials/ key 加密，db/ 模型和迁移
+backend/evals/   评估集和录好的模型回复（make eval）
 backend/tests/   pytest（单元测试 + 连真实 Postgres 的集成测试）
 frontend/        Next.js App Router、shadcn/ui、next-intl；e2e/ 是 Playwright 测试
 config/          provider 预设和默认模型顺序（dev / prod）
@@ -164,7 +172,8 @@ docs/            PLAN.md（设计）、PROGRESS.md（进度）、decisions/（AD
 
 - [docs/PLAN.md](docs/PLAN.md)：完整设计和路线图
 - [docs/plans/P1-mvp.md](docs/plans/P1-mvp.md)：P1 实施计划
-- [docs/decisions/](docs/decisions)：架构决策记录，比如 [provider 层](docs/decisions/0002-provider-layer.md)、[租户凭据](docs/decisions/0004-tenant-credentials.md)、[附件](docs/decisions/0008-multimodal-attachments.md)、[长期记忆](docs/decisions/0009-long-term-memory.md)、[学习者模型](docs/decisions/0010-learner-model.md)、[词库与 FSRS](docs/decisions/0011-vocabulary-and-fsrs.md)、[agent 工具与公示](docs/decisions/0013-agent-tools-and-disclosure.md)、[AI 用量标记](docs/decisions/0014-ai-usage-disclosure.md)、[确认卡](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)
+- [docs/plans/P2-adaptive-reading-writing.md](docs/plans/P2-adaptive-reading-writing.md)：P2 实施计划
+- [docs/decisions/](docs/decisions)：架构决策记录，比如 [provider 层](docs/decisions/0002-provider-layer.md)、[租户凭据](docs/decisions/0004-tenant-credentials.md)、[附件](docs/decisions/0008-multimodal-attachments.md)、[长期记忆](docs/decisions/0009-long-term-memory.md)、[学习者模型](docs/decisions/0010-learner-model.md)、[词库与 FSRS](docs/decisions/0011-vocabulary-and-fsrs.md)、[agent 工具与公示](docs/decisions/0013-agent-tools-and-disclosure.md)、[AI 用量标记](docs/decisions/0014-ai-usage-disclosure.md)、[确认卡](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)、[练习引擎](docs/decisions/0021-exercise-engine.md)、[语法图谱](docs/decisions/0022-grammar-graph-in-postgres.md)、[supervisor 与各 coach](docs/decisions/0023-supervisor-and-coaches.md)、[阅读来源与版权](docs/decisions/0024-reading-sources-and-copyright.md)、[定时任务与后台上限](docs/decisions/0025-scheduler-and-background-budget.md)、[每日计划](docs/decisions/0027-daily-plan.md)
 
 ## 部署
 
