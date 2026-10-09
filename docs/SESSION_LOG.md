@@ -8,9 +8,9 @@
 
 - **做了什么**：48.1–48.4 已在上一段会话提交（38f0572、2a75cf5、32dfb9f、c9887f6），那段会话在 48.5 中途因请求过大中断，本次接着做。48.5 `e2e/plan.spec.ts`（2 个用例）+ `fake_llm.py` 的“只有 N 分钟”分支；E2E 发现的问题一起修：`daily_plan/service.py` `read_inputs` 的复习 / 新词改成全天总数（已做 + 还剩），`chat/planning.py` `PlanningBrief.open_today` 让私教按这一轮现读的今天情况提计划，`cards/service.py` 计划卡 params 存 `inputs`、确认写回 `plan.limits`、撤销还原。48.6 文档：`agent-tools.md`、`features.yaml`、P2 计划 §5.1 / §7、PLAN、README 中英（顺带补上任务 46–47 漏写的“语法诊断”）。
 - **验证**：`make lint` 干净；pytest 1430 + 1 跳过、Vitest 371、E2E 56 全过。
-- **提交**：9587037（48.5）、本次（48.6）；本地领先 origin 6 个提交，未推送。
-- **未完成**：Docker 未重建，`lingo-agent-backend-1` 因旧镜像不认识迁移 `16aa2f30597e` 在反复重启（开发库已迁移到新 head），重建即好；诊断评估集仍没用真模型录制。
-- **下一步**：推送并看 CI；重建 Docker；任务 49（见看板），开工前先拆子任务、和用户确认。
+- **提交**：9587037（48.5）、3766353（48.6）；已推送，CI run 37895335895 四个 job 全绿。
+- **未完成**：诊断评估集仍没用真模型录制。（Docker 已重建，迁移到 `16aa2f30597e`，`/healthz` 200。）
+- **下一步**：任务 49（见看板），开工前先拆子任务、和用户确认。
 - **踩坑**：Bash 工具里 `pnpm` 会因 nvm 的 `_load_nvm` 递归报错，`node .bin/playwright` 也不行（shim 是 shell 脚本）；用 `PATH=$HOME/.nvm/versions/node/v24.14.0/bin:/usr/bin:/bin bash -c 'node_modules/.bin/playwright test …'`。上一段会话因截图等附件累积超过 32MB 中断，E2E 排查少贴截图。
 
 ## 2026-10-08 · 任务 47 学习者模型页“私教的诊断”，完成
