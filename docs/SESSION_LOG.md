@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-10-09 · P3 拆分（待确认）
+
+- **做了什么**：读 PLAN 第四节 P3、ADR 0018 和现有转写 / 录音 / 朗读代码；核实实时语音（Gemini Live、OpenAI Realtime、Qwen-Omni、StepFun、豆包）、发音评测（Azure、讯飞、腾讯、SpeechSuper）、服务端朗读（Azure、OpenAI、硅基流动、Kokoro / speaches）的现状；写 `docs/plans/P3-voice.md`（Demo 脚本、子阶段 P3a–P3f、厂商对照、任务 52–64、D1–D6 和 Q1–Q8）；看板 `## P3` 写入任务 52–64，原“朗读第 2、3 层”并入 53–55。
+- **未完成**：等用户确认 D1–D6、Q1–Q8；确认后把结论写进计划 §9 和看板，从任务 52（ADR 0028–0030 + PLAN 同步）开工。
+- **下一步**：任务 52。
+- **踩坑**：国内能访问的实时语音厂商都没有浏览器可用的临时 token，PLAN 原定的“浏览器直连、后端只签 token”在国内部署不成立（D3 推荐改后端中继）；Gemini Live 和 OpenAI Realtime 都不支持大陆访问。Azure 在大陆能否访问、en-GB 发音评测支持、Qwen-Omni 价格都还没核实，开工前再核。
+
 ## 2026-10-09 · 任务 49.5 完成，P2 全部完成
 
 - **做了什么**：停掉 asr-1 后重跑 `make ci`，发现并修了两处过期的测试断言（8e33bf0）：① `backend/tests/integration/test_word_examples_prefetch.py::test_the_queue_shows_cached_sentences_without_calling` 用写死的 `NOW` 算预生成窗口，到期时间却取真实时间，过了 2026-10-09 12:00 UTC 必挂，改为 `due=NOW`；② `frontend/e2e/background.spec.ts` 还按旧的新租户后台上限 100,000 断言，49.3.3 已改为 300,000。推送，CI 全绿；Docker 重建并冒烟。
