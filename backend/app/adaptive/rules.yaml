@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-08.3"
+version: "2026-10-09.1"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -375,3 +375,25 @@ diagnosis:
   # never used here.
   boost: 1.5
   boost_days: 14
+
+# The daily plan (P2 plan §7, ADR 0027): drafted by code from the learner's daily
+# minutes, adjusted on the card or through the tutor, never scored by a model.
+daily_plan:
+  # Minutes a day when the profile has none.
+  default_minutes: 20
+  # Estimated minutes per review, per new word, and per practice set / article / essay.
+  minutes:
+    review: 0.25
+    new_word: 1.0
+    practice: 8
+    reading: 10
+    writing: 15
+  # Reviews first take at most this share of the minutes, so a backlog does not crowd
+  # out everything else; time left over at the end goes back to the backlog.
+  review_share: 0.6
+  # Writing only on days with at least this many minutes, and not within this many
+  # days of the last essay.
+  writing_min_minutes: 45
+  writing_gap_days: 7
+  # Upper bound for a count the learner or the tutor sets.
+  max_count: 500

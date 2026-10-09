@@ -325,6 +325,23 @@ class DiagnosisRules(_Strict):
     boost_days: int = Field(ge=1)
 
 
+class DailyPlanMinutes(_Strict):
+    review: float = Field(gt=0)
+    new_word: float = Field(gt=0)
+    practice: float = Field(gt=0)
+    reading: float = Field(gt=0)
+    writing: float = Field(gt=0)
+
+
+class DailyPlanRules(_Strict):
+    default_minutes: int = Field(ge=1, le=600)
+    minutes: DailyPlanMinutes
+    review_share: Probability
+    writing_min_minutes: int = Field(ge=1)
+    writing_gap_days: int = Field(ge=0)
+    max_count: int = Field(ge=1)
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
@@ -339,6 +356,7 @@ class Rules(_Strict):
     reading: ReadingRules
     graph: GraphRules
     diagnosis: DiagnosisRules
+    daily_plan: DailyPlanRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:
