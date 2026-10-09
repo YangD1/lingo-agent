@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-10-09 · P3 计划确认，任务 52 完成（ADR 0028–0030）
+
+- **做了什么**：用户确认 P3 计划 D1–D6、Q1–Q8 全部按推荐；写 ADR 0028（`tts` / `pronunciation` 两节、`azure_speech` 连接、朗读缓存、单词发音预生成、跟读证据）、0029（口语练习：情景、speaking_coach、recast、证据过滤、小结）、0030（实时语音：后端中继、`openai_realtime` 先做、限额、工具、挂断后反思）；ADR 0001 / 0018 标注；PLAN 同步。
+- **未完成**：ADR 里我按推荐定的细节待用户 review（列在看板任务 52 的完成说明里）。
+- **下一步**：任务 53：`backend/app/providers/` 新增 `tts.py`（参照 `asr.py` 的 `SpeechToText`）、`config.py` 的 `Section` 加 `tts` / `pronunciation` / `realtime`、`ProviderKind` 加 `azure_speech`；迁移加 `tts_audio` 表和 `llm_usage.characters`；`POST /speech/tts`；dev 起 `make asr-up` 实测 speaches/Kokoro 的内存。开工前再核实 Azure 在大陆能否访问。
+- **踩坑**：会话类型的列叫 `conversations.purpose`，不是 `kind`；后端没有 ffmpeg / PyAV，Azure 短音频接口不收 webm，所以跟读要在浏览器编码 WAV。
+
 ## 2026-10-09 · P3 拆分（待确认）
 
 - **做了什么**：读 PLAN 第四节 P3、ADR 0018 和现有转写 / 录音 / 朗读代码；核实实时语音（Gemini Live、OpenAI Realtime、Qwen-Omni、StepFun、豆包）、发音评测（Azure、讯飞、腾讯、SpeechSuper）、服务端朗读（Azure、OpenAI、硅基流动、Kokoro / speaches）的现状；写 `docs/plans/P3-voice.md`（Demo 脚本、子阶段 P3a–P3f、厂商对照、任务 52–64、D1–D6 和 Q1–Q8）；看板 `## P3` 写入任务 52–64，原“朗读第 2、3 层”并入 53–55。

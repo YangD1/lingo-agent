@@ -1,6 +1,6 @@
 # P3 语音 · 详细实施计划
 
-> 状态：**待确认**（2026-10-09 起草）。D1–D6、Q1–Q8 见 §9，确认后按 §8 的顺序执行。
+> 状态：**已确认**（2026-10-09 起草，同日用户确认 D1–D6、Q1–Q8 全部按推荐，见 §9），按 §8 的顺序执行。
 > 上位设计见 `docs/PLAN.md` 第四节 P3、ADR 0008（语音转写）、ADR 0018（朗读三层）。本文件只写 P3 范围内“怎么做”。
 > 相关 ADR：已有 0002 / 0004 provider 层、0008 多模态与转写、0013 工具与公示、0014 AI 用量公示、0018 朗读三层、0023 Supervisor 与 coach、0025 后台上限；P3 新增 0028–0030（任务 52）。
 
@@ -82,7 +82,7 @@
 
 ## 4. 跟读与发音评测（P3b）
 
-- **provider**：`pronunciation` 段，第一个适配器 Azure（后端 REST 短音频接口，有参考文本，粒度到音素，en-US 时开韵律）。浏览器录音（复用 `use-recorder.ts` 的格式和静音拦截）→ 上传后端 → 后端转成 16kHz 单声道 WAV（PyAV 已经在依赖里则复用，否则核实）→ 调评测。不把 Azure key 或 token 交给浏览器。
+- **provider**：`pronunciation` 段，第一个适配器 Azure（后端 REST 短音频接口，有参考文本，粒度到音素，en-US 时开韵律）。浏览器录音（复用 `use-recorder.ts` 的格式和静音拦截）→ 上传后端 → 调评测。Azure 短音频接口不收 webm，后端又没有 ffmpeg / PyAV（不为此加重依赖），所以跟读录音由浏览器直接编码成 16kHz 单声道 WAV（Web Audio，≤ 30 秒约 1MB）。不把 Azure key 或 token 交给浏览器。
 - **兜底**（没配发音评测时，D2）：用已有的 `asr` 转写，和参考文本做词级对齐（编辑距离），标出漏读、读成别的词、多读；界面明确写“粗略结果，不是发音打分”。
 - **数据**：`pronunciation_attempts`（user、来源 [chat / reading / vocab / speaking]、来源 id、参考文本、提供方、整体分 JSONB、逐词 / 音素结果 JSONB、时长、创建时间）。录音不保存（Q3）。
 - **证据**：整体分更新 `skill_estimates.speaking`（Elo，按句子难度）；准确度低于阈值的词记一条单词证据（发音），供背词页标出“这个词你读不准”。不给语法 KC 记证据。阈值放 `rules.yaml`。
@@ -92,7 +92,7 @@
 ## 5. 级联口语练习（P3c）
 
 - **情景**：`backend/app/speaking/scenarios.yaml`（id、标题中英、等级范围、角色、目标、开场白要点、可选目标表达），首批 8–10 个（自我介绍 / 面试、点餐、问路、酒店入住、看病、开会发言、电话预约、闲聊兴趣），可以“自由聊”。
-- **图**：`speaking_coach` 子图，Supervisor 按会话类型（`conversations.kind = speaking` + `scenario_id`）确定路由，不调分类（ADR 0023）。回复要短（口语节奏，`rules.yaml` 限长度）、按等级调难度、不在每轮纠错，只在说错影响理解时自然复述正确说法（recast）；纠错集中在结束小结。
+- **图**：`speaking_coach` 子图，Supervisor 按会话类型（`conversations.purpose = speaking` + 新列 `scenario_id`）确定路由，不调分类（ADR 0023）。回复要短（口语节奏，`rules.yaml` 限长度）、按等级调难度、不在每轮纠错，只在说错影响理解时自然复述正确说法（recast）；纠错集中在结束小结。
 - **语音回合**：按住说话（或点一下开始、再点结束）→ 现有转写 → 正常走对话流式 → 回复按句流式朗读（P3a 的三层）。可以随时切换打字。
 - **证据**：转写的学习者话语照常走反思打标，source 记为 `speaking`（`kc_evidence` 约束加一项），算“产出”证据；转写不可靠的词不计（Q5）。
 - **小结**：结束时一次结构化调用 `speaking_summary`：说得好的、错误与改法、更地道的说法、下次可练的表达；存 `speaking_sessions`（user、conversation、scenario、开始 / 结束、轮数、说话秒数、summary JSONB）。小结里的表达可一键加入生词本，句子可一键跟读。
@@ -109,7 +109,7 @@
 - **上下文**：开会话时由后端拼 system instructions：画像、等级、中英比例、相关记忆、情景（复用 P3c 的情景）、回复长度约束；提示词放 `prompts/realtime_tutor.md`。
 - **工具**：首批只读和低风险的：`lookup_word`、`add_to_vocab`（幂等、可撤销，ADR 0013）、`end_session`。工具结果作为不可信数据回给模型；界面上显示“私教做了什么”。
 - **限额**：单次会话上限（默认 15 分钟）和每人每日分钟上限（默认 30 分钟），租户可改；到时间前 1 分钟提示，到点优雅结束。
-- **挂断后**：把双方转写存成一次对话（`conversations.kind = realtime`），进入反思（记忆、证据，source `speaking`），再生成同 P3c 的口语小结。
+- **挂断后**：把双方转写存成一次对话（`conversations.purpose = realtime`），进入反思（记忆、证据，source `speaking`），再生成同 P3c 的口语小结。
 - **界面**：通话页（大按钮接通 / 挂断、静音、音量电平、双方实时字幕、工具活动、剩余时间），从 `/speaking` 的情景卡片或看板进入；没配实时连接时只显示级联模式。
 - **公示**：`features.yaml` 加 `realtime_call`（按分钟估算，写清楚比级联贵多少）；接通按钮挂 `AiBadge`；`docs/agent-tools.md` 加实时会话的工具。
 
@@ -148,7 +148,7 @@
 
 ---
 
-## 9. 待确认的决定
+## 9. 决定（2026-10-09 用户确认，全部按推荐）
 
 **大方向（D）**
 

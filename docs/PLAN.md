@@ -41,7 +41,7 @@ FastAPI (Python 3.12, uv)
    │     │                    vocab_coach | speaking_coach | writing_coach | assessor
    │     ├─ pre: load_memory（画像 + 相关情景记忆 + 学习者模型摘要）
    │     └─ post: reflect_memory（后台异步抽取/合并记忆，不阻塞回复）
-   ├── Provider 层：LLM / Embedding / ASR / TTS / 发音评测，全部配置驱动
+   ├── Provider 层：LLM / Embedding / ASR / TTS / 发音评测 / 实时语音，全部配置驱动
    ├── 领域服务：FSRS 调度、CEFR 评估、新闻抓取与分级改写
    └── 调度器：APScheduler 进程内、单实例（低配服务器友好，不上 Celery；后台模型调用有租户每日上限，见 ADR 0025）
 存储
@@ -51,7 +51,7 @@ FastAPI (Python 3.12, uv)
 ```
 
 ### “provider” 解释
-provider = 模型供应商适配层（配置格式、路由与降级语义见 ADR 0002；**key 由租户在应用内配置并加密存库，租户可自定义 base_url、模型和路由，见 ADR 0004；连接可自动发现模型、设默认模型，路由匹配不上时自动用默认模型兜底，见 ADR 0007；连接和功能链里的单个模型都可以停用、保留配置，停用的模型不参与兜底，见 ADR 0026；看图用 `llm.vision` 路由、语音转写用 `asr` 一节，都走租户连接且不自动兜底，见 ADR 0008**）。代码只调用统一接口（`get_llm("tutor")`），实际用哪家由 YAML/环境变量决定。LangChain 的 `init_chat_model` + OpenAI 兼容 `base_url` 可以覆盖 DeepSeek / Claude / OpenAI / 通义 / GLM / Ollama。再按**任务**配置模型：
+provider = 模型供应商适配层（配置格式、路由与降级语义见 ADR 0002；**key 由租户在应用内配置并加密存库，租户可自定义 base_url、模型和路由，见 ADR 0004；连接可自动发现模型、设默认模型，路由匹配不上时自动用默认模型兜底，见 ADR 0007；连接和功能链里的单个模型都可以停用、保留配置，停用的模型不参与兜底，见 ADR 0026；看图用 `llm.vision` 路由、语音转写用 `asr` 一节，都走租户连接且不自动兜底，见 ADR 0008；朗读 `tts`、发音评测 `pronunciation`、实时语音 `realtime` 三节同样规则，见 ADR 0028、0030**）。代码只调用统一接口（`get_llm("tutor")`），实际用哪家由 YAML/环境变量决定。LangChain 的 `init_chat_model` + OpenAI 兼容 `base_url` 可以覆盖 DeepSeek / Claude / OpenAI / 通义 / GLM / Ollama。再按**任务**配置模型：
 ```yaml
 llm:
   default: deepseek:deepseek-chat
@@ -62,10 +62,12 @@ llm:
     vision: anthropic:claude-sonnet-5       # 读图、回复带图的那一轮（ADR 0008）
 asr:                                        # OpenAI 兼容 /audio/transcriptions，走租户连接（ADR 0008）
   default: [groq:whisper-large-v3-turbo, siliconflow:FunAudioLLM/SenseVoiceSmall, openai:gpt-transcribe]  # 大陆访问不了 Groq/OpenAI 时用硅基流动；dev 可改为本地 speaches 连接
-speech:
-  tts: browser               # 默认浏览器朗读（挑好声音）；可选租户连接：兼容 OpenAI 的 /audio/speech 或 Azure 语音（ADR 0018）
-  pronunciation: azure        # 免费档 F0 每月 5 小时；本地方案后置
-  realtime: gemini_live       # 端到端语音对话；可选 openai_realtime / disabled
+tts:                                        # 可选；没配时浏览器朗读（ADR 0018）。兼容 OpenAI 的 /audio/speech 或 azure_speech 连接（ADR 0028）
+  default: [azure:en-US-AvaMultilingualNeural, speaches:kokoro]
+pronunciation:                              # 跟读发音评测；没配时用 asr 转写对比给粗略反馈（ADR 0028）
+  default: [azure:pronunciation]            # 免费档 F0 每月 5 小时；讯飞 ISE 以后按需加
+realtime:                                   # 端到端语音对话，后端中继（ADR 0030）
+  default: [qwen:qwen3.8-omni-flash-realtime, openai:gpt-realtime-2.1-mini]   # openai_realtime 协议；gemini_live 第二个做
 ```
 
 ### 技术栈各自落在哪
@@ -132,7 +134,7 @@ speech:
 - `feeds`（内置 + 学习者自加）、`feed_subscriptions`（user, feed, topics）、`articles`（feed, url, 正文, 许可标记）、`article_versions`（租户, 目标等级, 改写正文, 词表, 理解题）、`reading_sessions`（ADR 0024）
 - `scheduler_runs`（定时任务上次运行，ADR 0025）、`daily_plans`（user, day 本地日期, choice / limits JSONB, status, card_id；完成情况读时现算，见 ADR 0027）
 - `attachments`（conversation, message_id, kind[image/audio/document], mime, data bytea, status, text 派生文本, meta JSONB；见 ADR 0008）；以后做文档 RAG 时加 `attachment_chunks`（pgvector）
-- `speaking_sessions`, `pronunciation_scores`
+- `tts_audio`（朗读音频缓存，按租户、内容哈希，ADR 0028）、`pronunciation_attempts`（跟读评测：参考文本、整体分、逐词 / 音素，录音不保存，ADR 0028）、`speaking_sessions`（口语会话小结，级联 / 实时，ADR 0029、0030）；`conversations.purpose` 加 speaking / realtime 和 `scenario_id`
 - LangGraph 自带：checkpoints 表、store 表（记忆）
 
 ---
@@ -148,11 +150,13 @@ monorepo（`backend/` uv + FastAPI，`frontend/` Next.js，`docker-compose.yml`�
 **P2 自适应引擎完整版 + 阅读 + 语法 GraphRAG + 写作**
 （✅ 2026-10-09 完成；详见 `docs/plans/P2-adaptive-reading-writing.md`）顺序：练习引擎 → Supervisor 与写作 → 阅读与定时任务 → 语法图谱与诊断 → 每日计划。选题规划 + 六种题型的练习生成与 critic 校验 + 批改 + 语法点接入 FSRS 与“学会”判定 + 练习页 + 最小评估集（ADR 0021）；LangGraph Supervisor 主图（确定信号优先路由到各 coach，从 P1 移来）+ 写作批改回写学习者模型（ADR 0023）；RSS 抓取（NASA、Global Voices、自加）+ 分级改写 + 理解题 + 自动收词（ADR 0024）；APScheduler 定时任务 + 后台调用每日上限（ADR 0025）；语法知识图谱存 Postgres + 诊断 Agent（ADR 0022）；每日学习计划（算法出草案、看板确认，私教用 `propose_daily_plan` 确认卡重提，可撤销，完成情况现算，ADR 0015、0027）。**测试提醒**：没测过、当前等级语法点学会 ≥ 70%（距上次 ≥ 14 天）或满 60 天时，看板私教、聊天页和练习页带原因提醒入学测，“以后再说”存服务端，同一原因 14 天内不再提。
 
-**P3 语音（双模式，配置切换）**
-- **模式 A · 级联管线**（默认，便宜、完全可控）：ASR → LangGraph（完整记忆/工具/trace）→ TTS。本地用 speaches 容器（faster-whisper，OpenAI 兼容接口，作为租户连接接入，见 ADR 0008），线上 Groq/SiliconFlow；朗读按 ADR 0018 的三层方案（浏览器优先，服务端朗读是租户可选的连接，不内置 edge-tts，不在后端容器里跑朗读模型）。语音消息的转写在 11B 已经实现，P3 在此基础上做朗读、跟读和口语。私教气泡和单词的朗读在 P1 先用浏览器 `speechSynthesis`（ADR 0017），任务 25 按 ADR 0018 改为三层：浏览器挑好声音 → 单词发音预生成 → 可选服务端朗读（provider 层 `tts` 任务，兼容 OpenAI 的 `/audio/speech` 或 Azure 语音），失败时退回浏览器。用于朗读、跟读、半双工口语练习。
-- **模式 B · 端到端实时语音**（像 ChatGPT 语音模式：低延迟、可打断、有语气）：`speech.realtime` provider 支持 Gemini Live（有免费档，首选）和 OpenAI gpt-realtime（-mini 更便宜）。浏览器通过 WebRTC/WebSocket 直连厂商，后端只签发临时 token，所以低配服务器也扛得住。
-  - 和 Agent 体系的衔接：开会话时把用户画像、CEFR 等级、情景设定注入 system instructions；查词、记生词等能力用 realtime 的 function calling 回调后端；会话结束后，把转写文本送进 LangGraph 的 `reflect_memory` 节点，写回长期记忆和学习者模型。
-  - 端到端模型不输出音素级分数，所以发音评测仍然走独立 provider（Azure 免费档）。
+**P3 语音（双模式，配置切换）**（详见 `docs/plans/P3-voice.md`；ADR 0028–0030。顺序：朗读第 2、3 层 → 跟读与发音评测 → 级联口语 → 实时语音 → 背词听音 / 拼写）
+- **模式 A · 级联管线**（默认，便宜、完全可控）：ASR → LangGraph（完整记忆/工具/trace）→ TTS。本地用 speaches 容器（转写用 faster-whisper、朗读用 Kokoro，都是 OpenAI 兼容接口，作为租户连接接入，见 ADR 0008、0028），线上 Groq/SiliconFlow；朗读按 ADR 0018 的三层方案（浏览器优先，服务端朗读是租户可选的连接，不内置 edge-tts，不在后端容器里跑朗读模型）。语音消息的转写在 11B 已经实现，P3 在此基础上做朗读、跟读和口语。私教气泡和单词的朗读在 P1 先用浏览器 `speechSynthesis`（ADR 0017），任务 25 按 ADR 0018 改为三层：浏览器挑好声音 → 单词发音预生成 → 可选服务端朗读（provider 层 `tts` 一节，兼容 OpenAI 的 `/audio/speech` 或 Azure 语音，按句缓存，见 ADR 0028），失败时退回浏览器。用于朗读、跟读、半双工口语练习。
+- **模式 B · 端到端实时语音**（像 ChatGPT 语音模式：低延迟、可打断、有语气）：`realtime` provider 先做 OpenAI Realtime 协议（覆盖 OpenAI、Qwen-Omni、StepFun，国内外都有可用的），Gemini Live 第二个做（有免费档，但大陆不可用）。~~浏览器直连厂商、后端只签发临时 token~~ 改为**后端中继**（ADR 0030）：国内可访问的厂商都没有浏览器可用的临时 token；后端只转发音频帧，不编解码，工具调用、用量、时长上限（单次 15 分钟、每人每日 30 分钟）都在后端。
+  - 和 Agent 体系的衔接：开会话时把用户画像、CEFR 等级、记忆、情景设定注入 system instructions；查词、记生词等能力用 realtime 的 function calling，由后端中继直接执行；会话结束后，把转写存成对话、送进反思，写回长期记忆和学习者模型，并生成口语小结（ADR 0029）。
+  - 端到端模型不输出音素级分数，所以发音评测仍然走独立 provider（Azure 免费档，没配时用转写对比兜底，ADR 0028）。
+- **口语练习（级联）**：情景角色扮演（`scenarios.yaml`），speaking_coach 回复短、不打断纠错（recast），结束时出口语小结；口语话语记为产出证据，转写不可靠的不记错误（ADR 0029）。
+- **背词听音 / 拼写**：复习卡片两种新题型，发音走朗读三层。
 
 **P4 企业级打磨**
 评估集（pytest）+ CI 回归评测；用量/成本看板；限流；提示词版本管理；低配服务器部署（compose + 资源限制）；README 架构图与演示脚本。

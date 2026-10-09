@@ -10,7 +10,7 @@
 - 后端 FastAPI + LangChain/LangGraph，~~LangSmith 做可观测和评估~~（已被 ADR 0005 取代：自建用量表 + 可选 OpenTelemetry）；前端 Next.js。
 - LLM 通过配置驱动的 provider 层接入（key 由租户配置，见 ADR 0004），默认支持 DeepSeek / Claude / OpenAI，可扩展到任意 OpenAI 兼容厂商；按任务路由模型。
 - 存储：PostgreSQL + pgvector（业务数据、向量、LangGraph checkpointer/Store）+ ~~Neo4j（语法知识图谱）~~（已被 ADR 0022 取代：图谱存 Postgres）+ Redis（可选）。
-- 语音：开发环境用本地模型（faster-whisper / Kokoro），线上用 API（Groq/SiliconFlow ASR、edge-tts、Azure 发音评测免费档），配置切换且支持 fallback；实时对话用 Gemini Live / OpenAI Realtime，浏览器直连，后端只签发临时 token。
+- 语音：开发环境用本地模型（faster-whisper / Kokoro），线上用 API（Groq/SiliconFlow ASR、edge-tts、Azure 发音评测免费档），配置切换且支持 fallback；~~实时对话用 Gemini Live / OpenAI Realtime，浏览器直连，后端只签发临时 token。~~（已被 ADR 0030 取代：后端中继，先做 OpenAI Realtime 协议，覆盖 OpenAI、Qwen-Omni、StepFun；朗读和发音评测的 provider 见 ADR 0018、0028。）
 - 调度：APScheduler（不引入 Celery；进程内、单实例，见 ADR 0025）。
 - 记忆曲线：FSRS（开源），单词和语法知识点共用一个调度器。
 
