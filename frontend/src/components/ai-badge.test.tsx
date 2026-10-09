@@ -22,6 +22,7 @@ const call = (overrides: Partial<CallEstimate>): CallEstimate => ({
   input_tokens: 2500,
   output_tokens: 300,
   audio_seconds: null,
+  characters: null,
   samples: 0,
   source: "default",
   model: null,
@@ -43,6 +44,7 @@ const estimates = {
       calls: [call({ task: "asr", audio_seconds: 10.5, source: "history", samples: 3 })],
     },
     { feature: "chat_image", calls: [call({ task: "vision", per: "image" })] },
+    { feature: "read_aloud", calls: [call({ task: "tts", characters: 60 })] },
   ],
 };
 
@@ -94,6 +96,14 @@ describe("AiBadge", () => {
     await userEvent.click(screen.getByRole("button", { name: /使用 AI/ }));
     expect(await screen.findByText(/约 2,500 输入 \+ 300 输出 token 每张图/)).toBeInTheDocument();
     expect(api).toHaveBeenCalledTimes(1); // the second badge reused the first request
+  });
+
+  it("estimates read-aloud by characters", async () => {
+    api.mockResolvedValue(estimates);
+    show("read_aloud", "zh-CN");
+    await userEvent.click(screen.getByRole("button", { name: /使用 AI/ }));
+    expect(await screen.findByText(/约 60 个字符（按字符计费/)).toBeInTheDocument();
+    expect(screen.getByText("朗读")).toBeInTheDocument();
   });
 
   it("explains every feature behind one control", async () => {

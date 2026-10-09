@@ -1274,7 +1274,8 @@
       "reading_coach": "The reading coach answers your questions about this article: each message sends the article (the version for your level, or the beginning of the original) with the conversation, so a reply reads more than a chat turn. Afterwards, as in any chat, memory and grammar notes are updated in the background.",
       "reading_prerewrite": "In the background every two hours: new articles of the feeds you follow are rewritten for your level with questions, by the same AI calls as opening an article, within the tenant's daily background budget.",
       "word_examples_prefetch": "In the background every six hours: for the words you will review or learn in the next day that have no real example sentence, the same AI call as the \"AI examples\" button writes two sentences at your level, at most 30 words a time, within the tenant's daily background budget. Learners at the same level share them.",
-      "diagnosis": "In the background at most weekly (also after a practice set with many new mistakes, at most daily): the AI model reads up to 3 grammar points you keep getting wrong, their prerequisites and the points they are often confused with, and your latest mistakes, and suggests root causes. Conclusions that cannot quote your own sentences are dropped. Within the tenant's daily background budget."
+      "diagnosis": "In the background at most weekly (also after a practice set with many new mistakes, at most daily): the AI model reads up to 3 grammar points you keep getting wrong, their prerequisites and the points they are often confused with, and your latest mistakes, and suggests root causes. Conclusions that cannot quote your own sentences are dropped. Within the tenant's daily background budget.",
+      "read_aloud": "Replies, words and examples are read by the server's read-aloud model; sentences already read are cached and not billed again. You can turn it off in the read-aloud settings and use only this device's voices."
     },
     "task": {
       "chat": "Reply",
@@ -1297,7 +1298,8 @@
       "reading_critic": "Review the questions",
       "reading_questions": "Rewrite questions",
       "reading_coach": "Reading coach reply",
-      "diagnose": "Diagnose root causes"
+      "diagnose": "Diagnose root causes",
+      "tts": "Read aloud"
     },
     "timing": {
       "now": "right away",
@@ -1315,7 +1317,8 @@
     "noModel": "no model configured",
     "loading": "Loading the estimate…",
     "failed": "Couldn't load the estimate.",
-    "footer": "Token counts only. The price depends on your model provider."
+    "footer": "Token counts only. The price depends on your model provider.",
+    "characters": "About {characters} characters (billed by characters, not tokens; cached sentences are free)"
   },
   "speech": {
     "title": "Read aloud",
@@ -1335,7 +1338,11 @@
     "hint": "Each device has its own voices, so set this on each one. Natural, Premium and Google voices usually sound best.",
     "unsupported": "This browser can't read aloud.",
     "silent": "{name} (no sound on this device)",
-    "silentHint": "Online voices stream from Microsoft's or Google's servers; where those can't be reached they make no sound, and this device's own voices read instead. They are tried again after a reload."
+    "silentHint": "Online voices stream from Microsoft's or Google's servers; where those can't be reached they make no sound, and this device's own voices read instead. They are tried again after a reload.",
+    "server": "Use the server's voice",
+    "serverHint": "This site has a read-aloud service with more natural voices. The first reading of each sentence costs a little; readings are cached. Turned off, only this device's voices are used (in this browser only).",
+    "serverDown": "The read-aloud service isn't working on this page, so this device's voices are reading instead. Reload the page to try it again.",
+    "fallbackOnly": "(used when the read-aloud service isn't available)"
   },
   "practice": {
     "focus": "This set focuses on: {kc}",

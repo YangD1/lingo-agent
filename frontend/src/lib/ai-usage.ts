@@ -18,7 +18,8 @@ export type AiFeature =
   | "reading_coach"
   | "reading_prerewrite"
   | "word_examples_prefetch"
-  | "diagnosis";
+  | "diagnosis"
+  | "read_aloud";
 
 /** `llm_usage.task` labels the catalog uses; each has a name in messages (aiBadge.task). */
 const AI_TASKS = [
@@ -42,6 +43,7 @@ const AI_TASKS = [
   "reading_questions",
   "reading_coach",
   "diagnose",
+  "tts",
   "advice", // no longer called (ADR 0016); past usage records still carry it
 ] as const;
 export type AiTask = (typeof AI_TASKS)[number];
@@ -59,6 +61,8 @@ export type CallEstimate = {
   output_tokens: number;
   /** Speech-to-text only: billed by audio length, not tokens. */
   audio_seconds: number | null;
+  /** Read-aloud only: billed by characters read, not tokens. */
+  characters: number | null;
   samples: number;
   /** history: this tenant's recent calls; default: no history yet. */
   source: "history" | "default";

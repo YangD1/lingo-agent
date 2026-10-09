@@ -4,14 +4,18 @@ import { Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
+import { AiBadge } from "@/components/ai-badge";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Switch } from "@/components/ui/switch";
 import {
   EN_RATE_MAX,
   EN_RATE_MIN,
+  type ServerLang,
   speakSample,
   useCanSpeak,
   useFailedVoices,
+  useServerSpeech,
   useSpeechSettings,
   useVoices,
 } from "@/lib/speech";
@@ -22,6 +26,8 @@ const ACCENTS: Accent[] = ["en-US", "en-GB"];
 /**
  * Voices, accent and speed for reading aloud (ADR 0018 §2). Kept in this browser: the
  * voices are the device's own. Shared by the settings page and the reply's gear button.
+ * Where the server reads aloud (ADR 0028 §3), a switch turns it off for this browser
+ * (Q54a), and the device's voices are what it falls back to.
  */
 export function SpeechSettings() {
   const t = useTranslations("speech");
@@ -30,6 +36,14 @@ export function SpeechSettings() {
   const voices = useVoices();
   const [settings, update] = useSpeechSettings();
   const failed = useFailedVoices();
+  const server = useServerSpeech();
+
+  // The server reads a language with the learner's accent; "zh-CN" for Chinese.
+  const serves = (lang: ServerLang) =>
+    !server.down && !server.noVoice.has(lang) && (server.languages?.has(lang) ?? false);
+  const offered = serves(settings.accent) || serves("zh-CN");
+  const serverEn = settings.server && serves(settings.accent);
+  const serverZh = settings.server && serves("zh-CN");
 
   if (!speakable) return <p className="text-sm text-muted-foreground">{t("unsupported")}</p>;
 
@@ -44,6 +58,27 @@ export function SpeechSettings() {
 
   return (
     <div className="flex flex-col gap-3 text-sm" data-testid="speech-settings">
+      {(offered || server.down) && (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor={`${id}-server`} className="flex items-center gap-1 font-medium">
+              {t("server")}
+              <AiBadge feature="read_aloud" />
+            </label>
+            <Switch
+              id={`${id}-server`}
+              checked={settings.server && !server.down}
+              disabled={server.down}
+              onCheckedChange={(checked) => update({ server: checked })}
+              data-testid="speech-server"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {server.down ? t("serverDown") : t("serverHint")}
+          </p>
+        </div>
+      )}
+
       <fieldset className="flex flex-col gap-1">
         <legend className="mb-1 font-medium">{t("accent")}</legend>
         <div className="flex gap-4">
@@ -65,6 +100,9 @@ export function SpeechSettings() {
       <div className="flex flex-col gap-1">
         <label htmlFor={`${id}-en`} className="font-medium">
           {t("enVoice")}
+          {serverEn && (
+            <span className="ml-1.5 font-normal text-muted-foreground">{t("fallbackOnly")}</span>
+          )}
         </label>
         <div className="flex items-center gap-1">
           <NativeSelect
@@ -91,6 +129,9 @@ export function SpeechSettings() {
       <div className="flex flex-col gap-1">
         <label htmlFor={`${id}-zh`} className="font-medium">
           {t("zhVoice")}
+          {serverZh && (
+            <span className="ml-1.5 font-normal text-muted-foreground">{t("fallbackOnly")}</span>
+          )}
         </label>
         <div className="flex items-center gap-1">
           <NativeSelect
@@ -117,7 +158,7 @@ export function SpeechSettings() {
             {t("try")}
           </Button>
         </div>
-        {noChinese && (
+        {noChinese && !serverZh && (
           <p className="text-muted-foreground">{t("noChinese")}</p>
         )}
       </div>

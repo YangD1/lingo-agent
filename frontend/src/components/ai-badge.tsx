@@ -114,7 +114,9 @@ function CallLine({ call }: { call: CallEstimate }) {
   const amount =
     call.audio_seconds !== null
       ? t("audio", { seconds: n(call.audio_seconds) })
-      : t("tokens", { input: n(call.input_tokens), output: n(call.output_tokens) });
+      : call.characters !== null
+        ? t("characters", { characters: n(call.characters) })
+        : t("tokens", { input: n(call.input_tokens), output: n(call.output_tokens) });
 
   return (
     <li className="flex flex-col gap-0.5 py-2 first:pt-0 last:pb-0">
