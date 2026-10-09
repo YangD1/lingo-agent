@@ -22,7 +22,7 @@ BASE = PlanInputs(
     reviews_due=12,
     new_left=10,
     practice_kc="g.present_simple",
-    article_id="a1",
+    article_id=7,
     days_since_writing=None,
 )
 
@@ -110,7 +110,7 @@ def test_items_in_order_with_minutes_and_refs() -> None:
     assert by_kind["review"].count == 20 and by_kind["review"].minutes == 5
     assert by_kind["new_words"].count == 5 and by_kind["new_words"].minutes == 5
     assert by_kind["practice"].ref == "g.present_simple"
-    assert by_kind["reading"].ref == "a1"
+    assert by_kind["reading"].ref == 7
     assert by_kind["writing"].count is None
     assert total_minutes(plan) == 5 + 5 + 8 + 10 + 15
 

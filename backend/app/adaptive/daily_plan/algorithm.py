@@ -26,7 +26,7 @@ class PlanInputs:
     # The grammar point the next practice set would start with; None = nothing to practise.
     practice_kc: str | None
     # An article ready at the learner's level; None = no subscription or nothing new.
-    article_id: str | None
+    article_id: int | None
     # Whole days since the last essay; None = never wrote.
     days_since_writing: int | None
 
@@ -49,7 +49,7 @@ class PlanItem:
     # Reviews and new words; None for the one-off items.
     count: int | None = None
     # The grammar point (practice) or article (reading) the item links to.
-    ref: str | None = None
+    ref: str | int | None = None
 
 
 def budget(inputs: PlanInputs, rules: Rules) -> int:

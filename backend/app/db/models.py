@@ -2,7 +2,7 @@
 not by Alembic."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from pgvector.sqlalchemy import Vector
@@ -10,6 +10,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -65,7 +66,7 @@ ARTICLE_LICENSES = ("public_domain", "cc_by", "unknown")
 REWRITABLE_LICENSES = ("public_domain", "cc_by")
 # generating -> ready | failed; a failed version is generated again when asked for.
 ARTICLE_VERSION_STATUSES = ("generating", "ready", "failed")
-TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link", "writing")
+TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link", "writing", "daily_plan")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
 # Where a practice set was started from (ADR 0021); prefetch: made in the background
@@ -79,6 +80,8 @@ EXERCISE_STATUSES = ("ok", "rejected", "reported")
 # What started a diagnosis (Q46b): the daily look for learners due a weekly one, or a
 # finished practice set with enough new mistakes.
 DIAGNOSIS_TRIGGERS = ("weekly", "after_set")
+# proposed -> applied | declined; applied -> proposed again when the learner undoes it.
+DAILY_PLAN_STATUSES = ("proposed", "applied", "declined")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -1228,3 +1231,33 @@ class Diagnosis(Base):
         ForeignKey("memories.id", ondelete="SET NULL")
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DailyPlan(Base):
+    """A learner's plan for one local day (P2 plan §7, ADR 0027).
+
+    Drafted by code the first time it is read that day; `choice` holds the counts and
+    switches (`daily_plan.algorithm.PlanChoice`), `limits` what was open when it was
+    drafted (`PlanInputs`), which bounds every later adjustment. What is done is read
+    from each module's records, never stored here.
+    """
+
+    __tablename__ = "daily_plans"
+    __table_args__ = (
+        CheckConstraint(_in("status", DAILY_PLAN_STATUSES), name="status"),
+        UniqueConstraint("user_id", "day"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # The learner's calendar day.
+    day: Mapped[date] = mapped_column(Date)
+    choice: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    limits: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(10))
+    # The tutor's card whose plan this now is; NULL for the drafted one.
+    card_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tutor_cards.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
