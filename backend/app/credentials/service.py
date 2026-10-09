@@ -23,6 +23,7 @@ from app.db.models import PROVIDER_KINDS, ProviderConnection, TenantModelRoute
 from app.providers.asr import SpeechToText, TranscriptionError, silent_clip
 from app.providers.cache import TTLCache
 from app.providers.config import (
+    SPEECH_ONLY_KINDS,
     ProviderKind,
     ProvidersConfig,
     ResolvedModel,
@@ -30,6 +31,8 @@ from app.providers.config import (
     Section,
     check_asr_route,
     check_embedding_route,
+    check_llm_route,
+    check_tts_route,
 )
 from app.providers.errors import ProviderConfigError
 from app.providers.llm import build_chat_model
@@ -40,10 +43,13 @@ from app.usage.recorder import UsageLabels, make_recorder
 
 _NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 # Kinds whose official APIs always need a key; openai_compatible may be keyless (Ollama).
-_KEY_REQUIRED: frozenset[str] = frozenset({"deepseek", "anthropic", "openai"})
+_KEY_REQUIRED: frozenset[str] = frozenset({"deepseek", "anthropic", "openai", "azure_speech"})
 
 
 type TestPurpose = Literal["chat", "asr", "vision"]
+# Languages a voice is picked for; the UI only reads these aloud (ADR 0018).
+type VoiceLanguage = Literal["en-US", "en-GB", "zh-CN"]
+type VoiceName = Annotated[str, Field(min_length=1, max_length=128)]
 
 
 class NotFoundError(Exception):
@@ -71,6 +77,11 @@ class CallParams(BaseModel):
     top_p: Annotated[float, Field(gt=0, le=1)] | None = None
     # On by default so streamed calls report token usage; off for servers that reject it.
     stream_usage: bool | None = None
+    # tts routes only (ADR 0028 §3): the voice each model reads a language with, keyed by
+    # "<connection>:<model>", over the built-in voices. Never sent to a chat SDK.
+    voices: dict[Annotated[str, Field(max_length=200)], dict[VoiceLanguage, VoiceName]] | None = (
+        None
+    )
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_none=True)
@@ -78,6 +89,12 @@ class CallParams(BaseModel):
 
 def key_hint(api_key: str) -> str:
     return f"…{api_key[-4:]}" if len(api_key) >= 12 else "…"
+
+
+def _check_connection_params(params: CallParams) -> None:
+    # Connection params reach every SDK the connection is used with.
+    if params.voices is not None:
+        raise ProviderConfigError("voices belong on a text-to-speech route, not a connection")
 
 
 def _check_name(name: str) -> str:
@@ -130,10 +147,12 @@ async def create_connection(
         kind = kind or spec.kind
         base_url = base_url or spec.base_url
         name = name or preset
-        if default_model is None:  # the preset's recommended chat model
+        # The preset's recommended chat model; speech-only vendors have none (ADR 0028).
+        if default_model is None and kind not in SPEECH_ONLY_KINDS:
             default_model = next((m for m in spec.models if categorize(m) == "chat"), None)
     if kind not in PROVIDER_KINDS:
         raise ProviderConfigError(f"kind must be one of {', '.join(PROVIDER_KINDS)}")
+    _check_connection_params(params)
     if not name or not base_url:
         raise ProviderConfigError("name and base_url are required when no preset is given")
     if kind in _KEY_REQUIRED and api_key is None:
@@ -195,6 +214,7 @@ async def update_connection(
         _set_api_key(conn, api_key, keyring)
         endpoint_changed = True
     if params is not None:
+        _check_connection_params(params)
         conn.params = params.to_dict()
     if enabled is not None:
         conn.enabled = enabled
@@ -438,7 +458,18 @@ async def put_route(
     for ref in route.models:
         if ref.partition(":")[0] not in connections:
             raise ProviderConfigError(f"no connection named {ref.partition(':')[0]!r}")
-    checks = {"embedding": check_embedding_route, "asr": check_asr_route}
+    if route.params.get("voices") is not None:
+        if section != "tts":
+            raise ProviderConfigError("voices can only be set on a text-to-speech route")
+        for ref in route.params["voices"]:
+            if ref not in route.models:
+                raise ProviderConfigError(f"voices for {ref!r}, which is not in the route")
+    checks = {
+        "llm": check_llm_route,
+        "embedding": check_embedding_route,
+        "asr": check_asr_route,
+        "tts": check_tts_route,
+    }
     if section in checks:
         try:
             checks[section](route, lambda n: connections[n].kind)

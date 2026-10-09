@@ -5,6 +5,9 @@ Vendors expose a free "list models" endpoint that also proves the key works:
   `GET {base_url}/models`, Bearer auth, `{"data": [{"id": ...}]}`.
 - Anthropic: `GET {base_url}/v1/models`, `x-api-key` auth, paginated with
   `has_more` / `last_id`.
+- Azure Speech: `GET {base_url}/cognitiveservices/voices/list`,
+  `Ocp-Apim-Subscription-Key` auth, a JSON array of voices; the voice is the "model"
+  (ADR 0028 §2), so only the languages the UI reads aloud are listed.
 
 Categories come from the model id alone, so they are a best-effort hint for the UI:
 a misfiled model only means one extra option in a dropdown.
@@ -71,6 +74,9 @@ async def fetch_models(
     """Sorted by id, without duplicates. `client` must be the SSRF-guarded one."""
     if kind == "anthropic":
         ids = await _anthropic_ids(base_url, api_key, client)
+    elif kind == "azure_speech":
+        ids = await _azure_voice_ids(base_url, api_key, client)
+        return [DiscoveredModel(id=i, category="other") for i in sorted(set(ids))]
     else:
         headers = {"Authorization": f"Bearer {api_key.get_secret_value()}"} if api_key else {}
         body = await _get_json(client, f"{base_url}/models", headers, params=None)
@@ -95,9 +101,29 @@ async def _anthropic_ids(
     return ids
 
 
-async def _get_json(
+# Locales of the voices listed for Azure: what the UI reads aloud (ADR 0018).
+AZURE_VOICE_LOCALES = frozenset({"en-US", "en-GB", "zh-CN"})
+
+
+async def _azure_voice_ids(
+    base_url: str, api_key: SecretStr | None, client: httpx2.AsyncClient
+) -> list[str]:
+    headers = {"Ocp-Apim-Subscription-Key": api_key.get_secret_value()} if api_key else {}
+    body = await _get_raw_json(client, f"{base_url}/cognitiveservices/voices/list", headers, None)
+    if not isinstance(body, list):
+        raise ModelListError("unexpected response shape; check the base URL")
+    return [
+        v["ShortName"]
+        for v in body
+        if isinstance(v, dict)
+        and isinstance(v.get("ShortName"), str)
+        and v.get("Locale") in AZURE_VOICE_LOCALES
+    ]
+
+
+async def _get_raw_json(
     client: httpx2.AsyncClient, url: str, headers: dict[str, str], params: dict[str, Any] | None
-) -> dict[str, Any]:
+) -> Any:
     try:
         response = await client.get(url, headers=headers, params=params)
     except httpx2.HTTPError as exc:  # includes SSRF refusals (ForbiddenDestinationError)
@@ -105,9 +131,15 @@ async def _get_json(
     if response.status_code != 200:
         raise ModelListError(f"HTTP {response.status_code}: {_vendor_message(response)}")
     try:
-        body = response.json()
+        return response.json()
     except ValueError as exc:
         raise ModelListError("the endpoint did not return JSON; check the base URL") from exc
+
+
+async def _get_json(
+    client: httpx2.AsyncClient, url: str, headers: dict[str, str], params: dict[str, Any] | None
+) -> dict[str, Any]:
+    body = await _get_raw_json(client, url, headers, params)
     if not isinstance(body, dict) or not isinstance(body.get("data"), list):
         raise ModelListError("unexpected response shape; check the base URL")
     return body

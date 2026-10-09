@@ -21,7 +21,7 @@ presets:
     kind: openai
     label: OpenAI
     base_url: https://api.openai.com/v1
-    models: [gpt-5-mini, text-embedding-3-small, gpt-transcribe]
+    models: [gpt-5-mini, text-embedding-3-small, gpt-transcribe, gpt-4o-mini-tts]
   qwen:
     kind: openai_compatible
     label: Qwen (DashScope)
@@ -41,15 +41,23 @@ presets:
   # reachable there. SenseVoice also handles Chinese, Cantonese, Japanese and Korean.
   siliconflow:
     kind: openai_compatible
-    label: SiliconFlow (speech-to-text)
+    label: SiliconFlow (speech-to-text, read aloud)
     base_url: https://api.siliconflow.cn/v1
-    models: [FunAudioLLM/SenseVoiceSmall]
+    models: [FunAudioLLM/SenseVoiceSmall, FunAudioLLM/CosyVoice2-0.5B]
+  # Text-to-speech and pronunciation assessment (ADR 0028). The model is the voice; the
+  # base URL names the region: https://<region>.tts.speech.microsoft.com, or
+  # https://<region>.tts.speech.azure.cn for Azure in China.
+  azure:
+    kind: azure_speech
+    label: Azure Speech (read aloud)
+    base_url: https://eastasia.tts.speech.microsoft.com
+    models: [en-US-AvaMultilingualNeural, en-GB-SoniaNeural, zh-CN-XiaoxiaoMultilingualNeural]
   speaches:
     kind: openai_compatible
-    label: Speaches (local speech-to-text; compose profile `asr`, needs PROVIDER_ALLOW_PRIVATE_NETWORKS=true)
+    label: Speaches (local speech-to-text and read aloud; compose profile `asr`, needs PROVIDER_ALLOW_PRIVATE_NETWORKS=true)
     base_url: http://localhost:8200/v1
     base_url_env: SPEACHES_BASE_URL   # docker-compose.yml sets http://asr:8000/v1 for its backend
-    models: [Systran/faster-whisper-small]
+    models: [Systran/faster-whisper-small, speaches-ai/Kokoro-82M-v1.0-ONNX]
 
 defaults:
   timeout: 30
@@ -101,3 +109,9 @@ embedding:
 # Speech-to-text over OpenAI's /audio/transcriptions (ADR 0008 §5); fallbacks allowed.
 asr:
   default: [groq:whisper-large-v3-turbo, siliconflow:FunAudioLLM/SenseVoiceSmall, openai:gpt-transcribe]
+
+# Read aloud on the server (ADR 0028 §3); optional: without it the browser reads aloud.
+# Voices come from the model (Azure) or built-in defaults, overridable per model with
+# `voices: {"<connection>:<model>": {en-US: ..., en-GB: ..., zh-CN: ...}}`.
+tts:
+  default: [azure:en-US-AvaMultilingualNeural, siliconflow:FunAudioLLM/CosyVoice2-0.5B, openai:gpt-4o-mini-tts, speaches:speaches-ai/Kokoro-82M-v1.0-ONNX]

@@ -94,6 +94,34 @@ async def test_keyless_openai_compatible_sends_no_auth_header() -> None:
     assert "authorization" not in seen[0].headers
 
 
+async def test_azure_lists_the_voices_of_languages_read_aloud() -> None:
+    voices = [
+        {"ShortName": "zh-CN-XiaoxiaoNeural", "Locale": "zh-CN"},
+        {"ShortName": "en-US-AvaMultilingualNeural", "Locale": "en-US"},
+        {"ShortName": "fr-FR-DeniseNeural", "Locale": "fr-FR"},
+        {"ShortName": "en-GB-SoniaNeural", "Locale": "en-GB"},
+    ]
+    client, seen = mock_client(lambda r: json_response(voices))  # type: ignore[arg-type]
+
+    base = "https://eastasia.tts.speech.microsoft.com"
+    models = await fetch_models("azure_speech", base, KEY, client=client)
+
+    # Voices are never chat models, whatever their names look like.
+    assert models == [
+        DiscoveredModel("en-GB-SoniaNeural", "other"),
+        DiscoveredModel("en-US-AvaMultilingualNeural", "other"),
+        DiscoveredModel("zh-CN-XiaoxiaoNeural", "other"),
+    ]
+    assert str(seen[0].url) == f"{base}/cognitiveservices/voices/list"
+    assert seen[0].headers["ocp-apim-subscription-key"] == "sk-test-123"
+
+
+async def test_azure_unexpected_shape_is_a_model_list_error() -> None:
+    client, _ = mock_client(lambda r: json_response({"data": []}))
+    with pytest.raises(ModelListError, match="unexpected response shape"):
+        await fetch_models("azure_speech", "https://x.example.com", KEY, client=client)
+
+
 async def test_anthropic_listing_follows_pages() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         if "after_id" not in request.url.params:

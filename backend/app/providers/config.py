@@ -15,13 +15,18 @@ from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 
 logger = logging.getLogger(__name__)
 
-ProviderKind = Literal["deepseek", "anthropic", "openai", "openai_compatible"]
-Section = Literal["llm", "embedding", "asr"]
-SECTIONS: tuple[Section, ...] = ("llm", "embedding", "asr")
+ProviderKind = Literal["deepseek", "anthropic", "openai", "openai_compatible", "azure_speech"]
+Section = Literal["llm", "embedding", "asr", "tts"]
+SECTIONS: tuple[Section, ...] = ("llm", "embedding", "asr", "tts")
+# Speech-only vendors (ADR 0028 §2): they serve no chat, embeddings or transcription API.
+SPEECH_ONLY_KINDS: frozenset[str] = frozenset({"azure_speech"})
 # Kinds whose SDK offers an embeddings API.
 EMBEDDING_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible"})
 # Kinds that can serve OpenAI's /audio/transcriptions (OpenAI, Groq, speaches, ...).
 ASR_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible"})
+# Kinds that can read text aloud: OpenAI's /audio/speech (OpenAI, SiliconFlow, speaches)
+# or Azure's text-to-speech REST API (ADR 0028 §2).
+TTS_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible", "azure_speech"})
 # Tasks needing a capability that can't be inferred from a model's name (ADR 0008 §5):
 # they run only on models configured for them explicitly - never on the section's
 # default route nor on the connections' default chat models - because a model that
@@ -116,6 +121,7 @@ class ProvidersConfig(BaseModel):
     llm: SectionSpec
     embedding: SectionSpec | None = None
     asr: SectionSpec | None = None
+    tts: SectionSpec | None = None
 
     @model_validator(mode="after")
     def _check_refs(self) -> Self:
@@ -135,6 +141,10 @@ class ProvidersConfig(BaseModel):
                     check_embedding_route(route, lambda n: self.presets[n].kind)
                 if section_name == "asr":
                     check_asr_route(route, lambda n: self.presets[n].kind)
+                if section_name == "tts":
+                    check_tts_route(route, lambda n: self.presets[n].kind)
+                if section_name == "llm":
+                    check_llm_route(route, lambda n: self.presets[n].kind)
         return self
 
     def section(self, name: Section) -> SectionSpec | None:
@@ -157,6 +167,20 @@ def check_asr_route(route: RouteSpec, kind_of: Any) -> None:
         name = ref.partition(":")[0]
         if kind_of(name) not in ASR_KINDS:
             raise ValueError(f"connection {name!r} has no speech-to-text API")
+
+
+def check_llm_route(route: RouteSpec, kind_of: Any) -> None:
+    for ref in route.models:
+        name = ref.partition(":")[0]
+        if kind_of(name) in SPEECH_ONLY_KINDS:
+            raise ValueError(f"connection {name!r} is speech-only and cannot chat")
+
+
+def check_tts_route(route: RouteSpec, kind_of: Any) -> None:
+    for ref in route.models:
+        name = ref.partition(":")[0]
+        if kind_of(name) not in TTS_KINDS:
+            raise ValueError(f"connection {name!r} cannot read text aloud")
 
 
 @dataclass(frozen=True)
@@ -213,7 +237,7 @@ def route_for(
         return override
     spec = config.section(section)
     if spec is None:
-        if section == "asr":  # optional: deployments may leave speech out entirely
+        if section in ("asr", "tts"):  # optional: deployments may leave speech out entirely
             raise NoModelConfiguredError(section, task, [])
         raise ProviderConfigError(f"no '{section}' section in providers config")
     if (section, task) in CAPABILITY_TASKS and task not in spec.routes:
@@ -265,7 +289,9 @@ def resolve_route_with_source(
         resolved = [
             _resolved(config, conn, conn.default_model, route, section, task)
             for conn in ctx.connections.values()
-            if conn.default_model and not looks_like_speech_to_text(conn.default_model)
+            if conn.default_model
+            and conn.kind not in SPEECH_ONLY_KINDS
+            and not looks_like_speech_to_text(conn.default_model)
         ]
     if not resolved:
         raise NoModelConfiguredError(section, task, route.models)

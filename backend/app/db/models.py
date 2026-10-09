@@ -35,8 +35,8 @@ from app.db.base import Base, TimestampMixin
 # one-line migration instead of ALTER TYPE.
 TENANT_KINDS = ("personal", "org")
 MEMBER_ROLES = ("owner", "admin", "member")
-PROVIDER_KINDS = ("deepseek", "anthropic", "openai", "openai_compatible")
-ROUTE_SECTIONS = ("llm", "embedding", "asr")
+PROVIDER_KINDS = ("deepseek", "anthropic", "openai", "openai_compatible", "azure_speech")
+ROUTE_SECTIONS = ("llm", "embedding", "asr", "tts")
 USAGE_STATUSES = ("ok", "error")
 ATTACHMENT_KINDS = ("image", "audio", "document")
 ATTACHMENT_STATUSES = ("processing", "ready", "failed")
@@ -238,6 +238,8 @@ class LLMUsage(Base):
     # Speech-to-text is billed by audio length, not tokens; NULL when the vendor
     # doesn't report it (ADR 0008 §5).
     audio_seconds: Mapped[float | None] = mapped_column(Float)
+    # Text-to-speech is billed by characters; NULL for every other call (ADR 0028 §1).
+    characters: Mapped[int | None] = mapped_column(Integer)
     # Made by background work nobody was waiting for: counts against the tenant's daily
     # background budget (ADR 0025 §5).
     background: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

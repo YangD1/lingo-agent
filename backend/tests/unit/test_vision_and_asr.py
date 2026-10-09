@@ -101,6 +101,46 @@ def test_missing_asr_means_not_configured() -> None:
         assert info.value.code == "no_asr_model"
 
 
+# --- tts section and speech-only connections (ADR 0028) -------------------------------
+
+TTS_PRESETS = {
+    **ASR_PRESETS,
+    "azure": {"kind": "azure_speech", "base_url": "https://eastasia.tts.speech.microsoft.com"},
+}
+
+
+def test_tts_section_resolves_and_is_optional() -> None:
+    config = make_config(
+        presets=TTS_PRESETS, tts={"default": ["azure:en-US-AvaNeural", "openai:gpt-4o-mini-tts"]}
+    )
+    ctx = make_ctx(conn("azure", "azure_speech"), conn("openai"))
+    assert [m.model for m in resolve_route(config, ctx, "tts", "default")] == [
+        "en-US-AvaNeural",
+        "gpt-4o-mini-tts",
+    ]
+    # No tts section, or no connection for it.
+    for cfg, tenant in ((make_config(), ctx), (config, make_ctx(conn("deepseek")))):
+        with pytest.raises(NoModelConfiguredError) as info:
+            resolve_route(cfg, tenant, "tts", "default")
+        assert info.value.code == "no_tts_model"
+
+
+def test_tts_rejects_vendors_that_cannot_read_aloud() -> None:
+    with pytest.raises(ValueError, match="cannot read text aloud"):
+        make_config(presets=TTS_PRESETS, tts={"default": ["deepseek:deepseek-chat"]})
+
+
+def test_speech_only_connections_never_chat() -> None:
+    with pytest.raises(ValueError, match="speech-only"):
+        make_config(presets=TTS_PRESETS, llm={"default": ["azure:en-US-AvaNeural"]})
+    with pytest.raises(ValueError, match="speech-to-text"):
+        make_config(presets=TTS_PRESETS, asr={"default": ["azure:en-US-AvaNeural"]})
+    # Not even as an auto fallback when nothing else is configured (ADR 0007).
+    ctx = make_ctx(conn("azure", "azure_speech", default_model="en-US-AvaNeural"))
+    with pytest.raises(NoModelConfiguredError):
+        resolve_route(make_config(presets=TTS_PRESETS), ctx, "llm", "chat")
+
+
 # --- structured output method -----------------------------------------------------------
 
 

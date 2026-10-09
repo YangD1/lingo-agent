@@ -769,6 +769,57 @@ async def test_speech_routes_need_a_transcription_api(client: AsyncClient) -> No
     assert "speech-to-text" in response.json()["detail"]["message"]
 
 
+async def test_azure_speech_connection_reads_aloud_only(client: AsyncClient) -> None:
+    await login(client)
+    response = await client.post("/tenant/connections", json={"preset": "azure"})
+    assert response.status_code == 422  # Azure always needs a key
+    azure = await create(client, preset="azure", api_key="azure-key-0123456789")
+    assert (azure["kind"], azure["default_model"]) == ("azure_speech", None)
+    await create(client, preset="openai", api_key=SECRET)
+
+    for path in ("/tenant/routes/llm/chat", "/tenant/routes/asr/default"):
+        response = await client.put(path, json={"models": ["azure:en-US-AvaNeural"]})
+        assert response.status_code == 422, path
+    response = await client.put(
+        "/tenant/routes/tts/default",
+        json={
+            "models": ["azure:en-US-AvaMultilingualNeural", "openai:gpt-4o-mini-tts"],
+            "params": {"voices": {"openai:gpt-4o-mini-tts": {"en-US": "coral", "zh-CN": "coral"}}},
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["effective"] == [
+        "azure:en-US-AvaMultilingualNeural",
+        "openai:gpt-4o-mini-tts",
+    ]
+
+
+async def test_voices_only_on_text_to_speech_routes(client: AsyncClient) -> None:
+    await login(client)
+    await create(client, preset="openai", api_key=SECRET)
+    voices = {"openai:gpt-4o-mini-tts": {"en-US": "coral"}}
+
+    chat = await client.put(
+        "/tenant/routes/llm/chat",
+        json={"models": ["openai:gpt-5-mini"], "params": {"voices": voices}},
+    )
+    stray = await client.put(
+        "/tenant/routes/tts/default",
+        json={"models": ["openai:tts-1"], "params": {"voices": voices}},  # not this route's model
+    )
+    language = await client.put(
+        "/tenant/routes/tts/default",
+        json={"models": ["openai:tts-1"], "params": {"voices": {"openai:tts-1": {"fr-FR": "x"}}}},
+    )
+    on_connection = await client.post(
+        "/tenant/connections",
+        json={"preset": "openai", "name": "o2", "api_key": SECRET, "params": {"voices": voices}},
+    )
+
+    for response in (chat, stray, language, on_connection):
+        assert response.status_code == 422, response.text
+
+
 # --- switching models off (ADR 0026) -----------------------------------------------------
 
 
