@@ -64,6 +64,14 @@ def looks_like_speech_to_text(model_id: str) -> bool:
     return _SPEECH_TO_TEXT.search(model_id) is not None
 
 
+# Text-to-speech models, whose connection test reads a word aloud (ADR 0028 §1).
+_TEXT_TO_SPEECH = re.compile(r"tts|kokoro|piper|cosyvoice|melo", re.IGNORECASE)
+
+
+def looks_like_text_to_speech(model_id: str) -> bool:
+    return _TEXT_TO_SPEECH.search(model_id) is not None
+
+
 async def fetch_models(
     kind: ProviderKind,
     base_url: str,

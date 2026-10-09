@@ -38,6 +38,14 @@ from app.providers.errors import ProviderConfigError
 from app.providers.llm import build_chat_model
 from app.providers.model_catalog import DiscoveredModel, categorize, fetch_models
 from app.providers.net_guard import make_async_http_client, validate_base_url
+from app.providers.tts import (
+    LANGUAGES,
+    EndpointError,
+    Language,
+    SpeechSynthesisError,
+    TextToSpeech,
+    default_voice,
+)
 from app.settings import get_settings
 from app.usage.recorder import UsageLabels, make_recorder
 
@@ -46,9 +54,7 @@ _NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 _KEY_REQUIRED: frozenset[str] = frozenset({"deepseek", "anthropic", "openai", "azure_speech"})
 
 
-type TestPurpose = Literal["chat", "asr", "vision"]
-# Languages a voice is picked for; the UI only reads these aloud (ADR 0018).
-type VoiceLanguage = Literal["en-US", "en-GB", "zh-CN"]
+type TestPurpose = Literal["chat", "asr", "vision", "tts"]
 type VoiceName = Annotated[str, Field(min_length=1, max_length=128)]
 
 
@@ -79,7 +85,7 @@ class CallParams(BaseModel):
     stream_usage: bool | None = None
     # tts routes only (ADR 0028 §3): the voice each model reads a language with, keyed by
     # "<connection>:<model>", over the built-in voices. Never sent to a chat SDK.
-    voices: dict[Annotated[str, Field(max_length=200)], dict[VoiceLanguage, VoiceName]] | None = (
+    voices: dict[Annotated[str, Field(max_length=200)], dict[Language, VoiceName]] | None = (
         None
     )
 
@@ -294,7 +300,8 @@ async def verify_connection(
     purpose: TestPurpose = "chat",
 ) -> TestResult:
     """Send one tiny request through the same guarded client real calls use: a chat
-    message, for speech-to-text a short built-in clip, for vision a small built-in image."""
+    message, for speech-to-text a short built-in clip, for vision a small built-in image,
+    for text-to-speech one word read aloud."""
     api_key = _decrypt_key(conn, keyring)
     kind: ProviderKind = conn.kind  # type: ignore[assignment]  # DB CHECK constraint
     resolved = ResolvedModel(
@@ -317,6 +324,13 @@ async def verify_connection(
         if purpose == "asr":
             stt = SpeechToText(conn.tenant_id, (resolved,), task="connection_test")
             await stt.transcribe(silent_clip(), filename="test.wav", mime_type="audio/wav")
+        elif purpose == "tts":
+            tts = TextToSpeech(conn.tenant_id, (resolved,), task="connection_test")
+            # An Azure voice is tested in its own language; the rest read English.
+            language: Language = next((x for x in LANGUAGES if model.startswith(x)), "en-US")
+            if default_voice(resolved, language) is None:
+                raise ProviderConfigError("no built-in voice for this model; set one on the route")
+            await tts.synthesize("Hello", language=language)
         else:
             recorder = make_recorder(
                 UsageLabels(conn.tenant_id, "connection_test", conn.name, model)
@@ -329,11 +343,15 @@ async def verify_connection(
                 ]
             )
     except Exception as exc:  # any vendor/network failure is a test result, not a 500
-        cause = exc.__cause__ if isinstance(exc, TranscriptionError) and exc.__cause__ else exc
+        wrapped = isinstance(exc, TranscriptionError | SpeechSynthesisError)
+        cause = exc.__cause__ if wrapped and exc.__cause__ else exc
         error = f"{type(cause).__name__}: {cause}"[:500]
         # A server without /audio/transcriptions (a chat-only relay) answers 404.
         if purpose == "asr" and isinstance(cause, openai.NotFoundError):
             error_code = "asr_not_supported"
+        # Likewise a server without /audio/speech.
+        elif purpose == "tts" and isinstance(cause, EndpointError) and cause.status == 404:
+            error_code = "tts_not_supported"
         # Models without image input are refused with a 400 by OpenAI-style servers.
         elif purpose == "vision" and isinstance(cause, openai.BadRequestError):
             error_code = "vision_not_supported"

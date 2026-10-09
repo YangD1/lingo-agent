@@ -64,6 +64,8 @@ class UsageRecord:
     error_code: str | None
     audio_seconds: float | None = None
     background: bool = False
+    # Text-to-speech bills by characters (ADR 0028 §1).
+    characters: int | None = None
 
 
 UsageSink = Callable[[UsageRecord], None]

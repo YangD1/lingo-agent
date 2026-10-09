@@ -16,7 +16,7 @@ from app.credentials import service
 from app.credentials.crypto import generate_key_entry, get_keyring, parse_keyring
 from app.credentials.rotate import rotate_credentials
 from app.db.models import ProviderConnection
-from app.providers import asr, net_guard
+from app.providers import asr, net_guard, tts
 from app.providers.model_catalog import DiscoveredModel, ModelListError
 from app.providers.net_guard import IPAddress
 from app.providers.tenant import load_provider_context
@@ -309,6 +309,62 @@ async def test_model_on_the_speech_route_is_tested_by_transcribing(
     explicit = {"model": "my-stt", "purpose": "chat"}
     assert (await client.post(url, json=explicit)).json()["purpose"] == "chat"
     assert chats == ["my-stt", "my-stt"] and len(seen) == 1
+
+
+def serve_speech(
+    monkeypatch: pytest.MonkeyPatch, response: httpx2.Response
+) -> list[httpx2.Request]:
+    seen: list[httpx2.Request] = []
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        return response
+
+    def client(*, allow_private: bool, timeout: float | None) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(transport=httpx2.MockTransport(handle))
+
+    monkeypatch.setattr(tts, "make_async_http_client", client)
+    return seen
+
+
+async def test_azure_voice_is_tested_by_reading_aloud(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = serve_speech(monkeypatch, httpx2.Response(200, content=b"ID3"))
+    await login(client)
+    conn = await create(client, preset="azure", api_key="azure-key-0123456789")
+    url = f"/tenant/connections/{conn['id']}/test"
+
+    result = (await client.post(url, json={"model": "zh-CN-XiaoxiaoNeural"})).json()
+
+    assert (result["ok"], result["purpose"]) == (True, "tts")
+    (request,) = seen
+    assert request.url.path == "/cognitiveservices/v1"
+    assert 'xml:lang="zh-CN"' in request.content.decode()  # the voice's own language
+
+
+async def test_speech_server_without_audio_speech_is_reported_as_such(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    serve_speech(monkeypatch, httpx2.Response(404, text="Not Found"))
+    await login(client)
+    conn = await create(
+        client, name="relay", kind="openai_compatible", base_url="https://relay.example.com/v1"
+    )
+    url = f"/tenant/connections/{conn['id']}/test"
+
+    result = (await client.post(url, json={"model": "gpt-4o-mini-tts"})).json()
+
+    assert (result["ok"], result["purpose"], result["error_code"]) == (
+        False,
+        "tts",
+        "tts_not_supported",
+    )
+    # A model with no built-in voice can't be tested until the route names one.
+    unknown = {"model": "my-voices", "purpose": "tts"}
+    result = (await client.post(url, json=unknown)).json()
+    assert (result["ok"], result["error_code"]) == (False, None)
+    assert "set one on the route" in result["error"]
 
 
 def bad_request() -> httpx2.Response:
