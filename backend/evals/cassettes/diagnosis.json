@@ -1,0 +1,249 @@
+{
+ "245342de4e03606b": {
+  "case": "no-pattern-prepositions-of-time",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "medium",
+     "evidence_ids": [
+      101,
+      102
+     ],
+     "hypothesis": "你的3处错误中，有2处把不同时间类别对应的介词混用了：把具体钟点写成“on five o'clock”，把星期几写成“in Monday”。这说明你对时间表达与介词的对应关系还不稳定。",
+     "kc_ids": [
+      "g.prepositions_time"
+     ],
+     "suggestion": "练习把钟点、星期几、月份三类时间表达分类，再分别配上 at、on、in，例如“at five o'clock”“on Monday”“in June”。"
+    }
+   ]
+  },
+  "task": "diagnose"
+ },
+ "8584552464f23e2b": {
+  "case": "used-to-for-present-habits",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "high",
+     "evidence_ids": [
+      101,
+      102,
+      103
+     ],
+     "hypothesis": "你在这3次错误中都用 used to 表达现在仍在持续的习惯，似乎把它当成了 usually（通常）。句中的 These days、Now 和 still does 都提示习惯仍然存在，但你没有根据这些时间线索改用一般现在时。",
+     "kc_ids": [
+      "g.used_to"
+     ],
+     "suggestion": "练习对比造句：用一般现在时描述现在的习惯，用 used to 描述过去有、现在已不再有的习惯，并标出时间线索。"
+    }
+   ]
+  },
+  "task": "diagnose"
+ },
+ "89854bd789b4f9d4": {
+  "case": "be-for-do",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "high",
+     "evidence_ids": [
+      101,
+      102,
+      103
+     ],
+     "hypothesis": "你的三处错误都把 be（am/is/are）用在了需要 do/does 的位置，例如 “I am not like coffee” 和 “Are you live here?”。这说明你把 be 的否定句、疑问句构造方式套用到了以 like、live、work 为谓语的一般现在时句子中。",
+     "kc_ids": [
+      "g.be_present",
+      "g.present_simple_questions_negatives"
+     ],
+     "suggestion": "练习成对改写否定句和疑问句：将 “You are busy” 改为 “You aren't busy / Are you busy?”，将 “You live here” 改为 “You don't live here / Do you live here?”。"
+    }
+   ]
+  },
+  "task": "diagnose"
+ },
+ "9bd69077593fd5b6": {
+  "case": "past-perfect-behind-third-conditional",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "high",
+     "evidence_ids": [
+      101,
+      102,
+      103,
+      104
+     ],
+     "hypothesis": "你的3处第三条件句错误都在 if 从句中：你用了 knew、studied、left，而需要 had known、had studied、had left；结果从句中的 would have + 过去分词都正确。你在描述电影先于到场开始时，也用了 started 而不是 had already started，这说明共同问题是需要过去完成时的地方仍用了普通过去式。",
+     "kc_ids": [
+      "g.past_perfect",
+      "g.third_conditional"
+     ],
+     "suggestion": "练习把 knew、studied、left、started 改成 had + 过去分词，再分别填入“过去的过去”和“假设过去”的句子中。"
+    }
+   ]
+  },
+  "task": "diagnose"
+ },
+ "c10c77a5134f9040": {
+  "case": "no-pattern-articles",
+  "output": {
+   "root_causes": []
+  },
+  "task": "diagnose"
+ },
+ "c33885af485584bf": {
+  "case": "participles-behind-present-perfect",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "high",
+     "evidence_ids": [
+      101,
+      102,
+      103,
+      104
+     ],
+     "hypothesis": "你在这4处错误中都把一般过去式当成了过去分词，例如用了 ate、saw、went 和 broke，而应使用 eaten、seen、gone 和 broken。这个模式同时出现在现在完成时和被动语态中，说明你对过去式与过去分词的区别还不够熟悉。",
+     "kc_ids": [
+      "g.past_participle_forms",
+      "g.present_perfect_experience"
+     ],
+     "suggestion": "用 eat–ate–eaten、see–saw–seen、go–went–gone、break–broke–broken 做三种形式的配对练习，再用 have/has 或 was 加过去分词各造一句。"
+    }
+   ]
+  },
+  "task": "diagnose"
+ },
+ "cd90765c4be20d10": {
+  "case": "third-person-s-behind-agreement",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "high",
+     "evidence_ids": [
+      101,
+      102,
+      103,
+      104
+     ],
+     "hypothesis": "你在这4处错误中都漏掉了一般现在时第三人称单数动词的 -s/-es，例如“My brother work”和“She go”。这个模式同时出现在普通单数主语和 everyone 后，说明你还没有稳定地把第三人称单数主语与相应的动词形式联系起来。",
+     "kc_ids": [
+      "g.present_simple_third_person",
+      "g.subject_verb_agreement"
+     ],
+     "suggestion": "练习把“I work / go / like”改写成“My brother works / She goes / Everyone likes”，每次先圈出主语，再补上 -s/-es。"
+    }
+   ]
+  },
+  "task": "diagnose"
+ },
+ "d36b56de5757cb0e": {
+  "case": "will-for-going-to",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "medium",
+     "evidence_ids": [
+      101,
+      102,
+      103
+     ],
+     "hypothesis": "这3次选择中，你都用了 will；其中“Look at those clouds”和“I've booked the ticket”分别提示眼前已有的迹象和事先安排好的计划，说明你在选择将来表达时，还没有充分利用这些语境线索来区分 will 和 be going to。单独的“She will have a baby in May”并不一定不合语法，但本题期待用 be going to 表达已有依据的预期。",
+     "kc_ids": [
+      "g.will_future",
+      "g.going_to_future"
+     ],
+     "suggestion": "练习对比选择：先圈出“已有迹象／事先计划”或“临时决定／主动提议”的线索，再选择 be going to 或 will。"
+    }
+   ]
+  },
+  "task": "diagnose"
+ },
+ "dc612b44e20d7db4": {
+  "case": "participles-behind-present-perfect-en",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "high",
+     "evidence_ids": [
+      101,
+      102,
+      103
+     ],
+     "hypothesis": "In all three mistakes, you use the past simple form after “have” or “has”: “have wrote,” “ever drove,” and “has took.” This shows difficulty distinguishing irregular past participles from past simple forms: these sentences need “written,” “driven,” and “taken.”",
+     "kc_ids": [
+      "g.past_participle_forms",
+      "g.present_perfect_experience"
+     ],
+     "suggestion": "Practise write–wrote–written, drive–drove–driven, and take–took–taken, then make a sentence with have/has + each participle."
+    }
+   ]
+  },
+  "task": "diagnose"
+ },
+ "e0d1986ddfc8146f": {
+  "case": "no-pattern-passive-mixed",
+  "output": {
+   "root_causes": []
+  },
+  "task": "diagnose"
+ },
+ "ea5523a268d5706d": {
+  "case": "overregularised-past-with-a-lure",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "high",
+     "evidence_ids": [
+      101,
+      102,
+      103
+     ],
+     "hypothesis": "你在这 3 条错误中都把规则动词加 -ed 的方法套用到了不规则动词上，写出了 “goed”“buyed”“runned”。这说明你已经会使用规则过去式的构词方法，但还没有稳定地区分哪些动词需要使用专门的过去式，如 “went”“bought”“ran”。",
+     "kc_ids": [
+      "g.past_simple_irregular",
+      "g.past_simple_regular"
+     ],
+     "suggestion": "用 go–went、buy–bought、run–ran 做原形与过去式配对练习，再分别用过去式写一句含 yesterday 的句子。"
+    }
+   ]
+  },
+  "task": "diagnose"
+ },
+ "f379faa8348145d9": {
+  "case": "two-targets-two-roots",
+  "output": {
+   "root_causes": [
+    {
+     "confidence": "high",
+     "evidence_ids": [
+      104,
+      105,
+      106
+     ],
+     "hypothesis": "你的这3处错误都把 be（is、are、aren't）用在了实义动词的疑问句或否定句中，如“Is he like football?”和“We aren't eat meat.”。这说明你把 be 的疑问、否定形式套用到了 like、eat、work 这类需要 do/does 的动词上。",
+     "kc_ids": [
+      "g.be_present",
+      "g.present_simple_questions_negatives"
+     ],
+     "suggestion": "把“He is busy.”和“He likes football.”分别改成疑问句和否定句，练习选择 is/isn't 或 does/doesn't。"
+    },
+    {
+     "confidence": "high",
+     "evidence_ids": [
+      101,
+      102,
+      103
+     ],
+     "hypothesis": "你的这3处第三条件句错误都在 if 从句中使用了一般过去时（asked、saw、woke），而主句的“would have + 过去分词”都正确。这说明你在表达与过去事实相反的假设时，没有把 if 从句也转换为“had + 过去分词”。",
+     "kc_ids": [
+      "g.third_conditional"
+     ],
+     "suggestion": "保留这3句的主句，只把 if 从句中的 asked、saw、woke 分别改为 had asked、had seen、had woken，再朗读完整句子。"
+    }
+   ]
+  },
+  "task": "diagnose"
+ }
+}

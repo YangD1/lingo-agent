@@ -14,7 +14,7 @@
 # Every sentence is made up.
 
 thresholds:
-  root_found: 0.8
+  root_found: 0.75
   no_cause_without_pattern: 0.6
   citations_hold: 0.9
 

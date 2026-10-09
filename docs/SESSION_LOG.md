@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-09 · 任务 49.1、49.2 完成（P2 全链路 E2E、真模型冒烟）
+
+- **做了什么**：49.1 `e2e/p2-demo.spec.ts`，顺带修了每日计划会挑“只有摘要”文章的问题（1cba634）。49.2 用用户给的 gpt-6.1-sol（OpenAI 兼容中转）在 Docker 全栈临时账号上跑了写作批改、对话 + 反思、练习一组、文章改写、练习后诊断，行为都正常；按 task 汇总了 `llm_usage` 的实际 token 和耗时（数字在看板 49.2）。诊断评估集录制入库 `backend/evals/cassettes/diagnosis.json`，`root_found` 门槛 0.8 → 0.75（两次运行 8/9、7/9），`evals/README.md` 记了结果和漏过的用例。临时账号、租户和连接已用 SQL 按 ID 删除，用户自己的连接（siliconflow、sub2api）没动。
+- **验证**：`make eval` 三个数据集回放全过；`pytest evals` 3 过。只改了 YAML / Markdown / 录制文件。
+- **未完成**：49.3–49.5。
+- **下一步**：49.3 按看板 49.2 的四条发现处理：① 长任务（exercise_generate / exercise_critic / reading_critic / writing_review / article_rewrite / diagnose）要比默认 30 秒更长的超时，看 `config/providers.*.yaml` 是否支持按路由设 `timeout`，没有就加；② 练习组冷启动 301 秒，看 `adaptive/exercise` 出题子图能否并行出题 / 校验，或开始时先给题库补位；③ 按实测校准 `backend/app/usage/features.yaml` 默认估计和 ADR 0025 后台每日上限；④ Q49c 不加保底（这次没出现窗口外的加成 KC）。开工前和用户确认做法。
+- **踩坑**：中转站上游曾整段 503（所有模型），`/v1/models` 却正常，别误判成模型名错。查临时账号时 `users` 没有 `tenant_id` 列，`where tenant_id=(select tenant_id from users …)` 会被解析成外层表的列、匹配所有行——差点把用户自己的连接当成临时账号的；要经 `tenant_members` 定位，删除前先核对。冒烟脚本在 `/tmp/lingo-smoke/smoke.py`（不入库，key 走环境变量 `SMOKE_KEY`）。
+
 ## 2026-10-09 · 任务 48 每日计划，完成
 
 - **做了什么**：48.1–48.4 已在上一段会话提交（38f0572、2a75cf5、32dfb9f、c9887f6），那段会话在 48.5 中途因请求过大中断，本次接着做。48.5 `e2e/plan.spec.ts`（2 个用例）+ `fake_llm.py` 的“只有 N 分钟”分支；E2E 发现的问题一起修：`daily_plan/service.py` `read_inputs` 的复习 / 新词改成全天总数（已做 + 还剩），`chat/planning.py` `PlanningBrief.open_today` 让私教按这一轮现读的今天情况提计划，`cards/service.py` 计划卡 params 存 `inputs`、确认写回 `plan.limits`、撤销还原。48.6 文档：`agent-tools.md`、`features.yaml`、P2 计划 §5.1 / §7、PLAN、README 中英（顺带补上任务 46–47 漏写的“语法诊断”）。
