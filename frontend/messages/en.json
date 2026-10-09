@@ -1371,7 +1371,8 @@
     "clearCache": "Clear my read-aloud cache",
     "clearCacheConfirm": "Delete the server's recordings of sentences read aloud for you? They'll be made (and billed) again next time.",
     "cacheCleared": "Deleted {count, plural, one {# recording} other {# recordings}}.",
-    "cacheClearFailed": "Couldn't clear it. Please try again later."
+    "cacheClearFailed": "Couldn't clear it. Please try again later.",
+    "clearCacheYes": "Clear"
   },
   "practice": {
     "focus": "This set focuses on: {kc}",

@@ -4,7 +4,7 @@ Run from frontend/: `uv run --project ../backend python e2e/fake_llm.py`.
 Replies are deterministic; a message containing "long" gets a slow ~4s reply so the
 "stop generating" test has something to interrupt. It also stands in for the attachment
 models (ADR 0008): structured image readings via function calling, a reply that says how
-many images it was shown, and /audio/transcriptions.
+many images it was shown, /audio/transcriptions, and /audio/speech for read-aloud.
 
 Memory (ADR 0009): reflection remembers what follows "remember that" in a learner
 message, and "what do you remember" gets back the facts found in the system prompt, so
@@ -41,7 +41,7 @@ from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, Request, UploadFile
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 PORT = int(os.environ.get("E2E_LLM_PORT", "8101"))
 DELAY = float(os.environ.get("FAKE_LLM_DELAY", "0.02"))
@@ -580,10 +580,20 @@ async def transcriptions(file: UploadFile) -> dict[str, Any]:
     return {"text": TRANSCRIPT}
 
 
+@app.post("/v1/audio/speech")
+async def speech(request: Request) -> Response:
+    """Read-aloud (ADR 0028 §3): a few bytes stand in for the mp3 (the pages under test
+    play it with a made-up Audio); a model named "...-broken" is down."""
+    body = await request.json()
+    if "broken" in body.get("model", ""):
+        return JSONResponse({"error": {"message": "speech is down"}}, status_code=503)
+    return Response(f"mp3:{body['voice']}:{body['input']}".encode(), media_type="audio/mpeg")
+
+
 # The model list the settings page fetches (ADR 0007 §1): an embedding and a speech model to
 # check that only chat models are offered for chat, and "fake-tutor" first so it's the
 # recommended one. The fake ignores model names, so fake-tutor also serves as the vision model.
-MODELS = ["fake-tutor", "fake-embedding", "fake-tutor-mini", "fake-whisper"]
+MODELS = ["fake-tutor", "fake-embedding", "fake-tutor-mini", "fake-whisper", "fake-tts"]
 
 
 @app.get("/v1/models")

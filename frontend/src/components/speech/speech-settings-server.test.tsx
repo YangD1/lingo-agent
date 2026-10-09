@@ -122,8 +122,7 @@ describe("SpeechSettings with a read-aloud service", () => {
     expect(fetch).not.toHaveBeenCalledWith("/api/speech/tts-cache", expect.anything());
     expect(screen.getByText(/billed\) again next time/)).toBeInTheDocument();
 
-    const confirm = screen.getAllByRole("button", { name: "Clear my read-aloud cache" }).at(-1)!;
-    await userEvent.click(confirm);
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
 
     expect(fetch).toHaveBeenCalledWith("/api/speech/tts-cache", expect.objectContaining({ method: "DELETE" }));
     expect(await screen.findByText("Deleted 3 recordings.")).toBeInTheDocument();

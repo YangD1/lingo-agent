@@ -1371,7 +1371,8 @@
     "clearCache": "清除我的朗读缓存",
     "clearCacheConfirm": "删除服务端为你朗读过的句子录音？下次读这些句子会重新生成（并再次计费）。",
     "cacheCleared": "已删除 {count} 段录音。",
-    "cacheClearFailed": "没能清除，请稍后再试。"
+    "cacheClearFailed": "没能清除，请稍后再试。",
+    "clearCacheYes": "清除"
   },
   "practice": {
     "focus": "这组专练：{kc}",

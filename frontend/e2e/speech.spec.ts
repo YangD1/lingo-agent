@@ -162,3 +162,130 @@ test("online voices that make no sound give way to the device's own", async ({ p
     `${ARIA.name}（这台设备上播不出声）`,
   );
 });
+
+// Server read-aloud (ADR 0028 §3, task 54): a made-up audio element that "plays" a
+// sentence in 50ms and records what it was given, instead of sound.
+async function fakeAudio(page: Page) {
+  await page.addInitScript(() => {
+    const played: string[] = [];
+    Object.assign(window, { __played: played });
+    class FakeAudio {
+      src = "";
+      onended: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      paused = true;
+      play() {
+        const src = this.src;
+        this.paused = false;
+        if (!src.startsWith("data:")) played.push(src); // not the moment of silence
+        setTimeout(() => {
+          if (this.src === src && !this.paused) this.onended?.();
+        }, 50);
+        return Promise.resolve();
+      }
+      pause() {
+        this.paused = true;
+      }
+    }
+    Object.defineProperty(window, "Audio", { value: FakeAudio, configurable: true });
+  });
+}
+
+const played = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __played: string[] }).__played);
+
+async function readAloudRoute(page: Page, model: string) {
+  const route = await page.request.put("/api/tenant/routes/tts/default", {
+    data: { models: [`fake:${model}`] },
+  });
+  expect(route.status()).toBe(200);
+}
+
+test("a read-aloud route reads replies on the server, from the cache the second time", async ({
+  page,
+}) => {
+  await fakeVoices(page, [ZIRA, XIAOXIAO]);
+  await fakeAudio(page);
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await readAloudRoute(page, "fake-tts");
+  const cached: string[] = [];
+  page.on("response", (response) => {
+    if (response.url().endsWith("/api/speech/tts")) cached.push(response.headers()["x-tts-cached"]);
+  });
+  await page.goto("/chat");
+
+  await chat(page, "apples");
+  const reply = page.locator('li[data-role="assistant"]').last();
+  await expect(reply.locator('[data-slot="message"]')).toContainText("You said");
+  // The server's voice costs something: the button says it uses AI.
+  await expect(reply.getByTestId("ai-badge-read_aloud")).toBeVisible();
+  const read = reply.getByRole("button", { name: "朗读", exact: true });
+  await read.click();
+
+  // Sentence by sentence, the second fetched while the first plays; nothing for the browser.
+  await expect.poll(() => cached).toEqual(["0", "0"]);
+  await expect(read).toBeVisible(); // done reading
+  expect(await played(page)).toHaveLength(2);
+  expect(await spoken(page)).toEqual([]);
+
+  await read.click();
+  await expect.poll(() => cached).toEqual(["0", "0", "1", "1"]);
+  await expect(read).toBeVisible();
+
+  // The usage page counts the characters read; the learner can clear their recordings.
+  await expect(async () => {
+    await page.goto("/settings"); // usage is written in the background
+    await expect(page.locator("#usage")).toContainText("朗读字符", { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  const card = page.locator("#read-aloud");
+  await expect(card.getByTestId("speech-server")).toBeChecked();
+  await card.getByRole("button", { name: "清除我的朗读缓存" }).click();
+  await card.getByRole("button", { name: "清除", exact: true }).click();
+  await expect(card.getByText("已删除 2 段录音。")).toBeVisible();
+});
+
+test("when the read-aloud service fails, the browser reads instead", async ({ page }) => {
+  await fakeVoices(page, [ZIRA, XIAOXIAO]);
+  await fakeAudio(page);
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await readAloudRoute(page, "fake-tts-broken");
+  await page.goto("/chat");
+
+  await chat(page, "apples");
+  const reply = page.locator('li[data-role="assistant"]').last();
+  await expect(reply.locator('[data-slot="message"]')).toContainText("You said");
+  await reply.getByRole("button", { name: "朗读", exact: true }).click();
+
+  await expect.poll(async () => (await spoken(page)).map((u) => u.text)).toEqual([
+    "Nice try!",
+    "You said: apples",
+  ]);
+  expect(await played(page)).toEqual([]);
+  // For the rest of the page the device reads, and the settings say why.
+  await expect(reply.getByTestId("ai-badge-read_aloud")).toHaveCount(0);
+  await reply.getByRole("button", { name: "朗读设置" }).click();
+  await expect(page.getByTestId("speech-settings")).toContainText("朗读服务在这个页面暂时不可用");
+});
+
+test("the read-aloud route takes a voice per language in settings", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await readAloudRoute(page, "fake-tts");
+  await page.goto("/settings");
+
+  const card = page.getByTestId("route-tts");
+  await expect(card).toContainText("fake:fake-tts");
+  await card.getByRole("button", { name: "调整顺序" }).click();
+  const british = card.getByLabel("第 1 个模型的英音声音");
+  await expect(british).toHaveAttribute("placeholder", "默认：coral");
+  await british.fill("fable");
+  await british.press("Escape");
+  await card.getByRole("button", { name: "保存", exact: true }).click();
+
+  await expect(card).toContainText("英音 fable");
+  const routes = await (await page.request.get("/api/tenant/routes")).json();
+  const tts = routes.find((r: { section: string }) => r.section === "tts");
+  expect(tts.params).toEqual({ voices: { "fake:fake-tts": { "en-GB": "fable" } } });
+});

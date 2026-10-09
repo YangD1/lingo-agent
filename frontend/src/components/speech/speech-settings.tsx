@@ -214,7 +214,7 @@ function ClearCache() {
   };
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
-      <InlineConfirm question={t("clearCacheConfirm")} confirmLabel={t("clearCache")} onConfirm={() => void clear()}>
+      <InlineConfirm question={t("clearCacheConfirm")} confirmLabel={t("clearCacheYes")} onConfirm={() => void clear()}>
         {(ask) => (
           <Button size="xs" variant="outline" onClick={ask} disabled={state === "busy"}>
             {t("clearCache")}
