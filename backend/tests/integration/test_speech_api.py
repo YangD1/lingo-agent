@@ -132,6 +132,29 @@ async def test_a_language_without_a_voice_is_left_to_the_browser(
     assert vendor.seen == []
 
 
+async def test_route_shows_built_in_voices_and_keeps_chosen_ones(
+    client: AsyncClient, vendor: Any
+) -> None:
+    await setup(client)
+    kokoro = "one:speaches-ai/Kokoro-82M-v1.0-ONNX"
+    route = {
+        "models": [kokoro, "two:tts-1"],
+        "params": {"voices": {kokoro: {"en-US": "am_adam"}}},
+    }
+    saved = (await client.put("/tenant/routes/tts/default", json=route)).json()
+
+    assert saved["params"] == {"voices": {kokoro: {"en-US": "am_adam"}}}
+    assert saved["default_voices"] == {
+        kokoro: {"en-US": "af_heart", "en-GB": "bf_emma", "zh-CN": None},
+        "two:tts-1": {"en-US": "coral", "en-GB": "coral", "zh-CN": "coral"},
+    }
+    routes = (await client.get("/tenant/routes")).json()
+    chat = next(r for r in routes if r["section"] == "llm" and r["task"] == "chat")
+    assert chat["default_voices"] is None
+    await client.post("/speech/tts", json=say())
+    assert b'"voice":"am_adam"' in vendor.seen[0].content.replace(b" ", b"")
+
+
 async def test_every_model_failing_is_a_502(client: AsyncClient, vendor: Any) -> None:
     await setup(client)
     vendor.status.update({"one.example.com": 500, "two.example.com": 429})

@@ -19,6 +19,7 @@ from app.providers.config import (
     SPEECH_ONLY_KINDS,
     TTS_KINDS,
     ProvidersConfig,
+    ResolvedModel,
     RouteSource,
     RouteSpec,
     Section,
@@ -36,6 +37,7 @@ from app.providers.model_catalog import (
     looks_like_text_to_speech,
 )
 from app.providers.tenant import load_provider_context
+from app.providers.tts import LANGUAGES, Language, default_voice
 
 router = APIRouter(tags=["model settings"])
 
@@ -59,6 +61,9 @@ class TaskRouteOut(BaseModel):
     # (ADR 0007 §3); empty / None when nothing is usable yet.
     effective: list[str]
     effective_source: RouteSource | None
+    # tts only: the built-in voice each model in the chain reads each language with,
+    # where the route's `voices` don't say (null: none, so it's skipped for that language).
+    default_voices: dict[str, dict[Language, str | None]] | None = None
 
 
 class PresetsOut(BaseModel):
@@ -349,7 +354,24 @@ def _task_route_out(
         overridden=overridden,
         effective=effective,
         effective_source=effective_source,
+        default_voices=(
+            _default_voices(ctx, [*route.models, *effective]) if section == "tts" else None
+        ),
     )
+
+
+def _default_voices(
+    ctx: TenantProviderContext, refs: list[str]
+) -> dict[str, dict[Language, str | None]]:
+    out: dict[str, dict[Language, str | None]] = {}
+    for ref in refs:
+        name, _, model = ref.partition(":")
+        conn = ctx.connections.get(name)
+        if conn is None or ref in out:
+            continue
+        resolved = ResolvedModel(name, conn.kind, model, conn.base_url, None)
+        out[ref] = {lang: default_voice(resolved, lang) for lang in LANGUAGES}
+    return out
 
 
 @router.get("/tenant/routes", dependencies=[Manager])

@@ -36,8 +36,24 @@ const TEST_AS = {
   chat: "testAsChat",
   asr: "testAsAsr",
   vision: "testAsVision",
+  tts: "testAsTts",
 } as const;
-const TEST_OK = { chat: "testOk", asr: "testOkAsr", vision: "testOkVision" } as const;
+const TEST_OK = {
+  chat: "testOk",
+  asr: "testOkAsr",
+  vision: "testOkVision",
+  tts: "testOkTts",
+} as const;
+const NOT_SUPPORTED: Record<string, "asrNotSupported" | "visionNotSupported" | "ttsNotSupported"> = {
+  asr_not_supported: "asrNotSupported",
+  vision_not_supported: "visionNotSupported",
+  tts_not_supported: "ttsNotSupported",
+};
+
+// Azure Speech's endpoint is its region's (ADR 0028 §2); China's regions are on azure.cn.
+const AZURE_HOST = /^https:\/\/([a-z0-9]+)\.tts\.speech\.(microsoft\.com|azure\.cn)\/?$/;
+export const azureBaseUrl = (region: string, china: boolean) =>
+  `https://${region}.tts.speech.${china ? "azure.cn" : "microsoft.com"}`;
 
 type Props = {
   presets: Presets;
@@ -104,7 +120,10 @@ function ConnectionItem({
   const t = useTranslations("settings.connections");
   const format = useFormatter();
   const describe = useDescribeError();
-  const [model, setModel] = useState(c.default_model ?? "");
+  // A read-aloud-only connection has no default model: start from its first preset voice.
+  const [model, setModel] = useState(
+    c.default_model ?? (c.kind === "azure_speech" ? (presetModels[0] ?? "") : ""),
+  );
   const [catalog, setCatalog] = useState<Catalog>({ state: loadOnMount ? "loading" : "idle" });
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -131,7 +150,7 @@ function ConnectionItem({
   async function fetchModels() {
     try {
       const [ids, routes] = await Promise.all([
-        fetchConnectionModels(c.id),
+        fetchConnectionModels(c.id, c.kind === "azure_speech" ? "all" : "chat"),
         api<TaskRoute[]>("/tenant/routes").catch(() => []),
       ]);
       setCatalog({ state: "ok", ids });
@@ -171,11 +190,9 @@ function ConnectionItem({
           : {
               ok: false,
               text:
-                r.error_code === "asr_not_supported"
-                  ? t("asrNotSupported")
-                  : r.error_code === "vision_not_supported"
-                    ? t("visionNotSupported")
-                    : t("testFailed", { error: r.error ?? "" }),
+                r.error_code && NOT_SUPPORTED[r.error_code]
+                  ? t(NOT_SUPPORTED[r.error_code])
+                  : t("testFailed", { error: r.error ?? "" }),
             },
       );
       // The backend recorded last_verified_at / last_error; show them.
@@ -216,6 +233,8 @@ function ConnectionItem({
     });
 
   const saved = c.default_model ?? "";
+  // A read-aloud-only connection serves no chat: the box only picks the voice to test.
+  const speechOnly = c.kind === "azure_speech";
   return (
     <li
       className="flex flex-col gap-3 rounded-lg border p-3.5"
@@ -291,7 +310,7 @@ function ConnectionItem({
         </div>
       </dl>
       <div className="flex flex-col gap-2">
-        <Label htmlFor={`model-${c.id}`}>{t("defaultModel")}</Label>
+        <Label htmlFor={`model-${c.id}`}>{t(speechOnly ? "testVoice" : "defaultModel")}</Label>
         <div className="flex flex-wrap items-center gap-2">
           <div className="max-w-full min-w-48 flex-1 md:max-w-80">
             <AutocompleteInput
@@ -309,13 +328,15 @@ function ConnectionItem({
               className="font-mono"
             />
           </div>
-          <Button
-            variant="outline"
-            onClick={saveModel}
-            disabled={busy || model.trim() === saved}
-          >
-            {t("saveModel")}
-          </Button>
+          {!speechOnly && (
+            <Button
+              variant="outline"
+              onClick={saveModel}
+              disabled={busy || model.trim() === saved}
+            >
+              {t("saveModel")}
+            </Button>
+          )}
           <Button variant="outline" onClick={test} disabled={busy || !model.trim()}>
             {t("test")}
           </Button>
@@ -332,8 +353,14 @@ function ConnectionItem({
             ))}
           </NativeSelect>
         </div>
-        <p className="text-xs text-muted-foreground">{t("defaultModelHint")}</p>
-        <CatalogStatus catalog={catalog} hasDefault={saved !== ""} onRetry={loadModels} />
+        <p className="text-xs text-muted-foreground">
+          {t(speechOnly ? "testVoiceHint" : "defaultModelHint")}
+        </p>
+        <CatalogStatus
+          catalog={catalog}
+          hasDefault={saved !== "" || speechOnly}
+          onRetry={loadModels}
+        />
       </div>
       {editing && (
         <EditConnectionForm
@@ -515,6 +542,9 @@ function AddConnectionForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const preset = available.find((p) => p.name === choice);
+  const azure = preset?.kind === "azure_speech" ? AZURE_HOST.exec(preset.base_url) : null;
+  const [region, setRegion] = useState("");
+  const [china, setChina] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -522,7 +552,13 @@ function AddConnectionForm({
     const data = new FormData(form);
     const apiKey = String(data.get("api_key") ?? "") || undefined;
     const body = preset
-      ? { preset: preset.name, api_key: apiKey }
+      ? {
+          preset: preset.name,
+          api_key: apiKey,
+          ...(azure && (region.trim() || china)
+            ? { base_url: azureBaseUrl(region.trim() || azure[1], china) }
+            : {}),
+        }
       : {
           name: String(data.get("name")),
           kind: String(data.get("kind")),
@@ -557,9 +593,36 @@ function AddConnectionForm({
             <option value={CUSTOM}>{t("custom")}</option>
           </NativeSelect>
           {preset && (
-            <p className="truncate font-mono text-xs text-muted-foreground">{preset.base_url}</p>
+            <p className="truncate font-mono text-xs text-muted-foreground">
+              {azure ? azureBaseUrl(region.trim() || azure[1], china) : preset.base_url}
+            </p>
           )}
         </div>
+        {azure && (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="azure-region">{t("azureRegion")}</Label>
+            <Input
+              id="azure-region"
+              value={region}
+              onChange={(e) => setRegion(e.target.value.toLowerCase())}
+              placeholder={azure[1]}
+              pattern="[a-z0-9]+"
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono"
+            />
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={china}
+                onChange={(e) => setChina(e.target.checked)}
+              />
+              {t("azureChina")}
+            </label>
+            <p className="text-xs text-muted-foreground">{t("azureRegionHint")}</p>
+          </div>
+        )}
         {!preset && (
           <>
             <div className="flex flex-col gap-2">

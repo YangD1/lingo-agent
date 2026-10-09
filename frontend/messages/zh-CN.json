@@ -759,7 +759,15 @@
       "off": "已停用",
       "offHint": "已停用：所有功能都不会用这个连接，配置和密钥都保留，随时可以打开。",
       "switchedOn": "已启用这个连接。",
-      "switchedOff": "已停用这个连接。"
+      "switchedOff": "已停用这个连接。",
+      "testAsTts": "朗读",
+      "testOkTts": "朗读可用（{ms} 毫秒）",
+      "ttsNotSupported": "这个连接不支持朗读（服务器没有 /audio/speech 接口，或没有这个声音）。请改用 Azure 语音、硅基流动、OpenAI 或本地 Speaches 的朗读模型。",
+      "testVoice": "测试用的声音",
+      "testVoiceHint": "这个连接只用来朗读。在这里选一个声音测试；用哪些声音在下面的“朗读”路由里设置。",
+      "azureRegion": "区域",
+      "azureChina": "Azure 中国区（azure.cn）",
+      "azureRegionHint": "语音资源所在的区域，比如 eastasia、eastus、chinaeast2。地址按区域自动生成。"
     },
     "route": {
       "source": {
@@ -805,6 +813,11 @@
           "title": "语音转文字",
           "description": "转写语音消息和音频文件（OpenAI 兼容的 /audio/transcriptions 接口，比如 Groq、OpenAI、SiliconFlow 或本地的 speaches）。",
           "none": "未配置：添加模型之前，无法转写语音消息。"
+        },
+        "tts": {
+          "title": "朗读",
+          "description": "用服务端的声音朗读私教回复、单词和例句（Azure 语音、OpenAI 兼容的 /audio/speech 接口，比如硅基流动、OpenAI 或本地的 speaches）。读过的句子会缓存。",
+          "none": "未配置：由学习者的浏览器朗读。"
         }
       },
       "fallback": "备用",
@@ -814,7 +827,17 @@
       "connectionMissing": "连接已删除",
       "allOff": "这个功能的模型都停用了，打开一个才能使用。",
       "switchedOn": "已启用 {ref}。",
-      "switchedOff": "已停用 {ref}，调用时会跳过它。"
+      "switchedOff": "已停用 {ref}，调用时会跳过它。",
+      "voiceLang": {
+        "en-US": "美音",
+        "en-GB": "英音",
+        "zh-CN": "中文"
+      },
+      "voice": "第 {n} 个模型的{lang}声音",
+      "voiceDefault": "默认：{voice}",
+      "voiceNone": "没有内置声音，这种语言交给下一个模型或浏览器",
+      "voiceBuiltIn": "内置默认声音（保存后显示）",
+      "voicesHint": "每个模型下可以按语言指定声音，留空用内置声音。Azure 连接可以从它的声音列表里选。"
     },
     "usage": {
       "title": "用量",

@@ -12,7 +12,12 @@ import { Switch } from "@/components/ui/switch";
 import { Tag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
-import type { Connection, TaskRoute } from "@/lib/types";
+import {
+  type Connection,
+  type TaskRoute,
+  VOICE_LANGUAGES,
+  type VoiceLanguage,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 import { fetchModels } from "./model-catalog";
@@ -22,27 +27,31 @@ const MAX_ROWS = 5; // the backend's limit on a route's fallback chain
 
 /**
  * The routes the settings page edits: chat, the two that attachments need (ADR 0008 §5),
- * and the background model that keeps the tutor's memory (ADR 0009).
+ * the background model that keeps the tutor's memory (ADR 0009), and read-aloud (ADR 0028).
  */
-export type RouteTask = "chat" | "reflect" | "vision" | "asr";
+export type RouteTask = "chat" | "reflect" | "vision" | "asr" | "tts";
 const SECTION: Record<RouteTask, TaskRoute["section"]> = {
   chat: "llm",
   reflect: "llm",
   vision: "llm",
   asr: "asr",
+  tts: "tts",
 };
-// The asr section has a single route, stored under the task name "default".
+// The asr and tts sections have a single route each, stored under the task name "default".
 const TASK_KEY: Record<RouteTask, string> = {
   chat: "chat",
   reflect: "reflect",
   vision: "vision",
   asr: "default",
+  tts: "default",
 };
 // A connection's default model is a chat model: only a good first guess for these.
 const TEXT_TASKS = new Set<RouteTask>(["chat", "reflect"]);
 
 // `off`: switched off in this route, kept in the chain but never called (ADR 0026).
-type Row = { key: number; connection: string; model: string; off: boolean };
+// `voices` (read-aloud only): the voice for each language, over the built-in one.
+type Voices = Partial<Record<VoiceLanguage, string>>;
+type Row = { key: number; connection: string; model: string; off: boolean; voices: Voices };
 // Why a row in the saved chain does or doesn't run.
 type RowState = "on" | "off" | "connectionOff" | "connectionMissing";
 // Per connection name: its chat models, or why they aren't there (the user can still type one).
@@ -79,12 +88,15 @@ export function RouteSection({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable in effect
   useEffect(() => void load(), [connections]);
 
-  const row = (connection: string, model: string, off = false): Row => ({
+  const row = (connection: string, model: string, off = false, voices: Voices = {}): Row => ({
     key: nextKey.current++,
     connection,
     model,
     off,
+    voices,
   });
+  // A read-aloud route's chosen voices, by "<connection>:<model>".
+  const savedVoices = (route?.params.voices ?? {}) as Record<string, Voices>;
 
   // The chain as the tenant saved it (switched-off rows and rows whose connection is off
   // included), or what runs now when nothing is saved: the YAML route may name connections
@@ -104,7 +116,9 @@ export function RouteSection({
     // Start from the chain shown, so editing is "adjust this", never a blank page.
     const initial = shown.flatMap((ref) => {
       const i = ref.indexOf(":");
-      return i > 0 ? [row(ref.slice(0, i), ref.slice(i + 1), route.disabled.includes(ref))] : [];
+      return i > 0
+        ? [row(ref.slice(0, i), ref.slice(i + 1), route.disabled.includes(ref), savedVoices[ref])]
+        : [];
     });
     setRows(initial.length > 0 ? initial : [newRow()]);
   }
@@ -114,11 +128,18 @@ export function RouteSection({
     return row(c?.name ?? "", TEXT_TASKS.has(task) ? (c?.default_model ?? "") : "");
   }
 
-  async function put(models: string[], disabled: string[]): Promise<boolean> {
+  async function put(
+    models: string[],
+    disabled: string[],
+    voices?: Record<string, Voices>,
+  ): Promise<boolean> {
     setMessage(null);
     setBusy(true);
+    const params = voices && Object.keys(voices).length > 0 ? { params: { voices } } : {};
     try {
-      setRoute(await api<TaskRoute>(path, { method: "PUT", json: { models, disabled } }));
+      setRoute(
+        await api<TaskRoute>(path, { method: "PUT", json: { models, disabled, ...params } }),
+      );
       return true;
     } catch (e) {
       setMessage({ ok: false, text: describe(e) });
@@ -132,7 +153,10 @@ export function RouteSection({
   async function toggle(ref: string, on: boolean) {
     if (!route) return;
     const disabled = on ? route.disabled.filter((x) => x !== ref) : [...route.disabled, ref];
-    if (await put(shown, disabled)) {
+    const voices = Object.fromEntries(
+      Object.entries(savedVoices).filter(([voiceRef]) => shown.includes(voiceRef)),
+    );
+    if (await put(shown, disabled, voices)) {
       setMessage({ ok: true, text: t(on ? "switchedOn" : "switchedOff", { ref }) });
     }
   }
@@ -141,7 +165,9 @@ export function RouteSection({
     const c = connections.find((x) => x.name === name);
     if (!c || catalogs[name]) return;
     setCatalogs((all) => ({ ...all, [name]: "loading" }));
-    fetchModels(c.id, task === "asr" ? "speech" : "chat").then(
+    const use =
+      task === "asr" ? "speech" : task === "tts" ? (c.kind === "azure_speech" ? "all" : "tts") : "chat";
+    fetchModels(c.id, use).then(
       (ids) => setCatalogs((all) => ({ ...all, [name]: ids })),
       () => setCatalogs((all) => ({ ...all, [name]: "failed" })),
     );
@@ -165,7 +191,17 @@ export function RouteSection({
 
   async function save() {
     const disabled = (rows ?? []).flatMap((r, i) => (r.off ? [refs[i]] : []));
-    if (await put(refs, disabled)) {
+    const voices = Object.fromEntries(
+      (rows ?? []).flatMap((r, i) => {
+        const chosen = Object.fromEntries(
+          Object.entries(r.voices).flatMap(([lang, voice]) =>
+            voice?.trim() ? [[lang, voice.trim()]] : [],
+          ),
+        );
+        return Object.keys(chosen).length > 0 ? [[refs[i], chosen]] : [];
+      }),
+    );
+    if (await put(refs, disabled, voices)) {
       setRows(null);
       setMessage({ ok: true, text: t("saved") });
     }
@@ -235,6 +271,15 @@ export function RouteSection({
                       {state === "connectionMissing" && (
                         <Tag variant="outline">{t("connectionMissing")}</Tag>
                       )}
+                      {task === "tts" && savedVoices[m] && (
+                        <span className="truncate text-xs text-muted-foreground">
+                          {VOICE_LANGUAGES.flatMap((lang) =>
+                            savedVoices[m]?.[lang]
+                              ? [`${t(`voiceLang.${lang}`)} ${savedVoices[m][lang]}`]
+                              : [],
+                          ).join(" · ")}
+                        </span>
+                      )}
                       <Switch
                         size="sm"
                         className="ml-auto"
@@ -268,6 +313,7 @@ export function RouteSection({
         {rows !== null && (
           <>
             <p className="text-xs text-muted-foreground">{t("editHint")}</p>
+            {task === "tts" && <p className="text-xs text-muted-foreground">{t("voicesHint")}</p>}
             <ol
               className="flex flex-col divide-y border-y"
               aria-label={t("editLabel", { title: t(`tasks.${task}.title`) })}
@@ -360,6 +406,21 @@ export function RouteSection({
                         <X />
                       </Button>
                     </div>
+                    {task === "tts" && (
+                      <VoiceInputs
+                        index={i}
+                        voices={r.voices}
+                        defaults={route?.default_voices?.[refs[i]]}
+                        catalog={
+                          connections.find((c) => c.name === r.connection)?.kind ===
+                            "azure_speech" && Array.isArray(catalog)
+                            ? catalog
+                            : []
+                        }
+                        onOpen={() => loadCatalog(r.connection)}
+                        onChange={(voices) => update(r.key, { voices })}
+                      />
+                    )}
                   </li>
                 );
               })}
@@ -397,5 +458,58 @@ export function RouteSection({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * The voice a read-aloud model reads each language with (Q54b). Empty means the built-in
+ * voice, shown as the placeholder; an Azure connection offers its voices for the language.
+ */
+function VoiceInputs({
+  index,
+  voices,
+  defaults,
+  catalog,
+  onOpen,
+  onChange,
+}: {
+  index: number;
+  voices: Voices;
+  /** The built-in voices, known once the route is saved with this model. */
+  defaults: Record<VoiceLanguage, string | null> | undefined;
+  catalog: string[];
+  onOpen: () => void;
+  onChange: (voices: Voices) => void;
+}) {
+  const t = useTranslations("settings.route");
+  return (
+    <div className="grid w-full gap-2 pl-6 sm:grid-cols-3" data-testid={`voices-${index + 1}`}>
+      {VOICE_LANGUAGES.map((lang) => {
+        const builtIn = defaults?.[lang];
+        return (
+          <div key={lang} className="flex min-w-0 flex-col gap-1">
+            <span className="text-xs text-muted-foreground">{t(`voiceLang.${lang}`)}</span>
+            <AutocompleteInput
+              aria-label={t("voice", { lang: t(`voiceLang.${lang}`), n: index + 1 })}
+              value={voices[lang] ?? ""}
+              onValueChange={(voice) => onChange({ ...voices, [lang]: voice })}
+              items={catalog.filter((id) => id.startsWith(`${lang}-`) || id.includes("Multilingual"))}
+              onOpenChange={(open) => open && onOpen()}
+              empty={t("modelsNoMatch")}
+              placeholder={
+                defaults === undefined
+                  ? t("voiceBuiltIn")
+                  : builtIn
+                    ? t("voiceDefault", { voice: builtIn })
+                    : t("voiceNone")
+              }
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono text-xs"
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 }

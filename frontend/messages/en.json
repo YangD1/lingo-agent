@@ -759,7 +759,15 @@
       "off": "Off",
       "offHint": "Off: no feature uses this connection. Its settings and key are kept; turn it back on any time.",
       "switchedOn": "Connection turned on.",
-      "switchedOff": "Connection turned off."
+      "switchedOff": "Connection turned off.",
+      "testAsTts": "Read aloud",
+      "testOkTts": "Read-aloud works ({ms} ms)",
+      "ttsNotSupported": "This connection can't read aloud (the server has no /audio/speech endpoint, or no such voice). Use a read-aloud model from Azure Speech, SiliconFlow, OpenAI or a local Speaches instead.",
+      "testVoice": "Voice to test",
+      "testVoiceHint": "This connection only reads aloud. Pick a voice here to test it; which voices are used is set in the Read aloud route below.",
+      "azureRegion": "Region",
+      "azureChina": "Azure China (azure.cn)",
+      "azureRegionHint": "The region of your Speech resource, such as eastasia, eastus or chinaeast2. The address follows from it."
     },
     "route": {
       "source": {
@@ -805,6 +813,11 @@
           "title": "Speech-to-text",
           "description": "Transcribes voice messages and audio files (an OpenAI-compatible /audio/transcriptions API, e.g. Groq, OpenAI, SiliconFlow or a local speaches server).",
           "none": "Not set up: voice messages can't be transcribed until you add a model here."
+        },
+        "tts": {
+          "title": "Read aloud",
+          "description": "Reads tutor replies, words and examples with a server voice (Azure Speech, or an OpenAI-compatible /audio/speech endpoint such as SiliconFlow, OpenAI or a local speaches). Sentences already read are cached.",
+          "none": "Not set up: learners' browsers read aloud."
         }
       },
       "fallback": "Fallback",
@@ -814,7 +827,17 @@
       "connectionMissing": "Connection deleted",
       "allOff": "Every model here is switched off. Turn one on to use this.",
       "switchedOn": "{ref} is on.",
-      "switchedOff": "{ref} is off and will be skipped."
+      "switchedOff": "{ref} is off and will be skipped.",
+      "voiceLang": {
+        "en-US": "American",
+        "en-GB": "British",
+        "zh-CN": "Chinese"
+      },
+      "voice": "{lang} voice of model {n}",
+      "voiceDefault": "Default: {voice}",
+      "voiceNone": "No built-in voice: the next model or the browser reads this language",
+      "voiceBuiltIn": "Built-in voice (shown once saved)",
+      "voicesHint": "Under each model you can choose a voice per language; empty uses the built-in one. An Azure connection offers its voices."
     },
     "usage": {
       "title": "Usage",

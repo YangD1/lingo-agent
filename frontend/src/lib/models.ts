@@ -13,6 +13,16 @@ export function speechModelIds(models: DiscoveredModel[]): string[] {
   return models.filter((m) => m.category !== "embedding" && SPEECH_TO_TEXT.test(m.id)).map((m) => m.id);
 }
 
+// Read-aloud models by name; the backend files them under "other" too.
+const TEXT_TO_SPEECH = /tts|kokoro|cosyvoice|piper|melo|speech/i;
+
+/** Model ids that can go in a read-aloud dropdown (an Azure connection's ids are all voices). */
+export function ttsModelIds(models: DiscoveredModel[]): string[] {
+  return models
+    .filter((m) => m.category !== "embedding" && TEXT_TO_SPEECH.test(m.id))
+    .map((m) => m.id);
+}
+
 /** The model part of "<connection>:<model>" refs, in order. */
 export function modelsOfRefs(refs: string[]): string[] {
   return refs.flatMap((ref) => {

@@ -203,4 +203,56 @@ describe("RouteSection", () => {
       }),
     );
   });
+
+  it("edits a read-aloud route's voices per language, keeping them when a row is switched", async () => {
+    const kokoro = "local:speaches-ai/Kokoro-82M-v1.0-ONNX";
+    const tts = route({
+      section: "tts",
+      task: "default",
+      models: [kokoro],
+      params: { voices: { [kokoro]: { "en-US": "am_adam" } } },
+      overridden: true,
+      effective: [kokoro],
+      effective_source: "override",
+      default_voices: { [kokoro]: { "en-US": "af_heart", "en-GB": "bf_emma", "zh-CN": null } },
+    });
+    const LOCAL = { ...RELAY, name: "local" };
+    api.mockImplementation(async (path: string, init?: { json?: unknown }) =>
+      path === "/tenant/routes" ? [...ROUTES, tts] : { ...tts, ...(init?.json as object) },
+    );
+    show("tts", [LOCAL]);
+
+    expect(await screen.findByText("American am_adam")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("switch", { name: `Use ${kokoro}` }));
+    expect(api).toHaveBeenCalledWith("/tenant/routes/tts/default", {
+      method: "PUT",
+      json: {
+        models: [kokoro],
+        disabled: [kokoro],
+        params: { voices: { [kokoro]: { "en-US": "am_adam" } } },
+      },
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit order" }));
+    const british = screen.getByLabelText("British voice of model 1");
+    expect(british).toHaveAttribute("placeholder", "Default: bf_emma");
+    expect(screen.getByLabelText("Chinese voice of model 1")).toHaveAttribute(
+      "placeholder",
+      expect.stringMatching(/^No built-in voice/),
+    );
+    expect(screen.getByLabelText("American voice of model 1")).toHaveValue("am_adam");
+    await userEvent.clear(screen.getByLabelText("American voice of model 1"));
+    await userEvent.type(british, "bm_george");
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(api).toHaveBeenLastCalledWith("/tenant/routes/tts/default", {
+      method: "PUT",
+      json: {
+        models: [kokoro],
+        disabled: [kokoro],
+        params: { voices: { [kokoro]: { "en-GB": "bm_george" } } },
+      },
+    });
+  });
 });

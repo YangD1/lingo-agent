@@ -51,7 +51,13 @@ export type HistoryMessage = {
   attachments: Attachment[];
 };
 
-export const PROVIDER_KINDS = ["deepseek", "anthropic", "openai", "openai_compatible"] as const;
+export const PROVIDER_KINDS = [
+  "deepseek",
+  "anthropic",
+  "openai",
+  "openai_compatible",
+  "azure_speech",
+] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 export type Preset = {
   name: string;
@@ -74,7 +80,7 @@ export type Connection = {
   last_verified_at: string | null;
   last_error: string | null;
 };
-export type TestPurpose = "chat" | "asr" | "vision";
+export type TestPurpose = "chat" | "asr" | "vision" | "tts";
 export type ConnectionTest = {
   ok: boolean;
   error: string | null;
@@ -86,7 +92,7 @@ export type ConnectionTest = {
   purpose: TestPurpose;
 };
 export type TaskRoute = {
-  section: "llm" | "embedding" | "asr";
+  section: "llm" | "embedding" | "asr" | "tts";
   task: string;
   models: string[];
   params: Record<string, unknown>;
@@ -96,7 +102,15 @@ export type TaskRoute = {
   // What actually runs now and which layer it came from (ADR 0007 §3).
   effective: string[];
   effective_source: "override" | "default" | "auto" | null;
+  /**
+   * tts only: per "<connection>:<model>", the voice it reads each language with when
+   * `params.voices` doesn't say; null: none, so that language goes to the next model.
+   */
+  default_voices?: Record<string, Record<VoiceLanguage, string | null>> | null;
 };
+/** The languages a read-aloud route has voices for (backend/app/providers/tts.py). */
+export const VOICE_LANGUAGES = ["en-US", "en-GB", "zh-CN"] as const;
+export type VoiceLanguage = (typeof VOICE_LANGUAGES)[number];
 export type DiscoveredModel = { id: string; category: "chat" | "embedding" | "other" };
 export type ModelList = { models: DiscoveredModel[] };
 export type UsageRow = {
