@@ -12,7 +12,9 @@ import { useReviewSession } from "./use-review-session";
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
-  api,
+  // The read-aloud button asks what the server reads: nothing, here.
+  api: (path: string, init?: unknown) =>
+    path === "/speech/capabilities" ? Promise.resolve({ tts: false }) : api(path, init),
 }));
 
 const card = (id: number, spelling: string, overrides: Partial<Card> = {}): Card => ({

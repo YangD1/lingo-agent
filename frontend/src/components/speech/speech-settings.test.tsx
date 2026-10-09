@@ -79,7 +79,7 @@ afterEach(() => {
 
 describe("parseSpeechSettings", () => {
   it("falls back to the defaults for anything missing, broken or out of range", () => {
-    const defaults = { accent: "en-US", enRate: 0.9, enVoice: null, zhVoice: null };
+    const defaults = { accent: "en-US", enRate: 0.9, enVoice: null, server: true, zhVoice: null };
     expect(parseSpeechSettings(null)).toEqual(defaults);
     expect(parseSpeechSettings("not json")).toEqual(defaults);
     expect(parseSpeechSettings('{"accent":"fr-FR","enRate":"fast","enVoice":3}')).toEqual(defaults);

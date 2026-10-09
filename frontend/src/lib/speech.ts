@@ -1,9 +1,12 @@
 import { useCallback, useSyncExternalStore } from "react";
 
+import { api, apiFetch, ApiError } from "@/lib/api";
 import { isOnline, pickVoices, type VoiceChoice, type VoiceLike } from "@/lib/voices";
 
 /**
- * Read-aloud in the browser (ADR 0017 §5, ADR 0018 §1): free, no model, no server. Voices
+ * Read-aloud (ADR 0018, ADR 0028 §3). When the tenant has a read-aloud route, the server
+ * reads the languages it has a voice for; everything else, and everything once the server
+ * fails on this page, is read in the browser: free, no model, no server. Browser voices
  * vary by device, so we pick the best one this device has for each language.
  */
 export const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window;
@@ -36,8 +39,11 @@ export function speechSegments(text: string): Segment[] {
   return out.map((s) => ({ ...s, text: s.text.trim() })).filter((s) => s.text);
 }
 
-/** Read-aloud settings (ADR 0018 §2): kept in this browser, as voices differ by device. */
-export type SpeechSettings = VoiceChoice & { enRate: number };
+/**
+ * Read-aloud settings (ADR 0018 §2): kept in this browser, as voices differ by device.
+ * `server` off reads everything with this device's voices (Q54a).
+ */
+export type SpeechSettings = VoiceChoice & { enRate: number; server: boolean };
 
 export const EN_RATE_MIN = 0.6;
 export const EN_RATE_MAX = 1.2;
@@ -47,6 +53,7 @@ export const DEFAULT_SPEECH_SETTINGS: SpeechSettings = {
   enRate: 0.9,
   enVoice: null,
   zhVoice: null,
+  server: true,
 };
 const ZH_RATE = 1;
 
@@ -189,6 +196,7 @@ export function parseSpeechSettings(raw: string | null): SpeechSettings {
       : DEFAULT_SPEECH_SETTINGS.enRate,
     enVoice: text(stored.enVoice),
     zhVoice: text(stored.zhVoice),
+    server: stored.server !== false,
   };
 }
 
@@ -248,9 +256,15 @@ const SAMPLES: Record<SpeechLang, string> = {
   "zh-CN": "你好！很高兴认识你，今天我们一起练习英语吧。",
 };
 
-/** Reads a short sample in `lang` with the current settings, to try a voice. */
+/** Reads a short sample in `lang` with this device's voices, to try one. */
 export function speakSample(lang: SpeechLang): SpeechLang[] {
-  return speakSegments(`sample-${lang}`, [{ text: SAMPLES[lang], lang }]);
+  if (!canSpeak()) return [];
+  const plan = planSpeech([{ text: SAMPLES[lang], lang }], browserVoices(), {
+    ...currentSettings(),
+    failed: failedVoices,
+  });
+  read(`sample-${lang}`, [], plan.utterances);
+  return plan.skipped;
 }
 
 // What is being read now, by whoever asked (one message at a time), for the stop button.
@@ -296,8 +310,156 @@ export function useFellBack(owner: string): boolean {
   );
 }
 
-// An online voice that hasn't started this long after its turn came is taken as silent.
-export const ONLINE_START_TIMEOUT_MS = 3000;
+/** The languages `POST /speech/tts` takes: English in either accent, and Chinese. */
+export type ServerLang = "en-US" | "en-GB" | "zh-CN";
+
+/**
+ * Server read-aloud as this page knows it: the languages the tenant's route has a voice
+ * for (null until asked), and whether it failed here. A failure holds for this page only,
+ * like a silent browser voice: a reload asks again.
+ */
+export type ServerSpeech = {
+  languages: ReadonlySet<ServerLang> | null;
+  down: boolean;
+  noVoice: ReadonlySet<ServerLang>;
+};
+
+let server: ServerSpeech = { languages: null, down: false, noVoice: new Set() };
+let capabilitiesLoad: Promise<void> | null = null;
+const serverListeners = new Set<() => void>();
+
+function setServer(change: Partial<ServerSpeech>) {
+  server = { ...server, ...change };
+  serverListeners.forEach((listener) => listener());
+}
+
+function subscribeServer(listener: () => void) {
+  serverListeners.add(listener);
+  return () => serverListeners.delete(listener);
+}
+
+/**
+ * Asks the backend once per page which languages it reads; any error means none. Until it
+ * has answered, the browser reads everything.
+ */
+export function loadCapabilities(): Promise<void> {
+  capabilitiesLoad ??= Promise.resolve()
+    .then(() => api<{ tts: boolean; tts_languages: ServerLang[] }>("/speech/capabilities"))
+    .then((caps): ReadonlySet<ServerLang> => new Set(caps.tts ? caps.tts_languages : []))
+    .catch((): ReadonlySet<ServerLang> => new Set())
+    .then((languages) => setServer({ languages }));
+  return capabilitiesLoad;
+}
+
+/** Server read-aloud on this page (asks the backend the first time). */
+export function useServerSpeech(): ServerSpeech {
+  return useSyncExternalStore(
+    (listener) => {
+      void loadCapabilities();
+      return subscribeServer(listener);
+    },
+    () => server,
+    () => server,
+  );
+}
+
+const serverLang = (kind: SpeechLang, settings: SpeechSettings): ServerLang =>
+  kind === "en-US" ? settings.accent : "zh-CN";
+
+/** Whether the server reads `kind` now, with these settings. */
+function serverReads(kind: SpeechLang, settings: SpeechSettings): boolean {
+  const lang = serverLang(kind, settings);
+  return (
+    settings.server &&
+    !server.down &&
+    !server.noVoice.has(lang) &&
+    (server.languages?.has(lang) ?? false)
+  );
+}
+
+// The server's audio for a sentence that hasn't come this long after asking is taken as
+// lost (ADR 0028 §3), and the browser reads from there on.
+export const SERVER_START_TIMEOUT_MS = 4000;
+
+/**
+ * The server's audio for one sentence, or null after marking what failed: the language
+ * when the route has no voice for it, the server (for this page) on anything else.
+ */
+async function fetchSpeech(piece: Segment, stop: AbortSignal): Promise<Blob | null> {
+  const settings = currentSettings();
+  const language = serverLang(piece.lang, settings);
+  const request = new AbortController();
+  const abort = () => request.abort();
+  stop.addEventListener("abort", abort);
+  const timer = setTimeout(abort, SERVER_START_TIMEOUT_MS);
+  try {
+    const response = await apiFetch("/speech/tts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text: piece.text,
+        language,
+        speed: piece.lang === "en-US" ? settings.enRate : ZH_RATE,
+      }),
+      signal: request.signal,
+    });
+    clearTimeout(timer);
+    const audio = await response.blob();
+    if (audio.size > 0) return audio;
+    setServer({ down: true });
+  } catch (error) {
+    if (stop.aborted) return null; // stopped: nothing failed
+    if (error instanceof ApiError && error.code === "no_tts_voice") {
+      setServer({ noVoice: new Set([...server.noVoice, language]) });
+    } else {
+      setServer({ down: true });
+    }
+  } finally {
+    clearTimeout(timer);
+    stop.removeEventListener("abort", abort);
+  }
+  return null;
+}
+
+// One audio element for all the server's sentences. Safari plays audio only from an
+// element that first played inside a click, so each reading starts it on a moment of
+// silence right away, before any sentence has come back.
+let player: HTMLAudioElement | null = null;
+const SILENCE =
+  "data:audio/wav;base64,UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==";
+
+function unlockPlayer() {
+  player ??= new Audio();
+  player.src = SILENCE;
+  player.play()?.catch(() => {}); // refused here: refused later too, and caught there
+}
+
+// How to drop the sentence playing now when cut off.
+let stopAudio: (() => void) | null = null;
+
+/** Plays `audio`; true once it ends, false if it can't be played (or is cut off). */
+function playAudio(audio: Blob): Promise<boolean> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(audio);
+    const element = (player ??= new Audio());
+    const end = (ok: boolean) => {
+      if (stopAudio !== drop) return;
+      stopAudio = null;
+      element.onended = element.onerror = null;
+      URL.revokeObjectURL(url);
+      resolve(ok);
+    };
+    const drop = () => {
+      element.pause();
+      end(false);
+    };
+    stopAudio = drop;
+    element.onended = () => end(true);
+    element.onerror = () => end(false);
+    element.src = url;
+    Promise.resolve(element.play()).catch(() => end(false));
+  });
+}
 
 function toUtterance({ text, lang, voice, rate }: Utterance<SpeechSynthesisVoice>) {
   const utterance = new SpeechSynthesisUtterance(text);
@@ -307,20 +469,27 @@ function toUtterance({ text, lang, voice, rate }: Utterance<SpeechSynthesisVoice
   return utterance;
 }
 
-// Each reading (and each restart after a fallback) has its own number; events from one
-// that was cut off are ignored.
+// An online voice that hasn't started this long after its turn came is taken as silent.
+export const ONLINE_START_TIMEOUT_MS = 3000;
+
+// Each browser run (and each restart after a fallback) has its own number; events from
+// one that was cut off are ignored.
 let session = 0;
 
 /**
- * Queues `queue` for `owner` and watches it piece by piece: an online voice that errs,
- * ends without starting, or doesn't start in time is marked failed, and the rest is read
- * again from that piece with the voices left.
+ * Queues `queue` with the browser's voices for `owner` and watches it piece by piece: an
+ * online voice that errs, ends without starting, or doesn't start in time is marked
+ * failed, and the rest is read again from that piece with the voices left. `onDone` runs
+ * once the last piece is read.
  */
-function play(owner: string | null, queue: Utterance<SpeechSynthesisVoice>[]) {
+function play(
+  owner: string | null,
+  queue: Utterance<SpeechSynthesisVoice>[],
+  onDone: () => void,
+) {
   const id = ++session;
   window.speechSynthesis.cancel();
-  if (queue.length === 0) return setSpeaking(null);
-  setSpeaking(owner);
+  if (queue.length === 0) return onDone();
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const started = queue.map(() => false);
@@ -338,12 +507,12 @@ function play(owner: string | null, queue: Utterance<SpeechSynthesisVoice>[]) {
       ...currentSettings(),
       failed: failedVoices,
     });
-    play(owner, rest.utterances);
+    play(owner, rest.utterances, onDone);
   };
   const done = (i: number) => {
     if (i + 1 < queue.length) return watch(i + 1);
     clearTimeout(timer);
-    if (speaking === owner) setSpeaking(null);
+    onDone();
   };
   const silent = (i: number) => {
     const voice = queue[i].voice;
@@ -370,57 +539,136 @@ function play(owner: string | null, queue: Utterance<SpeechSynthesisVoice>[]) {
   watch(0);
 }
 
+// Each reading has its own number, and a signal that stops its requests.
+let reading = 0;
+let stopRequests: AbortController | null = null;
+
+function cutOff() {
+  reading++;
+  session++; // events from what the browser was reading no longer count
+  stopRequests?.abort();
+  stopRequests = null;
+  stopAudio?.();
+  if (canSpeak()) window.speechSynthesis.cancel();
+}
+
+/**
+ * Reads `pieces` (one sentence each) for `owner`, cutting off whatever was being read:
+ * each by the server when it reads that language, else by the browser. While one sentence
+ * plays the next is fetched. A sentence the server fails on is read again by the browser,
+ * and so is the rest (or the rest in that language, when the route has no voice for it).
+ * `browser` is read in the browser first, for a voice sample.
+ */
+function read(
+  owner: string | null,
+  pieces: Segment[],
+  browser: Utterance<SpeechSynthesisVoice>[] = [],
+) {
+  cutOff();
+  const id = reading;
+  const controller = new AbortController();
+  stopRequests = controller;
+  const live = () => id === reading;
+  if (pieces.length === 0 && browser.length === 0) return setSpeaking(null);
+  setSpeaking(owner);
+
+  const fetched = new Map<number, Promise<Blob | null>>();
+  const fetchAt = (i: number) => {
+    let audio = fetched.get(i);
+    if (!audio) fetched.set(i, (audio = fetchSpeech(pieces[i], controller.signal)));
+    return audio;
+  };
+
+  // Synchronous until a sentence goes to the server, so the browser's first sentence is
+  // queued inside the click (Safari reads aloud only from one). Until the backend has said
+  // what it reads (asked when a read-aloud button shows), the browser reads everything.
+  const step = (i: number): void => {
+    if (!live()) return;
+    if (i >= pieces.length) return setSpeaking(null);
+    const settings = currentSettings();
+    if (!serverReads(pieces[i].lang, settings)) {
+      let end = i;
+      while (end < pieces.length && !serverReads(pieces[end].lang, settings)) end++;
+      if (!canSpeak()) return step(end);
+      const plan = planSpeech(pieces.slice(i, end), browserVoices(), {
+        ...settings,
+        failed: failedVoices,
+      });
+      return play(owner, plan.utterances, () => step(end));
+    }
+    void fetchAt(i).then(async (audio) => {
+      if (!live()) return;
+      if (!audio) return step(i); // what failed is marked: the browser reads it
+      const next = i + 1;
+      if (next < pieces.length && serverReads(pieces[next].lang, currentSettings())) {
+        void fetchAt(next);
+      }
+      if (await playAudio(audio)) return step(next);
+      if (!live()) return;
+      setServer({ down: true }); // the page can't play it (blocked, or not audio)
+      step(i);
+    });
+  };
+
+  const settings = currentSettings();
+  if (pieces.some((piece) => serverReads(piece.lang, settings))) unlockPlayer();
+  if (browser.length) play(owner, browser, () => step(0));
+  else step(0);
+}
+
+/** `segments` cut into sentences, each read on its own (by the server or the browser). */
+const sentences = (segments: Segment[]): Segment[] =>
+  segments.flatMap((segment) =>
+    splitSentences(segment.text).map((text) => ({ text, lang: segment.lang })),
+  );
+
 /** Reads English `text` (a word, a sentence) aloud, cutting off whatever was being read. */
 export function speak(text: string) {
-  if (!canSpeak()) return;
-  const plan = planSpeech([{ text, lang: "en-US" }], browserVoices(), {
-    ...currentSettings(),
-    failed: failedVoices,
-  });
-  play(null, plan.utterances);
+  read(null, sentences([{ text, lang: "en-US" }]));
 }
 
 /**
  * Reads the segments one after another for `owner`, cutting off whatever was being read.
- * Returns the languages left out for want of a voice on this device.
+ * Returns the languages left out for want of a voice: neither the server reads them nor
+ * does this device have one.
  */
 export function speakSegments(owner: string, segments: Segment[]): SpeechLang[] {
-  if (!canSpeak() || segments.length === 0) return [];
-  const plan = planSpeech(segments, browserVoices(), {
-    ...currentSettings(),
-    failed: failedVoices,
-  });
-  play(owner, plan.utterances);
-  return plan.skipped;
+  const pieces = sentences(segments);
+  read(owner, pieces);
+  const settings = currentSettings();
+  const browserOnly = pieces.filter((piece) => !serverReads(piece.lang, settings));
+  if (!canSpeak()) return [...new Set(browserOnly.map((piece) => piece.lang))];
+  return planSpeech(browserOnly, browserVoices(), { ...settings, failed: failedVoices }).skipped;
 }
 
 export function stopSpeaking() {
-  session++; // events from what was being read no longer count
-  if (canSpeak()) window.speechSynthesis.cancel();
+  cutOff();
   setSpeaking(null);
 }
 
 /**
- * Whether there is anything to read English with: false during server rendering, and
- * once the browser has listed its voices and none of them is English.
+ * Whether there is anything to read English with: the server, or a browser English voice.
+ * False during server rendering, and once the browser has listed its voices, none of them
+ * is English and the server doesn't read English.
  */
 export function useCanSpeak(): boolean {
   return useSyncExternalStore(
     (listener) => {
+      void loadCapabilities();
       const unsubscribers = [
         subscribeVoices(listener),
         subscribeSettings(listener),
         subscribeFailed(listener),
+        subscribeServer(listener),
       ];
       return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
     },
     () => {
+      const settings = currentSettings();
+      if (serverReads("en-US", settings)) return true;
       if (!canSpeak()) return false;
       const list = browserVoices();
-      return (
-        list.length === 0 ||
-        pickVoices(list, { ...currentSettings(), failed: failedVoices }).en !== null
-      );
+      return list.length === 0 || pickVoices(list, { ...settings, failed: failedVoices }).en !== null;
     },
     () => false,
   );

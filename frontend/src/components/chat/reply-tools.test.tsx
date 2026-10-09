@@ -167,7 +167,8 @@ describe("ReplyTools", () => {
     expect(bubble).toHaveTextContent("Good job! Say it again.");
     await userEvent.click(screen.getByRole("button", { name: "Show in Chinese" }));
     expect(bubble).toHaveTextContent("做得好！再说一遍。");
-    expect(api).toHaveBeenCalledTimes(1);
+    const translations = api.mock.calls.filter(([path]) => String(path).endsWith("/translate"));
+    expect(translations).toHaveLength(1);
   });
 
   it("offers English for a mostly Chinese reply", () => {
