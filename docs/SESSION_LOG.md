@@ -7,7 +7,7 @@
 ## 2026-10-09 · 任务 54 完成（前端服务端朗读）
 
 - **做了什么**：54.1 `lib/speech.ts` 服务端朗读层（逐句 `/speech/tts`、预取下一句、共用 `Audio` + 静音解锁、失败 / 4 秒超时 / 播放被拒本页退回浏览器、`no_tts_voice` 只退回那种语言、能力没问到前不等待）；54.2 朗读设置“用服务端声音朗读”开关（Q54a）和失败提示，`AiBadge` 支持按字符估算；54.3 设置页“朗读”路由 + 按模型和语言编辑 `voices`（Q54b，后端 `TaskRouteOut.default_voices`）、Azure 区域 / 中国区、连接测试“朗读”；54.4 `ReadAloudBadge` 挂三处朗读按钮、用量页“朗读字符”；54.5 `tts_audio.user_id`（迁移 `5ebd002ec068`）、`DELETE /speech/tts-cache`、定时任务 `tts_cache_cleanup`、设置里“清除我的朗读缓存”（Q54c）；54.6 E2E 3 条、ADR 0028 落地记录、README。提交 df4fb3f、764cb56、e4d3786、64db0de、78ed87a 和本次。
-- **验证**：pytest 1482、Vitest 388、E2E 60 全过；ruff、mypy（app + evals）、eslint、tsc 干净。开发库已迁移到 `5ebd002ec068`。**没推送、Docker 没重建**（本地领先 origin 12 个提交左右）。
+- **验证**：pytest 1482、Vitest 388、E2E 60 全过；ruff、mypy（app + evals）、eslint、tsc 干净。开发库已迁移到 `5ebd002ec068`。后来推送到 4858906，CI run 37969376093 四个 job（backend、frontend、docker、e2e）全绿；Docker 没重建。
 - **未完成**：无（54 范围内）。没有在真实浏览器里听过服务端朗读（E2E 用假 `Audio`），Safari 的静音解锁也没实机验证。
 - **下一步**：任务 55（单词发音预生成：后台、断点续跑、进度与费用估算，查词优先用缓存）。开工前先把 55 拆成子任务写进看板、和用户确认。可考虑在 55 前推送一次并跑 CI。
 - **踩坑**：用量是后台异步写库的，E2E 里查用量页要 `toPass` + 刷新；`InlineConfirm` 的确认按钮默认文案是“删除”，长标签要传 `confirmLabel`；i18n 测试要求英文复数写成 `{count, plural, ...}` 放在句中，不能把整句放进复数分支；`fake_llm.py` 里有旧的超长行，ruff 会报，别整体格式化它。
