@@ -23,6 +23,7 @@ from app.chat.planning import PlanningSource
 from app.chat.practice import PracticeSource
 from app.chat.reading import ReadingSource
 from app.chat.service import REPLY_PART_SEPARATOR, thread_config
+from app.chat.speaking import SpeakingSource
 from app.chat.writing import WritingSource
 from app.db.models import Attachment, Conversation
 from app.memory.context import LearnerSource
@@ -89,6 +90,8 @@ OPENING_TURN_ID = "opening"
 OPENING_USAGE_TASK = "practice_opening"
 # Likewise for a planning conversation's opening (ADR 0015 §7).
 PLAN_OPENING_USAGE_TASK = "plan_opening"
+# And for a speaking conversation's (ADR 0029 §7).
+SPEAKING_OPENING_USAGE_TASK = "speaking_opening"
 
 
 def title_from(text: str) -> str:
@@ -150,6 +153,7 @@ async def stream_reply(
     classify: bool = False,
     writing: WritingSource | None = None,
     reading: ReadingSource | None = None,
+    speaking: SpeakingSource | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -163,7 +167,7 @@ async def stream_reply(
     LangGraph only checkpoints finished nodes, so after a disconnect the learner's
     message is kept but no half-written reply is.
 
-    `text` None is an opening (of a practice or planning conversation): the tutor
+    `text` None is an opening (of a practice, planning or speaking conversation): the tutor
     speaks first, no learner message is added, and `message_id` is OPENING_TURN_ID.
     """
     queue: asyncio.Queue[TurnEvent | None] = asyncio.Queue()  # None marks the end
@@ -187,6 +191,7 @@ async def stream_reply(
                 classify=classify,
                 writing=writing,
                 reading=reading,
+                speaking=speaking,
             ):
                 queue.put_nowait(event)
         finally:
@@ -224,11 +229,18 @@ async def _run_graph(
     classify: bool,
     writing: WritingSource | None,
     reading: ReadingSource | None,
+    speaking: SpeakingSource | None,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     text_id: str | None = None  # the tutor message whose text is streaming
     usage = {"input_tokens": 0, "output_tokens": 0}
-    opening = PLAN_OPENING_USAGE_TASK if planning is not None else OPENING_USAGE_TASK
+    opening = (
+        PLAN_OPENING_USAGE_TASK
+        if planning is not None
+        else SPEAKING_OPENING_USAGE_TASK
+        if speaking is not None
+        else OPENING_USAGE_TASK
+    )
     try:
         # subgraphs=True: tokens and custom events come from inside the coach subgraphs.
         async for _namespace, mode, part in graph.astream(
@@ -252,6 +264,7 @@ async def _run_graph(
                 classify=classify,
                 writing=writing,
                 reading=reading,
+                speaking=speaking,
             ),
             stream_mode=["messages", "custom"],
             subgraphs=True,

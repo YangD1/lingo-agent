@@ -34,6 +34,7 @@ from app.api import (
     practice,
     providers,
     reading,
+    speaking,
     speech,
     usage,
     vocab,
@@ -221,6 +222,7 @@ def create_app() -> FastAPI:
     app.include_router(reading.router)
     app.include_router(speech.router)
     app.include_router(word_audio.router)
+    app.include_router(speaking.router)
     return app
 
 

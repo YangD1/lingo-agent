@@ -40,7 +40,12 @@ def thread_config(conversation_id: uuid.UUID) -> RunnableConfig:
 async def list_conversations(session: AsyncSession, user_id: uuid.UUID) -> list[Conversation]:
     rows = await session.scalars(
         select(Conversation)
-        .where(Conversation.user_id == user_id)
+        .where(
+            Conversation.user_id == user_id,
+            # Speaking conversations live on the speaking page (Q58g).
+            Conversation.purpose.is_distinct_from("speaking"),
+            Conversation.purpose.is_distinct_from("realtime"),
+        )
         .order_by(Conversation.updated_at.desc(), Conversation.id)
     )
     return list(rows)

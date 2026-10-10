@@ -13,6 +13,7 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from sqlalchemy import select
 
 from app.activity.service import DatabaseActivity
 from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
@@ -30,6 +31,7 @@ from app.chat.planning import DatabasePlanning, PlanningPurpose
 from app.chat.practice import DatabasePractice
 from app.chat.reading import DatabaseReading
 from app.chat.service import ConversationNotFoundError
+from app.chat.speaking import DatabaseSpeaking
 from app.chat.turn import (
     OPENING_TURN_ID,
     CardEvent,
@@ -39,7 +41,7 @@ from app.chat.turn import (
     stream_reply,
 )
 from app.chat.writing import DatabaseWriting
-from app.db.models import Attachment, Conversation
+from app.db.models import Attachment, Conversation, SpeakingSession
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
 from app.memory.context import DatabaseLearner
 from app.memory.embedding import memory_embedder
@@ -52,6 +54,7 @@ from app.providers.tenant import load_provider_context
 from app.services.news import feeds
 from app.services.news.feeds import FeedError
 from app.services.vocab.scheduler import learner_zone
+from app.speaking import sessions as speaking_sessions
 
 logger = logging.getLogger(__name__)
 
@@ -343,10 +346,13 @@ class Turn:
     planning: PlanningPurpose | None
     # A reading conversation's article (Q43h).
     article_id: int | None = None
+    # A speaking conversation (ADR 0029 §2), and its scenario (None: free talk).
+    speaking: bool = False
+    scenario_id: str | None = None
 
     @property
     def route(self) -> Route:
-        return route_for(self.focus_kc_id, self.article_id)
+        return route_for(self.focus_kc_id, self.article_id, speaking=self.speaking)
 
     @property
     def free_chat(self) -> bool:
@@ -391,6 +397,8 @@ async def start_turn(
     if not locks.acquire(conversation.id):
         raise _conflict("conversation_busy", "A reply is still being generated.")
     try:
+        if conversation.purpose == "speaking":
+            await _speaking_turn(session, conversation, text, attachments)
         message_id = new_message_id()
         try:
             await begin_turn(
@@ -406,6 +414,8 @@ async def start_turn(
             conversation.focus_kc_id,
             _purpose(conversation),
             conversation.article_id,
+            conversation.purpose == "speaking",
+            conversation.scenario_id,
         )
     finally:
         locks.release(conversation.id)
@@ -420,14 +430,18 @@ async def start_opening(
     session: SessionDep,
     graph: ChatGraphDep,
 ) -> AsyncIterator[Turn]:
-    """Like start_turn, for the tutor's first message in a practice or planning
-    conversation."""
+    """Like start_turn, for the coach's first message in a practice, planning or
+    speaking conversation."""
     response.headers["Cache-Control"] = "no-transform"
     conversation = await _owned(session, user, conversation_id)
     # A daily conversation has no opening: the tutor answers the learner's first message.
     planning = conversation.purpose == "planning"
-    if conversation.focus_kc_id is None and not planning:
-        raise _conflict("not_practice", "Only a practice or planning conversation opens by itself.")
+    speaking = conversation.purpose == "speaking"
+    if conversation.focus_kc_id is None and not planning and not speaking:
+        raise _conflict(
+            "not_practice",
+            "Only a practice, planning or speaking conversation opens by itself.",
+        )
     providers = await _providers_for(session, tenant.id, "chat")
     locks: ConversationLocks = request.app.state.conversation_locks
     if not locks.acquire(conversation.id):
@@ -436,6 +450,8 @@ async def start_opening(
         # Checked under the lock: two tabs opening at once must not both get a reply.
         if await service.get_history(graph, conversation):
             raise _conflict("conversation_started", "This conversation has already started.")
+        if speaking:
+            await _speaking_active(session, conversation)
         await begin_turn(session, conversation, "")  # moves it to the top of the list
         yield Turn(
             conversation.id,
@@ -444,9 +460,30 @@ async def start_opening(
             OPENING_TURN_ID,
             conversation.focus_kc_id,
             "planning" if planning else None,
+            speaking=speaking,
+            scenario_id=conversation.scenario_id,
         )
     finally:
         locks.release(conversation.id)
+
+
+async def _speaking_active(session: SessionDep, conversation: Conversation) -> None:
+    """A speaking conversation takes turns until its session is ended (ADR 0029 §5)."""
+    status_ = await session.scalar(
+        select(SpeakingSession.status).where(SpeakingSession.conversation_id == conversation.id)
+    )
+    if status_ != "active":
+        raise _conflict("speaking_ended", "This speaking practice has ended.")
+
+
+async def _speaking_turn(
+    session: SessionDep, conversation: Conversation, text: str, attachments: list[Attachment]
+) -> None:
+    """Count the turn on the session, committed with the turn's other changes."""
+    await _speaking_active(session, conversation)
+    audio = next((a for a in attachments if a.kind == "audio"), None)
+    seconds = None if audio is None else float(audio.meta.get("duration_seconds") or 0.0)
+    await speaking_sessions.record_turn(session, conversation.id, text, seconds)
 
 
 async def _providers_for(
@@ -544,6 +581,7 @@ async def _reply(
     planning: DatabasePlanning | None = None
     writing: DatabaseWriting | None = None
     reading: DatabaseReading | None = None
+    speaking: DatabaseSpeaking | None = None
     match route:
         case Route.GRAMMAR_COACH:
             # Practice stays on its grammar point: no tools (ADR 0015 §2).
@@ -558,6 +596,9 @@ async def _reply(
                 tenant_id=turn.providers.tenant_id,
                 article_id=turn.article_id,
             )
+        case Route.SPEAKING_COACH:
+            # Spoken practice: no tools either (Q58f).
+            speaking = DatabaseSpeaking(sessionmaker, turn.conversation_id, turn.scenario_id)
         case Route.TUTOR:
             # Read once per turn, for the prompt and for the cards the tools may show.
             if turn.planning:
@@ -596,6 +637,7 @@ async def _reply(
         classify=turn.free_chat,
         writing=writing,
         reading=reading,
+        speaking=speaking,
         practice=practice,
         tools=tools,
         planning=planning,

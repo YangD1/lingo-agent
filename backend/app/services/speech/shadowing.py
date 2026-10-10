@@ -198,7 +198,7 @@ async def _record_evidence(
             len(written),
             rules,
         )
-        ability = await _speaking_ability(session, user_id, rules)
+        ability = await speaking_ability(session, user_id, rules)
         ability.rating = update_ability(
             ability.rating,
             difficulty,
@@ -242,7 +242,7 @@ async def _record_evidence(
     return tuple(sorted({form for accuracy, form in read.values() if accuracy < threshold}))
 
 
-async def _speaking_ability(
+async def speaking_ability(
     session: AsyncSession, user_id: uuid.UUID, rules: Rules
 ) -> SkillEstimate:
     row = await session.scalar(

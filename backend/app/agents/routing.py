@@ -3,11 +3,12 @@
 The route comes first from what is certain about the conversation, without a model
 call: a practice conversation (it has a grammar point) goes to grammar_coach, one
 opened from an article ("ask the tutor" on the reading page, Q43h) to reading_coach,
-planning and daily conversations to the tutor. Free chat starts with the tutor too; the
-supervisor may then hand a turn to writing_coach (task 38.4): a message long enough to
-be a piece of writing (Q38a) is classified by the `route` task, and anything short of a
-clear answer leaves it with the tutor. The classifier never picks reading_coach: without
-an article it has nothing to help with.
+a speaking one to speaking_coach (ADR 0029 §2), planning and daily conversations to
+the tutor. Free chat starts with the tutor too; the supervisor may then hand a turn
+to writing_coach (task 38.4): a message long enough to be a piece of writing (Q38a) is
+classified by the `route` task, and anything short of a clear answer leaves it with the
+tutor. The classifier never picks reading_coach or speaking_coach: without an article
+or a speaking conversation they have nothing to do.
 """
 
 import asyncio
@@ -42,12 +43,17 @@ class Route(StrEnum):
     GRAMMAR_COACH = "grammar_coach"
     WRITING_COACH = "writing_coach"
     READING_COACH = "reading_coach"
+    SPEAKING_COACH = "speaking_coach"
 
 
-def route_for(focus_kc_id: str | None, article_id: int | None = None) -> Route:
-    """The coach of a conversation, from its grammar point or article (planning and
-    daily conversations are the tutor's, with their brief and limited tools). A reading
-    conversation whose article was deleted goes back to the tutor."""
+def route_for(
+    focus_kc_id: str | None, article_id: int | None = None, *, speaking: bool = False
+) -> Route:
+    """The coach of a conversation, from its purpose, grammar point or article (planning
+    and daily conversations are the tutor's, with their brief and limited tools). A
+    reading conversation whose article was deleted goes back to the tutor."""
+    if speaking:
+        return Route.SPEAKING_COACH
     if focus_kc_id is not None:
         return Route.GRAMMAR_COACH
     return Route.READING_COACH if article_id is not None else Route.TUTOR

@@ -44,6 +44,7 @@ from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.services.vocab import mine
+from app.speaking import evidence as speaking_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +238,13 @@ class ReflectionWorker:
         learner_ids = reflection.learner_message_ids(new)
         catalog, rules = get_grammar_catalog(), get_rules()
         items = reflection.tagged_evidence(result, learner_ids, catalog)
+        source = speaking_evidence.evidence_source(conversation.purpose)
         async with self._sessionmaker() as session:
+            if source == "speaking":  # transcripts: less is kept (ADR 0029 §4)
+                texts = {m.id: m.text for m in new if isinstance(m, HumanMessage) and m.id}
+                items = await speaking_evidence.kept_evidence(
+                    session, conversation.id, items, texts, rules
+                )
             await mastery.ensure_current(
                 session, conversation.user_id, rules=rules, catalog=catalog
             )
@@ -247,6 +254,7 @@ class ReflectionWorker:
                 conversation_id=conversation.id,
                 message_ids=list(learner_ids.values()),
                 items=items,
+                source=source,
             )
             await mastery.refresh(
                 session, conversation.user_id, affected, rules=rules, catalog=catalog

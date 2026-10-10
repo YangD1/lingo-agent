@@ -52,12 +52,14 @@ from app.activity.service import (
     Step,
     timed,
 )
+from app.adaptive.rules import get_rules
 from app.agents.routing import Route, classify, worth_classifying
 from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
 from app.chat.planning import PlanningBrief, PlanningSource, render_planning
 from app.chat.practice import PracticeSource, render_practice
 from app.chat.reading import ReadingSource, render_reading
+from app.chat.speaking import SpeakingFocus, SpeakingSource, focus_for, opening_cue, render_speaking
 from app.chat.writing import WritingSource, failed
 from app.memory.context import (
     LearnerContext,
@@ -80,7 +82,10 @@ TUTOR_NODE = Route.TUTOR.value
 GRAMMAR_COACH_NODE = Route.GRAMMAR_COACH.value
 WRITING_COACH_NODE = Route.WRITING_COACH.value
 READING_COACH_NODE = Route.READING_COACH.value
-COACH_NODES = frozenset({TUTOR_NODE, GRAMMAR_COACH_NODE, WRITING_COACH_NODE, READING_COACH_NODE})
+SPEAKING_COACH_NODE = Route.SPEAKING_COACH.value
+COACH_NODES = frozenset(
+    {TUTOR_NODE, GRAMMAR_COACH_NODE, WRITING_COACH_NODE, READING_COACH_NODE, SPEAKING_COACH_NODE}
+)
 TOOLS_NODE = "tools"
 
 # Tool round trips per turn; the tutor's last call then has no tools and must answer.
@@ -93,6 +98,8 @@ TOOL_TIMEOUT_SECONDS = 15
 TOOLS_USAGE_TASK = "chat_tools"
 # reading_coach's replies, likewise apart from "chat" (Q43i).
 READING_USAGE_TASK = "reading_coach"
+# speaking_coach's replies, likewise (ADR 0029 §7).
+SPEAKING_USAGE_TASK = "speaking"
 # What a coach is told when it speaks first: only planning conversations (the tutor's)
 # and practice conversations (grammar_coach's) open by themselves.
 PLAN_CUE = "plan_opening"
@@ -124,6 +131,8 @@ class ChatContext:
     writing: WritingSource | None = None
     # reading_coach's article (Q43h); None where a caller has none.
     reading: ReadingSource | None = None
+    # speaking_coach's scenario and level (ADR 0029 §2); None where a caller has none.
+    speaking: SpeakingSource | None = None
 
 
 class ChatState(MessagesState):
@@ -245,14 +254,18 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
             "metadata": {**config.get("metadata", {}), "usage_task": TOOLS_USAGE_TASK},
         }
     try:
-        reply = await _call(runtime, task, state, history, has_tools, bind, config, PLAN_CUE)
+        reply = await _call(
+            runtime, task, state, history, has_tools, bind, config, load_prompt(PLAN_CUE)
+        )
     except Exception as exc:
         if not (bind and getattr(exc, "status_code", None) in _REFUSED_STATUSES):
             raise
         # Some OpenAI-compatible servers reject tools; answer this turn without them.
         logger.warning("tool calling refused (%s); replying without tools", type(exc).__name__)
         await report(runtime, Step("tools", "skipped"))
-        reply = await _call(runtime, task, state, history, has_tools, False, config, PLAN_CUE)
+        reply = await _call(
+            runtime, task, state, history, has_tools, False, config, load_prompt(PLAN_CUE)
+        )
     return {"messages": [reply]}
 
 
@@ -261,7 +274,9 @@ async def grammar_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict
     (ADR 0015 §2), and opens the conversation by itself."""
     history, has_images = await _with_attachments(state["messages"], runtime.context.attachments)
     task = "vision" if has_images else "chat"
-    reply = await _call(runtime, task, state, history, False, False, get_config(), PRACTICE_CUE)
+    reply = await _call(
+        runtime, task, state, history, False, False, get_config(), load_prompt(PRACTICE_CUE)
+    )
     return {"messages": [reply]}
 
 
@@ -288,7 +303,14 @@ async def writing_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict
         await report(runtime, step)
     guided: ChatState = {**state, "practice": outcome.guidance}
     reply = await _call(
-        runtime, task, guided, without_tool_calls(history), False, False, get_config(), PLAN_CUE
+        runtime,
+        task,
+        guided,
+        without_tool_calls(history),
+        False,
+        False,
+        get_config(),
+        load_prompt(PLAN_CUE),
     )
     return {"messages": [reply]}
 
@@ -322,7 +344,47 @@ async def reading_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict
         "metadata": {**config.get("metadata", {}), "usage_task": READING_USAGE_TASK},
     }
     reply = await _call(
-        runtime, task, guided, without_tool_calls(history), False, False, config, PLAN_CUE
+        runtime,
+        task,
+        guided,
+        without_tool_calls(history),
+        False,
+        False,
+        config,
+        load_prompt(PLAN_CUE),
+    )
+    return {"messages": [reply]}
+
+
+async def speaking_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
+    """A speaking conversation's partner (ADR 0029 §2): it plays the scenario's role in
+    short spoken English, recasts instead of correcting, has no tools (Q58f), and speaks
+    first (Q58e). It always talks in English, whatever the learner's chat language."""
+    focus: SpeakingFocus | None = None
+    if runtime.context.speaking is not None:
+        try:
+            focus = await runtime.context.speaking.load()
+        except Exception:  # the coach can still talk, without the scenario
+            logger.exception("loading the speaking scenario failed")
+    focus = focus or focus_for(None, None, get_rules())
+    guided: ChatState = {**state, "practice": render_speaking(focus), "language": "en"}
+    history = without_tool_calls(state["messages"])
+    config = get_config()
+    if any(isinstance(m, HumanMessage) for m in history):  # an opening keeps its own task
+        config = {
+            **config,
+            "metadata": {**config.get("metadata", {}), "usage_task": SPEAKING_USAGE_TASK},
+        }
+    reply = await _call(
+        runtime,
+        "chat",
+        guided,
+        history,
+        False,
+        False,
+        config,
+        opening_cue(focus),
+        base="speaking_coach",
     )
     return {"messages": [reply]}
 
@@ -352,6 +414,8 @@ async def _call(
     bind: bool,
     config: RunnableConfig,
     opening_cue: str,
+    *,
+    base: str = "tutor_system",
 ) -> BaseMessage:
     llm: Runnable[Any, BaseMessage] = (
         get_llm_with_tools(runtime.context.providers, task, TOOL_SCHEMAS)
@@ -369,12 +433,13 @@ async def _call(
         state.get("practice", ""),
         tools_section,
         language=state.get("language") or DEFAULT_CHAT_LANGUAGE,
+        base=base,
     )
     messages = [SystemMessage(prompt), *history]
     if not any(isinstance(m, HumanMessage) for m in history):
         # An opening: the learner hasn't written yet. Some providers need a user turn,
         # so the cue goes in as one, for this call only.
-        messages.append(HumanMessage(load_prompt(opening_cue)))
+        messages.append(HumanMessage(opening_cue))
     # astream, not ainvoke: if the learner disconnects, the run is cancelled, and only
     # astream reports that to callbacks (ainvoke's internal gather is cancelled before
     # on_llm_error runs), so llm_usage would miss a call the provider still bills for.
@@ -461,11 +526,12 @@ def system_prompt(
     tools: str = "",
     *,
     language: ChatLanguage = DEFAULT_CHAT_LANGUAGE,
+    base: str = "tutor_system",
 ) -> str:
     """The tutor's instructions and which language to talk in, then what it knows about
     the learner, then (in a practice or planning conversation) what this conversation is
     for, then what its tools can do."""
-    sections = [load_prompt("tutor_system"), load_prompt(f"language_{language}")]
+    sections = [load_prompt(base), load_prompt(f"language_{language}")]
     if learner_context:
         # replace, not format: memories may contain braces.
         sections.append(
@@ -511,7 +577,7 @@ async def _with_attachments(
 
 async def supervisor(
     state: ChatState, runtime: Runtime[ChatContext]
-) -> Command[Literal["tutor", "grammar_coach", "writing_coach", "reading_coach"]]:
+) -> Command[Literal["tutor", "grammar_coach", "writing_coach", "reading_coach", "speaking_coach"]]:
     """Hand the turn to its coach. The route is decided before the run from what is
     certain about the conversation (ADR 0023 §3); only a long enough free-chat message
     is classified (Q38a), and a handoff is shown to the learner (Q37b)."""
@@ -569,6 +635,14 @@ def _reading_coach_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatSta
     return builder.compile(checkpointer=False)
 
 
+def _speaking_coach_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatState, ChatState]:
+    builder = StateGraph(ChatState, context_schema=ChatContext)
+    builder.add_node(SPEAKING_COACH_NODE, speaking_coach)
+    builder.add_edge(START, SPEAKING_COACH_NODE)
+    builder.add_edge(SPEAKING_COACH_NODE, END)
+    return builder.compile(checkpointer=False)
+
+
 def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
     """START -> load_context -> supervisor -> a coach -> END (ADR 0023 §2). Coaches are
     subgraphs on the same thread: they read and extend one history.
@@ -589,10 +663,12 @@ def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
     builder.add_node(GRAMMAR_COACH_NODE, _grammar_coach_graph())
     builder.add_node(WRITING_COACH_NODE, _writing_coach_graph())
     builder.add_node(READING_COACH_NODE, _reading_coach_graph())
+    builder.add_node(SPEAKING_COACH_NODE, _speaking_coach_graph())
     builder.add_edge(START, LOAD_CONTEXT_NODE)
     builder.add_edge(LOAD_CONTEXT_NODE, SUPERVISOR_NODE)
     builder.add_edge(TUTOR_NODE, END)
     builder.add_edge(GRAMMAR_COACH_NODE, END)
     builder.add_edge(WRITING_COACH_NODE, END)
     builder.add_edge(READING_COACH_NODE, END)
+    builder.add_edge(SPEAKING_COACH_NODE, END)
     return builder.compile(checkpointer=checkpointer)
