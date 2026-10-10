@@ -74,6 +74,7 @@ TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
 EXERCISE_SET_ORIGINS = ("dashboard", "learner", "card", "plan", "practice", "prefetch")
 # generating -> ready -> in_progress -> done; generating -> failed.
 EXERCISE_SET_STATUSES = ("generating", "ready", "in_progress", "done", "failed")
+WORD_AUDIO_JOB_STATUSES = ("running", "paused", "done", "cancelled")
 # rejected: kept for the record, never shown; reported: the learner flagged it, so its
 # answers count as no evidence.
 EXERCISE_STATUSES = ("ok", "rejected", "reported")
@@ -269,6 +270,11 @@ class TtsAudio(Base):
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
+    # The word a pinned row reads (word audio generated ahead of time, ADR 0028 §4), so
+    # it can be counted and deleted per word book; None for everything else.
+    word_id: Mapped[int | None] = mapped_column(
+        ForeignKey("words.id", ondelete="CASCADE"), index=True
+    )
     # sha256 of text, language, voice, speed, connection and model.
     key: Mapped[str] = mapped_column(String(64))
     language: Mapped[str] = mapped_column(String(8))
@@ -283,6 +289,52 @@ class TtsAudio(Base):
     last_used_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class WordAudioJob(TimestampMixin, Base):
+    """A deployment generating a word book's pronunciations ahead of time (ADR 0028 §4).
+
+    Runs in the background, a batch at a time, from `cursor` (the last word id done), so
+    it carries on after a restart or a pause. One model and voice per accent, fixed when
+    it starts (Q55c), so a book is not read in a mix of voices. One running or paused job
+    per tenant.
+    """
+
+    __tablename__ = "word_audio_jobs"
+    __table_args__ = (
+        CheckConstraint(_in("status", WORD_AUDIO_JOB_STATUSES), name="status"),
+        Index(
+            "uq_word_audio_jobs_tenant_id_active",
+            "tenant_id",
+            unique=True,
+            postgresql_where="status IN ('running', 'paused')",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    book_id: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20))
+    # accent -> {"connection", "model", "voice"}, as the route stood when it started.
+    voices: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    requests_per_minute: Mapped[int] = mapped_column(Integer)
+    # What the deployment said a million characters costs (Q55d); None = not given.
+    price_per_million: Mapped[float | None] = mapped_column(Float)
+    currency: Mapped[str | None] = mapped_column(String(8))
+    # Word-and-accent pieces of audio: to make when it started, made (or found), failed.
+    total: Mapped[int] = mapped_column(Integer)
+    done: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    failed: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Characters sent to the vendor (failed requests included) and audio bytes kept.
+    characters: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    bytes: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    cursor: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Why it paused by itself (the vendor kept failing), safe to show.
+    error: Mapped[str | None] = mapped_column(String(300))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Attachment(TimestampMixin, Base):

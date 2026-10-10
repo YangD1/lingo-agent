@@ -37,7 +37,13 @@ class Audio:
 
 
 def cache_key(text: str, language: str, voice: str, speed: float, model: ResolvedModel) -> str:
-    material = [text, language, voice, round(speed, 2), model.connection, model.model]
+    return audio_key(text, language, voice, speed, model.connection, model.model)
+
+
+def audio_key(
+    text: str, language: str, voice: str, speed: float, connection: str, model: str
+) -> str:
+    material = [text, language, voice, round(speed, 2), connection, model]
     return hashlib.sha256(json.dumps(material, ensure_ascii=False).encode()).hexdigest()
 
 
