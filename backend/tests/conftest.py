@@ -51,9 +51,11 @@ from app.providers import net_guard  # noqa: E402
 from app.scheduler.jobs import JOBS  # noqa: E402
 from app.scheduler.service import Scheduler  # noqa: E402
 from app.services.reading.worker import ReadingWorker  # noqa: E402
+from app.services.speech.worker import WordAudioWorker  # noqa: E402
 from app.writing.worker import WritingWorker  # noqa: E402
 
 BUSINESS_TABLES = (
+    "word_audio_jobs",
     "tts_audio",
     "diagnoses",
     "kc_edges",
@@ -192,9 +194,12 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         app.state.writing_worker = WritingWorker(app.state.sessionmaker)
         # Without a model configured, rewrites fail; tests swap in fake calls.
         app.state.reading_worker = ReadingWorker(app.state.sessionmaker, build_reading_graph())
+        # Tests swap in a fake route and sleep, or run batches themselves.
+        app.state.word_audio_worker = WordAudioWorker(app.state.sessionmaker)
         # Not started: tests run jobs themselves.
         app.state.scheduler = Scheduler(app.state.sessionmaker, JOBS)
         yield app
+        await app.state.word_audio_worker.stop()
         await app.state.reading_worker.stop()
         await app.state.writing_worker.stop()
         await app.state.practice_worker.stop()

@@ -1,7 +1,9 @@
 """Word pronunciations generated ahead of time (task 55.1, ADR 0028 §4)."""
 
+import asyncio
 import json
 import uuid
+from collections.abc import AsyncIterator
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -9,14 +11,16 @@ import httpx2
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.db.models import TenantMember, TtsAudio, Word, WordAudioJob
+from app.db.session import create_sessionmaker
 from app.providers import tts
 from app.providers.config import ResolvedModel, TenantProviderContext
 from app.providers.tts import TextToSpeech
 from app.services.speech import read_aloud, word_audio
 from app.services.speech.word_audio import ActiveJobError, NoAccentError
+from app.services.speech.worker import WordAudioWorker
 from app.services.vocab.books import get_book
 
 BOOK = get_book("cet4")
@@ -318,3 +322,119 @@ async def test_a_model_gone_from_the_route_pauses_the_job(
 def _ctx(tenant_id: uuid.UUID) -> TenantProviderContext:
     """read_aloud only reads the tenant id from the context when given a TextToSpeech."""
     return cast(TenantProviderContext, SimpleNamespace(tenant_id=tenant_id))
+
+
+# The worker (task 55.2).
+
+
+@pytest.fixture
+async def maker(
+    db_engine: AsyncEngine, db_session: AsyncSession
+) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    # db_session's teardown truncates the tables after the test.
+    yield create_sessionmaker(db_engine)
+
+
+def kokoro(ctx: TenantProviderContext) -> TextToSpeech:
+    return TextToSpeech(ctx.tenant_id, (model(),))
+
+
+async def test_the_worker_runs_a_job_to_the_end(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    maker: async_sessionmaker[AsyncSession],
+    vendor: Vendor,
+) -> None:
+    tenant_id, user_id = await tenant(client, db_session)
+    await words(db_session, "apple", "banana")
+    job = await word_audio.start(
+        db_session,
+        kokoro(_ctx(tenant_id)),
+        BOOK,
+        ["en-US", "en-GB"],
+        user_id=user_id,
+        requests_per_minute=60,
+    )
+    worker = WordAudioWorker(maker, route=kokoro, sleep=Sleeps())
+
+    worker.submit(job.id)
+    worker.submit(job.id)  # already running: no second task
+    await worker.wait_idle()
+
+    await db_session.refresh(job)
+    assert (job.status, job.done) == ("done", 4)
+    assert len(vendor.asked) == 4
+
+
+async def test_a_restart_carries_on_running_jobs_only(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    maker: async_sessionmaker[AsyncSession],
+    vendor: Vendor,
+) -> None:
+    tenant_id, user_id = await tenant(client, db_session)
+    other_id, _ = await tenant(client, db_session)
+    await words(db_session, "apple", "banana", "cherry")
+    job = await word_audio.start(
+        db_session,
+        kokoro(_ctx(tenant_id)),
+        BOOK,
+        ["en-US"],
+        user_id=user_id,
+        requests_per_minute=60,
+    )
+    paused = await word_audio.start(
+        db_session, kokoro(_ctx(other_id)), BOOK, ["en-US"], user_id=None, requests_per_minute=60
+    )
+    await word_audio.set_status(db_session, other_id, "pause")
+
+    # The first process is stopped while waiting after its first word.
+    reached, gate = asyncio.Event(), asyncio.Event()
+
+    async def stuck(seconds: float) -> None:
+        reached.set()
+        await gate.wait()
+
+    first = WordAudioWorker(maker, route=kokoro, sleep=stuck)
+    first.submit(job.id)
+    await reached.wait()
+    await first.stop()
+    await db_session.refresh(job)
+    assert (job.status, job.cursor, job.done) == ("running", 0, 0)
+
+    second = WordAudioWorker(maker, route=kokoro, sleep=Sleeps())
+    assert await second.recover() == 1
+    await second.wait_idle()
+
+    await db_session.refresh(job)
+    await db_session.refresh(paused)
+    assert (job.status, job.done) == ("done", 3)
+    assert paused.status == "paused"
+    # "apple" was asked for again: the first process never saved it.
+    assert [word for word, _ in vendor.asked] == ["apple", "apple", "banana", "cherry"]
+
+
+async def test_without_a_route_the_worker_pauses_the_job(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    maker: async_sessionmaker[AsyncSession],
+    vendor: Vendor,
+) -> None:
+    tenant_id, user_id = await tenant(client, db_session)
+    await words(db_session, "apple")
+    job = await word_audio.start(
+        db_session,
+        kokoro(_ctx(tenant_id)),
+        BOOK,
+        ["en-US"],
+        user_id=user_id,
+        requests_per_minute=60,
+    )
+    worker = WordAudioWorker(maker, sleep=Sleeps())  # the tenant's real route: none
+
+    worker.submit(job.id)
+    await worker.wait_idle()
+
+    await db_session.refresh(job)
+    assert (job.status, job.error) == ("paused", "no read-aloud route configured")
+    assert vendor.asked == []

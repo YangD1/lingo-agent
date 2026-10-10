@@ -54,6 +54,7 @@ from app.scheduler.jobs import JOBS
 from app.scheduler.service import Scheduler
 from app.services.news.sources import sync_builtin_feeds
 from app.services.reading.worker import ReadingWorker
+from app.services.speech.worker import WordAudioWorker
 from app.settings import Settings, get_settings
 from app.usage.recorder import set_usage_sink
 from app.usage.writer import UsageWriter
@@ -123,6 +124,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     usage_writer = UsageWriter(app.state.sessionmaker)
     usage_writer.start()
     set_usage_sink(usage_writer.submit)
+    # After the usage sink: resumed jobs call the vendor at once.
+    app.state.word_audio_worker = WordAudioWorker(app.state.sessionmaker)
+    resumed = await app.state.word_audio_worker.recover()
+    if resumed:
+        logger.info("carrying on with %d word audio jobs", resumed)
     app.state.scheduler = Scheduler(app.state.sessionmaker, JOBS)
     if settings.scheduler_enabled:
         await app.state.scheduler.start()
@@ -165,6 +171,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await app.state.reading_worker.stop()
         except TimeoutError:
             logger.warning("article rewriting did not stop within 5s")
+        try:
+            async with asyncio.timeout(5):
+                # Progress is saved per word: the next start carries on.
+                await app.state.word_audio_worker.stop()
+        except TimeoutError:
+            logger.warning("word audio generation did not stop within 5s")
         try:
             async with asyncio.timeout(5):
                 await app.state.attachment_processor.stop()

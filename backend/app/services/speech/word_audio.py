@@ -289,7 +289,7 @@ async def run_batch(
             None,
         )
         if model is None:
-            await _pause(session, job_id, f"model {voice.connection}:{voice.model} left the route")
+            await pause(session, job_id, f"model {voice.connection}:{voice.model} left the route")
             return False
         readers[accent] = TextToSpeech(
             tenant_id,
@@ -349,14 +349,14 @@ async def run_batch(
         )
         await session.commit()
         if failures_in_a_row >= FAILURES_BEFORE_PAUSE:
-            await _pause(session, job_id, f"{failures_in_a_row} words in a row failed")
+            await pause(session, job_id, f"{failures_in_a_row} words in a row failed")
             return False
         if status != "running":
             return False
     return True
 
 
-async def _pause(session: AsyncSession, job_id: uuid.UUID, error: str) -> None:
+async def pause(session: AsyncSession, job_id: uuid.UUID, error: str) -> None:
     await session.execute(
         update(WordAudioJob)
         .where(WordAudioJob.id == job_id, WordAudioJob.status == "running")

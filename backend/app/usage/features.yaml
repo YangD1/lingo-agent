@@ -84,6 +84,16 @@ features:
         timing: now
         default: {characters: 60}
 
+  # A word book's pronunciations, generated ahead of time when the deployment asks
+  # (ADR 0028 §4). Per word and accent; not against the daily background budget (Q7).
+  word_audio_prefetch:
+    calls:
+      - task: word_audio
+        section: tts
+        route: default
+        timing: background
+        default: {characters: 8}
+
   practice_start:
     calls:
       - task: practice_opening
