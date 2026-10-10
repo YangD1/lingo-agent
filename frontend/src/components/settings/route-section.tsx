@@ -27,26 +27,37 @@ const MAX_ROWS = 5; // the backend's limit on a route's fallback chain
 
 /**
  * The routes the settings page edits: chat, the two that attachments need (ADR 0008 §5),
- * the background model that keeps the tutor's memory (ADR 0009), and read-aloud (ADR 0028).
+ * the background model that keeps the tutor's memory (ADR 0009), read-aloud and
+ * pronunciation assessment (ADR 0028).
  */
-export type RouteTask = "chat" | "reflect" | "vision" | "asr" | "tts";
+export type RouteTask = "chat" | "reflect" | "vision" | "asr" | "tts" | "pronunciation";
 const SECTION: Record<RouteTask, TaskRoute["section"]> = {
   chat: "llm",
   reflect: "llm",
   vision: "llm",
   asr: "asr",
   tts: "tts",
+  pronunciation: "pronunciation",
 };
-// The asr and tts sections have a single route each, stored under the task name "default".
+// The speech sections have a single route each, stored under the task name "default".
 const TASK_KEY: Record<RouteTask, string> = {
   chat: "chat",
   reflect: "reflect",
   vision: "vision",
   asr: "default",
   tts: "default",
+  pronunciation: "default",
 };
 // A connection's default model is a chat model: only a good first guess for these.
 const TEXT_TASKS = new Set<RouteTask>(["chat", "reflect"]);
+// Azure assesses pronunciation through the same connection; the route names this model.
+const PRONUNCIATION_MODEL = "pronunciation";
+
+// The model a new row (or a row switched to `c`) starts with.
+function firstModel(task: RouteTask, c: Connection | undefined): string {
+  if (TEXT_TASKS.has(task)) return c?.default_model ?? "";
+  return task === "pronunciation" && c?.kind === "azure_speech" ? PRONUNCIATION_MODEL : "";
+}
 
 // `off`: switched off in this route, kept in the chain but never called (ADR 0026).
 // `voices` (read-aloud only): the voice for each language, over the built-in one.
@@ -124,8 +135,11 @@ export function RouteSection({
   }
 
   function newRow(): Row {
-    const c = connections[0];
-    return row(c?.name ?? "", TEXT_TASKS.has(task) ? (c?.default_model ?? "") : "");
+    // Only Azure assesses pronunciation (ADR 0028 §5): start from an Azure connection.
+    const c =
+      (task === "pronunciation" && connections.find((x) => x.kind === "azure_speech")) ||
+      connections[0];
+    return row(c?.name ?? "", firstModel(task, c));
   }
 
   async function put(
@@ -164,11 +178,22 @@ export function RouteSection({
   function loadCatalog(name: string) {
     const c = connections.find((x) => x.name === name);
     if (!c || catalogs[name]) return;
+    if (task === "pronunciation") {
+      // Nothing to list: Azure's one assessment model, none elsewhere.
+      const ids = c.kind === "azure_speech" ? [PRONUNCIATION_MODEL] : [];
+      setCatalogs((all) => ({ ...all, [name]: ids }));
+      return;
+    }
     setCatalogs((all) => ({ ...all, [name]: "loading" }));
     const use =
       task === "asr" ? "speech" : task === "tts" ? (c.kind === "azure_speech" ? "all" : "tts") : "chat";
     fetchModels(c.id, use).then(
-      (ids) => setCatalogs((all) => ({ ...all, [name]: ids })),
+      // An Azure connection lists its assessment model with the voices; it reads nothing.
+      (ids) =>
+        setCatalogs((all) => ({
+          ...all,
+          [name]: task === "tts" ? ids.filter((id) => id !== PRONUNCIATION_MODEL) : ids,
+        })),
       () => setCatalogs((all) => ({ ...all, [name]: "failed" })),
     );
   }
@@ -336,8 +361,7 @@ export function RouteSection({
                       value={r.connection}
                       onChange={(e) => {
                         const c = connections.find((x) => x.name === e.target.value);
-                        const model = TEXT_TASKS.has(task) ? (c?.default_model ?? "") : "";
-                        update(r.key, { connection: e.target.value, model });
+                        update(r.key, { connection: e.target.value, model: firstModel(task, c) });
                       }}
                       className="w-36"
                     >

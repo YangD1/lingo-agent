@@ -762,9 +762,11 @@
       "switchedOff": "Connection turned off.",
       "testAsTts": "Read aloud",
       "testOkTts": "Read-aloud works ({ms} ms)",
+      "testAsPronunciation": "Pronunciation",
+      "testOkPronunciation": "Pronunciation assessment works ({ms} ms)",
       "ttsNotSupported": "This connection can't read aloud (the server has no /audio/speech endpoint, or no such voice). Use a read-aloud model from Azure Speech, SiliconFlow, OpenAI or a local Speaches instead.",
-      "testVoice": "Voice to test",
-      "testVoiceHint": "This connection only reads aloud. Pick a voice here to test it; which voices are used is set in the Read aloud route below.",
+      "testVoice": "Model to test",
+      "testVoiceHint": "This connection only reads aloud and assesses pronunciation. Pick a voice to test reading aloud, or pronunciation to test assessment; which voices are used, and whether it assesses pronunciation, is set in the Read aloud and Pronunciation routes below.",
       "azureRegion": "Region",
       "azureChina": "Azure China (azure.cn)",
       "azureRegionHint": "The region of your Speech resource, such as eastasia, eastus or chinaeast2. The address follows from it."
@@ -818,6 +820,11 @@
           "title": "Read aloud",
           "description": "Reads tutor replies, words and examples with a server voice (Azure Speech, or an OpenAI-compatible /audio/speech endpoint such as SiliconFlow, OpenAI or a local speaches). Sentences already read are cached.",
           "none": "Not set up: learners' browsers read aloud."
+        },
+        "pronunciation": {
+          "title": "Pronunciation",
+          "description": "Scores learners' pronunciation when they read after the model: overall, per word and per sound (Azure Speech only for now, model pronunciation). Without it, shadowing compares a transcript with the sentence and gives only a rough result.",
+          "none": "Not set up: shadowing compares a transcript instead (no shadowing without speech-to-text either)."
         }
       },
       "fallback": "Fallback",
@@ -1353,7 +1360,9 @@
       "word_examples_prefetch": "In the background every six hours: for the words you will review or learn in the next day that have no real example sentence, the same AI call as the \"AI examples\" button writes two sentences at your level, at most 30 words a time, within the tenant's daily background budget. Learners at the same level share them.",
       "diagnosis": "In the background at most weekly (also after a practice set with many new mistakes, at most daily): the AI model reads up to 3 grammar points you keep getting wrong, their prerequisites and the points they are often confused with, and your latest mistakes, and suggests root causes. Conclusions that cannot quote your own sentences are dropped. Within the tenant's daily background budget.",
       "read_aloud": "Replies, words and examples are read by the server's read-aloud model; sentences already read are cached and not billed again. You can turn it off in the read-aloud settings and use only this device's voices.",
-      "word_audio_prefetch": "Started by hand in the settings for one word book: the first model in the read-aloud route reads each word in American and/or British English once and the audio is kept, so learners reading a word aloud play it with no model call. Billed by characters, estimated before it starts; not against the daily background budget."
+      "word_audio_prefetch": "Started by hand in the settings for one word book: the first model in the read-aloud route reads each word in American and/or British English once and the audio is kept, so learners reading a word aloud play it with no model call. Billed by characters, estimated before it starts; not against the daily background budget.",
+      "shadowing": "Your recording is scored by a pronunciation assessment model: overall, per word and per sound. The recording is discarded once scored; only the scores are kept. They update your speaking ability, and words you don't say right are marked in your reviews. If assessment fails, a transcript is compared instead.",
+      "shadowing_rough": "Your recording is transcribed by a speech-to-text model and compared with the sentence word by word, marking words left out, heard as another word, or added. It's a rough result, not a pronunciation score, and isn't counted in your learning record. The recording is discarded once transcribed."
     },
     "task": {
       "chat": "Reply",
@@ -1378,7 +1387,9 @@
       "reading_coach": "Reading coach reply",
       "diagnose": "Diagnose root causes",
       "tts": "Read aloud",
-      "word_audio": "Word pronunciation"
+      "word_audio": "Word pronunciation",
+      "pronunciation": "assess pronunciation",
+      "shadowing_asr": "transcribe the reading"
     },
     "timing": {
       "now": "right away",

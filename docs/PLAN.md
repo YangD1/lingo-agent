@@ -134,7 +134,7 @@ realtime:                                   # 端到端语音对话，后端中�
 - `feeds`（内置 + 学习者自加）、`feed_subscriptions`（user, feed, topics）、`articles`（feed, url, 正文, 许可标记）、`article_versions`（租户, 目标等级, 改写正文, 词表, 理解题）、`reading_sessions`（ADR 0024）
 - `scheduler_runs`（定时任务上次运行，ADR 0025）、`daily_plans`（user, day 本地日期, choice / limits JSONB, status, card_id；完成情况读时现算，见 ADR 0027）
 - `attachments`（conversation, message_id, kind[image/audio/document], mime, data bytea, status, text 派生文本, meta JSONB；见 ADR 0008）；以后做文档 RAG 时加 `attachment_chunks`（pgvector）
-- `tts_audio`（朗读音频缓存，按租户、内容哈希，记第一次让它生成的学习者，可由本人清除、30 天没用自动清，ADR 0028、Q54c；预生成的单词发音 `pinned` 并记 `word_id`，不淘汰）、`word_audio_jobs`（单词发音预生成任务：词书、开工时的声音、进度、断点 cursor、单价，ADR 0028 §4）、`pronunciation_attempts`（跟读评测：参考文本、整体分、逐词 / 音素，录音不保存，ADR 0028）、`speaking_sessions`（口语会话小结，级联 / 实时，ADR 0029、0030）；`conversations.purpose` 加 speaking / realtime 和 `scenario_id`
+- `tts_audio`（朗读音频缓存，按租户、内容哈希，记第一次让它生成的学习者，可由本人清除、30 天没用自动清，ADR 0028、Q54c；预生成的单词发音 `pinned` 并记 `word_id`，不淘汰）、`word_audio_jobs`（单词发音预生成任务：词书、开工时的声音、进度、断点 cursor、单价，ADR 0028 §4）、`pronunciation_attempts`（跟读记录：来源、参考文本、口音、评测或转写对比、整体分、逐词 / 音素，录音不保存，学习者可删，ADR 0028）、`word_pronunciations`（学习者每个词库单词最近一次评测的准确度，低于阈值在复习卡片标“读不准”，ADR 0028、Q56c）、`speaking_sessions`（口语会话小结，级联 / 实时，ADR 0029、0030）；`conversations.purpose` 加 speaking / realtime 和 `scenario_id`
 - LangGraph 自带：checkpoints 表、store 表（记忆）
 
 ---

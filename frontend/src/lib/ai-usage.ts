@@ -20,7 +20,9 @@ export type AiFeature =
   | "word_examples_prefetch"
   | "diagnosis"
   | "read_aloud"
-  | "word_audio_prefetch";
+  | "word_audio_prefetch"
+  | "shadowing"
+  | "shadowing_rough";
 
 /** `llm_usage.task` labels the catalog uses; each has a name in messages (aiBadge.task). */
 const AI_TASKS = [
@@ -46,6 +48,8 @@ const AI_TASKS = [
   "diagnose",
   "tts",
   "word_audio",
+  "pronunciation",
+  "shadowing_asr",
   "advice", // no longer called (ADR 0016); past usage records still carry it
 ] as const;
 export type AiTask = (typeof AI_TASKS)[number];
@@ -61,7 +65,7 @@ export type CallEstimate = {
   per: "call" | "image" | "page";
   input_tokens: number;
   output_tokens: number;
-  /** Speech-to-text only: billed by audio length, not tokens. */
+  /** Speech-to-text and pronunciation assessment: billed by audio length, not tokens. */
   audio_seconds: number | null;
   /** Read-aloud only: billed by characters read, not tokens. */
   characters: number | null;

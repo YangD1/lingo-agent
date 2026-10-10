@@ -84,3 +84,15 @@
 - **费用与占用**（Q55d、Q55g）：单价在开始前的表单里填、存进任务，Azure 预填 15 USD / 百万字符并注明以厂商价格页为准；不填只显示字符数。预计占用按本租户已有单词音频的平均大小（没有时按 7KB / 段）；不设硬上限，可按词书删除（和其他词书共用的词一起删）。有进行中或暂停的任务时不许删，免得任务跳过已删的词。
 - **学习者开关**（Q55f）：学习者关了“用服务端声音朗读”，单词也由浏览器读，不例外。
 
+## 落地记录（任务 56，2026-10-10）
+
+Q56a–f 按推荐确认。和上文的差异与补充：
+
+- **核实结果**：Azure 短音频接口收 16kHz 单声道 WAV（或 OGG Opus），评测音频 ≤ 30 秒；**韵律分、音素名称（IPA）、音节分组只有 en-US**，en-GB 只给音素分数、没有音素名。所以按学习者选的口音评（Q56a），英音结果没有音素名时只标“这个词读得不准”，界面注明音素细节只有美音有。`PhonemeAlphabet: IPA` 写在 REST 请求头里（文档只在 SDK 一节列出），是否生效要用真 key 确认。
+- **连接与路由**（56.1）：`pronunciation` 节只收 `azure_speech`，模型名固定为 `pronunciation`（Azure 模型列表里多出这一项，朗读路由的声音列表里滤掉）；评测地址由朗读地址把 `.tts.` 换成 `.stt.` 得到。录音不合格（非 16kHz 单声道 16 位 WAV、超 30 秒）不发给厂商；`InitialSilenceTimeout` / `NoMatch` 算“没听到”，不切备用连接（换一家也听不到），照样记用量。连接测试 `pronunciation` 用途发静音片段，“没听到”算通过。迁移 `0bc5f9185f2b`。
+- **转写对比**（56.2）：`services/speech/alignment.py`，比较前统一大小写、标点、弯引号、无歧义缩写（n't、're、'll、've、won't、can't、I'm；'s、'd 有歧义按原样比）和 0–20 的数字；缩写只对上一半算“读成别的词”。用量 task `shadowing_asr`，走 `asr` 路由。
+- **证据**（56.3，Q56b、Q56c）：口语能力 Elo 的结果 = 总分 / 100（`elo.update_ability` 接受 0–1 的得分），句子难度 = 最生僻词库单词的等级锚点（按词频排名切等级）+ 句长加减；完整度 < 50%、少于 3 个词、录音 < 1 秒的不计能力。单词发音单独一张表 `word_pronunciations`（user + 词库 `word_id`，最近准确度、低分次数），最近一次 < 60 在复习卡片标“读不准”，读到 ≥ 60 就取消；不计能力的那次，读到的单词照样记。参数在 `rules.yaml` 的 `pronunciation` 块（规则版本 `2026-10-10.1`）。评测失败且配了转写时改用转写对比（Q56e），记 `fallback_reason`。迁移 `deaa2ad30b74`。
+- **接口与公示**（56.4、Q56d、Q56f）：`POST /speech/shadowing`（≤ 1MB）、`GET /speech/shadowing`（翻页）、`DELETE /speech/shadowing/{id}`、`DELETE /speech/shadowing`；删除记录不撤销已计入的证据，和其他证据一样。`/speech/capabilities` 的 `shadowing` 为 `assessment` / `rough` / null。`features.yaml` 拆成 `shadowing` 和 `shadowing_rough` 两项，前端按能力挂其中一个，免得估算把两种调用都算上。不设次数上限（Q56f）。
+- **设置页**（56.5）：新增“发音评测”路由卡片（新行默认选 Azure 连接和 `pronunciation`，不去厂商拉模型列表）；连接测试可选“发音评测”；Azure 连接上“测试用的声音”改为“测试用的模型”。
+- **未做 / 未验证**：跟读组件、`AiBadge` 挂载和 E2E 在任务 57；没有用真实 Azure key 跑过。
+

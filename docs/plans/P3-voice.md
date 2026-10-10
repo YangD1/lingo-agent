@@ -91,6 +91,7 @@
 - **证据**：整体分更新 `skill_estimates.speaking`（Elo，按句子难度）；准确度低于阈值的词记一条单词证据（发音），供背词页标出“这个词你读不准”。不给语法 KC 记证据。阈值放 `rules.yaml`。
 - **界面**：`ShadowingPanel` 组件（示范 → 录音 → 结果：整体分环、逐词着色、点词看音素、再听示范 / 再读一次 / 加入生词本），挂在私教气泡、阅读文章段落、单词例句旁。
 - **公示**：`features.yaml` 加 `shadowing`（`pronunciation` 或 `asr`，按音频秒数估算）；入口挂 `AiBadge`。
+- **落地（任务 56，2026-10-10）**：后端和设置页按 Q56a–f 完成：`pronunciation` 路由节与 Azure 适配器、转写对比兜底、`pronunciation_attempts` 与 `word_pronunciations`、口语能力 Elo、`/speech/shadowing` 接口与记录删除、背词卡片“读不准”；`features.yaml` 拆成 `shadowing` / `shadowing_rough`。英音没有音素名和韵律分（Azure 限制）。细节见 ADR 0028 落地记录；跟读组件在任务 57。
 
 ## 5. 级联口语练习（P3c）
 

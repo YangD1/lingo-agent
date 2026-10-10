@@ -49,7 +49,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
 - **English and Chinese UI.**
 
-Not built yet (see [docs/PLAN.md](docs/PLAN.md)): pre-generated word pronunciations (see ADR 0018), shadowing and real-time voice conversation (P3); evaluation in CI, rate limiting and cost dashboards (P4).
+Not built yet (see [docs/PLAN.md](docs/PLAN.md)): shadowing with pronunciation scores (the backend is in place, the learner-facing part comes next) and real-time voice conversation (P3); evaluation in CI, rate limiting and cost dashboards (P4).
 
 ## Quick start (Docker)
 

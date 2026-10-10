@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-10 · 任务 56 完成（发音评测与跟读后端）
+
+- **做了什么**：拆成 56.1–56.5，Q56a–f 按推荐确认。开工前核实 Azure：短音频接口收 16kHz 单声道 WAV、评测 ≤ 30 秒，韵律分 / 音素名（IPA）/ 音节只有 en-US。56.1 `providers/pronunciation.py` + `pronunciation` 路由节 + 连接测试用途（迁移 `0bc5f9185f2b`）；56.2 `services/speech/alignment.py` 转写逐词对比；56.3 `rules.yaml` `pronunciation` 块（规则版本 `2026-10-10.1`）、`pronunciation_attempts` / `word_pronunciations`（迁移 `deaa2ad30b74`）、`services/speech/shadowing.py`、`elo.update_ability` 接受 0–1 得分；56.4 `api/speech.py` 的 `/speech/shadowing` 四个接口、`capabilities.shadowing`、背词 `CardOut.mispronounced`、`features.yaml` 的 `shadowing` / `shadowing_rough`、`agent-tools.md`；56.5 设置页“发音评测”路由、连接测试“发音评测”、文案、ADR 0028 落地记录、P3 计划、PLAN、README 中英。提交 ba0fcae、b892c4f、7a68712、73d427d、cb7c985 和本次。
+- **验证**：pytest 1545、Vitest 396 全过；ruff、mypy、eslint、tsc 干净；相关 E2E 23 条（settings、speech、model-switches、usage、i18n、vocab）全过，没跑完整 E2E。开发库已迁移到 `deaa2ad30b74`。
+- **未完成**：56 范围内没有。没用真 Azure key 跑过，`PhonemeAlphabet: IPA` 放在 REST 头里是否生效未确认（文档只在 SDK 一节写）。本地领先 origin 7 个提交（含上次的 20c82bb），未推送。
+- **下一步**：任务 57（跟读组件：浏览器录音编码成 16kHz WAV、`ShadowingPanel`、挂到私教气泡 / 阅读段落 / 单词例句、按 `capabilities.shadowing` 挂 `AiBadge`、E2E 用假评测），开工前先拆子任务、和用户确认。可以先推送一次跑 CI。
+- **踩坑**：Docker 全栈的 backend 在重启循环：镜像比开发库旧，找不到迁移 `ef6b9eccf722`（任务 55 起就没重建），要用时先 `make up` 重建。ruff 的 RUF001/RUF003 会拦 IPA 的 `ɡ` 和弯引号，而 PostToolUse 的 ruff format 会把 `\u` 转义改回字面字符，只能用 `chr()` 拼。测试里不配路由时，YAML 的默认路由会用上名为 `azure` 的连接，想要“没配”就别建这个名字的连接。
+
 ## 2026-10-10 · 任务 55 完成（单词发音预生成）
 
 - **做了什么**：开头把 b3e987f 推送了。任务 55 拆成 55.1–55.6，Q55a–g 全部按推荐确认。55.1 `word_audio_jobs` 表 + `tts_audio.word_id`（迁移 `ef6b9eccf722`）+ `services/speech/word_audio.py`（估算、开始、按词分批、限速、429 退避、连续失败自动暂停）；55.2 `services/speech/worker.py` `WordAudioWorker`（重启后接着跑 running 的任务）、`features.yaml` 的 `word_audio_prefetch`、`agent-tools.md`；55.3 `api/word_audio.py`（`/tenant/word-audio`，只给 owner / admin）；55.4 前端 `speakWord`（单词按语速 1 请求，用 `playbackRate` 调速）；55.5 设置页 `word-audio-section.tsx`，页内目录只列页面上有的小节；55.6 E2E 1 条、ADR 0028 落地记录、P3 计划、PLAN、README。提交 7a19503、167d690、e017510、66a8155、6be321f 和本次。

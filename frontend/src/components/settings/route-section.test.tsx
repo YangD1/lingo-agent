@@ -204,6 +204,41 @@ describe("RouteSection", () => {
     );
   });
 
+  it("sets up pronunciation assessment on an Azure connection without listing models", async () => {
+    const AZURE: Connection = {
+      ...RELAY,
+      id: "c3",
+      name: "azure",
+      kind: "azure_speech",
+      base_url: "https://eastasia.tts.speech.microsoft.com",
+      default_model: null,
+    };
+    api.mockImplementation(async (path: string) =>
+      path === "/tenant/routes"
+        ? [...ROUTES, route({ section: "pronunciation", task: "default" })]
+        : undefined,
+    );
+    show("pronunciation", [RELAY, AZURE]);
+
+    expect(await screen.findByTestId("route-source-pronunciation")).toHaveTextContent(
+      "Not set up: shadowing compares a transcript instead",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Edit order" }));
+    // The first row starts on the Azure connection, with its one assessment model.
+    expect(screen.getByRole("combobox", { name: "Connection 1" })).toHaveValue("azure");
+    expect(screen.getByRole("combobox", { name: "Model 1" })).toHaveValue("pronunciation");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(api).toHaveBeenCalledWith("/tenant/routes/pronunciation/default", {
+        method: "PUT",
+        json: { models: ["azure:pronunciation"], disabled: [] },
+      }),
+    );
+    // Nothing asked the vendor for a model list.
+    expect(api).not.toHaveBeenCalledWith(expect.stringContaining("/models"));
+  });
+
   it("edits a read-aloud route's voices per language, keeping them when a row is switched", async () => {
     const kokoro = "local:speaches-ai/Kokoro-82M-v1.0-ONNX";
     const tts = route({

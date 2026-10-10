@@ -133,7 +133,7 @@ describe("ConnectionsSection", () => {
     show([AZURE], AZURE_PRESET);
     const item = screen.getByTestId("connection-azure");
     // Speech only: no default chat model to save, the box is the voice to test.
-    expect(screen.getByLabelText("Voice to test")).toHaveValue("en-US-AvaMultilingualNeural");
+    expect(screen.getByLabelText("Model to test")).toHaveValue("en-US-AvaMultilingualNeural");
     expect(screen.queryByRole("button", { name: "Save model" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Test" }));
@@ -143,5 +143,28 @@ describe("ConnectionsSection", () => {
       json: { model: "en-US-AvaMultilingualNeural" },
     });
     await waitFor(() => expect(item).toHaveTextContent("This connection can't read aloud"));
+  });
+
+  it("tests pronunciation assessment on the same connection", async () => {
+    api.mockImplementation(async (path: string) =>
+      path.endsWith("/test")
+        ? { ok: true, error: null, error_code: null, latency_ms: 120, purpose: "pronunciation" }
+        : [AZURE],
+    );
+    show([AZURE], AZURE_PRESET);
+    const item = screen.getByTestId("connection-azure");
+    const model = screen.getByLabelText("Model to test");
+    await userEvent.clear(model);
+    await userEvent.type(model, "pronunciation");
+    await userEvent.keyboard("{Escape}");
+
+    await userEvent.click(screen.getByRole("button", { name: "Test" }));
+
+    expect(api).toHaveBeenCalledWith("/tenant/connections/c2/test", {
+      method: "POST",
+      json: { model: "pronunciation" },
+    });
+    await waitFor(() => expect(item).toHaveTextContent("Pronunciation assessment works (120 ms)"));
+    expect(screen.getByRole("option", { name: "Pronunciation" })).toBeInTheDocument();
   });
 });

@@ -37,12 +37,14 @@ const TEST_AS = {
   asr: "testAsAsr",
   vision: "testAsVision",
   tts: "testAsTts",
+  pronunciation: "testAsPronunciation",
 } as const;
 const TEST_OK = {
   chat: "testOk",
   asr: "testOkAsr",
   vision: "testOkVision",
   tts: "testOkTts",
+  pronunciation: "testOkPronunciation",
 } as const;
 const NOT_SUPPORTED: Record<string, "asrNotSupported" | "visionNotSupported" | "ttsNotSupported"> = {
   asr_not_supported: "asrNotSupported",
