@@ -254,3 +254,45 @@ describe("server read-aloud", () => {
     expect(requests).toEqual([]);
   });
 });
+
+describe("reading a reply while it streams (task 59.1)", () => {
+  it("asks for each sentence once it is complete, and the rest at the end", async () => {
+    const speech = await load();
+    const stream = speech.speakStream("m1");
+    stream.push("Nice to meet");
+    stream.push(" you. What's your **name**? I'm");
+    await flush();
+    // The second is fetched while the first plays.
+    expect(requests.map((r) => r.text)).toEqual(["Nice to meet you.", "What's your name?"]);
+    await endAudio();
+    await endAudio();
+    stream.push(" Sam, 3.5 years");
+    stream.end();
+    await flush();
+    expect(requests.at(-1)!.text).toBe("I'm Sam, 3.5 years");
+    expect(playing()).toBe("blob:3");
+  });
+
+  it("waits for the next sentence in the browser too, and ends after the last", async () => {
+    const speech = await load([]);
+    const stream = speech.speakStream("m1");
+    stream.push("Hello there. And");
+    expect(read()).toEqual(["Hello there."]);
+    spoken[0].onend!();
+    stream.push(" goodbye.");
+    stream.end();
+    expect(read()).toEqual(["And goodbye."]);
+  });
+
+  it("ignores what comes after it was stopped", async () => {
+    const speech = await load();
+    const stream = speech.speakStream("m1");
+    stream.push("One. ");
+    await flush();
+    speech.stopSpeaking();
+    stream.push("Two. ");
+    stream.end();
+    await flush();
+    expect(requests.map((r) => r.text)).toEqual(["One."]);
+  });
+});

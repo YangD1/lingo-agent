@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_SPEECH_SETTINGS, planSpeech, revoice, splitSentences } from "@/lib/speech";
+import {
+  DEFAULT_SPEECH_SETTINGS,
+  planSpeech,
+  revoice,
+  splitSentences,
+  takeSentences,
+} from "@/lib/speech";
 import type { VoiceLike } from "@/lib/voices";
 
 const v = (name: string, lang: string): VoiceLike => ({
@@ -37,6 +43,14 @@ describe("splitSentences", () => {
     expect(pieces.every((piece) => piece.length <= 200)).toBe(true);
     expect(pieces.join(" ")).toBe(long);
     expect(splitSentences(" “ ")).toEqual([]);
+  });
+});
+
+describe("takeSentences", () => {
+  it("keeps what follows the last sentence end, and a stop not yet followed by a space", () => {
+    expect(takeSentences("Hi! How are")).toEqual(["Hi!", " How are"]);
+    expect(takeSentences("It costs 3.")).toEqual(["", "It costs 3."]);
+    expect(takeSentences("好的。Next one\n")).toEqual(["好的。Next one\n", ""]);
   });
 });
 

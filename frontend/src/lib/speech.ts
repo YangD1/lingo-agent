@@ -581,19 +581,24 @@ function cutOff() {
  * each by the server when it reads that language, else by the browser. While one sentence
  * plays the next is fetched. A sentence the server fails on is read again by the browser,
  * and so is the rest (or the rest in that language, when the route has no voice for it).
- * `browser` is read in the browser first, for a voice sample.
+ * `browser` is read in the browser first, for a voice sample; with `feed`, more pieces
+ * are added to `pieces` as they come. Returns whether this reading is still the current one.
  */
 function read(
   owner: string | null,
   pieces: Piece[],
   browser: Utterance<SpeechSynthesisVoice>[] = [],
+  feed?: Feed,
 ) {
   cutOff();
   const id = reading;
   const controller = new AbortController();
   stopRequests = controller;
   const live = () => id === reading;
-  if (pieces.length === 0 && browser.length === 0) return setSpeaking(null);
+  if (pieces.length === 0 && browser.length === 0 && !feed) {
+    setSpeaking(null);
+    return live;
+  }
   setSpeaking(owner);
 
   const fetched = new Map<number, Promise<Blob | null>>();
@@ -608,7 +613,10 @@ function read(
   // what it reads (asked when a read-aloud button shows), the browser reads everything.
   const step = (i: number): void => {
     if (!live()) return;
-    if (i >= pieces.length) return setSpeaking(null);
+    if (i >= pieces.length) {
+      if (feed?.open) return void (feed.resume = () => step(i));
+      return setSpeaking(null);
+    }
     const settings = currentSettings();
     if (!serverReads(pieces[i].lang, settings)) {
       let end = i;
@@ -636,9 +644,80 @@ function read(
   };
 
   const settings = currentSettings();
-  if (pieces.some((piece) => serverReads(piece.lang, settings))) unlockPlayer();
+  const english = feed !== undefined && serverReads("en-US", settings);
+  if (english || pieces.some((piece) => serverReads(piece.lang, settings))) unlockPlayer();
   if (browser.length) play(owner, browser, () => step(0));
   else step(0);
+  return live;
+}
+
+/**
+ * A reading still being written: `resume` picks it up where it waits for the next
+ * sentence, and once `open` is false it ends after the last one.
+ */
+type Feed = { open: boolean; resume: (() => void) | null };
+
+// What a sentence end looks like in text still coming: a full stop only before a space,
+// as in `splitSentences`, so a stop at the very end waits for what follows it.
+const SENTENCE_END = /[。？！；;\n]|[.?!](?=\s)/gu;
+
+/**
+ * `text` cut after its last sentence end: the sentences that are complete, and the rest
+ * still being written.
+ */
+export function takeSentences(text: string): [complete: string, rest: string] {
+  let cut = 0;
+  for (const match of text.matchAll(SENTENCE_END)) cut = match.index + match[0].length;
+  return [text.slice(0, cut), text.slice(cut)];
+}
+
+// Markdown marks that would be read out: emphasis, code, headings, quotes, list bullets,
+// and a link's address (its text is kept).
+const plain = (markdown: string) =>
+  markdown
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^\s*(?:#+|>|[-*+]|\d+\.)\s+/gm, "")
+    .replace(/[*_`~]+/g, "");
+
+export type SpeechStream = {
+  /** More of the reply: each sentence is read once it is complete. */
+  push(text: string): void;
+  /** The reply is complete: what is left is read, then the reading ends. */
+  end(): void;
+};
+
+/**
+ * Reads a reply for `owner` while it streams in (task 59.1), cutting off whatever was
+ * being read: sentences are read one after another as they complete, by the server or
+ * the browser as `speakSegments` does. Start it inside the click that sent the message,
+ * so Safari lets it play. Stopping (`stopSpeaking`, or any other reading) drops it; what
+ * is pushed after that is ignored.
+ */
+export function speakStream(owner: string): SpeechStream {
+  const pieces: Piece[] = [];
+  const feed: Feed = { open: true, resume: null };
+  const live = read(owner, pieces, [], feed);
+  let rest = "";
+  const add = (text: string) => {
+    pieces.push(...sentences(speechSegments(plain(text))));
+    const resume = feed.resume;
+    feed.resume = null;
+    resume?.();
+  };
+  return {
+    push(text) {
+      if (!live() || !feed.open) return;
+      const [complete, more] = takeSentences(rest + text);
+      rest = more;
+      if (complete) add(complete);
+    },
+    end() {
+      if (!live() || !feed.open) return;
+      feed.open = false;
+      add(rest);
+      rest = "";
+    },
+  };
 }
 
 /** `segments` cut into sentences, each read on its own (by the server or the browser). */
