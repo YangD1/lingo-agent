@@ -7,7 +7,7 @@
 ## 2026-10-10 · 任务 55 完成（单词发音预生成）
 
 - **做了什么**：开头把 b3e987f 推送了。任务 55 拆成 55.1–55.6，Q55a–g 全部按推荐确认。55.1 `word_audio_jobs` 表 + `tts_audio.word_id`（迁移 `ef6b9eccf722`）+ `services/speech/word_audio.py`（估算、开始、按词分批、限速、429 退避、连续失败自动暂停）；55.2 `services/speech/worker.py` `WordAudioWorker`（重启后接着跑 running 的任务）、`features.yaml` 的 `word_audio_prefetch`、`agent-tools.md`；55.3 `api/word_audio.py`（`/tenant/word-audio`，只给 owner / admin）；55.4 前端 `speakWord`（单词按语速 1 请求，用 `playbackRate` 调速）；55.5 设置页 `word-audio-section.tsx`，页内目录只列页面上有的小节；55.6 E2E 1 条、ADR 0028 落地记录、P3 计划、PLAN、README。提交 7a19503、167d690、e017510、66a8155、6be321f 和本次。
-- **验证**：pytest 1499、Vitest 394、E2E 61 全过；`make lint` 干净。开发库已迁移到 `ef6b9eccf722`。**还没推送，Docker 没重建。**
+- **验证**：pytest 1499、Vitest 394、E2E 61 全过；`make lint` 干净。开发库已迁移到 `ef6b9eccf722`。推送到 7bd781f 后 CI run 38018270994 的 e2e 挂了作文那条（“已收进生词本：ubiquitous”没出现，三次重试都失败；backend / frontend / docker 通过）：这是任务 38 留下的时序问题，批改先提交为 done、收词另起事务稍后写，页面看到 done 就停止轮询。已修：`writing/service.py` 把收词放进批改的同一事务（savepoint，失败只回滚收词），`mine.collect` 加 `commit` 参数；新增 1 条测试。Docker 没重建。
 - **未完成**：55 范围内没有。没用真实的 Azure 跑过整本词书（E2E 用的是假朗读服务），每分钟 20 次的节奏和 429 退避只在测试里验证过。
 - **下一步**：推送并跑 CI；然后做任务 56（`pronunciation` provider（Azure）+ 转写对比兜底 + `pronunciation_attempts` + 证据回写），开工前先拆子任务、和用户确认。
 - **踩坑**：`beforeEach(() => api.mockReset())` 会把 mock 函数本身返回出去，vitest 5 把它当清理函数在测试结束时调用（参数是 undefined），要写成块语句。worker 的节奏用真 `asyncio.sleep` 时，测试里的每分钟请求数一低就会真的等上几十秒；API 测试要换成门控的假 sleep。SQLAlchemy 2.1 里 `Result.tuples()` 已弃用，直接遍历行。

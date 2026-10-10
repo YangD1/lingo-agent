@@ -129,10 +129,10 @@ class Collected:
 
 
 async def collect(
-    session: AsyncSession, user_id: uuid.UUID, words: Sequence[Word]
+    session: AsyncSession, user_id: uuid.UUID, words: Sequence[Word], *, commit: bool = True
 ) -> list[Collected]:
     """Words the tutor noticed the learner does not know, added with source `auto`;
-    commits.
+    commits unless told not to.
 
     Unlike `add`, a word with a card of any kind is left as it is: the model may be
     wrong about a word marked known, and removing an auto-added word from the list then
@@ -154,7 +154,8 @@ async def collect(
             .returning(UserCard.word_id)
         )
     )
-    await session.commit()
+    if commit:
+        await session.commit()
     return [Collected(word=word, added=word.id in inserted) for word in unique]
 
 

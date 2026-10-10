@@ -221,6 +221,36 @@ async def test_unknown_words_go_on_the_word_list(maker: async_sessionmaker[Async
     assert cards == {lake.id: "auto", stroll.id: "manual"}
 
 
+async def test_collecting_words_failing_keeps_the_review(
+    maker: async_sessionmaker[AsyncSession], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    user_id, tenant_id = await learner(maker)
+    async with maker() as session:
+        lake = Word(word="lakeshore", translation="湖岸", tags=[], frq=1)
+        session.add(lake)
+        await session.commit()
+
+    async def broken(session: AsyncSession, user_id: uuid.UUID, words: Any, **_: Any) -> Any:
+        # Gets as far as writing a card, then fails.
+        session.add(UserCard(user_id=user_id, word_id=lake.id, source="auto", status="new"))
+        await session.flush()
+        raise RuntimeError("word list is down")
+
+    monkeypatch.setattr(service.mine, "collect", broken)
+    writing = worker(maker, FakeReview(a_review(["lakeshore"])))
+
+    submission_id = await submit(maker, writing, user_id, tenant_id)
+    await writing.wait(submission_id)
+
+    # Words are saved with the review, never after it (the page stops polling once it
+    # is done); when they fail, the review is kept without them.
+    row = await get(maker, submission_id)
+    assert (row.status, row.words) == ("done", None)
+    assert row.summary
+    async with maker() as session:
+        assert list(await session.scalars(select(UserCard))) == []  # rolled back
+
+
 @pytest.mark.parametrize(
     ("error", "code"),
     [

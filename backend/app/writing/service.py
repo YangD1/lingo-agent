@@ -101,20 +101,15 @@ async def review(
         if row is None or row.status != "pending":
             return
         await save(session, row, checked, reply.model, rules=rules, catalog=catalog)
-        user_id = row.user_id
+        # In the same commit as the review: the page stops polling once it is done, so
+        # words written after it would never show. Best effort, like reflection's: the
+        # review matters more than the word list, so a failure only rolls this back.
+        try:
+            async with session.begin_nested():
+                row.words = await collect_words(session, row.user_id, checked.vocab)
+        except Exception:
+            logger.exception("collecting words failed for writing %s", submission_id)
         await session.commit()
-    # Best effort, like reflection's: the review matters more than the word list.
-    try:
-        async with maker() as session:
-            words = await collect_words(session, user_id, checked.vocab)
-            await session.execute(
-                update(WritingSubmission)
-                .where(WritingSubmission.id == submission_id)
-                .values(words=words)
-            )
-            await session.commit()
-    except Exception:
-        logger.exception("collecting words failed for writing %s", submission_id)
 
 
 async def save(
@@ -168,10 +163,10 @@ async def save(
 async def collect_words(
     session: AsyncSession, user_id: uuid.UUID, candidates: list[str]
 ) -> list[dict[str, object]]:
-    """Put the words the dictionary knows on the learner's list; commits. "went" and
-    "go" are one word, listed once."""
+    """Put the words the dictionary knows on the learner's list; does not commit.
+    "went" and "go" are one word, listed once."""
     found = [match.word for text in candidates if (match := await mine.lookup(session, text))]
-    collected = await mine.collect(session, user_id, found)
+    collected = await mine.collect(session, user_id, found, commit=False)
     return [{"word_id": c.word.id, "word": c.word.word, "added": c.added} for c in collected]
 
 
