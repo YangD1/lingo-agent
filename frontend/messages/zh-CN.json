@@ -870,7 +870,8 @@
       "display": "显示",
       "read-aloud": "朗读",
       "background": "后台任务",
-      "usage": "用量"
+      "usage": "用量",
+      "word-audio": "单词发音"
     },
     "background": {
       "title": "后台任务",
@@ -924,6 +925,55 @@
         "diagnosis": "私教的诊断（每人每周最多一次）",
         "tts_cache_cleanup": "清理 30 天没用的朗读缓存"
       }
+    },
+    "wordAudio": {
+      "title": "单词发音",
+      "description": "用上面“朗读”路由里的第一个模型，把一本词书的单词发音提前生成好。学习者在单词气泡和复习卡片里点朗读时直接用，不再调用模型。只有管理员能看到这一节。",
+      "unavailable": "还没有能读英文的朗读模型。先在上面的“朗读”里配置一个，再来生成。",
+      "jobTitle": "{book} · {status}",
+      "status": {
+        "running": "生成中",
+        "paused": "已暂停",
+        "done": "已完成",
+        "cancelled": "已取消"
+      },
+      "progress": "已完成 {done} / {total} 段{failed, plural, =0 {} other {，失败 # 段}}",
+      "sent": "已发送 {characters} 个字符",
+      "costSoFar": "按你填的单价约 {cost}",
+      "pausedBecause": "自动暂停：{reason}",
+      "retryHint": "失败的词没有生成。再对这本词书点一次“生成”，只会补生成缺的那些。",
+      "pause": "暂停",
+      "resume": "继续",
+      "cancelJob": "取消任务",
+      "cancelQuestion": "取消后已生成的发音会保留，没生成的不再生成。",
+      "bookMade": "{words} 个词 · 美音 {us} · 英音 {gb}",
+      "plan": "生成…",
+      "planFor": "生成 {book} 的单词发音",
+      "delete": "删除",
+      "deleteFor": "删除 {book} 的单词发音",
+      "deleteBookQuestion": "删除这本词书的单词发音？和其他词书共用的词也会一起删掉。",
+      "deleted": "删除了 {count} 段发音。",
+      "formLabel": "生成单词发音",
+      "accents": "口音",
+      "accent": {
+        "en-US": "美音",
+        "en-GB": "英音"
+      },
+      "voiceOf": "（{voice}）",
+      "price": "单价（每百万字符）",
+      "currency": "币种",
+      "rate": "每分钟请求数",
+      "priceHint": "单价以厂商价格页为准，只用来估算费用，不填就只显示字符数。Azure 免费档每月 50 万字符、每分钟 20 次请求；超出每分钟次数时会自动等一会儿再试。",
+      "estimate": "{words} 个词，共 {pieces} 段，已有 {existing} 段，要生成 {toMake} 段。",
+      "estimateCost": "约 {characters} 个字符、占 {megabytes} MB、需要 {minutes} 分钟",
+      "cost": "费用约 {cost}",
+      "missing": "{accents}没有可用的声音，不会生成。",
+      "start": "确认开始",
+      "cancel": "取消",
+      "storage": "单词发音共 {count} 段，占 {megabytes} MB。不参与朗读缓存的 200MB 上限和 30 天清理。",
+      "old": "其中 {count} 段（{megabytes} MB）是换声音之前的，学习者已经用不到。",
+      "deleteOld": "删除旧声音的发音",
+      "deleteOldQuestion": "删除换声音之前生成的单词发音？"
     }
   },
   "placement": {
@@ -1067,7 +1117,9 @@
     "plan_not_pending": "这份计划已经处理过了。",
     "plan_not_applied": "只有已确认的计划才能撤销。",
     "plan_from_card": "这份计划来自私教的卡片，请在那张卡片上撤销。",
-    "plan_expired": "这是之前某一天的计划，已经过期了。"
+    "plan_expired": "这是之前某一天的计划，已经过期了。",
+    "job_active": "已经有一个单词发音任务在进行或暂停中。",
+    "no_tts_model": "还没有配置朗读模型。"
   },
   "dashboard": {
     "title": "能力看板",
@@ -1300,7 +1352,8 @@
       "reading_prerewrite": "后台每两小时一次：你订阅的来源有新文章时，用和打开文章时一样的 AI 调用按你的等级改写并出题，计入租户的后台每日上限。",
       "word_examples_prefetch": "后台每六小时一次：接下来一天要复习或要学的词里没有真实例句的，用和“AI 例句”按钮一样的 AI 调用按你的等级写两句，每次最多 30 个词，计入租户的后台每日上限。同等级的学习者共用。",
       "diagnosis": "后台每周最多一次（做完一组练习后新错误多时也会做，每天最多一次）：AI 模型读你最近反复出错的最多 3 个语法点、它们的前置语法和容易混淆的语法点、以及最近的错句，推测根因。引用不到你原句的结论会被丢掉。计入租户的后台每日上限。",
-      "read_aloud": "私教回复、单词和例句由服务端的朗读模型读出来，读过的句子会缓存、不再计费。可以在朗读设置里关掉，只用这台设备的声音。"
+      "read_aloud": "私教回复、单词和例句由服务端的朗读模型读出来，读过的句子会缓存、不再计费。可以在朗读设置里关掉，只用这台设备的声音。",
+      "word_audio_prefetch": "部署方在设置里对一本词书手动发起：用朗读路由里第一个模型把每个词按美音 / 英音各读一遍并保存，之后学习者读单词直接播放、不再调用模型。按字符计费，开始前会显示字符数和费用估算；不占后台每日上限。"
     },
     "task": {
       "chat": "回复",
@@ -1324,7 +1377,8 @@
       "reading_questions": "重写理解题",
       "reading_coach": "阅读教练回复",
       "diagnose": "诊断错误根因",
-      "tts": "朗读"
+      "tts": "朗读",
+      "word_audio": "生成单词发音"
     },
     "timing": {
       "now": "立即",

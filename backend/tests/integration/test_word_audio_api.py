@@ -155,6 +155,8 @@ async def test_estimate_then_run_a_book(
     assert job["cost"] == PRICE * 22 / 1_000_000
     assert book(body, "cet4") == {
         "book_id": "cet4",
+        "name_zh": "大学英语四级",
+        "name_en": "CET-4",
         "words": 2,
         "made": {"en-US": 2, "en-GB": 2},
     }

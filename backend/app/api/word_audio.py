@@ -88,6 +88,8 @@ def job_out(job: WordAudioJob) -> JobOut:
 
 class BookAudioOut(BaseModel):
     book_id: str
+    name_zh: str
+    name_en: str
     words: int
     made: dict[Accent, int]
 
@@ -138,7 +140,16 @@ async def get_word_audio(tenant: CurrentTenant, session: SessionDep) -> WordAudi
         available=bool(voices),
         voices=_voices(voices),
         job=job_out(job) if job else None,
-        books=[BookAudioOut(book_id=b.book_id, words=b.words, made=b.made) for b in found.books],
+        books=[
+            BookAudioOut(
+                book_id=b.book_id,
+                name_zh=book.name_zh,
+                name_en=book.name_en,
+                words=b.words,
+                made=b.made,
+            )
+            for book, b in zip(BOOKS, found.books, strict=True)
+        ],
         count=found.count,
         bytes=found.bytes,
         old_count=found.old_count,

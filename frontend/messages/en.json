@@ -870,7 +870,8 @@
       "display": "Display",
       "read-aloud": "Read aloud",
       "background": "Background",
-      "usage": "Usage"
+      "usage": "Usage",
+      "word-audio": "Word pronunciations"
     },
     "background": {
       "title": "Background work",
@@ -924,6 +925,55 @@
         "diagnosis": "The tutor's diagnosis (at most weekly per learner)",
         "tts_cache_cleanup": "Clear read-aloud audio unused for 30 days"
       }
+    },
+    "wordAudio": {
+      "title": "Word pronunciations",
+      "description": "Generate a word book's pronunciations ahead of time with the first model in the read-aloud route above. Learners reading a word aloud in the word bubble or on a review card get it straight away, with no model call. Only admins see this section.",
+      "unavailable": "No read-aloud model reads English yet. Set one up under Read aloud above first.",
+      "jobTitle": "{book} · {status}",
+      "status": {
+        "running": "Generating",
+        "paused": "Paused",
+        "done": "Done",
+        "cancelled": "Cancelled"
+      },
+      "progress": "{done} of {total} done{failed, plural, =0 {} one {, # failed} other {, # failed}}",
+      "sent": "{characters} characters sent",
+      "costSoFar": "about {cost} at your price",
+      "pausedBecause": "Paused by itself: {reason}",
+      "retryHint": "Failed words were not generated. Generate this book again to fill in just those.",
+      "pause": "Pause",
+      "resume": "Resume",
+      "cancelJob": "Cancel job",
+      "cancelQuestion": "What was generated is kept; the rest won't be.",
+      "bookMade": "{words} words · American {us} · British {gb}",
+      "plan": "Generate…",
+      "planFor": "Generate pronunciations for {book}",
+      "delete": "Delete",
+      "deleteFor": "Delete the pronunciations of {book}",
+      "deleteBookQuestion": "Delete this book's pronunciations? Words other books share go too.",
+      "deleted": "Deleted {count, plural, one {# pronunciation} other {# pronunciations}}.",
+      "formLabel": "Generate word pronunciations",
+      "accents": "Accents",
+      "accent": {
+        "en-US": "American",
+        "en-GB": "British"
+      },
+      "voiceOf": "({voice})",
+      "price": "Price per million characters",
+      "currency": "Currency",
+      "rate": "Requests per minute",
+      "priceHint": "Check the vendor's pricing page; the price is only used for the estimate, and without one only characters are shown. Azure's free tier allows 500,000 characters a month and 20 requests a minute; past the limit it waits and tries again.",
+      "estimate": "{words} words, {pieces} pieces of audio, {existing} already there, {toMake} to generate.",
+      "estimateCost": "About {characters} characters, {megabytes} MB, {minutes} minutes",
+      "cost": "about {cost}",
+      "missing": "No voice for {accents}; it won't be generated.",
+      "start": "Start",
+      "cancel": "Cancel",
+      "storage": "{count} word pronunciations, {megabytes} MB. They don't count toward the read-aloud cache's 200 MB or its 30-day cleanup.",
+      "old": "{count} of them ({megabytes} MB) are in a voice no longer used.",
+      "deleteOld": "Delete old voices",
+      "deleteOldQuestion": "Delete the pronunciations made before the voice changed?"
     }
   },
   "placement": {
@@ -1067,7 +1117,9 @@
     "plan_not_pending": "This plan was already answered.",
     "plan_not_applied": "Only a confirmed plan can be undone.",
     "plan_from_card": "This plan came from the tutor's card; undo it on that card.",
-    "plan_expired": "This plan was for another day."
+    "plan_expired": "This plan was for another day.",
+    "job_active": "A word pronunciation job is already running or paused.",
+    "no_tts_model": "No read-aloud model is configured."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1300,7 +1352,8 @@
       "reading_prerewrite": "In the background every two hours: new articles of the feeds you follow are rewritten for your level with questions, by the same AI calls as opening an article, within the tenant's daily background budget.",
       "word_examples_prefetch": "In the background every six hours: for the words you will review or learn in the next day that have no real example sentence, the same AI call as the \"AI examples\" button writes two sentences at your level, at most 30 words a time, within the tenant's daily background budget. Learners at the same level share them.",
       "diagnosis": "In the background at most weekly (also after a practice set with many new mistakes, at most daily): the AI model reads up to 3 grammar points you keep getting wrong, their prerequisites and the points they are often confused with, and your latest mistakes, and suggests root causes. Conclusions that cannot quote your own sentences are dropped. Within the tenant's daily background budget.",
-      "read_aloud": "Replies, words and examples are read by the server's read-aloud model; sentences already read are cached and not billed again. You can turn it off in the read-aloud settings and use only this device's voices."
+      "read_aloud": "Replies, words and examples are read by the server's read-aloud model; sentences already read are cached and not billed again. You can turn it off in the read-aloud settings and use only this device's voices.",
+      "word_audio_prefetch": "Started by hand in the settings for one word book: the first model in the read-aloud route reads each word in American and/or British English once and the audio is kept, so learners reading a word aloud play it with no model call. Billed by characters, estimated before it starts; not against the daily background budget."
     },
     "task": {
       "chat": "Reply",
@@ -1324,7 +1377,8 @@
       "reading_questions": "Rewrite questions",
       "reading_coach": "Reading coach reply",
       "diagnose": "Diagnose root causes",
-      "tts": "Read aloud"
+      "tts": "Read aloud",
+      "word_audio": "Word pronunciation"
     },
     "timing": {
       "now": "right away",

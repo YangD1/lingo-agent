@@ -6,6 +6,7 @@ import {
   Eye,
   ListOrdered,
   type LucideIcon,
+  AudioLines,
   Plug,
   Volume2,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { ConnectionsSection } from "./connections-section";
 import { DisplaySection } from "./display-section";
 import { ReadAloudSection } from "./read-aloud-section";
 import { UsageSection } from "./usage-section";
+import { WordAudioSection } from "./word-audio-section";
 
 // The page's sections, in order: the ids are the cards' anchors.
 const SECTIONS = [
@@ -29,9 +31,14 @@ const SECTIONS = [
   { id: "routes", icon: ListOrdered },
   { id: "display", icon: Eye },
   { id: "read-aloud", icon: Volume2 },
+  { id: "word-audio", icon: AudioLines },
   { id: "background", icon: CalendarClock },
   { id: "usage", icon: ChartColumn },
 ] as const satisfies readonly { id: string; icon: LucideIcon }[];
+
+const ALWAYS_SHOWN: ReadonlySet<string> = new Set(
+  SECTIONS.map(({ id }) => id).filter((id) => id !== "word-audio"),
+);
 
 export function SettingsApp() {
   const tNav = useTranslations("nav");
@@ -71,6 +78,7 @@ export function SettingsApp() {
             )}
             <DisplaySection />
             <ReadAloudSection />
+            <WordAudioSection />
             <BackgroundSection />
             <UsageSection />
           </div>
@@ -98,6 +106,22 @@ function SettingsToc({
 }) {
   const t = useTranslations("settings.toc");
   const [current, setCurrent] = useState<string>(SECTIONS[0].id);
+  // Sections some people don't get (word audio is for admins) are left out until shown.
+  const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set(ALWAYS_SHOWN));
+
+  useEffect(() => {
+    const root = scroller.current;
+    if (!root) return;
+    const update = () =>
+      setShown((before) => {
+        const now = SECTIONS.filter(({ id }) => ALWAYS_SHOWN.has(id) || document.getElementById(id));
+        return now.length === before.size ? before : new Set(now.map(({ id }) => id));
+      });
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [scroller]);
 
   useEffect(() => {
     const root = scroller.current;
@@ -132,7 +156,7 @@ function SettingsToc({
       {vertical && (
         <p className="mb-1 px-2.5 text-xs font-semibold text-muted-foreground">{t("title")}</p>
       )}
-      {SECTIONS.map(({ id, icon: Icon }) => (
+      {SECTIONS.filter(({ id }) => shown.has(id)).map(({ id, icon: Icon }) => (
         <a
           key={id}
           href={`#${id}`}

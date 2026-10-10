@@ -181,6 +181,58 @@ export type SchedulerJob = {
   last_skip_reason: string | null;
   last_error: string | null;
 };
+/** backend/app/api/word_audio.py (ADR 0028 §4). */
+export type WordAudioAccent = "en-US" | "en-GB";
+export type WordAudioVoice = { connection: string; model: string; voice: string };
+export type WordAudioJob = {
+  id: string;
+  book_id: string;
+  status: "running" | "paused" | "done" | "cancelled";
+  voices: Partial<Record<WordAudioAccent, WordAudioVoice>>;
+  requests_per_minute: number;
+  price_per_million: number | null;
+  currency: string | null;
+  total: number;
+  done: number;
+  failed: number;
+  characters: number;
+  bytes: number;
+  cost: number | null;
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+};
+export type WordAudioBook = {
+  book_id: string;
+  name_zh: string;
+  name_en: string;
+  words: number;
+  made: Record<WordAudioAccent, number>;
+};
+export type WordAudio = {
+  available: boolean;
+  voices: Partial<Record<WordAudioAccent, WordAudioVoice>>;
+  job: WordAudioJob | null;
+  books: WordAudioBook[];
+  count: number;
+  bytes: number;
+  old_count: number;
+  old_bytes: number;
+};
+export type WordAudioEstimate = {
+  book_id: string;
+  words: number;
+  voices: Partial<Record<WordAudioAccent, WordAudioVoice>>;
+  missing: WordAudioAccent[];
+  pieces: number;
+  existing: number;
+  characters: number;
+  bytes: number;
+  cost: number | null;
+  requests_per_minute: number;
+  suggested_price: number | null;
+  minutes: number;
+};
 export type TenantBackground = {
   daily_tokens: number;
   used_today: number;
