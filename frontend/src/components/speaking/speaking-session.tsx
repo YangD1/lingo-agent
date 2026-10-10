@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon, EyeIcon, EyeOffIcon, Volume2Icon, VolumeXIcon } from "lucide-react";
+import { ArrowLeftIcon, EyeIcon, EyeOffIcon, PencilIcon, Volume2Icon, VolumeXIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,15 +9,18 @@ import { AiBadge } from "@/components/ai-badge";
 import { CatLoading, LingoCat } from "@/components/brand/lingo-cat";
 import { SETTINGS_ERRORS } from "@/components/chat/attachment-tray";
 import { MessageList } from "@/components/chat/message-list";
-import { useChatSession } from "@/components/chat/use-chat-session";
+import { type ChatMessage, useChatSession } from "@/components/chat/use-chat-session";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ErrorText } from "@/components/ui/error-text";
 import { Tag } from "@/components/ui/tag";
+import { Textarea } from "@/components/ui/textarea";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { ApiError } from "@/lib/api";
+import { deleteAttachment, getAttachment, retryAttachment, uploadAttachment } from "@/lib/attachments";
 import { useSpeakingAutoRead, useSpeakingHideText } from "@/lib/preferences";
 import {
+  correctTranscript,
   endSession,
   fetchScenarios,
   fetchSession,
@@ -26,13 +29,25 @@ import {
   scenarioTitle,
   type SpeakingSessionDetail,
 } from "@/lib/speaking";
-import { type SpeechStream, speakStream, stopSpeaking, useCanSpeak } from "@/lib/speech";
+import { type SpeechStream, speakStream, stopSpeaking, useCanSpeak, useServerSpeech } from "@/lib/speech";
+import type { Attachment } from "@/lib/types";
 
 import { SpeakingInput } from "./speaking-input";
 import { SpeakingSummaryView } from "./speaking-summary";
 
 // Whose reading the replies are, for the stop button's state.
 const READER = "speaking-reply";
+// How often a voice message being transcribed is asked about.
+export const POLL_MS = 1000;
+
+/** A voice message on its way: being transcribed, or what went wrong (Q59b). */
+type Pending =
+  | { state: "transcribing" }
+  | { state: "empty" }
+  | { state: "failed"; attachment: Attachment | null; error: ApiErrorLike | null; file: File };
+
+const asError = (e: unknown): ApiErrorLike =>
+  e instanceof ApiError ? e : { code: "network_error", message: String(e) };
 
 /**
  * One speaking practice (task 59.3, ADR 0029 §3): the conversation while it is open, its
@@ -99,6 +114,18 @@ function SpeakingTalk({
   const [hideText, setHideText] = useSpeakingHideText();
   const [ending, setEnding] = useState(false);
   const [endError, setEndError] = useState<ApiErrorLike | null>(null);
+  const { asr } = useServerSpeech();
+  const [typing, setTyping] = useState(false);
+  const [pending, setPending] = useState<Pending | null>(null);
+  // Learner turns whose transcript was fixed and sent again (Q58b, Q59c).
+  const [corrected, setCorrected] = useState(() => new Set(detail.corrected_message_ids));
+  const alive = useRef(true);
+  useEffect(
+    () => () => {
+      alive.current = false;
+    },
+    [],
+  );
 
   // The reply being read aloud as it streams; started inside the click that sent the
   // message, so Safari lets it play (task 59.1).
@@ -118,11 +145,61 @@ function SpeakingTalk({
     reader.current = null;
   };
 
-  async function send(text: string, attachments?: Parameters<typeof session.send>[1]) {
+  async function send(text: string, attachments?: Attachment[]) {
     startReading();
     const sent = await session.send(text, attachments);
     endReading(sent);
     return sent;
+  }
+
+  /**
+   * Transcribes a recording and sends the transcript straight away (Q59b): nothing is
+   * sent when nothing was heard; a failure can be retried, or the turn typed instead.
+   */
+  async function sendVoice(file: File, retry?: Attachment) {
+    setPending({ state: "transcribing" });
+    let attachment = retry ?? null;
+    try {
+      attachment = retry ? await retryAttachment(retry.id) : await uploadAttachment(detail.conversation_id, file);
+      while (attachment.status === "processing") {
+        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+        if (!alive.current) return;
+        attachment = await getAttachment(attachment.id);
+      }
+    } catch (e) {
+      if (alive.current) setPending({ state: "failed", attachment, error: asError(e), file });
+      return;
+    }
+    if (!alive.current) return;
+    if (attachment.status === "failed") {
+      return setPending({ state: "failed", attachment, error: null, file });
+    }
+    if (!attachment.text?.trim()) {
+      void deleteAttachment(attachment.id).catch(() => {});
+      return setPending({ state: "empty" });
+    }
+    setPending(null);
+    await send("", [attachment]);
+  }
+
+  function dropPending() {
+    if (pending?.state === "failed" && pending.attachment) {
+      void deleteAttachment(pending.attachment.id).catch(() => {});
+    }
+    setPending(null);
+  }
+
+  /** The fixed transcript goes as a new message; the old one counts as nothing (Q58b). */
+  async function resend(message: ChatMessage, text: string) {
+    if (!message.id) return false;
+    try {
+      await correctTranscript(detail.id, message.id);
+    } catch (e) {
+      setEndError(asError(e));
+      return false;
+    }
+    setCorrected((all) => new Set(all).add(message.id!));
+    return send(text);
   }
 
   // The tutor speaks first (Q58e): once per page load, so a refusal doesn't loop.
@@ -222,6 +299,33 @@ function SpeakingTalk({
         messages={messages}
         hideReplyText={hideText}
         empty={<CatLoading size={48} className="m-auto" label={t("opening")} />}
+        struck={(m) => m.id !== undefined && corrected.has(m.id)}
+        userFooter={(m, last) =>
+          last &&
+          !streaming &&
+          m.id &&
+          !corrected.has(m.id) &&
+          m.attachments?.some((a) => a.kind === "audio") ? (
+            <FixTranscript message={m} onResend={(text) => resend(m, text)} />
+          ) : m.id && corrected.has(m.id) ? (
+            <Tag variant="outline">{t("fixed")}</Tag>
+          ) : null
+        }
+        tail={
+          pending && (
+            <PendingVoice
+              pending={pending}
+              onRetry={() =>
+                pending.state === "failed" && void sendVoice(pending.file, pending.attachment ?? undefined)
+              }
+              onType={() => {
+                dropPending();
+                setTyping(true);
+              }}
+              onDismiss={dropPending}
+            />
+          )
+        }
       />
       {error && error.code !== "speaking_ended" && (
         <div
@@ -239,13 +343,108 @@ function SpeakingTalk({
       )}
       <SpeakingInput
         streaming={streaming}
-        disabled={session.loading || ending}
+        disabled={session.loading || ending || pending?.state === "transcribing"}
+        voice={asr === true}
+        typing={typing}
+        onTypingChange={setTyping}
         onSend={send}
+        onVoice={(file) => void sendVoice(file)}
         onStop={() => {
           session.stop();
           stopSpeaking();
         }}
       />
     </section>
+  );
+}
+
+/** "Fix it" under the learner's last voice message: edit the transcript in place (Q59c). */
+function FixTranscript({
+  message,
+  onResend,
+}: {
+  message: ChatMessage;
+  onResend: (text: string) => Promise<boolean>;
+}) {
+  const t = useTranslations("speaking.session");
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(message.content);
+  const [busy, setBusy] = useState(false);
+  if (!editing) {
+    return (
+      <Button size="xs" variant="ghost" onClick={() => setEditing(true)} data-testid="speaking-fix">
+        <PencilIcon />
+        {t("fix")}
+      </Button>
+    );
+  }
+  const unchanged = text.trim() === message.content.trim() || !text.trim();
+  return (
+    <div className="flex w-full min-w-64 flex-col gap-1.5">
+      <Textarea
+        lang="en"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        aria-label={t("fixLabel")}
+        rows={2}
+        autoFocus
+      />
+      <p className="text-xs text-muted-foreground">{t("fixHint")}</p>
+      <div className="flex justify-end gap-1.5">
+        <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={busy}>
+          {t("cancel")}
+        </Button>
+        <Button
+          size="sm"
+          disabled={unchanged || busy}
+          onClick={async () => {
+            setBusy(true);
+            if (!(await onResend(text.trim()))) setBusy(false);
+          }}
+        >
+          {t("fixSend")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** A voice message being transcribed, or why it wasn't sent (Q59b). */
+function PendingVoice({
+  pending,
+  onRetry,
+  onType,
+  onDismiss,
+}: {
+  pending: Pending;
+  onRetry: () => void;
+  onType: () => void;
+  onDismiss: () => void;
+}) {
+  const t = useTranslations("speaking.session");
+  const errorMessage = useErrorMessage();
+  return (
+    <li data-role="user" data-testid="speaking-pending" data-state={pending.state} className="flex flex-col items-end gap-1 self-end">
+      <div className="rounded-[18px_18px_6px_18px] border border-dashed border-primary/50 bg-brand-soft px-[15px] py-2.5 text-sm text-brand-soft-foreground">
+        {pending.state === "transcribing" && <span role="status">{t("transcribing")}</span>}
+        {pending.state === "empty" && t("notHeard")}
+        {pending.state === "failed" && (pending.error ? errorMessage(pending.error) : t("transcribeFailed"))}
+      </div>
+      {pending.state === "failed" && (
+        <div className="flex gap-1.5">
+          <Button size="xs" variant="ghost" onClick={onType}>
+            {t("typeInstead")}
+          </Button>
+          <Button size="xs" variant="outline" onClick={onRetry}>
+            {t("retry")}
+          </Button>
+        </div>
+      )}
+      {pending.state === "empty" && (
+        <Button size="xs" variant="ghost" onClick={onDismiss}>
+          {t("ok")}
+        </Button>
+      )}
+    </li>
   );
 }

@@ -1841,7 +1841,24 @@
       "goToSettings": "去设置",
       "placeholder": "用英语打字…",
       "send": "发送",
-      "stop": "停止"
+      "stop": "停止",
+      "holdToTalk": "按住说话，或点一下开始",
+      "releaseToSend": "松开发送 · 移出按钮取消",
+      "releaseToCancel": "松开取消",
+      "tapToSend": "再点一下发送",
+      "typeInstead": "改用打字",
+      "talkInstead": "改用说话",
+      "transcribing": "正在转写…",
+      "notHeard": "没听清，再说一次。",
+      "transcribeFailed": "这段没能转写出来。",
+      "retry": "重试",
+      "ok": "好",
+      "fix": "改一下",
+      "fixLabel": "你说的话",
+      "fixHint": "会作为新消息发送，原来那条不再计入错误。",
+      "fixSend": "发送改好的",
+      "cancel": "取消",
+      "fixed": "已改"
     }
   }
 }

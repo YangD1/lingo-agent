@@ -85,8 +85,14 @@ function startMeter(stream: MediaStream, onLevel: (level: number) => void) {
   };
 }
 
-/** Click to start, click to stop; `onRecorded` gets the finished file unless it was silent. */
-export function useRecorder(onRecorded: (file: File) => void) {
+/**
+ * Click to start, click to stop; `onRecorded` gets the finished file unless it was silent.
+ * It stops on its own after `maxSeconds`.
+ */
+export function useRecorder(
+  onRecorded: (file: File) => void,
+  { maxSeconds = MAX_RECORDING_SECONDS }: { maxSeconds?: number } = {},
+) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [level, setLevel] = useState(0);
@@ -122,7 +128,7 @@ export function useRecorder(onRecorded: (file: File) => void) {
     const timer = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - startedAt) / 1000);
       setSeconds(elapsed);
-      if (elapsed >= MAX_RECORDING_SECONDS) recorder.stop();
+      if (elapsed >= maxSeconds) recorder.stop();
     }, 250);
     recorder.ondataavailable = (event) => event.data.size > 0 && chunks.push(event.data);
     recorder.onstop = () => {
@@ -148,7 +154,7 @@ export function useRecorder(onRecorded: (file: File) => void) {
     recorderRef.current = recorder;
     recorder.start();
     setRecording(true);
-  }, []);
+  }, [maxSeconds]);
 
   const stop = useCallback(() => recorderRef.current?.stop(), []);
   const cancel = useCallback(() => {

@@ -731,6 +731,15 @@ export function speakStream(owner: string): SpeechStream {
   };
 }
 
+/**
+ * Lets the server's audio play later: call it inside a click when what will be read comes
+ * only after a wait (a voice message is transcribed before the reply streams), as Safari
+ * plays audio only from an element that first played inside one.
+ */
+export function unlockSpeech() {
+  if (serverReads("en-US", currentSettings())) unlockPlayer();
+}
+
 /** `segments` cut into sentences, each read on its own (by the server or the browser). */
 const sentences = (segments: Segment[]): Segment[] =>
   segments.flatMap((segment) =>

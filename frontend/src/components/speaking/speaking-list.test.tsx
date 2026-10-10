@@ -20,7 +20,13 @@ vi.mock("@/lib/ai-usage", async (importOriginal) => ({
 const speech = vi.hoisted(() => ({ asr: true as boolean | null }));
 vi.mock("@/lib/speech", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/speech")>()),
-  useServerSpeech: () => ({ asr: speech.asr }),
+  useServerSpeech: () => ({
+    languages: new Set(),
+    down: false,
+    noVoice: new Set(),
+    shadowing: null,
+    asr: speech.asr,
+  }),
 }));
 const push = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));

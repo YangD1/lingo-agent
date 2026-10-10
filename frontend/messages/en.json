@@ -1841,7 +1841,24 @@
       "goToSettings": "Go to Settings",
       "placeholder": "Type in English…",
       "send": "Send",
-      "stop": "Stop"
+      "stop": "Stop",
+      "holdToTalk": "Hold to talk, or tap to start",
+      "releaseToSend": "Release to send · slide away to cancel",
+      "releaseToCancel": "Release to cancel",
+      "tapToSend": "Tap again to send",
+      "typeInstead": "Type instead",
+      "talkInstead": "Talk instead",
+      "transcribing": "Transcribing…",
+      "notHeard": "Didn't catch that. Say it again.",
+      "transcribeFailed": "Couldn't transcribe that.",
+      "retry": "Try again",
+      "ok": "OK",
+      "fix": "Fix it",
+      "fixLabel": "What you said",
+      "fixHint": "Sent as a new message; the old one won't count toward your mistakes.",
+      "fixSend": "Send the fixed text",
+      "cancel": "Cancel",
+      "fixed": "Fixed"
     }
   }
 }

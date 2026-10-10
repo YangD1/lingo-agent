@@ -139,12 +139,18 @@ export function useChatSession(conversationId: string | null, options: Options) 
         optionsRef.current.onCard?.(event); // the card's fields, plus `event`
       } else if (event.event === "done") {
         const turnId = event.turn_id ?? undefined;
-        updateLast((m) => ({
-          ...m,
-          id: event.message_id ?? m.id,
-          status: undefined,
-          turnId: turnId ?? m.turnId,
-        }));
+        setMessages((all) =>
+          all.map((m, i) => {
+            if (i === all.length - 1) {
+              return { ...m, id: event.message_id ?? m.id, status: undefined, turnId: turnId ?? m.turnId };
+            }
+            // The learner message it answers is saved under the turn's id.
+            if (i === all.length - 2 && m.role === "user" && !m.id && turnId !== OPENING_TURN_ID) {
+              return { ...m, id: turnId };
+            }
+            return m;
+          }),
+        );
         if (turnId) optionsRef.current.onReplyDone?.(id, turnId);
       } else {
         updateLast((m) => ({ ...m, status: "error", error: event }));

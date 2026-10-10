@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api";
 import type { SpeakingSessionDetail } from "@/lib/speaking";
 import type { ChatEvent } from "@/lib/sse";
+import type { Attachment } from "@/lib/types";
 
 import en from "../../../messages/en.json";
 import { SpeakingSessionPage } from "./speaking-session";
@@ -26,9 +27,18 @@ vi.mock("@/lib/sse", () => ({ streamChat, streamOpening, OPENING_TURN_ID: "openi
 // What was read aloud: each reading's pushed text, and whether it ended or was stopped.
 const readings = vi.hoisted(() => [] as { text: string; ended: boolean }[]);
 const stopSpeaking = vi.hoisted(() => vi.fn());
+const caps = vi.hoisted(() => ({ asr: false }));
 vi.mock("@/lib/speech", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/speech")>()),
   useCanSpeak: () => true,
+  useServerSpeech: () => ({
+    languages: new Set(),
+    down: false,
+    noVoice: new Set(),
+    shadowing: null,
+    asr: caps.asr,
+  }),
+  unlockSpeech: () => {},
   stopSpeaking,
   speakStream: () => {
     const reading = { text: "", ended: false };
@@ -39,6 +49,54 @@ vi.mock("@/lib/speech", async (importOriginal) => ({
     };
   },
 }));
+
+// A recorder that hands over a fixed recording when stopped.
+vi.mock("@/components/chat/use-recorder", async () => {
+  const { useState } = await import("react");
+  return {
+    useRecorder: (onRecorded: (file: File) => void) => {
+      const [recording, setRecording] = useState(false);
+      return {
+        recording,
+        seconds: 0,
+        level: 0,
+        error: null,
+        start: async () => setRecording(true),
+        stop: () => {
+          setRecording(false);
+          onRecorded(new File(["voice"], "voice.webm", { type: "audio/webm" }));
+        },
+        cancel: () => setRecording(false),
+      };
+    },
+  };
+});
+const attachments = vi.hoisted(() => ({
+  uploadAttachment: vi.fn(),
+  getAttachment: vi.fn(),
+  retryAttachment: vi.fn(),
+  deleteAttachment: vi.fn(async () => undefined),
+}));
+vi.mock("@/lib/attachments", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/attachments")>()),
+  ...attachments,
+}));
+
+const audio = (overrides: Partial<Attachment> = {}): Attachment => ({
+  id: "a1",
+  conversation_id: "c1",
+  kind: "audio",
+  mime_type: "audio/webm",
+  filename: "voice.webm",
+  size_bytes: 5,
+  status: "ready",
+  text: "I want a latte.",
+  meta: { duration_seconds: 2 },
+  error: null,
+  sent: false,
+  created_at: "2026-10-10T09:01:00Z",
+  ...overrides,
+});
 
 async function* reply(...tokens: string[]): AsyncGenerator<ChatEvent> {
   for (const text of tokens) yield { event: "token", text };
@@ -91,6 +149,7 @@ function serve() {
       };
     }
     if (path === "/conversations/c1/messages") return history;
+    if (path === "/speaking/sessions/s1/corrections" && init?.method === "POST") return undefined;
     throw new Error(`unexpected ${path}`);
   });
 }
@@ -113,6 +172,8 @@ beforeEach(() => {
   streamOpening.mockReset();
   stopSpeaking.mockReset();
   readings.length = 0;
+  caps.asr = false;
+  Object.values(attachments).forEach((f) => f.mockClear());
   window.localStorage.clear();
   current = detail();
   history = [];
@@ -156,6 +217,9 @@ describe("SpeakingSessionPage", () => {
     await userEvent.type(screen.getByRole("textbox"), "Tea.{Enter}");
     await waitFor(() => expect(streamChat).toHaveBeenCalled());
     expect(readings).toHaveLength(1);
+    // Preferences outlive the page (in this module): switch them back.
+    await userEvent.click(screen.getByRole("button", { name: "Read replies aloud" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide the tutor's text" }));
   });
 
   it("ends the practice and shows its summary", async () => {
@@ -178,5 +242,75 @@ describe("SpeakingSessionPage", () => {
     show();
     await userEvent.type(await screen.findByRole("textbox"), "Hi.{Enter}");
     expect(await screen.findByTestId("speaking-summary")).toBeInTheDocument();
+  });
+
+  it("sends a voice turn as soon as it is transcribed, and fixes its transcript", async () => {
+    caps.asr = true;
+    history = [{ id: "o1", role: "assistant", content: "Hello!", attachments: [] }];
+    let finish: () => void = () => {};
+    attachments.uploadAttachment.mockImplementation(
+      () => new Promise((resolve) => (finish = () => resolve(audio()))),
+    );
+    streamChat.mockImplementation(() => reply("Coming up."));
+    show();
+    const mic = await screen.findByTestId("speaking-mic");
+    await userEvent.click(mic); // tap: start
+    await userEvent.click(mic); // tap: send
+    expect(await screen.findByTestId("speaking-pending")).toHaveTextContent("Transcribing…");
+    expect(attachments.uploadAttachment).toHaveBeenCalledWith("c1", expect.any(File));
+    finish();
+    expect(await screen.findByText(bubble("Coming up."))).toBeInTheDocument();
+    expect(streamChat).toHaveBeenCalledWith("c1", "", expect.objectContaining({ attachmentIds: ["a1"] }));
+    expect(screen.queryByTestId("speaking-pending")).not.toBeInTheDocument();
+
+    // The transcript was wrong: fix it and send it again.
+    streamChat.mockImplementation(() => reply("One latte, then."));
+    await userEvent.click(await screen.findByTestId("speaking-fix"));
+    const box = screen.getByRole("textbox", { name: "What you said" });
+    await userEvent.clear(box);
+    await userEvent.type(box, "I want one latte.");
+    await userEvent.click(screen.getByRole("button", { name: "Send the fixed text" }));
+    expect(await screen.findByText(bubble("One latte, then."))).toBeInTheDocument();
+    expect(api).toHaveBeenCalledWith("/speaking/sessions/s1/corrections", {
+      method: "POST",
+      json: { message_id: "u1" },
+    });
+    expect(streamChat).toHaveBeenLastCalledWith("c1", "I want one latte.", expect.anything());
+    const learner = document.querySelectorAll('li[data-role="user"]');
+    expect(learner[0]).toHaveAttribute("data-struck", "true");
+    expect(learner[0]).toHaveTextContent("Fixed");
+    // Only voice messages are fixed: the typed one has no "fix it".
+    expect(screen.queryByTestId("speaking-fix")).not.toBeInTheDocument();
+  });
+
+  it("sends nothing when nothing was heard, and offers typing when it fails", async () => {
+    caps.asr = true;
+    history = [{ id: "o1", role: "assistant", content: "Hello!", attachments: [] }];
+    attachments.uploadAttachment.mockResolvedValue(audio({ text: "  " }));
+    show();
+    const mic = await screen.findByTestId("speaking-mic");
+    await userEvent.click(mic);
+    await userEvent.click(mic);
+    expect(await screen.findByTestId("speaking-pending")).toHaveTextContent("Didn't catch that");
+    expect(attachments.deleteAttachment).toHaveBeenCalledWith("a1");
+    expect(streamChat).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "OK" }));
+
+    attachments.uploadAttachment.mockResolvedValue(audio({ status: "failed", text: null }));
+    attachments.retryAttachment.mockResolvedValue(audio());
+    streamChat.mockImplementation(() => reply("Got it."));
+    await userEvent.click(mic);
+    await userEvent.click(mic);
+    expect(await screen.findByTestId("speaking-pending")).toHaveTextContent("Couldn't transcribe that.");
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText(bubble("Got it."))).toBeInTheDocument();
+    expect(attachments.retryAttachment).toHaveBeenCalledWith("a1");
+
+    attachments.uploadAttachment.mockResolvedValue(audio({ status: "failed", text: null }));
+    await userEvent.click(mic);
+    await userEvent.click(mic);
+    const failed = await screen.findByTestId("speaking-pending");
+    await userEvent.click(within(failed).getByRole("button", { name: "Type instead" }));
+    expect(screen.getByRole("textbox", { name: "Type in English…" })).toBeInTheDocument();
   });
 });
