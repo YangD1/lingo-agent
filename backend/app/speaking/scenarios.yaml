@@ -1,0 +1,149 @@
+# Speaking practice scenarios (ADR 0029 §1). Hand-reviewed; an id is stored in
+# conversations.scenario_id and speaking_sessions, so it is never renamed once shipped.
+#
+# levels: the CEFR range the scenario suits, [lowest, highest]. Learners outside it still
+#   see it, folded away (ADR 0029 §1).
+# role / opening / learner_goal_en: what speaking_coach is told (English).
+# learner_goal_zh / learner_goal_en: shown on the scenario card.
+# target_expressions: phrases worth trying; the coach may steer toward them, the summary
+#   may suggest them.
+scenarios:
+  - id: self_intro
+    title_en: Introducing yourself
+    title_zh: 自我介绍
+    levels: [A1, B1]
+    role: A friendly new colleague meeting the learner at a team welcome coffee.
+    learner_goal_en: Say who you are, where you are from, what you do and what you enjoy.
+    learner_goal_zh: 介绍你的名字、来自哪里、做什么工作、平时喜欢什么。
+    opening: Greet the learner, say your own name and role in one short sentence, and ask theirs.
+    target_expressions:
+      - Nice to meet you.
+      - I'm originally from ...
+      - I work as ...
+      - In my free time, I like to ...
+
+  - id: job_interview
+    title_en: Job interview
+    title_zh: 工作面试
+    levels: [B1, C1]
+    role: A hiring manager interviewing the learner for a job they would like.
+    learner_goal_en: Talk about your experience and strengths, and ask a question about the job.
+    learner_goal_zh: 讲清楚你的经历和优势，最后问一个关于这份工作的问题。
+    opening: Welcome the learner to the interview and ask them to tell you a little about themselves.
+    target_expressions:
+      - I have ... years of experience in ...
+      - One of my strengths is ...
+      - For example, in my last job, I ...
+      - Could you tell me more about ...?
+
+  - id: ordering_food
+    title_en: Ordering at a restaurant
+    title_zh: 餐厅点餐
+    levels: [A1, B1]
+    role: A waiter at a casual restaurant.
+    learner_goal_en: Order a meal and a drink, ask about a dish, and ask for the bill.
+    learner_goal_zh: 点一份餐和饮料，问一道菜的情况，最后结账。
+    opening: Greet the learner, say you'll be their server today, and ask what they'd like to drink.
+    target_expressions:
+      - Could I have ..., please?
+      - What do you recommend?
+      - Does it come with ...?
+      - Could we get the bill, please?
+
+  - id: asking_directions
+    title_en: Asking for directions
+    title_zh: 问路
+    levels: [A1, B1]
+    role: A local person on a street the learner doesn't know.
+    learner_goal_en: Find out how to get to a place, check you understood, and thank them.
+    learner_goal_zh: 问清楚怎么去一个地方，确认自己听懂了，然后道谢。
+    opening: Notice the learner looks a little lost and ask if they need any help.
+    target_expressions:
+      - Excuse me, how do I get to ...?
+      - Is it far from here?
+      - So I go straight and turn left at ...?
+      - Thanks a lot for your help.
+
+  - id: hotel_check_in
+    title_en: Checking in at a hotel
+    title_zh: 酒店入住
+    levels: [A2, B1]
+    role: A receptionist at a hotel front desk.
+    learner_goal_en: Check in with your booking, ask about breakfast and Wi-Fi, and solve a small problem with the room.
+    learner_goal_zh: 报上预订信息办入住，问早餐和 Wi-Fi，再处理一个房间的小问题。
+    opening: Welcome the learner to the hotel and ask if they have a reservation.
+    target_expressions:
+      - I have a reservation under the name ...
+      - What time is breakfast served?
+      - Is there Wi-Fi in the room?
+      - I'm afraid there's a problem with ...
+
+  - id: doctor_visit
+    title_en: Seeing a doctor
+    title_zh: 看病
+    levels: [A2, B2]
+    role: A family doctor seeing the learner in a clinic.
+    learner_goal_en: Describe your symptoms, say how long you've had them, and understand the advice.
+    learner_goal_zh: 描述症状、说清楚持续多久了，并听懂医生的建议。
+    opening: Greet the learner and ask what brings them in today.
+    target_expressions:
+      - I've had a ... for ... days.
+      - It hurts when I ...
+      - I'm not allergic to anything.
+      - How often should I take it?
+
+  - id: meeting_update
+    title_en: Speaking up in a meeting
+    title_zh: 开会发言
+    levels: [B1, C1]
+    role: A team lead running a weekly project meeting.
+    learner_goal_en: Give a short update on your work, raise a problem, and suggest a next step.
+    learner_goal_zh: 简短汇报你的进展，提出一个问题，并建议下一步怎么做。
+    opening: Open the meeting briefly and ask the learner for an update on their part of the project.
+    target_expressions:
+      - "Quick update on my side: ..."
+      - We've run into an issue with ...
+      - I'd suggest we ...
+      - Could we come back to that later?
+
+  - id: phone_appointment
+    title_en: Booking an appointment by phone
+    title_zh: 电话预约
+    levels: [A2, B1]
+    role: A receptionist answering the phone at a hair salon.
+    learner_goal_en: Book a time that works for you, give your name and number, and confirm the details.
+    learner_goal_zh: 约一个你方便的时间，留下姓名和电话，再确认一遍细节。
+    opening: Answer the phone with the salon's name and ask how you can help.
+    target_expressions:
+      - I'd like to book an appointment for ...
+      - Do you have anything available on ...?
+      - That works for me.
+      - Could you repeat that, please?
+
+  - id: hobbies_chat
+    title_en: Talking about hobbies
+    title_zh: 聊兴趣爱好
+    levels: [A2, B2]
+    role: A friendly person the learner just met at a party.
+    learner_goal_en: Talk about what you like doing, why, and ask the other person about theirs.
+    learner_goal_zh: 聊聊你喜欢做什么、为什么喜欢，也问问对方的爱好。
+    opening: Make small talk about the party and ask the learner what they like to do in their free time.
+    target_expressions:
+      - I'm really into ...
+      - I got into it when ...
+      - What about you?
+      - That sounds fun. How did you start?
+
+  - id: shopping_return
+    title_en: Returning something at a shop
+    title_zh: 购物退换
+    levels: [A2, B2]
+    role: A shop assistant at a clothing store's service desk.
+    learner_goal_en: Explain what's wrong with something you bought and ask for an exchange or a refund.
+    learner_goal_zh: 说明买的东西有什么问题，要求换货或退款。
+    opening: Greet the learner at the service desk and ask how you can help.
+    target_expressions:
+      - I bought this here last week, but ...
+      - Could I exchange it for a different size?
+      - I'd like a refund, please.
+      - Here's my receipt.
