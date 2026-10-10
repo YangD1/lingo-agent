@@ -222,7 +222,10 @@ function Checklist({ item }: { item: PlanItem }) {
       </span>
       {item.count !== null && (
         <span className="shrink-0 text-xs text-muted-foreground tabular-nums" data-testid="plan-progress">
-          {t("progress", { done: Math.min(item.done, item.target), target: item.target })}
+          {t(item.kind === "speaking" ? "progressMinutes" : "progress", {
+            done: Math.min(item.done, item.target),
+            target: item.target,
+          })}
         </span>
       )}
       {!item.complete && (

@@ -28,6 +28,7 @@ from app.db.models import (
 from app.services.news.sources import sync_builtin_feeds
 from app.services.reading.versions import reading_level
 from app.services.vocab.scheduler import review
+from app.speaking import sessions as speaking_sessions
 from tests.integration.test_dashboard import new_user
 
 RULES = get_rules()
@@ -77,6 +78,7 @@ async def test_drafted_once_a_day_and_then_kept(db_session: AsyncSession) -> Non
         "practice": True,
         "reading": False,
         "writing": False,
+        "speaking": False,
     }
 
     # More words come due later: the numbers stay (Q48e).
@@ -256,6 +258,7 @@ async def test_confirm_decline_undo(db_session: AsyncSession) -> None:
         "practice": False,
         "reading": False,
         "writing": False,
+        "speaking": False,
     }
     # Confirming again is a no-op; adjusting a confirmed plan is not allowed.
     assert (
@@ -333,3 +336,35 @@ async def test_limits_are_whole_day_totals(db_session: AsyncSession) -> None:
         "review": 1,
         "new_words": 1,
     }
+
+
+async def test_speaking_counts_the_minutes_spoken_today(db_session: AsyncSession) -> None:
+    """Q59d: done once today's spoken turns add up to `speaking_target_minutes`."""
+    user_id, tenant_id = await new_user(db_session)
+    plan = await today(db_session, user_id, tenant_id)
+    assert plan.choice["speaking"] is False  # never drafted
+    plan = await service.confirm(
+        db_session,
+        user_id,
+        plan.id,
+        rules=RULES,
+        tz=UTC_ZONE,
+        now=NOW,
+        choice=PlanChoice(speaking=True),
+    )
+
+    async def spoke(seconds: float, at: datetime) -> None:
+        row = await speaking_sessions.start(db_session, tenant_id, user_id, None)
+        row.spoken_seconds, row.started_at = seconds, at
+        await db_session.flush()
+
+    await spoke(150, NOW - timedelta(hours=1))
+    await spoke(600, NOW - timedelta(days=1))  # yesterday's doesn't count
+    v = await service.view(db_session, plan, rules=RULES, tz=UTC_ZONE, now=NOW)
+    (speaking,) = v.progress
+    assert (speaking.item.kind, speaking.done, speaking.target) == ("speaking", 2, 5)
+    assert not speaking.complete and v.minutes == 10
+
+    await spoke(160, NOW)
+    v = await service.view(db_session, plan, rules=RULES, tz=UTC_ZONE, now=NOW)
+    assert v.progress[0].done == 5 and v.progress[0].complete

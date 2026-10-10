@@ -17,7 +17,7 @@ import {
 } from "@/lib/plan";
 
 type Counted = "review" | "new_words";
-type Switched = "practice" | "reading" | "writing";
+type Switched = "practice" | "reading" | "writing" | "speaking";
 const COUNTED = new Set<ItemKind>(["review", "new_words"]);
 /** How much a +/- press changes a count. */
 const STEP: Record<Counted, number> = { review: 5, new_words: 1 };
@@ -67,6 +67,7 @@ export function PlanEditor({
     practice: limits.practice,
     reading: limits.reading,
     writing: true,
+    speaking: true,
   };
   return (
     <div className="flex flex-col gap-2" data-testid="plan-editor">
@@ -89,6 +90,11 @@ export function PlanEditor({
               on={choice[kind as Switched]}
               available={available[kind as Switched]}
               minutes={estimates[kind]}
+              hint={
+                kind === "speaking" && limits.speaking_minutes
+                  ? t("speakingHint", { n: limits.speaking_minutes })
+                  : undefined
+              }
               disabled={disabled}
               onChange={(on) => set({ [kind]: on })}
             />
@@ -161,6 +167,7 @@ function SwitchRow({
   on,
   available,
   minutes,
+  hint,
   disabled,
   onChange,
 }: {
@@ -168,6 +175,8 @@ function SwitchRow({
   on: boolean;
   available: boolean;
   minutes: number;
+  /** Under the label: when the item counts as done. */
+  hint?: string;
   disabled: boolean;
   onChange: (on: boolean) => void;
 }) {
@@ -181,6 +190,7 @@ function SwitchRow({
         {!available && (
           <span className="block text-xs text-muted-foreground">{t(`none.${kind}`)}</span>
         )}
+        {available && hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
       </label>
       {on && (
         <span className="shrink-0 text-xs text-muted-foreground tabular-nums">

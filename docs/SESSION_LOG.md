@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-10 任务 59.6 看板与每日计划加口语
+
+**做了什么**：每日计划加可选项“口语”（`backend/app/adaptive/daily_plan/` 的 algorithm / card / service，草案从不放，确认卡或私教 `propose_daily_plan(speaking=true)` 才加）；完成情况按当天开始的口语会话 `spoken_seconds` 之和取整分钟，满 `daily_plan.speaking_target_minutes`（5）算完成；`limits.speaking_minutes`；`app/cards/tools.py` 的 `LinkKind` 加 `speaking`，`chat/planning.py` brief 总给这个链接；前端 `plan-editor.tsx` 开关、`today-plan.tsx` 显示“已说 / 目标 分钟”、`lib/cards.ts` 链接；ADR 0027 补记；规则版本 `2026-10-10.3`。pytest 1582、Vitest 472、ruff / mypy / tsc / eslint 全过。
+
+**未完成**：59.7（E2E 与收尾）：`fake_llm.py` 加口语回复和小结，Playwright 假麦克风跑一遍语音回合 → 改一下 → 结束 → 小结 → 每日计划口语完成；`docs/agent-tools.md`、ADR 0029 落地记录、P3 计划、README 中英。
+
+**下一步**：59.7。
+
+**踩坑**：上一轮会话因累积的图片 / 输出超过 32MB 请求上限中断，本轮接着验证提交。`mine-app.test.tsx` 的“输入时联想词典”在全量 Vitest 并发下偶发失败一次，单独跑和重跑全量都过（防抖计时），和本任务无关。
+
+---
+
 ## 2026-10-10 · 任务 58 完成（口语练习后端）
 
 - **做了什么**：开头把任务 57 推送到 129d3dd，CI run 38031826142 四个 job 全绿。任务 58 拆成 58.1–58.6，Q58a–h 按推荐确认。58.1 `speaking/scenarios.yaml` + `scenarios.py`（10 个情景，启动校验）。58.2 迁移 `08753b283c97`（purpose 加 speaking / realtime、`scenario_id`、证据 source 加 speaking、`speaking_sessions`）；`CONVERSATION_SOURCES` 替换四处只认 `chat` 的过滤；`rules.yaml` 加 `speaking` 块（`2026-10-10.2`）。58.3 `Route.SPEAKING_COACH`、`chat/speaking.py`、speaking_coach 子图（自己的系统提示词、总是英文、不挂工具、先开口），`_call` 的开场提示改为传文本、`system_prompt` 加 `base`。58.4 `speaking/evidence.py`（短语音不记错、改过转写的不记）+ 反思按 purpose 记 source。58.5 `speaking/summary.py`、`speaking/sessions.py`、`api/speaking.py`（场景、开始、列表 / 详情、结束、改转写、删除），聊天列表排除口语会话，结束后不再接受新一轮。58.6 `features.yaml` 三项、前端类型与中英文案、`agent-tools.md`、ADR 0029 落地记录、P3 计划、PLAN。

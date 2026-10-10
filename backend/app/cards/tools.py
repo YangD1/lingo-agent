@@ -21,13 +21,14 @@ from app.services.vocab.books import BOOKS, get_book
 
 # "writing" is put by writing_coach, not by a tool (task 38.5).
 CardKind = Literal["word_book", "learning_goal", "practice", "link", "writing", "daily_plan"]
-LinkKind = Literal["vocab_review", "vocab_screen", "placement", "learner", "word_books"]
+LinkKind = Literal["vocab_review", "vocab_screen", "placement", "learner", "word_books", "speaking"]
 LINK_KINDS: tuple[LinkKind, ...] = (
     "vocab_review",
     "vocab_screen",
     "placement",
     "learner",
     "word_books",
+    "speaking",
 )
 # Mirrors the vocab API and the profile's check constraint.
 MAX_DAILY_NEW = 200
@@ -99,6 +100,10 @@ class ProposeDailyPlan(_Args):
     practice: bool = Field(description="One grammar practice set.")
     reading: bool = Field(description="One graded article.")
     writing: bool = Field(description="One short piece of writing for review.")
+    speaking: bool = Field(
+        default=False,
+        description="One speaking practice with the tutor; only when the learner wants it.",
+    )
 
 
 class SuggestPractice(_Args):
@@ -112,7 +117,7 @@ class SuggestPractice(_Args):
 class SuggestLink(_Args):
     """Show a card linking to a page of the app: vocab_review (due words and new
     words), vocab_screen (mark words already known), placement (level test), learner
-    (grammar mastery), word_books (choose a book)."""
+    (grammar mastery), word_books (choose a book), speaking (speaking practice)."""
 
     model_config = ConfigDict(title="suggest_link")
 

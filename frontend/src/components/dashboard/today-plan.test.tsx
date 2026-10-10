@@ -22,7 +22,7 @@ const PLAN: Plan = {
   day: "2026-10-09",
   status: "proposed",
   card_id: null,
-  choice: { review: 20, new_words: 5, practice: true, reading: false, writing: false },
+  choice: { review: 20, new_words: 5, practice: true, reading: false, writing: false, speaking: false },
   items: [
     { kind: "review", minutes: 5, count: 20, done: 0, target: 20, complete: false, kc: null, article: null },
     { kind: "practice", minutes: 8, count: null, done: 0, target: 1, complete: false, kc: KC, article: null },
@@ -31,8 +31,8 @@ const PLAN: Plan = {
   minutes: 18,
   budget: 20,
   budget_set: true,
-  limits: { reviews_due: 22, new_left: 5, practice: true, reading: false, max_count: 500 },
-  estimates: { review: 0.25, new_words: 1, practice: 8, reading: 10, writing: 15 },
+  limits: { reviews_due: 22, new_left: 5, practice: true, reading: false, max_count: 500, speaking_minutes: 5 },
+  estimates: { review: 0.25, new_words: 1, practice: 8, reading: 10, writing: 15, speaking: 10 },
 };
 
 function show(plan: Plan | null, error: string | null = null) {
@@ -66,6 +66,11 @@ describe("TodayPlan", () => {
     expect(within(reading).getByRole("switch")).toHaveAttribute("aria-disabled", "true");
     await userEvent.click(within(screen.getByTestId("plan-row-writing")).getByRole("switch"));
     expect(screen.getByTestId("plan-total")).toHaveTextContent("预计 34 分钟");
+    // Speaking is never drafted; the learner adds it, done after 5 minutes of speaking.
+    const speaking = screen.getByTestId("plan-row-speaking");
+    expect(speaking).toHaveTextContent("今天自己说满 5 分钟就算完成");
+    await userEvent.click(within(speaking).getByRole("switch"));
+    expect(screen.getByTestId("plan-total")).toHaveTextContent("预计 44 分钟");
 
     const confirmed = { ...PLAN, status: "applied" as const };
     api.mockResolvedValueOnce(confirmed);
@@ -74,7 +79,7 @@ describe("TodayPlan", () => {
       method: "POST",
       json: {
         tz: expect.any(String),
-        choice: { review: 22, new_words: 5, practice: true, reading: false, writing: true },
+        choice: { review: 22, new_words: 5, practice: true, reading: false, writing: true, speaking: true },
       },
     });
     expect(onChange).toHaveBeenCalledWith(confirmed);
@@ -88,9 +93,10 @@ describe("TodayPlan", () => {
         { ...PLAN.items[0], done: 25, complete: true },
         PLAN.items[1],
         { ...PLAN.items[2], done: 2 },
+        { kind: "speaking", minutes: 10, count: 5, done: 3, target: 5, complete: false, kc: null, article: null },
       ],
     });
-    expect(screen.getByText("完成 1/3")).toBeInTheDocument();
+    expect(screen.getByText("完成 1/4")).toBeInTheDocument();
     const review = screen.getByTestId("plan-item-review");
     expect(review).toHaveAttribute("data-complete", "true");
     // Never more than the target, and nothing to go to once done.
@@ -105,6 +111,10 @@ describe("TodayPlan", () => {
     expect(within(screen.getByTestId("plan-item-new_words")).getByTestId("plan-progress")).toHaveTextContent(
       "2/5",
     );
+    const speaking = screen.getByTestId("plan-item-speaking");
+    expect(speaking).toHaveTextContent("一次口语练习");
+    expect(within(speaking).getByTestId("plan-progress")).toHaveTextContent("3/5 分钟");
+    expect(within(speaking).getByRole("link", { name: "去说" })).toHaveAttribute("href", "/speaking");
   });
 
   it("undoes a plan from the tutor's card on that card", async () => {
@@ -137,7 +147,7 @@ describe("TodayPlan", () => {
   it("shows nothing to plan without anything open", () => {
     show({
       ...PLAN,
-      choice: { review: 0, new_words: 0, practice: false, reading: false, writing: false },
+      choice: { review: 0, new_words: 0, practice: false, reading: false, writing: false, speaking: false },
       items: [],
       limits: { ...PLAN.limits, reviews_due: 0, new_left: 0, practice: false },
     });

@@ -103,7 +103,9 @@ def test_clamp_respects_max_count() -> None:
 
 
 def test_items_in_order_with_minutes_and_refs() -> None:
-    choice = PlanChoice(review=20, new_words=5, practice=True, reading=True, writing=True)
+    choice = PlanChoice(
+        review=20, new_words=5, practice=True, reading=True, writing=True, speaking=True
+    )
     plan = items(choice, BASE, RULES)
     assert tuple(i.kind for i in plan) == ITEM_KINDS
     by_kind = {i.kind: i for i in plan}
@@ -112,7 +114,15 @@ def test_items_in_order_with_minutes_and_refs() -> None:
     assert by_kind["practice"].ref == "g.present_simple"
     assert by_kind["reading"].ref == 7
     assert by_kind["writing"].count is None
-    assert total_minutes(plan) == 5 + 5 + 8 + 10 + 15
+    # Speaking counts minutes the learner speaks (Q59d).
+    assert by_kind["speaking"].count == 5 and by_kind["speaking"].minutes == 10
+    assert total_minutes(plan) == 5 + 5 + 8 + 10 + 15 + 10
+
+
+def test_speaking_is_never_drafted_but_kept() -> None:
+    for minutes in (20, 120, 600):
+        assert not draft(with_(minutes=minutes), RULES).speaking
+    assert clamp(PlanChoice(speaking=True), BASE, RULES).speaking
 
 
 def test_draft_fits_budget() -> None:

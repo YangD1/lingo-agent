@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-10.2"
+version: "2026-10-10.3"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -394,6 +394,8 @@ daily_plan:
     practice: 8
     reading: 10
     writing: 15
+    # A speaking practice, as the plan counts it (Q59d).
+    speaking: 10
   # Reviews first take at most this share of the minutes, so a backlog does not crowd
   # out everything else; time left over at the end goes back to the backlog.
   review_share: 0.6
@@ -403,6 +405,11 @@ daily_plan:
   writing_gap_days: 7
   # Upper bound for a count the learner or the tutor sets.
   max_count: 500
+  # Speaking is done once the learner's own voice turns add up to this many minutes
+  # today (Q59d): in a half-duplex practice the tutor talks, and transcribing and
+  # thinking take time too, so a 10-minute practice has about 5 minutes of the
+  # learner speaking.
+  speaking_target_minutes: 5
 
 # Shadowing scored by pronunciation assessment (ADR 0028 §6, Q56b-c). A rough result
 # compared from a transcript is never evidence.

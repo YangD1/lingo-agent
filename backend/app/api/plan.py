@@ -31,6 +31,8 @@ class ChoiceIn(BaseModel):
     practice: bool
     reading: bool
     writing: bool
+    # Plans and cards from before speaking was an item have none.
+    speaking: bool = False
 
 
 class ChoiceOut(ChoiceIn):
@@ -67,6 +69,8 @@ class LimitsOut(BaseModel):
     practice: bool
     reading: bool
     max_count: int
+    # Minutes of speaking that complete the speaking item (Q59d).
+    speaking_minutes: int
 
 
 class PlanOut(BaseModel):
@@ -133,6 +137,7 @@ async def _out(session: SessionDep, view: PlanView) -> PlanOut:
             practice=inputs.practice_kc is not None,
             reading=inputs.article_id is not None,
             max_count=rules.daily_plan.max_count,
+            speaking_minutes=rules.daily_plan.speaking_target_minutes,
         ),
         estimates={
             "review": per.review,
@@ -140,6 +145,7 @@ async def _out(session: SessionDep, view: PlanView) -> PlanOut:
             "practice": per.practice,
             "reading": per.reading,
             "writing": per.writing,
+            "speaking": per.speaking,
         },
     )
 

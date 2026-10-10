@@ -133,7 +133,12 @@ async def test_a_language_without_a_voice_is_left_to_the_browser(
     capabilities = (await client.get("/speech/capabilities")).json()
     response = await client.post("/speech/tts", json={"text": "你好", "language": "zh-CN"})
 
-    assert capabilities == {"tts": True, "tts_languages": ["en-US", "en-GB"], "shadowing": None, "asr": False}
+    assert capabilities == {
+        "tts": True,
+        "tts_languages": ["en-US", "en-GB"],
+        "shadowing": None,
+        "asr": False,
+    }
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "no_tts_voice"
     assert vendor.seen == []

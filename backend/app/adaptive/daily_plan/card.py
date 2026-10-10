@@ -46,6 +46,7 @@ def card_params(target: PlanTarget, choice: PlanChoice, rules: Rules) -> dict[st
             "practice": inputs.practice_kc is not None,
             "reading": inputs.article_id is not None,
             "max_count": rules.daily_plan.max_count,
+            "speaking_minutes": rules.daily_plan.speaking_target_minutes,
         },
         "estimates": {
             "review": per.review,
@@ -53,6 +54,7 @@ def card_params(target: PlanTarget, choice: PlanChoice, rules: Rules) -> dict[st
             "practice": per.practice,
             "reading": per.reading,
             "writing": per.writing,
+            "speaking": per.speaking,
         },
     }
 
@@ -72,5 +74,7 @@ def describe_params(params: dict[str, Any]) -> str:
                 parts.append("read one article")
             case "writing":
                 parts.append("write one short text")
+            case "speaking":
+                parts.append(f"a speaking practice ({item['count']} min of speaking)")
     what = ", ".join(parts) if parts else "nothing"
     return f"today's plan: {what} (about {params['minutes']:g} min)"

@@ -117,6 +117,8 @@ class PlanChoiceIn(BaseModel):
     practice: bool
     reading: bool
     writing: bool
+    # Plans and cards from before speaking was an item have none.
+    speaking: bool = False
 
 
 class ApplyIn(BaseModel):

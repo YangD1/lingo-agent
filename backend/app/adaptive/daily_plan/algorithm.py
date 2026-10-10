@@ -7,9 +7,16 @@ from typing import Literal
 
 from app.adaptive.rules import Rules
 
-ItemKind = Literal["review", "new_words", "practice", "reading", "writing"]
+ItemKind = Literal["review", "new_words", "practice", "reading", "writing", "speaking"]
 # The order items are planned in and shown.
-ITEM_KINDS: tuple[ItemKind, ...] = ("review", "practice", "new_words", "reading", "writing")
+ITEM_KINDS: tuple[ItemKind, ...] = (
+    "review",
+    "practice",
+    "new_words",
+    "reading",
+    "writing",
+    "speaking",
+)
 # Rounding guard: 0.6 * 20 / 0.25 must count as 48, not 47.
 _EPS = 1e-9
 
@@ -43,13 +50,15 @@ class PlanChoice:
     practice: bool = False
     reading: bool = False
     writing: bool = False
+    # Speaking practice: never drafted, only added by the learner or the tutor (Q6).
+    speaking: bool = False
 
 
 @dataclass(frozen=True, slots=True)
 class PlanItem:
     kind: ItemKind
     minutes: float
-    # Reviews and new words; None for the one-off items.
+    # Reviews and new words; minutes to speak for speaking; None for the one-off items.
     count: int | None = None
     # The grammar point (practice) or article (reading) the item links to.
     ref: str | int | None = None
@@ -65,7 +74,8 @@ def _fits(minutes: float, per: float) -> int:
 
 def draft(inputs: PlanInputs, rules: Rules) -> PlanChoice:
     """Fill the learner's minutes in order: reviews (capped at `review_share`), one
-    practice set, new words, an article, an essay; leftover time goes back to reviews."""
+    practice set, new words, an article, an essay; leftover time goes back to reviews.
+    Speaking is left for the learner to add (Q6)."""
     r = rules.daily_plan
     per = r.minutes
     total = budget(inputs, rules)
@@ -107,6 +117,7 @@ def clamp(choice: PlanChoice, inputs: PlanInputs, rules: Rules) -> PlanChoice:
         practice=choice.practice and inputs.practice_kc is not None,
         reading=choice.reading and inputs.article_id is not None,
         writing=choice.writing,
+        speaking=choice.speaking,
     )
 
 
@@ -124,6 +135,9 @@ def items(choice: PlanChoice, inputs: PlanInputs, rules: Rules) -> tuple[PlanIte
         out.append(PlanItem("reading", per.reading, ref=inputs.article_id))
     if choice.writing:
         out.append(PlanItem("writing", per.writing))
+    if choice.speaking:
+        target = rules.daily_plan.speaking_target_minutes
+        out.append(PlanItem("speaking", per.speaking, count=target))
     return tuple(out)
 
 

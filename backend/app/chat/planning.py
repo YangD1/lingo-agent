@@ -76,6 +76,7 @@ class PlanningBrief:
         kc_ids |= {c.kc.id for c in self.candidates if c.kc is not None}
         links: set[LinkKind] = {_LINKS[c.kind] for c in self.candidates if c.kind in _LINKS}
         links.add("learner")  # the placement result's skill estimates are shown there
+        links.add("speaking")  # a speaking practice is always open (Q59g)
         target = None
         if self.plan is not None:
             p = self.plan.plan

@@ -310,6 +310,10 @@
         "word_books": {
           "title": "选一本词书",
           "action": "去选词书"
+        },
+        "speaking": {
+          "title": "口语练习",
+          "action": "去练口语"
         }
       },
       "live": {
@@ -1330,14 +1334,16 @@
       "practice": "做一组语法练习",
       "practiceKc": "做一组语法练习：{kc}",
       "reading": "读一篇分级文章",
-      "writing": "写一段短文请私教批改"
+      "writing": "写一段短文请私教批改",
+      "speaking": "一次口语练习"
     },
     "none": {
       "review": "今天没有到期的词",
       "new_words": "今天的新词额度用完了，或者还没选词书",
       "practice": "现在没有要练的语法点",
       "reading": "订阅里没有没读过的文章",
-      "writing": "随时都可以写"
+      "writing": "随时都可以写",
+      "speaking": "随时可以"
     },
     "upTo": "今天最多 {n}",
     "minutes": "约 {n} 分钟",
@@ -1361,8 +1367,11 @@
       "new_words": "去学",
       "practice": "去练习",
       "reading": "去读",
-      "writing": "去写"
-    }
+      "writing": "去写",
+      "speaking": "去说"
+    },
+    "speakingHint": "今天自己说满 {n} 分钟就算完成",
+    "progressMinutes": "{done}/{target} 分钟"
   },
   "aiBadge": {
     "label": "使用 AI：做什么、大约多少 token",

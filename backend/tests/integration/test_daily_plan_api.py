@@ -20,7 +20,14 @@ from tests.integration.test_chat_tools import (  # noqa: F401 (fixtures)
     tool_call,
 )
 
-NO_PLAN = {"review": 0, "new_words": 0, "practice": False, "reading": False, "writing": False}
+NO_PLAN = {
+    "review": 0,
+    "new_words": 0,
+    "practice": False,
+    "reading": False,
+    "writing": False,
+    "speaking": False,
+}
 
 
 async def plan(client: AsyncClient) -> dict[str, Any]:
@@ -50,8 +57,10 @@ async def test_drafted_on_first_read_then_confirmed_declined_undone(client: Asyn
         "practice": True,
         "reading": False,
         "max_count": 500,
+        "speaking_minutes": 5,
     }
     assert first["estimates"]["review"] == 0.25
+    assert first["estimates"]["speaking"] == 10
     assert (await plan(client))["id"] == first["id"]
 
     url = f"/plan/{first['id']}"

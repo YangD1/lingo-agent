@@ -3,6 +3,7 @@ read, confirmed / declined / undone by the learner; progress counted from each m
 records of the learner's local day."""
 
 import dataclasses
+import math
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -32,6 +33,7 @@ from app.db.models import (
     ExerciseSet,
     ReadingSession,
     ReviewLog,
+    SpeakingSession,
     UserCard,
     UserProfile,
     WritingSubmission,
@@ -319,12 +321,21 @@ async def _done(
             WritingSubmission.created_at < end,
         )
     )
+    # Minutes the learner spoke in today's speaking practices (Q59d).
+    spoken = await session.scalar(
+        select(func.coalesce(func.sum(SpeakingSession.spoken_seconds), 0.0)).where(
+            SpeakingSession.user_id == user_id,
+            SpeakingSession.started_at >= start,
+            SpeakingSession.started_at < end,
+        )
+    )
     return {
         "review": reviews or 0,
         "new_words": new_words or 0,
         "practice": min(practice or 0, 1),
         "reading": min(reading or 0, 1),
         "writing": min(writing or 0, 1),
+        "speaking": math.floor(float(spoken or 0) / 60),
     }
 
 

@@ -335,6 +335,7 @@ class DailyPlanMinutes(_Strict):
     practice: float = Field(gt=0)
     reading: float = Field(gt=0)
     writing: float = Field(gt=0)
+    speaking: float = Field(gt=0)
 
 
 class DailyPlanRules(_Strict):
@@ -344,6 +345,7 @@ class DailyPlanRules(_Strict):
     writing_min_minutes: int = Field(ge=1)
     writing_gap_days: int = Field(ge=0)
     max_count: int = Field(ge=1)
+    speaking_target_minutes: int = Field(ge=1)
 
 
 class LengthOffset(_Strict):

@@ -3,7 +3,13 @@ import type { PlanChoice } from "./plan";
 import { browserTimeZone } from "./vocab";
 
 /** Pages a link card can lead to (backend/app/cards/tools.py LinkKind). */
-export type LinkKind = "vocab_review" | "vocab_screen" | "placement" | "learner" | "word_books";
+export type LinkKind =
+  | "vocab_review"
+  | "vocab_screen"
+  | "placement"
+  | "learner"
+  | "word_books"
+  | "speaking";
 
 export const LINK_HREFS: Record<LinkKind, string> = {
   vocab_review: "/vocab/review",
@@ -11,6 +17,7 @@ export const LINK_HREFS: Record<LinkKind, string> = {
   placement: "/placement",
   learner: "/learner",
   word_books: "/vocab",
+  speaking: "/speaking",
 };
 
 /** proposed → applied | declined, applied → undone; cards without an effect are `info`. */

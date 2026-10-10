@@ -310,6 +310,10 @@
         "word_books": {
           "title": "Choose a word book",
           "action": "Open word books"
+        },
+        "speaking": {
+          "title": "Speaking practice",
+          "action": "Open speaking"
         }
       },
       "live": {
@@ -1330,14 +1334,16 @@
       "practice": "One grammar practice set",
       "practiceKc": "One grammar practice set: {kc}",
       "reading": "Read one graded article",
-      "writing": "Write a short text for review"
+      "writing": "Write a short text for review",
+      "speaking": "A speaking practice"
     },
     "none": {
       "review": "No words are due today",
       "new_words": "No new words left today, or no word book yet",
       "practice": "No grammar to practise right now",
       "reading": "No unread articles in your feeds",
-      "writing": "Any time"
+      "writing": "Any time",
+      "speaking": "Any time"
     },
     "upTo": "Up to {n} today",
     "minutes": "about {n} min",
@@ -1361,8 +1367,11 @@
       "new_words": "Learn",
       "practice": "Practise",
       "reading": "Read",
-      "writing": "Write"
-    }
+      "writing": "Write",
+      "speaking": "Speak"
+    },
+    "speakingHint": "Done once you've spoken {n} min today",
+    "progressMinutes": "{done}/{target} min"
   },
   "aiBadge": {
     "label": "Uses AI: what it does and roughly how many tokens",

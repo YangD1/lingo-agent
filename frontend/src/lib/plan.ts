@@ -3,7 +3,7 @@ import { practiceSetHref } from "./practice";
 import { browserTimeZone } from "./vocab";
 
 /** backend/app/adaptive/daily_plan/algorithm.py ItemKind, in the order items are shown. */
-export const ITEM_KINDS = ["review", "practice", "new_words", "reading", "writing"] as const;
+export const ITEM_KINDS = ["review", "practice", "new_words", "reading", "writing", "speaking"] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
 /** The counts and switches of a plan (PlanChoice); what the learner adjusts. */
@@ -13,6 +13,8 @@ export type PlanChoice = {
   practice: boolean;
   reading: boolean;
   writing: boolean;
+  /** Never drafted: the learner or the tutor adds it (Q59d). */
+  speaking: boolean;
 };
 
 /** What a plan may be adjusted to, from when it was drafted (Q48c). */
@@ -22,6 +24,8 @@ export type PlanLimits = {
   practice: boolean;
   reading: boolean;
   max_count: number;
+  /** Minutes of speaking that complete the speaking item; absent on older tutor cards. */
+  speaking_minutes?: number;
 };
 
 export type Estimates = Record<ItemKind, number>;
@@ -31,6 +35,7 @@ type Named = { id: string; name_en: string; name_zh: string };
 export type PlanItem = {
   kind: ItemKind;
   minutes: number;
+  /** Reviews and new words; minutes to speak for speaking; null for the one-off items. */
   count: number | null;
   done: number;
   target: number;
@@ -90,7 +95,8 @@ export function choiceMinutes(choice: PlanChoice, estimates: Estimates): number 
     choice.new_words * estimates.new_words +
     (choice.practice ? estimates.practice : 0) +
     (choice.reading ? estimates.reading : 0) +
-    (choice.writing ? estimates.writing : 0)
+    (choice.writing ? estimates.writing : 0) +
+    (choice.speaking ? estimates.speaking : 0)
   );
 }
 
@@ -103,6 +109,7 @@ export function clampChoice(choice: PlanChoice, limits: PlanLimits): PlanChoice 
     practice: choice.practice && limits.practice,
     reading: choice.reading && limits.reading,
     writing: choice.writing,
+    speaking: choice.speaking,
   };
 }
 
@@ -118,5 +125,7 @@ export function itemHref(item: Pick<PlanItem, "kind" | "kc" | "article">): strin
       return item.article ? `/reading/${item.article.id}` : "/reading";
     case "writing":
       return "/writing";
+    case "speaking":
+      return "/speaking";
   }
 }
