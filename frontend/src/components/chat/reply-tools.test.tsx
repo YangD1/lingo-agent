@@ -18,6 +18,13 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   api,
 }));
 
+// Shadowing is off unless a test turns it on (the capabilities come from the backend).
+const shadowing = vi.hoisted(() => ({ mode: null as "assessment" | "rough" | null }));
+vi.mock("@/lib/shadowing", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/shadowing")>()),
+  useShadowingMode: () => shadowing.mode,
+}));
+
 const reply = (over: Partial<ChatMessage> = {}): ChatMessage => ({
   key: "k1",
   id: "m1",
@@ -59,6 +66,7 @@ function stubSpeech(voices: object[] = []) {
 
 beforeEach(() => {
   api.mockReset();
+  shadowing.mode = null;
 });
 
 afterEach(() => {
@@ -187,5 +195,39 @@ describe("ReplyTools", () => {
   it("offers nothing on a reply still streaming, or not saved", () => {
     wrap([reply({ status: "streaming" }), reply({ key: "k2", id: undefined })]);
     expect(screen.queryByTestId("reply-translate")).not.toBeInTheDocument();
+  });
+});
+
+describe("shadowing a reply", () => {
+  it("offers nothing while shadowing can't be scored", () => {
+    wrap([reply()]);
+    expect(screen.queryByTestId("shadowing-open")).not.toBeInTheDocument();
+  });
+
+  it("offers nothing for a reply without English sentences", () => {
+    shadowing.mode = "assessment";
+    wrap([reply({ content: "你说得对，继续加油。" })]);
+    expect(screen.queryByTestId("shadowing-open")).not.toBeInTheDocument();
+  });
+
+  it("opens under the reply with its English sentences to pick from (Q57a)", async () => {
+    shadowing.mode = "assessment";
+    wrap([reply({ content: "Good job! 你可以说：**I have been here for two years.**" })]);
+    expect(screen.getByTestId("ai-badge-shadowing")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("shadowing-open"));
+    const options = screen.getByTestId("shadowing-sentences");
+    expect(options).toHaveTextContent("Good job!");
+    expect(options).toHaveTextContent("I have been here for two years.");
+    expect(options).not.toHaveTextContent("**");
+
+    await userEvent.click(screen.getByRole("button", { name: "Close shadowing" }));
+    expect(screen.queryByTestId("shadowing-panel")).not.toBeInTheDocument();
+  });
+
+  it("marks rough shadowing with its own AI mark", () => {
+    shadowing.mode = "rough";
+    wrap([reply()]);
+    expect(screen.getByTestId("ai-badge-shadowing_rough")).toBeInTheDocument();
   });
 });

@@ -10,6 +10,8 @@ import { AiBadge } from "@/components/ai-badge";
 import { CatLoading } from "@/components/brand/lingo-cat";
 import { WordPopup } from "@/components/chat/word-popup";
 import { ReadingQuiz } from "@/components/reading/reading-quiz";
+import { ShadowingBadge, ShadowingButton } from "@/components/speech/shadowing-button";
+import { ShadowingPanel } from "@/components/speech/shadowing-panel";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
@@ -28,6 +30,7 @@ import {
   type ReadingSession,
   type Version,
 } from "@/lib/reading";
+import { shadowingSentences, useShadowingMode } from "@/lib/shadowing";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -292,6 +295,10 @@ function Text({ session, version }: { session: ReadingSession; version: Version 
   );
   const glossary = useMemo(() => new Set(version?.glossary.map((g) => g.form) ?? []), [version]);
   const dueForms = due?.key === key ? due.forms : new Set<string>();
+  // The paragraph being shadowed, one at a time, in this version of the text (Q57b).
+  const [shadowing, setShadowing] = useState<{ key: string; at: number } | null>(null);
+  const shadowingAt = shadowing?.key === key ? shadowing.at : null;
+  const shadowable = useShadowingMode() !== null;
 
   return (
     <section className="flex flex-col gap-2">
@@ -311,9 +318,29 @@ function Text({ session, version }: { session: ReadingSession; version: Version 
           )}
         </p>
       )}
+      {shadowable && (
+        <p className="flex items-center gap-1 text-xs text-muted-foreground" data-testid="reading-shadowing-hint">
+          {t("shadowingHint")}
+          <ShadowingBadge />
+        </p>
+      )}
       <div ref={container} lang="en" className="text-[15px] leading-relaxed" data-testid="reading-text">
         {paragraphs.map((p, i) => (
-          <Paragraph key={i} text={p} due={dueForms} glossary={glossary} />
+          <Paragraph
+            key={i}
+            text={p}
+            due={dueForms}
+            glossary={glossary}
+            shadowing={
+              shadowable
+                ? {
+                    open: shadowingAt === i,
+                    toggle: () => setShadowing(shadowingAt === i ? null : { key, at: i }),
+                    articleId: session.article.id,
+                  }
+                : undefined
+            }
+          />
         ))}
       </div>
       <WordPopup container={container} />
@@ -321,7 +348,48 @@ function Text({ session, version }: { session: ReadingSession; version: Version 
   );
 }
 
-function Paragraph({ text, due, glossary }: { text: string; due: Set<string>; glossary: Set<string> }) {
+function Paragraph({
+  text,
+  due,
+  glossary,
+  shadowing,
+}: {
+  text: string;
+  due: Set<string>;
+  glossary: Set<string>;
+  /** The microphone after the paragraph and the panel under it (Q57b): sentence by sentence. */
+  shadowing?: { open: boolean; toggle: () => void; articleId: number };
+}) {
+  const t = useTranslations("speech.shadowing");
+  const sentences = shadowing ? shadowingSentences(text) : [];
+  const body = <ParagraphText text={text} due={due} glossary={glossary} />;
+  if (!shadowing || sentences.length === 0) return body;
+  return (
+    <div className="my-3 first:mt-0 last:mb-0">
+      <div className="flex items-start gap-1">
+        <div className="min-w-0 flex-1 [&>p]:my-0">{body}</div>
+        <ShadowingButton
+          compact
+          open={shadowing.open}
+          onToggle={shadowing.toggle}
+          label={t("openParagraph")}
+          className="mt-0.5 shrink-0"
+        />
+      </div>
+      {shadowing.open && (
+        <ShadowingPanel
+          sentences={sentences}
+          source="reading"
+          sourceId={String(shadowing.articleId)}
+          onClose={shadowing.toggle}
+          className="mt-2 font-sans"
+        />
+      )}
+    </div>
+  );
+}
+
+function ParagraphText({ text, due, glossary }: { text: string; due: Set<string>; glossary: Set<string> }) {
   return (
     <p className="my-3 first:mt-0 last:mb-0">
       {pieces(text).map((piece, i) => {

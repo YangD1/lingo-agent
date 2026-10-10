@@ -5,8 +5,11 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
+import { ShadowingBadge, ShadowingButton } from "@/components/speech/shadowing-button";
+import { ShadowingPanel } from "@/components/speech/shadowing-panel";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { markWord } from "@/lib/meanings";
+import { MAX_SHADOWING_CHARS, useShadowingMode } from "@/lib/shadowing";
 import { cn } from "@/lib/utils";
 import { type Example, type SourcedExample, fetchExamples } from "@/lib/vocab";
 import { ErrorText } from "@/components/ui/error-text";
@@ -34,6 +37,17 @@ export function WordExamples({
   const [ai, setAi] = useState<Example[] | null>(cached.length > 0 ? cached : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The example being shadowed, one at a time.
+  const [shadowing, setShadowing] = useState<string | null>(null);
+  const shadowable = useShadowingMode() !== null;
+  const shadow = (en: string) =>
+    shadowable && en.length <= MAX_SHADOWING_CHARS
+      ? {
+          open: shadowing === en,
+          toggle: () => setShadowing(shadowing === en ? null : en),
+          wordId,
+        }
+      : undefined;
 
   const load = async () => {
     setBusy(true);
@@ -56,19 +70,32 @@ export function WordExamples({
       {sentences.length > 0 && (
         <ul className="flex flex-col gap-2.5">
           {sentences.map((s) => (
-            <ExampleLine key={s.en} example={s} forms={forms} link={s.url} linkLabel={t("open")} />
+            <ExampleLine
+              key={s.en}
+              example={s}
+              forms={forms}
+              link={s.url}
+              linkLabel={t("open")}
+              shadowing={shadow(s.en)}
+            />
           ))}
         </ul>
       )}
       {ai && (
         <ul className="flex flex-col gap-2.5" data-testid="review-ai-examples">
           {ai.map((s) => (
-            <ExampleLine key={s.en} example={s} forms={forms} />
+            <ExampleLine key={s.en} example={s} forms={forms} shadowing={shadow(s.en)} />
           ))}
         </ul>
       )}
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         {sentences.length > 0 && <span>{t("source")}</span>}
+        {shadowable && (sentences.length > 0 || ai) && (
+          <span className="inline-flex items-center gap-1" data-testid="examples-shadowing-hint">
+            {t("shadowing")}
+            <ShadowingBadge />
+          </span>
+        )}
         {ai ? (
           <span>{t("aiSource")}</span>
         ) : (
@@ -98,12 +125,15 @@ function ExampleLine({
   forms,
   link,
   linkLabel,
+  shadowing,
 }: {
   example: Example;
   forms: string[];
   link?: string | null;
   linkLabel?: string;
+  shadowing?: { open: boolean; toggle: () => void; wordId: number };
 }) {
+  const t = useTranslations("speech.shadowing");
   return (
     <li>
       <p lang="en" className="text-[15px] leading-relaxed">
@@ -115,6 +145,15 @@ function ExampleLine({
           ) : (
             s.text
           ),
+        )}
+        {shadowing && (
+          <ShadowingButton
+            compact
+            open={shadowing.open}
+            onToggle={shadowing.toggle}
+            label={t("openSentence")}
+            className="ml-1"
+          />
         )}
       </p>
       <p className="text-sm text-muted-foreground">
@@ -132,6 +171,15 @@ function ExampleLine({
           </a>
         )}
       </p>
+      {shadowing?.open && (
+        <ShadowingPanel
+          sentences={[example.en]}
+          source="vocab"
+          sourceId={String(shadowing.wordId)}
+          onClose={shadowing.toggle}
+          className="mt-2"
+        />
+      )}
     </li>
   );
 }

@@ -651,7 +651,8 @@
         "open": "See this sentence on Tatoeba",
         "ai": "AI examples",
         "aiLoading": "Writing examples…",
-        "aiSource": "Written by AI"
+        "aiSource": "Written by AI",
+        "shadowing": "Tap the microphone after a sentence to shadow it"
       },
       "meanings": {
         "more": "More",
@@ -1439,6 +1440,9 @@
     "cacheClearFailed": "Couldn't clear it. Please try again later.",
     "clearCacheYes": "Clear",
     "shadowing": {
+      "open": "Shadow",
+      "openParagraph": "Shadow this paragraph",
+      "openSentence": "Shadow this sentence",
       "title": "Shadowing",
       "close": "Close shadowing",
       "pick": "Pick a sentence to read",
@@ -1745,7 +1749,8 @@
       "glossaryLegend": "underlined",
       "glossaryCount": "{n, plural, one {# word} other {# words}} above your level",
       "ask": "Ask the tutor about this article",
-      "askHint": "Opens a conversation where the tutor has the article in front of it."
+      "askHint": "Opens a conversation where the tutor has the article in front of it.",
+      "shadowingHint": "Tap the microphone after a paragraph to shadow it."
     },
     "quiz": {
       "title": "Comprehension questions",

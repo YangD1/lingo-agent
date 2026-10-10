@@ -651,7 +651,8 @@
         "open": "在 Tatoeba 查看这句",
         "ai": "AI 例句",
         "aiLoading": "正在写例句…",
-        "aiSource": "AI 生成"
+        "aiSource": "AI 生成",
+        "shadowing": "点句子后面的麦克风可以跟读"
       },
       "meanings": {
         "more": "更多",
@@ -1439,6 +1440,9 @@
     "cacheClearFailed": "没能清除，请稍后再试。",
     "clearCacheYes": "清除",
     "shadowing": {
+      "open": "跟读",
+      "openParagraph": "跟读这一段",
+      "openSentence": "跟读这句",
       "title": "跟读",
       "close": "关闭跟读",
       "pick": "选一句来读",
@@ -1745,7 +1749,8 @@
       "glossaryLegend": "虚下划线",
       "glossaryCount": "{n} 个超出你等级的词",
       "ask": "就这篇文章问私教",
-      "askHint": "打开一个会话，私教能看到这篇文章。"
+      "askHint": "打开一个会话，私教能看到这篇文章。",
+      "shadowingHint": "点段落后面的麦克风可以跟读。"
     },
     "quiz": {
       "title": "理解题",

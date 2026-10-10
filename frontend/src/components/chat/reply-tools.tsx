@@ -6,12 +6,15 @@ import { useCallback, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
 import { ReadAloudBadge } from "@/components/speech/read-aloud-badge";
+import { ShadowingButton } from "@/components/speech/shadowing-button";
+import { ShadowingPanel } from "@/components/speech/shadowing-panel";
 import { SpeechSettings } from "@/components/speech/speech-settings";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { api } from "@/lib/api";
 import { LingoCat } from "@/components/brand/lingo-cat";
+import { shadowingSentences, useShadowingMode } from "@/lib/shadowing";
 import {
   speakSegments,
   speechSegments,
@@ -119,6 +122,9 @@ export function ReplyTools({
 
   const [noChinese, setNoChinese] = useState(false);
   const fellBack = useFellBack(messageKey);
+  // The English sentences to shadow, picked from the message as shown (Q57a); null: closed.
+  const [shadowing, setShadowing] = useState<string[] | null>(null);
+  const shadowable = useShadowingMode() !== null && shadowingSentences(content).length > 0;
 
   const read = (button: HTMLElement) => {
     if (speaking) return stopSpeaking();
@@ -132,71 +138,99 @@ export function ReplyTools({
     }
   };
 
-  if (!speakable && !(messageId && onTranslate)) return null;
+  const toggleShadowing = (button: HTMLElement) => {
+    if (shadowing) return setShadowing(null);
+    const markdown = button.closest("li")?.querySelector('[data-slot="markdown"]');
+    const shown = markdown ? shadowingSentences(readableText(markdown)) : [];
+    setShadowing(shown.length > 0 ? shown : shadowingSentences(content));
+  };
+
+  if (!speakable && !shadowable && !(messageId && onTranslate)) return null;
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-0.5 text-[12.5px] text-muted-foreground">
-      {speakable && (
-        <Button
-          size="xs"
-          variant="ghost"
-          className={TOOL}
-          aria-pressed={speaking}
-          onClick={(e) => read(e.currentTarget)}
-        >
-          {speaking ? <Square /> : <Volume2 />}
-          {speaking ? t("stop") : t("read")}
-        </Button>
-      )}
-      {speakable && <ReadAloudBadge />}
-      {speakable && (
-        <Popover>
-          <PopoverTrigger
-            render={<Button size="icon-xs" variant="ghost" className={ICON_TOOL} aria-label={t("readSettings")} />}
-          >
-            <Settings2 />
-          </PopoverTrigger>
-          <PopoverContent className="w-80" align="start">
-            <SpeechSettings />
-          </PopoverContent>
-        </Popover>
-      )}
-      {messageId && onTranslate && (
-        <>
-          {speakable && <span aria-hidden className="mx-1 h-3.5 w-px bg-border" />}
+    <>
+      <div className="mt-1.5 flex flex-wrap items-center gap-0.5 text-[12.5px] text-muted-foreground">
+        {speakable && (
           <Button
             size="xs"
             variant="ghost"
             className={TOOL}
-            disabled={translation?.busy}
-            aria-pressed={translation?.showing ?? false}
-            onClick={() => onTranslate(messageId, target)}
-            data-testid="reply-translate"
+            aria-pressed={speaking}
+            onClick={(e) => read(e.currentTarget)}
           >
-            {translation?.busy ? <LingoCat mood="ai" size={16} label="" /> : <Languages />}
-            {translation?.busy
-              ? t("translating")
-              : translation?.showing
-                ? t("original")
-                : t(target === "zh" ? "toChinese" : "toEnglish")}
+            {speaking ? <Square /> : <Volume2 />}
+            {speaking ? t("stop") : t("read")}
           </Button>
-          {translation?.text === undefined && <AiBadge feature="message_translate" />}
-        </>
+        )}
+        {speakable && <ReadAloudBadge />}
+        {speakable && (
+          <Popover>
+            <PopoverTrigger
+              render={<Button size="icon-xs" variant="ghost" className={ICON_TOOL} aria-label={t("readSettings")} />}
+            >
+              <Settings2 />
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="start">
+              <SpeechSettings />
+            </PopoverContent>
+          </Popover>
+        )}
+        {shadowable && (
+          <>
+            {speakable && <span aria-hidden className="mx-1 h-3.5 w-px bg-border" />}
+            <ShadowingButton
+              open={shadowing !== null}
+              onToggle={toggleShadowing}
+              className={TOOL}
+            />
+          </>
+        )}
+        {messageId && onTranslate && (
+          <>
+            {(speakable || shadowable) && <span aria-hidden className="mx-1 h-3.5 w-px bg-border" />}
+            <Button
+              size="xs"
+              variant="ghost"
+              className={TOOL}
+              disabled={translation?.busy}
+              aria-pressed={translation?.showing ?? false}
+              onClick={() => onTranslate(messageId, target)}
+              data-testid="reply-translate"
+            >
+              {translation?.busy ? <LingoCat mood="ai" size={16} label="" /> : <Languages />}
+              {translation?.busy
+                ? t("translating")
+                : translation?.showing
+                  ? t("original")
+                  : t(target === "zh" ? "toChinese" : "toEnglish")}
+            </Button>
+            {translation?.text === undefined && <AiBadge feature="message_translate" />}
+          </>
+        )}
+        {fellBack && (
+          <span role="status" data-testid="voice-fell-back">
+            {t("fellBack")}
+          </span>
+        )}
+        {noChinese && (
+          <span role="status" data-testid="no-chinese-voice">
+            {t("noChineseVoice")}
+          </span>
+        )}
+        {translation?.error && (
+          <span role="alert" className="text-destructive">
+            {translation.error}
+          </span>
+        )}
+      </div>
+      {shadowing && (
+        <ShadowingPanel
+          sentences={shadowing}
+          source="chat"
+          sourceId={messageId}
+          onClose={() => setShadowing(null)}
+          className="mt-2"
+        />
       )}
-      {fellBack && (
-        <span role="status" data-testid="voice-fell-back">
-          {t("fellBack")}
-        </span>
-      )}
-      {noChinese && (
-        <span role="status" data-testid="no-chinese-voice">
-          {t("noChineseVoice")}
-        </span>
-      )}
-      {translation?.error && (
-        <span role="alert" className="text-destructive">
-          {translation.error}
-        </span>
-      )}
-    </div>
+    </>
   );
 }

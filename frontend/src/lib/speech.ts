@@ -359,13 +359,14 @@ type Capabilities = {
 export function loadCapabilities(): Promise<void> {
   capabilitiesLoad ??= Promise.resolve()
     .then(() => api<Capabilities>("/speech/capabilities"))
-    .catch((): Capabilities => ({ tts: false, tts_languages: [] }))
-    .then((caps) =>
-      setServer({
+    .then(
+      (caps): Partial<ServerSpeech> => ({
         languages: new Set(caps.tts ? caps.tts_languages : []),
         shadowing: caps.shadowing ?? null,
       }),
-    );
+    )
+    .catch((): Partial<ServerSpeech> => ({ languages: new Set(), shadowing: null }))
+    .then(setServer);
   return capabilitiesLoad;
 }
 

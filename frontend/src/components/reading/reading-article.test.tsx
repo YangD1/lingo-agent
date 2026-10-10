@@ -17,6 +17,11 @@ vi.mock("@/lib/ai-usage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ai-usage")>()),
   loadEstimates: () => new Promise(() => {}),
 }));
+const shadowing = vi.hoisted(() => ({ mode: null as "assessment" | "rough" | null }));
+vi.mock("@/lib/shadowing", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/shadowing")>()),
+  useShadowingMode: () => shadowing.mode,
+}));
 const push = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
@@ -102,6 +107,7 @@ beforeEach(() => {
   api.mockReset();
   push.mockReset();
   calls.length = 0;
+  shadowing.mode = null;
 });
 
 afterEach(() => {
@@ -217,6 +223,34 @@ describe("ReadingArticle", () => {
       method: "POST",
       json: { article_id: 7, locale: "en" },
     });
+  });
+});
+
+describe("shadowing a paragraph", () => {
+  it("offers nothing while shadowing can't be scored", async () => {
+    serve(session());
+    show();
+    await screen.findByTestId("reading-text");
+    expect(screen.queryByTestId("shadowing-open")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reading-shadowing-hint")).not.toBeInTheDocument();
+  });
+
+  it("opens a panel under the paragraph, one at a time (Q57b)", async () => {
+    shadowing.mode = "assessment";
+    serve(session());
+    show();
+    await screen.findByTestId("reading-text");
+    expect(screen.getByTestId("reading-shadowing-hint")).toBeInTheDocument();
+    const mics = screen.getAllByRole("button", { name: "Shadow this paragraph" });
+    expect(mics).toHaveLength(2);
+
+    await userEvent.click(mics[1]);
+    expect(screen.getByTestId("shadowing-sentence")).toHaveTextContent(
+      "People can see the comet’s light at night.",
+    );
+    await userEvent.click(mics[0]);
+    expect(screen.getAllByTestId("shadowing-panel")).toHaveLength(1);
+    expect(screen.getByTestId("shadowing-sentence")).toHaveTextContent("A comet is in the sky.");
   });
 });
 
