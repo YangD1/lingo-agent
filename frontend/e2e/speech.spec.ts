@@ -289,3 +289,58 @@ test("the read-aloud route takes a voice per language in settings", async ({ pag
   const tts = routes.find((r: { section: string }) => r.section === "tts");
   expect(tts.params).toEqual({ voices: { "fake:fake-tts": { "en-GB": "fable" } } });
 });
+
+// Word pronunciations generated ahead of time (ADR 0028 §4, task 55).
+test("a deployment generates a book's word pronunciations, and reading a word plays them", async ({
+  page,
+}) => {
+  await fakeVoices(page, [ZIRA]);
+  await fakeAudio(page);
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await readAloudRoute(page, "fake-tts");
+  await page.goto("/settings#word-audio");
+
+  const card = page.locator("#word-audio");
+  await expect(card.getByTestId("ai-badge-word_audio_prefetch")).toBeVisible();
+  await card.getByRole("button", { name: "生成 牛津 3000 核心词 的单词发音" }).click();
+  const form = card.getByRole("form", { name: "生成单词发音" });
+  // The Oxford 3000 has 7 words in run_backend.py's slice of ECDICT; both accents.
+  await expect(form).toContainText("7 个词，共 14 段，已有 0 段，要生成 14 段。");
+  await expect(form.getByLabel("每分钟请求数")).toHaveValue("60");
+  await form.getByLabel("每分钟请求数").fill("600"); // a tenth of a second a word
+  await form.getByRole("button", { name: "确认开始" }).click();
+
+  await expect(card.getByRole("heading", { name: "牛津 3000 核心词 · 已完成" })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(card).toContainText("已完成 14 / 14 段");
+  await expect(card).toContainText("7 个词 · 美音 7 · 英音 7");
+
+  // On a review card the word comes from what was generated: no model call.
+  const asked: { speed: number }[] = [];
+  const cached: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/speech/tts")) asked.push(request.postDataJSON());
+  });
+  page.on("response", (response) => {
+    if (response.url().endsWith("/api/speech/tts")) cached.push(response.headers()["x-tts-cached"]);
+  });
+  await page.goto("/vocab");
+  await page.getByTestId("book-oxford3000").getByRole("button", { name: "学这本" }).click();
+  await page.getByRole("link", { name: "开始" }).click();
+  await expect(page.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "朗读", exact: true }).click();
+
+  await expect.poll(() => cached).toEqual(["1"]);
+  expect(asked).toEqual([{ text: "the", language: "en-US", speed: 1 }]);
+  await expect.poll(() => played(page)).toHaveLength(1);
+  expect(await spoken(page)).toEqual([]);
+
+  // The deployment can delete them again.
+  await page.goto("/settings#word-audio");
+  await card.getByRole("button", { name: "删除 牛津 3000 核心词 的单词发音" }).click();
+  await card.getByRole("button", { name: "删除", exact: true }).click();
+  await expect(card.getByText("删除了 14 段发音。")).toBeVisible();
+  await expect(card).toContainText("7 个词 · 美音 0 · 英音 0");
+});
