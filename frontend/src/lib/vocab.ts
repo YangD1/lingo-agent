@@ -29,6 +29,8 @@ export type Card = {
   forms: string[];
   /** AI sentences already cached at the learner's level (task 44); shown without the button. */
   ai_examples: Example[];
+  /** The learner's last assessed reading of this word was off (shadowing, Q56c). */
+  mispronounced?: boolean;
 };
 
 export type BookProgress = {

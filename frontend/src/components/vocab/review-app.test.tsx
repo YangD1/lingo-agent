@@ -178,6 +178,25 @@ describe("ReviewApp", () => {
     );
   });
 
+  it("says on the back when the learner doesn't say the word right (Q56c)", async () => {
+    api.mockResolvedValueOnce(queue([card(1, "apple", { mispronounced: true }), card(2, "bread")]));
+    show();
+    await screen.findByRole("heading", { name: "apple" });
+    expect(screen.queryByTestId("review-mispronounced")).not.toBeInTheDocument();
+    await userEvent.keyboard(" ");
+    expect(screen.getByTestId("review-mispronounced")).toHaveTextContent(
+      "You don't say this one right yet",
+    );
+  });
+
+  it("marks nothing on a word said right", async () => {
+    api.mockResolvedValueOnce(queue([card(1, "apple")]));
+    show();
+    await screen.findByRole("heading", { name: "apple" });
+    await userEvent.keyboard(" ");
+    expect(screen.queryByTestId("review-mispronounced")).not.toBeInTheDocument();
+  });
+
   it("writes AI examples only when asked", async () => {
     api.mockResolvedValueOnce(queue([card(1, "apple", { sentences: [] })])).mockResolvedValueOnce({
       sentences: [{ en: "An apple a day keeps the doctor away.", zh: "一天一苹果，医生远离我。" }],

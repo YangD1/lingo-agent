@@ -181,6 +181,12 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                   {flipped && current.word.phonetic && (
                     <p className="font-mono text-muted-foreground">/{current.word.phonetic}/</p>
                   )}
+                  {flipped && current.mispronounced && (
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="review-mispronounced">
+                      <Tag variant="warning">{t("mispronounced")}</Tag>
+                      <span className="text-xs text-muted-foreground">{t("mispronouncedHint")}</span>
+                    </p>
+                  )}
                 </div>
 
                 {flipped && (

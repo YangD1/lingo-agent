@@ -116,7 +116,12 @@ const NO_DIAGNOSIS: DiagnosisPage = { enabled: true, diagnosis: null, checked_at
 /** Answers by path, not call order: the page loads the model and the diagnosis at once.
  * A list answers its calls in turn and then keeps its last answer. */
 function serve(routes: Record<string, unknown>) {
-  const all: Record<string, unknown> = { "GET /learner/diagnosis": NO_DIAGNOSIS, ...routes };
+  const all: Record<string, unknown> = {
+    "GET /learner/diagnosis": NO_DIAGNOSIS,
+    "GET /speech/capabilities": { tts: false, tts_languages: [], shadowing: null },
+    "GET /speech/shadowing?limit=20": { items: [], next_before: null },
+    ...routes,
+  };
   const calls: Record<string, number> = {};
   api.mockImplementation((path: string, init?: { method?: string }) => {
     const key = `${init?.method ?? "GET"} ${path}`;

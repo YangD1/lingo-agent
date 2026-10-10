@@ -30,6 +30,7 @@ import {
 } from "@/lib/learner";
 
 import { DiagnosisCard } from "./diagnosis-card";
+import { ShadowingHistory } from "./shadowing-history";
 import { KCItem, STATE_BAR } from "./kc-item";
 
 const SKILLS = ["grammar", "vocab", "reading", "listening", "speaking", "writing"] as const;
@@ -299,6 +300,8 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
             )}
           </CardContent>
         </Card>
+
+        <ShadowingHistory />
 
         <Card className="border-destructive/35">
           <CardHeader>

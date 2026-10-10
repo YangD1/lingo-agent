@@ -581,6 +581,25 @@
       "description": "Deletes all grammar evidence, mastery and skill estimates, the grammar tags under “What the tutor did” in conversations, and the tutor's diagnoses with the memory they wrote. Other memories and conversations stay.",
       "button": "Delete all learning records",
       "confirm": "Delete all learning records? This cannot be undone."
+    },
+    "shadowing": {
+      "title": "Shadowing",
+      "description": "Sentences you read aloud and how they went, newest first. Recordings aren't kept. Deleting a reading doesn't undo what it already counted toward speaking or word pronunciation.",
+      "empty": "No readings yet. Tap the microphone by a tutor reply, a reading paragraph or a review example to start.",
+      "sources": {
+        "chat": "Tutor chat",
+        "reading": "Reading",
+        "vocab": "Vocabulary",
+        "speaking": "Speaking"
+      },
+      "offWords": "off: {words}",
+      "overall": "Overall {score}",
+      "rough": "rough",
+      "delete": "Delete this reading",
+      "confirmDelete": "Delete this reading?",
+      "more": "Load earlier",
+      "clear": "Clear shadowing history",
+      "clearConfirm": "Delete all your readings? What they counted toward speaking and word pronunciation stays."
     }
   },
   "vocab": {
@@ -660,7 +679,9 @@
         "english": "English definition",
         "showAll": "Show all {count}",
         "source": "Source: ECDICT"
-      }
+      },
+      "mispronounced": "You don't say this one right yet",
+      "mispronouncedHint": "It was off the last time you read it aloud. Listen to it, then shadow an example sentence."
     },
     "mine": {
       "title": "My words",

@@ -581,6 +581,25 @@
       "description": "删除全部语法证据、掌握度和技能估计，对话下“私教做了什么”里的语法标注，以及私教的诊断和它写的记忆。其他记忆和对话不受影响。",
       "button": "删除所有学习记录",
       "confirm": "删除所有学习记录？删除后无法恢复。"
+    },
+    "shadowing": {
+      "title": "跟读记录",
+      "description": "你读过的句子和得分，最新的在前。录音没有保存。删除记录不会撤销已经计入的口语能力和单词发音。",
+      "empty": "还没有跟读记录。在私教回复、阅读段落或复习例句旁点麦克风开始跟读。",
+      "sources": {
+        "chat": "私教对话",
+        "reading": "阅读",
+        "vocab": "背单词",
+        "speaking": "口语练习"
+      },
+      "offWords": "读不准：{words}",
+      "overall": "总分 {score}",
+      "rough": "粗略",
+      "delete": "删除这条记录",
+      "confirmDelete": "删除这条跟读记录？",
+      "more": "加载更早的",
+      "clear": "清空跟读记录",
+      "clearConfirm": "删除你的全部跟读记录？已经计入的口语能力和单词发音不会变。"
     }
   },
   "vocab": {
@@ -660,7 +679,9 @@
         "english": "英文释义",
         "showAll": "显示全部 {count} 条",
         "source": "来源：ECDICT"
-      }
+      },
+      "mispronounced": "你读这个词不太准",
+      "mispronouncedHint": "上次跟读时这个词读得不准。听一下发音，再在例句里跟读练一练。"
     },
     "mine": {
       "title": "我的生词本",
