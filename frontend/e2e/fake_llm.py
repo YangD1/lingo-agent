@@ -56,6 +56,9 @@ app = FastAPI()
 IMAGE_TEXT = "I goed to the park yesterday."
 IMAGE_DESCRIPTION = "A handwritten worksheet."
 TRANSCRIPT = "I goed home yesterday."
+# How long every recording is said to be: a speaking practice counts it as the learner
+# talking, so two voice turns make the daily plan's 5 minutes (rules.yaml daily_plan).
+SPOKEN_SECONDS = 150.0
 
 
 # New learner messages are rendered as "Learner [u1]: ...".
@@ -95,6 +98,10 @@ QUOTED_WORD = re.compile(r'"([A-Za-z]+)"')
 # A mistake in the diagnosis context (backend/app/adaptive/diagnosis/context.py render).
 DIAGNOSIS_EVIDENCE = re.compile(r"^\s*- evidence (\d+) \(", re.MULTILINE)
 DIAGNOSIS_HYPOTHESIS = "主语是第三人称单数时，你常常漏掉动词的 -s。"  # noqa: RUF001
+# backend/app/prompts/speaking_opening.md and backend/app/speaking/summary.py.
+SPEAKING_OPENING = "has just started this speaking practice"
+SPEAKING_GREETING = "Hi, I'm Sam from the design team. What's your name?"
+SPOKEN_TURN = re.compile(r"^Learner: (.+)$", re.MULTILINE)
 
 
 # Practice items per format (backend/app/adaptive/exercise/drafts.py Draft) and the key
@@ -206,6 +213,8 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
     last = text_of(last)
     if last.startswith(OPENING_CUE) and (point := practice_point(messages)):
         return f"Let's practise: {point}."
+    if last.startswith(OPENING_CUE) and SPEAKING_OPENING in last:
+        return SPEAKING_GREETING
     if last.startswith(OPENING_CUE) and "planning conversation" in last:
         level = PLAN_LEVEL.search(system_text(messages))
         return f"Your level is {level.group(1) if level else 'unknown'}. What is your goal?"
@@ -334,6 +343,43 @@ def reading_reviews(messages: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def speaking_summary(prompt: str) -> dict[str, Any]:
+    """The mistake quotes what was heard ("goed"), the natural version the fixed turn;
+    a quote the learner never said would be dropped by the backend."""
+    said = [t.strip() for t in SPOKEN_TURN.findall(prompt)]
+    heard = next((t for t in said if "goed" in t), None)
+    fixed = next((t for t in said if "went home" in t), None)
+    return {
+        "went_well": ["你一直在用完整的句子回答。"],
+        "mistakes": (
+            [
+                {
+                    "quote": "I goed home",
+                    "correction": "I went home",
+                    "explanation": "go 的过去式是 went。",
+                }
+            ]
+            if heard
+            else []
+        ),
+        "more_natural": (
+            [
+                {
+                    "quote": fixed,
+                    "natural": "I got home yesterday.",
+                    "note": "说到家时常用 got home。",
+                }
+            ]
+            if fixed
+            else []
+        ),
+        "next_expressions": [
+            {"expression": "Nice to meet you.", "meaning": "初次见面时的客气话。"}
+        ],
+        "intelligibility": "mostly",
+    }
+
+
 def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
     """Canned arguments for the schema (function) asked for; otherwise an image reading."""
     if name == "Reflection":
@@ -403,6 +449,8 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
         return {"route": "writing_coach" if WRITING_ASK.search(message) else "tutor"}
     if name == "Review":
         return writing_review(prompt)
+    if name == "SpeakingSummary":
+        return speaking_summary(prompt)
     if name == "DiagnosisOut":
         # One cause on the third-person -s, citing every mistake shown.
         return {
@@ -579,7 +627,7 @@ async def completions(request: Request) -> StreamingResponse | JSONResponse:
 @app.post("/v1/audio/transcriptions")
 async def transcriptions(file: UploadFile) -> dict[str, Any]:
     await file.read()
-    return {"text": TRANSCRIPT}
+    return {"text": TRANSCRIPT, "duration": SPOKEN_SECONDS}
 
 
 @app.post("/v1/audio/speech")

@@ -25,7 +25,7 @@
 | `practice_grade` | `/practice` 开放题的提交按钮旁（也和 `practice_set` 一起挂在开组入口）；find_fix 的改法不在答案列表里时同样调用 | `exercise_grade`（立即；每题只批第一次作答；选择题、填空、和参考答案一致的答案由代码判，不调模型） |
 | `reading_rewrite` | `/reading` 列表页标题旁、阅读页的版本切换和“正在改写”提示旁（打开文章时 `POST /reading/articles/{id}/session` 取版本） | `article_rewrite`（改写 + 出题）、`reading_critic`（走 `exercise_critic` 路由）、被拒的题再加 `reading_questions`（走 `article_rewrite` 路由）；同租户同篇同等级只调一次，之后读缓存 |
 | `reading_coach` | 阅读页的“就这篇文章问私教”；阅读会话的输入框“发送” | `reading_coach`（立即，走 `chat` 路由，每轮带上文章，所以比普通一轮读得多）；`reflect`、`memory` 向量化（回复后在后台） |
-| `speaking_start` / `speaking_turn` / `speaking_summary` | `/speaking` 页（任务 59）：情景卡片的“开始”、口语会话的说话按钮和输入框、“结束并生成小结” | `speaking_start`：`speaking_opening`（走 `chat` 路由）。`speaking_turn`：语音时先 `asr`，再 `speaking`（走 `chat` 路由，回复很短）；`reflect`、`memory` 向量化（回复后在后台）。回复的朗读是 `read_aloud`。`speaking_summary`：`speaking_summary`（立即，一次结构化调用） |
+| `speaking_start` / `speaking_turn` / `speaking_summary` | `/speaking` 页：情景卡片的“开始”、口语会话的说话按钮和输入框、“结束并生成小结” | `speaking_start`：`speaking_opening`（走 `chat` 路由）。`speaking_turn`：语音时先 `asr`，再 `speaking`（走 `chat` 路由，回复很短）；`reflect`、`memory` 向量化（回复后在后台）。回复的朗读是 `read_aloud`。`speaking_summary`：`speaking_summary`（立即，一次结构化调用） |
 | `reading_prerewrite` | 设置“后台任务”的“预先改写新文章”开关旁 | 同 `reading_rewrite`，全部 `background` |
 | `word_examples_prefetch` | 设置“后台任务”的“预先写好 AI 例句”开关旁 | 同 `word_examples`，`background`；每词一次，同租户同等级共用缓存 |
 
@@ -89,9 +89,9 @@
 |---|---|---|---|---|
 | `propose_word_book` | `book_id`（词书清单里的 id）、`daily_new`（可选，0–200） | 提议，`proposed` | `user_word_book`：换书时筛选进度归零，只在给了 `daily_new` 时改每日新词数；卡片记下原来的设置 | 恢复原来的词书、每日新词数和筛选进度（原来没有词书则删掉计划）；之后又改过设置则拒绝（409 `setting_changed`） |
 | `propose_learning_goal` | `goal`（≤200 字）、`target_exam`（考试标签）、`daily_minutes`（1–600），至少一项 | 提议，`proposed` | `user_profiles` 对应字段，并记为学习者手动设置（`manual_fields`，反思不会覆盖）；卡片记下原值 | 恢复原值和原来的 `manual_fields`；之后又改过则 409 `setting_changed` |
-| `propose_daily_plan` | `review`、`new_words`（0–500）、`practice`、`reading`、`writing`（开关） | 提议，`daily_plan`；超过今天总量（到期复习、词书允许的新词，按这一轮现读）的数量调低，没东西可练 / 可读就关掉，预计分钟数由代码按 `rules.yaml` 算；学习者可在卡片上调数量、开关后再确认（`POST /cards/{id}/apply` 带 `{choice, tz}`，代码再收紧一次） | 当天的 `daily_plans`：替换计划内容和上限、状态改为已确认；卡片记下原计划。计划日期已过则 409 `plan_expired` | 换回原计划；之后计划又被改过则 409 `setting_changed` |
+| `propose_daily_plan` | `review`、`new_words`（0–500）、`practice`、`reading`、`writing`、`speaking`（开关；`speaking` 默认关，学习者想练口语才加） | 提议，`daily_plan`；超过今天总量（到期复习、词书允许的新词，按这一轮现读）的数量调低，没东西可练 / 可读就关掉，预计分钟数由代码按 `rules.yaml` 算；学习者可在卡片上调数量、开关后再确认（`POST /cards/{id}/apply` 带 `{choice, tz}`，代码再收紧一次） | 当天的 `daily_plans`：替换计划内容和上限、状态改为已确认；卡片记下原计划。计划日期已过则 409 `plan_expired` | 换回原计划；之后计划又被改过则 409 `setting_changed` |
 | `suggest_practice` | `kc_id`（语法点清单里的 id） | 链接，`info` | 无（点开即建练习会话，同“开始练习”） | 不需要 |
-| `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_screen`、`placement`、`learner` 之一 | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
+| `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_screen`、`placement`、`learner`、`speaking` 之一 | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
 
 卡片存在 `tutor_cards`（`cards/service.py`；状态 `proposed → applied | declined`、`applied → undone`，链接卡片是 `info`；提议不过期），删除会话时一起删除。接口：`GET /conversations/{id}/cards`、`POST /cards/{id}/apply|decline|undo`（只能操作自己的卡片）。回复中的卡片通过 SSE `card` 事件实时推送。
 
@@ -152,15 +152,15 @@
 | 反思：语法打标（与记忆同一次调用） | 同上 + `adaptive/evidence.py`、`adaptive/mastery.py` | 本轮学习者消息（短 id u1、u2）、语法 KC 清单（system prompt 固定前缀） | `kc_evidence`（同一条消息的证据先删后写）；由证据重放更新 `kc_mastery`；活动 `grammar_tagging` | `llm/reflect` | 回复下“私教做了什么”（语法点链到 `/learner?kc=`）；`/learner` 页面：每条证据可查看、可删除 |
 | 口语会话的证据过滤（只在口语会话，ADR 0029 §4） | `speaking/evidence.py` `kept_evidence`，在语法打标里 | 打标结果、哪些消息是录音（`attachments.kind = audio`）、会话的 `corrected_message_ids` | `kc_evidence` 记为 `source = speaking`；少于 3 个词的语音消息不记错误（Q58a，打字的不过滤）；学习者改过转写的消息一条也不记（Q58b） | 无 | 同上 |
 
-## 口语练习（ADR 0029，任务 58；页面在任务 59）
+## 口语练习（ADR 0029，任务 58–59）
 
 接口在 `api/speaking.py`：`GET /speaking/scenarios`、`POST /speaking/sessions`（建口语会话，之后用 `POST /conversations/{id}/opening` 让私教开场、`.../messages` 说话）、`GET /speaking/sessions`、`GET /speaking/sessions/{id}`、`POST /speaking/sessions/{id}/end`、`POST /speaking/sessions/{id}/corrections`、`DELETE /speaking/sessions/{id}`。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
-| 记一轮 | `api/chat.py` `_speaking_turn` → `speaking/sessions.py` `record_turn` | 本轮是否带录音、转写给出的时长（没有时按 150 词 / 分钟估算） | `speaking_sessions` 的轮数、语音轮数、说话秒数；会话已结束时拒绝（409 `speaking_ended`） | 无 | 口语记录 |
+| 记一轮 | `api/chat.py` `_speaking_turn` → `speaking/sessions.py` `record_turn` | 本轮是否带录音、转写给出的时长（没有时按 150 词 / 分钟估算） | `speaking_sessions` 的轮数、语音轮数、说话秒数；会话已结束时拒绝（409 `speaking_ended`） | 无 | `/speaking`“练过的”：轮数、说了几分钟；看板计划的口语进度 |
 | 改转写（Q58b） | `POST /speaking/sessions/{id}/corrections` → `speaking/evidence.py` `mark_corrected` | 这条消息要属于这次会话的学习者消息 | `speaking_sessions.corrected_message_ids`；删掉这条消息已有的语法证据并重放掌握度；改后的文字由前端作为新消息发送 | 无 | 对话里原消息标“已改” |
-| 口语小结 | `speaking/sessions.py` `end` + `speaking/summary.py`；提示词 `prompts/speaking_summary.md`（对话用 `<conversation>` 标出，写明是资料不是指令） | 整段对话（最多最后 12,000 字符）、情景、开始时的等级、讲解语言（画像，默认中文） | `speaking_sessions.summary`（引用不到学习者原话的错误和“更地道的说法”由代码丢掉）、`intelligibility`、`status`；语音轮数够 4 轮时按可理解度给口语能力走一步 Elo（`skill_estimates.speaking`，Q58d，只走一次）；小结里的错误不再记证据（反思已经记过） | `llm/speaking_summary`（结构化输出） | 小结页（任务 59）；删除口语记录即删除小结，已计入的口语能力保留 |
+| 口语小结 | `speaking/sessions.py` `end` + `speaking/summary.py`；提示词 `prompts/speaking_summary.md`（对话用 `<conversation>` 标出，写明是资料不是指令） | 整段对话（最多最后 12,000 字符）、情景、开始时的等级、讲解语言（画像，默认中文） | `speaking_sessions.summary`（引用不到学习者原话的错误和“更地道的说法”由代码丢掉）、`intelligibility`、`status`；语音轮数够 4 轮时按可理解度给口语能力走一步 Elo（`skill_estimates.speaking`，Q58d，只走一次）；小结里的错误不再记证据（反思已经记过） | `llm/speaking_summary`（结构化输出） | `/speaking/{id}` 结束后的小结（错误、改法、更地道的说法可跟读，表达可加入生词本）；`/speaking`“练过的”里删除这次练习即删除小结，已计入的口语能力保留 |
 | 补小结（Q58c） | `GET /speaking/sessions`、`GET /speaking/sessions/{id}` 发现超过 30 分钟没动静的进行中会话时，在响应发出后生成 | 同上 | 同上 | 同上 | 同上；不用后台定时任务，不占后台每日额度 |
 
 ## 练习组的出题与批改（ADR 0021 §3–§4、§6，任务 33–35）
@@ -252,4 +252,4 @@
 |---|---|---|---|---|
 | 生成今天的计划 | `adaptive/daily_plan/service.py` `today` | 每天分钟数、今天复习和新词的总量、练习选题第一个语法点、订阅里最新没读过的文章、上次写作时间 | `daily_plans`（`choice` 数量和开关、`limits` 上限、状态 `proposed`） | 看板“今天的计划”：可调数量、确认 / 今天不要 |
 | 确认 / 不要 / 撤销 | `POST /plan/{id}/confirm`（可带调整）、`/decline`、`/undo` | 计划 | `daily_plans` 的 `choice` 和状态；撤销回到待确认 | 同上；私教卡确认的计划只能在卡上撤销 |
-| 进度 | `service.view`，每次读时现算 | 本地当天的复习记录、开始学的新词、完成的练习组、读完的文章、提交的写作 | 无 | 看板清单的勾和进度 |
+| 进度 | `service.view`，每次读时现算 | 本地当天的复习记录、开始学的新词、完成的练习组、读完的文章、提交的写作、当天开始的口语会话的说话秒数（满 `speaking_target_minutes` 分钟算完成；草案不放口语，学习者在看板或私教卡上打开） | 无 | 看板清单的勾和进度 |

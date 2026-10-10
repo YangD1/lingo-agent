@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-10 任务 59.7 口语 E2E 与收尾（任务 59 完成）
+
+**做了什么**：`frontend/e2e/fake_llm.py` 加口语开场（`SPEAKING_OPENING` → `SPEAKING_GREETING`）、`speaking_summary()`（只引用学习者说过的话）、转写返回 `duration` 150 秒（两段语音凑满计划的 5 分钟）；新增 `frontend/e2e/speaking.spec.ts`（假麦克风全链路：计划加口语 → 自我介绍情景 → 语音 → 改一下 → 语音 → 结束小结 → 看板口语完成）；`docs/agent-tools.md`、ADR 0029 任务 59 落地记录、`docs/plans/P3-voice.md`、README 中英。E2E 64 全过，lint 干净。
+
+**未完成**：没有推送（本地比 origin 多 7 个提交）；Docker 未重建（后端容器因镜像落后于开发库迁移在重启循环，`make up` 重建即可）。
+
+**下一步**：任务 60（P3d 实时语音：`realtime` provider + 后端中继 + `openai_realtime` 适配器……），先读 `docs/plans/P3-voice.md` 第 6 节拆成子任务写进看板，和用户确认后再写代码。
+
+**踩坑**：说话按钮没有计时显示，E2E 用 `waitForTimeout(3000)` 等假麦克风响一声（太短会被当成没声音）。`fake_llm.py` 不在后端 ruff 的范围内，原本就有几行超长，不要整文件格式化。
+
+---
+
 ## 2026-10-10 任务 59.6 看板与每日计划加口语
 
 **做了什么**：每日计划加可选项“口语”（`backend/app/adaptive/daily_plan/` 的 algorithm / card / service，草案从不放，确认卡或私教 `propose_daily_plan(speaking=true)` 才加）；完成情况按当天开始的口语会话 `spoken_seconds` 之和取整分钟，满 `daily_plan.speaking_target_minutes`（5）算完成；`limits.speaking_minutes`；`app/cards/tools.py` 的 `LinkKind` 加 `speaking`，`chat/planning.py` brief 总给这个链接；前端 `plan-editor.tsx` 开关、`today-plan.tsx` 显示“已说 / 目标 分钟”、`lib/cards.ts` 链接；ADR 0027 补记；规则版本 `2026-10-10.3`。pytest 1582、Vitest 472、ruff / mypy / tsc / eslint 全过。
