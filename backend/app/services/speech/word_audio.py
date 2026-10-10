@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from sqlalchemy import func, select, update
+from sqlalchemy import ColumnElement, and_, delete, false, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,6 +48,12 @@ DEFAULT_BYTES_PER_WORD = 7_000
 RATE_LIMIT_BACKOFF: tuple[float, ...] = (30, 60, 120)
 # This many failures in a row (a revoked key, a vendor down) pauses the job.
 FAILURES_BEFORE_PAUSE = 20
+# Pacing suggested when starting (Q55e): Azure's free tier allows 20 requests a minute.
+AZURE_REQUESTS_PER_MINUTE = 20
+OTHER_REQUESTS_PER_MINUTE = 60
+# Azure neural voices, standard tier, per million characters (azure.microsoft.com
+# pricing, 2026-10-09); a suggestion the deployment can change (Q55d).
+AZURE_PRICE_PER_MILLION = 15.0
 
 type Sleep = Callable[[float], Awaitable[None]]
 
@@ -82,6 +88,9 @@ class Estimate:
     bytes: int
     # None when no price was given.
     cost: float | None
+    # What to suggest in the confirm dialog (Q55d, Q55e).
+    requests_per_minute: int
+    suggested_price: float | None
 
 
 def current_voices(tts: TextToSpeech, accents: Sequence[Accent]) -> dict[Accent, Voice]:
@@ -93,6 +102,21 @@ def current_voices(tts: TextToSpeech, accents: Sequence[Accent]) -> dict[Accent,
             model, voice = candidates[0]
             voices[accent] = Voice(model.connection, model.model, voice)
     return voices
+
+
+def _uses_azure(tts: TextToSpeech, voices: dict[Accent, Voice]) -> bool:
+    used = {(v.connection, v.model) for v in voices.values()}
+    return any(m.kind == "azure_speech" for m in tts.models if (m.connection, m.model) in used)
+
+
+def suggested_rate(tts: TextToSpeech, voices: dict[Accent, Voice]) -> int:
+    if _uses_azure(tts, voices):
+        return AZURE_REQUESTS_PER_MINUTE
+    return OTHER_REQUESTS_PER_MINUTE
+
+
+def suggested_price(tts: TextToSpeech, voices: dict[Accent, Voice]) -> float | None:
+    return AZURE_PRICE_PER_MILLION if _uses_azure(tts, voices) else None
 
 
 def word_key(word: str, accent: Accent, voice: Voice) -> str:
@@ -159,6 +183,8 @@ async def estimate(
         characters=characters,
         bytes=len(to_make) * await _bytes_per_word(session, tts.tenant_id),
         cost=None if price_per_million is None else characters / 1_000_000 * price_per_million,
+        requests_per_minute=suggested_rate(tts, voices),
+        suggested_price=suggested_price(tts, voices),
     )
 
 
@@ -389,3 +415,98 @@ async def set_status(
     )
     await session.commit()
     return job
+
+
+@dataclass(frozen=True)
+class BookAudio:
+    book_id: str
+    words: int
+    # Words with audio in the current voice, per accent.
+    made: dict[Accent, int]
+
+
+@dataclass(frozen=True)
+class Stored:
+    books: list[BookAudio]
+    # All the tenant's word audio, and the part in a voice no longer current (Q55b).
+    count: int
+    bytes: int
+    old_count: int
+    old_bytes: int
+
+
+def _current(voices: dict[Accent, Voice]) -> ColumnElement[bool]:
+    """Word audio in the voice now first in the route for its accent."""
+    clauses = [
+        and_(
+            TtsAudio.language == accent,
+            TtsAudio.connection_name == v.connection,
+            TtsAudio.model == v.model,
+            TtsAudio.voice == v.voice,
+        )
+        for accent, v in voices.items()
+    ]
+    return or_(*clauses) if clauses else false()
+
+
+async def stored(
+    session: AsyncSession, tenant_id: uuid.UUID, tts: TextToSpeech | None, books: Sequence[Book]
+) -> Stored:
+    voices = current_voices(tts, ACCENTS) if tts is not None else {}
+    word_audio = and_(TtsAudio.tenant_id == tenant_id, TtsAudio.word_id.is_not(None))
+    out: list[BookAudio] = []
+    for book in books:
+        words = await session.scalar(select(func.count()).select_from(Word).where(book.words()))
+        made = dict.fromkeys(ACCENTS, 0)
+        rows = await session.execute(
+            select(TtsAudio.language, func.count())
+            .join(Word, Word.id == TtsAudio.word_id)
+            .where(word_audio, _current(voices), book.words())
+            .group_by(TtsAudio.language)
+        )
+        for language, count in rows:
+            made[cast(Accent, language)] = count
+        out.append(BookAudio(book.id, words or 0, made))
+    count, size = (
+        await session.execute(
+            select(func.count(), func.coalesce(func.sum(TtsAudio.size), 0)).where(word_audio)
+        )
+    ).one()
+    old_count, old_size = (
+        await session.execute(
+            select(func.count(), func.coalesce(func.sum(TtsAudio.size), 0)).where(
+                word_audio, ~_current(voices)
+            )
+        )
+    ).one()
+    return Stored(out, count, size, old_count, old_size)
+
+
+async def delete_audio(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    *,
+    book: Book | None = None,
+    old: bool = False,
+    route: TextToSpeech | None = None,
+) -> tuple[int, int]:
+    """Delete the tenant's word audio for a book (words other books share go too), or
+    that in a voice no longer first in `route`; returns how many rows and bytes."""
+    where = [TtsAudio.tenant_id == tenant_id, TtsAudio.word_id.is_not(None)]
+    if book is not None:
+        where.append(TtsAudio.word_id.in_(select(Word.id).where(book.words())))
+    if old:
+        voices = current_voices(route, ACCENTS) if route is not None else {}
+        where.append(~_current(voices))
+    rows = (await session.execute(delete(TtsAudio).where(*where).returning(TtsAudio.size))).all()
+    await session.commit()
+    return len(rows), sum(size for (size,) in rows)
+
+
+async def latest_job(session: AsyncSession, tenant_id: uuid.UUID) -> WordAudioJob | None:
+    return await session.scalar(
+        select(WordAudioJob)
+        .where(WordAudioJob.tenant_id == tenant_id)
+        .order_by(WordAudioJob.created_at.desc())
+        .limit(1)
+    )

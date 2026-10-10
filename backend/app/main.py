@@ -37,6 +37,7 @@ from app.api import (
     speech,
     usage,
     vocab,
+    word_audio,
     writing,
 )
 from app.api.errors import install_error_handlers
@@ -217,6 +218,7 @@ def create_app() -> FastAPI:
     app.include_router(writing.router)
     app.include_router(reading.router)
     app.include_router(speech.router)
+    app.include_router(word_audio.router)
     return app
 
 
