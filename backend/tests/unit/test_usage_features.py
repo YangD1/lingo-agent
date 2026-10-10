@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from app.providers.config import RouteSpec
-from app.usage.estimates import TaskHistory, current_model, estimate_call
+from app.usage.estimates import TaskHistory, current_model, estimate_call, unit_of
 from app.usage.features import FeatureCall, FeaturesError, get_features, load_features
 from tests.unit.provider_fixtures import conn, make_config, make_ctx
 
@@ -40,10 +40,30 @@ def test_shipped_catalog_loads() -> None:
     assert (opening.task, opening.route_task) == ("practice_opening", "chat")
 
 
-def test_every_shipped_asr_call_is_estimated_by_audio_length() -> None:
+def test_every_shipped_audio_call_is_estimated_by_audio_length() -> None:
     for feature in get_features().features.values():
         for c in feature.calls:
-            assert (c.section == "asr") == (c.default.audio_seconds is not None)
+            audio = c.section in ("asr", "pronunciation")
+            assert audio == (c.default.audio_seconds is not None)
+
+
+def test_shadowing_is_estimated_by_audio_length() -> None:
+    features = get_features().features
+    (assessed,) = features["shadowing"].calls
+    (rough,) = features["shadowing_rough"].calls
+    assert (assessed.task, assessed.section, unit_of(assessed)) == (
+        "pronunciation",
+        "pronunciation",
+        "audio",
+    )
+    assert (rough.task, rough.section, rough.route_task, unit_of(rough)) == (
+        "shadowing_asr",
+        "asr",
+        "default",
+        "audio",
+    )
+    with pytest.raises(ValueError, match="audio_seconds"):
+        call(task="pronunciation", section="pronunciation")
 
 
 def test_asr_calls_need_audio_seconds() -> None:

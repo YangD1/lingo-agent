@@ -11,15 +11,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import LLMUsage
 from app.providers.config import ProvidersConfig, TenantProviderContext, resolve_route
 from app.providers.errors import NoModelConfiguredError, ProviderConfigError
-from app.usage.features import FeatureCall, FeatureCatalog, Per, Timing
+from app.usage.features import AUDIO_SECTIONS, FeatureCall, FeatureCatalog, Per, Timing
 
 EstimateSource = Literal["history", "default"]
-# What a call is billed by: speech-to-text by audio length, text-to-speech by characters.
+# What a call is billed by: speech-to-text and pronunciation assessment by audio length,
+# text-to-speech by characters.
 Unit = Literal["tokens", "audio", "characters"]
 
 
 def unit_of(call: FeatureCall) -> Unit:
-    if call.section == "asr":
+    if call.section in AUDIO_SECTIONS:
         return "audio"
     if call.section == "tts":
         return "characters"

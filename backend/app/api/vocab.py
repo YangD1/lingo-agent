@@ -2,6 +2,7 @@
 word list (ADR 0011, P1 plan §6). Everything here is the current user's own data."""
 
 import logging
+import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Annotated, Literal
@@ -15,6 +16,7 @@ from app.db.models import UserCard, Word, WordSentence
 from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
+from app.services.speech.shadowing import mispronounced_words
 from app.services.vocab import examples, mine, placement_known, progress, screening
 from app.services.vocab.examples import forms_of
 from app.services.vocab.mine import MatchKind
@@ -76,6 +78,9 @@ class CardOut(BaseModel):
     # AI sentences already cached at the learner's level (queue only, Q44f); the card
     # shows them without the button. Empty when none.
     ai_examples: list[Sentence] = []
+    # The learner's last assessed reading of this word was below the threshold
+    # (shadowing, Q56c): "you don't say this one right".
+    mispronounced: bool = False
 
 
 class BookOut(BaseModel):
@@ -205,6 +210,7 @@ def _card(
     now: datetime,
     sentences: Sequence[WordSentence],
     ai: Sequence[dict[str, str]] = (),
+    mispronounced: bool = False,
 ) -> CardOut:
     return CardOut(
         word=_word(word),
@@ -218,20 +224,32 @@ def _card(
         ],
         forms=sorted(forms_of(word.word, word.exchange, lemma=False)),
         ai_examples=[Sentence(**s) for s in ai],
+        mispronounced=mispronounced,
     )
 
 
 async def _cards(
     session: SessionDep,
+    user_id: uuid.UUID,
     items: Iterable[tuple[Word, UserCard | None]],
     ai: Mapping[int, list[dict[str, str]]] | None = None,
 ) -> list[CardOut]:
-    """Cards with their example sentences, read in one query; `ai` adds cached AI ones."""
+    """Cards with their example sentences and pronunciation marks, a query each; `ai`
+    adds cached AI sentences."""
     pairs = list(items)
-    found = await sentences_for(session, (word.id for word, _ in pairs))
+    ids = [word.id for word, _ in pairs]
+    found = await sentences_for(session, ids)
+    marked = await mispronounced_words(session, user_id, ids, get_rules())
     now = datetime.now(UTC)
     return [
-        _card(word, card, now, found.get(word.id, []), (ai or {}).get(word.id, ()))
+        _card(
+            word,
+            card,
+            now,
+            found.get(word.id, []),
+            (ai or {}).get(word.id, ()),
+            mispronounced=word.id in marked,
+        )
         for word, card in pairs
     ]
 
@@ -309,7 +327,7 @@ async def get_queue(
         (word.id for word, _ in pairs),
         await examples.level_for(session, user.id),
     )
-    cards = await _cards(session, pairs, ai)
+    cards = await _cards(session, user.id, pairs, ai)
     return QueueOut(
         reviews=cards[: len(reviews)],
         new=cards[len(reviews) :],
@@ -336,7 +354,7 @@ async def post_review(body: ReviewIn, user: CurrentUser, session: SessionDep) ->
     await session.commit()
     word = await session.get(Word, body.word_id)
     assert word is not None
-    return (await _cards(session, [(word, card)]))[0]
+    return (await _cards(session, user.id, [(word, card)]))[0]
 
 
 @router.get("/screen")
@@ -463,7 +481,9 @@ async def get_mine(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> MinePage:
     words, total = await mine.list_own(session, user.id, limit=limit, offset=offset)
-    return MinePage(words=await _cards(session, [(w.word, w.card) for w in words]), total=total)
+    return MinePage(
+        words=await _cards(session, user.id, [(w.word, w.card) for w in words]), total=total
+    )
 
 
 @router.post("/mine")
@@ -477,7 +497,7 @@ async def post_mine(
         )
     added = await mine.add(session, user.id, match.word.id)
     response.status_code = status.HTTP_201_CREATED if added.added else status.HTTP_200_OK
-    (card,) = await _cards(session, [(match.word, added.card)])
+    (card,) = await _cards(session, user.id, [(match.word, added.card)])
     return AddedOut(card=card, matched=match.kind, added=added.added)
 
 

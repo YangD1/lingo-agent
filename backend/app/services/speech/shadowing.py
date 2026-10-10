@@ -16,7 +16,7 @@ Only an assessment is evidence (Q56b-c):
 
 import dataclasses
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, cast
@@ -262,3 +262,20 @@ async def _speaking_ability(
         row = SkillEstimate(user_id=user_id, skill=SKILL, rating=anchor, attempts=0)
         session.add(row)
     return row
+
+
+async def mispronounced_words(
+    session: AsyncSession, user_id: uuid.UUID, word_ids: Iterable[int], rules: Rules
+) -> set[int]:
+    """Of `word_ids`, the words the learner last read below the threshold (Q56c)."""
+    wanted = list(set(word_ids))
+    if not wanted:
+        return set()
+    rows = await session.scalars(
+        select(WordPronunciation.word_id).where(
+            WordPronunciation.user_id == user_id,
+            WordPronunciation.word_id.in_(wanted),
+            WordPronunciation.accuracy < rules.pronunciation.word_threshold,
+        )
+    )
+    return set(rows)

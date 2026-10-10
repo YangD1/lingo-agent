@@ -6,7 +6,7 @@
 #
 # Per call:
 #   task     the `llm_usage.task` label its history is recorded under
-#   section  provider section (llm / embedding / asr / tts); default llm
+#   section  provider section (llm / embedding / asr / tts / pronunciation); default llm
 #   route    the route task it runs on, when not the same as `task`
 #   timing   now: the learner waits for it; background: after the reply, off the
 #            request path. Work nobody waits for (scheduled jobs, generating ahead)
@@ -14,8 +14,8 @@
 #            the tenant's daily background budget (ADR 0025 §5), and gets a learner
 #            switch in app/scheduler/prefs.py
 #   per      what one call covers: call / image / page (scanned PDF pages only)
-#   default  estimate without history: input/output tokens, audio_seconds for asr,
-#            characters for tts
+#   default  estimate without history: input/output tokens, audio_seconds for asr and
+#            pronunciation, characters for tts
 #   history  false when the call is never recorded in llm_usage (embeddings)
 
 # Successful calls averaged per task.
@@ -93,6 +93,26 @@ features:
         route: default
         timing: background
         default: {characters: 8}
+
+  # Shadowing (ADR 0028 §5): one recording of a sentence, at most 30 s. Scored by
+  # pronunciation assessment when configured (`shadowing`), else compared with a
+  # transcript (`shadowing_rough`); the UI badges whichever `/speech/capabilities`
+  # reports. An assessment that fails falls back to a transcript, a second call.
+  shadowing:
+    calls:
+      - task: pronunciation
+        section: pronunciation
+        route: default
+        timing: now
+        default: {audio_seconds: 5}
+
+  shadowing_rough:
+    calls:
+      - task: shadowing_asr
+        section: asr
+        route: default
+        timing: now
+        default: {audio_seconds: 5}
 
   practice_start:
     calls:

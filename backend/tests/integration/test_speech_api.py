@@ -73,7 +73,11 @@ def say(text: str = "Nice to meet you.", **extra: Any) -> dict[str, Any]:
 async def test_without_a_route_the_browser_reads_aloud(client: AsyncClient) -> None:
     await client.post("/auth/register", json={"email": "a@example.com", "password": "password123"})
 
-    assert (await client.get("/speech/capabilities")).json() == {"tts": False, "tts_languages": []}
+    assert (await client.get("/speech/capabilities")).json() == {
+        "tts": False,
+        "tts_languages": [],
+        "shadowing": None,
+    }
     response = await client.post("/speech/tts", json=say())
 
     assert response.status_code == 409
@@ -87,6 +91,7 @@ async def test_second_request_is_served_from_the_cache(
     assert (await client.get("/speech/capabilities")).json() == {
         "tts": True,
         "tts_languages": ["en-US", "en-GB", "zh-CN"],
+        "shadowing": None,
     }
 
     first = await client.post("/speech/tts", json=say("  Nice to meet you. "))
@@ -126,7 +131,7 @@ async def test_a_language_without_a_voice_is_left_to_the_browser(
     capabilities = (await client.get("/speech/capabilities")).json()
     response = await client.post("/speech/tts", json={"text": "你好", "language": "zh-CN"})
 
-    assert capabilities == {"tts": True, "tts_languages": ["en-US", "en-GB"]}
+    assert capabilities == {"tts": True, "tts_languages": ["en-US", "en-GB"], "shadowing": None}
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "no_tts_voice"
     assert vendor.seen == []

@@ -14,6 +14,8 @@ FEATURES_PATH = Path(__file__).parent / "features.yaml"
 
 Timing = Literal["now", "background"]
 Per = Literal["call", "image", "page"]
+# Sections billed by audio length.
+AUDIO_SECTIONS: frozenset[str] = frozenset({"asr", "pronunciation"})
 
 
 class FeaturesError(Exception):
@@ -48,10 +50,12 @@ class FeatureCall(_Strict):
 
     @model_validator(mode="after")
     def _check(self) -> Self:
-        # Speech-to-text is billed by audio length, text-to-speech by characters,
-        # everything else by tokens.
-        if (self.section == "asr") != (self.default.audio_seconds is not None):
-            raise ValueError("audio_seconds is required for asr calls and only for them")
+        # Speech-to-text and pronunciation assessment are billed by audio length,
+        # text-to-speech by characters, everything else by tokens.
+        if (self.section in AUDIO_SECTIONS) != (self.default.audio_seconds is not None):
+            raise ValueError(
+                "audio_seconds is required for asr and pronunciation calls and only for them"
+            )
         if (self.section == "tts") != (self.default.characters is not None):
             raise ValueError("characters is required for tts calls and only for them")
         return self

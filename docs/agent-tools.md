@@ -15,6 +15,7 @@
 | `chat_pdf` | 同上 | `vision`（只有扫描页，每页一次） |
 | `chat_audio` | 聊天输入框“录音” | `asr`（按音频秒数） |
 | `read_aloud` | 私教气泡、单词气泡、背单词页的朗读按钮（只在租户配了朗读路由时显示标记；没配时浏览器朗读，不调用模型，ADR 0018、0028） | `tts`（按字符；一次一句；同租户同一句、同声音和语速只合成一次，之后读缓存） |
+| `shadowing` / `shadowing_rough` | 私教回复、阅读段落、单词例句旁的“跟读”（任务 57；按 `GET /speech/capabilities` 的 `shadowing` 挂其中一个，两种都没配时不显示入口，ADR 0028 §5） | `shadowing`：`pronunciation`（按音频秒数，每次一句，最长 30 秒）；评测失败且配了转写时再加一次 `shadowing_asr`。`shadowing_rough`：`shadowing_asr`（走 `asr` 路由，按音频秒数） |
 | `practice_start` | 看板常错语法点的“对话练”、`/learner` 语法点详情和私教练习卡片的“对话练习” | `practice_opening`（走 `chat` 路由） |
 | `plan_start` | 入学测结果页对话框里的“和私教聊聊这次结果” | `plan_opening`（走 `chat` 路由）；之后每轮同 `chat_message` |
 | `memory_edit` | `/memory` 记忆列表（添加、修改） | `memory` 向量化 |
@@ -31,12 +32,13 @@
 
 ### 对话之外的调用
 
-`word_examples`、`translate`、`tts` 由学习者在界面上点了才调用，不属于任何一轮对话，所以不写 `agent_activities`（和入学测一样）。缓存命中时不调模型，也不记 `llm_usage`。
+`word_examples`、`translate`、`tts`、`pronunciation`（跟读）由学习者在界面上点了才调用，不属于任何一轮对话，所以不写 `agent_activities`（和入学测一样）。缓存命中时不调模型，也不记 `llm_usage`。
 
 | 调用 | 代码 | 读取 | 写入 | 学习者在哪看到 / 撤销 |
 |---|---|---|---|---|
 | AI 例句 | `services/vocab/examples.py` → `POST /vocab/words/{id}/examples` | 词条（单词、中文释义）、学习者等级（没有时按 A2） | `word_examples`（租户 + 词 + 等级；每句经代码校验含该词或其变形，都不合格时不写） | 单词气泡和复习卡片背面显示；不含个人信息，无需撤销 |
 | 服务端朗读 | `services/speech/read_aloud.py` → `POST /speech/tts`（ADR 0028 §3） | 要读的一句话、语言、学习者的语速（声音由租户的朗读路由决定） | `tts_audio`（租户 + 文本、声音、语速、模型的哈希；租户上限 200MB，先删最久没用的） | 听到的就是结果。只存音频和哈希，不存原文；音频由同租户共用；每条记下第一次让它生成的学习者（Q54c），朗读设置里“清除我的朗读缓存”删掉自己让生成的那些（`DELETE /speech/tts-cache`），账号删除时一起删；没被预生成固定的音频 30 天没人播就由 `tts_cache_cleanup` 删掉；超出上限按最久没用淘汰，删除租户时一起删 |
+| 跟读评分 | `services/speech/shadowing.py` → `POST /speech/shadowing`（ADR 0028 §5–§6） | 这次录音（16kHz WAV，≤ 30 秒，评完即丢，不保存）、要读的句子、口音；没配发音评测或评测失败时改为转写后和句子逐词对比（粗略结果，不打分） | `pronunciation_attempts`（每次一条：分数、逐词 / 音素结果、听到的文本）；只有真正的发音评测才写证据：`skill_estimates.speaking`（口语能力 Elo，总分 / 100 作结果；读得太少、少于 3 个词、录音太短不算）和 `word_pronunciations`（读到的词库单词的最近准确度，低于 60 在复习卡片上标“读不准”，之后读好了就取消）；不写语法证据 | 跟读结果面板（任务 57）；`GET /speech/shadowing` 列出自己的跟读记录，`DELETE /speech/shadowing/{id}` 删一条、`DELETE /speech/shadowing` 全删（已计入的口语能力和单词标记保留，和其他证据一样）；账号删除时一起删 |
 | 气泡翻译 | `chat/translate.py` → `POST /conversations/{id}/messages/{message_id}/translate` | 这条私教消息的文本 | `message_translations`（会话 + 消息 + 目标语言，删除会话时一起删） | 私教气泡原位切换显示；随会话删除 |
 
 查词（`GET /vocab/lookup`）和浏览器朗读（`speechSynthesis`）不调用模型。
