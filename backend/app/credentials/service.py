@@ -23,6 +23,7 @@ from app.db.models import PROVIDER_KINDS, ProviderConnection, TenantModelRoute
 from app.providers.asr import SpeechToText, TranscriptionError, silent_clip
 from app.providers.cache import TTLCache
 from app.providers.config import (
+    PRONUNCIATION_KINDS,
     SPEECH_ONLY_KINDS,
     ProviderKind,
     ProvidersConfig,
@@ -32,12 +33,14 @@ from app.providers.config import (
     check_asr_route,
     check_embedding_route,
     check_llm_route,
+    check_pronunciation_route,
     check_tts_route,
 )
 from app.providers.errors import ProviderConfigError
 from app.providers.llm import build_chat_model
 from app.providers.model_catalog import DiscoveredModel, categorize, fetch_models
 from app.providers.net_guard import make_async_http_client, validate_base_url
+from app.providers.pronunciation import AssessmentError, NoSpeechError, PronunciationAssessor
 from app.providers.tts import (
     LANGUAGES,
     EndpointError,
@@ -54,7 +57,7 @@ _NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 _KEY_REQUIRED: frozenset[str] = frozenset({"deepseek", "anthropic", "openai", "azure_speech"})
 
 
-type TestPurpose = Literal["chat", "asr", "vision", "tts"]
+type TestPurpose = Literal["chat", "asr", "vision", "tts", "pronunciation"]
 type VoiceName = Annotated[str, Field(min_length=1, max_length=128)]
 
 
@@ -299,7 +302,7 @@ async def verify_connection(
 ) -> TestResult:
     """Send one tiny request through the same guarded client real calls use: a chat
     message, for speech-to-text a short built-in clip, for vision a small built-in image,
-    for text-to-speech one word read aloud."""
+    for text-to-speech one word read aloud, for pronunciation assessment that same clip."""
     api_key = _decrypt_key(conn, keyring)
     kind: ProviderKind = conn.kind  # type: ignore[assignment]  # DB CHECK constraint
     resolved = ResolvedModel(
@@ -329,6 +332,14 @@ async def verify_connection(
             if default_voice(resolved, language) is None:
                 raise ProviderConfigError("no built-in voice for this model; set one on the route")
             await tts.synthesize("Hello", language=language)
+        elif purpose == "pronunciation":
+            if kind not in PRONUNCIATION_KINDS:
+                raise ProviderConfigError("this connection cannot assess pronunciation")
+            assessor = PronunciationAssessor(conn.tenant_id, (resolved,), task="connection_test")
+            try:
+                await assessor.assess(silent_clip(), reference_text="Hello", language="en-US")
+            except NoSpeechError:
+                pass  # silence heard as silence: the key, region and API all work
         else:
             recorder = make_recorder(
                 UsageLabels(conn.tenant_id, "connection_test", conn.name, model)
@@ -341,7 +352,7 @@ async def verify_connection(
                 ]
             )
     except Exception as exc:  # any vendor/network failure is a test result, not a 500
-        wrapped = isinstance(exc, TranscriptionError | SpeechSynthesisError)
+        wrapped = isinstance(exc, TranscriptionError | SpeechSynthesisError | AssessmentError)
         cause = exc.__cause__ if wrapped and exc.__cause__ else exc
         error = f"{type(cause).__name__}: {cause}"[:500]
         # A server without /audio/transcriptions (a chat-only relay) answers 404.
@@ -485,6 +496,7 @@ async def put_route(
         "embedding": check_embedding_route,
         "asr": check_asr_route,
         "tts": check_tts_route,
+        "pronunciation": check_pronunciation_route,
     }
     if section in checks:
         try:

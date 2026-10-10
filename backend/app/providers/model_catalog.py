@@ -84,6 +84,8 @@ async def fetch_models(
         ids = await _anthropic_ids(base_url, api_key, client)
     elif kind == "azure_speech":
         ids = await _azure_voice_ids(base_url, api_key, client)
+        # The voices read aloud; pronunciation assessment has no model to pick.
+        ids.append(AZURE_PRONUNCIATION_MODEL)
         return [DiscoveredModel(id=i, category="other") for i in sorted(set(ids))]
     else:
         headers = {"Authorization": f"Bearer {api_key.get_secret_value()}"} if api_key else {}
@@ -109,6 +111,8 @@ async def _anthropic_ids(
     return ids
 
 
+# The name an Azure connection's pronunciation route uses (ADR 0028 §5).
+AZURE_PRONUNCIATION_MODEL = "pronunciation"
 # Locales of the voices listed for Azure: what the UI reads aloud (ADR 0018).
 AZURE_VOICE_LOCALES = frozenset({"en-US", "en-GB", "zh-CN"})
 

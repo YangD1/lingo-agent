@@ -31,6 +31,7 @@ from app.providers.config import (
 from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 from app.providers.llm import get_providers_config
 from app.providers.model_catalog import (
+    AZURE_PRONUNCIATION_MODEL,
     ModelCategory,
     ModelListError,
     looks_like_speech_to_text,
@@ -288,7 +289,7 @@ async def _test_purpose(
     uses it: a chat message would fail on such a model, and pass on a relay that has no
     /audio/transcriptions at all. Vision when the vision route uses it."""
     if conn.kind in SPEECH_ONLY_KINDS:
-        return "tts"
+        return "pronunciation" if model == AZURE_PRONUNCIATION_MODEL else "tts"
     if conn.kind in ASR_KINDS and looks_like_speech_to_text(model):
         return "asr"
     if conn.kind in TTS_KINDS and looks_like_text_to_speech(model):

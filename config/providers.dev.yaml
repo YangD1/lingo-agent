@@ -44,14 +44,15 @@ presets:
     label: SiliconFlow (speech-to-text, read aloud)
     base_url: https://api.siliconflow.cn/v1
     models: [FunAudioLLM/SenseVoiceSmall, FunAudioLLM/CosyVoice2-0.5B]
-  # Text-to-speech and pronunciation assessment (ADR 0028). The model is the voice; the
-  # base URL names the region: https://<region>.tts.speech.microsoft.com, or
+  # Text-to-speech and pronunciation assessment (ADR 0028). For reading aloud the model
+  # is the voice; for pronunciation assessment the model is `pronunciation`. The base URL
+  # names the region: https://<region>.tts.speech.microsoft.com, or
   # https://<region>.tts.speech.azure.cn for Azure in China.
   azure:
     kind: azure_speech
-    label: Azure Speech (read aloud)
+    label: Azure Speech (read aloud, pronunciation)
     base_url: https://eastasia.tts.speech.microsoft.com
-    models: [en-US-AvaMultilingualNeural, en-GB-SoniaNeural, zh-CN-XiaoxiaoMultilingualNeural]
+    models: [en-US-AvaMultilingualNeural, en-GB-SoniaNeural, zh-CN-XiaoxiaoMultilingualNeural, pronunciation]
   speaches:
     kind: openai_compatible
     label: Speaches (local speech-to-text and read aloud; compose profile `asr`, needs PROVIDER_ALLOW_PRIVATE_NETWORKS=true)
@@ -115,3 +116,8 @@ asr:
 # `voices: {"<connection>:<model>": {en-US: ..., en-GB: ..., zh-CN: ...}}`.
 tts:
   default: [azure:en-US-AvaMultilingualNeural, siliconflow:FunAudioLLM/CosyVoice2-0.5B, openai:gpt-4o-mini-tts, speaches:speaches-ai/Kokoro-82M-v1.0-ONNX]
+
+# Pronunciation assessment for shadowing (ADR 0028 §5); optional: without it shadowing
+# compares a speech-to-text transcript with the sentence instead (no scores).
+pronunciation:
+  default: [azure:pronunciation]

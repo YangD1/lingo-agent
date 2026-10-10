@@ -36,7 +36,7 @@ from app.db.base import Base, TimestampMixin
 TENANT_KINDS = ("personal", "org")
 MEMBER_ROLES = ("owner", "admin", "member")
 PROVIDER_KINDS = ("deepseek", "anthropic", "openai", "openai_compatible", "azure_speech")
-ROUTE_SECTIONS = ("llm", "embedding", "asr", "tts")
+ROUTE_SECTIONS = ("llm", "embedding", "asr", "tts", "pronunciation")
 USAGE_STATUSES = ("ok", "error")
 ATTACHMENT_KINDS = ("image", "audio", "document")
 ATTACHMENT_STATUSES = ("processing", "ready", "failed")

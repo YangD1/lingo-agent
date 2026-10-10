@@ -16,7 +16,7 @@ from app.credentials import service
 from app.credentials.crypto import generate_key_entry, get_keyring, parse_keyring
 from app.credentials.rotate import rotate_credentials
 from app.db.models import ProviderConnection
-from app.providers import asr, net_guard, tts
+from app.providers import asr, net_guard, pronunciation, tts
 from app.providers.model_catalog import DiscoveredModel, ModelListError
 from app.providers.net_guard import IPAddress
 from app.providers.tenant import load_provider_context
@@ -341,6 +341,42 @@ async def test_azure_voice_is_tested_by_reading_aloud(
     (request,) = seen
     assert request.url.path == "/cognitiveservices/v1"
     assert 'xml:lang="zh-CN"' in request.content.decode()  # the voice's own language
+
+
+async def test_azure_pronunciation_is_tested_with_a_silent_clip(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen: list[httpx2.Request] = []
+    status = {"RecognitionStatus": "InitialSilenceTimeout"}
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        if request.headers.get("ocp-apim-subscription-key") != "azure-key-0123456789":
+            return httpx2.Response(401, text="Unauthorized")
+        return httpx2.Response(200, json=status)
+
+    def http(*, allow_private: bool, timeout: float | None) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(transport=httpx2.MockTransport(handle))
+
+    monkeypatch.setattr(pronunciation, "make_async_http_client", http)
+    await login(client)
+    conn = await create(client, preset="azure", api_key="azure-key-0123456789")
+    url = f"/tenant/connections/{conn['id']}/test"
+
+    # Silence heard as silence: key, region and API all work.
+    result = (await client.post(url, json={"model": "pronunciation"})).json()
+
+    assert (result["ok"], result["purpose"]) == (True, "pronunciation")
+    (request,) = seen
+    assert request.url.host == "eastasia.stt.speech.microsoft.com"
+    assert "pronunciation-assessment" in request.headers
+
+    await client.patch(
+        f"/tenant/connections/{conn['id']}", json={"api_key": "wrong-key-0123456789"}
+    )
+    result = (await client.post(url, json={"model": "pronunciation"})).json()
+    assert (result["ok"], result["purpose"]) == (False, "pronunciation")
+    assert "401" in result["error"]
 
 
 async def test_speech_server_without_audio_speech_is_reported_as_such(
@@ -848,6 +884,25 @@ async def test_azure_speech_connection_reads_aloud_only(client: AsyncClient) -> 
         "azure:en-US-AvaMultilingualNeural",
         "openai:gpt-4o-mini-tts",
     ]
+
+
+async def test_pronunciation_routes_take_azure_only(client: AsyncClient) -> None:
+    await login(client)
+    await create(client, preset="azure", api_key="azure-key-0123456789")
+    await create(client, preset="openai", api_key=SECRET)
+
+    wrong = await client.put(
+        "/tenant/routes/pronunciation/default", json={"models": ["openai:whisper-1"]}
+    )
+    assert wrong.status_code == 422
+    assert "cannot assess pronunciation" in wrong.json()["detail"]["message"]
+    response = await client.put(
+        "/tenant/routes/pronunciation/default", json={"models": ["azure:pronunciation"]}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["effective"] == ["azure:pronunciation"]
+    routes = (await client.get("/tenant/routes")).json()
+    assert any(r["section"] == "pronunciation" for r in routes)
 
 
 async def test_voices_only_on_text_to_speech_routes(client: AsyncClient) -> None:

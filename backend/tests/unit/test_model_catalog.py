@@ -106,10 +106,12 @@ async def test_azure_lists_the_voices_of_languages_read_aloud() -> None:
     base = "https://eastasia.tts.speech.microsoft.com"
     models = await fetch_models("azure_speech", base, KEY, client=client)
 
-    # Voices are never chat models, whatever their names look like.
+    # Voices are never chat models, whatever their names look like; pronunciation
+    # assessment is offered as a model of its own.
     assert models == [
         DiscoveredModel("en-GB-SoniaNeural", "other"),
         DiscoveredModel("en-US-AvaMultilingualNeural", "other"),
+        DiscoveredModel("pronunciation", "other"),
         DiscoveredModel("zh-CN-XiaoxiaoNeural", "other"),
     ]
     assert str(seen[0].url) == f"{base}/cognitiveservices/voices/list"
