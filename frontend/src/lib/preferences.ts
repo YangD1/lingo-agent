@@ -5,6 +5,8 @@ import { useCallback, useSyncExternalStore } from "react";
  * be unavailable (private mode, blocked site data), and then the default applies.
  */
 const SHOW_ACTIVITY_KEY = "lingo.showAgentActivity";
+const SPEAKING_AUTO_READ_KEY = "lingo.speaking.autoRead";
+const SPEAKING_HIDE_TEXT_KEY = "lingo.speaking.hideText";
 const CHANGE_EVENT = "lingo:preferences";
 // What this page set, for when storage refuses it.
 const fallback = new Map<string, string>();
@@ -49,7 +51,21 @@ function useStored(key: string): [string | null, (value: string) => void] {
 
 /** Whether replies show what the tutor did (ADR 0013 §3). Hiding changes display only. */
 export function useShowActivity(): [boolean, (show: boolean) => void] {
-  const [value, set] = useStored(SHOW_ACTIVITY_KEY);
-  const setShow = useCallback((show: boolean) => set(String(show)), [set]);
-  return [value !== "false", setShow];
+  return useFlag(SHOW_ACTIVITY_KEY, true);
+}
+
+/** Whether the speaking page reads the tutor's replies aloud as they come (Q59f). */
+export function useSpeakingAutoRead(): [boolean, (on: boolean) => void] {
+  return useFlag(SPEAKING_AUTO_READ_KEY, true);
+}
+
+/** Whether the speaking page hides the tutor's text, for listening practice (Q59e). */
+export function useSpeakingHideText(): [boolean, (hide: boolean) => void] {
+  return useFlag(SPEAKING_HIDE_TEXT_KEY, false);
+}
+
+function useFlag(key: string, fallbackValue: boolean): [boolean, (on: boolean) => void] {
+  const [value, set] = useStored(key);
+  const setFlag = useCallback((on: boolean) => set(String(on)), [set]);
+  return [value === null ? fallbackValue : value === "true", setFlag];
 }

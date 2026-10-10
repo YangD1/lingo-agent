@@ -379,7 +379,8 @@
     "reading": {
       "label": "关于你正在读的一篇文章：可以问单词、句子或意思。",
       "back": "回到文章"
-    }
+    },
+    "textHidden": "文字已隐藏，练听力。"
   },
   "memory": {
     "edit": "编辑",
@@ -1149,7 +1150,8 @@
     "plan_from_card": "这份计划来自私教的卡片，请在那张卡片上撤销。",
     "plan_expired": "这是之前某一天的计划，已经过期了。",
     "job_active": "已经有一个单词发音任务在进行或暂停中。",
-    "no_tts_model": "还没有配置朗读模型。"
+    "no_tts_model": "还没有配置朗读模型。",
+    "speaking_ended": "这次练习已经结束了。"
   },
   "dashboard": {
     "title": "能力看板",
@@ -1823,6 +1825,23 @@
       "delete": "删除",
       "more": "加载更早的",
       "loadingMore": "加载中…"
+    },
+    "session": {
+      "loading": "正在加载这次练习…",
+      "back": "回到口语练习",
+      "freeTalk": "自由聊",
+      "freeTalkGoal": "想聊什么都行。",
+      "autoRead": "自动朗读私教的回复",
+      "hideText": "隐藏私教的文字",
+      "end": "结束并生成小结",
+      "leave": "结束",
+      "ending": "正在生成小结…",
+      "tryUsing": "试着用上：",
+      "opening": "私教正在开口…",
+      "goToSettings": "去设置",
+      "placeholder": "用英语打字…",
+      "send": "发送",
+      "stop": "停止"
     }
   }
 }

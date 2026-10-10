@@ -8,6 +8,7 @@ import { LingoCat } from "@/components/brand/lingo-cat";
 import { useErrorMessage } from "@/i18n/errors";
 import { stopSpeaking } from "@/lib/speech";
 import { ErrorText } from "@/components/ui/error-text";
+import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
 import { MessageAttachments } from "./message-attachments";
@@ -25,6 +26,10 @@ export function MessageList({
   activity,
   cards,
   empty,
+  hideReplyText = false,
+  struck,
+  userFooter,
+  tail,
 }: {
   /** Where the messages are saved; needed to translate the tutor's. */
   conversationId?: string | null;
@@ -35,11 +40,21 @@ export function MessageList({
   cards?: CardsView;
   /** Shown instead of the default hint while there are no messages. */
   empty?: ReactNode;
+  /** The tutor's text is hidden for listening practice; it can still be read aloud (Q59e). */
+  hideReplyText?: boolean;
+  /** Learner messages shown crossed out: their transcript was fixed and sent again (Q58b). */
+  struck?: (message: ChatMessage) => boolean;
+  /** Under a learner message: the speaking page's "fix it" (Q59c). */
+  userFooter?: (message: ChatMessage, last: boolean) => ReactNode;
+  /** After the last message: a voice message still being transcribed (Q59b). */
+  tail?: ReactNode;
 }) {
   const t = useTranslations("chat");
   const scrollRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
   const translations = useReplyTranslations(conversationId);
+  const lastUser = messages.findLastIndex((m) => m.role === "user");
+  const hasTail = Boolean(tail);
 
   // Reading aloud stops with the conversation it reads from.
   useEffect(() => stopSpeaking, [conversationId]);
@@ -48,9 +63,10 @@ export function MessageList({
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+  }, [messages, hasTail]);
 
-  if (messages.length === 0) {
+
+  if (messages.length === 0 && !tail) {
     return (
       empty ?? (
         <div className="flex flex-1 items-center justify-center p-6">
@@ -70,17 +86,21 @@ export function MessageList({
         className="mx-auto flex max-w-3xl flex-col gap-[22px] px-3 py-5 md:px-8"
         aria-label={t("messages")}
       >
-        {messages.map((m) =>
+        {messages.map((m, i) =>
           m.role === "user" ? (
             <li
               key={m.key}
               data-role={m.role}
               data-status={m.status}
-              className="flex max-w-[86%] flex-col self-end md:max-w-[78%]"
+              data-struck={struck?.(m) || undefined}
+              className="flex max-w-[86%] flex-col items-end gap-1 self-end md:max-w-[78%]"
             >
               <div
                 data-slot="message"
-                className="rounded-[18px_18px_6px_18px] bg-primary px-[15px] py-2.5 text-[15.5px] leading-[1.6] whitespace-pre-wrap text-primary-foreground"
+                className={cn(
+                  "rounded-[18px_18px_6px_18px] bg-primary px-[15px] py-2.5 text-[15.5px] leading-[1.6] whitespace-pre-wrap text-primary-foreground",
+                  struck?.(m) && "line-through opacity-60",
+                )}
               >
                 {m.attachments && m.attachments.length > 0 && (
                   <MessageAttachments attachments={m.attachments} />
@@ -88,6 +108,7 @@ export function MessageList({
                 {m.content}
                 <MessageStatus message={m} />
               </div>
+              {userFooter?.(m, i === lastUser)}
             </li>
           ) : (
             <li
@@ -124,7 +145,10 @@ export function MessageList({
                   {m.attachments && m.attachments.length > 0 && (
                     <MessageAttachments attachments={m.attachments} />
                   )}
-                  {m.content && (
+                  {m.content && hideReplyText && (
+                    <p className="text-sm text-muted-foreground italic">{t("textHidden")}</p>
+                  )}
+                  {m.content && !hideReplyText && (
                     <Markdown words>
                       {(m.id && translations.byId[m.id]?.showing && translations.byId[m.id].text) ||
                         m.content}
@@ -160,6 +184,7 @@ export function MessageList({
             </li>
           ),
         )}
+        {tail}
       </ol>
       <WordPopup container={listRef} />
     </div>

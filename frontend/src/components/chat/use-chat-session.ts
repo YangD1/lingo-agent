@@ -28,6 +28,8 @@ type Options = {
   onConversationCreated: (conversation: Conversation) => void;
   /** Called after a reply finishes (the backend retitled/bumped the conversation). */
   onTurnFinished: () => void;
+  /** Each piece of the reply as it streams in (the speaking page reads it aloud). */
+  onToken?: (text: string) => void;
   /** A step of the turn, streamed while the reply is generated (ADR 0013 §3). */
   onActivity?: (activity: Activity) => void;
   /** A card the tutor showed with a tool call during the reply (ADR 0015). */
@@ -128,6 +130,7 @@ export function useChatSession(conversationId: string | null, options: Options) 
     (event: ChatEvent, id: string) => {
       if (event.event === "token") {
         updateLast((m) => ({ ...m, content: m.content + event.text }));
+        optionsRef.current.onToken?.(event.text);
       } else if (event.event === "activity") {
         updateLast((m) => ({ ...m, turnId: event.turn_id }));
         optionsRef.current.onActivity?.(event);

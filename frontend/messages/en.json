@@ -379,7 +379,8 @@
     "reading": {
       "label": "About an article you are reading: ask about words, sentences or what it means.",
       "back": "Back to the article"
-    }
+    },
+    "textHidden": "Text hidden for listening practice."
   },
   "memory": {
     "edit": "Edit",
@@ -1149,7 +1150,8 @@
     "plan_from_card": "This plan came from the tutor's card; undo it on that card.",
     "plan_expired": "This plan was for another day.",
     "job_active": "A word pronunciation job is already running or paused.",
-    "no_tts_model": "No read-aloud model is configured."
+    "no_tts_model": "No read-aloud model is configured.",
+    "speaking_ended": "This practice has ended."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -1823,6 +1825,23 @@
       "delete": "Delete",
       "more": "Load earlier",
       "loadingMore": "Loading…"
+    },
+    "session": {
+      "loading": "Loading the practice…",
+      "back": "Back to speaking",
+      "freeTalk": "Free talk",
+      "freeTalkGoal": "Chat about anything you like.",
+      "autoRead": "Read replies aloud",
+      "hideText": "Hide the tutor's text",
+      "end": "End and sum up",
+      "leave": "End",
+      "ending": "Summing up…",
+      "tryUsing": "Try using:",
+      "opening": "Your tutor is starting…",
+      "goToSettings": "Go to Settings",
+      "placeholder": "Type in English…",
+      "send": "Send",
+      "stop": "Stop"
     }
   }
 }
