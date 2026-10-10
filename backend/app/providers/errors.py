@@ -18,6 +18,8 @@ class NoModelConfiguredError(Exception):
             self.code = "no_tts_model"
         elif section == "pronunciation":
             self.code = "no_pronunciation_model"
+        elif section == "realtime":
+            self.code = "no_realtime_model"
         elif (section, task) == ("llm", "vision"):
             self.code = "no_vision_model"
         else:

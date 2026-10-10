@@ -26,6 +26,7 @@ from app.providers.config import (
     TenantProviderContext,
     load_providers_config,
     resolve_route,
+    sdk_params,
 )
 from app.providers.net_guard import make_async_http_client, make_blocked_sync_client
 from app.settings import get_settings
@@ -52,7 +53,7 @@ def build_chat_model(
     *,
     callbacks: list[BaseCallbackHandler] | None = None,
 ) -> BaseChatModel:
-    params: dict[str, Any] = dict(resolved.params)
+    params: dict[str, Any] = sdk_params(resolved.params)
     http_client = make_async_http_client(
         allow_private=get_settings().provider_allow_private_networks,
         timeout=params.get("timeout"),

@@ -16,8 +16,8 @@ from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 logger = logging.getLogger(__name__)
 
 ProviderKind = Literal["deepseek", "anthropic", "openai", "openai_compatible", "azure_speech"]
-Section = Literal["llm", "embedding", "asr", "tts", "pronunciation"]
-SECTIONS: tuple[Section, ...] = ("llm", "embedding", "asr", "tts", "pronunciation")
+Section = Literal["llm", "embedding", "asr", "tts", "pronunciation", "realtime"]
+SECTIONS: tuple[Section, ...] = ("llm", "embedding", "asr", "tts", "pronunciation", "realtime")
 # Speech-only vendors (ADR 0028 §2): they serve no chat, embeddings or transcription API.
 SPEECH_ONLY_KINDS: frozenset[str] = frozenset({"azure_speech"})
 # Kinds whose SDK offers an embeddings API.
@@ -29,8 +29,14 @@ ASR_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible"})
 TTS_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible", "azure_speech"})
 # Kinds that score pronunciation against a reference text: Azure only for now (ADR 0028 §5).
 PRONUNCIATION_KINDS: frozenset[str] = frozenset({"azure_speech"})
+# Kinds that speak the OpenAI Realtime protocol over a WebSocket: OpenAI, Qwen-Omni and
+# StepFun (ADR 0030 §2).
+REALTIME_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible"})
+# Connection params only realtime calls read (Q60c): never passed to a chat or
+# embeddings SDK, whose constructors take every other param.
+REALTIME_PARAMS: frozenset[str] = frozenset({"realtime_url", "realtime_dialect"})
 # Sections a deployment may leave out entirely.
-OPTIONAL_SPEECH_SECTIONS: frozenset[str] = frozenset({"asr", "tts", "pronunciation"})
+OPTIONAL_SPEECH_SECTIONS: frozenset[str] = frozenset({"asr", "tts", "pronunciation", "realtime"})
 # Tasks needing a capability that can't be inferred from a model's name (ADR 0008 §5):
 # they run only on models configured for them explicitly - never on the section's
 # default route nor on the connections' default chat models - because a model that
@@ -127,6 +133,7 @@ class ProvidersConfig(BaseModel):
     asr: SectionSpec | None = None
     tts: SectionSpec | None = None
     pronunciation: SectionSpec | None = None
+    realtime: SectionSpec | None = None
 
     @model_validator(mode="after")
     def _check_refs(self) -> Self:
@@ -150,6 +157,8 @@ class ProvidersConfig(BaseModel):
                     check_tts_route(route, lambda n: self.presets[n].kind)
                 if section_name == "pronunciation":
                     check_pronunciation_route(route, lambda n: self.presets[n].kind)
+                if section_name == "realtime":
+                    check_realtime_route(route, lambda n: self.presets[n].kind)
                 if section_name == "llm":
                     check_llm_route(route, lambda n: self.presets[n].kind)
         return self
@@ -197,6 +206,13 @@ def check_pronunciation_route(route: RouteSpec, kind_of: Any) -> None:
             raise ValueError(f"connection {name!r} cannot assess pronunciation")
 
 
+def check_realtime_route(route: RouteSpec, kind_of: Any) -> None:
+    for ref in route.models:
+        name = ref.partition(":")[0]
+        if kind_of(name) not in REALTIME_KINDS:
+            raise ValueError(f"connection {name!r} has no realtime voice API")
+
+
 @dataclass(frozen=True)
 class ConnectionSpec:
     """A tenant connection with its key already decrypted. Lives in memory only."""
@@ -229,6 +245,11 @@ class ResolvedModel:
     base_url: str
     api_key: SecretStr | None
     params: dict[str, Any] = field(default_factory=dict)
+
+
+def sdk_params(params: Mapping[str, Any]) -> dict[str, Any]:
+    """A model's params for an SDK constructor: without the ones only realtime reads."""
+    return {k: v for k, v in params.items() if k not in REALTIME_PARAMS}
 
 
 def load_providers_config(path: Path) -> ProvidersConfig:

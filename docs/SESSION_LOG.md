@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-10 任务 60 拆分 + 60.1 `realtime` 路由节
+
+**做了什么**：把任务 59 推送到 70f50e9，CI run 38058383080 全绿；Docker 已重建（之前后端容器一直重启，现在正常了）。开工前重新核实三家实时语音接口（看板任务 60 条目里有记录），据此把任务 60 拆成 60.1–60.6，Q60a–i 按推荐确认。60.1 完成：新增 `app/providers/realtime.py`（厂商小表、`get_realtime`）；路由节加 `realtime`（迁移 `b86ae3e7639a`）；连接参数 `realtime_url` / `realtime_dialect` 加校验，并且不会传给聊天和 embedding 的 SDK（`sdk_params`）；YAML 预设和默认路由。pytest 1590 全过。
+
+**未完成**：60.2 `openai_realtime` 适配器：用 `websockets` 连厂商（要走和 HTTP 一样的连接时 IP 检查，防 DNS 重绑定）；两种写法各自拼 `session.update`；厂商事件转成统一事件；用进程内的假厂商 WebSocket 服务做单测。
+
+**下一步**：60.2，然后 60.3 中继接口。
+
+**踩坑**：连接参数会被 `**params` 直接传进 ChatOpenAI 和 embedding 的构造函数，只给实时语音用的参数必须先经 `sdk_params` 去掉。全量 pytest 现在要跑约 12 分钟，超过 Bash 前台 10 分钟的上限，要放后台跑，而且期间不能再开第二个 pytest（两边共用测试库）。
+
+---
+
 ## 2026-10-10 任务 59.7 口语 E2E 与收尾（任务 59 完成）
 
 **做了什么**：`frontend/e2e/fake_llm.py` 加口语开场（`SPEAKING_OPENING` → `SPEAKING_GREETING`）、`speaking_summary()`（只引用学习者说过的话）、转写返回 `duration` 150 秒（两段语音凑满计划的 5 分钟）；新增 `frontend/e2e/speaking.spec.ts`（假麦克风全链路：计划加口语 → 自我介绍情景 → 语音 → 改一下 → 语音 → 结束小结 → 看板口语完成）；`docs/agent-tools.md`、ADR 0029 任务 59 落地记录、`docs/plans/P3-voice.md`、README 中英。E2E 64 全过，lint 干净。

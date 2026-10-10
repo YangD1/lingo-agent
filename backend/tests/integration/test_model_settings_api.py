@@ -905,6 +905,43 @@ async def test_pronunciation_routes_take_azure_only(client: AsyncClient) -> None
     assert any(r["section"] == "pronunciation" for r in routes)
 
 
+async def test_realtime_routes_and_their_connection_params(client: AsyncClient) -> None:
+    """Realtime voice (ADR 0030 §2, Q60c): OpenAI-protocol connections only; where Qwen's
+    workspace listens is a checked connection param, kept away from the chat SDK."""
+    await login(client)
+    await create(client, preset="deepseek", api_key=SECRET)
+    workspace = "wss://ws-1.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime"
+    qwen = await create(client, preset="qwen", api_key=SECRET, params={"realtime_url": workspace})
+    assert qwen["params"]["realtime_url"] == workspace
+
+    wrong = await client.put(
+        "/tenant/routes/realtime/default", json={"models": ["deepseek:deepseek-chat"]}
+    )
+    assert wrong.status_code == 422
+    assert "no realtime voice API" in wrong.json()["detail"]["message"]
+    on_route = await client.put(
+        "/tenant/routes/realtime/default",
+        json={
+            "models": ["qwen:qwen3.8-omni-flash-realtime"],
+            "params": {"realtime_url": workspace},
+        },
+    )
+    assert on_route.status_code == 422
+    response = await client.put(
+        "/tenant/routes/realtime/default", json={"models": ["qwen:qwen3.8-omni-flash-realtime"]}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["effective"] == ["qwen:qwen3.8-omni-flash-realtime"]
+
+    for params in (
+        {"realtime_url": "https://ws-1.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime"},
+        {"realtime_url": "wss://127.0.0.1/realtime"},
+        {"realtime_dialect": "v2"},
+    ):
+        bad = await client.patch(f"/tenant/connections/{qwen['id']}", json={"params": params})
+        assert bad.status_code == 422, params
+
+
 async def test_voices_only_on_text_to_speech_routes(client: AsyncClient) -> None:
     await login(client)
     await create(client, preset="openai", api_key=SECRET)

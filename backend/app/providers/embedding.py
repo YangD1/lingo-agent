@@ -6,7 +6,12 @@ from langchain.embeddings import init_embeddings
 from langchain_core.embeddings import Embeddings
 
 from app.providers.cache import TTLCache
-from app.providers.config import EMBEDDING_KINDS, TenantProviderContext, resolve_route
+from app.providers.config import (
+    EMBEDDING_KINDS,
+    TenantProviderContext,
+    resolve_route,
+    sdk_params,
+)
 from app.providers.errors import ProviderConfigError
 from app.providers.llm import get_providers_config
 from app.providers.net_guard import make_async_http_client, make_blocked_sync_client
@@ -21,7 +26,7 @@ def get_embeddings(ctx: TenantProviderContext, task: str = "default") -> Embeddi
         raise ProviderConfigError(f"connection {resolved.connection!r} has no embeddings API")
 
     def build() -> Embeddings:
-        params: dict[str, Any] = dict(resolved.params)
+        params: dict[str, Any] = sdk_params(resolved.params)
         kwargs: dict[str, Any] = {
             **params,
             "base_url": resolved.base_url,

@@ -24,6 +24,7 @@ from app.providers.asr import SpeechToText, TranscriptionError, silent_clip
 from app.providers.cache import TTLCache
 from app.providers.config import (
     PRONUNCIATION_KINDS,
+    REALTIME_PARAMS,
     SPEECH_ONLY_KINDS,
     ProviderKind,
     ProvidersConfig,
@@ -34,13 +35,19 @@ from app.providers.config import (
     check_embedding_route,
     check_llm_route,
     check_pronunciation_route,
+    check_realtime_route,
     check_tts_route,
 )
 from app.providers.errors import ProviderConfigError
 from app.providers.llm import build_chat_model
 from app.providers.model_catalog import DiscoveredModel, categorize, fetch_models
-from app.providers.net_guard import make_async_http_client, validate_base_url
+from app.providers.net_guard import (
+    make_async_http_client,
+    validate_base_url,
+    validate_realtime_url,
+)
 from app.providers.pronunciation import AssessmentError, NoSpeechError, PronunciationAssessor
+from app.providers.realtime import RealtimeDialect
 from app.providers.tts import (
     LANGUAGES,
     EndpointError,
@@ -89,6 +96,11 @@ class CallParams(BaseModel):
     # tts routes only (ADR 0028 §3): the voice each model reads a language with, keyed by
     # "<connection>:<model>", over the built-in voices. Never sent to a chat SDK.
     voices: dict[Annotated[str, Field(max_length=200)], dict[Language, VoiceName]] | None = None
+    # Realtime voice only (ADR 0030 §2, Q60c): the vendor's WebSocket address when it
+    # can't be told from base_url (Qwen-Omni 3.8 lives on a per-workspace host), and which
+    # spelling of the OpenAI Realtime protocol it speaks. Never sent to an SDK.
+    realtime_url: Annotated[str, Field(max_length=500)] | None = None
+    realtime_dialect: RealtimeDialect | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_none=True)
@@ -98,10 +110,15 @@ def key_hint(api_key: str) -> str:
     return f"…{api_key[-4:]}" if len(api_key) >= 12 else "…"
 
 
-def _check_connection_params(params: CallParams) -> None:
-    # Connection params reach every SDK the connection is used with.
+async def _check_connection_params(params: CallParams, *, allow_private: bool) -> CallParams:
+    """Connection params reach every SDK the connection is used with; returns them with
+    `realtime_url` normalized."""
     if params.voices is not None:
         raise ProviderConfigError("voices belong on a text-to-speech route, not a connection")
+    if params.realtime_url is not None:
+        url = await validate_realtime_url(params.realtime_url, allow_private=allow_private)
+        params = params.model_copy(update={"realtime_url": url})
+    return params
 
 
 def _check_name(name: str) -> str:
@@ -159,7 +176,7 @@ async def create_connection(
             default_model = next((m for m in spec.models if categorize(m) == "chat"), None)
     if kind not in PROVIDER_KINDS:
         raise ProviderConfigError(f"kind must be one of {', '.join(PROVIDER_KINDS)}")
-    _check_connection_params(params)
+    params = await _check_connection_params(params, allow_private=allow_private)
     if not name or not base_url:
         raise ProviderConfigError("name and base_url are required when no preset is given")
     if kind in _KEY_REQUIRED and api_key is None:
@@ -221,7 +238,7 @@ async def update_connection(
         _set_api_key(conn, api_key, keyring)
         endpoint_changed = True
     if params is not None:
-        _check_connection_params(params)
+        params = await _check_connection_params(params, allow_private=allow_private)
         conn.params = params.to_dict()
     if enabled is not None:
         conn.enabled = enabled
@@ -485,6 +502,8 @@ async def put_route(
     for ref in route.models:
         if ref.partition(":")[0] not in connections:
             raise ProviderConfigError(f"no connection named {ref.partition(':')[0]!r}")
+    if REALTIME_PARAMS & route.params.keys():
+        raise ProviderConfigError("realtime_url and realtime_dialect belong on a connection")
     if route.params.get("voices") is not None:
         if section != "tts":
             raise ProviderConfigError("voices can only be set on a text-to-speech route")
@@ -497,6 +516,7 @@ async def put_route(
         "asr": check_asr_route,
         "tts": check_tts_route,
         "pronunciation": check_pronunciation_route,
+        "realtime": check_realtime_route,
     }
     if section in checks:
         try:

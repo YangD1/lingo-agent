@@ -82,6 +82,17 @@ async def validate_base_url(url: str, *, allow_private: bool) -> str:
     return str(parsed).rstrip("/")
 
 
+async def validate_realtime_url(url: str, *, allow_private: bool) -> str:
+    """Check a tenant-supplied realtime WebSocket address (ADR 0030 §2) the way
+    `validate_base_url` checks an HTTP one; returns it normalized."""
+    scheme, sep, rest = url.strip().partition("://")
+    http_scheme = {"wss": "https", "ws": "http"}.get(scheme.lower())
+    if not sep or http_scheme is None:
+        raise ProviderConfigError("realtime_url must use wss" + (" or ws" if allow_private else ""))
+    checked = await validate_base_url(f"{http_scheme}://{rest}", allow_private=allow_private)
+    return "ws" + checked.removeprefix("http")
+
+
 class GuardedNetworkBackend(httpcore2.AsyncNetworkBackend):
     """Resolves, checks, then connects to the checked IP (defeats DNS rebinding)."""
 
