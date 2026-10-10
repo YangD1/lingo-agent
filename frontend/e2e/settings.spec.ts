@@ -88,7 +88,8 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await page.getByRole("button", { name: "添加备用模型" }).click();
   await expect(page.getByLabel("模型 2")).toHaveValue("fake-tutor");
   await page.getByRole("button", { name: "上移" }).nth(1).click();
-  await page.getByRole("button", { name: "保存", exact: true }).click();
+  // Within the card: the realtime limits card has a save button of its own.
+  await page.getByTestId("route-chat").getByRole("button", { name: "保存", exact: true }).click();
   await expect(route).toHaveText(["fake:fake-tutor", "fake:fake-tutor-mini"]);
   await expect(page.getByTestId("route-source-chat")).toHaveText("正在使用你自定义的顺序。");
 

@@ -792,6 +792,8 @@
       "testOkTts": "Read-aloud works ({ms} ms)",
       "testAsPronunciation": "Pronunciation",
       "testOkPronunciation": "Pronunciation assessment works ({ms} ms)",
+      "testAsRealtime": "Realtime voice",
+      "testOkRealtime": "Realtime voice connects ({ms} ms)",
       "ttsNotSupported": "This connection can't read aloud (the server has no /audio/speech endpoint, or no such voice). Use a read-aloud model from Azure Speech, SiliconFlow, OpenAI or a local Speaches instead.",
       "testVoice": "Model to test",
       "testVoiceHint": "This connection only reads aloud and assesses pronunciation. Pick a voice to test reading aloud, or pronunciation to test assessment; which voices are used, and whether it assesses pronunciation, is set in the Read aloud and Pronunciation routes below.",
@@ -853,6 +855,11 @@
           "title": "Pronunciation",
           "description": "Scores learners' pronunciation when they read after the model: overall, per word and per sound (Azure Speech only for now, model pronunciation). Without it, shadowing compares a transcript with the sentence and gives only a rough result.",
           "none": "Not set up: shadowing compares a transcript instead (no shadowing without speech-to-text either)."
+        },
+        "realtime": {
+          "title": "Realtime voice",
+          "description": "Learners talk to the tutor on a call: one model listens and speaks directly, and can be interrupted (realtime APIs of OpenAI, Qwen-Omni and StepFun). The next one in order is tried only when connecting; a call never switches midway. It costs much more than speaking practice; set its limits under “Realtime voice limits” below.",
+          "none": "Not set up: no realtime calls; speaking practice still uses transcription and read-aloud."
         }
       },
       "fallback": "Fallback",
@@ -1410,7 +1417,8 @@
       "shadowing_rough": "Your recording is transcribed by a speech-to-text model and compared with the sentence word by word, marking words left out, heard as another word, or added. It's a rough result, not a pronunciation score, and isn't counted in your learning record. The recording is discarded once transcribed.",
       "speaking_start": "When you start speaking practice, the tutor says the first line of the scene, written by an AI model.",
       "speaking_turn": "What you say is transcribed by a speech-to-text model, then an AI model replies in the scene (briefly, read aloud to you). Afterwards, as in any chat, the turn is reviewed in the background to update your memory and grammar notes; very short spoken turns record no mistakes, so a transcription error isn't counted as yours.",
-      "speaking_summary": "When you finish, an AI model reads the conversation and writes what went well, mistakes with corrections, more natural ways to say things and expressions to try next time, and rates how easy you were to understand. Items that don't quote your own words are dropped; the rating updates your speaking ability."
+      "speaking_summary": "When you finish, an AI model reads the conversation and writes what went well, mistakes with corrections, more natural ways to say things and expressions to try next time, and rates how easy you were to understand. Items that don't quote your own words are dropped; the rating updates your speaking ability.",
+      "realtime_call": "A live call with the tutor: one model hears you and answers in speech, and you can interrupt it. Usage goes by call length: both voices are counted as audio tokens, and each answer reads the call so far again. Audio tokens cost far more than text, so a minute here costs several times a minute of speaking practice (transcription plus a text reply); that's why calls have per-call and per-day minute limits."
     },
     "task": {
       "chat": "Reply",
@@ -1440,7 +1448,8 @@
       "shadowing_asr": "transcribe the reading",
       "speaking": "speaking partner reply",
       "speaking_opening": "opening line",
-      "speaking_summary": "write the speaking summary"
+      "speaking_summary": "write the speaking summary",
+      "realtime": "realtime call"
     },
     "timing": {
       "now": "right away",
@@ -1448,7 +1457,8 @@
     },
     "per": {
       "image": "per image",
-      "page": "per page"
+      "page": "per page",
+      "minute": "per minute"
     },
     "tokens": "≈ {input} input + {output} output tokens",
     "audio": "≈ {seconds} s of audio (billed by length, not tokens)",

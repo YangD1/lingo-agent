@@ -239,6 +239,31 @@ describe("RouteSection", () => {
     expect(api).not.toHaveBeenCalledWith(expect.stringContaining("/models"));
   });
 
+  it("lists only a connection's realtime voice models for the realtime route", async () => {
+    api.mockImplementation(async (path: string) => {
+      if (path === "/tenant/routes") return [...ROUTES, route({ section: "realtime", task: "default" })];
+      if (path === "/tenant/connections/c1/models")
+        return {
+          models: [
+            { id: "chat-model", category: "chat" },
+            { id: "gpt-realtime-2.1", category: "other" },
+            { id: "qwen3-asr-flash-realtime", category: "other" },
+          ],
+        };
+      return undefined;
+    });
+    show("realtime", [RELAY]);
+
+    expect(await screen.findByTestId("route-source-realtime")).toHaveTextContent(
+      "Not set up: no realtime calls",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Edit order" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "Model 1" }));
+    expect(await screen.findByRole("option", { name: "gpt-realtime-2.1" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "chat-model" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "qwen3-asr-flash-realtime" })).not.toBeInTheDocument();
+  });
+
   it("edits a read-aloud route's voices per language, keeping them when a row is switched", async () => {
     const kokoro = "local:speaches-ai/Kokoro-82M-v1.0-ONNX";
     const tts = route({

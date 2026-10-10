@@ -81,7 +81,7 @@ export type Connection = {
   last_verified_at: string | null;
   last_error: string | null;
 };
-export type TestPurpose = "chat" | "asr" | "vision" | "tts" | "pronunciation";
+export type TestPurpose = "chat" | "asr" | "vision" | "tts" | "pronunciation" | "realtime";
 export type ConnectionTest = {
   ok: boolean;
   error: string | null;
@@ -93,7 +93,7 @@ export type ConnectionTest = {
   purpose: TestPurpose;
 };
 export type TaskRoute = {
-  section: "llm" | "embedding" | "asr" | "tts" | "pronunciation";
+  section: "llm" | "embedding" | "asr" | "tts" | "pronunciation" | "realtime";
   task: string;
   models: string[];
   params: Record<string, unknown>;

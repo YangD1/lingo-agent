@@ -3,6 +3,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 
+import { AiBadge } from "@/components/ai-badge";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +49,10 @@ export function RealtimeSection() {
   return (
     <Card id="realtime" className="scroll-mt-14 lg:scroll-mt-4">
       <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
+        <CardTitle className="flex items-center gap-1.5">
+          {t("title")}
+          <AiBadge feature="realtime_call" />
+        </CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">

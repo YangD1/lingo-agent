@@ -28,9 +28,16 @@ const MAX_ROWS = 5; // the backend's limit on a route's fallback chain
 /**
  * The routes the settings page edits: chat, the two that attachments need (ADR 0008 §5),
  * the background model that keeps the tutor's memory (ADR 0009), read-aloud and
- * pronunciation assessment (ADR 0028).
+ * pronunciation assessment (ADR 0028), realtime voice calls (ADR 0030).
  */
-export type RouteTask = "chat" | "reflect" | "vision" | "asr" | "tts" | "pronunciation";
+export type RouteTask =
+  | "chat"
+  | "reflect"
+  | "vision"
+  | "asr"
+  | "tts"
+  | "pronunciation"
+  | "realtime";
 const SECTION: Record<RouteTask, TaskRoute["section"]> = {
   chat: "llm",
   reflect: "llm",
@@ -38,6 +45,7 @@ const SECTION: Record<RouteTask, TaskRoute["section"]> = {
   asr: "asr",
   tts: "tts",
   pronunciation: "pronunciation",
+  realtime: "realtime",
 };
 // The speech sections have a single route each, stored under the task name "default".
 const TASK_KEY: Record<RouteTask, string> = {
@@ -47,6 +55,7 @@ const TASK_KEY: Record<RouteTask, string> = {
   asr: "default",
   tts: "default",
   pronunciation: "default",
+  realtime: "default",
 };
 // A connection's default model is a chat model: only a good first guess for these.
 const TEXT_TASKS = new Set<RouteTask>(["chat", "reflect"]);
@@ -186,7 +195,15 @@ export function RouteSection({
     }
     setCatalogs((all) => ({ ...all, [name]: "loading" }));
     const use =
-      task === "asr" ? "speech" : task === "tts" ? (c.kind === "azure_speech" ? "all" : "tts") : "chat";
+      task === "asr"
+        ? "speech"
+        : task === "tts"
+          ? c.kind === "azure_speech"
+            ? "all"
+            : "tts"
+          : task === "realtime"
+            ? "realtime"
+            : "chat";
     fetchModels(c.id, use).then(
       // An Azure connection lists its assessment model with the voices; it reads nothing.
       (ids) =>

@@ -119,7 +119,7 @@ realtime:                                   # 端到端语音对话，后端中�
 
 ## 三、核心数据模型（初稿）
 
-- `tenants`, `tenant_members`, `provider_connections`（加密 key）, `tenant_model_routes`（见 ADR 0004）, `llm_usage`（见 ADR 0005）
+- `tenants`（含实时语音的单次 / 每日分钟上限，ADR 0030 §5）, `tenant_members`, `provider_connections`（加密 key）, `tenant_model_routes`（见 ADR 0004）, `llm_usage`（见 ADR 0005）
 - `users`, `user_profile`（母语、目标、目标考试、兴趣、职业、每日时长、讲解语言、CEFR、时区）, `memories`（kind[fact/episode], content, 来源会话, 可选 embedding；见 ADR 0009）
 - `skill_estimates`（user, skill[listening/speaking/reading/writing/grammar/vocab], rating, uncertainty, updated_at）, `placement_sessions`（入学测子图的 thread 和状态）
 - `learning_advice`（每人一行：看板上的 AI 建议缓存，见 `docs/plans/P1-mvp.md` §7.5）
@@ -134,7 +134,7 @@ realtime:                                   # 端到端语音对话，后端中�
 - `feeds`（内置 + 学习者自加）、`feed_subscriptions`（user, feed, topics）、`articles`（feed, url, 正文, 许可标记）、`article_versions`（租户, 目标等级, 改写正文, 词表, 理解题）、`reading_sessions`（ADR 0024）
 - `scheduler_runs`（定时任务上次运行，ADR 0025）、`daily_plans`（user, day 本地日期, choice / limits JSONB, status, card_id；完成情况读时现算，见 ADR 0027）
 - `attachments`（conversation, message_id, kind[image/audio/document], mime, data bytea, status, text 派生文本, meta JSONB；见 ADR 0008）；以后做文档 RAG 时加 `attachment_chunks`（pgvector）
-- `tts_audio`（朗读音频缓存，按租户、内容哈希，记第一次让它生成的学习者，可由本人清除、30 天没用自动清，ADR 0028、Q54c；预生成的单词发音 `pinned` 并记 `word_id`，不淘汰）、`word_audio_jobs`（单词发音预生成任务：词书、开工时的声音、进度、断点 cursor、单价，ADR 0028 §4）、`pronunciation_attempts`（跟读记录：来源、参考文本、口音、评测或转写对比、整体分、逐词 / 音素，录音不保存，学习者可删，ADR 0028）、`word_pronunciations`（学习者每个词库单词最近一次评测的准确度，低于阈值在复习卡片标“读不准”，ADR 0028、Q56c）、`speaking_sessions`（一次口语会话：情景、开始时的等级、轮数 / 语音轮数 / 说话秒数、改过转写的消息、小结与可理解度、是否已计入口语能力，级联 / 实时，ADR 0029、0030）；`conversations.purpose` 加 speaking / realtime 和 `scenario_id`
+- `tts_audio`（朗读音频缓存，按租户、内容哈希，记第一次让它生成的学习者，可由本人清除、30 天没用自动清，ADR 0028、Q54c；预生成的单词发音 `pinned` 并记 `word_id`，不淘汰）、`word_audio_jobs`（单词发音预生成任务：词书、开工时的声音、进度、断点 cursor、单价，ADR 0028 §4）、`pronunciation_attempts`（跟读记录：来源、参考文本、口音、评测或转写对比、整体分、逐词 / 音素，录音不保存，学习者可删，ADR 0028）、`word_pronunciations`（学习者每个词库单词最近一次评测的准确度，低于阈值在复习卡片标“读不准”，ADR 0028、Q56c）、`speaking_sessions`（一次口语会话：情景、开始时的等级、轮数 / 语音轮数 / 说话秒数、改过转写的消息、小结与可理解度、是否已计入口语能力，级联 / 实时，实时通话的通话秒数，ADR 0029、0030）；`conversations.purpose` 加 speaking / realtime 和 `scenario_id`
 - LangGraph 自带：checkpoints 表、store 表（记忆）
 
 ---
@@ -152,7 +152,7 @@ monorepo（`backend/` uv + FastAPI，`frontend/` Next.js，`docker-compose.yml`�
 
 **P3 语音（双模式，配置切换）**（详见 `docs/plans/P3-voice.md`；ADR 0028–0030。顺序：朗读第 2、3 层 → 跟读与发音评测 → 级联口语 → 实时语音 → 背词听音 / 拼写）
 - **模式 A · 级联管线**（默认，便宜、完全可控）：ASR → LangGraph（完整记忆/工具/trace）→ TTS。本地用 speaches 容器（转写用 faster-whisper、朗读用 Kokoro，都是 OpenAI 兼容接口，作为租户连接接入，见 ADR 0008、0028），线上 Groq/SiliconFlow；朗读按 ADR 0018 的三层方案（浏览器优先，服务端朗读是租户可选的连接，不内置 edge-tts，不在后端容器里跑朗读模型）。语音消息的转写在 11B 已经实现，P3 在此基础上做朗读、跟读和口语。私教气泡和单词的朗读在 P1 先用浏览器 `speechSynthesis`（ADR 0017），任务 25 按 ADR 0018 改为三层：浏览器挑好声音 → 单词发音预生成 → 可选服务端朗读（provider 层 `tts` 一节，兼容 OpenAI 的 `/audio/speech` 或 Azure 语音，按句缓存，见 ADR 0028），失败时退回浏览器。用于朗读、跟读、半双工口语练习。
-- **模式 B · 端到端实时语音**（像 ChatGPT 语音模式：低延迟、可打断、有语气）：`realtime` provider 先做 OpenAI Realtime 协议（覆盖 OpenAI、Qwen-Omni、StepFun，国内外都有可用的），Gemini Live 第二个做（有免费档，但大陆不可用）。~~浏览器直连厂商、后端只签发临时 token~~ 改为**后端中继**（ADR 0030）：国内可访问的厂商都没有浏览器可用的临时 token；后端只转发音频帧，不编解码，工具调用、用量、时长上限（单次 15 分钟、每人每日 30 分钟）都在后端。
+- **模式 B · 端到端实时语音**（像 ChatGPT 语音模式：低延迟、可打断、有语气）：`realtime` provider 先做 OpenAI Realtime 协议（覆盖 OpenAI、Qwen-Omni、StepFun，国内外都有可用的），Gemini Live 第二个做（有免费档，但大陆不可用）。~~浏览器直连厂商、后端只签发临时 token~~ 改为**后端中继**（ADR 0030）：国内可访问的厂商都没有浏览器可用的临时 token；后端只转发音频帧，不编解码，工具调用、用量、时长上限（单次 15 分钟、每人每日 30 分钟）都在后端。任务 60 实测：10 路并发、双向一直有音频，进程内存共多约 2MB、CPU 约单核 2%（ADR 0030 落地记录）。
   - 和 Agent 体系的衔接：开会话时把用户画像、CEFR 等级、记忆、情景设定注入 system instructions；查词、记生词等能力用 realtime 的 function calling，由后端中继直接执行；会话结束后，把转写存成对话、送进反思，写回长期记忆和学习者模型，并生成口语小结（ADR 0029）。
   - 端到端模型不输出音素级分数，所以发音评测仍然走独立 provider（Azure 免费档，没配时用转写对比兜底，ADR 0028）。
 - **口语练习（级联）**：情景角色扮演（`scenarios.yaml`），speaking_coach 回复短、不打断纠错（recast），结束时出口语小结；口语话语记为产出证据，转写不可靠的不记错误（ADR 0029）。

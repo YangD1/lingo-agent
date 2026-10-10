@@ -9,7 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.db.models import LLMUsage, Tenant, TenantMember, User
+from app.db.models import Conversation, LLMUsage, SpeakingSession, Tenant, TenantMember, User
 from app.db.session import create_sessionmaker
 from app.deps import require_tenant_manager
 from app.usage.recorder import UsageRecord
@@ -351,6 +351,73 @@ async def test_estimates_name_the_model_that_would_run(
     assert features["practice_start"][0]["model"] == "deepseek:deepseek-chat"
     # vision only runs on models configured for it; DeepSeek isn't.
     assert features["chat_image"][0]["model"] is None
+
+
+async def add_call(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    seconds: float,
+    replies: list[tuple[int, int]],
+    *,
+    status: str = "done",
+) -> None:
+    """A realtime call that lasted `seconds`, with one usage row per reply."""
+    user_id = await session.scalar(
+        select(TenantMember.user_id).where(TenantMember.tenant_id == tenant_id)
+    )
+    assert user_id is not None
+    conversation = Conversation(tenant_id=tenant_id, user_id=user_id, purpose="realtime")
+    session.add(conversation)
+    await session.flush()
+    session.add(
+        SpeakingSession(
+            user_id=user_id,
+            conversation_id=conversation.id,
+            mode="realtime",
+            status=status,
+            level="B1",
+            call_seconds=seconds,
+            ended_at=datetime.now(UTC) if status == "done" else None,
+        )
+    )
+    await session.commit()
+    await add_usage(
+        session,
+        *[
+            record(
+                tenant_id,
+                task="realtime",
+                conversation_id=conversation.id,
+                input_tokens=i,
+                output_tokens=o,
+            )
+            for i, o in replies
+        ],
+        at=datetime.now(UTC),
+    )
+
+
+async def test_realtime_estimates_are_per_minute_of_call(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await register(client, "owner@example.com")
+    tenant_id = await tenant_of(db_session, "owner@example.com")
+
+    call, _embed = by_feature((await client.get("/usage/estimates")).json())["realtime_call"]
+    assert (call["per"], call["source"]) == ("minute", "default")
+    assert (call["input_tokens"], call["output_tokens"]) == (20000, 1000)
+
+    # 3 minutes in all: 90k in, 4.5k out -> 30k / 1.5k a minute.
+    await add_call(db_session, tenant_id, 60, [(20_000, 1_000), (10_000, 500)])
+    await add_call(db_session, tenant_id, 120, [(60_000, 3_000)])
+    # Too short to say anything about talking, and a call still going: left out.
+    await add_call(db_session, tenant_id, 10, [(90_000, 9_000)])
+    await add_call(db_session, tenant_id, 600, [(90_000, 9_000)], status="active")
+
+    call, _embed = by_feature((await client.get("/usage/estimates")).json())["realtime_call"]
+
+    assert (call["source"], call["samples"]) == ("history", 2)
+    assert (call["input_tokens"], call["output_tokens"]) == (30000, 1500)
 
 
 async def test_estimates_require_login(client: AsyncClient) -> None:

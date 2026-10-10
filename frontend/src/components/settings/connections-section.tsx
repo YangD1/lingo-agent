@@ -38,6 +38,7 @@ const TEST_AS = {
   vision: "testAsVision",
   tts: "testAsTts",
   pronunciation: "testAsPronunciation",
+  realtime: "testAsRealtime",
 } as const;
 const TEST_OK = {
   chat: "testOk",
@@ -45,6 +46,7 @@ const TEST_OK = {
   vision: "testOkVision",
   tts: "testOkTts",
   pronunciation: "testOkPronunciation",
+  realtime: "testOkRealtime",
 } as const;
 const NOT_SUPPORTED: Record<string, "asrNotSupported" | "visionNotSupported" | "ttsNotSupported"> = {
   asr_not_supported: "asrNotSupported",

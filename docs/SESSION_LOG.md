@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-11 任务 60.6 公示与实测（任务 60 完成）
+
+**做了什么**：`features.yaml` 登记 `realtime_call`（新增 `per: minute`，只用于 `realtime` 节；`estimates.py` `minute_history`：最近 20 通已挂断、超过 30 秒的通话，用量之和除以通话分钟；默认每分钟 20,000 入 + 1,000 出；选情景时另登记一次 `memory` 向量化）。连接测试 purpose `realtime`（`credentials/service.py` 只发 `session.update`，收到 `session.updated` 就断，不产生音频 token；`model_catalog.looks_like_realtime` 按名字猜，排除流式转写）。前端：设置页 `RouteSection task="realtime"`（模型只列 realtime）、测试选项“实时语音”、`RealtimeSection` 标题挂 `AiBadge`、AiBadge 显示“每分钟”、中英文案。`docs/agent-tools.md` 实时通话一节、ADR 0030 落地记录、PLAN、P3 计划。实测脚本 `backend/scripts/realtime_load.py`：10 路并发 60 秒，双向一直有音频，内存共 +约 2MB、CPU 单核 2.3%，中继方案不用修订。
+
+**验证**：pytest 1616、Vitest 477（`--maxWorkers=8`）、E2E 64 全过；ruff、mypy、tsc、eslint 干净。
+
+**未完成**：没有推送；Docker 未重建。通话界面读 `capabilities.realtime`、接通按钮挂 `AiBadge` 在任务 62。
+
+**下一步**：任务 61（实时会话工具 `lookup_word` / `add_to_vocab` / `end_session`、挂断后转写入库 + 反思 + 小结、`gemini_live` 适配器），先拆子任务写进看板、和用户确认。
+
+**踩坑**：60.5 提交前没跑 E2E，“实时语音限额”卡片多了一个“保存”按钮，`settings.spec.ts` 里 `getByRole("button", { name: "保存", exact: true })` 撞名失败，已改为在 `route-chat` 卡片内查找。改设置页后要跑 settings E2E。实测负载要用临时库（建 `lingo_load` → 迁移 → `PROVIDER_ALLOW_PRIVATE_NETWORKS=true` 起 uvicorn → 跑完 `fuser -k` 停掉并删库），不要碰开发库 `lingo`。后端猜测试用途时 `asr` 不算语音转写的关键词（只有 whisper / transcri / sensevoice / paraformer），没改。
+
+---
+
 ## 2026-10-10 任务 60.3–60.5 中继、开场上下文、限额
 
 **做了什么**：上一会话因附件太多导致请求超限中断，这次接着做。60.3（`WS /speech/realtime` 中继）和 60.4（开场上下文）补提交为 b351852（上一会话的全量 pytest 已通过）。60.5 限额完成：迁移 `85f290d7d433`；`app/realtime/limits.py`；中继在结束前 1 分钟推 `time_warning`，到点推 `wrapping_up` 后让私教道别，最多再等 10 秒挂断；接通前按 `realtime_off` / `realtime_used_up` / `realtime_busy` 拒绝；`/tenant/realtime`；`/speech/capabilities` 加 `realtime`、`realtime_minutes_left`；设置页 `RealtimeSection`。

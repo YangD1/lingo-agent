@@ -24,6 +24,7 @@ from app.providers.asr import SpeechToText, TranscriptionError, silent_clip
 from app.providers.cache import TTLCache
 from app.providers.config import (
     PRONUNCIATION_KINDS,
+    REALTIME_KINDS,
     REALTIME_PARAMS,
     SPEECH_ONLY_KINDS,
     ProviderKind,
@@ -46,8 +47,9 @@ from app.providers.net_guard import (
     validate_base_url,
     validate_realtime_url,
 )
+from app.providers.openai_realtime import RealtimeConnectError, open_session
 from app.providers.pronunciation import AssessmentError, NoSpeechError, PronunciationAssessor
-from app.providers.realtime import RealtimeDialect
+from app.providers.realtime import RealtimeDialect, realtime_target
 from app.providers.tts import (
     LANGUAGES,
     EndpointError,
@@ -64,7 +66,7 @@ _NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 _KEY_REQUIRED: frozenset[str] = frozenset({"deepseek", "anthropic", "openai", "azure_speech"})
 
 
-type TestPurpose = Literal["chat", "asr", "vision", "tts", "pronunciation"]
+type TestPurpose = Literal["chat", "asr", "vision", "tts", "pronunciation", "realtime"]
 type VoiceName = Annotated[str, Field(min_length=1, max_length=128)]
 
 
@@ -319,7 +321,8 @@ async def verify_connection(
 ) -> TestResult:
     """Send one tiny request through the same guarded client real calls use: a chat
     message, for speech-to-text a short built-in clip, for vision a small built-in image,
-    for text-to-speech one word read aloud, for pronunciation assessment that same clip."""
+    for text-to-speech one word read aloud, for pronunciation assessment that same clip,
+    for realtime voice the session settings alone (no reply, so no audio is billed)."""
     api_key = _decrypt_key(conn, keyring)
     kind: ProviderKind = conn.kind  # type: ignore[assignment]  # DB CHECK constraint
     resolved = ResolvedModel(
@@ -357,6 +360,12 @@ async def verify_connection(
                 await assessor.assess(silent_clip(), reference_text="Hello", language="en-US")
             except NoSpeechError:
                 pass  # silence heard as silence: the key, region and API all work
+        elif purpose == "realtime":
+            if kind not in REALTIME_KINDS:
+                raise ProviderConfigError("this connection has no realtime voice API")
+            # Accepted settings prove the address, key, model and spelling; hang up there.
+            call = await open_session(realtime_target(resolved), instructions="Connection test.")
+            await call.close()
         else:
             recorder = make_recorder(
                 UsageLabels(conn.tenant_id, "connection_test", conn.name, model)
@@ -369,7 +378,9 @@ async def verify_connection(
                 ]
             )
     except Exception as exc:  # any vendor/network failure is a test result, not a 500
-        wrapped = isinstance(exc, TranscriptionError | SpeechSynthesisError | AssessmentError)
+        wrapped = isinstance(
+            exc, TranscriptionError | SpeechSynthesisError | AssessmentError | RealtimeConnectError
+        )
         cause = exc.__cause__ if wrapped and exc.__cause__ else exc
         error = f"{type(cause).__name__}: {cause}"[:500]
         # A server without /audio/transcriptions (a chat-only relay) answers 404.

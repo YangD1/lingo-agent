@@ -13,7 +13,7 @@ from app.providers.config import Section
 FEATURES_PATH = Path(__file__).parent / "features.yaml"
 
 Timing = Literal["now", "background"]
-Per = Literal["call", "image", "page"]
+Per = Literal["call", "image", "page", "minute"]
 # Sections billed by audio length.
 AUDIO_SECTIONS: frozenset[str] = frozenset({"asr", "pronunciation"})
 
@@ -58,6 +58,10 @@ class FeatureCall(_Strict):
             )
         if (self.section == "tts") != (self.default.characters is not None):
             raise ValueError("characters is required for tts calls and only for them")
+        # A realtime call's usage arrives one reply at a time; the learner thinks in
+        # minutes on the phone (ADR 0030 §1).
+        if (self.section == "realtime") != (self.per == "minute"):
+            raise ValueError("per: minute is required for realtime calls and only for them")
         return self
 
 

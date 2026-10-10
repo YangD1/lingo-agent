@@ -77,6 +77,7 @@ export function SettingsApp() {
                   <RouteSection task="asr" connections={connections} compact />
                   <RouteSection task="tts" connections={connections} compact />
                   <RouteSection task="pronunciation" connections={connections} compact />
+                  <RouteSection task="realtime" connections={connections} compact />
                 </div>
               </>
             )}

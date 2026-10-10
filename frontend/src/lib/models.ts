@@ -23,6 +23,15 @@ export function ttsModelIds(models: DiscoveredModel[]): string[] {
     .map((m) => m.id);
 }
 
+// Speech-to-speech models by name (ADR 0030 §2); streaming transcription is named so too.
+const REALTIME = /realtime/i;
+const STREAMING_ASR = /asr|transcri|whisper/i;
+
+/** Model ids that can go in a realtime voice dropdown. */
+export function realtimeModelIds(models: DiscoveredModel[]): string[] {
+  return models.filter((m) => REALTIME.test(m.id) && !STREAMING_ASR.test(m.id)).map((m) => m.id);
+}
+
 /** The model part of "<connection>:<model>" refs, in order. */
 export function modelsOfRefs(refs: string[]): string[] {
   return refs.flatMap((ref) => {

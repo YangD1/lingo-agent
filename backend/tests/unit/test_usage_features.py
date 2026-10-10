@@ -84,6 +84,21 @@ def test_tts_calls_are_estimated_by_characters() -> None:
     assert call(task="tts", section="tts", default={"characters": 60}).default.characters == 60
 
 
+def test_realtime_calls_are_estimated_per_minute_of_tokens() -> None:
+    realtime, embed = get_features().features["realtime_call"].calls
+    assert (embed.task, embed.section, embed.per) == ("memory", "embedding", "call")
+    assert (realtime.task, realtime.section, realtime.per, unit_of(realtime)) == (
+        "realtime",
+        "realtime",
+        "minute",
+        "tokens",
+    )
+    with pytest.raises(ValueError, match="per: minute"):
+        call(task="realtime", section="realtime")
+    with pytest.raises(ValueError, match="per: minute"):
+        call(per="minute")
+
+
 def test_unknown_fields_are_rejected(tmp_path: Path) -> None:
     path = tmp_path / "features.yaml"
     path.write_text(

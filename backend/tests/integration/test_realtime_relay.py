@@ -460,3 +460,31 @@ async def test_cut_off_calls_are_closed_and_never_idle(
     assert closed is not None and still is not None
     assert (closed.status, still.status) == ("done", "active")
     assert closed.ended_at is not None
+
+
+# --- connection test (task 60.6) ----------------------------------------------------------
+
+
+async def test_connection_test_opens_a_session_and_hangs_up(
+    db_session: AsyncSession, client: AsyncClient
+) -> None:
+    await sign_up(client)
+    async with fake_vendor() as vendor:
+        await add_vendor(db_session, client, "voice", vendor)
+        (conn,) = (await client.get("/tenant/connections")).json()
+        url = f"/tenant/connections/{conn['id']}/test"
+
+        # Told from the model's name.
+        result = (await client.post(url, json={"model": "gpt-realtime-2.1"})).json()
+        assert (result["ok"], result["purpose"]) == (True, "realtime"), result
+        assert [e["type"] for e in vendor.received] == ["session.update"]  # no reply asked
+
+        # Any model the realtime route uses is tested as one.
+        await set_route(client, "voice:my-voice")
+        result = (await client.post(url, json={"model": "my-voice"})).json()
+        assert (result["ok"], result["purpose"]) == (True, "realtime"), result
+
+        vendor.refuse = True
+        result = (await client.post(url, json={"model": "my-voice"})).json()
+        assert (result["ok"], result["purpose"]) == (False, "realtime")
+        assert "bad key" in result["error"]

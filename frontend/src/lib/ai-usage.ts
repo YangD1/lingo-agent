@@ -25,7 +25,8 @@ export type AiFeature =
   | "shadowing_rough"
   | "speaking_start"
   | "speaking_turn"
-  | "speaking_summary";
+  | "speaking_summary"
+  | "realtime_call";
 
 /** `llm_usage.task` labels the catalog uses; each has a name in messages (aiBadge.task). */
 const AI_TASKS = [
@@ -56,6 +57,7 @@ const AI_TASKS = [
   "speaking",
   "speaking_opening",
   "speaking_summary",
+  "realtime",
   "advice", // no longer called (ADR 0016); past usage records still carry it
 ] as const;
 export type AiTask = (typeof AI_TASKS)[number];
@@ -68,7 +70,8 @@ export function isAiTask(task: string): task is AiTask {
 export type CallEstimate = {
   task: string;
   timing: "now" | "background";
-  per: "call" | "image" | "page";
+  /** "minute": a realtime call's usage over its length (ADR 0030). */
+  per: "call" | "image" | "page" | "minute";
   input_tokens: number;
   output_tokens: number;
   /** Speech-to-text and pronunciation assessment: billed by audio length, not tokens. */

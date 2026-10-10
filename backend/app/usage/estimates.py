@@ -8,7 +8,7 @@ from typing import Literal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import LLMUsage
+from app.db.models import Conversation, LLMUsage, SpeakingSession
 from app.providers.config import ProvidersConfig, TenantProviderContext, resolve_route
 from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 from app.usage.features import AUDIO_SECTIONS, FeatureCall, FeatureCatalog, Per, Timing
@@ -134,6 +134,60 @@ async def task_history(
     )
 
 
+# Calls shorter than this say more about connecting than about talking.
+MIN_CALL_SECONDS = 30.0
+
+
+async def minute_history(
+    session: AsyncSession, tenant_id: uuid.UUID, task: str, *, window: int
+) -> TaskHistory:
+    """Tokens per minute over the tenant's last `window` finished realtime calls: their
+    usage rows (one per reply) summed, over the calls' own length (ADR 0030 §6)."""
+    calls = (
+        select(SpeakingSession.conversation_id, SpeakingSession.call_seconds)
+        .join(Conversation, Conversation.id == SpeakingSession.conversation_id)
+        .where(
+            Conversation.tenant_id == tenant_id,
+            SpeakingSession.mode == "realtime",
+            SpeakingSession.status == "done",
+            SpeakingSession.call_seconds >= MIN_CALL_SECONDS,
+        )
+        .order_by(SpeakingSession.ended_at.desc(), SpeakingSession.id.desc())
+        .limit(window)
+        .subquery()
+    )
+    used = (
+        select(
+            LLMUsage.conversation_id,
+            func.sum(LLMUsage.input_tokens).label("input_tokens"),
+            func.sum(LLMUsage.output_tokens).label("output_tokens"),
+        )
+        .where(LLMUsage.tenant_id == tenant_id, LLMUsage.task == task, LLMUsage.status == "ok")
+        .group_by(LLMUsage.conversation_id)
+        .subquery()
+    )
+    row = (
+        await session.execute(
+            select(
+                func.count(),
+                func.sum(calls.c.call_seconds),
+                func.sum(used.c.input_tokens),
+                func.sum(used.c.output_tokens),
+            ).select_from(calls.join(used, used.c.conversation_id == calls.c.conversation_id))
+        )
+    ).one()
+    samples = int(row[0])
+    if samples == 0:
+        return TaskHistory(samples=0, input_tokens=0, output_tokens=0, audio_seconds=None)
+    minutes = float(row[1]) / 60
+    return TaskHistory(
+        samples=samples,
+        input_tokens=round(int(row[2] or 0) / minutes),
+        output_tokens=round(int(row[3] or 0) / minutes),
+        audio_seconds=None,
+    )
+
+
 def current_model(
     config: ProvidersConfig, ctx: TenantProviderContext, call: FeatureCall
 ) -> str | None:
@@ -150,11 +204,19 @@ async def feature_estimates(
     config: ProvidersConfig,
     ctx: TenantProviderContext,
 ) -> list[FeatureEstimate]:
-    histories: dict[str, TaskHistory] = {}
+    # By task and what one estimate covers: a minute of a call is not one call.
+    histories: dict[tuple[str, Per], TaskHistory] = {}
     for feature in catalog.features.values():
         for call in feature.calls:
-            if call.history and call.task not in histories:
-                histories[call.task] = await task_history(
+            key = (call.task, call.per)
+            if not call.history or key in histories:
+                continue
+            if call.per == "minute":
+                histories[key] = await minute_history(
+                    session, ctx.tenant_id, call.task, window=catalog.window
+                )
+            else:
+                histories[key] = await task_history(
                     session,
                     ctx.tenant_id,
                     call.task,
@@ -165,7 +227,9 @@ async def feature_estimates(
         FeatureEstimate(
             feature=name,
             calls=[
-                estimate_call(call, histories.get(call.task), current_model(config, ctx, call))
+                estimate_call(
+                    call, histories.get((call.task, call.per)), current_model(config, ctx, call)
+                )
                 for call in feature.calls
             ],
         )

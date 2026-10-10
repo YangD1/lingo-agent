@@ -119,6 +119,7 @@
 - **挂断后**：把双方转写存成一次对话（`conversations.purpose = realtime`），进入反思（记忆、证据，source `speaking`），再生成同 P3c 的口语小结。
 - **界面**：通话页（大按钮接通 / 挂断、静音、音量电平、双方实时字幕、工具活动、剩余时间），从 `/speaking` 的情景卡片或看板进入；没配实时连接时只显示级联模式。
 - **公示**：`features.yaml` 加 `realtime_call`（按分钟估算，写清楚比级联贵多少）；接通按钮挂 `AiBadge`；`docs/agent-tools.md` 加实时会话的工具。
+- **落地（任务 60，2026-10-11）**：按 Q60a–i 完成后端：`realtime` 路由节与厂商小表、`openai_realtime` 适配器（正式版 / beta 两种写法）、`WS /speech/realtime` 中继（cookie + Origin 校验、浏览器消息白名单、接通时按路由换家）、开场上下文、限额（另加同一学习者同时只能一通）、`realtime_call` 按每分钟估算、设置页“实时语音”路由与连接测试（只发会话设置不让模型说话）、`docs/agent-tools.md` 一节。实测：10 路并发 60 秒、双向一直有音频，进程内存共多约 2MB、CPU 约单核 2.3%，中继方案不用修订（ADR 0030 落地记录）。工具、挂断后转写 / 反思 / 小结、`gemini_live` 在任务 61，通话界面在 62。
 
 ## 7. 背词听音 / 拼写（P3e）
 

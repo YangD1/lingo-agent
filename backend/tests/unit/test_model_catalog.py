@@ -12,6 +12,7 @@ from app.providers.model_catalog import (
     ModelListError,
     categorize,
     fetch_models,
+    looks_like_realtime,
 )
 from app.providers.net_guard import make_async_http_client
 
@@ -62,6 +63,23 @@ def json_response(body: Any, status: int = 200) -> httpx2.Response:
 )
 def test_categorize(model_id: str, category: str) -> None:
     assert categorize(model_id) == category
+
+
+@pytest.mark.parametrize(
+    ("model_id", "realtime"),
+    [
+        ("gpt-realtime-2.1", True),
+        ("qwen3.8-omni-flash-realtime", True),
+        ("stepaudio-2.5-realtime", True),
+        # Streaming transcription, not speech-to-speech.
+        ("qwen3-asr-flash-realtime", False),
+        ("gpt-4o-transcribe-realtime", False),
+        ("qwen3-omni-flash", False),
+        ("gpt-5-mini", False),
+    ],
+)
+def test_looks_like_realtime(model_id: str, realtime: bool) -> None:
+    assert looks_like_realtime(model_id) is realtime
 
 
 async def test_openai_style_listing_is_sorted_and_deduplicated() -> None:

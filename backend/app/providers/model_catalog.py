@@ -72,6 +72,16 @@ def looks_like_text_to_speech(model_id: str) -> bool:
     return _TEXT_TO_SPEECH.search(model_id) is not None
 
 
+# Speech-to-speech models (ADR 0030 §2), whose connection test opens a session. Streaming
+# transcription models are named "...-realtime" too (qwen3-asr-flash-realtime).
+_REALTIME = re.compile(r"realtime", re.IGNORECASE)
+_STREAMING_ASR = re.compile(r"asr|transcri|whisper", re.IGNORECASE)
+
+
+def looks_like_realtime(model_id: str) -> bool:
+    return _REALTIME.search(model_id) is not None and _STREAMING_ASR.search(model_id) is None
+
+
 async def fetch_models(
     kind: ProviderKind,
     base_url: str,

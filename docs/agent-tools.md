@@ -26,10 +26,11 @@
 | `reading_rewrite` | `/reading` 列表页标题旁、阅读页的版本切换和“正在改写”提示旁（打开文章时 `POST /reading/articles/{id}/session` 取版本） | `article_rewrite`（改写 + 出题）、`reading_critic`（走 `exercise_critic` 路由）、被拒的题再加 `reading_questions`（走 `article_rewrite` 路由）；同租户同篇同等级只调一次，之后读缓存 |
 | `reading_coach` | 阅读页的“就这篇文章问私教”；阅读会话的输入框“发送” | `reading_coach`（立即，走 `chat` 路由，每轮带上文章，所以比普通一轮读得多）；`reflect`、`memory` 向量化（回复后在后台） |
 | `speaking_start` / `speaking_turn` / `speaking_summary` | `/speaking` 页：情景卡片的“开始”、口语会话的说话按钮和输入框、“结束并生成小结” | `speaking_start`：`speaking_opening`（走 `chat` 路由）。`speaking_turn`：语音时先 `asr`，再 `speaking`（走 `chat` 路由，回复很短）；`reflect`、`memory` 向量化（回复后在后台）。回复的朗读是 `read_aloud`。`speaking_summary`：`speaking_summary`（立即，一次结构化调用） |
+| `realtime_call` | 设置页“实时语音限额”标题旁（任务 60）；通话界面的接通按钮在任务 62 挂上 | `realtime`（走 `realtime` 路由，**按每分钟**估：厂商每次回答报一次用量，双方声音都按音频 token 计，按通话时长折成每分钟；有历史时取最近 20 通超过 30 秒、已挂断的通话）；选了情景时，接通前再加一次 `memory` 向量化（检索相关记忆）。音频 token 比文字贵得多，同样一分钟比 `speaking_turn` 贵好几倍 |
 | `reading_prerewrite` | 设置“后台任务”的“预先改写新文章”开关旁 | 同 `reading_rewrite`，全部 `background` |
 | `word_examples_prefetch` | 设置“后台任务”的“预先写好 AI 例句”开关旁 | 同 `word_examples`，`background`；每词一次，同租户同等级共用缓存 |
 
-设置页的“测试连接”不挂标记：只给管理员用，每次几个 token，且不走路由（ADR 0014 §4）。
+设置页的“测试连接”不挂标记：只给管理员用，每次几个 token，且不走路由（ADR 0014 §4）。测“实时语音”时只连上厂商、发会话设置、收到“已接受”就挂断，不让模型说话，所以不产生音频 token。
 
 ### 对话之外的调用
 
@@ -162,6 +163,21 @@
 | 改转写（Q58b） | `POST /speaking/sessions/{id}/corrections` → `speaking/evidence.py` `mark_corrected` | 这条消息要属于这次会话的学习者消息 | `speaking_sessions.corrected_message_ids`；删掉这条消息已有的语法证据并重放掌握度；改后的文字由前端作为新消息发送 | 无 | 对话里原消息标“已改” |
 | 口语小结 | `speaking/sessions.py` `end` + `speaking/summary.py`；提示词 `prompts/speaking_summary.md`（对话用 `<conversation>` 标出，写明是资料不是指令） | 整段对话（最多最后 12,000 字符）、情景、开始时的等级、讲解语言（画像，默认中文） | `speaking_sessions.summary`（引用不到学习者原话的错误和“更地道的说法”由代码丢掉）、`intelligibility`、`status`；语音轮数够 4 轮时按可理解度给口语能力走一步 Elo（`skill_estimates.speaking`，Q58d，只走一次）；小结里的错误不再记证据（反思已经记过） | `llm/speaking_summary`（结构化输出） | `/speaking/{id}` 结束后的小结（错误、改法、更地道的说法可跟读，表达可加入生词本）；`/speaking`“练过的”里删除这次练习即删除小结，已计入的口语能力保留 |
 | 补小结（Q58c） | `GET /speaking/sessions`、`GET /speaking/sessions/{id}` 发现超过 30 分钟没动静的进行中会话时，在响应发出后生成 | 同上 | 同上 | 同上 | 同上；不用后台定时任务，不占后台每日额度 |
+
+## 实时语音通话（ADR 0030，任务 60）
+
+学习者和私教“打电话”：浏览器 ↔ 后端 `WS /speech/realtime` ↔ 厂商（OpenAI Realtime 协议，OpenAI、通义千问 Omni、阶跃 StepFun）。后端只转发音频，不解码。任务 60 还没有工具（`lookup_word` 等在任务 61），通话界面在任务 62；这一节列出现在已经执行的步骤。
+
+| 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
+|---|---|---|---|---|---|
+| 接通前检查 | `api/realtime.py` `realtime_call`、`realtime/limits.py` `call_limit` | 登录 cookie 和 Origin（防跨站）；租户的单次分钟数和每人每天分钟数、今天已经打过的分钟；有没有正在打的另一通 | 无（不通过时回一条 `ended`，带 `realtime_off` / `realtime_used_up` / `realtime_busy` / `no_realtime_model` / `realtime_unavailable`） | 无 | `/speech/capabilities` 的 `realtime`、`realtime_minutes_left`（界面在任务 62） |
+| 开场上下文（只注入一次，通话中不再检索） | `realtime/context.py` `call_instructions`；提示词 `prompts/realtime_tutor.md` | 通话规则（说英语、短句、可被打断、只用 recast 纠错）；情景（标题、私教角色、学习者目标、目标表达）或自由聊；学习者等级和每轮句数上限；画像、记忆里的事实；选了情景时再按情景英文标题和学习者目标检索相关的往期对话摘要（Q60e），自由聊不带往期摘要 | 无 | 选了情景时 `embedding/memory`（检索用的一次向量化） | 记忆在 `/memory` 可查看、编辑、删除，删了下一通就不会再带 |
+| 接通 | `providers/openai_realtime.py` `open_session`、`providers/realtime.py` `get_realtime` | 租户的 `realtime` 路由，按顺序试，只有接通失败才换下一家，通话中不换 | `speaking_sessions`（`mode = realtime`）和一次会话（`purpose = realtime`） | — | `/speaking` 的练过列表（任务 61 起显示通话） |
+| 通话中 | `realtime/relay.py` `RealtimeCall` | 浏览器只能发音频、`interrupt`、`end`，其他消息丢弃；学习者音频超过实际时长的部分丢弃 | 每 15 秒写一次 `speaking_sessions.call_seconds`（重启也不丢已用分钟）；厂商每次回答记一条 `llm_usage`（task `realtime`，音频 token 计入 input / output，另记学习者音频秒数） | `realtime/realtime` | 字幕和剩余时间（任务 62）；设置页“用量” |
+| 限时 | 同上 `_clock_loop` | 本次上限 = min(单次分钟, 今天剩余) | 结束前 1 分钟推 `time_warning`；到点推 `wrapping_up`，让私教说再见，期间学习者说话不打断；说完或最多 10 秒后挂断 | 同上（道别那一次回答） | 通话界面（任务 62） |
+| 挂断 | `realtime/calls.py` `finish`；后端启动时 `close_orphaned` 关掉上次重启断掉的通话 | — | `speaking_sessions.status = done`、`ended_at`、最终 `call_seconds`。**双方转写、反思、小结还没做（任务 61）**，现在挂断后不留对话内容 | 无 | — |
+
+管理员在设置页：“实时语音”路由（顺序、开关、测试连接）、“实时语音限额”（`GET/PUT /tenant/realtime`，填 0 关闭）。
 
 ## 练习组的出题与批改（ADR 0021 §3–§4、§6，任务 33–35）
 

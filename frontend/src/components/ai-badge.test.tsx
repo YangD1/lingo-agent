@@ -45,6 +45,10 @@ const estimates = {
     },
     { feature: "chat_image", calls: [call({ task: "vision", per: "image" })] },
     { feature: "read_aloud", calls: [call({ task: "tts", characters: 60 })] },
+    {
+      feature: "realtime_call",
+      calls: [call({ task: "realtime", per: "minute", input_tokens: 20000, output_tokens: 1000 })],
+    },
   ],
 };
 
@@ -104,6 +108,17 @@ describe("AiBadge", () => {
     await userEvent.click(screen.getByRole("button", { name: /使用 AI/ }));
     expect(await screen.findByText(/约 60 个字符（按字符计费/)).toBeInTheDocument();
     expect(screen.getByText("朗读")).toBeInTheDocument();
+  });
+
+  it("estimates a realtime call per minute", async () => {
+    api.mockResolvedValue(estimates);
+    show("realtime_call");
+    await userEvent.click(screen.getByRole("button", { name: /Uses AI/ }));
+    expect(
+      await screen.findByText(/≈ 20,000 input \+ 1,000 output tokens per minute/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("realtime call")).toBeInTheDocument();
+    expect(screen.getByTestId("ai-badge-details")).toHaveTextContent("costs several times");
   });
 
   it("explains every feature behind one control", async () => {

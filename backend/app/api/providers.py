@@ -15,6 +15,7 @@ from app.db.models import ProviderConnection
 from app.deps import CurrentTenant, CurrentUser, Manager, SessionDep, SettingsDep
 from app.providers.config import (
     ASR_KINDS,
+    REALTIME_KINDS,
     SECTIONS,
     SPEECH_ONLY_KINDS,
     TTS_KINDS,
@@ -34,6 +35,7 @@ from app.providers.model_catalog import (
     AZURE_PRONUNCIATION_MODEL,
     ModelCategory,
     ModelListError,
+    looks_like_realtime,
     looks_like_speech_to_text,
     looks_like_text_to_speech,
 )
@@ -287,13 +289,16 @@ async def _test_purpose(
 ) -> TestPurpose:
     """Speech-to-text when the model's name says so or the tenant's speech-to-text route
     uses it: a chat message would fail on such a model, and pass on a relay that has no
-    /audio/transcriptions at all. Vision when the vision route uses it."""
+    /audio/transcriptions at all. Realtime voice likewise. Vision when the vision route
+    uses it."""
     if conn.kind in SPEECH_ONLY_KINDS:
         return "pronunciation" if model == AZURE_PRONUNCIATION_MODEL else "tts"
     if conn.kind in ASR_KINDS and looks_like_speech_to_text(model):
         return "asr"
     if conn.kind in TTS_KINDS and looks_like_text_to_speech(model):
         return "tts"
+    if conn.kind in REALTIME_KINDS and looks_like_realtime(model):
+        return "realtime"
     ctx = await load_provider_context(session, tenant_id)
 
     def on_route(section: Section, task: str) -> bool:
@@ -311,6 +316,8 @@ async def _test_purpose(
         return "asr"
     if conn.kind in TTS_KINDS and on_route("tts", "default"):
         return "tts"
+    if conn.kind in REALTIME_KINDS and on_route("realtime", "default"):
+        return "realtime"
     return "vision" if on_route("llm", "vision") else "chat"
 
 

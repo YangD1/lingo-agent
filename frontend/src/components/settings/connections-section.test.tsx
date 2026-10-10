@@ -167,4 +167,27 @@ describe("ConnectionsSection", () => {
     await waitFor(() => expect(item).toHaveTextContent("Pronunciation assessment works (120 ms)"));
     expect(screen.getByRole("option", { name: "Pronunciation" })).toBeInTheDocument();
   });
+
+  it("tests a model as realtime voice when asked to", async () => {
+    api.mockImplementation(async (path: string) =>
+      path.endsWith("/test")
+        ? { ok: true, error: null, error_code: null, latency_ms: 300, purpose: "realtime" }
+        : [RELAY],
+    );
+    show([RELAY]);
+    const item = screen.getByTestId("connection-relay");
+    const model = screen.getByLabelText("Default model");
+    await userEvent.clear(model);
+    await userEvent.type(model, "gpt-realtime-2.1");
+    await userEvent.keyboard("{Escape}");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Test as" }), "realtime");
+
+    await userEvent.click(screen.getByRole("button", { name: "Test" }));
+
+    expect(api).toHaveBeenCalledWith("/tenant/connections/c1/test", {
+      method: "POST",
+      json: { model: "gpt-realtime-2.1", purpose: "realtime" },
+    });
+    await waitFor(() => expect(item).toHaveTextContent("Realtime voice connects (300 ms)"));
+  });
 });
