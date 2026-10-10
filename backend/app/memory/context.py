@@ -49,13 +49,14 @@ class LearnerSource(Protocol):
 
 class DatabaseLearner:
     """LearnerSource over one learner's rows; `conversation_id` is the current one,
-    whose own summary is left out (its messages are already in the prompt)."""
+    whose own summary is left out (its messages are already in the prompt). None: no
+    conversation yet (a realtime call is set up before its conversation exists)."""
 
     def __init__(
         self,
         sessionmaker: async_sessionmaker[AsyncSession],
         user_id: uuid.UUID,
-        conversation_id: uuid.UUID,
+        conversation_id: uuid.UUID | None,
         embedder: MemoryEmbedder | None,
     ) -> None:
         self._sessionmaker = sessionmaker

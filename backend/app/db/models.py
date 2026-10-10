@@ -1446,6 +1446,7 @@ class SpeakingSession(Base):
         CheckConstraint(_in("intelligibility", INTELLIGIBILITY), name="intelligibility"),
         CheckConstraint("turns >= 0", name="turns"),
         CheckConstraint("spoken_seconds >= 0", name="spoken_seconds"),
+        CheckConstraint("call_seconds >= 0", name="call_seconds"),
         Index("ix_speaking_sessions_user_id_started_at", "user_id", "started_at"),
     )
 
@@ -1467,6 +1468,9 @@ class SpeakingSession(Base):
     corrected_message_ids: Mapped[list[str]] = mapped_column(
         JSONB, default=list, server_default="[]"
     )
+    # Realtime only: how long the call has been connected (ADR 0030 §5, Q60f), written
+    # as it goes so a call cut off by a restart still counts toward the daily minutes.
+    call_seconds: Mapped[float] = mapped_column(Float, default=0, server_default="0")
     summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     intelligibility: Mapped[str | None] = mapped_column(String(10))
     # The summary moved speaking ability (Q58d: enough spoken turns).

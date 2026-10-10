@@ -385,6 +385,9 @@ async def start_turn(
     # endpoint body runs only after the headers are sent.
     response.headers["Cache-Control"] = "no-transform"
     conversation = await _owned(session, user, conversation_id)
+    if conversation.purpose == "realtime":
+        # A call's transcript is written by the relay only (ADR 0030 §6).
+        raise _conflict("realtime_call", "A voice call's conversation takes no messages.")
     attachments = await _message_attachments(session, conversation, body.attachment_ids)
     # A turn with images is answered by the vision route (ADR 0008 §4).
     task = "vision" if any(a.kind == "image" for a in attachments) else "chat"

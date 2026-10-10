@@ -10,7 +10,7 @@ background.
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlalchemy import select, update
@@ -29,6 +29,8 @@ from app.speaking.scenarios import Scenario, get_scenarios, rank
 
 logger = logging.getLogger(__name__)
 
+type SpeakingMode = Literal["cascade", "realtime"]
+
 # A spoken turn's length when the transcription didn't say: about 150 words a minute.
 WORDS_PER_SECOND = 2.5
 
@@ -44,9 +46,11 @@ async def start(
     scenario_id: str | None,
     *,
     locale: str | None = None,
+    mode: SpeakingMode = "cascade",
 ) -> SpeakingSession:
     """A new speaking conversation and its session, at the learner's level; commits.
-    Raises `UnknownScenarioError` for an id not in the scenario file."""
+    A realtime one (ADR 0030 §6) is a `purpose = realtime` conversation. Raises
+    `UnknownScenarioError` for an id not in the scenario file."""
     scenario = None
     if scenario_id is not None and (scenario := get_scenarios().get(scenario_id)) is None:
         raise UnknownScenarioError(scenario_id)
@@ -57,9 +61,9 @@ async def start(
     conversation = Conversation(
         tenant_id=tenant_id,
         user_id=user_id,
-        purpose="speaking",
+        purpose="speaking" if mode == "cascade" else "realtime",
         scenario_id=scenario_id,
-        title=speaking_title(scenario, locale),
+        title=speaking_title(scenario, locale, realtime=mode == "realtime"),
     )
     session.add(conversation)
     await session.flush()
@@ -67,6 +71,7 @@ async def start(
         user_id=user_id,
         conversation_id=conversation.id,
         scenario_id=scenario_id,
+        mode=mode,
         level=level or rules.practice.default_level,
     )
     session.add(row)
@@ -75,10 +80,12 @@ async def start(
     return row
 
 
-def speaking_title(scenario: Scenario | None, locale: str | None) -> str:
+def speaking_title(scenario: Scenario | None, locale: str | None, *, realtime: bool = False) -> str:
     if locale and locale.lower().startswith("zh"):
-        return f"口语：{scenario.title_zh if scenario else '自由聊'}"  # noqa: RUF001
-    return f"Speaking: {scenario.title_en if scenario else 'Free talk'}"
+        prefix = "通话" if realtime else "口语"
+        return f"{prefix}：{scenario.title_zh if scenario else '自由聊'}"  # noqa: RUF001
+    prefix = "Call" if realtime else "Speaking"
+    return f"{prefix}: {scenario.title_en if scenario else 'Free talk'}"
 
 
 async def record_turn(
@@ -111,6 +118,8 @@ async def idle_sessions(
         .where(
             SpeakingSession.user_id == user_id,
             SpeakingSession.status == "active",
+            # A call ends when it hangs up (ADR 0030 §6), not by idling.
+            SpeakingSession.mode == "cascade",
             Conversation.updated_at < cutoff,
         )
     )

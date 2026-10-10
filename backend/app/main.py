@@ -34,6 +34,7 @@ from app.api import (
     practice,
     providers,
     reading,
+    realtime,
     speaking,
     speech,
     usage,
@@ -52,6 +53,7 @@ from app.memory.worker import ReflectionWorker
 from app.observability import setup_tracing, shutdown_tracing
 from app.placement.service import PlacementRuntime
 from app.providers.llm import get_providers_config
+from app.realtime.calls import RealtimeCalls, close_orphaned
 from app.scheduler.jobs import JOBS
 from app.scheduler.service import Scheduler
 from app.services.news.sources import sync_builtin_feeds
@@ -90,6 +92,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if await sync_kc_edges(session):
             logger.info("grammar graph (kc_edges) synced from grammar.yaml")
         await session.commit()
+    if orphaned := await close_orphaned(app.state.sessionmaker):
+        logger.warning("%d realtime calls were cut off by the last shutdown", orphaned)
     interrupted = await fail_interrupted(app.state.sessionmaker)
     if interrupted:
         logger.warning("%d attachments were mid-processing at the last shutdown", interrupted)
@@ -139,6 +143,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        # First, while the database is still there: each call closes its row and tells
+        # the browser why it ended (ADR 0030 §1).
+        await app.state.realtime_calls.stop_all()
         try:
             async with asyncio.timeout(5):
                 # Cut-off runs are marked failed at the next start, then caught up.
@@ -200,6 +207,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(title="lingo-agent", version="0.1.0", lifespan=lifespan)
     app.state.conversation_locks = ConversationLocks()
+    app.state.realtime_calls = RealtimeCalls()
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)
@@ -223,6 +231,7 @@ def create_app() -> FastAPI:
     app.include_router(speech.router)
     app.include_router(word_audio.router)
     app.include_router(speaking.router)
+    app.include_router(realtime.router)
     return app
 
 

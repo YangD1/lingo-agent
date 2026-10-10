@@ -1,0 +1,361 @@
+"""The realtime relay end to end (ADR 0030, task 60.3): a real server, a browser-like
+WebSocket client and the in-process fake vendor."""
+
+import asyncio
+import base64
+import json
+from collections.abc import AsyncIterator, Iterator
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+import uvicorn
+from fastapi import FastAPI
+from httpx import AsyncClient
+from pydantic import SecretStr
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from websockets.asyncio.client import ClientConnection, connect
+from websockets.exceptions import InvalidStatus
+
+from app.adaptive.rules import get_rules
+from app.api import realtime as realtime_api
+from app.credentials import service
+from app.credentials.crypto import get_keyring
+from app.db.models import Conversation, SpeakingSession, Tenant, TenantMember, User
+from app.deps import AUTH_COOKIE
+from app.providers import openai_realtime
+from app.providers.llm import get_providers_config
+from app.realtime import calls
+from app.speaking import sessions
+from app.speaking.scenarios import get_scenarios
+from app.usage import recorder as usage_recorder
+from app.usage.recorder import UsageRecord
+from tests.fake_realtime_vendor import FakeVendor, fake_vendor
+
+
+@pytest.fixture(autouse=True)
+def local_vendors(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = SimpleNamespace(provider_allow_private_networks=True)
+    monkeypatch.setattr(openai_realtime, "get_settings", lambda: settings)
+
+
+@pytest.fixture
+def usage_records() -> Iterator[list[UsageRecord]]:
+    records: list[UsageRecord] = []
+    usage_recorder.set_usage_sink(records.append)
+    yield records
+    usage_recorder.set_usage_sink(None)
+
+
+@pytest.fixture
+async def server(app: FastAPI) -> AsyncIterator[str]:
+    """The app on a real port: the relay needs a real WebSocket."""
+    config = uvicorn.Config(app, host="127.0.0.1", port=0, lifespan="off", log_level="warning")
+    srv = uvicorn.Server(config)
+    task = asyncio.create_task(srv.serve())
+    while not srv.started:  # noqa: ASYNC110 (uvicorn offers no event to wait on)
+        await asyncio.sleep(0.01)
+    port = srv.servers[0].sockets[0].getsockname()[1]
+    yield f"127.0.0.1:{port}"
+    srv.should_exit = True
+    await task
+
+
+async def sign_up(client: AsyncClient, email: str = "caller@example.com") -> str:
+    response = await client.post("/auth/register", json={"email": email, "password": "password123"})
+    assert response.status_code == 201
+    token = client.cookies.get(AUTH_COOKIE)
+    assert token
+    return token
+
+
+async def add_vendor(
+    db_session: AsyncSession, client: AsyncClient, name: str, vendor: FakeVendor
+) -> None:
+    """A connection the realtime route reaches the fake at; `kind=openai` on an unknown
+    host speaks OpenAI's current spelling at 24 kHz."""
+    tenant_id = await db_session.scalar(select(TenantMember.tenant_id).limit(1))
+    assert tenant_id is not None
+    await service.create_connection(
+        db_session,
+        tenant_id=tenant_id,
+        config=get_providers_config(),
+        keyring=get_keyring(),
+        allow_private=True,
+        preset=None,
+        name=name,
+        kind="openai",
+        base_url="https://api.openai.com/v1",
+        api_key=SecretStr("sk-test-realtime-key"),
+        params=service.CallParams(realtime_url=vendor.url),
+    )
+
+
+async def set_route(client: AsyncClient, *refs: str) -> None:
+    response = await client.put("/tenant/routes/realtime/default", json={"models": list(refs)})
+    assert response.status_code == 200, response.text
+
+
+def dial(host: str, token: str, *, query: str = "", origin: str | None = None) -> Any:
+    return connect(
+        f"ws://{host}/speech/realtime{query}",
+        additional_headers={"Cookie": f"{AUTH_COOKIE}={token}"},
+        origin=origin or f"http://{host}",  # type: ignore[arg-type]
+        compression=None,
+    )
+
+
+async def next_json(ws: ClientConnection) -> dict[str, Any]:
+    while True:
+        message = await asyncio.wait_for(ws.recv(), 5)
+        if isinstance(message, str):
+            data: dict[str, Any] = json.loads(message)
+            return data
+
+
+async def until(ws: ClientConnection, kind: str) -> dict[str, Any]:
+    while (event := await next_json(ws))["type"] != kind:
+        pass
+    return event
+
+
+async def test_a_call_relays_audio_subtitles_and_usage(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    server: str,
+    usage_records: list[UsageRecord],
+) -> None:
+    token = await sign_up(client)
+    async with fake_vendor() as vendor:
+        await add_vendor(db_session, client, "voice", vendor)
+        await set_route(client, "voice:gpt-realtime-2.1")
+        reply = base64.b64encode(b"\x10\x00" * 240).decode()
+        vendor.on(
+            "input_audio_buffer.append",
+            {"type": "input_audio_buffer.speech_started"},
+            {
+                "type": "conversation.item.input_audio_transcription.completed",
+                "item_id": "u1",
+                "transcript": "Hello there",
+            },
+            {"type": "response.output_audio.delta", "item_id": "a1", "delta": reply},
+            {"type": "response.output_audio_transcript.done", "item_id": "a1", "transcript": "Hi!"},
+            {
+                "type": "response.done",
+                "response": {
+                    "status": "completed",
+                    "usage": {"input_tokens": 50, "output_tokens": 30},
+                },
+            },
+        )
+        async with dial(server, token, query="?scenario=self_intro") as ws:
+            ready = await next_json(ws)
+            assert ready["type"] == "ready"
+            assert (ready["input_rate"], ready["output_rate"]) == (24_000, 24_000)
+            assert ready["limit_seconds"] == 900
+            await ws.send(b"\x00\x00" * 2400)  # 0.1 s of learner audio
+            assert await next_json(ws) == {"type": "speech_started"}
+            learner = await next_json(ws)
+            assert (learner["role"], learner["text"], learner["final"]) == (
+                "learner",
+                "Hello there",
+                True,
+            )
+            audio = await asyncio.wait_for(ws.recv(), 5)
+            assert audio == b"\x10\x00" * 240
+            tutor = await next_json(ws)
+            assert (tutor["role"], tutor["text"]) == ("tutor", "Hi!")
+            assert await next_json(ws) == {"type": "response_done"}
+            await ws.send(json.dumps({"type": "end"}))
+            assert await until(ws, "ended") == {"type": "ended", "reason": "hangup"}
+
+        settings = vendor.of_type("session.update")[0]["session"]
+        intro = get_scenarios().get("self_intro")
+        assert intro is not None and intro.opening in settings["instructions"]
+        # The tutor speaks first, as the instructions say (Q58e).
+        assert vendor.received[1] == {"type": "response.create"}
+        assert vendor.headers[0]["authorization"] == "Bearer sk-test-realtime-key"
+        (append,) = vendor.of_type("input_audio_buffer.append")
+        assert base64.b64decode(append["audio"]) == b"\x00\x00" * 2400
+
+    (usage,) = [r for r in usage_records if r.task == "realtime"]
+    assert (usage.input_tokens, usage.output_tokens, usage.status) == (50, 30, "ok")
+    assert usage.audio_seconds == 0.1
+    assert (usage.connection_name, usage.model, usage.is_fallback) == (
+        "voice",
+        "gpt-realtime-2.1",
+        False,
+    )
+    db_session.expire_all()
+    row = await db_session.scalar(select(SpeakingSession))
+    assert row is not None
+    assert (row.mode, row.status, row.scenario_id) == ("realtime", "done", "self_intro")
+    assert row.ended_at is not None and row.call_seconds > 0
+    conversation = await db_session.get(Conversation, row.conversation_id)
+    assert conversation is not None and conversation.purpose == "realtime"
+    assert usage.conversation_id == row.conversation_id
+    # Nobody types into a call's conversation.
+    typed = await client.post(
+        f"/conversations/{row.conversation_id}/messages", json={"content": "hi"}
+    )
+    assert typed.status_code == 409
+    assert typed.json()["detail"]["code"] == "realtime_call"
+
+
+async def test_falls_back_when_connecting_only(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    server: str,
+    usage_records: list[UsageRecord],
+) -> None:
+    token = await sign_up(client)
+    async with fake_vendor() as broken, fake_vendor() as working:
+        broken.refuse = True
+        await add_vendor(db_session, client, "first", broken)
+        await add_vendor(db_session, client, "second", working)
+        await set_route(client, "first:gpt-realtime-2.1", "second:gpt-realtime-2.1")
+        working.on(
+            "input_audio_buffer.append",
+            {"type": "response.done", "response": {"status": "completed"}},
+        )
+        async with dial(server, token) as ws:
+            assert (await next_json(ws))["type"] == "ready"
+            await ws.send(b"\x00\x00" * 100)
+            await until(ws, "response_done")
+            await ws.send(json.dumps({"type": "end"}))
+            await until(ws, "ended")
+
+    failed, answered = (r for r in usage_records if r.task == "realtime")
+    assert (failed.connection_name, failed.status, failed.is_fallback) == ("first", "error", False)
+    assert (answered.connection_name, answered.status, answered.is_fallback) == (
+        "second",
+        "ok",
+        True,
+    )
+    # A vendor without usage still leaves a row with the audio it was sent.
+    assert (answered.input_tokens, answered.audio_seconds) == (0, round(200 / 48_000, 2))
+
+
+async def test_refusals_before_the_call(
+    client: AsyncClient, db_session: AsyncSession, server: str
+) -> None:
+    token = await sign_up(client)
+    # Another site's page can't open a call with the learner's cookie.
+    with pytest.raises(InvalidStatus) as caught:
+        async with dial(server, token, origin="https://evil.example.com"):
+            pass
+    assert caught.value.response.status_code == 403
+    with pytest.raises(InvalidStatus):
+        async with dial(server, "not-a-token"):
+            pass
+
+    async with dial(server, token) as ws:
+        assert await next_json(ws) == {
+            "type": "ended",
+            "reason": "refused",
+            "code": "no_realtime_model",
+        }
+    # Behind the frontend's proxy the browser's host comes as X-Forwarded-Host (checked
+    # with `next dev`, 2026-10-10).
+    async with connect(
+        f"ws://{server}/speech/realtime",
+        additional_headers={
+            "Cookie": f"{AUTH_COOKIE}={token}",
+            "X-Forwarded-Host": "localhost:3000",
+        },
+        origin="http://localhost:3000",  # type: ignore[arg-type]
+    ) as ws:
+        assert (await next_json(ws))["code"] == "no_realtime_model"
+    async with fake_vendor() as vendor:
+        await add_vendor(db_session, client, "voice", vendor)
+        await set_route(client, "voice:gpt-realtime-2.1")
+        async with dial(server, token, query="?scenario=no_such_thing") as ws:
+            assert (await next_json(ws))["code"] == "unknown_scenario"
+        vendor.refuse = True
+        async with dial(server, token) as ws:
+            assert (await next_json(ws))["code"] == "realtime_unavailable"
+    assert await db_session.scalar(select(SpeakingSession)) is None
+
+
+async def test_browser_messages_are_white_listed_and_metered(
+    client: AsyncClient, db_session: AsyncSession, server: str
+) -> None:
+    token = await sign_up(client)
+    async with fake_vendor() as vendor:
+        await add_vendor(db_session, client, "voice", vendor)
+        await set_route(client, "voice:gpt-realtime-2.1")
+        async with dial(server, token) as ws:
+            await next_json(ws)
+            await ws.send(json.dumps({"type": "session.update", "session": {"instructions": "x"}}))
+            await ws.send("not json")
+            await ws.send(b"\x00")  # half a sample
+            await ws.send(b"\x00\x00" * 40_000)  # over the frame limit
+            # Ten seconds of audio at once: only about two seconds' burst gets through.
+            for _ in range(20):
+                await ws.send(b"\x00\x00" * 12_000)
+            await ws.send(json.dumps({"type": "interrupt", "played_ms": 800}))
+            await ws.send(json.dumps({"type": "end"}))
+            await until(ws, "ended")
+
+    assert len(vendor.of_type("session.update")) == 1  # the backend's own only
+    appended = sum(
+        len(base64.b64decode(e["audio"])) for e in vendor.of_type("input_audio_buffer.append")
+    )
+    assert 0 < appended <= 3 * 48_000
+    assert vendor.of_type("response.cancel")
+
+
+async def test_time_limit_and_shutdown_end_calls(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    server: str,
+    app: FastAPI,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    token = await sign_up(client)
+    async with fake_vendor() as vendor:
+        await add_vendor(db_session, client, "voice", vendor)
+        await set_route(client, "voice:gpt-realtime-2.1")
+        monkeypatch.setattr(realtime_api, "DEFAULT_LIMIT_SECONDS", 1)
+        async with dial(server, token) as ws:
+            assert (await next_json(ws))["limit_seconds"] == 1
+            assert await until(ws, "ended") == {"type": "ended", "reason": "time_limit"}
+
+        monkeypatch.setattr(realtime_api, "DEFAULT_LIMIT_SECONDS", 600)
+        async with dial(server, token) as ws:
+            await next_json(ws)
+            assert len(app.state.realtime_calls) == 1
+            await app.state.realtime_calls.stop_all()
+            assert await until(ws, "ended") == {"type": "ended", "reason": "server_stopping"}
+        assert len(app.state.realtime_calls) == 0
+
+    db_session.expire_all()
+    rows = (await db_session.scalars(select(SpeakingSession))).all()
+    assert [r.status for r in rows] == ["done", "done"]
+
+
+async def test_cut_off_calls_are_closed_and_never_idle(
+    client: AsyncClient, db_session: AsyncSession, app: FastAPI
+) -> None:
+    await sign_up(client)
+    user = await db_session.scalar(select(User))
+    tenant = await db_session.scalar(select(Tenant))
+    assert user is not None and tenant is not None
+    call = await sessions.start(db_session, tenant.id, user.id, None, mode="realtime")
+    talk = await sessions.start(db_session, tenant.id, user.id, None)
+    call_id, talk_id = call.id, talk.id
+    long_ago = datetime.now(UTC) - timedelta(hours=2)
+    await db_session.execute(update(Conversation).values(updated_at=long_ago))
+    await db_session.commit()
+
+    idle = await sessions.idle_sessions(db_session, user.id, datetime.now(UTC), get_rules())
+    assert idle == [talk_id]
+    assert await calls.close_orphaned(app.state.sessionmaker) == 1
+    db_session.expire_all()
+    closed = await db_session.get(SpeakingSession, call_id)
+    still = await db_session.get(SpeakingSession, talk_id)
+    assert closed is not None and still is not None
+    assert (closed.status, still.status) == ("done", "active")
+    assert closed.ended_at is not None
