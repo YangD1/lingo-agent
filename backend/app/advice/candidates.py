@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive import mastery
+from app.adaptive.evidence import CONVERSATION_SOURCES
 from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, GrammarKC
 from app.adaptive.rules import Rules
 from app.advice import reminder
@@ -193,7 +194,7 @@ async def _weak_kcs(
     counted = (
         KCEvidence.user_id == user_id,
         KCEvidence.correct.is_(False),
-        KCEvidence.source == "chat",
+        KCEvidence.source.in_(CONVERSATION_SOURCES),
         KCEvidence.severity.in_(rules.evidence.counted_severities),
         KCEvidence.created_at >= now - timedelta(days=rules.advice.grammar_days),
     )

@@ -209,6 +209,19 @@ async def test_only_conversation_sentences_are_rewritten(db_session: AsyncSessio
     assert not found.states[PERFECT].has_own_sentence
 
 
+async def test_spoken_sentences_are_rewritten_too(db_session: AsyncSession) -> None:
+    user_id, _ = await learner(db_session)
+    (spoken,) = await add(
+        db_session,
+        user_id,
+        mistake(user_id, THIRD, days_ago=1, source="speaking", original="She like tea."),
+    )
+
+    found = await load(db_session, user_id)
+
+    assert found.own_sentences[THIRD].evidence_id == spoken
+
+
 async def test_facts_are_the_most_recent_few(db_session: AsyncSession) -> None:
     user_id, tenant_id = await learner(db_session)
     for i in range(inputs.CONTEXT_FACTS + 2):

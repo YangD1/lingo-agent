@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-10.1"
+version: "2026-10-10.2"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -431,3 +431,31 @@ pronunciation:
   # A word read with accuracy below this is marked "you don't say this one right" on
   # its review card; a later reading at or above it clears the mark.
   word_threshold: 60
+
+# Speaking practice (ADR 0029).
+speaking:
+  # speaking_coach's replies are spoken aloud: at most this many sentences, by the
+  # learner's level (ADR 0029 §2).
+  max_sentences:
+    A1: 2
+    A2: 2
+    B1: 3
+    B2: 3
+    C1: 4
+    C2: 4
+  # A spoken turn with fewer words than this gives no mistake evidence: a short
+  # transcript is too easily wrong (Q58a). Typed turns are not filtered.
+  min_words_for_mistakes: 3
+  # The summary rates how easy the learner was to understand; speaking ability takes one
+  # Elo step with this outcome (Q58d), against cefr_anchor of the learner's level kept
+  # within the scenario's range (free talk: the learner's level).
+  intelligibility_outcome:
+    hard: 0.25
+    partly: 0.5
+    mostly: 0.75
+    fully: 1.0
+  # Fewer spoken turns than this: the summary is made but ability does not move.
+  min_spoken_turns: 4
+  # A session left this long without a turn is summed up when the learner next opens
+  # it or the speaking page (Q58c).
+  idle_minutes: 30

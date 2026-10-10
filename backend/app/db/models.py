@@ -28,7 +28,7 @@ from sqlalchemy.orm import Mapped, deferred, mapped_column
 
 from app.adaptive.exercise.formats import FORMATS
 from app.adaptive.kc.catalog import ERROR_TYPES
-from app.adaptive.rules import EVIDENCE_KINDS, SEVERITIES
+from app.adaptive.rules import EVIDENCE_KINDS, INTELLIGIBILITY, SEVERITIES
 from app.db.base import Base, TimestampMixin
 
 # Stored as CHECK-constrained strings rather than PG ENUM types: adding a value is a
@@ -46,7 +46,8 @@ EXPLANATION_LANGUAGES = ("zh", "en")
 KC_KINDS = ("grammar", "word")
 # Edges of the grammar graph (ADR 0022).
 KC_EDGE_KINDS = ("prerequisite", "confusable")
-EVIDENCE_SOURCES = ("chat", "placement", "exercise", "writing", "reading")
+# speaking: the learner's turns in a speaking conversation (ADR 0029 §4).
+EVIDENCE_SOURCES = ("chat", "placement", "exercise", "writing", "reading", "speaking")
 SKILLS = ("listening", "speaking", "reading", "writing", "grammar", "vocab")
 ACTIVITY_KINDS = ("step", "tool", "mcp", "background")
 ACTIVITY_STATUSES = ("ok", "failed", "skipped")
@@ -54,8 +55,9 @@ CARD_SOURCES = ("book", "auto", "manual", "placement")
 CARD_STATUSES = ("new", "learning", "known", "suspended")
 PLACEMENT_STATUSES = ("in_progress", "done", "abandoned")
 PLACEMENT_STAGES = ("vocab", "grammar")
-# planning: after a placement test (ADR 0015 §6); daily: the dashboard's (ADR 0016).
-CONVERSATION_PURPOSES = ("planning", "daily", "reading")
+# planning: after a placement test (ADR 0015 §6); daily: the dashboard's (ADR 0016);
+# speaking / realtime: spoken practice, cascaded or by realtime voice (ADR 0029, 0030).
+CONVERSATION_PURPOSES = ("planning", "daily", "reading", "speaking", "realtime")
 # A writing submission is reviewed in the background (Q38c).
 WRITING_STATUSES = ("pending", "done", "failed")
 SCHEDULER_RUN_STATUSES = ("running", "ok", "skipped", "error")
@@ -87,6 +89,10 @@ EXERCISE_STATUSES = ("ok", "rejected", "reported")
 DIAGNOSIS_TRIGGERS = ("weekly", "after_set")
 # proposed -> applied | declined; applied -> proposed again when the learner undoes it.
 DAILY_PLAN_STATUSES = ("proposed", "applied", "declined")
+# How a speaking session was held (ADR 0029 §5).
+SPEAKING_MODES = ("cascade", "realtime")
+# active -> done | failed (the summary call failed; it may be made again).
+SPEAKING_STATUSES = ("active", "done", "failed")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -164,6 +170,9 @@ class Conversation(TimestampMixin, Base):
     article_id: Mapped[int | None] = mapped_column(
         ForeignKey("articles.id", ondelete="SET NULL"), index=True
     )
+    # A speaking conversation's scenario (ADR 0029 §1); NULL for free talk. No FK: the
+    # scenarios are a file, checked when the row is written.
+    scenario_id: Mapped[str | None] = mapped_column(String(40))
 
 
 class ProviderConnection(TimestampMixin, Base):
@@ -1418,3 +1427,49 @@ class DailyPlan(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SpeakingSession(Base):
+    """One speaking conversation, cascaded or realtime (ADR 0029 §5): its counts and,
+    once ended, the summary.
+
+    `summary` is the validated `speaking_summary` output, in the learner's explanation
+    language; null until made. `corrected_message_ids` are learner messages whose
+    transcript the learner fixed and sent again (Q58b): they count as no evidence.
+    """
+
+    __tablename__ = "speaking_sessions"
+    __table_args__ = (
+        CheckConstraint(_in("mode", SPEAKING_MODES), name="mode"),
+        CheckConstraint(_in("status", SPEAKING_STATUSES), name="status"),
+        CheckConstraint(_in("level", CEFR_LEVELS), name="level"),
+        CheckConstraint(_in("intelligibility", INTELLIGIBILITY), name="intelligibility"),
+        CheckConstraint("turns >= 0", name="turns"),
+        CheckConstraint("spoken_seconds >= 0", name="spoken_seconds"),
+        Index("ix_speaking_sessions_user_id_started_at", "user_id", "started_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), unique=True
+    )
+    # NULL for free talk; like conversations.scenario_id, no FK.
+    scenario_id: Mapped[str | None] = mapped_column(String(40))
+    mode: Mapped[str] = mapped_column(String(10), default="cascade", server_default="cascade")
+    status: Mapped[str] = mapped_column(String(10), default="active", server_default="active")
+    # The learner's level when it started: the scenario's difficulty for Elo (Q58d).
+    level: Mapped[str] = mapped_column(String(2))
+    # Learner turns, and how many of them were spoken (the rest typed).
+    turns: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    spoken_turns: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    spoken_seconds: Mapped[float] = mapped_column(Float, default=0, server_default="0")
+    corrected_message_ids: Mapped[list[str]] = mapped_column(
+        JSONB, default=list, server_default="[]"
+    )
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    intelligibility: Mapped[str | None] = mapped_column(String(10))
+    # The summary moved speaking ability (Q58d: enough spoken turns).
+    counted: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -32,7 +32,7 @@ from app.adaptive.rules import Rules
 FIRST_RATING = fsrs.Rating.Easy
 
 # Sources whose mistakes show the learner using the structure on their own.
-FREE_USE_SOURCES = frozenset({"chat", "writing"})
+FREE_USE_SOURCES = frozenset({"chat", "speaking", "writing"})
 
 
 @cache

@@ -5,7 +5,15 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Conversation, KCEvidence, KCMastery, SkillEstimate, Tenant, User
+from app.db.models import (
+    Conversation,
+    KCEvidence,
+    KCMastery,
+    SkillEstimate,
+    SpeakingSession,
+    Tenant,
+    User,
+)
 
 
 async def _user(session: AsyncSession) -> tuple[User, Tenant]:
@@ -105,4 +113,64 @@ async def test_mastery_and_skill_checks(db_session: AsyncSession) -> None:
     await db_session.rollback()
     db_session.add(SkillEstimate(user_id=user_id, skill="juggling", rating=0.0))
     with pytest.raises(IntegrityError, match="ck_skill_estimates_skill"):
+        await db_session.flush()
+
+
+async def test_speaking_evidence_and_sessions(db_session: AsyncSession) -> None:
+    user, tenant = await _user(db_session)
+    conversation = Conversation(
+        tenant_id=tenant.id, user_id=user.id, purpose="speaking", scenario_id="ordering_food"
+    )
+    db_session.add(conversation)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            mistake(user, source="speaking", conversation_id=conversation.id),
+            SpeakingSession(
+                user_id=user.id,
+                conversation_id=conversation.id,
+                scenario_id="ordering_food",
+                level="A2",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    row = await db_session.scalar(select(SpeakingSession))
+    assert row is not None
+    assert (row.mode, row.status, row.turns, row.corrected_message_ids) == (
+        "cascade",
+        "active",
+        0,
+        [],
+    )
+
+    await db_session.delete(conversation)
+    await db_session.commit()
+    assert await db_session.scalar(select(SpeakingSession)) is None
+
+
+@pytest.mark.parametrize(
+    ("override", "constraint"),
+    [
+        ({"mode": "phone"}, "ck_speaking_sessions_mode"),
+        ({"status": "paused"}, "ck_speaking_sessions_status"),
+        ({"intelligibility": "great"}, "ck_speaking_sessions_intelligibility"),
+        ({"turns": -1}, "ck_speaking_sessions_turns"),
+    ],
+)
+async def test_speaking_session_checks(
+    db_session: AsyncSession, override: dict[str, object], constraint: str
+) -> None:
+    user, tenant = await _user(db_session)
+    conversation = Conversation(tenant_id=tenant.id, user_id=user.id, purpose="speaking")
+    db_session.add(conversation)
+    await db_session.flush()
+    fields: dict[str, object] = {
+        "user_id": user.id,
+        "conversation_id": conversation.id,
+        "level": "B1",
+    }
+    db_session.add(SpeakingSession(**(fields | override)))
+    with pytest.raises(IntegrityError, match=constraint):
         await db_session.flush()

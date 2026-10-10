@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 import fsrs
+import pytest
 
 from app.adaptive.bkt import Observation
 from app.adaptive.exercise.formats import SPECS
@@ -156,8 +157,9 @@ def test_free_mistake_after_learning_is_again() -> None:
     assert result.last_mistake_at == T0 + timedelta(hours=100)
 
 
-def test_writing_mistake_counts_like_chat() -> None:
-    result = run([*three_formats(), chat_mistake(100, source="writing")])
+@pytest.mark.parametrize("source", ["writing", "speaking"])
+def test_writing_and_speaking_mistakes_count_like_chat(source: str) -> None:
+    result = run([*three_formats(), chat_mistake(100, source=source)])
     assert result.card is not None and result.card.state == fsrs.State.Relearning
 
 

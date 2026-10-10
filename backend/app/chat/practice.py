@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive import mastery
+from app.adaptive.evidence import CONVERSATION_SOURCES
 from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
 from app.adaptive.learner import MasteryState, mastery_state
 from app.adaptive.rules import get_rules
@@ -82,7 +83,7 @@ class DatabasePractice:
                     KCEvidence.user_id == self._user_id,
                     KCEvidence.kc_id == kc.id,
                     KCEvidence.correct.is_(False),
-                    KCEvidence.source == "chat",
+                    KCEvidence.source.in_(CONVERSATION_SOURCES),
                     KCEvidence.original.is_not(None),
                 )
                 .order_by(KCEvidence.created_at.desc(), KCEvidence.id.desc())

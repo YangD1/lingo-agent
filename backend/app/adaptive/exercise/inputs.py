@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive import mastery
 from app.adaptive.diagnosis.boost import load_boost
+from app.adaptive.evidence import CONVERSATION_SOURCES
 from app.adaptive.exercise.planner import KCState, PlannedItem, candidates, plan
 from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, GrammarKC
 from app.adaptive.rules import Rules
@@ -122,7 +123,7 @@ async def _own_sentences(
         .where(
             KCEvidence.user_id == user_id,
             KCEvidence.correct.is_(False),
-            KCEvidence.source == "chat",
+            KCEvidence.source.in_(CONVERSATION_SOURCES),
             KCEvidence.severity.in_(rules.evidence.counted_severities),
             KCEvidence.original.is_not(None),
             func.length(func.trim(KCEvidence.original)) > 0,

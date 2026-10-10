@@ -17,6 +17,9 @@ Evidence = Literal["recognition", "production"]
 EVIDENCE_KINDS: tuple[Evidence, ...] = ("recognition", "production")
 Severity = Literal["low", "medium", "high"]
 SEVERITIES: tuple[Severity, ...] = ("low", "medium", "high")
+# How easy a speaking session's learner was to understand (Q58d), hardest first.
+Intelligibility = Literal["hard", "partly", "mostly", "fully"]
+INTELLIGIBILITY: tuple[Intelligibility, ...] = get_args(Intelligibility)
 
 RULES_PATH = Path(__file__).parent / "rules.yaml"
 
@@ -368,6 +371,25 @@ class PronunciationRules(_Strict):
         return self
 
 
+class SpeakingRules(_Strict):
+    max_sentences: dict[CefrLevel, int]
+    min_words_for_mistakes: int = Field(ge=0)
+    intelligibility_outcome: dict[Intelligibility, Annotated[float, Field(ge=0.0, le=1.0)]]
+    min_spoken_turns: int = Field(ge=1)
+    idle_minutes: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if set(self.max_sentences) != set(CEFR_LEVELS) or min(self.max_sentences.values()) < 1:
+            raise ValueError("max_sentences needs every CEFR level, each at least 1")
+        if set(self.intelligibility_outcome) != set(INTELLIGIBILITY):
+            raise ValueError("intelligibility_outcome needs every rating")
+        outcomes = [self.intelligibility_outcome[rating] for rating in INTELLIGIBILITY]
+        if outcomes != sorted(outcomes):
+            raise ValueError("intelligibility_outcome must rise from hard to fully")
+        return self
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
@@ -384,6 +406,7 @@ class Rules(_Strict):
     diagnosis: DiagnosisRules
     daily_plan: DailyPlanRules
     pronunciation: PronunciationRules
+    speaking: SpeakingRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:
