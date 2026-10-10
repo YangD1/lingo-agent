@@ -13,17 +13,21 @@ export const MAX_SHADOWING_CHARS = 600;
 export type PhonemeScore = { phoneme: string | null; accuracy: number };
 
 /**
- * One word of the sentence. Assessed: `accuracy` 0–100 (null when left out) and phonemes;
- * Azure's errors are "None" / "Mispronunciation" / "Omission" / "Insertion" and the rest.
- * Rough: no accuracy; `error` is none / omission / substitution (with `heard`) / insertion.
+ * One word of the sentence. Assessed: `accuracy` 0–100 (null when left out), Azure's
+ * `error` and the phonemes. Rough: how the transcript compares (`status`), and what was
+ * heard instead for a substitution.
  */
 export type ShadowingWord = {
   word: string;
   accuracy?: number | null;
-  error: string;
+  error?: "none" | "omission" | "insertion" | "mispronunciation";
   phonemes?: PhonemeScore[];
+  status?: "none" | "omission" | "insertion" | "substitution";
   heard?: string | null;
 };
+
+/** What went wrong with a word, whichever way the reading was scored. */
+export const wordIssue = (word: ShadowingWord) => word.error ?? word.status ?? "none";
 
 export type ShadowingScores = {
   overall: number;
@@ -116,11 +120,11 @@ export const GOOD_ACCURACY = 80;
 export const POOR_ACCURACY = 60;
 
 export function gradeWord(word: ShadowingWord): WordGrade {
-  const error = word.error.toLowerCase();
-  if (error === "omission") return "missed";
-  if (error === "insertion") return "extra";
-  if (error === "substitution") return "poor";
-  if (word.accuracy == null) return error === "none" ? "good" : "poor";
-  if (word.accuracy >= GOOD_ACCURACY && error === "none") return "good";
+  const issue = wordIssue(word);
+  if (issue === "omission") return "missed";
+  if (issue === "insertion") return "extra";
+  if (issue === "substitution") return "poor";
+  if (word.accuracy == null) return issue === "none" ? "good" : "poor";
+  if (word.accuracy >= GOOD_ACCURACY && issue === "none") return "good";
   return word.accuracy >= POOR_ACCURACY ? "fair" : "poor";
 }

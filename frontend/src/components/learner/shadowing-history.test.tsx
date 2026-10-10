@@ -73,14 +73,19 @@ describe("ShadowingHistory", () => {
     api
       .mockResolvedValueOnce({
         items: [
-          reading("a", { mispronounced: ["think"] }),
+          reading("a", {
+            words: [
+              { word: "I", accuracy: 95, error: "none", phonemes: [] },
+              { word: "think", accuracy: 40, error: "mispronunciation", phonemes: [] },
+            ],
+          }),
           reading("b", {
             source: "reading",
             mode: "rough",
             scores: null,
             words: [
-              { word: "I", error: "none" },
-              { word: "so", error: "omission" },
+              { word: "I", status: "none", heard: null },
+              { word: "so", status: "omission", heard: null },
             ],
           }),
         ],

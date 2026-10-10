@@ -92,6 +92,7 @@
 - **界面**：`ShadowingPanel` 组件（示范 → 录音 → 结果：整体分环、逐词着色、点词看音素、再听示范 / 再读一次 / 加入生词本），挂在私教气泡、阅读文章段落、单词例句旁。
 - **公示**：`features.yaml` 加 `shadowing`（`pronunciation` 或 `asr`，按音频秒数估算）；入口挂 `AiBadge`。
 - **落地（任务 56，2026-10-10）**：后端和设置页按 Q56a–f 完成：`pronunciation` 路由节与 Azure 适配器、转写对比兜底、`pronunciation_attempts` 与 `word_pronunciations`、口语能力 Elo、`/speech/shadowing` 接口与记录删除、背词卡片“读不准”；`features.yaml` 拆成 `shadowing` / `shadowing_rough`。英音没有音素名和韵律分（Azure 限制）。细节见 ADR 0028 落地记录；跟读组件在任务 57。
+- **落地（任务 57，2026-10-10）**：按 Q57a–g 完成跟读组件：浏览器 AudioWorklet 录音编码成 16kHz WAV、`ShadowingPanel`、挂到私教回复 / 阅读段落 / 复习例句、复习卡片“读不准”、学习者模型页跟读记录；E2E 用假 Azure 评测和假麦克风。细节见 ADR 0028 落地记录。
 
 ## 5. 级联口语练习（P3c）
 

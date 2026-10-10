@@ -21,6 +21,7 @@ import {
   submitShadowing,
   useShadowingMode,
   type WordGrade,
+  wordIssue,
 } from "@/lib/shadowing";
 import { speakSegments, stopSpeaking, useCanSpeak, useSpeaking, useSpeechSettings } from "@/lib/speech";
 import { cn } from "@/lib/utils";
@@ -354,7 +355,7 @@ function ScoreRing({ score, label }: { score: number; label: string }) {
 function WordDetail({ word, language }: { word: ShadowingWord; language: string }) {
   const t = useTranslations("speech.shadowing");
   const grade = gradeWord(word);
-  const error = word.error.toLowerCase();
+  const error = wordIssue(word);
   const phonemes = word.phonemes ?? [];
   const named = phonemes.some((p) => p.phoneme);
   return (

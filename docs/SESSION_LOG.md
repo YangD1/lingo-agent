@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-10 · 任务 57 完成（跟读组件）
+
+- **做了什么**：开头把任务 56 推送到 7684ede，CI run 38027802954 四个 job 全绿。任务 57 拆成 57.1–57.5，Q57a–g 按推荐确认。57.1 `lib/wav.ts` + `components/speech/use-wav-recorder.ts`（AudioWorklet 采集 → 16kHz 单声道 16 位 WAV，30 秒自动停）；57.2 `lib/shadowing.ts`、`components/speech/shadowing-panel.tsx`、能力缓存多存 `shadowing`；57.3 `shadowing-button.tsx`，挂到 `reply-tools.tsx`、`reading-article.tsx`（`Paragraph`）、`word-examples.tsx`；57.4 复习卡片“读不准”、`components/learner/shadowing-history.tsx`；57.5 假 Azure 评测、`e2e/shadowing.spec.ts`、文档。提交 9d8917d、707e71d、0f1564e、7237477、2404ccf 和本次。
+- **验证**：Vitest 447、E2E 63 全过；eslint、tsc 干净。后端没改（只改了 E2E 用的 `fake_llm.py`），pytest 没重跑。
+- **未完成**：57 范围内没有。没用真 Azure key 跑过；Safari / Firefox 的 AudioWorklet 录音没实机验证。本地领先 origin 6 个提交，未推送；Docker 未重建（backend 容器仍因镜像旧在重启循环）。
+- **下一步**：任务 58（看 `docs/plans/P3-voice.md` 第 5 节级联口语），开工前先拆子任务、和用户确认。可以先推送跑一次 CI。
+- **踩坑**：粗略结果的逐词字段是 `status`（none / omission / substitution / insertion），评测结果是 `error`（小写，none / omission / insertion / mispronunciation），单测的假数据写错了形状，只有 E2E 抓到，现在用 `wordIssue()` 统一读。`GET /speech/shadowing` 列表不带 `mispronounced`（只有 POST 返回）。Playwright 拿不到 multipart 请求体，WAV 格式靠后端 201 来证明。Vitest 全量跑偶尔有 3–4 条和本任务无关的测试（use-attachments、writing、screen、learner 等，每次不同）在负载下失败，单独跑和重跑都过，原因未查。
+
 ## 2026-10-10 · 任务 56 完成（发音评测与跟读后端）
 
 - **做了什么**：拆成 56.1–56.5，Q56a–f 按推荐确认。开工前核实 Azure：短音频接口收 16kHz 单声道 WAV、评测 ≤ 30 秒，韵律分 / 音素名（IPA）/ 音节只有 en-US。56.1 `providers/pronunciation.py` + `pronunciation` 路由节 + 连接测试用途（迁移 `0bc5f9185f2b`）；56.2 `services/speech/alignment.py` 转写逐词对比；56.3 `rules.yaml` `pronunciation` 块（规则版本 `2026-10-10.1`）、`pronunciation_attempts` / `word_pronunciations`（迁移 `deaa2ad30b74`）、`services/speech/shadowing.py`、`elo.update_ability` 接受 0–1 得分；56.4 `api/speech.py` 的 `/speech/shadowing` 四个接口、`capabilities.shadowing`、背词 `CardOut.mispronounced`、`features.yaml` 的 `shadowing` / `shadowing_rough`、`agent-tools.md`；56.5 设置页“发音评测”路由、连接测试“发音评测”、文案、ADR 0028 落地记录、P3 计划、PLAN、README 中英。提交 ba0fcae、b892c4f、7a68712、73d427d、cb7c985 和本次。

@@ -32,18 +32,18 @@ describe("shadowingSentences", () => {
 
 describe("gradeWord", () => {
   it("grades assessed words by accuracy", () => {
-    expect(gradeWord({ word: "a", accuracy: 92, error: "None" })).toBe("good");
-    expect(gradeWord({ word: "a", accuracy: 70, error: "None" })).toBe("fair");
-    expect(gradeWord({ word: "a", accuracy: 40, error: "Mispronunciation" })).toBe("poor");
-    expect(gradeWord({ word: "a", accuracy: 85, error: "Mispronunciation" })).toBe("fair");
-    expect(gradeWord({ word: "a", accuracy: null, error: "Omission" })).toBe("missed");
-    expect(gradeWord({ word: "a", accuracy: 90, error: "Insertion" })).toBe("extra");
+    expect(gradeWord({ word: "a", accuracy: 92, error: "none" })).toBe("good");
+    expect(gradeWord({ word: "a", accuracy: 70, error: "none" })).toBe("fair");
+    expect(gradeWord({ word: "a", accuracy: 40, error: "mispronunciation" })).toBe("poor");
+    expect(gradeWord({ word: "a", accuracy: 85, error: "mispronunciation" })).toBe("fair");
+    expect(gradeWord({ word: "a", accuracy: null, error: "omission" })).toBe("missed");
+    expect(gradeWord({ word: "a", accuracy: 90, error: "insertion" })).toBe("extra");
   });
 
   it("grades rough words by what was heard", () => {
-    expect(gradeWord({ word: "a", error: "none" })).toBe("good");
-    expect(gradeWord({ word: "a", error: "omission" })).toBe("missed");
-    expect(gradeWord({ word: "a", error: "substitution", heard: "the" })).toBe("poor");
-    expect(gradeWord({ word: "a", error: "insertion" })).toBe("extra");
+    expect(gradeWord({ word: "a", status: "none" })).toBe("good");
+    expect(gradeWord({ word: "a", status: "omission" })).toBe("missed");
+    expect(gradeWord({ word: "a", status: "substitution", heard: "the" })).toBe("poor");
+    expect(gradeWord({ word: "a", status: "insertion" })).toBe("extra");
   });
 });

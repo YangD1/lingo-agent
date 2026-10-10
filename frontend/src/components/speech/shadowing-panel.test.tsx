@@ -60,17 +60,17 @@ const ASSESSED: ShadowingResult = {
   fallback_reason: null,
   scores: { overall: 82, accuracy: 85, fluency: 90, completeness: 100, prosody: null },
   words: [
-    { word: "I", accuracy: 95, error: "None", phonemes: [] },
+    { word: "I", accuracy: 95, error: "none", phonemes: [] },
     {
       word: "think",
       accuracy: 42,
-      error: "Mispronunciation",
+      error: "mispronunciation",
       phonemes: [
         { phoneme: null, accuracy: 20 },
         { phoneme: null, accuracy: 90 },
       ],
     },
-    { word: "so", accuracy: null, error: "Omission", phonemes: [] },
+    { word: "so", accuracy: null, error: "omission", phonemes: [] },
   ],
   recognized_text: "I sink",
   audio_seconds: 1.5,
@@ -86,9 +86,9 @@ const ROUGH: ShadowingResult = {
   fallback_reason: "not_configured",
   scores: null,
   words: [
-    { word: "I", error: "none" },
-    { word: "think", error: "substitution", heard: "sink" },
-    { word: "so", error: "omission" },
+    { word: "I", status: "none", heard: null },
+    { word: "think", status: "substitution", heard: "sink" },
+    { word: "so", status: "omission", heard: null },
   ],
   counted: false,
   mispronounced: [],

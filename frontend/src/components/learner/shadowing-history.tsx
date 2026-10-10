@@ -120,8 +120,8 @@ export function ShadowingHistory() {
                       })}
                       {" · "}
                       {t(`sources.${item.source}`)}
-                      {item.mispronounced.length > 0 &&
-                        ` · ${t("offWords", { words: item.mispronounced.join(", ") })}`}
+                      {offWords(item).length > 0 &&
+                        ` · ${t("offWords", { words: offWords(item).join(", ") })}`}
                     </p>
                   </div>
                   <InlineConfirm question={t("confirmDelete")} onConfirm={() => void remove(item.id)} compact>
@@ -165,6 +165,10 @@ export function ShadowingHistory() {
     </Card>
   );
 }
+
+/** The words said wrong in this reading (assessed ones only: a transcript can't tell). */
+const offWords = (item: ShadowingResult) =>
+  item.scores ? [...new Set(item.words.filter((w) => gradeWord(w) === "poor").map((w) => w.word))] : [];
 
 /** The overall score, or for a rough result how many of the words were heard. */
 function Score({ item }: { item: ShadowingResult }) {

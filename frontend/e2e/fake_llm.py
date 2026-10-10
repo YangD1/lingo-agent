@@ -4,7 +4,8 @@ Run from frontend/: `uv run --project ../backend python e2e/fake_llm.py`.
 Replies are deterministic; a message containing "long" gets a slow ~4s reply so the
 "stop generating" test has something to interrupt. It also stands in for the attachment
 models (ADR 0008): structured image readings via function calling, a reply that says how
-many images it was shown, /audio/transcriptions, and /audio/speech for read-aloud.
+many images it was shown, /audio/transcriptions, /audio/speech for read-aloud, and
+Azure's pronunciation assessment (one word always said wrong).
 
 Memory (ADR 0009): reflection remembers what follows "remember that" in a learner
 message, and "what do you remember" gets back the facts found in the system prompt, so
@@ -31,6 +32,7 @@ answers 'About "<the article's title>"', so tests can see the article reached it
 """
 
 import asyncio
+import base64
 import json
 import os
 import re
@@ -588,6 +590,44 @@ async def speech(request: Request) -> Response:
     if "broken" in body.get("model", ""):
         return JSONResponse({"error": {"message": "speech is down"}}, status_code=503)
     return Response(f"mp3:{body['voice']}:{body['input']}".encode(), media_type="audio/mpeg")
+
+
+# Pronunciation assessment (ADR 0028 §5): Azure's short-audio REST API, reached through an
+# azure_speech connection whose base_url is this server (no ".tts." host to swap).
+MISSAID = "went"  # every reading says this word wrong; it's in the e2e lexicon
+
+
+@app.post("/speech/recognition/conversation/cognitiveservices/v1")
+async def pronunciation(request: Request) -> dict[str, Any]:
+    await request.body()
+    params = json.loads(base64.b64decode(request.headers["Pronunciation-Assessment"]))
+    words = re.findall(r"[A-Za-z']+", params["ReferenceText"])
+
+    def scored(word: str) -> dict[str, Any]:
+        off = word.lower() == MISSAID
+        return {
+            "Word": word,
+            "AccuracyScore": 40 if off else 92,
+            "ErrorType": "Mispronunciation" if off else "None",
+            "Phonemes": [
+                {"Phoneme": "w", "AccuracyScore": 85},
+                {"Phoneme": "ɛ", "AccuracyScore": 20 if off else 95},
+            ],
+        }
+
+    return {
+        "RecognitionStatus": "Success",
+        "NBest": [
+            {
+                "Display": params["ReferenceText"],
+                "AccuracyScore": 80,
+                "FluencyScore": 88,
+                "CompletenessScore": 100,
+                "PronScore": 84,
+                "Words": [scored(w) for w in words],
+            }
+        ],
+    }
 
 
 # The model list the settings page fetches (ADR 0007 §1): an embedding and a speech model to
