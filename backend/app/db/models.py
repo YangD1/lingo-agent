@@ -75,6 +75,10 @@ EXERCISE_SET_ORIGINS = ("dashboard", "learner", "card", "plan", "practice", "pre
 # generating -> ready -> in_progress -> done; generating -> failed.
 EXERCISE_SET_STATUSES = ("generating", "ready", "in_progress", "done", "failed")
 WORD_AUDIO_JOB_STATUSES = ("running", "paused", "done", "cancelled")
+# Where a shadowed sentence came from, and who scored it (ADR 0028 §6).
+SHADOWING_SOURCES = ("chat", "reading", "vocab", "speaking")
+SHADOWING_PROVIDERS = ("azure", "asr_fallback")
+SHADOWING_LANGUAGES = ("en-US", "en-GB")
 # rejected: kept for the record, never shown; reported: the learner flagged it, so its
 # answers count as no evidence.
 EXERCISE_STATUSES = ("ok", "rejected", "reported")
@@ -335,6 +339,66 @@ class WordAudioJob(TimestampMixin, Base):
     # Why it paused by itself (the vendor kept failing), safe to show.
     error: Mapped[str | None] = mapped_column(String(300))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PronunciationAttempt(Base):
+    """A learner reading a sentence aloud after the model (ADR 0028 §6, Q56d).
+
+    Kept until the learner deletes it; the recording itself is never stored (Q3).
+    `provider` is "azure" for a pronunciation assessment, with `scores` (overall,
+    accuracy, fluency, completeness, prosody) and `words` with phonemes; or
+    "asr_fallback" for a rough comparison with a transcript, no scores and `words`
+    marked only none / omission / substitution / insertion. Only an assessment can
+    count as evidence (`counted`: it moved the speaking ability).
+    """
+
+    __tablename__ = "pronunciation_attempts"
+    __table_args__ = (
+        CheckConstraint(_in("source", SHADOWING_SOURCES), name="source"),
+        CheckConstraint(_in("provider", SHADOWING_PROVIDERS), name="provider"),
+        CheckConstraint(_in("language", SHADOWING_LANGUAGES), name="language"),
+        Index("ix_pronunciation_attempts_user_id_created_at", "user_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    source: Mapped[str] = mapped_column(String(20))
+    # The message, article or word id the sentence came from, as text; may be gone.
+    source_id: Mapped[str | None] = mapped_column(String(64))
+    reference_text: Mapped[str] = mapped_column(Text)
+    language: Mapped[str] = mapped_column(String(8))
+    provider: Mapped[str] = mapped_column(String(20))
+    scores: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    words: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    recognized_text: Mapped[str] = mapped_column(Text, default="", server_default="")
+    audio_seconds: Mapped[float] = mapped_column(Float)
+    # Why a rough result stands in for an assessment: "not_configured" or "failed" (Q56e).
+    fallback_reason: Mapped[str | None] = mapped_column(String(20))
+    counted: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WordPronunciation(Base):
+    """How a learner last said a lexicon word in an assessed reading (Q56c): the review
+    card marks it while `accuracy` is below `rules.pronunciation.word_threshold`."""
+
+    __tablename__ = "word_pronunciations"
+    __table_args__ = (
+        CheckConstraint("accuracy >= 0 AND accuracy <= 100", name="accuracy"),
+        CheckConstraint("low_count >= 0", name="low_count"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    word_id: Mapped[int] = mapped_column(
+        ForeignKey("words.id", ondelete="CASCADE"), primary_key=True
+    )
+    accuracy: Mapped[float] = mapped_column(Float)
+    # Readings below the threshold so far, and when the last one was.
+    low_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    last_low_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    assessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class Attachment(TimestampMixin, Base):

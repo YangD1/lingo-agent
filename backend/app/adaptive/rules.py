@@ -343,6 +343,31 @@ class DailyPlanRules(_Strict):
     max_count: int = Field(ge=1)
 
 
+class LengthOffset(_Strict):
+    max_words: int = Field(ge=1)
+    offset: float
+
+
+class PronunciationRules(_Strict):
+    level_rank: dict[CefrLevel, int]
+    length_offsets: list[LengthOffset] = Field(min_length=1)
+    min_completeness: float = Field(ge=0.0, le=100.0)
+    min_words: int = Field(ge=1)
+    min_seconds: float = Field(ge=0.0)
+    word_threshold: float = Field(ge=0.0, le=100.0)
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        levels = [level for level in CEFR_LEVELS if level in self.level_rank]
+        cuts = [self.level_rank[level] for level in levels]
+        if list(self.level_rank) != levels or cuts != sorted(set(cuts)):
+            raise ValueError("level_rank must be in CEFR order with rising cuts")
+        bands = [band.max_words for band in self.length_offsets]
+        if bands != sorted(set(bands)):
+            raise ValueError("length_offsets must have rising max_words")
+        return self
+
+
 class Rules(_Strict):
     version: str = Field(min_length=1, max_length=50)
     bkt: BktRules
@@ -358,6 +383,7 @@ class Rules(_Strict):
     graph: GraphRules
     diagnosis: DiagnosisRules
     daily_plan: DailyPlanRules
+    pronunciation: PronunciationRules
 
 
 def load_rules(path: Path = RULES_PATH) -> Rules:

@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-09.2"
+version: "2026-10-10.1"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -403,3 +403,31 @@ daily_plan:
   writing_gap_days: 7
   # Upper bound for a count the learner or the tutor sets.
   max_count: 500
+
+# Shadowing scored by pronunciation assessment (ADR 0028 §6, Q56b-c). A rough result
+# compared from a transcript is never evidence.
+pronunciation:
+  # Speaking ability takes one Elo step per counted attempt, with the overall score
+  # (0-100) / 100 as the outcome (82 counts as 0.82 of a correct answer).
+  # Sentence difficulty = cefr_anchor[level of its rarest lexicon word] + the offset of
+  # the first length band that fits. A word's level is the first whose frequency rank
+  # cut it is within; past every cut it is C2. Words outside the lexicon (names) are
+  # left out; a sentence with none counts as A1.
+  level_rank:
+    A1: 1000
+    A2: 2000
+    B1: 3500
+    B2: 6000
+    C1: 9000
+  length_offsets:
+    - {max_words: 5, offset: -0.3}
+    - {max_words: 12, offset: 0.0}
+    - {max_words: 1000, offset: 0.3}
+  # Not counted toward speaking ability: barely read, too few words, or too short a
+  # recording to say anything.
+  min_completeness: 50
+  min_words: 3
+  min_seconds: 1.0
+  # A word read with accuracy below this is marked "you don't say this one right" on
+  # its review card; a later reading at or above it clears the mark.
+  word_threshold: 60

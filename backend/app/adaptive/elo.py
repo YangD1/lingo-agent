@@ -30,9 +30,17 @@ def guess_for(item_format: str, rules: Rules) -> float:
 
 
 def update_ability(
-    ability: float, difficulty: float, correct: bool, answers: int, rules: Rules, guess: float
+    ability: float,
+    difficulty: float,
+    correct: bool | float,
+    answers: int,
+    rules: Rules,
+    guess: float,
 ) -> float:
-    """New learner ability after one answer; `answers` counts the learner's earlier ones."""
+    """New learner ability after one answer; `answers` counts the learner's earlier ones.
+
+    `correct` may also be a graded outcome in [0, 1], such as a pronunciation score / 100
+    (ADR 0028 §6)."""
     surprise = float(correct) - expected(ability, difficulty, guess)
     return ability + k_factor(answers, rules.elo.learner) * surprise
 
