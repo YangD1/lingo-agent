@@ -906,7 +906,8 @@
       "read-aloud": "Read aloud",
       "background": "Background",
       "usage": "Usage",
-      "word-audio": "Word pronunciations"
+      "word-audio": "Word pronunciations",
+      "realtime": "Realtime voice"
     },
     "background": {
       "title": "Background work",
@@ -1009,6 +1010,16 @@
       "old": "{count} of them ({megabytes} MB) are in a voice no longer used.",
       "deleteOld": "Delete old voices",
       "deleteOldQuestion": "Delete the pronunciations made before the voice changed?"
+    },
+    "realtime": {
+      "title": "Realtime voice limits",
+      "description": "Realtime calls are billed by the minute for the whole call, so they cost far more than the step-by-step speaking practice. Set how long one call may last and how many minutes each learner gets per day.",
+      "sessionMinutes": "One call (minutes)",
+      "dailyMinutes": "Per learner per day (minutes)",
+      "hint": "0 in either box turns realtime calls off. The day starts at 00:00 UTC. With under a minute left today, no call starts; the learner is warned a minute before the end, and at the end the tutor says goodbye and hangs up.",
+      "save": "Save",
+      "off": "Realtime calls are off for everyone in this workspace.",
+      "usedToday": "You have used {used} of {limit} minutes today (UTC)."
     }
   },
   "placement": {

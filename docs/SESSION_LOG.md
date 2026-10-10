@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-10 任务 60.3–60.5 中继、开场上下文、限额
+
+**做了什么**：上一会话因附件太多导致请求超限中断，这次接着做。60.3（`WS /speech/realtime` 中继）和 60.4（开场上下文）补提交为 b351852（上一会话的全量 pytest 已通过）。60.5 限额完成：迁移 `85f290d7d433`；`app/realtime/limits.py`；中继在结束前 1 分钟推 `time_warning`，到点推 `wrapping_up` 后让私教道别，最多再等 10 秒挂断；接通前按 `realtime_off` / `realtime_used_up` / `realtime_busy` 拒绝；`/tenant/realtime`；`/speech/capabilities` 加 `realtime`、`realtime_minutes_left`；设置页 `RealtimeSection`。
+
+**未完成**：60.6 公示与实测：`features.yaml` 登记 `realtime_call`、`AiBadge` 按分钟计费（`RealtimeSection` 标题还没挂 AiBadge，等 60.6 有了 feature 再挂）；`docs/agent-tools.md`；设置页“实时语音”路由节 + 连接测试；实测中继内存和 CPU 写进 ADR 0030；PLAN 和 P3 计划同步。前端读 `capabilities.realtime` 留给任务 62（通话界面）。
+
+**下一步**：60.6。
+
+**踩坑**：Vitest 里写 `beforeEach(() => api.mockReset())` 会返回 mock 本身，Vitest 把它当清理函数再调用一次，模拟 403 的用例因此报出 ApiError，要写成花括号块。pytest 跑的时候同时跑全量 Vitest，会因为机器负载出现随机超时失败，要分开跑；单独跑全量 Vitest 默认并发也偶尔有一条随机失败（learner-app、use-attachments，与本次改动无关），加 `--maxWorkers=8` 后 474 条全过。`/speech/capabilities` 新增字段后，`test_speech_api.py` 里三处整体相等的断言要同步。全量 pytest 1606 全过。
+
+---
+
 ## 2026-10-10 任务 60 拆分 + 60.1 `realtime` 路由节
 
 **做了什么**：把任务 59 推送到 70f50e9，CI run 38058383080 全绿；Docker 已重建（之前后端容器一直重启，现在正常了）。开工前重新核实三家实时语音接口（看板任务 60 条目里有记录），据此把任务 60 拆成 60.1–60.6，Q60a–i 按推荐确认。60.1 完成：新增 `app/providers/realtime.py`（厂商小表、`get_realtime`）；路由节加 `realtime`（迁移 `b86ae3e7639a`）；连接参数 `realtime_url` / `realtime_dialect` 加校验，并且不会传给聊天和 embedding 的 SDK（`sdk_params`）；YAML 预设和默认路由。pytest 1590 全过。

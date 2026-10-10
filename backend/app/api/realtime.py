@@ -11,16 +11,18 @@ import json
 import logging
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.auth.security import InvalidTokenError, decode_access_token
 from app.auth.service import get_personal_tenant
 from app.db.models import User
-from app.deps import AUTH_COOKIE
+from app.deps import AUTH_COOKIE, CurrentTenant, CurrentUser, Manager, SessionDep
 from app.memory.embedding import memory_embedder
 from app.memory.reflection import LOCALE_COOKIE
 from app.providers.errors import NoModelConfiguredError
@@ -29,6 +31,7 @@ from app.providers.realtime import RealtimeRoute, get_realtime
 from app.providers.tenant import load_provider_context
 from app.realtime.calls import RealtimeCalls
 from app.realtime.context import call_instructions
+from app.realtime.limits import CallLimit, LimitState, call_limit
 from app.realtime.relay import TASK, CallInfo, RealtimeCall
 from app.settings import get_settings
 from app.speaking import sessions
@@ -37,10 +40,11 @@ from app.usage.recorder import UsageRecord, submit_usage
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/speech", tags=["speech"])
+router = APIRouter(tags=["speech"])
 
-# One call's length until task 60.5 reads the tenant's limits (ADR 0030 §5).
-DEFAULT_LIMIT_SECONDS = 15 * 60
+# Upper bounds an admin can set (ADR 0030 §5); the vendor bills by the minute.
+MAX_SESSION_MINUTES = 60
+MAX_DAILY_MINUTES = 600
 
 
 class _Browser:
@@ -96,7 +100,7 @@ async def _user(websocket: WebSocket, session: AsyncSession) -> User | None:
     return user if user is not None and user.is_active else None
 
 
-@router.websocket("/realtime")
+@router.websocket("/speech/realtime")
 async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> None:
     if not same_origin(websocket):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -109,6 +113,7 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
         ctx = await load_provider_context(session, tenant.id)
+        limit = await call_limit(session, tenant, user.id, datetime.now(UTC))
     await websocket.accept()
     browser = _Browser(websocket)
 
@@ -120,6 +125,14 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
         route = get_realtime(ctx)
     except NoModelConfiguredError as exc:
         await refuse(exc.code)
+        return
+    registry: RealtimeCalls = websocket.app.state.realtime_calls
+    if registry.has_user(user.id):
+        # Two calls at once would each get today's minutes.
+        await refuse("realtime_busy")
+        return
+    if limit.state != "ok":
+        await refuse("realtime_off" if limit.state == "off" else "realtime_used_up")
         return
     found = get_scenarios().get(scenario) if scenario is not None else None
     if scenario is not None and found is None:
@@ -148,12 +161,11 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
             user_id=user.id,
             session_id=row.id,
             conversation_id=row.conversation_id,
-            limit_seconds=DEFAULT_LIMIT_SECONDS,
+            limit_seconds=limit.allowed_seconds,
             is_fallback=position > 0,
         ),
         maker,
     )
-    registry: RealtimeCalls = websocket.app.state.realtime_calls
     registry.add(call)
     try:
         await call.run()
@@ -190,3 +202,44 @@ async def _connect(
                 )
             )
     return None
+
+
+class RealtimeLimitsOut(BaseModel):
+    session_minutes: int
+    daily_minutes: int
+    # The calling admin's own use today (UTC), like the learner sees it.
+    used_minutes: float
+    state: LimitState
+
+
+class RealtimeLimitsIn(BaseModel):
+    # 0 turns realtime calls off.
+    session_minutes: int = Field(ge=0, le=MAX_SESSION_MINUTES)
+    daily_minutes: int = Field(ge=0, le=MAX_DAILY_MINUTES)
+
+
+def _limits_out(limit: CallLimit) -> RealtimeLimitsOut:
+    return RealtimeLimitsOut(
+        session_minutes=limit.session_minutes,
+        daily_minutes=limit.daily_minutes,
+        used_minutes=round(limit.used_seconds / 60, 1),
+        state=limit.state,
+    )
+
+
+@router.get("/tenant/realtime", dependencies=[Manager])
+async def tenant_realtime(
+    user: CurrentUser, tenant: CurrentTenant, session: SessionDep
+) -> RealtimeLimitsOut:
+    """One call's length and each learner's minutes per UTC day (ADR 0030 §5)."""
+    return _limits_out(await call_limit(session, tenant, user.id, datetime.now(UTC)))
+
+
+@router.put("/tenant/realtime", dependencies=[Manager])
+async def set_tenant_realtime(
+    body: RealtimeLimitsIn, user: CurrentUser, tenant: CurrentTenant, session: SessionDep
+) -> RealtimeLimitsOut:
+    tenant.realtime_session_minutes = body.session_minutes
+    tenant.realtime_daily_minutes = body.daily_minutes
+    await session.commit()
+    return _limits_out(await call_limit(session, tenant, user.id, datetime.now(UTC)))

@@ -104,6 +104,8 @@ class Tenant(TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint(_in("kind", TENANT_KINDS), name="kind"),
         CheckConstraint("background_daily_tokens >= 0", name="background_daily_tokens"),
+        CheckConstraint("realtime_session_minutes >= 0", name="realtime_session_minutes"),
+        CheckConstraint("realtime_daily_minutes >= 0", name="realtime_daily_minutes"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -113,6 +115,10 @@ class Tenant(TimestampMixin, Base):
     background_daily_tokens: Mapped[int] = mapped_column(
         Integer, default=300_000, server_default="300000"
     )
+    # Realtime voice (ADR 0030 §5): one call's length and each learner's minutes per UTC
+    # day; either 0 turns realtime calls off.
+    realtime_session_minutes: Mapped[int] = mapped_column(Integer, default=15, server_default="15")
+    realtime_daily_minutes: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
 
 
 class User(TimestampMixin, Base):

@@ -27,7 +27,8 @@ from app.db.models import Conversation, SpeakingSession, Tenant, TenantMember, U
 from app.deps import AUTH_COOKIE
 from app.providers import openai_realtime
 from app.providers.llm import get_providers_config
-from app.realtime import calls
+from app.realtime import calls, relay
+from app.realtime.limits import CallLimit, day_start
 from app.speaking import sessions
 from app.speaking.scenarios import get_scenarios
 from app.usage import recorder as usage_recorder
@@ -307,7 +308,16 @@ async def test_browser_messages_are_white_listed_and_metered(
     assert vendor.of_type("response.cancel")
 
 
-async def test_time_limit_and_shutdown_end_calls(
+def short_calls(monkeypatch: pytest.MonkeyPatch, seconds: int) -> None:
+    """Calls this long, without waiting the minute a real limit needs."""
+
+    async def limit(*_: Any) -> CallLimit:
+        return CallLimit(15, 30, 0.0, "ok", seconds)
+
+    monkeypatch.setattr(realtime_api, "call_limit", limit)
+
+
+async def test_time_warning_goodbye_and_shutdown_end_calls(
     client: AsyncClient,
     db_session: AsyncSession,
     server: str,
@@ -318,12 +328,33 @@ async def test_time_limit_and_shutdown_end_calls(
     async with fake_vendor() as vendor:
         await add_vendor(db_session, client, "voice", vendor)
         await set_route(client, "voice:gpt-realtime-2.1")
-        monkeypatch.setattr(realtime_api, "DEFAULT_LIMIT_SECONDS", 1)
+        vendor.on("response.create", {"type": "response.done", "response": {"status": "completed"}})
+        short_calls(monkeypatch, 2)
+        monkeypatch.setattr(relay, "WARNING_SECONDS", 1)
         async with dial(server, token) as ws:
-            assert (await next_json(ws))["limit_seconds"] == 1
-            assert await until(ws, "ended") == {"type": "ended", "reason": "time_limit"}
+            assert (await next_json(ws))["limit_seconds"] == 2
+            assert await until(ws, "time_warning") == {
+                "type": "time_warning",
+                "remaining_seconds": 1,
+            }
+            assert await next_json(ws) == {"type": "wrapping_up"}
+            await ws.send(b"\x00\x00" * 2400)  # ignored: it would cut the goodbye short
+            assert await next_json(ws) == {"type": "response_done"}
+            assert await next_json(ws) == {"type": "ended", "reason": "time_limit"}
+        opening, goodbye = vendor.of_type("response.create")
+        assert "response" not in opening
+        assert "goodbye" in goodbye["response"]["instructions"]
+        assert not vendor.of_type("input_audio_buffer.append")
 
-        monkeypatch.setattr(realtime_api, "DEFAULT_LIMIT_SECONDS", 600)
+        # A vendor that never says goodbye is cut off anyway.
+        vendor.script.clear()
+        monkeypatch.setattr(relay, "WRAP_UP_SECONDS", 1)
+        short_calls(monkeypatch, 1)
+        async with dial(server, token) as ws:
+            await until(ws, "wrapping_up")
+            assert await next_json(ws) == {"type": "ended", "reason": "time_limit"}
+
+        short_calls(monkeypatch, 600)
         async with dial(server, token) as ws:
             await next_json(ws)
             assert len(app.state.realtime_calls) == 1
@@ -333,7 +364,77 @@ async def test_time_limit_and_shutdown_end_calls(
 
     db_session.expire_all()
     rows = (await db_session.scalars(select(SpeakingSession))).all()
-    assert [r.status for r in rows] == ["done", "done"]
+    assert [r.status for r in rows] == ["done", "done", "done"]
+
+
+async def test_tenant_limits_decide_how_long_a_call_may_last(
+    client: AsyncClient, db_session: AsyncSession, server: str
+) -> None:
+    token = await sign_up(client)
+    user = await db_session.scalar(select(User))
+    tenant = await db_session.scalar(select(Tenant))
+    assert user is not None and tenant is not None
+
+    async def refused() -> str | None:
+        async with dial(server, token) as ws:
+            event = await next_json(ws)
+            return event.get("code")
+
+    limits = await client.get("/tenant/realtime")
+    assert limits.json() == {
+        "session_minutes": 15,
+        "daily_minutes": 30,
+        "used_minutes": 0.0,
+        "state": "ok",
+    }
+    for bad in (
+        {"session_minutes": -1, "daily_minutes": 30},
+        {"session_minutes": 61, "daily_minutes": 30},
+    ):
+        assert (await client.put("/tenant/realtime", json=bad)).status_code == 422
+
+    async with fake_vendor() as vendor:
+        await add_vendor(db_session, client, "voice", vendor)
+        await set_route(client, "voice:gpt-realtime-2.1")
+        # 25 of today's 30 minutes used (yesterday's call doesn't count): 5 minutes left.
+        for started, seconds in (
+            (datetime.now(UTC), 25 * 60),
+            (day_start(datetime.now(UTC)) - timedelta(hours=1), 600),
+        ):
+            row = await sessions.start(db_session, tenant.id, user.id, None, mode="realtime")
+            row.started_at, row.call_seconds, row.status = started, seconds, "done"
+        await db_session.commit()
+        caps = (await client.get("/speech/capabilities")).json()
+        assert (caps["realtime"], caps["realtime_minutes_left"]) == (True, 5)
+        async with dial(server, token) as ws:
+            assert (await next_json(ws))["limit_seconds"] == 300
+            # A second call at once would get the same minutes again.
+            async with dial(server, token) as second:
+                assert (await next_json(second))["code"] == "realtime_busy"
+            await ws.send(json.dumps({"type": "end"}))
+            await until(ws, "ended")
+
+        put = await client.put(
+            "/tenant/realtime", json={"session_minutes": 15, "daily_minutes": 25}
+        )
+        assert put.status_code == 200
+        assert put.json()["state"] == "used_up"
+        assert put.json()["used_minutes"] >= 25.0
+        assert await refused() == "realtime_used_up"
+        caps = (await client.get("/speech/capabilities")).json()
+        assert (caps["realtime"], caps["realtime_minutes_left"]) == (True, 0)
+
+        put = await client.put("/tenant/realtime", json={"session_minutes": 0, "daily_minutes": 25})
+        assert put.json()["state"] == "off"
+        assert await refused() == "realtime_off"
+        caps = (await client.get("/speech/capabilities")).json()
+        assert (caps["realtime"], caps["realtime_minutes_left"]) == (False, 0)
+
+
+async def test_capabilities_without_a_realtime_route(client: AsyncClient) -> None:
+    await sign_up(client)
+    caps = (await client.get("/speech/capabilities")).json()
+    assert (caps["realtime"], caps["realtime_minutes_left"]) == (False, 0)
 
 
 async def test_cut_off_calls_are_closed_and_never_idle(

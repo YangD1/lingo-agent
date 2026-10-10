@@ -9,6 +9,8 @@ are the tutor's audio; text frames are JSON events:
     subtitle        {role: learner|tutor, item_id, text, final}
     speech_started  the learner started talking: stop playing the tutor
     response_done   the tutor finished a reply
+    time_warning    {remaining_seconds}: the call ends soon (ADR 0030 §5)
+    wrapping_up     time is up: the tutor says goodbye, the learner's audio is ignored
     error           {code}: the vendor reported an error; the call may go on
     ended           {reason}: last message before the backend closes the socket
 
@@ -28,6 +30,7 @@ from typing import Any, Literal, Protocol
 import anyio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.prompts import load_prompt
 from app.providers.openai_realtime import (
     AudioOut,
     RealtimeSession,
@@ -38,6 +41,7 @@ from app.providers.openai_realtime import (
     VendorError,
 )
 from app.realtime import calls
+from app.realtime.limits import WARNING_SECONDS
 from app.usage.recorder import UsageRecord, submit_usage
 
 logger = logging.getLogger(__name__)
@@ -49,6 +53,8 @@ MAX_FRAME_BYTES = 64 * 1024
 AUDIO_BURST_SECONDS = 2.0
 # How often the call's duration is written down (a restart loses at most this much).
 PROGRESS_SECONDS = 15.0
+# After the time limit, how long the tutor has to say goodbye before the call is cut.
+WRAP_UP_SECONDS = 10.0
 
 type EndReason = Literal[
     "hangup", "vendor_closed", "time_limit", "server_stopping", "browser_closed", "error"
@@ -102,6 +108,13 @@ class RealtimeCall:
         self._audio_bytes = 0
         self._audio_total = 0
         self._reply_started: float | None = None
+        # Time is up: the goodbye is asked for once the reply in progress is done.
+        self._wrapping = False
+        self._goodbye_asked = False
+
+    @property
+    def user_id(self) -> uuid.UUID:
+        return self._info.user_id
 
     @property
     def elapsed(self) -> float:
@@ -180,6 +193,8 @@ class RealtimeCall:
                 )
 
     async def _learner_audio(self, frame: bytes) -> None:
+        if self._wrapping:  # the learner talking would cut the goodbye short
+            return
         rate = self._vendor.target.input_rate * 2  # PCM16 mono: bytes per second
         allowed = (self.elapsed + AUDIO_BURST_SECONDS) * rate
         # Odd lengths would split a sample; too-large or too-fast audio is dropped.
@@ -214,6 +229,10 @@ class RealtimeCall:
                 case ResponseDone():
                     self._record(event)
                     await self._browser.send_json({"type": "response_done"})
+                    if self._goodbye_asked:
+                        self._end("time_limit")
+                    elif self._wrapping:
+                        await self._say_goodbye()
                 case ToolCall(call_id=call_id, name=name):
                     # No tools are offered yet (task 61): a failure is a tool result,
                     # never the end of the call (ADR 0013).
@@ -228,16 +247,35 @@ class RealtimeCall:
         self._end("vendor_closed")
 
     async def _clock_loop(self) -> None:
+        limit = self._info.limit_seconds
         saved = 0.0
+        # A call no longer than the warning period gets no warning.
+        warned = limit <= WARNING_SECONDS
         while True:
             await anyio.sleep(self._tick)
             elapsed = self.elapsed
-            if elapsed >= self._info.limit_seconds:
+            if elapsed >= limit + WRAP_UP_SECONDS:
                 self._end("time_limit")
                 return
+            if elapsed >= limit and not self._wrapping:
+                self._wrapping = True
+                await self._browser.send_json({"type": "wrapping_up"})
+                # Asking mid-reply would be refused; that reply's end asks instead.
+                if self._reply_started is None:
+                    await self._say_goodbye()
+            elif not warned and elapsed >= limit - WARNING_SECONDS:
+                warned = True
+                remaining = max(0, round(limit - elapsed))
+                await self._browser.send_json(
+                    {"type": "time_warning", "remaining_seconds": remaining}
+                )
             if elapsed - saved >= PROGRESS_SECONDS:
                 saved = elapsed
                 await calls.save_progress(self._maker, self._info.session_id, elapsed)
+
+    async def _say_goodbye(self) -> None:
+        self._goodbye_asked = True
+        await self._vendor.respond(load_prompt("realtime_wrap_up"))
 
     def _record(self, done: ResponseDone) -> None:
         model = self._vendor.target.model

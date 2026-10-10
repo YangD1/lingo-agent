@@ -21,8 +21,10 @@ from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.providers.pronunciation import Language as ShadowingLanguage
 from app.providers.pronunciation import get_pronunciation
+from app.providers.realtime import get_realtime
 from app.providers.tenant import load_provider_context
 from app.providers.tts import LANGUAGES, Language, NoVoiceError, SpeechSynthesisError, get_tts
+from app.realtime.limits import call_limit
 from app.services.speech.read_aloud import clear_user_audio, read_aloud
 from app.services.speech.shadowing import ShadowingError, Source, shadow
 
@@ -51,6 +53,10 @@ class CapabilitiesOut(BaseModel):
     shadowing: ShadowingMode | None = None
     # Voice messages can be transcribed: the speaking page takes spoken turns (task 59).
     asr: bool = False
+    # Realtime calls (ADR 0030): routed and not turned off by the tenant ...
+    realtime: bool = False
+    # ... with this many whole minutes left today (UTC) for this learner.
+    realtime_minutes_left: int = 0
 
 
 class TtsIn(BaseModel):
@@ -82,19 +88,29 @@ def _configured(
 
 @router.get("/capabilities")
 async def capabilities(
-    _: CurrentUser, tenant: CurrentTenant, session: SessionDep
+    user: CurrentUser, tenant: CurrentTenant, session: SessionDep
 ) -> CapabilitiesOut:
     ctx = await load_provider_context(session, tenant.id)
     asr = _configured(get_asr, ctx)
     mode: ShadowingMode | None = (
         "assessment" if _configured(get_pronunciation, ctx) else "rough" if asr else None
     )
+    realtime, minutes_left = False, 0
+    if _configured(get_realtime, ctx):
+        limit = await call_limit(session, tenant, user.id, datetime.now(UTC))
+        realtime = limit.state != "off"
+        if realtime:
+            left = limit.daily_minutes * 60 - limit.used_seconds
+            minutes_left = max(0, int(left // 60))
+    out = CapabilitiesOut(
+        tts=False, shadowing=mode, asr=asr, realtime=realtime, realtime_minutes_left=minutes_left
+    )
     try:
         tts = get_tts(ctx)
     except NoModelConfiguredError:
-        return CapabilitiesOut(tts=False, shadowing=mode, asr=asr)
+        return out
     languages = [lang for lang in LANGUAGES if tts.candidates(lang)]
-    return CapabilitiesOut(tts=bool(languages), tts_languages=languages, shadowing=mode, asr=asr)
+    return out.model_copy(update={"tts": bool(languages), "tts_languages": languages})
 
 
 @router.post(

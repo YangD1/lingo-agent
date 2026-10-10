@@ -234,6 +234,14 @@ export type WordAudioEstimate = {
   suggested_price: number | null;
   minutes: number;
 };
+export type RealtimeLimits = {
+  session_minutes: number;
+  daily_minutes: number;
+  // The signed-in admin's own minutes today (UTC).
+  used_minutes: number;
+  state: "ok" | "used_up" | "off";
+};
+
 export type TenantBackground = {
   daily_tokens: number;
   used_today: number;

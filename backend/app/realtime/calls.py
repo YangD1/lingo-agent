@@ -54,6 +54,9 @@ async def close_orphaned(maker: async_sessionmaker[AsyncSession]) -> int:
 
 
 class Stoppable(Protocol):
+    @property
+    def user_id(self) -> uuid.UUID: ...
+
     def stop(self, reason: str) -> None: ...
 
 
@@ -71,6 +74,9 @@ class RealtimeCalls:
         event = self._calls.pop(call, None)
         if event is not None:
             event.set()
+
+    def has_user(self, user_id: uuid.UUID) -> bool:
+        return any(call.user_id == user_id for call in self._calls)
 
     def __len__(self) -> int:
         return len(self._calls)

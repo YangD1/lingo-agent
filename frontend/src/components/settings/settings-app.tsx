@@ -7,6 +7,7 @@ import {
   ListOrdered,
   type LucideIcon,
   AudioLines,
+  Phone,
   Plug,
   Volume2,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { RouteSection } from "./route-section";
 import { ConnectionsSection } from "./connections-section";
 import { DisplaySection } from "./display-section";
 import { ReadAloudSection } from "./read-aloud-section";
+import { RealtimeSection } from "./realtime-section";
 import { UsageSection } from "./usage-section";
 import { WordAudioSection } from "./word-audio-section";
 
@@ -32,12 +34,13 @@ const SECTIONS = [
   { id: "display", icon: Eye },
   { id: "read-aloud", icon: Volume2 },
   { id: "word-audio", icon: AudioLines },
+  { id: "realtime", icon: Phone },
   { id: "background", icon: CalendarClock },
   { id: "usage", icon: ChartColumn },
 ] as const satisfies readonly { id: string; icon: LucideIcon }[];
 
 const ALWAYS_SHOWN: ReadonlySet<string> = new Set(
-  SECTIONS.map(({ id }) => id).filter((id) => id !== "word-audio"),
+  SECTIONS.map(({ id }) => id).filter((id) => id !== "word-audio" && id !== "realtime"),
 );
 
 export function SettingsApp() {
@@ -80,6 +83,7 @@ export function SettingsApp() {
             <DisplaySection />
             <ReadAloudSection />
             <WordAudioSection />
+            <RealtimeSection />
             <BackgroundSection />
             <UsageSection />
           </div>
@@ -107,7 +111,7 @@ function SettingsToc({
 }) {
   const t = useTranslations("settings.toc");
   const [current, setCurrent] = useState<string>(SECTIONS[0].id);
-  // Sections some people don't get (word audio is for admins) are left out until shown.
+  // Sections some people don't get (word audio and realtime limits are for admins) are left out until shown.
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set(ALWAYS_SHOWN));
 
   useEffect(() => {

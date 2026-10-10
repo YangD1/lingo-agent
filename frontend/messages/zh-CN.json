@@ -906,7 +906,8 @@
       "read-aloud": "朗读",
       "background": "后台任务",
       "usage": "用量",
-      "word-audio": "单词发音"
+      "word-audio": "单词发音",
+      "realtime": "实时语音"
     },
     "background": {
       "title": "后台任务",
@@ -1009,6 +1010,16 @@
       "old": "其中 {count} 段（{megabytes} MB）是换声音之前的，学习者已经用不到。",
       "deleteOld": "删除旧声音的发音",
       "deleteOldQuestion": "删除换声音之前生成的单词发音？"
+    },
+    "realtime": {
+      "title": "实时语音限额",
+      "description": "实时通话按整通电话的时长计费，比分步的口语练习贵得多。在这里设置一通电话最长多久、每位学习者每天最多几分钟。",
+      "sessionMinutes": "单次通话（分钟）",
+      "dailyMinutes": "每人每天（分钟）",
+      "hint": "任意一项填 0 就关闭实时通话。每天从 UTC 0 点算起。今天剩不到 1 分钟时不能再接通；结束前 1 分钟会提醒，到点后私教会说再见并挂断。",
+      "save": "保存",
+      "off": "本工作区所有人的实时通话都已关闭。",
+      "usedToday": "你今天（UTC）已用 {used} / {limit} 分钟。"
     }
   },
   "placement": {
