@@ -19,6 +19,7 @@ type Utterance = { text: string; onend: (() => void) | null };
 type Player = {
   src: string;
   paused: boolean;
+  playbackRate: number;
   onended: (() => void) | null;
   onerror: (() => void) | null;
 };
@@ -101,6 +102,8 @@ beforeEach(() => {
     class implements Player {
       src = "";
       paused = true;
+      playbackRate = 1;
+      defaultPlaybackRate = 1;
       onended = null;
       onerror = null;
       constructor() {
@@ -156,6 +159,23 @@ describe("server read-aloud", () => {
     expect(requests).toEqual([{ text: "Well done.", language: "en-GB", speed: 1.1 }]);
     await endAudio();
     expect(read()).toEqual(["你说得对。"]);
+  });
+
+  it("asks for a word at speed 1 and plays it at the learner's speed (Q55a)", async () => {
+    window.localStorage.setItem("lingo.speech", JSON.stringify({ accent: "en-GB", enRate: 0.8 }));
+    const speech = await load();
+    speech.speakWord(" abandon ");
+    await flush();
+    // Speed 1 is what the deployment generated ahead of time: the cache has it.
+    expect(requests).toEqual([{ text: "abandon", language: "en-GB", speed: 1 }]);
+    expect(players.at(-1)!.playbackRate).toBe(0.8);
+
+    // A sentence is still asked at the learner's speed and played as it comes.
+    requests = [];
+    speech.speak("Abandon ship.");
+    await flush();
+    expect(requests).toEqual([{ text: "Abandon ship.", language: "en-GB", speed: 0.8 }]);
+    expect(players.at(-1)!.playbackRate).toBe(1);
   });
 
   it("falls back to the browser for the page when the server fails", async () => {

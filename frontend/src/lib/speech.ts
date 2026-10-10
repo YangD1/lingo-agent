@@ -13,6 +13,9 @@ export const canSpeak = () => typeof window !== "undefined" && "speechSynthesis"
 
 export type SpeechLang = "zh-CN" | "en-US";
 export type Segment = { text: string; lang: SpeechLang };
+// A word is asked of the server at speed 1, the speed its pronunciation was generated
+// ahead of time in, and played at the learner's speed (Q55a).
+type Piece = Segment & { word?: boolean };
 
 // Han characters, CJK punctuation and full-width forms read as Chinese; Latin letters as English.
 const HAN = /[　-〿㐀-䶿一-鿿豈-﫿＀-￯]/;
@@ -385,7 +388,7 @@ export const SERVER_START_TIMEOUT_MS = 4000;
  * The server's audio for one sentence, or null after marking what failed: the language
  * when the route has no voice for it, the server (for this page) on anything else.
  */
-async function fetchSpeech(piece: Segment, stop: AbortSignal): Promise<Blob | null> {
+async function fetchSpeech(piece: Piece, stop: AbortSignal): Promise<Blob | null> {
   const settings = currentSettings();
   const language = serverLang(piece.lang, settings);
   const request = new AbortController();
@@ -399,7 +402,7 @@ async function fetchSpeech(piece: Segment, stop: AbortSignal): Promise<Blob | nu
       body: JSON.stringify({
         text: piece.text,
         language,
-        speed: piece.lang === "en-US" ? settings.enRate : ZH_RATE,
+        speed: piece.word ? 1 : piece.lang === "en-US" ? settings.enRate : ZH_RATE,
       }),
       signal: request.signal,
     });
@@ -437,8 +440,11 @@ function unlockPlayer() {
 // How to drop the sentence playing now when cut off.
 let stopAudio: (() => void) | null = null;
 
-/** Plays `audio`; true once it ends, false if it can't be played (or is cut off). */
-function playAudio(audio: Blob): Promise<boolean> {
+/**
+ * Plays `audio` at `rate` (pitch kept); true once it ends, false if it can't be played
+ * (or is cut off).
+ */
+function playAudio(audio: Blob, rate = 1): Promise<boolean> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(audio);
     const element = (player ??= new Audio());
@@ -456,6 +462,8 @@ function playAudio(audio: Blob): Promise<boolean> {
     stopAudio = drop;
     element.onended = () => end(true);
     element.onerror = () => end(false);
+    // Loading a source resets playbackRate to the default rate, so set both.
+    element.defaultPlaybackRate = element.playbackRate = rate;
     element.src = url;
     Promise.resolve(element.play()).catch(() => end(false));
   });
@@ -561,7 +569,7 @@ function cutOff() {
  */
 function read(
   owner: string | null,
-  pieces: Segment[],
+  pieces: Piece[],
   browser: Utterance<SpeechSynthesisVoice>[] = [],
 ) {
   cutOff();
@@ -603,7 +611,8 @@ function read(
       if (next < pieces.length && serverReads(pieces[next].lang, currentSettings())) {
         void fetchAt(next);
       }
-      if (await playAudio(audio)) return step(next);
+      const rate = pieces[i].word ? currentSettings().enRate : 1;
+      if (await playAudio(audio, rate)) return step(next);
       if (!live()) return;
       setServer({ down: true }); // the page can't play it (blocked, or not audio)
       step(i);
@@ -639,6 +648,14 @@ export function speakSegments(owner: string, segments: Segment[]): SpeechLang[] 
   const browserOnly = pieces.filter((piece) => !serverReads(piece.lang, settings));
   if (!canSpeak()) return [...new Set(browserOnly.map((piece) => piece.lang))];
   return planSpeech(browserOnly, browserVoices(), { ...settings, failed: failedVoices }).skipped;
+}
+
+/**
+ * Reads an English word (or phrase) aloud, cutting off whatever was being read. The
+ * server's audio is the one generated ahead of time when there is one (ADR 0028 §4).
+ */
+export function speakWord(word: string) {
+  read(null, [{ text: word.trim(), lang: "en-US", word: true }]);
 }
 
 export function stopSpeaking() {

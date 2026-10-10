@@ -10,7 +10,7 @@ import { ReadAloudBadge } from "@/components/speech/read-aloud-badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { ErrorText } from "@/components/ui/error-text";
-import { speak, useCanSpeak } from "@/lib/speech";
+import { speakWord, useCanSpeak } from "@/lib/speech";
 import { type Example, type Lookup, addMine, fetchExamples, lookupWord } from "@/lib/vocab";
 import { LingoCat } from "@/components/brand/lingo-cat";
 
@@ -271,7 +271,7 @@ function WordCard({
           variant="ghost"
           className="self-center"
           aria-label={t("speak", { word: entry?.word.word ?? word })}
-          onClick={() => speak(entry?.word.word ?? word)}
+          onClick={() => speakWord(entry?.word.word ?? word)}
         >
           <Volume2 />
         </Button>

@@ -15,7 +15,7 @@ import { ProgressBar } from "@/components/ui/progress";
 import { Tag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
 import { isShortcut } from "@/lib/keyboard";
-import { speak, useCanSpeak } from "@/lib/speech";
+import { speakWord, useCanSpeak } from "@/lib/speech";
 import { cn } from "@/lib/utils";
 import { formatInterval, type Rating } from "@/lib/vocab";
 import { CatLoading, LingoCat } from "@/components/brand/lingo-cat";
@@ -171,7 +171,7 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                         variant="ghost"
                         size="icon-sm"
                         aria-label={t("speak")}
-                        onClick={() => speak(current.word.word)}
+                        onClick={() => speakWord(current.word.word)}
                       >
                         <Volume2 />
                       </Button>
