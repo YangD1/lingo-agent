@@ -327,12 +327,20 @@ export type ServerSpeech = {
   noVoice: ReadonlySet<ServerLang>;
   /** How shadowing is scored (ADR 0028 §5); null until asked, or with nothing to score it. */
   shadowing: ShadowingMode | null;
+  /** Voice messages are transcribed (task 59): null until asked. */
+  asr: boolean | null;
 };
 
 /** Scored by pronunciation assessment, or only compared with a transcript. */
 export type ShadowingMode = "assessment" | "rough";
 
-let server: ServerSpeech = { languages: null, down: false, noVoice: new Set(), shadowing: null };
+let server: ServerSpeech = {
+  languages: null,
+  down: false,
+  noVoice: new Set(),
+  shadowing: null,
+  asr: null,
+};
 let capabilitiesLoad: Promise<void> | null = null;
 const serverListeners = new Set<() => void>();
 
@@ -350,11 +358,13 @@ type Capabilities = {
   tts: boolean;
   tts_languages: ServerLang[];
   shadowing?: ShadowingMode | null;
+  asr?: boolean;
 };
 
 /**
- * Asks the backend once per page which languages it reads and how it scores shadowing;
- * any error means neither. Until it has answered, the browser reads everything.
+ * Asks the backend once per page which languages it reads, how it scores shadowing and
+ * whether it transcribes; any error means none of them. Until it has answered, the
+ * browser reads everything.
  */
 export function loadCapabilities(): Promise<void> {
   capabilitiesLoad ??= Promise.resolve()
@@ -363,9 +373,10 @@ export function loadCapabilities(): Promise<void> {
       (caps): Partial<ServerSpeech> => ({
         languages: new Set(caps.tts ? caps.tts_languages : []),
         shadowing: caps.shadowing ?? null,
+        asr: caps.asr ?? false,
       }),
     )
-    .catch((): Partial<ServerSpeech> => ({ languages: new Set(), shadowing: null }))
+    .catch((): Partial<ServerSpeech> => ({ languages: new Set(), shadowing: null, asr: false }))
     .then(setServer);
   return capabilitiesLoad;
 }

@@ -4,6 +4,7 @@ transcript, and without speech-to-text either there is no shadowing."""
 
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 
@@ -16,6 +17,7 @@ from app.api.errors import api_error
 from app.db.models import PronunciationAttempt
 from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.providers.asr import get_asr
+from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.providers.pronunciation import Language as ShadowingLanguage
 from app.providers.pronunciation import get_pronunciation
@@ -47,6 +49,8 @@ class CapabilitiesOut(BaseModel):
     tts_languages: list[Language] = []
     # How shadowing is scored; None: no shadowing (nothing to score it with).
     shadowing: ShadowingMode | None = None
+    # Voice messages can be transcribed: the speaking page takes spoken turns (task 59).
+    asr: bool = False
 
 
 class TtsIn(BaseModel):
@@ -66,25 +70,31 @@ class TtsIn(BaseModel):
         return value
 
 
+def _configured(
+    probe: Callable[[TenantProviderContext], object], ctx: TenantProviderContext
+) -> bool:
+    try:
+        probe(ctx)
+    except NoModelConfiguredError:
+        return False
+    return True
+
+
 @router.get("/capabilities")
 async def capabilities(
     _: CurrentUser, tenant: CurrentTenant, session: SessionDep
 ) -> CapabilitiesOut:
     ctx = await load_provider_context(session, tenant.id)
-    mode: ShadowingMode | None = None
-    for mode_, probe in (("assessment", get_pronunciation), ("rough", get_asr)):
-        try:
-            probe(ctx)
-        except NoModelConfiguredError:
-            continue
-        mode = mode_  # type: ignore[assignment]
-        break
+    asr = _configured(get_asr, ctx)
+    mode: ShadowingMode | None = (
+        "assessment" if _configured(get_pronunciation, ctx) else "rough" if asr else None
+    )
     try:
         tts = get_tts(ctx)
     except NoModelConfiguredError:
-        return CapabilitiesOut(tts=False, shadowing=mode)
+        return CapabilitiesOut(tts=False, shadowing=mode, asr=asr)
     languages = [lang for lang in LANGUAGES if tts.candidates(lang)]
-    return CapabilitiesOut(tts=bool(languages), tts_languages=languages, shadowing=mode)
+    return CapabilitiesOut(tts=bool(languages), tts_languages=languages, shadowing=mode, asr=asr)
 
 
 @router.post(

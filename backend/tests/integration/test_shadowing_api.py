@@ -168,6 +168,7 @@ async def test_rough_result_from_a_transcript(
     await register(client)
     await with_asr(client, monkeypatch, "good evening everyone")
     assert await capabilities(client) == "rough"
+    assert (await client.get("/speech/capabilities")).json()["asr"] is True
 
     response = await post(client, language="en-GB", source="chat")
 

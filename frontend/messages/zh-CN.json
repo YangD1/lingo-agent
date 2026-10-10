@@ -132,7 +132,8 @@
     "account": "账户",
     "practice": "语法练习",
     "writing": "写作",
-    "reading": "阅读"
+    "reading": "阅读",
+    "speaking": "口语"
   },
   "chat": {
     "newChat": "新对话",
@@ -1789,6 +1790,39 @@
       "right": "正确答案",
       "wrong": "你的答案",
       "evidence": "原文依据："
+    }
+  },
+  "speaking": {
+    "list": {
+      "title": "口语练习",
+      "description": "用英语和私教对话，可以说也可以打字。私教会把对话接下去，结束时再集中讲你说错的地方。",
+      "noAsr": "还没配置语音转写，暂时不能发语音，可以先打字练。",
+      "noAsrAction": "去设置",
+      "continue": "继续上次",
+      "turns": "{n} 轮",
+      "noTurns": "还没开口",
+      "scenarios": "选一个情景",
+      "loading": "正在加载情景…",
+      "freeTalk": "自由聊",
+      "freeTalkGoal": "想聊什么都行。",
+      "starting": "正在开始…",
+      "otherLevels": "另有 {n} 个情景不在 {level} 的范围",
+      "history": "练过的",
+      "spoken": "说了 {minutes} 分钟",
+      "status": {
+        "active": "进行中",
+        "failed": "小结没生成"
+      },
+      "intelligibility": {
+        "hard": "不太好懂",
+        "partly": "部分能懂",
+        "mostly": "基本能懂",
+        "fully": "清楚"
+      },
+      "confirmDelete": "删除这次练习和它的小结？",
+      "delete": "删除",
+      "more": "加载更早的",
+      "loadingMore": "加载中…"
     }
   }
 }

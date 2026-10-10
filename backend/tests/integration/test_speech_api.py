@@ -77,6 +77,7 @@ async def test_without_a_route_the_browser_reads_aloud(client: AsyncClient) -> N
         "tts": False,
         "tts_languages": [],
         "shadowing": None,
+        "asr": False,
     }
     response = await client.post("/speech/tts", json=say())
 
@@ -92,6 +93,7 @@ async def test_second_request_is_served_from_the_cache(
         "tts": True,
         "tts_languages": ["en-US", "en-GB", "zh-CN"],
         "shadowing": None,
+        "asr": False,
     }
 
     first = await client.post("/speech/tts", json=say("  Nice to meet you. "))
@@ -131,7 +133,7 @@ async def test_a_language_without_a_voice_is_left_to_the_browser(
     capabilities = (await client.get("/speech/capabilities")).json()
     response = await client.post("/speech/tts", json={"text": "你好", "language": "zh-CN"})
 
-    assert capabilities == {"tts": True, "tts_languages": ["en-US", "en-GB"], "shadowing": None}
+    assert capabilities == {"tts": True, "tts_languages": ["en-US", "en-GB"], "shadowing": None, "asr": False}
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "no_tts_voice"
     assert vendor.seen == []

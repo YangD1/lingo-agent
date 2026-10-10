@@ -132,7 +132,8 @@
     "account": "Account",
     "practice": "Grammar practice",
     "writing": "Writing",
-    "reading": "Reading"
+    "reading": "Reading",
+    "speaking": "Speaking"
   },
   "chat": {
     "newChat": "New chat",
@@ -1789,6 +1790,39 @@
       "right": "right answer",
       "wrong": "your answer",
       "evidence": "In the text:"
+    }
+  },
+  "speaking": {
+    "list": {
+      "title": "Speaking",
+      "description": "Talk with your tutor in English, by voice or typing. It keeps the conversation going and goes through your mistakes at the end.",
+      "noAsr": "Voice messages need speech-to-text, which isn't set up: you can still type.",
+      "noAsrAction": "Settings",
+      "continue": "Continue where you left off",
+      "turns": "{n, plural, one {# turn} other {# turns}}",
+      "noTurns": "Nothing said yet",
+      "scenarios": "Pick a situation",
+      "loading": "Loading situations…",
+      "freeTalk": "Free talk",
+      "freeTalkGoal": "Chat about anything you like.",
+      "starting": "Starting…",
+      "otherLevels": "{n, plural, one {# more situation} other {# more situations}} outside {level}",
+      "history": "Past practice",
+      "spoken": "spoke {minutes} min",
+      "status": {
+        "active": "In progress",
+        "failed": "Summary failed"
+      },
+      "intelligibility": {
+        "hard": "Hard to follow",
+        "partly": "Partly clear",
+        "mostly": "Mostly clear",
+        "fully": "Clear"
+      },
+      "confirmDelete": "Delete this practice and its summary?",
+      "delete": "Delete",
+      "more": "Load earlier",
+      "loadingMore": "Loading…"
     }
   }
 }

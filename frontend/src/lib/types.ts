@@ -15,9 +15,10 @@ export type Conversation = {
   focus_kc: { id: string; name_en: string; name_zh: string; cefr: string } | null;
   /**
    * "planning": the study-planning conversation from the placement result (ADR 0015 §6);
-   * "daily": the dashboard's conversation of the day (ADR 0016).
+   * "daily": the dashboard's conversation of the day (ADR 0016);
+   * "speaking": a speaking practice, shown on /speaking only (ADR 0029).
    */
-  purpose: "planning" | "daily" | null;
+  purpose: "planning" | "daily" | "speaking" | null;
   /** The article a reading conversation is about (Q43h); null otherwise or once it is gone. */
   article_id: number | null;
 };
