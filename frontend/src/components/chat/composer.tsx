@@ -223,7 +223,7 @@ export function Composer({
 const METER_BARS = 12;
 
 /** The microphone level as a row of thin bars, lit from the left. */
-function LevelMeter({ level }: { level: number }) {
+export function LevelMeter({ level }: { level: number }) {
   const lit = Math.round(level * METER_BARS);
   return (
     <span

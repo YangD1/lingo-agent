@@ -325,9 +325,14 @@ export type ServerSpeech = {
   languages: ReadonlySet<ServerLang> | null;
   down: boolean;
   noVoice: ReadonlySet<ServerLang>;
+  /** How shadowing is scored (ADR 0028 §5); null until asked, or with nothing to score it. */
+  shadowing: ShadowingMode | null;
 };
 
-let server: ServerSpeech = { languages: null, down: false, noVoice: new Set() };
+/** Scored by pronunciation assessment, or only compared with a transcript. */
+export type ShadowingMode = "assessment" | "rough";
+
+let server: ServerSpeech = { languages: null, down: false, noVoice: new Set(), shadowing: null };
 let capabilitiesLoad: Promise<void> | null = null;
 const serverListeners = new Set<() => void>();
 
@@ -341,16 +346,26 @@ function subscribeServer(listener: () => void) {
   return () => serverListeners.delete(listener);
 }
 
+type Capabilities = {
+  tts: boolean;
+  tts_languages: ServerLang[];
+  shadowing?: ShadowingMode | null;
+};
+
 /**
- * Asks the backend once per page which languages it reads; any error means none. Until it
- * has answered, the browser reads everything.
+ * Asks the backend once per page which languages it reads and how it scores shadowing;
+ * any error means neither. Until it has answered, the browser reads everything.
  */
 export function loadCapabilities(): Promise<void> {
   capabilitiesLoad ??= Promise.resolve()
-    .then(() => api<{ tts: boolean; tts_languages: ServerLang[] }>("/speech/capabilities"))
-    .then((caps): ReadonlySet<ServerLang> => new Set(caps.tts ? caps.tts_languages : []))
-    .catch((): ReadonlySet<ServerLang> => new Set())
-    .then((languages) => setServer({ languages }));
+    .then(() => api<Capabilities>("/speech/capabilities"))
+    .catch((): Capabilities => ({ tts: false, tts_languages: [] }))
+    .then((caps) =>
+      setServer({
+        languages: new Set(caps.tts ? caps.tts_languages : []),
+        shadowing: caps.shadowing ?? null,
+      }),
+    );
   return capabilitiesLoad;
 }
 
