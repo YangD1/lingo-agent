@@ -1859,6 +1859,33 @@
       "fixSend": "Send the fixed text",
       "cancel": "Cancel",
       "fixed": "Fixed"
+    },
+    "summary": {
+      "back": "Back to speaking",
+      "freeTalk": "Free talk",
+      "again": "Practise again",
+      "turns": "{n, plural, one {# turn} other {# turns}}",
+      "spoken": "spoke {minutes} min",
+      "intelligibility": {
+        "hard": "Hard to follow",
+        "partly": "Partly clear",
+        "mostly": "Mostly clear",
+        "fully": "Clear"
+      },
+      "failed": "The summary couldn't be made this time.",
+      "retry": "Try again",
+      "retrying": "Summing up…",
+      "nothingSaid": "You didn't say anything this time, so there's nothing to sum up.",
+      "aiNote": "Summed up by your tutor from what you said; your mistakes are already in your learner model.",
+      "wentWell": "What went well",
+      "mistakes": "Mistakes and fixes",
+      "moreNatural": "More natural ways to say it",
+      "youSaid": "You said: {quote}",
+      "nextTime": "Try these next time",
+      "shadow": "Shadow: {sentence}",
+      "addToList": "Add to word list",
+      "added": "On your list",
+      "notInDictionary": "Not in the dictionary"
     }
   }
 }

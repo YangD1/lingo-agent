@@ -1859,6 +1859,33 @@
       "fixSend": "发送改好的",
       "cancel": "取消",
       "fixed": "已改"
+    },
+    "summary": {
+      "back": "回到口语练习",
+      "freeTalk": "自由聊",
+      "again": "再练一次",
+      "turns": "{n} 轮",
+      "spoken": "说了 {minutes} 分钟",
+      "intelligibility": {
+        "hard": "不太好懂",
+        "partly": "部分能懂",
+        "mostly": "基本能懂",
+        "fully": "清楚"
+      },
+      "failed": "这次小结没能生成。",
+      "retry": "重试",
+      "retrying": "正在生成小结…",
+      "nothingSaid": "这次没有开口，所以没有小结。",
+      "aiNote": "私教根据你说的话总结；说错的地方已经记进学习者模型。",
+      "wentWell": "说得好的地方",
+      "mistakes": "说错的和改法",
+      "moreNatural": "更地道的说法",
+      "youSaid": "你说的：{quote}",
+      "nextTime": "下次可以试试",
+      "shadow": "跟读：{sentence}",
+      "addToList": "加入生词本",
+      "added": "已在生词本",
+      "notInDictionary": "词典里没有这个说法"
     }
   }
 }

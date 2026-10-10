@@ -20,6 +20,7 @@ vi.mock("@/lib/ai-usage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ai-usage")>()),
   loadEstimates: () => new Promise(() => {}),
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) }));
 const streamChat = vi.hoisted(() => vi.fn());
 const streamOpening = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/sse", () => ({ streamChat, streamOpening, OPENING_TURN_ID: "opening" }));
