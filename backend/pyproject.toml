@@ -38,6 +38,7 @@ dependencies = [
     "pyyaml>=6,<7",
     "sqlalchemy[asyncio]>=2.1,<2.2",
     "uvicorn[standard]>=0.54,<1",
+    "websockets>=16.1,<17",
 ]
 
 [dependency-groups]

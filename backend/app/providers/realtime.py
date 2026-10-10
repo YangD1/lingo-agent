@@ -17,7 +17,7 @@ plays at the rates given here.
 
 import uuid
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import Any, Literal, cast
 from urllib.parse import quote, urlsplit
 
 from app.providers.config import REALTIME_KINDS, ResolvedModel, TenantProviderContext, resolve_route
@@ -35,13 +35,31 @@ class _Vendor:
     output_rate: int
     # Where it listens when the connection doesn't say; None: next to base_url.
     url: str | None = None
+    # None: the vendor's own default.
+    voice: str | None = None
+    # Model that transcribes the learner's speech for subtitles; None: not asked for.
+    transcription: str | None = None
+    # Beta spelling only: what `input_audio_format` / `output_audio_format` are called.
+    formats: tuple[str, str] = ("pcm16", "pcm16")
 
 
-# Checked 2026-10-10 (docs/plans/P3-voice.md §2.1). PCM16 mono both ways.
-_OPENAI = _Vendor("ga", 24_000, 24_000)
-_QWEN = _Vendor("beta", 16_000, 24_000, "wss://dashscope.aliyuncs.com/api-ws/v1/realtime")
-_QWEN_INTL = _Vendor("beta", 16_000, 24_000, "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime")
-_STEPFUN = _Vendor("beta", 24_000, 24_000, "wss://api.stepfun.com/v1/realtime")
+# Checked 2026-10-10 (docs/plans/P3-voice.md §2.1); PCM16 mono both ways. Voices,
+# transcription models and Qwen's format names are from the docs, not yet from a real
+# call: task 64's smoke test confirms them.
+_OPENAI = _Vendor("ga", 24_000, 24_000, voice="marin", transcription="gpt-transcribe")
+_QWEN_DETAILS: dict[str, Any] = {
+    "transcription": "qwen3-asr-flash-realtime",
+    "formats": ("pcm", "pcm"),
+}
+_QWEN = _Vendor(
+    "beta", 16_000, 24_000, "wss://dashscope.aliyuncs.com/api-ws/v1/realtime", **_QWEN_DETAILS
+)
+_QWEN_INTL = _Vendor(
+    "beta", 16_000, 24_000, "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime", **_QWEN_DETAILS
+)
+_STEPFUN = _Vendor(
+    "beta", 24_000, 24_000, "wss://api.stepfun.com/v1/realtime", voice="qingchunshaonv"
+)
 
 
 def _vendor(host: str, kind: str) -> _Vendor:
@@ -68,6 +86,9 @@ class RealtimeTarget:
     dialect: RealtimeDialect
     input_rate: int
     output_rate: int
+    voice: str | None = None
+    transcription: str | None = None
+    formats: tuple[str, str] = ("pcm16", "pcm16")
 
 
 def realtime_target(model: ResolvedModel) -> RealtimeTarget:
@@ -84,6 +105,9 @@ def realtime_target(model: ResolvedModel) -> RealtimeTarget:
         dialect=cast(RealtimeDialect, dialect),
         input_rate=vendor.input_rate,
         output_rate=vendor.output_rate,
+        voice=vendor.voice,
+        transcription=vendor.transcription,
+        formats=vendor.formats,
     )
 
 

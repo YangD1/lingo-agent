@@ -14,6 +14,7 @@ Built on httpx2/httpcore2 (API-identical forks of httpx/httpcore) because the op
 anthropic SDKs switched to them and reject plain httpx clients via isinstance checks.
 """
 
+import asyncio
 import ipaddress
 import socket
 from collections.abc import Iterable
@@ -91,6 +92,32 @@ async def validate_realtime_url(url: str, *, allow_private: bool) -> str:
         raise ProviderConfigError("realtime_url must use wss" + (" or ws" if allow_private else ""))
     checked = await validate_base_url(f"{http_scheme}://{rest}", allow_private=allow_private)
     return "ws" + checked.removeprefix("http")
+
+
+async def guarded_socket(host: str, port: int, *, allow_private: bool) -> socket.socket:
+    """A TCP socket connected to a checked address of `host`, for clients that don't go
+    through httpx (the realtime WebSocket, ADR 0030): the same connect-time check as
+    `GuardedNetworkBackend`, against DNS rebinding. Callers bound it with a timeout."""
+    addresses = await resolve(host, port)
+    if not allow_private and (not addresses or any(is_forbidden_ip(ip) for ip in addresses)):
+        raise ForbiddenDestinationError(f"destination {host!r} is not allowed")
+    loop = asyncio.get_running_loop()
+    last_error: OSError | None = None
+    for ip in addresses:
+        family = socket.AF_INET6 if ip.version == 6 else socket.AF_INET
+        sock = socket.socket(family, socket.SOCK_STREAM)
+        sock.setblocking(False)
+        try:
+            await loop.sock_connect(sock, (str(ip), port))
+        except OSError as exc:
+            sock.close()
+            last_error = exc
+            continue
+        except BaseException:  # timed out or cancelled mid-connect
+            sock.close()
+            raise
+        return sock
+    raise last_error or OSError(f"cannot connect to {host!r}")
 
 
 class GuardedNetworkBackend(httpcore2.AsyncNetworkBackend):

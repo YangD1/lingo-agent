@@ -1236,6 +1236,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
 ]
 
 [package.dev-dependencies]
@@ -1284,6 +1285,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6,<7" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.1,<2.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.54,<1" },
+    { name = "websockets", specifier = ">=16.1,<17" },
 ]
 
 [package.metadata.requires-dev]
