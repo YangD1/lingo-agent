@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-10-10 · 任务 58 完成（口语练习后端）
+
+- **做了什么**：开头把任务 57 推送到 129d3dd，CI run 38031826142 四个 job 全绿。任务 58 拆成 58.1–58.6，Q58a–h 按推荐确认。58.1 `speaking/scenarios.yaml` + `scenarios.py`（10 个情景，启动校验）。58.2 迁移 `08753b283c97`（purpose 加 speaking / realtime、`scenario_id`、证据 source 加 speaking、`speaking_sessions`）；`CONVERSATION_SOURCES` 替换四处只认 `chat` 的过滤；`rules.yaml` 加 `speaking` 块（`2026-10-10.2`）。58.3 `Route.SPEAKING_COACH`、`chat/speaking.py`、speaking_coach 子图（自己的系统提示词、总是英文、不挂工具、先开口），`_call` 的开场提示改为传文本、`system_prompt` 加 `base`。58.4 `speaking/evidence.py`（短语音不记错、改过转写的不记）+ 反思按 purpose 记 source。58.5 `speaking/summary.py`、`speaking/sessions.py`、`api/speaking.py`（场景、开始、列表 / 详情、结束、改转写、删除），聊天列表排除口语会话，结束后不再接受新一轮。58.6 `features.yaml` 三项、前端类型与中英文案、`agent-tools.md`、ADR 0029 落地记录、P3 计划、PLAN。
+- **验证**：pytest 1580、Vitest 447 全过；ruff、mypy、eslint、tsc 干净；开发库已迁移到 `08753b283c97`。没跑 E2E（前端只改了类型和文案）。
+- **未完成**：58 范围内没有。转写置信度没做（`providers/asr.py` 的 `Transcript` 没有这个字段，ADR 0029 落地记录已注明）。本地领先 origin 若干提交，未推送；Docker 未重建。
+- **下一步**：任务 59（`/speaking` 页、半双工语音回合、流式朗读、小结页、看板与每日计划入口），开工前先拆子任务、和用户确认。要定的点：按住说话的交互、语音消息直接发送（ADR 0029 §3，前端现在是转写后回填输入框）、“改一下”的界面（后端是 `POST /speaking/sessions/{id}/corrections` + 再发一条）、每日计划“口语 10 分钟”的完成按 `spoken_seconds` 算。
+- **踩坑**：**两个 pytest 不能同时跑**：它们共用一个测试库，会互相清表，表现为莫名其妙的 401 和卡住（这次后台全量跑的时候又单独跑了一个文件，两边都坏了）。用 Python `str.replace` 批量改代码时，同样的几行在多个子图构建函数里都有，结果把 speaking_coach 的边加进了 reading_coach 子图（LangGraph 报 “edge starting at unknown node”）；替换前要确认匹配唯一。YAML 里带 `: ` 的字符串要加引号，否则会被解析成映射。
+
 ## 2026-10-10 · 任务 57 完成（跟读组件）
 
 - **做了什么**：开头把任务 56 推送到 7684ede，CI run 38027802954 四个 job 全绿。任务 57 拆成 57.1–57.5，Q57a–g 按推荐确认。57.1 `lib/wav.ts` + `components/speech/use-wav-recorder.ts`（AudioWorklet 采集 → 16kHz 单声道 16 位 WAV，30 秒自动停）；57.2 `lib/shadowing.ts`、`components/speech/shadowing-panel.tsx`、能力缓存多存 `shadowing`；57.3 `shadowing-button.tsx`，挂到 `reply-tools.tsx`、`reading-article.tsx`（`Paragraph`）、`word-examples.tsx`；57.4 复习卡片“读不准”、`components/learner/shadowing-history.tsx`；57.5 假 Azure 评测、`e2e/shadowing.spec.ts`、文档。提交 9d8917d、707e71d、0f1564e、7237477、2404ccf 和本次。

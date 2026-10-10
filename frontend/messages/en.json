@@ -1384,7 +1384,10 @@
       "read_aloud": "Replies, words and examples are read by the server's read-aloud model; sentences already read are cached and not billed again. You can turn it off in the read-aloud settings and use only this device's voices.",
       "word_audio_prefetch": "Started by hand in the settings for one word book: the first model in the read-aloud route reads each word in American and/or British English once and the audio is kept, so learners reading a word aloud play it with no model call. Billed by characters, estimated before it starts; not against the daily background budget.",
       "shadowing": "Your recording is scored by a pronunciation assessment model: overall, per word and per sound. The recording is discarded once scored; only the scores are kept. They update your speaking ability, and words you don't say right are marked in your reviews. If assessment fails, a transcript is compared instead.",
-      "shadowing_rough": "Your recording is transcribed by a speech-to-text model and compared with the sentence word by word, marking words left out, heard as another word, or added. It's a rough result, not a pronunciation score, and isn't counted in your learning record. The recording is discarded once transcribed."
+      "shadowing_rough": "Your recording is transcribed by a speech-to-text model and compared with the sentence word by word, marking words left out, heard as another word, or added. It's a rough result, not a pronunciation score, and isn't counted in your learning record. The recording is discarded once transcribed.",
+      "speaking_start": "When you start speaking practice, the tutor says the first line of the scene, written by an AI model.",
+      "speaking_turn": "What you say is transcribed by a speech-to-text model, then an AI model replies in the scene (briefly, read aloud to you). Afterwards, as in any chat, the turn is reviewed in the background to update your memory and grammar notes; very short spoken turns record no mistakes, so a transcription error isn't counted as yours.",
+      "speaking_summary": "When you finish, an AI model reads the conversation and writes what went well, mistakes with corrections, more natural ways to say things and expressions to try next time, and rates how easy you were to understand. Items that don't quote your own words are dropped; the rating updates your speaking ability."
     },
     "task": {
       "chat": "Reply",
@@ -1411,7 +1414,10 @@
       "tts": "Read aloud",
       "word_audio": "Word pronunciation",
       "pronunciation": "assess pronunciation",
-      "shadowing_asr": "transcribe the reading"
+      "shadowing_asr": "transcribe the reading",
+      "speaking": "speaking partner reply",
+      "speaking_opening": "opening line",
+      "speaking_summary": "write the speaking summary"
     },
     "timing": {
       "now": "right away",

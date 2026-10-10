@@ -114,6 +114,43 @@ features:
         timing: now
         default: {audio_seconds: 5}
 
+  # Speaking practice (ADR 0029): speaking_coach opens a session (Q58e), then each
+  # spoken turn is transcribed (`chat_audio`'s call) and answered; reflection follows
+  # as in any chat. Its replies are read aloud by `read_aloud`, badged there.
+  speaking_start:
+    calls:
+      - task: speaking_opening
+        route: chat
+        timing: now
+        default: {input_tokens: 1500, output_tokens: 60}
+
+  speaking_turn:
+    calls:
+      - task: asr
+        section: asr
+        timing: now
+        default: {audio_seconds: 8}
+      - task: speaking
+        route: chat
+        timing: now
+        default: {input_tokens: 4000, output_tokens: 80}
+      - task: reflect
+        timing: background
+        default: {input_tokens: 13000, output_tokens: 200}
+      - task: memory
+        section: embedding
+        timing: background
+        history: false
+        default: {input_tokens: 50, output_tokens: 0}
+
+  # Ending a session (or opening the speaking page after one was left idle, Q58c): one
+  # structured call over the whole conversation.
+  speaking_summary:
+    calls:
+      - task: speaking_summary
+        timing: now
+        default: {input_tokens: 2500, output_tokens: 600}
+
   practice_start:
     calls:
       - task: practice_opening

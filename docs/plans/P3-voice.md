@@ -102,6 +102,7 @@
 - **证据**：转写的学习者话语照常走反思打标，source 记为 `speaking`（`kc_evidence` 约束加一项），算“产出”证据；转写不可靠的词不计（Q5）。
 - **小结**：结束时一次结构化调用 `speaking_summary`：说得好的、错误与改法、更地道的说法、下次可练的表达；存 `speaking_sessions`（user、conversation、scenario、开始 / 结束、轮数、说话秒数、summary JSONB）。小结里的表达可一键加入生词本，句子可一键跟读。
 - **入口**：新页面 `/speaking`（情景列表 + 历史小结）；看板“今天”私教可给口语卡片；每日计划加可选的“口语 10 分钟”（ADR 0027 的 choice 扩展，Q6）。
+- **落地（任务 58，2026-10-10）**：后端按 Q58a–h 完成：情景清单、`speaking_coach` 子图（总是英文、不挂工具、先开口）、`speaking_sessions`、证据 source `speaking`（语音少于 3 个词不记错误，转写置信度以后再加）、改转写、口语小结与可理解度 → 口语 Elo、`/speaking/*` 接口；细节见 ADR 0029 落地记录。页面在任务 59。
 
 ## 6. 实时语音（P3d）
 

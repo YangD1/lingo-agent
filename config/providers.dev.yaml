@@ -103,6 +103,7 @@ llm:
     diagnose: {timeout: 120}
     exercise_grade: {timeout: 60}
     reflect: {timeout: 60}
+    speaking_summary: {timeout: 60}
 
 embedding:
   default: openai:text-embedding-3-small
