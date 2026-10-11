@@ -55,6 +55,57 @@ test("choose a book, screen known words, review, and see the progress", async ({
   await expect(book.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
 });
 
+test("reviewed words come back to be heard and picked, or spelled (task 63)", async ({ page }) => {
+  await register(page, uniqueEmail());
+  const chosen = await page.request.put("/api/vocab/book", { data: { book_id: OXFORD } });
+  expect(chosen.status()).toBe(204);
+  await page.goto("/vocab/review");
+
+  // New words are shown as words whatever the type; miss two so they come back.
+  await page.getByRole("radio", { name: "听音" }).click();
+  await expect(page.getByTestId("review-format-note")).toContainText("第一次学的词先看词");
+  for (const [word, rating] of [
+    ["the", "1"],
+    ["go", "1"],
+    ["us", "4"],
+    ["run", "4"],
+    ["abandon", "4"],
+    ["hello", "4"],
+    ["colour", "4"],
+  ]) {
+    await expect(page.getByRole("heading", { name: word, exact: true })).toBeVisible();
+    await page.keyboard.press("Space");
+    await page.keyboard.press(rating as string);
+  }
+
+  // "the" again: heard, not shown; its meaning among three of the book's others.
+  const listen = page.getByTestId("review-listen");
+  await expect(listen).toBeVisible();
+  await expect(page.getByRole("heading", { name: "the", exact: true })).toHaveCount(0);
+  const options = listen.getByRole("group", { name: "选出意思" }).getByRole("button");
+  await expect(options).toHaveCount(4);
+  await listen.getByRole("button", { name: "art. 那" }).click();
+  await expect(page.getByTestId("review-result")).toHaveText("选对了");
+  await expect(page.getByRole("button", { name: /记得/ })).toHaveAttribute("data-suggested", "true");
+  await page.keyboard.press("Enter");
+
+  // "go" spelled from its sound and meaning.
+  await page.getByRole("radio", { name: "拼写" }).click();
+  await expect(page.getByTestId("review-spell")).toContainText("vi. 去, 走, 达到");
+  const input = page.getByRole("textbox", { name: "写出这个词" });
+  await input.fill("goo");
+  await input.press("Enter");
+  await expect(page.getByTestId("review-result")).toContainText("差一个字母");
+  await expect(page.getByTestId("review-result")).toContainText("你写的：goo");
+  await expect(page.getByRole("button", { name: /模糊/ })).toHaveAttribute("data-suggested", "true");
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("review-progress")).toContainText("已复习 9");
+
+  // The choice is kept in this browser.
+  await page.reload();
+  await expect(page.getByRole("radio", { name: "拼写" })).toHaveAttribute("aria-checked", "true");
+});
+
 test("the back of a card shows real example sentences, and AI ones when asked", async ({
   page,
 }) => {

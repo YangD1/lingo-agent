@@ -123,7 +123,7 @@ realtime:                                   # 端到端语音对话，后端中�
 - `users`, `user_profile`（母语、目标、目标考试、兴趣、职业、每日时长、讲解语言、CEFR、时区）, `memories`（kind[fact/episode], content, 来源会话, 可选 embedding；见 ADR 0009）
 - `skill_estimates`（user, skill[listening/speaking/reading/writing/grammar/vocab], rating, uncertainty, updated_at）, `placement_sessions`（入学测子图的 thread 和状态）
 - `learning_advice`（每人一行：看板上的 AI 建议缓存，见 `docs/plans/P1-mvp.md` §7.5）
-- `words`（词库：ECDICT 开源词典导入）、`word_sentences`（例句：Tatoeba 英中句对，每词最多 2 句，见 ADR 0020）、`user_cards`（FSRS 状态：stability, difficulty, due, reps, lapses, state）、`review_logs`
+- `words`（词库：ECDICT 开源词典导入）、`word_sentences`（例句：Tatoeba 英中句对，每词最多 2 句，见 ADR 0020）、`user_cards`（FSRS 状态：stability, difficulty, due, reps, lapses, state）、`review_logs`（含题型 `format`：看词 / 听音 / 拼写，任务 63）
 - 语法 KC 清单（`grammar.yaml`，ADR 0010）同步到 `kc_edges`（from_kc, to_kc, kind[prerequisite/confusable]，ADR 0022）、`kc_evidence`（source[chat/placement/exercise/writing/reading]，P2 加 format、attempt_id）（所有观测只追加，错误行带 error_type、original、correction、severity；掌握度由它重放得出，见 ADR 0012）
 - `agent_activities`（user, conversation, turn_id=学习者消息 id, kind[step/tool/mcp/background], name, call_id, status[ok/failed/skipped], duration_ms, summary JSONB 白名单字段、记忆只存引用；见 ADR 0013）
 - `kc_mastery`（user, kc_id, kind[word/grammar/skill], p_mastery, recog_correct, produce_correct, formats_passed, fsrs_state）

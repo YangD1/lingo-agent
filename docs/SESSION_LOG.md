@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-11 任务 63 复习卡片听音辨词 / 拼写
+
+**做了什么**：拆成 63.1–63.4，Q63a–h 按推荐确认，全部完成。后端 `app/services/vocab/distractors.py`（`gloss` / `pick` / `choices_for`：同一词书按词频上下各 15 个邻居，同词性优先、不共用词条，不调模型）；`CardOut.gloss` / `choices`（只给复习过的卡）；`ReviewIn.format` → `review(format=)` → `review_logs.format`（迁移 `dc7609c9257f`，带 CHECK）。前端 `lib/vocab.ts` `cardFormat` / `listenOptions` / `judgeSpelling` / `spellingMarks` / `SUGGESTED_RATING`；`lib/preferences.ts` `useReviewChoice`；`components/vocab/review-fronts.tsx`；`review-app.tsx` 顶部题型切换、自动读、R 重听、1–4 选项、建议评分（Enter / 空格采用）；`Segmented` 选项可禁用、`Tag` 加 `destructive`。提交 0e2f00a、4671247，文档和 E2E 一起提交。
+
+**验证**：pytest 1654、E2E 67 全过；ruff、mypy、eslint、tsc 干净；Vitest 本任务相关全过。开发库实测干扰项查询 100 张卡 62–87 毫秒。
+
+**未完成**：没推送，Docker 没重建（都留给任务 64）。
+
+**下一步**：任务 64（P3 收尾），先拆子任务写进看板、和用户确认。
+
+**踩坑**：全量 pytest 约 13 分钟，期间跑 E2E 会因为后端 120 秒内起不来而失败，要等 pytest 跑完。全量 Vitest 并发时 `src/components/chat/use-attachments.test.ts` 偶发失败（`waitFor` 默认 1 秒等上传完成），单独跑稳定，不是本次改动引入的，CI 上如果出现可以考虑给这两个 `waitFor` 加 timeout。ECDICT 很多动词第一行是名词义（如 suit、blow），所以干扰项“同词性优先”有时只能给名词，属预期。
+
 ## 2026-10-11 任务 62 推送、CI 与 Docker 重建
 
 **做了什么**：推送 9 个提交到 3dd1934。CI run 38140952299：backend、docker、e2e 绿，frontend 红：用例全过，但 Vitest 抓到 1 个未处理错误：`frontend/src/components/chat/turn-activity.test.tsx` 的“tells what the tutor did on a realtime call”把 `onRemoveWord` 写成裸 `vi.fn()`，点“移出”后 `CollectedWordItem.remove` 对 undefined 调 `.then`。改成 `vi.fn().mockResolvedValue(undefined)`。Docker 先建 backend 再建 frontend（Windows 可用提交内存 13GB → 11GB），`up -d` 后 `/healthz` 200、前端 200，空闲内存 backend 215MiB / frontend 42MiB / postgres 125MiB。
