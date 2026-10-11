@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-11 任务 62.7 反思收词跳过本通处理过的词
+
+**做了什么**：用户选“跳过本通处理过的词”。`backend/app/activity/service.py` 新增 `words_added_by_tool`（读本会话成功的 `add_to_vocab` 活动里 `added` / `existing` 的词 id）；`backend/app/memory/worker.py` `_collect_words` 查词后滤掉这些词。效果：通话中撤销的词挂断后不会被反思加回；同一个词不再在活动面板出现两段“收进生词本”；私教没用工具收的词照常兜底。不加表、无迁移。测试：`tests/integration/test_vocab_collect.py` 新增一条；E2E `fake_llm.py` 问法改回 `What does "serendipity" mean?`，`realtime.spec.ts` 等活动接口 `pending` 为 false 后刷新，断言“已移出”且只有一个“收进生词本”标题。文档：ADR 0030 落地记录（替换“已知交互”）、`docs/agent-tools.md` 反思收词一行、P3 计划。
+
+**验证**：pytest 1650（12 分 41 秒）；realtime + vocab E2E 全过；去掉 worker 改动时集成测试和 E2E 都会失败（已验证）；ruff、ruff format、mypy、eslint、tsc 干净。前端 src 没改，没重跑 Vitest。
+
+**未完成**：没有推送（本地领先 origin 9 个提交）；Docker 未重建。
+
+**下一步**：推送并看 CI；任务 63（复习卡片听音辨词 / 拼写），先拆子任务写进看板、和用户确认。
+
+**踩坑**：反思是 `AfterCall` 里 `schedule` 出去的，和小结并行，小结显示完不代表反思跑完；E2E 要等 `GET /conversations/{id}/activity` 的 `pending` 为 false。通话中 `add_to_vocab` 的明细标题也是“收进生词本（你问过的词）”，断言要数标题个数，不能断言没有这几个字。
+
+---
+
 ## 2026-10-11 任务 62 通话界面（62.1–62.6，任务 62 完成）
 
 **做了什么**：Q62a–j 按推荐确认后一口气做完 62.1–62.6，每步一个提交（d7845cc、b3f9204、b91cf4b、34c9a93、adc0f12，以及本条的收尾提交）。

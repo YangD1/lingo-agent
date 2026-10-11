@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.activity import service as activity_service
 from app.activity.service import CollectedWord, WordsCollected
 from app.db.models import UserCard, Word
 from app.memory.reflection import Reflection, VocabCandidate
@@ -169,3 +170,47 @@ async def test_a_failure_is_shown_under_the_messages_that_asked(
         "ok",
         "failed",
     }
+
+
+async def test_words_the_tutor_already_added_on_a_call_are_not_collected_again(
+    client: AsyncClient,
+    app: FastAPI,
+    db_session: AsyncSession,
+    reflector: FakeReflector,  # noqa: F811
+) -> None:
+    ids = await seed(db_session)
+    await login(client)
+    await connect(client, "deepseek")
+    conversation_id = await new_conversation(client)
+    user, _ = await learner(db_session)
+    user_id = user.id
+    # On the call: "reluctant" added, then taken off by the learner; adding "go" failed.
+    for call_id, status, summary in [
+        (
+            "c1",
+            "ok",
+            WordsCollected(added=[CollectedWord(word_id=ids["reluctant"], word="reluctant")]),
+        ),
+        ("c2", "failed", WordsCollected()),
+    ]:
+        await activity_service.record(
+            db_session,
+            user_id=user_id,
+            conversation_id=uuid.UUID(conversation_id),
+            turn_id="call-turn",
+            name="add_to_vocab",
+            status=status,
+            summary=summary,
+            call_id=call_id,
+        )
+    await db_session.commit()
+    reflector.reflections.append(asking(("u1", "reluctant"), ("u1", "went")))
+
+    await send(client, conversation_id, "What does reluctant mean? And went?")
+    await idle(app)
+
+    assert await cards(db_session, user_id) == {ids["go"]: ("auto", "new")}
+    [row] = by_name(await rows(db_session, user_id, conversation_id), "vocab_collect")
+    assert WordsCollected.model_validate(row.summary) == WordsCollected(
+        added=[CollectedWord(word_id=ids["go"], word="go")]
+    )

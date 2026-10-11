@@ -277,7 +277,8 @@ class ReflectionWorker:
         result: reflection.Reflection,
     ) -> None:
         """Words the learner asked about go on their list (ADR 0011, task 13); shown
-        under the message that asked. Words the dictionary lacks are dropped."""
+        under the message that asked. Words the dictionary lacks are dropped, and so are
+        words the tutor already added on a call: one the learner took off then stays off."""
         asked = reflection.asked_words(result, reflection.learner_message_ids(new))
         if not asked:
             return
@@ -288,10 +289,14 @@ class ReflectionWorker:
         with timed() as watch:
             try:
                 async with self._sessionmaker() as session:
+                    handled = await activity.words_added_by_tool(
+                        session, conversation.user_id, conversation.id
+                    )
                     found = [
                         (message_id, match.word)
                         for message_id, text in asked
                         if (match := await mine.lookup(session, text)) is not None
+                        and match.word.id not in handled
                     ]
                     collected = await mine.collect(
                         session, conversation.user_id, [word for _, word in found]

@@ -313,6 +313,26 @@ def word_refs(summary: Summary) -> list[int]:
     return []
 
 
+async def words_added_by_tool(
+    session: AsyncSession, user_id: uuid.UUID, conversation_id: uuid.UUID
+) -> set[int]:
+    """Words the tutor's `add_to_vocab` already handled in this conversation (a call),
+    added or found on the list; one the learner took off again is among them."""
+    rows = await session.scalars(
+        select(AgentActivity).where(
+            AgentActivity.user_id == user_id,
+            AgentActivity.conversation_id == conversation_id,
+            AgentActivity.name == "add_to_vocab",
+            AgentActivity.status == "ok",
+        )
+    )
+    handled: set[int] = set()
+    for row in rows:
+        summary = WordsCollected.model_validate(row.summary)
+        handled.update(w.word_id for w in [*summary.added, *summary.existing])
+    return handled
+
+
 def kc_refs(summary: Summary) -> list[str]:
     if isinstance(summary, GrammarTags):
         return [m.kc_id for m in summary.mistakes] + summary.used_correctly

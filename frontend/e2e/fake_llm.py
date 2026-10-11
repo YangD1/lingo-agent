@@ -696,8 +696,9 @@ MODELS = [
 
 # A realtime call's script (ADR 0030): what the tutor says to each `response.create`.
 CALL_WORD = "serendipity"
-# Not asked as 'what does X mean', which reflection would put on the word list again.
-CALL_LEARNER = f"Can you explain {CALL_WORD}? Please add it to my words."
+# Asked as 'what does X mean': reflection after the call must not add it back once the
+# learner took it off.
+CALL_LEARNER = f'What does "{CALL_WORD}" mean? Please add it to my words.'
 CALL_REPLIES = [
     "Hi! What would you like to talk about?",
     f"It means finding good things by chance. I added {CALL_WORD} to your words.",

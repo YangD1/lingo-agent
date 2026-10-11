@@ -60,7 +60,7 @@ test("a realtime call: subtitles, the tutor's tools, hanging up, transcript and 
 
   // The tutor speaks first; the microphone's audio is heard as the learner's question.
   await expect(call.getByText("Hi! What would you like to talk about?")).toBeVisible();
-  await expect(call.getByText(`Can you explain ${WORD}? Please add it to my words.`)).toBeVisible();
+  await expect(call.getByText(`What does "${WORD}" mean? Please add it to my words.`)).toBeVisible();
   const tools = call.getByTestId("call-tool");
   await expect(tools.filter({ hasText: `私教查了 ${WORD}` })).toBeVisible();
   const added = tools.filter({ hasText: `已把 ${WORD} 加入生词本` });
@@ -90,14 +90,27 @@ test("a realtime call: subtitles, the tutor's tools, hanging up, transcript and 
   await expect(page.getByTestId("speaking-intelligibility")).toBeVisible();
   const transcript = page.getByTestId("call-transcript");
   await expect(transcript).toContainText("Hi! What would you like to talk about?");
-  await expect(transcript).toContainText(`Can you explain ${WORD}?`);
+  await expect(transcript).toContainText(`What does "${WORD}" mean?`);
   await expect(transcript).toContainText("Great talking with you. Bye for now!");
   const activity = transcript.getByRole("button", { name: /^私教做了什么：.*查了 1 个词/ });
   await expect(activity).toBeVisible({ timeout: 20_000 });
   await activity.click();
   await expect(transcript.getByText("私教建议结束通话")).toBeVisible();
-  // The word taken off during the call shows as such.
+  // The word taken off during the call shows as such, and stays off once reflection on
+  // the call is over: it was asked as 'what does X mean', which reflection would collect.
   await expect(transcript.getByText("已移出")).toBeVisible();
+  const sessionId = new URL(page.url()).pathname.split("/").pop();
+  const { conversation_id } = await (await page.request.get(`/api/speaking/sessions/${sessionId}`)).json();
+  await expect
+    .poll(async () => (await (await page.request.get(`/api/conversations/${conversation_id}/activity`)).json()).pending, {
+      timeout: 20_000,
+    })
+    .toBe(false);
+  await page.reload();
+  await transcript.getByRole("button", { name: /^私教做了什么：.*查了 1 个词/ }).click();
+  await expect(transcript.getByText("已移出")).toBeVisible();
+  // Once, the call's own: reflection does not collect the word a second time.
+  await expect(transcript.getByRole("heading", { name: /^收进生词本/ })).toHaveCount(1);
 
   // The call is in the history, and is not offered as a practice to go on with.
   await page.goto("/speaking");
