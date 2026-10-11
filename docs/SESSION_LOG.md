@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-11 任务 62 推送、CI 与 Docker 重建
+
+**做了什么**：推送 9 个提交到 3dd1934。CI run 38140952299：backend、docker、e2e 绿，frontend 红：用例全过，但 Vitest 抓到 1 个未处理错误：`frontend/src/components/chat/turn-activity.test.tsx` 的“tells what the tutor did on a realtime call”把 `onRemoveWord` 写成裸 `vi.fn()`，点“移出”后 `CollectedWordItem.remove` 对 undefined 调 `.then`。改成 `vi.fn().mockResolvedValue(undefined)`。Docker 先建 backend 再建 frontend（Windows 可用提交内存 13GB → 11GB），`up -d` 后 `/healthz` 200、前端 200，空闲内存 backend 215MiB / frontend 42MiB / postgres 125MiB。
+
+**验证**：本地 Vitest 555 全过、没有未处理错误（连续两次）；eslint 干净。
+
+**未完成**：修复提交推送后的 CI 结果待看。
+
+**下一步**：CI 全绿后记 run id；任务 63（复习卡片听音辨词 / 拼写），先拆子任务写进看板、和用户确认。
+
+**踩坑**：Vitest 的未处理错误不算进失败用例数，但会让整个 job 退出码为 1，本地也是这样，只是错误可能落在测试窗口之外而没被注意到。刚起 Docker 全栈时本地跑 Vitest 出现 16 条偶发失败（机器忙、超时），重跑全过；跑前端测试最好避开重建 / 启动。
+
+---
+
 ## 2026-10-11 任务 62.7 反思收词跳过本通处理过的词
 
 **做了什么**：用户选“跳过本通处理过的词”。`backend/app/activity/service.py` 新增 `words_added_by_tool`（读本会话成功的 `add_to_vocab` 活动里 `added` / `existing` 的词 id）；`backend/app/memory/worker.py` `_collect_words` 查词后滤掉这些词。效果：通话中撤销的词挂断后不会被反思加回；同一个词不再在活动面板出现两段“收进生词本”；私教没用工具收的词照常兜底。不加表、无迁移。测试：`tests/integration/test_vocab_collect.py` 新增一条；E2E `fake_llm.py` 问法改回 `What does "serendipity" mean?`，`realtime.spec.ts` 等活动接口 `pending` 为 false 后刷新，断言“已移出”且只有一个“收进生词本”标题。文档：ADR 0030 落地记录（替换“已知交互”）、`docs/agent-tools.md` 反思收词一行、P3 计划。

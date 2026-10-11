@@ -162,7 +162,7 @@ describe("TurnActivity", () => {
   });
 
   it("tells what the tutor did on a realtime call", () => {
-    const onRemoveWord = vi.fn();
+    const onRemoveWord = vi.fn().mockResolvedValue(undefined);
     show({
       activities: [
         step("lookup_word", { word: "sustainable", word_id: 5 }, { kind: "tool", call_id: "a" }),
