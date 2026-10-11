@@ -10,30 +10,12 @@ import {
   type LevelSummary,
   type RecorderError,
 } from "@/components/chat/use-recorder";
+import { canTapMicrophone, type MicTap, MicTapError, openMicTap } from "@/lib/mic-tap";
 import { recordingToWav } from "@/lib/wav";
 
 /** Pronunciation assessment takes at most 30 seconds (ADR 0028 §5). */
 export const MAX_SHADOWING_SECONDS = 30;
 const METER_WINDOW_SECONDS = 0.05;
-
-// Copies each block of microphone samples (mixed down to mono) to the page. Loaded from
-// a Blob URL so the worklet needs no separate build step.
-const TAP_WORKLET = `
-class LingoTap extends AudioWorkletProcessor {
-  process(inputs) {
-    const channels = inputs[0];
-    if (channels && channels.length) {
-      const mono = new Float32Array(channels[0].length);
-      for (const channel of channels) {
-        for (let i = 0; i < mono.length; i++) mono[i] += channel[i] / channels.length;
-      }
-      this.port.postMessage(mono, [mono.buffer]);
-    }
-    return true;
-  }
-}
-registerProcessor("lingo-tap", LingoTap);
-`;
 
 /**
  * Loudness of the recording, measured on the samples themselves in windows of 50 ms:
@@ -60,13 +42,7 @@ export function createLevelTracker(sampleRate: number, onLevel: (level: number) 
   };
 }
 
-export function canRecordWav(): boolean {
-  return (
-    typeof AudioContext !== "undefined" &&
-    typeof AudioWorkletNode !== "undefined" &&
-    !!navigator.mediaDevices?.getUserMedia
-  );
-}
+export const canRecordWav = canTapMicrophone;
 
 type Session = {
   chunks: Float32Array[];
@@ -91,40 +67,14 @@ export function useWavRecorder(onRecorded: (file: File) => void) {
   const start = useCallback(async () => {
     if (sessionRef.current) return;
     setError(null);
-    if (!canRecordWav()) {
-      setError("recording_unsupported");
-      return;
-    }
-    let stream: MediaStream;
+    let mic: MicTap;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
-      });
-    } catch {
-      setError("microphone_denied");
+      mic = await openMicTap();
+    } catch (e) {
+      setError(e instanceof MicTapError ? e.code : "recording_unsupported");
       return;
     }
-    const context = new AudioContext();
-    const url = URL.createObjectURL(new Blob([TAP_WORKLET], { type: "text/javascript" }));
-    let tap: AudioWorkletNode;
-    try {
-      await context.audioWorklet.addModule(url);
-      tap = new AudioWorkletNode(context, "lingo-tap");
-    } catch {
-      stream.getTracks().forEach((track) => track.stop());
-      void context.close();
-      setError("recording_unsupported");
-      return;
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-    const source = context.createMediaStreamSource(stream);
-    // Some browsers only run a worklet that reaches the output: route it there muted.
-    const mute = context.createGain();
-    mute.gain.value = 0;
-    source.connect(tap).connect(mute).connect(context.destination);
-
-    const rate = context.sampleRate;
+    const rate = mic.rate;
     const limit = MAX_SHADOWING_SECONDS * rate;
     const levels = createLevelTracker(rate, setLevel);
     const session: Session = {
@@ -132,11 +82,7 @@ export function useWavRecorder(onRecorded: (file: File) => void) {
       finish: (keep) => {
         if (sessionRef.current !== session) return;
         sessionRef.current = null;
-        tap.port.onmessage = null;
-        source.disconnect();
-        tap.disconnect();
-        stream.getTracks().forEach((track) => track.stop());
-        void context.close();
+        mic.close();
         setRecording(false);
         setSeconds(0);
         setLevel(0);
@@ -152,15 +98,15 @@ export function useWavRecorder(onRecorded: (file: File) => void) {
       },
     };
     let received = 0;
-    tap.port.onmessage = (event: MessageEvent<Float32Array>) => {
-      session.chunks.push(event.data);
-      levels.push(event.data);
-      received += event.data.length;
+    mic.onSamples = (samples) => {
+      session.chunks.push(samples);
+      levels.push(samples);
+      received += samples.length;
       setSeconds(Math.floor(received / rate));
       if (received >= limit) session.finish(true);
     };
     sessionRef.current = session;
-    void context.resume();
+    mic.start();
     setRecording(true);
   }, []);
 
