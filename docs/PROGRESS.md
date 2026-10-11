@@ -680,7 +680,20 @@
   - [x] 63.3 前端拼写（释义 + 发音、输入、判对错与标错字母、预选评分）；混合模式；Vitest。2026-10-11 完成：`judgeSpelling`（编辑距离 0 / 1 / 其他）、`spellingMarks`（沿最短编辑路径标出漏 / 错的字母）、`SUGGESTED_RATING`；`review-formats.test.tsx` 6 条、`vocab.test.ts` 加 6 条；eslint、tsc 干净
   - [x] 63.4 E2E（`vocab.spec.ts` 加听音和拼写各一张卡）、PLAN / P3 计划落地记录、全量检查。2026-10-11 完成：`vocab.spec.ts`“reviewed words come back to be heard and picked, or spelled”（新词按看词并提示 → 漏掉的词回来：听音四选一选对、预选“记得” → 切拼写写 goo、差一个字母预选“模糊” → 刷新后选择还在）；PLAN 数据模型、ADR 0011 补记、P3 计划 §7 落地记录；pytest 1654、E2E 67 全过；Vitest 第一次全量 4 条超时（聊天附件、今日计划、通话页、写作批改，都和本任务无关），单独重跑全过，第二次全量只剩 `use-attachments.test.ts` 1 条，单独连跑 5 次全过
 - **P3f 收尾**
-- [ ] 64. P3 全链路 E2E、真模型冒烟、README 中英、Docker 重建、`make ci`、推送
+- [ ] 64. P3 全链路 E2E、真模型冒烟、README 中英、Docker 重建、`make ci`、推送（2026-10-11 已拆；Q64a、Q64c–g 按推荐确认，Q64b：用户只有 OpenAI 或其中转的 key → 朗读走 OpenAI `/audio/speech`、评测只测转写对比兜底、实时用 OpenAI；Azure、Qwen、Gemini 标“未实测”）
+  - 开工前核实（2026-10-11）：本地领先 origin 3 个提交（任务 63）；P3 期间留到这里的事：Qwen 实时默认地址、各家默认声音和输入转写模型都是按文档推的（60.2）；Gemini 预设模型名和 `usageMetadata` 是按轮还是累计（61.5）；Azure `PhonemeAlphabet: IPA` 请求头是否生效（56）；Docker 里 standalone 前端转发 WebSocket（62，本地 standalone 已通过）；`features.yaml` 里朗读、评测、口语、通话的估计都没有真模型数据；README 状态还是“P2 完成”，“还没做”里还写着实时语音；`use-attachments.test.ts` 并发时偶发超时（63 踩坑）
+  - Q64a 全链路 E2E：推荐**加一个串起 P3 的 `e2e/p3-demo.spec.ts`**（假模型）：设置页配好朗读 / 评测 / 实时连接 → 私教回复朗读 + 跟读一句 → 口语练习一个情景（半双工）到小结 → 打一通电话（查词、加词）到小结 → 复习卡片听音选对 → 看板口语分钟计入计划、学习者模型看到口语能力和跟读记录。备选：不加，靠现有各页 E2E
+  - Q64b 真模型冒烟用哪几家：**要看你手上有哪些 key**（每次用时给我，不存）。推荐：朗读 + 评测用 Azure 语音（一个 key 两项都测，顺带核实 IPA 头）；实时用 OpenAI 或 Qwen-Omni 其一；Gemini 有 key 就测，没有就在 ADR 0030 标“未实测”。没有 Azure 时：朗读走 OpenAI 兼容 `/audio/speech`，评测只测转写对比兜底（本地 speaches whisper）
+  - Q64c 冒烟方式：推荐和 49.2 一样在 Docker 全栈上开临时账号，跑朗读（含单词发音预生成一小本）、跟读评测、级联口语一个情景、实时通话 2–3 分钟（含工具调用和打断），记行为、耗时和实际用量，用完删账号、租户和连接
+  - Q64d 冒烟结果怎么用：推荐按实测改 `features.yaml` 估计、改厂商小表里不对的默认值（地址 / 声音 / 转写模型 / Gemini 模型名）、在 ADR 0028 / 0030 记实测结论；发现的行为问题小的当场修，大的拆出来再问你
+  - Q64e README：推荐补口语练习页和通话页中英截图（假模型 E2E 栈上截，同 49.4），状态改“P3 完成”，“What works now”加语音一节，“还没做”去掉实时语音；PLAN 第四节和 P3 计划标完成
+  - Q64f 顺手修的小问题：推荐给 `use-attachments.test.ts` 的两个 `waitFor` 加 timeout（CI 上偶发失败的隐患），其他不扩范围
+  - Q64g Docker：推荐按之前的办法先建 backend 再建 frontend（防 WSL 内存），起来后实测经前端 3000 端口打通实时通话 WebSocket（假厂商或真厂商）、记空闲内存；`asr-1` 照旧停着，冒烟要用转写兜底时再 `make asr-up`
+  - [x] 64.1 P3 全链路 E2E（`e2e/p3-demo.spec.ts`）+ Q64f 的 Vitest 超时；`make e2e` 全过。2026-10-11 完成：`e2e/p3-demo.spec.ts` 一个用例（API 配好朗读 / 转写 / 假 Azure 评测 / 假实时连接 → 私教回复服务端朗读 + 跟读得 84 分 → 看板打开口语并确认 → 从计划去说，两轮语音到小结 → 同一情景打电话（加词后撤销）31 秒到小结 → 牛津词书复习，漏掉的 the 回来听音选对 → 看板口语完成 → 学习者模型口语能力有值、跟读记录 1 条、口语历史 2 条其中 1 通电话）；复习循环要等“已复习 n”变化、并同时等新卡或听音题出现，否则会读到上一张卡（第一次全量跑因此超时，修后单跑连续 3 次过）。Q64f：`use-attachments.test.ts` 五个默认 1 秒的 `waitFor` 加 `timeout: 4000`（和同文件已有的一致）。验证：全量 E2E 67 过 + 本用例修后单跑 3 次过（共 68）；Vitest 该文件 7 过；eslint、tsc 干净
+  - [ ] 64.2 真模型冒烟（按 Q64b / Q64c，需要你提供 key）：逐项记行为、耗时、用量，核实留到 64 的默认值
+  - [ ] 64.3 按 64.2 处理：`features.yaml` 估计、厂商小表默认值、ADR 0028 / 0030 落地记录、发现的小问题
+  - [ ] 64.4 README 中英截图和语音一节、PLAN / P3 计划标 P3 完成
+  - [ ] 64.5 `make ci` 全过、推送、CI 全绿、Docker 重建（含 WebSocket 经前端代理实测）、看板进入 P4
 
 ## P4 企业级打磨
 - [ ] （进入 P4 时拆分）

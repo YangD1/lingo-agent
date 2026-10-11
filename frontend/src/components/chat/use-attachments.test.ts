@@ -90,7 +90,10 @@ describe("useAttachments", () => {
       result.current.add([file("a.txt", "text/plain"), file("b.txt", "text/plain")]);
     });
 
-    await waitFor(() => expect(result.current.items.map((i) => i.attachment?.id)).toEqual(["a1", "a2"]));
+    await waitFor(
+      () => expect(result.current.items.map((i) => i.attachment?.id)).toEqual(["a1", "a2"]),
+      { timeout: 4000 },
+    );
     expect(ensureConversation).toHaveBeenCalledOnce();
     expect(lib.uploadAttachment.mock.calls.map((c) => c[0])).toEqual(["new", "new"]);
   });
@@ -99,7 +102,9 @@ describe("useAttachments", () => {
     lib.uploadAttachment.mockResolvedValue(attachment());
     const { result, rerender } = setup("c1");
     act(() => result.current.add([file("a.txt", "text/plain")]));
-    await waitFor(() => expect(result.current.items[0].attachment).not.toBeNull());
+    await waitFor(() => expect(result.current.items[0].attachment).not.toBeNull(), {
+      timeout: 4000,
+    });
 
     rerender({ id: "c2" });
 
@@ -125,7 +130,9 @@ describe("useAttachments", () => {
       .mockResolvedValueOnce(attachment());
     const { result } = setup();
     act(() => result.current.add([file("a.txt", "text/plain")]));
-    await waitFor(() => expect(result.current.items[0].error?.code).toBe("network_error"));
+    await waitFor(() => expect(result.current.items[0].error?.code).toBe("network_error"), {
+      timeout: 4000,
+    });
     expect(result.current.pending).toBe(true);
 
     await act(() => result.current.retry(result.current.items[0].key));
@@ -138,7 +145,9 @@ describe("useAttachments", () => {
     lib.uploadAttachment.mockResolvedValue(attachment());
     const { result } = setup();
     act(() => result.current.add([file("a.txt", "text/plain")]));
-    await waitFor(() => expect(result.current.items[0].attachment).not.toBeNull());
+    await waitFor(() => expect(result.current.items[0].attachment).not.toBeNull(), {
+      timeout: 4000,
+    });
 
     act(() => result.current.remove(result.current.items[0].key));
 
@@ -150,7 +159,9 @@ describe("useAttachments", () => {
     lib.uploadAttachment.mockResolvedValue(attachment());
     const { result } = setup();
     act(() => result.current.add([file("a.txt", "text/plain")]));
-    await waitFor(() => expect(result.current.items[0].attachment).not.toBeNull());
+    await waitFor(() => expect(result.current.items[0].attachment).not.toBeNull(), {
+      timeout: 4000,
+    });
 
     let taken: ReturnType<typeof result.current.take> = [];
     act(() => {
