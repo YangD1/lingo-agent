@@ -1917,6 +1917,65 @@
       "addToList": "Add to word list",
       "added": "On your list",
       "notInDictionary": "Not in the dictionary"
+    },
+    "call": {
+      "back": "Back to speaking",
+      "freeTalk": "Free talk",
+      "freeTalkGoal": "Talk about anything you like.",
+      "tryUsing": "Try using:",
+      "hideText": "Hide the tutor's subtitles",
+      "hiddenText": "(subtitles hidden)",
+      "timeLeft": "Time left",
+      "connect": "Call your tutor",
+      "connecting": "Connecting…",
+      "cancel": "Cancel",
+      "headphones": "Headphones work best: the tutor won't hear itself.",
+      "howItWorks": "Just talk, like on the phone, and cut in whenever you like. After you hang up, the transcript and a summary are prepared.",
+      "opening": "Your tutor is about to speak…",
+      "listening": "Listening…",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "hangUp": "Hang up",
+      "keepTalking": "Keep talking",
+      "endSuggested": "Your tutor thinks you could stop here. Hang up?",
+      "warning": "About a minute left.",
+      "wrappingUp": "Time's up: your tutor is saying goodbye.",
+      "ended": "Call ended. Opening the transcript…",
+      "retry": "Try again",
+      "goToSettings": "Go to settings",
+      "tool": {
+        "lookedUp": "Looked up {word}",
+        "notFound": "{word} isn't in the dictionary: the tutor explains it",
+        "lookupFailed": "The lookup failed",
+        "added": "Added {word} to your word list",
+        "existing": "{word} is already on your word list",
+        "addNotFound": "Not in the dictionary, so not added",
+        "addFailed": "Adding the word failed",
+        "undo": "Undo",
+        "undone": "Removed from your word list",
+        "undoFailed": "Undo failed, retry"
+      },
+      "refused": {
+        "no_realtime_model": "No realtime voice model is set up yet. An admin can add one in settings.",
+        "realtime_off": "An admin has turned realtime calls off.",
+        "realtime_used_up": "You've used today's call minutes. Come back tomorrow, or practise with push-to-talk for now.",
+        "realtime_busy": "You're already on a call in another tab. Hang that one up first.",
+        "realtime_unavailable": "The realtime voice service can't be reached right now. Try again later.",
+        "unknown_scenario": "This scenario doesn't exist.",
+        "other": "The call couldn't be connected."
+      },
+      "endReason": {
+        "hangup": "Cancelled.",
+        "time_limit": "Time's up: the call has ended.",
+        "vendor_closed": "The realtime voice service hung up.",
+        "server_stopping": "The server is restarting. Call again shortly.",
+        "browser_closed": "The connection dropped.",
+        "error": "Something went wrong with the call.",
+        "connection_lost": "The connection dropped before the call began.",
+        "microphone_denied": "No microphone permission. Allow it in your browser, then call again.",
+        "recording_unsupported": "This browser can't make calls. Try a recent Chrome, Edge, Safari or Firefox.",
+        "refused": "The call couldn't be connected."
+      }
     }
   }
 }

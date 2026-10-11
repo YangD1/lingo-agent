@@ -1917,6 +1917,65 @@
       "addToList": "加入生词本",
       "added": "已在生词本",
       "notInDictionary": "词典里没有这个说法"
+    },
+    "call": {
+      "back": "回到口语练习",
+      "freeTalk": "自由聊",
+      "freeTalkGoal": "想聊什么都行。",
+      "tryUsing": "试着用上：",
+      "hideText": "隐藏私教的字幕",
+      "hiddenText": "（字幕已隐藏）",
+      "timeLeft": "剩余时间",
+      "connect": "给私教打电话",
+      "connecting": "正在接通…",
+      "cancel": "取消",
+      "headphones": "戴上耳机效果更好，私教不会听到自己的声音。",
+      "howItWorks": "像打电话一样直接说，随时可以打断私教。挂断后会整理这次的转写和小结。",
+      "opening": "私教正在开口…",
+      "listening": "正在听…",
+      "mute": "静音",
+      "unmute": "取消静音",
+      "hangUp": "挂断",
+      "keepTalking": "继续聊",
+      "endSuggested": "私教觉得可以结束了，要挂断吗？",
+      "warning": "还剩 1 分钟左右。",
+      "wrappingUp": "时间到了，私教正在道别。",
+      "ended": "通话已结束，正在打开转写…",
+      "retry": "再试一次",
+      "goToSettings": "去设置",
+      "tool": {
+        "lookedUp": "私教查了 {word}",
+        "notFound": "词典里没有 {word}，私教自己解释",
+        "lookupFailed": "查词没成功",
+        "added": "已把 {word} 加入生词本",
+        "existing": "{word} 已经在生词本里",
+        "addNotFound": "词典里没有这个词，没加进生词本",
+        "addFailed": "加词没成功",
+        "undo": "撤销",
+        "undone": "已从生词本移除",
+        "undoFailed": "撤销失败，重试"
+      },
+      "refused": {
+        "no_realtime_model": "还没配置实时语音模型，管理员可以在设置里加。",
+        "realtime_off": "管理员关闭了实时通话。",
+        "realtime_used_up": "今天的通话分钟已经用完了，明天再来，或者先用按住说话练习。",
+        "realtime_busy": "你在别的页面正在通话，先挂断那一通。",
+        "realtime_unavailable": "实时语音服务暂时连不上，稍后再试。",
+        "unknown_scenario": "找不到这个情景。",
+        "other": "没能接通。"
+      },
+      "endReason": {
+        "hangup": "已取消。",
+        "time_limit": "时间到了，通话已结束。",
+        "vendor_closed": "实时语音服务断开了。",
+        "server_stopping": "服务器正在重启，稍后再打。",
+        "browser_closed": "连接断了。",
+        "error": "通话出错了。",
+        "connection_lost": "连接断了，没能接通。",
+        "microphone_denied": "没有麦克风权限。请在浏览器里允许后再打。",
+        "recording_unsupported": "这个浏览器不支持通话，换用新版 Chrome、Edge、Safari 或 Firefox 试试。",
+        "refused": "没能接通。"
+      }
     }
   }
 }
