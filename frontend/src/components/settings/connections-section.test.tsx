@@ -190,4 +190,45 @@ describe("ConnectionsSection", () => {
     });
     await waitFor(() => expect(item).toHaveTextContent("Realtime voice connects (300 ms)"));
   });
+
+  it("tests a Gemini connection as a realtime call, with no chat model to save", async () => {
+    const gemini: Connection = {
+      ...RELAY,
+      id: "c3",
+      name: "gemini",
+      kind: "gemini",
+      base_url: "https://generativelanguage.googleapis.com",
+      default_model: null,
+    };
+    const presets: Presets = {
+      presets: [
+        {
+          name: "gemini",
+          kind: "gemini",
+          label: "Google Gemini (realtime voice)",
+          base_url: "https://generativelanguage.googleapis.com",
+          models: ["gemini-3.8-live"],
+        },
+      ],
+      allow_private_networks: false,
+    };
+    api.mockImplementation(async (path: string) =>
+      path.endsWith("/test")
+        ? { ok: true, error: null, error_code: null, latency_ms: 400, purpose: "realtime" }
+        : [gemini],
+    );
+    show([gemini], presets);
+    const item = screen.getByTestId("connection-gemini");
+    expect(screen.getByLabelText("Model to test")).toHaveValue("gemini-3.8-live");
+    expect(screen.queryByRole("button", { name: "Save model" })).not.toBeInTheDocument();
+    expect(item).toHaveTextContent("only takes realtime voice calls");
+
+    await userEvent.click(screen.getByRole("button", { name: "Test" }));
+
+    expect(api).toHaveBeenCalledWith("/tenant/connections/c3/test", {
+      method: "POST",
+      json: { model: "gemini-3.8-live" },
+    });
+    await waitFor(() => expect(item).toHaveTextContent("Realtime voice connects (400 ms)"));
+  });
 });

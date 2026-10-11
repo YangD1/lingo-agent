@@ -797,6 +797,7 @@
       "ttsNotSupported": "This connection can't read aloud (the server has no /audio/speech endpoint, or no such voice). Use a read-aloud model from Azure Speech, SiliconFlow, OpenAI or a local Speaches instead.",
       "testVoice": "Model to test",
       "testVoiceHint": "This connection only reads aloud and assesses pronunciation. Pick a voice to test reading aloud, or pronunciation to test assessment; which voices are used, and whether it assesses pronunciation, is set in the Read aloud and Pronunciation routes below.",
+      "testRealtimeHint": "This connection only takes realtime voice calls (Gemini Live). Pick a Live model to test; the test only opens a session and uses no audio. Which model calls use is set in the Realtime voice route below.",
       "azureRegion": "Region",
       "azureChina": "Azure China (azure.cn)",
       "azureRegionHint": "The region of your Speech resource, such as eastasia, eastus or chinaeast2. The address follows from it."

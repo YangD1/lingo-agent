@@ -4,6 +4,19 @@
 
 ---
 
+## 2026-10-11 任务 61.4 `gemini` 连接类型
+
+**做了什么**：上一会话因附件太多请求超限中断，迁移文件写到一半，这次接着做完。迁移 `159018254c68` 放宽 `ck_provider_connections_kind`（autogenerate 不比较 CHECK，手写；downgrade 先删 gemini 连接）。`gemini` 进 `PROVIDER_KINDS` / `REALTIME_KINDS` / `SPEECH_ONLY_KINDS`（因此 LLM、向量、转写、朗读、发音路由都拒绝它）和 `_KEY_REQUIRED`；`CallParams.realtime_dialect` 仍只许 ga / beta（gemini 写法由种类决定）。`realtime.py`：`_GEMINI` 厂商表（16k 进 / 24k 出，固定 `BidiGenerateContent` 地址，`realtime_url` 可覆盖，供假厂商用）、`realtime_target` 对 gemini 返回 dialect `gemini`、`redact_key`（`?key=` / `&key=` → `***`），用在 `open_session` 的出错信息和连接测试写进 `last_error` 的信息。`model_catalog._gemini_live_ids`：`/v1beta/models` 翻页，只列 `supportedGenerationMethods` 含 `bidiGenerateContent` 的，key 用 `x-goog-api-key` 头。`_test_purpose` 对 gemini 一律 `realtime`。`open_session` 对 gemini 暂时直接抛 `RealtimeConnectError("Gemini Live not supported yet")`，路由会跳到下一家。dev / prod 预设 `gemini`（`gemini-3.8-live`），排在 `realtime` 默认链最后。前端：`PROVIDER_KINDS` 加 gemini；连接卡片 gemini 和 Azure 一样当“无对话模型”（模型框起始为预设第一个、列全部、无“保存模型”、提示 `testRealtimeHint`）；实时语音路由对 gemini 连接列全部模型（名字里没有 realtime）。开发库已 `make migrate`。
+
+**验证**：pytest 1638、Vitest 479、settings E2E 5 全过；ruff、mypy、tsc、eslint 干净。
+
+**未完成**：没有推送；Docker 未重建。在 61.5 之前，只配 gemini 的租户 `capabilities.realtime` 会显示可用但接通会失败。
+
+**下一步**：61.5 `gemini_live` 适配器（抽 Protocol、`setup` / `setupComplete` 握手、事件翻译、工具调用、`goAway` 续接、连接测试走适配器握手、假厂商集成测试）。按核实结果 key 只能放查询串，所有日志 / 异常都要过 `redact_key`。
+
+**踩坑**：`backend` 没装 pytest-xdist，`-n` 用不了，全量 pytest 约 11 分钟。前端没有 prettier 可执行文件，格式由 eslint 管。
+---
+
 ## 2026-10-11 任务 60.6 公示与实测（任务 60 完成）
 
 **做了什么**：`features.yaml` 登记 `realtime_call`（新增 `per: minute`，只用于 `realtime` 节；`estimates.py` `minute_history`：最近 20 通已挂断、超过 30 秒的通话，用量之和除以通话分钟；默认每分钟 20,000 入 + 1,000 出；选情景时另登记一次 `memory` 向量化）。连接测试 purpose `realtime`（`credentials/service.py` 只发 `session.update`，收到 `session.updated` 就断，不产生音频 token；`model_catalog.looks_like_realtime` 按名字猜，排除流式转写）。前端：设置页 `RouteSection task="realtime"`（模型只列 realtime）、测试选项“实时语音”、`RealtimeSection` 标题挂 `AiBadge`、AiBadge 显示“每分钟”、中英文案。`docs/agent-tools.md` 实时通话一节、ADR 0030 落地记录、PLAN、P3 计划。实测脚本 `backend/scripts/realtime_load.py`：10 路并发 60 秒，双向一直有音频，内存共 +约 2MB、CPU 单核 2.3%，中继方案不用修订。

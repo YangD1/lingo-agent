@@ -142,6 +142,44 @@ async def test_azure_unexpected_shape_is_a_model_list_error() -> None:
         await fetch_models("azure_speech", "https://x.example.com", KEY, client=client)
 
 
+async def test_gemini_lists_only_live_models_across_pages() -> None:
+    pages = [
+        {
+            "models": [
+                {
+                    "name": "models/gemini-3.8-live",
+                    "supportedGenerationMethods": ["bidiGenerateContent"],
+                },
+                {"name": "models/gemini-3-pro", "supportedGenerationMethods": ["generateContent"]},
+            ],
+            "nextPageToken": "p2",
+        },
+        {
+            "models": [
+                {
+                    "name": "models/gemini-3.5-flash-live",
+                    "supportedGenerationMethods": ["countTokens", "bidiGenerateContent"],
+                }
+            ]
+        },
+    ]
+    client, seen = mock_client(lambda r: json_response(pages[len(seen) - 1]))  # type: ignore[has-type]
+
+    base = "https://generativelanguage.googleapis.com"
+    models = await fetch_models("gemini", base, KEY, client=client)
+
+    # Realtime is all a gemini connection does (Q61j): no chat models offered.
+    assert models == [
+        DiscoveredModel("gemini-3.5-flash-live", "other"),
+        DiscoveredModel("gemini-3.8-live", "other"),
+    ]
+    assert seen[0].url.path == "/v1beta/models"
+    assert seen[1].url.params["pageToken"] == "p2"
+    # The key in a header, never the query string, where logs would keep it.
+    assert seen[0].headers["x-goog-api-key"] == "sk-test-123"
+    assert "key" not in seen[0].url.params
+
+
 async def test_anthropic_listing_follows_pages() -> None:
     def handler(request: httpx2.Request) -> httpx2.Response:
         if "after_id" not in request.url.params:

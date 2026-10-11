@@ -28,6 +28,8 @@ import {
 import { fetchModels as fetchConnectionModels, modelListFailure } from "./model-catalog";
 import { useDescribeError } from "./use-describe-error";
 
+// Kinds that serve no chat (ADR 0028 §2, Q61j): Azure reads aloud, Gemini takes realtime calls.
+const SPEECH_ONLY_KINDS: ReadonlySet<string> = new Set(["azure_speech", "gemini"]);
 const CUSTOM = "__custom__";
 
 // "auto" lets the backend guess from the model's name and the tenant's routes.
@@ -124,10 +126,9 @@ function ConnectionItem({
   const t = useTranslations("settings.connections");
   const format = useFormatter();
   const describe = useDescribeError();
-  // A read-aloud-only connection has no default model: start from its first preset voice.
-  const [model, setModel] = useState(
-    c.default_model ?? (c.kind === "azure_speech" ? (presetModels[0] ?? "") : ""),
-  );
+  // A speech-only connection has no default model: start from its first preset model.
+  const speechOnly = SPEECH_ONLY_KINDS.has(c.kind);
+  const [model, setModel] = useState(c.default_model ?? (speechOnly ? (presetModels[0] ?? "") : ""));
   const [catalog, setCatalog] = useState<Catalog>({ state: loadOnMount ? "loading" : "idle" });
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -154,7 +155,7 @@ function ConnectionItem({
   async function fetchModels() {
     try {
       const [ids, routes] = await Promise.all([
-        fetchConnectionModels(c.id, c.kind === "azure_speech" ? "all" : "chat"),
+        fetchConnectionModels(c.id, speechOnly ? "all" : "chat"),
         api<TaskRoute[]>("/tenant/routes").catch(() => []),
       ]);
       setCatalog({ state: "ok", ids });
@@ -237,8 +238,7 @@ function ConnectionItem({
     });
 
   const saved = c.default_model ?? "";
-  // A read-aloud-only connection serves no chat: the box only picks the voice to test.
-  const speechOnly = c.kind === "azure_speech";
+  // A speech-only connection serves no chat: the box only picks the model to test.
   return (
     <li
       className="flex flex-col gap-3 rounded-lg border p-3.5"
@@ -358,7 +358,13 @@ function ConnectionItem({
           </NativeSelect>
         </div>
         <p className="text-xs text-muted-foreground">
-          {t(speechOnly ? "testVoiceHint" : "defaultModelHint")}
+          {t(
+            c.kind === "gemini"
+              ? "testRealtimeHint"
+              : speechOnly
+                ? "testVoiceHint"
+                : "defaultModelHint",
+          )}
         </p>
         <CatalogStatus
           catalog={catalog}

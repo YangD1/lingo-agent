@@ -19,6 +19,7 @@ PRESETS: dict[str, Any] = {
     },
     "stepfun": {"kind": "openai_compatible", "base_url": "https://api.stepfun.com/v1"},
     "deepseek": {"kind": "deepseek", "base_url": "https://api.deepseek.com/v1"},
+    "gemini": {"kind": "gemini", "base_url": "https://generativelanguage.googleapis.com"},
 }
 
 
@@ -109,6 +110,40 @@ def test_unknown_servers_and_explicit_dialect() -> None:
 def test_realtime_routes_take_openai_protocol_connections_only() -> None:
     with pytest.raises(ValueError, match="no realtime voice API"):
         make_config(presets=PRESETS, realtime={"default": "deepseek:deepseek-chat"})
+
+
+def test_gemini_is_reached_over_gemini_live() -> None:
+    gemini = conn("gemini", "gemini", base_url="https://generativelanguage.googleapis.com")
+    target = realtime.realtime_target(_resolved(gemini, "gemini-3.8-live"))
+    # The model goes in the session's setup, not the address (Q61j).
+    assert target.url == (
+        "wss://generativelanguage.googleapis.com/ws/"
+        "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+    )
+    assert (target.dialect, target.input_rate, target.output_rate) == ("gemini", 16_000, 24_000)
+    # A fake vendor in tests (or a relay) is named by realtime_url.
+    told = conn(
+        "gemini",
+        "gemini",
+        base_url="https://generativelanguage.googleapis.com",
+        realtime_url="wss://relay.example.com/live",
+    )
+    assert realtime.realtime_target(_resolved(told, "m")).url == "wss://relay.example.com/live"
+
+
+@pytest.mark.parametrize("section", ["llm", "embedding", "asr", "tts", "pronunciation"])
+def test_gemini_connections_take_realtime_calls_only(section: str) -> None:
+    make_config(presets=PRESETS, realtime={"default": "gemini:gemini-3.8-live"})
+    with pytest.raises(ValueError, match="connection 'gemini'"):
+        make_config(presets=PRESETS, **{section: {"default": "gemini:gemini-3.8-live"}})
+
+
+def test_keys_in_query_strings_are_redacted() -> None:
+    text = "InvalidURI: wss://g.example.com/ws/Bidi?key=AIza-secret_1&alt=x 'wss://h?key=k2'"
+    assert realtime.redact_key(text) == (
+        "InvalidURI: wss://g.example.com/ws/Bidi?key=***&alt=x 'wss://h?key=***'"
+    )
+    assert realtime.redact_key("monkey=1 ?keys=2") == "monkey=1 ?keys=2"
 
 
 def test_realtime_params_never_reach_an_sdk() -> None:

@@ -35,7 +35,14 @@ from app.db.base import Base, TimestampMixin
 # one-line migration instead of ALTER TYPE.
 TENANT_KINDS = ("personal", "org")
 MEMBER_ROLES = ("owner", "admin", "member")
-PROVIDER_KINDS = ("deepseek", "anthropic", "openai", "openai_compatible", "azure_speech")
+PROVIDER_KINDS = (
+    "deepseek",
+    "anthropic",
+    "openai",
+    "openai_compatible",
+    "azure_speech",
+    "gemini",
+)
 ROUTE_SECTIONS = ("llm", "embedding", "asr", "tts", "pronunciation", "realtime")
 USAGE_STATUSES = ("ok", "error")
 ATTACHMENT_KINDS = ("image", "audio", "document")

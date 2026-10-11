@@ -49,7 +49,7 @@ from app.providers.net_guard import (
 )
 from app.providers.openai_realtime import RealtimeConnectError, open_session
 from app.providers.pronunciation import AssessmentError, NoSpeechError, PronunciationAssessor
-from app.providers.realtime import RealtimeDialect, realtime_target
+from app.providers.realtime import realtime_target, redact_key
 from app.providers.tts import (
     LANGUAGES,
     EndpointError,
@@ -63,7 +63,9 @@ from app.usage.recorder import UsageLabels, make_recorder
 
 _NAME = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 # Kinds whose official APIs always need a key; openai_compatible may be keyless (Ollama).
-_KEY_REQUIRED: frozenset[str] = frozenset({"deepseek", "anthropic", "openai", "azure_speech"})
+_KEY_REQUIRED: frozenset[str] = frozenset(
+    {"deepseek", "anthropic", "openai", "azure_speech", "gemini"}
+)
 
 
 type TestPurpose = Literal["chat", "asr", "vision", "tts", "pronunciation", "realtime"]
@@ -102,7 +104,8 @@ class CallParams(BaseModel):
     # can't be told from base_url (Qwen-Omni 3.8 lives on a per-workspace host), and which
     # spelling of the OpenAI Realtime protocol it speaks. Never sent to an SDK.
     realtime_url: Annotated[str, Field(max_length=500)] | None = None
-    realtime_dialect: RealtimeDialect | None = None
+    # Gemini's is told by the connection's kind, never set here.
+    realtime_dialect: Literal["ga", "beta"] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_none=True)
@@ -382,7 +385,8 @@ async def verify_connection(
             exc, TranscriptionError | SpeechSynthesisError | AssessmentError | RealtimeConnectError
         )
         cause = exc.__cause__ if wrapped and exc.__cause__ else exc
-        error = f"{type(cause).__name__}: {cause}"[:500]
+        # A Gemini Live address carries the key (Q61j); vendors may quote it back.
+        error = redact_key(f"{type(cause).__name__}: {cause}")[:500]
         # A server without /audio/transcriptions (a chat-only relay) answers 404.
         if purpose == "asr" and isinstance(cause, openai.NotFoundError):
             error_code = "asr_not_supported"

@@ -797,6 +797,7 @@
       "ttsNotSupported": "这个连接不支持朗读（服务器没有 /audio/speech 接口，或没有这个声音）。请改用 Azure 语音、硅基流动、OpenAI 或本地 Speaches 的朗读模型。",
       "testVoice": "测试用的模型",
       "testVoiceHint": "这个连接只用来朗读和发音评测。选一个声音测试朗读，选 pronunciation 测试发音评测；用哪些声音、是否用它评测发音，在下面的“朗读”“发音评测”路由里设置。",
+      "testRealtimeHint": "这个连接只用来实时语音通话（Gemini Live，国内无法访问）。选一个 Live 模型测试，测试只建立会话、不产生音频用量；通话用哪个模型在下面的“实时语音”路由里设置。",
       "azureRegion": "区域",
       "azureChina": "Azure 中国区（azure.cn）",
       "azureRegionHint": "语音资源所在的区域，比如 eastasia、eastus、chinaeast2。地址按区域自动生成。"

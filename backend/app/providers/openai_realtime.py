@@ -32,7 +32,7 @@ from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed
 
 from app.providers.net_guard import guarded_socket
-from app.providers.realtime import RealtimeTarget
+from app.providers.realtime import RealtimeTarget, redact_key
 from app.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -372,6 +372,10 @@ async def open_session(
     """Connect, send the session settings and wait until the vendor accepts them.
     Raises `RealtimeConnectError`; the caller then tries the route's next target."""
     model = target.model
+    if target.dialect == "gemini":
+        raise RealtimeConnectError(
+            f"{model.connection}:{model.model}: Gemini Live not supported yet"
+        )
     parts = urlsplit(target.url)
     host = parts.hostname or ""
     port = parts.port or (443 if parts.scheme == "wss" else 80)
@@ -404,7 +408,7 @@ async def open_session(
         if ws is not None:
             with contextlib.suppress(Exception):
                 await ws.close()
-        raise RealtimeConnectError(f"{model.connection}:{model.model}: {exc}") from exc
+        raise RealtimeConnectError(redact_key(f"{model.connection}:{model.model}: {exc}")) from exc
     return RealtimeSession(target, ws)
 
 

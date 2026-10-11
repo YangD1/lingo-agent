@@ -202,7 +202,10 @@ export function RouteSection({
             ? "all"
             : "tts"
           : task === "realtime"
-            ? "realtime"
+            ? // Gemini lists only its Live models (Q61j), whose names don't say realtime.
+              c.kind === "gemini"
+              ? "all"
+              : "realtime"
             : "chat";
     fetchModels(c.id, use).then(
       // An Azure connection lists its assessment model with the voices; it reads nothing.

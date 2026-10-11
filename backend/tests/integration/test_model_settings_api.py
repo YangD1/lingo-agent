@@ -19,6 +19,7 @@ from app.db.models import ProviderConnection
 from app.providers import asr, net_guard, pronunciation, tts
 from app.providers.model_catalog import DiscoveredModel, ModelListError
 from app.providers.net_guard import IPAddress
+from app.providers.openai_realtime import RealtimeConnectError
 from app.providers.tenant import load_provider_context
 
 SECRET = "sk-live-abcdefghijklmnop"
@@ -940,6 +941,48 @@ async def test_realtime_routes_and_their_connection_params(client: AsyncClient) 
     ):
         bad = await client.patch(f"/tenant/connections/{qwen['id']}", json={"params": params})
         assert bad.status_code == 422, params
+
+
+async def test_gemini_connection_takes_realtime_calls_only(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Gemini Live (Q61j): a key always, realtime routes only, tested as a realtime call,
+    and a key quoted back from its address never lands in the stored error."""
+    await login(client)
+    response = await client.post("/tenant/connections", json={"preset": "gemini"})
+    assert response.status_code == 422  # Gemini always needs a key
+    gemini = await create(client, preset="gemini", api_key=SECRET)
+    assert (gemini["kind"], gemini["default_model"]) == ("gemini", None)
+
+    for path in (
+        "/tenant/routes/llm/chat",
+        "/tenant/routes/embedding/default",
+        "/tenant/routes/asr/default",
+        "/tenant/routes/tts/default",
+    ):
+        response = await client.put(path, json={"models": ["gemini:gemini-3.8-live"]})
+        assert response.status_code == 422, path
+    response = await client.put(
+        "/tenant/routes/realtime/default", json={"models": ["gemini:gemini-3.8-live"]}
+    )
+    assert response.status_code == 200, response.text
+
+    async def refuse(target: Any, *, instructions: str) -> None:
+        assert target.dialect == "gemini"
+        raise RealtimeConnectError("socket") from RuntimeError(
+            f"rejected wss://x.example.com/ws/Bidi?key={SECRET}"
+        )
+
+    monkeypatch.setattr(service, "open_session", refuse)
+    result = (
+        await client.post(
+            f"/tenant/connections/{gemini['id']}/test", json={"model": "gemini-3.8-live"}
+        )
+    ).json()
+    assert (result["ok"], result["purpose"]) == (False, "realtime")
+    assert SECRET not in result["error"] and "key=***" in result["error"]
+    listed = (await client.get("/tenant/connections")).json()[0]
+    assert SECRET not in listed["last_error"]
 
 
 async def test_voices_only_on_text_to_speech_routes(client: AsyncClient) -> None:

@@ -1,4 +1,4 @@
-"""Tenant-scoped realtime voice over the OpenAI Realtime protocol (ADR 0030 §2).
+"""Tenant-scoped realtime voice: the OpenAI Realtime protocol, or Gemini Live (ADR 0030 §2).
 
 OpenAI, Qwen-Omni and StepFun all speak it over a WebSocket, in two spellings: OpenAI's
 current one ("ga": `session.type`, nested `audio.input/output`, `response.output_audio.*`)
@@ -13,8 +13,13 @@ with the `realtime_url` / `realtime_dialect` params instead.
 
 The backend relays audio without decoding it (ADR 0030 §1): the browser records and
 plays at the rates given here.
+
+A `gemini` connection speaks Gemini Live (`BidiGenerateContent`, dialect "gemini"): the
+model goes in its first message, not the address, and the key in the address's query
+string (`?key=`), so every error that may quote the address goes through `redact_key`.
 """
 
+import re
 import uuid
 from dataclasses import dataclass
 from typing import Any, Literal, cast
@@ -24,8 +29,16 @@ from app.providers.config import REALTIME_KINDS, ResolvedModel, TenantProviderCo
 from app.providers.errors import ProviderConfigError
 from app.providers.llm import get_providers_config
 
-type RealtimeDialect = Literal["ga", "beta"]
+type RealtimeDialect = Literal["ga", "beta", "gemini"]
+# What a connection's `realtime_dialect` param may say (Gemini's comes from its kind).
 DIALECTS: tuple[RealtimeDialect, ...] = ("ga", "beta")
+
+_KEY_IN_QUERY = re.compile(r"([?&]key=)[^&#\s'\"]+")
+
+
+def redact_key(text: str) -> str:
+    """Mask a key sent in a query string (Gemini Live), so logs and errors never keep it."""
+    return _KEY_IN_QUERY.sub(r"\1***", text)
 
 
 @dataclass(frozen=True)
@@ -60,6 +73,15 @@ _QWEN_INTL = _Vendor(
 _STEPFUN = _Vendor(
     "beta", 24_000, 24_000, "wss://api.stepfun.com/v1/realtime", voice="qingchunshaonv"
 )
+# Checked 2026-10-11 (ai.google.dev/api/live): PCM16 16 kHz in, 24 kHz out; subtitles on
+# both sides are switched on in the session's setup, with no model to name.
+_GEMINI = _Vendor(
+    "gemini",
+    16_000,
+    24_000,
+    "wss://generativelanguage.googleapis.com/ws/"
+    "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent",
+)
 
 
 def _vendor(host: str, kind: str) -> _Vendor:
@@ -93,6 +115,14 @@ class RealtimeTarget:
 
 def realtime_target(model: ResolvedModel) -> RealtimeTarget:
     configured = model.params.get("realtime_url")
+    if model.kind == "gemini":
+        return RealtimeTarget(
+            model=model,
+            url=configured or _GEMINI.url or "",
+            dialect="gemini",
+            input_rate=_GEMINI.input_rate,
+            output_rate=_GEMINI.output_rate,
+        )
     host = urlsplit(configured or model.base_url).hostname or ""
     vendor = _vendor(host.lower(), model.kind)
     base = configured or vendor.url or _next_to(model.base_url)

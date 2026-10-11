@@ -58,6 +58,7 @@ export const PROVIDER_KINDS = [
   "openai",
   "openai_compatible",
   "azure_speech",
+  "gemini",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 export type Preset = {

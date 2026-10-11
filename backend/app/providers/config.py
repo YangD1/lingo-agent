@@ -15,11 +15,15 @@ from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 
 logger = logging.getLogger(__name__)
 
-ProviderKind = Literal["deepseek", "anthropic", "openai", "openai_compatible", "azure_speech"]
+ProviderKind = Literal[
+    "deepseek", "anthropic", "openai", "openai_compatible", "azure_speech", "gemini"
+]
 Section = Literal["llm", "embedding", "asr", "tts", "pronunciation", "realtime"]
 SECTIONS: tuple[Section, ...] = ("llm", "embedding", "asr", "tts", "pronunciation", "realtime")
-# Speech-only vendors (ADR 0028 §2): they serve no chat, embeddings or transcription API.
-SPEECH_ONLY_KINDS: frozenset[str] = frozenset({"azure_speech"})
+# Speech-only vendors: they serve no chat, embeddings or transcription API here. Azure
+# reads aloud and scores pronunciation (ADR 0028 §2); Gemini only takes realtime voice
+# calls (ADR 0030 §2, Q61j): its chat API is not wired up.
+SPEECH_ONLY_KINDS: frozenset[str] = frozenset({"azure_speech", "gemini"})
 # Kinds whose SDK offers an embeddings API.
 EMBEDDING_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible"})
 # Kinds that can serve OpenAI's /audio/transcriptions (OpenAI, Groq, speaches, ...).
@@ -29,9 +33,9 @@ ASR_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible"})
 TTS_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible", "azure_speech"})
 # Kinds that score pronunciation against a reference text: Azure only for now (ADR 0028 §5).
 PRONUNCIATION_KINDS: frozenset[str] = frozenset({"azure_speech"})
-# Kinds that speak the OpenAI Realtime protocol over a WebSocket: OpenAI, Qwen-Omni and
-# StepFun (ADR 0030 §2).
-REALTIME_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible"})
+# Kinds that take realtime voice calls over a WebSocket: the OpenAI Realtime protocol
+# (OpenAI, Qwen-Omni, StepFun) or Gemini Live (ADR 0030 §2).
+REALTIME_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible", "gemini"})
 # Connection params only realtime calls read (Q60c): never passed to a chat or
 # embeddings SDK, whose constructors take every other param.
 REALTIME_PARAMS: frozenset[str] = frozenset({"realtime_url", "realtime_dialect"})

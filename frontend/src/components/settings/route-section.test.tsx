@@ -264,6 +264,22 @@ describe("RouteSection", () => {
     expect(screen.queryByRole("option", { name: "qwen3-asr-flash-realtime" })).not.toBeInTheDocument();
   });
 
+  it("lists every model a Gemini connection offers for the realtime route", async () => {
+    // The backend lists only Gemini's Live models, whose names don't say "realtime".
+    const gemini: Connection = { ...RELAY, id: "c9", name: "gemini", kind: "gemini" };
+    api.mockImplementation(async (path: string) => {
+      if (path === "/tenant/routes") return [...ROUTES, route({ section: "realtime", task: "default" })];
+      if (path === "/tenant/connections/c9/models")
+        return { models: [{ id: "gemini-3.8-live", category: "other" }] };
+      return undefined;
+    });
+    show("realtime", [gemini]);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Edit order" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "Model 1" }));
+    expect(await screen.findByRole("option", { name: "gemini-3.8-live" })).toBeInTheDocument();
+  });
+
   it("edits a read-aloud route's voices per language, keeping them when a row is switched", async () => {
     const kokoro = "local:speaches-ai/Kokoro-82M-v1.0-ONNX";
     const tts = route({

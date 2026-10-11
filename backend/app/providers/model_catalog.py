@@ -92,6 +92,12 @@ async def fetch_models(
     """Sorted by id, without duplicates. `client` must be the SSRF-guarded one."""
     if kind == "anthropic":
         ids = await _anthropic_ids(base_url, api_key, client)
+    elif kind == "gemini":
+        # Only models that take Live calls: realtime is all a gemini connection does.
+        return [
+            DiscoveredModel(id=i, category="other")
+            for i in sorted(set(await _gemini_live_ids(base_url, api_key, client)))
+        ]
     elif kind == "azure_speech":
         ids = await _azure_voice_ids(base_url, api_key, client)
         # The voices read aloud; pronunciation assessment has no model to pick.
@@ -118,6 +124,30 @@ async def _anthropic_ids(
         if not body.get("has_more") or not body.get("last_id"):
             break
         params = {"limit": _ANTHROPIC_PAGE_SIZE, "after_id": body["last_id"]}
+    return ids
+
+
+async def _gemini_live_ids(
+    base_url: str, api_key: SecretStr | None, client: httpx2.AsyncClient
+) -> list[str]:
+    # The key goes in a header, never the query string, where logs would keep it.
+    headers = {"x-goog-api-key": api_key.get_secret_value()} if api_key else {}
+    ids: list[str] = []
+    params: dict[str, Any] = {"pageSize": 1000}
+    for _ in range(_MAX_PAGES):
+        body = await _get_raw_json(client, f"{base_url}/v1beta/models", headers, params)
+        if not isinstance(body, dict) or not isinstance(body.get("models", []), list):
+            raise ModelListError("unexpected response shape; check the base URL")
+        for model in body.get("models", []):
+            if not isinstance(model, dict):
+                continue
+            name, methods = model.get("name"), model.get("supportedGenerationMethods") or []
+            if isinstance(name, str) and "bidiGenerateContent" in methods:
+                ids.append(name.removeprefix("models/"))
+        token = body.get("nextPageToken")
+        if not token:
+            break
+        params = {"pageSize": 1000, "pageToken": token}
     return ids
 
 

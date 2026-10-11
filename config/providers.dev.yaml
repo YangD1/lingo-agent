@@ -53,6 +53,13 @@ presets:
     label: SiliconFlow (speech-to-text, read aloud)
     base_url: https://api.siliconflow.cn/v1
     models: [FunAudioLLM/SenseVoiceSmall, FunAudioLLM/CosyVoice2-0.5B]
+  # Gemini Live realtime voice calls only (ADR 0030, Q61j); not reachable from mainland
+  # China. The key goes in the call's query string and is masked in logs and errors.
+  gemini:
+    kind: gemini
+    label: Google Gemini (realtime voice)
+    base_url: https://generativelanguage.googleapis.com
+    models: [gemini-3.8-live]
   # Text-to-speech and pronunciation assessment (ADR 0028). For reading aloud the model
   # is the voice; for pronunciation assessment the model is `pronunciation`. The base URL
   # names the region: https://<region>.tts.speech.microsoft.com, or
@@ -135,4 +142,4 @@ pronunciation:
 # Realtime voice calls (ADR 0030), relayed by the backend; optional: without it speaking
 # practice is turn by turn only. Fallbacks apply when connecting, never mid-call.
 realtime:
-  default: [openai:gpt-realtime-2.1, qwen:qwen3.5-omni-flash-realtime, stepfun:stepaudio-2.5-realtime]
+  default: [openai:gpt-realtime-2.1, qwen:qwen3.5-omni-flash-realtime, stepfun:stepaudio-2.5-realtime, gemini:gemini-3.8-live]

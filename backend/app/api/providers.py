@@ -291,6 +291,8 @@ async def _test_purpose(
     uses it: a chat message would fail on such a model, and pass on a relay that has no
     /audio/transcriptions at all. Realtime voice likewise. Vision when the vision route
     uses it."""
+    if conn.kind == "gemini":  # it takes realtime calls only (Q61j)
+        return "realtime"
     if conn.kind in SPEECH_ONLY_KINDS:
         return "pronunciation" if model == AZURE_PRONUNCIATION_MODEL else "tts"
     if conn.kind in ASR_KINDS and looks_like_speech_to_text(model):
