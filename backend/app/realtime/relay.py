@@ -9,6 +9,9 @@ are the tutor's audio; text frames are JSON events:
     subtitle        {role: learner|tutor, item_id, text, final}
     speech_started  the learner started talking: stop playing the tutor
     response_done   the tutor finished a reply
+    tool            a tool the tutor used: {turn_id, name, kind, call_id, status,
+                    duration_ms, summary}, as the chat stream's activity (ADR 0013)
+    end_suggested   the tutor suggests hanging up; the learner decides (Q61c)
     time_warning    {remaining_seconds}: the call ends soon (ADR 0030 §5)
     wrapping_up     time is up: the tutor says goodbye, the learner's audio is ignored
     error           {code}: the vendor reported an error; the call may go on
@@ -26,12 +29,13 @@ import logging
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal, Protocol
 
 import anyio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.activity import service as activity
 from app.prompts import load_prompt
 from app.providers.openai_realtime import (
     AudioOut,
@@ -41,10 +45,12 @@ from app.providers.openai_realtime import (
     SpeechStarted,
     Subtitle,
     ToolCall,
+    ToolCalls,
     VendorError,
 )
 from app.realtime import calls
 from app.realtime.limits import WARNING_SECONDS
+from app.realtime.tools import CallTools, Outcome, failed
 from app.realtime.transcript import Line, Transcript
 from app.usage.recorder import UsageRecord, submit_usage
 
@@ -59,6 +65,10 @@ AUDIO_BURST_SECONDS = 2.0
 PROGRESS_SECONDS = 15.0
 # After the time limit, how long the tutor has to say goodbye before the call is cut.
 WRAP_UP_SECONDS = 10.0
+# Tool calls per reply and per call, and how long one may take (Q61d).
+MAX_TOOLS_PER_REPLY = 3
+MAX_TOOLS_PER_CALL = 20
+TOOL_TIMEOUT_SECONDS = 3.0
 
 type EndReason = Literal[
     "hangup", "vendor_closed", "time_limit", "server_stopping", "browser_closed", "error"
@@ -96,6 +106,7 @@ class RealtimeCall:
         info: CallInfo,
         maker: async_sessionmaker[AsyncSession],
         save: Callable[[list[Line]], Awaitable[None]],
+        tools: CallTools,
         *,
         clock: Callable[[], float] = time.monotonic,
         tick_seconds: float = 1.0,
@@ -105,6 +116,8 @@ class RealtimeCall:
         self._info = info
         self._maker = maker
         self._save = save
+        self._tools = tools
+        self._tool_calls = 0
         self._transcript = Transcript()
         self._clock = clock
         self._tick = tick_seconds
@@ -247,13 +260,8 @@ class RealtimeCall:
                         self._end("time_limit")
                     elif self._wrapping:
                         await self._say_goodbye()
-                case ToolCall(call_id=call_id, name=name):
-                    # No tools are offered yet (task 61): a failure is a tool result,
-                    # never the end of the call (ADR 0013).
-                    logger.info("realtime call asked for unknown tool %r", name[:64])
-                    await self._vendor.send_tool_result(
-                        call_id, json.dumps({"error": "unknown tool"})
-                    )
+                case ToolCalls(calls=tool_calls):
+                    await self._run_tools(tool_calls)
                 case VendorError(code=code):
                     logger.info("realtime vendor error %s", code)
                     # The vendor's message can echo request details; the code is enough.
@@ -286,6 +294,70 @@ class RealtimeCall:
             if elapsed - saved >= PROGRESS_SECONDS:
                 saved = elapsed
                 await calls.save_progress(self._maker, self._info.session_id, elapsed)
+
+    async def _run_tools(self, tool_calls: tuple[ToolCall, ...]) -> None:
+        """Run one reply's calls together and give the results back (ADR 0013): a
+        failure, a timeout or a call over the limits is a result, never the end of the
+        call. Once time is up they are only answered: the goodbye is on its way."""
+        outcomes: list[Outcome | None] = [None] * len(tool_calls)
+
+        async def run(index: int, call: ToolCall) -> None:
+            started = self._clock()
+            try:
+                with anyio.fail_after(TOOL_TIMEOUT_SECONDS):
+                    outcome = await self._tools.run(call.name, call.call_id, call.arguments)
+            except TimeoutError:
+                outcome = failed(call.name, call.call_id, "timed out")
+            except Exception:
+                logger.exception("realtime tool %s failed", call.name)
+                outcome = failed(call.name, call.call_id, "failed")
+            if outcome.step is not None:
+                duration = int((self._clock() - started) * 1000)
+                outcome = replace(outcome, step=replace(outcome.step, duration_ms=duration))
+            outcomes[index] = outcome
+
+        async with anyio.create_task_group() as tg:
+            for index, call in enumerate(tool_calls):
+                if self._wrapping:
+                    outcomes[index] = failed(call.name, call.call_id, "the call is ending")
+                elif index >= MAX_TOOLS_PER_REPLY or self._tool_calls >= MAX_TOOLS_PER_CALL:
+                    outcomes[index] = failed(call.name, call.call_id, "too many tool calls")
+                else:
+                    self._tool_calls += 1
+                    tg.start_soon(run, index, call)
+
+        turn_id = self._transcript.turn_id()
+        results: list[tuple[str, str]] = []
+        for call, outcome in zip(tool_calls, outcomes, strict=True):
+            assert outcome is not None
+            results.append((call.call_id, outcome.output))
+            if outcome.step is not None:
+                await self._show(turn_id, outcome)
+        await self._vendor.send_tool_results(results, respond=not self._wrapping)
+
+    async def _show(self, turn_id: str, outcome: Outcome) -> None:
+        """What the tutor did, kept with the call's conversation and shown live."""
+        step = outcome.step
+        assert step is not None
+        try:
+            async with self._maker() as session:
+                await activity.record(
+                    session,
+                    user_id=self._info.user_id,
+                    conversation_id=self._info.conversation_id,
+                    turn_id=turn_id,
+                    name=step.name,
+                    status=step.status,
+                    summary=step.summary,
+                    duration_ms=step.duration_ms,
+                    call_id=step.call_id,
+                )
+                await session.commit()
+        except Exception:
+            logger.exception("could not record realtime tool %s", step.name)
+        await self._browser.send_json({"type": "tool", **step.payload(turn_id)})
+        if outcome.suggest_end:
+            await self._browser.send_json({"type": "end_suggested"})
 
     async def _save_lines(self, lines: list[Line]) -> None:
         """A failed save loses those lines, never the call. Shielded: a hang-up during

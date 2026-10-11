@@ -96,6 +96,15 @@ class ToolCall:
 
 
 @dataclass(frozen=True)
+class ToolCalls:
+    """The calls of one reply, to run together: the results go back in one go and the
+    tutor answers once (ADR 0013: calls may run in parallel). Comes after the reply's
+    `ResponseDone`."""
+
+    calls: tuple[ToolCall, ...]
+
+
+@dataclass(frozen=True)
 class Usage:
     input_tokens: int
     output_tokens: int
@@ -120,7 +129,7 @@ class VendorError:
 
 
 type RealtimeEvent = (
-    AudioOut | Subtitle | SpeechStarted | LearnerTurn | ToolCall | ResponseDone | VendorError
+    AudioOut | Subtitle | SpeechStarted | LearnerTurn | ToolCalls | ResponseDone | VendorError
 )
 
 
@@ -131,6 +140,8 @@ class RealtimeSession:
     # The tutor's reply being spoken, for truncating it on interruption (ga only).
     _speaking_item: str | None = None
     _seen_calls: set[str] = field(default_factory=set)
+    # Calls of the reply in progress, handed over when it is done.
+    _calls: list[ToolCall] = field(default_factory=list)
 
     async def __aenter__(self) -> Self:
         return self
@@ -176,15 +187,20 @@ class RealtimeSession:
             event["response"] = {"instructions": instructions}
         await self._send(event)
 
-    async def send_tool_result(self, call_id: str, output: str) -> None:
-        """Give the model a tool's result and let it go on talking (ADR 0013)."""
-        await self._send(
-            {
-                "type": "conversation.item.create",
-                "item": {"type": "function_call_output", "call_id": call_id, "output": output},
-            }
-        )
-        await self.respond()
+    async def send_tool_results(
+        self, results: list[tuple[str, str]], *, respond: bool = True
+    ) -> None:
+        """Give the model the results (`call_id`, output) of one `ToolCalls` and, unless
+        told not to, let it go on talking (ADR 0013)."""
+        for call_id, output in results:
+            await self._send(
+                {
+                    "type": "conversation.item.create",
+                    "item": {"type": "function_call_output", "call_id": call_id, "output": output},
+                }
+            )
+        if respond:
+            await self.respond()
 
     async def events(self) -> AsyncIterator[RealtimeEvent]:
         """Until the vendor hangs up."""
@@ -247,7 +263,13 @@ class RealtimeSession:
                 response = payload.get("response")
                 response = response if isinstance(response, dict) else {}
                 self._speaking_item = None
-                return [ResponseDone(str(response.get("status") or ""), _usage(response))]
+                done: list[RealtimeEvent] = [
+                    ResponseDone(str(response.get("status") or ""), _usage(response))
+                ]
+                if self._calls:
+                    done.append(ToolCalls(tuple(self._calls)))
+                    self._calls = []
+                return done
             case "error":
                 error = payload.get("error")
                 error = error if isinstance(error, dict) else {}
@@ -269,7 +291,10 @@ class RealtimeSession:
         if call_id in self._seen_calls:
             return []
         self._seen_calls.add(call_id)
-        return [ToolCall(call_id, name, arguments if isinstance(arguments, str) else "{}")]
+        self._calls.append(
+            ToolCall(call_id, name, arguments if isinstance(arguments, str) else "{}")
+        )
+        return []
 
 
 def _subtitle(role: Role, payload: dict[str, Any], key: str, *, final: bool) -> list[RealtimeEvent]:

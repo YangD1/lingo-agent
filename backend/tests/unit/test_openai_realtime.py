@@ -19,6 +19,7 @@ from app.providers.openai_realtime import (
     SpeechStarted,
     Subtitle,
     ToolCall,
+    ToolCalls,
     Usage,
     VendorError,
     open_session,
@@ -200,20 +201,22 @@ async def test_interrupting_ga_forgets_what_was_not_heard() -> None:
             await collect(call, 1)
             await call.interrupt(played_ms=1200)
             await call.respond("Say goodbye briefly.")
-            await call.send_tool_result("call_1", json.dumps({"ok": True}))
+            await call.send_tool_results([("call_1", json.dumps({"ok": True})), ("call_2", "{}")])
             await call.close()
 
     (truncate,) = vendor.of_type("conversation.item.truncate")
     assert (truncate["item_id"], truncate["audio_end_ms"]) == ("a7", 1200)
     creates = vendor.of_type("response.create")
     assert creates[0]["response"] == {"instructions": "Say goodbye briefly."}
-    (output,) = vendor.of_type("conversation.item.create")
+    output, second = vendor.of_type("conversation.item.create")
     assert output["item"] == {
         "type": "function_call_output",
         "call_id": "call_1",
         "output": '{"ok": true}',
     }
-    assert creates[1] == {"type": "response.create"}
+    assert second["item"]["call_id"] == "call_2"
+    # Both results, then one reply.
+    assert creates[1:] == [{"type": "response.create"}]
 
 
 async def test_tool_calls_once_and_untrusted_messages_dropped() -> None:
@@ -236,17 +239,26 @@ async def test_tool_calls_once_and_untrusted_messages_dropped() -> None:
             {"type": "response.output_audio.delta", "delta": "%%% not base64"},
             {"type": "response.output_audio_transcript.delta", "delta": "no item id"},
             {"type": "error", "error": {"type": "invalid_request_error", "message": "x" * 900}},
+            {
+                "type": "response.output_item.done",
+                "item": {**call_item, "call_id": "c2", "name": "end_session", "arguments": None},
+            },
+            {"type": "response.done", "response": {"status": "completed"}},
         )
         async with await open_session(target(vendor, "ga"), instructions="") as call:
             await vendor.push({"type": "response.done"})  # before anything: no usage, no crash
             await call.send_audio(b"\x00\x00")
-            events = await collect(call, 3)
+            events = await collect(call, 4)
 
     assert events[0] == ResponseDone("", None)
-    assert events[1] == ToolCall("c1", "lookup_word", '{"word":"cat"}')
-    assert isinstance(events[2], VendorError)
-    assert events[2].code == "invalid_request_error"
-    assert len(events[2].message) == 500
+    assert isinstance(events[1], VendorError)
+    assert events[1].code == "invalid_request_error"
+    assert len(events[1].message) == 500
+    # A reply's calls come together, after it is done.
+    assert events[2] == ResponseDone("completed", None)
+    assert events[3] == ToolCalls(
+        (ToolCall("c1", "lookup_word", '{"word":"cat"}'), ToolCall("c2", "end_session", "{}"))
+    )
 
 
 async def test_connect_failures_are_reported_for_fallback(monkeypatch: pytest.MonkeyPatch) -> None:

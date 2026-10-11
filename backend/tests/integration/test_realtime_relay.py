@@ -24,11 +24,20 @@ from app.api import realtime as realtime_api
 from app.chat.service import thread_config
 from app.credentials import service
 from app.credentials.crypto import get_keyring
-from app.db.models import Conversation, SpeakingSession, Tenant, TenantMember, User
+from app.db.models import (
+    Conversation,
+    SpeakingSession,
+    Tenant,
+    TenantMember,
+    User,
+    UserCard,
+    Word,
+)
 from app.deps import AUTH_COOKIE
 from app.providers import openai_realtime
 from app.providers.llm import get_providers_config
 from app.realtime import calls, relay
+from app.realtime import tools as realtime_tools
 from app.realtime.limits import CallLimit, day_start
 from app.speaking import sessions
 from app.speaking.scenarios import get_scenarios
@@ -588,3 +597,132 @@ async def test_the_transcript_is_saved_turn_by_turn(
     history = await client.get(f"/conversations/{conversation_id}/messages")
     assert history.status_code == 200
     assert [m["role"] for m in history.json()] == ["user", "assistant", "user", "assistant"]
+
+
+def function_call(call_id: str, name: str, arguments: str) -> dict[str, Any]:
+    return {
+        "type": "response.output_item.done",
+        "item": {"type": "function_call", "call_id": call_id, "name": name, "arguments": arguments},
+    }
+
+
+async def test_tools_run_for_the_learner_and_show_what_they_did(
+    client: AsyncClient, db_session: AsyncSession, server: str
+) -> None:
+    """ADR 0030 §4, Q61a-d: one reply's calls run together, results go back in one go
+    with one reply asked for; failures and calls over the limit are results."""
+    token = await sign_up(client)
+    db_session.add_all(
+        [
+            Word(word="ubiquitous", phonetic="ju:'bikwitəs", translation="a. 无所不在的\nadv. x"),
+            Word(word="cat", translation="n. 猫"),
+        ]
+    )
+    await db_session.commit()
+    async with fake_vendor() as vendor:
+        await add_vendor(db_session, client, "voice", vendor)
+        await set_route(client, "voice:gpt-realtime-2.1")
+        vendor.on(
+            "input_audio_buffer.append",
+            {"type": "input_audio_buffer.committed", "item_id": "u1"},
+            {
+                "type": "conversation.item.input_audio_transcription.completed",
+                "item_id": "u1",
+                "transcript": "What does ubiquitous mean? Keep it for me.",
+            },
+            function_call("c1", "lookup_word", '{"word": "Ubiquitous"}'),
+            function_call("c2", "add_to_vocab", '{"word": "ubiquitous"}'),
+            function_call("c3", "add_to_vocab", '{"user_id": "someone else"}'),
+            function_call("c4", "end_session", "{}"),  # over 3 per reply
+            {"type": "response.done", "response": {"status": "completed"}},
+        )
+        vendor.on(
+            "input_audio_buffer.append",
+            function_call("c5", "add_to_vocab", '{"word": "ubiquitous"}'),
+            function_call("c6", "transfer_money", "{}"),
+            function_call("c7", "end_session", "{}"),
+            {"type": "response.done", "response": {"status": "completed"}},
+        )
+        async with dial(server, token) as ws:
+            ready = await next_json(ws)
+            await ws.send(b"\x00\x00" * 2400)
+            shown = [await until(ws, "tool") for _ in range(4)]
+            await ws.send(b"\x00\x00" * 2400)
+            shown += [await until(ws, "tool") for _ in range(2)]
+            assert await next_json(ws) == {"type": "end_suggested"}
+            await ws.send(json.dumps({"type": "end"}))
+            await until(ws, "ended")
+
+    outputs = {
+        e["item"]["call_id"]: json.loads(e["item"]["output"])
+        for e in vendor.of_type("conversation.item.create")
+    }
+    assert outputs["c1"] == {
+        "word": "ubiquitous",
+        "phonetic": "ju:'bikwitəs",
+        "meanings": ["a. 无所不在的", "adv. x"],
+        "on_word_list": False,
+    }
+    assert outputs["c2"] == {"word": "ubiquitous", "status": "added"}
+    assert "error" in outputs["c3"]  # the learner is the caller, not an argument
+    assert outputs["c4"] == {"error": "too many tool calls"}
+    assert outputs["c5"] == {"word": "ubiquitous", "status": "existing"}
+    assert outputs["c6"] == {"error": "unknown tool"}
+    assert outputs["c7"]["ok"] is True
+    # Each batch of results, then one reply: the opening, plus one per batch.
+    assert len(vendor.of_type("response.create")) == 3
+
+    learner_turn = next(m for m in shown if m["call_id"] == "c1")["turn_id"]
+    assert [(m["name"], m["call_id"], m["status"], m["kind"]) for m in shown] == [
+        ("lookup_word", "c1", "ok", "tool"),
+        ("add_to_vocab", "c2", "ok", "tool"),
+        ("add_to_vocab", "c3", "failed", "tool"),
+        ("end_session", "c4", "failed", "tool"),
+        ("add_to_vocab", "c5", "ok", "tool"),
+        ("end_session", "c7", "ok", "tool"),
+    ]
+    assert shown[1]["summary"]["added"][0]["word"] == "ubiquitous"
+    assert shown[4]["summary"]["existing"][0]["word"] == "ubiquitous"
+    assert shown[2]["summary"] == shown[3]["summary"] == {}  # failures say nothing more
+    assert all(m["turn_id"] == learner_turn for m in shown)
+    # Kept under the learner's message in the call's conversation.
+    activity = await client.get(f"/conversations/{ready['conversation_id']}/activity")
+    assert activity.status_code == 200, activity.text
+    body = activity.json()
+    calls = [a["call_id"] for a in body["activities"] if a["turn_id"] == learner_turn]
+    assert sorted(calls) == ["c1", "c2", "c3", "c4", "c5", "c7"]
+    history = await client.get(f"/conversations/{ready['conversation_id']}/messages")
+    assert history.json()[0]["id"] == learner_turn
+    card = await db_session.scalar(select(UserCard).join(Word).where(Word.word == "ubiquitous"))
+    assert card is not None and card.source == "auto"
+    assert body["words_on_list"] == [card.word_id]
+
+
+async def test_a_slow_tool_is_a_timeout_result(
+    client: AsyncClient, db_session: AsyncSession, server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    token = await sign_up(client)
+
+    async def stuck(*_: Any) -> Any:
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr(relay, "TOOL_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(realtime_tools.CallTools, "run", stuck)
+    async with fake_vendor() as vendor:
+        await add_vendor(db_session, client, "voice", vendor)
+        await set_route(client, "voice:gpt-realtime-2.1")
+        vendor.on(
+            "input_audio_buffer.append",
+            function_call("c1", "lookup_word", '{"word": "cat"}'),
+            {"type": "response.done", "response": {"status": "completed"}},
+        )
+        async with dial(server, token) as ws:
+            await next_json(ws)
+            await ws.send(b"\x00\x00" * 2400)
+            shown = await until(ws, "tool")
+            await ws.send(json.dumps({"type": "end"}))
+            await until(ws, "ended")
+
+    assert (shown["name"], shown["status"]) == ("lookup_word", "failed")
+    (result,) = vendor.of_type("conversation.item.create")
+    assert json.loads(result["item"]["output"]) == {"error": "timed out"}

@@ -35,6 +35,8 @@ from app.realtime.calls import RealtimeCalls
 from app.realtime.context import call_instructions
 from app.realtime.limits import CallLimit, LimitState, call_limit
 from app.realtime.relay import TASK, CallInfo, RealtimeCall
+from app.realtime.tools import SPECS as TOOL_SPECS
+from app.realtime.tools import CallTools
 from app.settings import get_settings
 from app.speaking import sessions
 from app.speaking.scenarios import get_scenarios
@@ -168,6 +170,7 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
         ),
         maker,
         partial(calls.save_lines, maker, websocket.app.state.chat_graph, row.conversation_id),
+        CallTools(maker, user.id),
     )
     registry.add(call)
     try:
@@ -184,7 +187,7 @@ async def _connect(
     for position, target in enumerate(route.targets):
         started = time.monotonic()
         try:
-            return await open_session(target, instructions=instructions), position
+            return await open_session(target, instructions=instructions, tools=TOOL_SPECS), position
         except RealtimeConnectError as exc:
             cause = exc.__cause__ or exc
             logger.warning("realtime connect failed: %s", exc)

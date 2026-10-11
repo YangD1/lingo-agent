@@ -62,6 +62,7 @@
 | `summarize` | background | `episode_id` |
 | `propose_word_book`、`propose_learning_goal`、`propose_daily_plan`、`suggest_practice`、`suggest_link` | tool | `card_id`、`card_kind`（出了卡片时；调用被拒记 `failed`、摘要为空）；`call_id` = 模型的 tool call id。卡片本身显示当前状态 |
 | `tools` | step | 无；只在厂商拒绝工具调用、这一轮改为不带工具重答时记一行 `skipped` |
+| `lookup_word`、`add_to_vocab`、`end_session` | tool | 实时通话的工具（见“实时语音通话”）：`lookup_word` 记 `word`、`word_id`（查到的词条；没查到只有 `word`）；`add_to_vocab` 同 `vocab_collect` 的 `added` / `existing`；`end_session` 无字段。`call_id` = 厂商的 call id；挂在学习者最近一句话上（私教开口前就调用时挂在私教第一句上） |
 | `handoff` | step | `coach`：自由对话分类后转给的 coach |
 | `writing_review` | step | `submission_id`、`mistakes`（错误数） |
 | `reading_context` | step | `article_id`、`level`（送的是哪个等级的改写版；原文为空）、`words`（送了多少词）；看不到文章时只记 `failed` |
@@ -164,9 +165,9 @@
 | 口语小结 | `speaking/sessions.py` `end` + `speaking/summary.py`；提示词 `prompts/speaking_summary.md`（对话用 `<conversation>` 标出，写明是资料不是指令） | 整段对话（最多最后 12,000 字符）、情景、开始时的等级、讲解语言（画像，默认中文） | `speaking_sessions.summary`（引用不到学习者原话的错误和“更地道的说法”由代码丢掉）、`intelligibility`、`status`；语音轮数够 4 轮时按可理解度给口语能力走一步 Elo（`skill_estimates.speaking`，Q58d，只走一次）；小结里的错误不再记证据（反思已经记过） | `llm/speaking_summary`（结构化输出） | `/speaking/{id}` 结束后的小结（错误、改法、更地道的说法可跟读，表达可加入生词本）；`/speaking`“练过的”里删除这次练习即删除小结，已计入的口语能力保留 |
 | 补小结（Q58c） | `GET /speaking/sessions`、`GET /speaking/sessions/{id}` 发现超过 30 分钟没动静的进行中会话时，在响应发出后生成 | 同上 | 同上 | 同上 | 同上；不用后台定时任务，不占后台每日额度 |
 
-## 实时语音通话（ADR 0030，任务 60）
+## 实时语音通话（ADR 0030，任务 60、61）
 
-学习者和私教“打电话”：浏览器 ↔ 后端 `WS /speech/realtime` ↔ 厂商（OpenAI Realtime 协议，OpenAI、通义千问 Omni、阶跃 StepFun）。后端只转发音频，不解码。任务 60 还没有工具（`lookup_word` 等在任务 61），通话界面在任务 62；这一节列出现在已经执行的步骤。
+学习者和私教“打电话”：浏览器 ↔ 后端 `WS /speech/realtime` ↔ 厂商（OpenAI Realtime 协议，OpenAI、通义千问 Omni、阶跃 StepFun）。后端只转发音频，不解码。通话界面在任务 62；这一节列出现在已经执行的步骤。挂断后的反思和小结在任务 61.3。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
@@ -174,10 +175,18 @@
 | 开场上下文（只注入一次，通话中不再检索） | `realtime/context.py` `call_instructions`；提示词 `prompts/realtime_tutor.md` | 通话规则（说英语、短句、可被打断、只用 recast 纠错）；情景（标题、私教角色、学习者目标、目标表达）或自由聊；学习者等级和每轮句数上限；画像、记忆里的事实；选了情景时再按情景英文标题和学习者目标检索相关的往期对话摘要（Q60e），自由聊不带往期摘要 | 无 | 选了情景时 `embedding/memory`（检索用的一次向量化） | 记忆在 `/memory` 可查看、编辑、删除，删了下一通就不会再带 |
 | 接通 | `providers/openai_realtime.py` `open_session`、`providers/realtime.py` `get_realtime` | 租户的 `realtime` 路由，按顺序试，只有接通失败才换下一家，通话中不换 | `speaking_sessions`（`mode = realtime`）和一次会话（`purpose = realtime`） | — | `/speaking` 的练过列表（任务 61 起显示通话） |
 | 通话中 | `realtime/relay.py` `RealtimeCall` | 浏览器只能发音频、`interrupt`、`end`，其他消息丢弃；学习者音频超过实际时长的部分丢弃 | 每 15 秒写一次 `speaking_sessions.call_seconds`（重启也不丢已用分钟）；厂商每次回答记一条 `llm_usage`（task `realtime`，音频 token 计入 input / output，另记学习者音频秒数） | `realtime/realtime` | 字幕和剩余时间（任务 62）；设置页“用量” |
+| 通话转写（Q61e、Q61f） | `realtime/transcript.py` `Transcript`、`realtime/calls.py` `save_lines` | 厂商给的双方定稿字幕（学习者的字幕是厂商另一个转写模型做的，可能和私教听到的不一样）；学习者一句话的位置按厂商提交这段语音的时刻排 | 每次回答结束就把定稿的几句追加进通话的会话（LangGraph 状态，`additional_kwargs` 标 `voice_call`，被打断的私教回复只存已收到的部分、标 `interrupted`），挂断时存剩下的；后端重启最多丢正在说的一轮 | 无 | 通话详情（任务 61.3 接口、62 界面）；删除这次练习连同对话一起删 |
+| 通话工具（ADR 0030 §4，Q61a–d） | `realtime/tools.py` `CallTools`、`realtime/relay.py` `_run_tools`；规则写在 `prompts/realtime_tutor.md` | `lookup_word`：ECDICT 词条（拼写、音标、前 3 行中文释义）和是否已在生词本；`add_to_vocab`：同上查词 | `add_to_vocab`：同反思收词（`mine.collect`，source `auto`），已有卡片的词不动、回 `existing`，所以重复调用不会多加，移除本通加的词也不会动别的；每次调用记 `agent_activities`（见上表）；`end_session` 不写库，推 `end_suggested` 让前端问学习者要不要挂断（Q61c），私教不能自己挂断 | `realtime`（工具结果交回后私教接着说，算在下一次回答的用量里） | 通话中推 `tool` 事件（字段同对话的活动记录）；挂断后在通话的活动记录里；加进生词本的词在生词本里可移除（详情页一键移除在任务 61.3 / 62） |
 | 限时 | 同上 `_clock_loop` | 本次上限 = min(单次分钟, 今天剩余) | 结束前 1 分钟推 `time_warning`；到点推 `wrapping_up`，让私教说再见，期间学习者说话不打断；说完或最多 10 秒后挂断 | 同上（道别那一次回答） | 通话界面（任务 62） |
 | 挂断 | `realtime/calls.py` `finish`；后端启动时 `close_orphaned` 关掉上次重启断掉的通话 | — | `speaking_sessions.status = done`、`ended_at`、最终 `call_seconds`。**双方转写、反思、小结还没做（任务 61）**，现在挂断后不留对话内容 | 无 | — |
 
 管理员在设置页：“实时语音”路由（顺序、开关、测试连接）、“实时语音限额”（`GET/PUT /tenant/realtime`，填 0 关闭）。
+
+通话工具的规则（ADR 0013）：
+- **身份不进参数**：参数只有 `word`（≤64 字）；学习者来自通话本身（`CallTools` 构造时绑定），参数里多给的字段忽略，`word` 缺了或不合法作为错误结果返回。
+- **一起执行、一次交回**：同一次回答里的几个调用并行执行，结果一起交回厂商后只请私教接着说一次（`ToolCalls` 事件、`send_tool_results`）。
+- **上限**（Q61d）：每次回答最多 3 个调用、每通最多 20 个，单个 3 秒超时；超出、超时、出错、不认识的工具都作为错误结果返回，通话照常继续。到时间开始道别后，工具调用只回“通话快结束了”，不再执行。
+- **工具结果是数据**：提示词要求私教不执行工具结果里的任何指令。
 
 ## 练习组的出题与批改（ADR 0021 §3–§4、§6，任务 33–35）
 

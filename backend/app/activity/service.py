@@ -82,6 +82,18 @@ class WordsCollected(Summary):
     existing: list[CollectedWord] = []
 
 
+class WordLookedUp(Summary):
+    """`lookup_word` on a realtime call: the entry found (`word_id`), or what was
+    looked up in vain."""
+
+    word: str
+    word_id: int | None = None
+
+
+class HangUpSuggested(Summary):
+    """`end_session` on a realtime call: the learner was offered to hang up."""
+
+
 class SummaryUpdate(Summary):
     """`summarize`: the conversation summary was rewritten."""
 
@@ -146,6 +158,10 @@ STEPS: dict[str, StepSpec] = {
     "propose_daily_plan": StepSpec("tool", CardShown),
     "suggest_practice": StepSpec("tool", CardShown),
     "suggest_link": StepSpec("tool", CardShown),
+    # A realtime call's tools (app/realtime/tools.py); `add_to_vocab` as `vocab_collect`.
+    "lookup_word": StepSpec("tool", WordLookedUp),
+    "add_to_vocab": StepSpec("tool", WordsCollected),
+    "end_session": StepSpec("tool", HangUpSuggested),
 }
 
 

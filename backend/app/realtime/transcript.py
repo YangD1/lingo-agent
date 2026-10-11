@@ -48,22 +48,30 @@ class Line:
 class Transcript:
     def __init__(self) -> None:
         self._lines: list[Line] = []
+        # The learner's latest turn: tool activity is shown under it.
+        self._turn_id: str | None = None
 
     def learner_turn(self, item_id: str) -> None:
         if self._find(item_id) is None:
-            self._lines.append(Line("learner", item_id))
+            self._add(Line("learner", item_id))
 
     def subtitle(self, event: Subtitle) -> None:
         line = self._find(event.item_id)
         if line is None:
-            line = Line(event.role, event.item_id)
-            self._lines.append(line)
+            line = self._add(Line(event.role, event.item_id))
         if line.final:
             return
         if event.final:
             line.text, line.final = event.text, True
         else:
             line.text += event.text
+
+    def turn_id(self) -> str:
+        """The message the tutor's tool calls belong to: the learner's latest turn, or
+        before they have said anything, the tutor's first line."""
+        if self._turn_id is None:
+            self._turn_id = str(uuid.uuid4()) if not self._lines else self._lines[0].message_id
+        return self._turn_id
 
     def speech_started(self) -> None:
         """The learner talked over the tutor: a reply still coming ends here."""
@@ -94,6 +102,12 @@ class Transcript:
     def _take(self, count: int) -> list[Line]:
         taken, self._lines = self._lines[:count], self._lines[count:]
         return [line for line in taken if line.text.strip()]
+
+    def _add(self, line: Line) -> Line:
+        self._lines.append(line)
+        if line.role == "learner":
+            self._turn_id = line.message_id
+        return line
 
     def _find(self, item_id: str) -> Line | None:
         return next((line for line in self._lines if line.item_id == item_id), None)
