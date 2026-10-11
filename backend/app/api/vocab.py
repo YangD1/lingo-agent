@@ -17,12 +17,13 @@ from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.services.speech.shadowing import mispronounced_words
-from app.services.vocab import examples, mine, placement_known, progress, screening
+from app.services.vocab import distractors, examples, mine, placement_known, progress, screening
 from app.services.vocab.examples import forms_of
 from app.services.vocab.mine import MatchKind
 from app.services.vocab.queue import QueueItem, daily_queue, today_counts
 from app.services.vocab.scheduler import (
     Rating,
+    ReviewFormat,
     WordNotFoundError,
     learner_zone,
     preview,
@@ -81,6 +82,12 @@ class CardOut(BaseModel):
     # The learner's last assessed reading of this word was below the threshold
     # (shadowing, Q56c): "you don't say this one right".
     mispronounced: bool = False
+    # The word's first sense, short ("n. 殖民地, 移民队"): the right answer on a
+    # listening card (task 63).
+    gloss: str = ""
+    # Wrong meanings for a listening card (queue only, Q63c); only for cards reviewed
+    # before (Q63b). Fewer than 3: the card can't be a listening one.
+    choices: list[str] = []
 
 
 class BookOut(BaseModel):
@@ -129,6 +136,8 @@ class ReviewIn(BaseModel):
     word_id: int
     rating: Rating
     duration_ms: int | None = Field(default=None, ge=0, le=3_600_000)
+    # How the card was shown (task 63, Q63f).
+    format: ReviewFormat = "recognize"
 
 
 class ScreenOut(BaseModel):
@@ -211,6 +220,7 @@ def _card(
     sentences: Sequence[WordSentence],
     ai: Sequence[dict[str, str]] = (),
     mispronounced: bool = False,
+    choices: Sequence[str] = (),
 ) -> CardOut:
     return CardOut(
         word=_word(word),
@@ -225,6 +235,8 @@ def _card(
         forms=sorted(forms_of(word.word, word.exchange, lemma=False)),
         ai_examples=[Sentence(**s) for s in ai],
         mispronounced=mispronounced,
+        gloss=distractors.gloss(word.translation).text,
+        choices=list(choices),
     )
 
 
@@ -233,9 +245,10 @@ async def _cards(
     user_id: uuid.UUID,
     items: Iterable[tuple[Word, UserCard | None]],
     ai: Mapping[int, list[dict[str, str]]] | None = None,
+    choices: Mapping[int, list[str]] | None = None,
 ) -> list[CardOut]:
     """Cards with their example sentences and pronunciation marks, a query each; `ai`
-    adds cached AI sentences."""
+    adds cached AI sentences, `choices` listening-card meanings."""
     pairs = list(items)
     ids = [word.id for word, _ in pairs]
     found = await sentences_for(session, ids)
@@ -249,6 +262,7 @@ async def _cards(
             found.get(word.id, []),
             (ai or {}).get(word.id, ()),
             mispronounced=word.id in marked,
+            choices=(choices or {}).get(word.id, ()),
         )
         for word, card in pairs
     ]
@@ -327,7 +341,10 @@ async def get_queue(
         (word.id for word, _ in pairs),
         await examples.level_for(session, user.id),
     )
-    cards = await _cards(session, user.id, pairs, ai)
+    # Listening and spelling only for words reviewed before (Q63b).
+    seen = [word for word, card in pairs if card is not None and card.last_review is not None]
+    choices = await distractors.choices_for(session, user.id, seen)
+    cards = await _cards(session, user.id, pairs, ai, choices)
     return QueueOut(
         reviews=cards[: len(reviews)],
         new=cards[len(reviews) :],
@@ -348,6 +365,7 @@ async def post_review(body: ReviewIn, user: CurrentUser, session: SessionDep) ->
             rating=body.rating,
             rules=get_rules(),
             duration_ms=body.duration_ms,
+            format=body.format,
         )
     except WordNotFoundError as exc:
         raise api_error(status.HTTP_404_NOT_FOUND, "word_not_found", "word not found") from exc

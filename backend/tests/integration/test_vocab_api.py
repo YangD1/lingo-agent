@@ -148,17 +148,26 @@ async def test_reviewing_the_daily_queue(client: AsyncClient, db_session: AsyncS
     intervals = queue["new"][0]["intervals"]
     assert intervals[0] == 60 and intervals == sorted(intervals) and intervals[3] >= 86_400
 
+    # Never reviewed: no listening card yet (Q63b), but the meaning is there.
+    assert queue["new"][0]["choices"] == [] and queue["new"][0]["gloss"] == "common 释义"
+
     response = await client.post(
-        "/vocab/reviews", json={"word_id": ids["common"], "rating": 1, "duration_ms": 4200}
+        "/vocab/reviews",
+        json={"word_id": ids["common"], "rating": 1, "duration_ms": 4200, "format": "spell"},
     )
     assert response.status_code == 200, response.text
     card = response.json()
     assert (card["status"], card["source"]) == ("learning", "book") and card["due"]
+    assert await db_session.scalar(select(ReviewLog.format)) == "spell"
 
     # Failed a minute ago, it is due again within the learn-ahead window.
     queue = await get(client, "/vocab/queue", tz="not/a-zone")
     assert spelled(queue["reviews"]) == ["common"] and spelled(queue["new"]) == ["middle"]
     assert (queue["reviews_due"], queue["new_started"]) == (1, 1)
+    # Reviewed before: three wrong meanings from the book's neighbours (Q63c).
+    choices = queue["reviews"][0]["choices"]
+    assert len(choices) == 3 and len(set(choices)) == 3
+    assert set(choices) < {"middle 释义", "less 释义", "rarer 释义", "rarest 释义"}
     queue = await get(client, "/vocab/queue", mode="new")
     assert queue["reviews"] == [] and queue["reviews_due"] == 1
     overview = await get(client, "/vocab")
@@ -167,6 +176,7 @@ async def test_reviewing_the_daily_queue(client: AsyncClient, db_session: AsyncS
 
     for body, code in [
         ({"word_id": ids["common"], "rating": 5}, "validation_error"),
+        ({"word_id": ids["common"], "rating": 3, "format": "write"}, "validation_error"),
         ({"word_id": 999_999, "rating": 3}, "word_not_found"),
     ]:
         response = await client.post("/vocab/reviews", json=body)

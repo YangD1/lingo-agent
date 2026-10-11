@@ -666,7 +666,19 @@
   - [x] 62.6 E2E 与收尾：E2E 假实时厂商 + 假麦克风，`realtime.spec.ts`（接通 → 字幕 → 查词 / 加词标签 → 撤销 → 建议挂断 → 挂断 → 详情页转写和小结；没配实时连接时不出按钮）；standalone WebSocket 代理实测（Q62j）；`docs/agent-tools.md` 去掉“界面在任务 62”、ADR 0030 落地记录、P3 计划；全量检查。2026-10-11 完成：`e2e/fake_llm.py` 加 `/v1/realtime`（OpenAI 正式版写法的脚本：私教开场；学习者前 1.5 秒音频当作问 serendipity，私教查词 + 加词，再建议挂断并道别；带一小段音频）；`e2e/realtime.spec.ts`：情景卡片“打电话” → 接通 → 双方字幕 → 查词 / 加词标签 → 当场撤销 → 建议挂断横条“继续聊” → 满 31 秒挂断 → 详情页小结、转写、活动记录（撤销的词显示已移出）→ 历史里是“通话”、不当成继续上次；没配实时语音时没有入口，直接进通话页接通被拒并给“去设置”。E2E 跑的就是 standalone 构建，`/api/speech/realtime` 的 WebSocket 升级能过代理（Q62j 通过，Docker 留到 64）。踩到：学习者用 “what does X mean” 问的词，通话中撤销后会被挂断后的反思再收进生词本（ADR 0011 的收词规则），E2E 改了问法，是否修改待用户决定（ADR 0030 落地记录“已知交互”）。文档：`agent-tools.md` 去掉“界面在任务 62”、ADR 0030 任务 62 落地记录（含 standalone 代理实测）、P3 计划落地小结。全量：pytest 1649、Vitest 555、E2E 66 全过；ruff、mypy、eslint、tsc 干净
   - [x] 62.7 挂断后的反思收词跳过本通处理过的词（2026-10-11 用户选“跳过本通处理过的词”）：`memory/worker.py` `_collect_words` 先读本会话成功的 `add_to_vocab` 活动，`added` / `existing` 里的词 id 不再收（撤销过的不会被加回，活动面板不再重复两段“收进生词本”）；工具没收的词照常兜底（ADR 0011）。不加表、无迁移；单测 + 把 `e2e/fake_llm.py` 问法改回 “what does X mean”。2026-10-11 完成：`activity/service.py` `words_added_by_tool`，`memory/worker.py` `_collect_words` 按词 id 过滤；集成测试 `test_words_the_tutor_already_added_on_a_call_are_not_collected_again`（撤销过的不加回、工具失败的照收）；E2E 问法改回后等 `pending` 为 false 再刷新，断言仍“已移出”、只有一段“收进生词本”（去掉修复时 E2E 失败，已验证）；ADR 0030、agent-tools、P3 计划同步。pytest 1650、realtime / vocab E2E 全过；ruff、mypy、eslint、tsc 干净
 - **P3e 背词听音 / 拼写**
-- [ ] 63. 复习卡片听音辨词 / 拼写题型
+- [ ] 63. 复习卡片听音辨词 / 拼写题型。2026-10-11 拆分，Q63a–h 按推荐确认（2026-10-11）：
+  - Q63a 怎么切题型：推荐复习页顶部加题型切换“看词 / 听音 / 拼写 / 混合”，默认“看词”（和现在一样），选择记在浏览器 localStorage；“混合”每张卡随机三选一。备选：在背词首页或设置页选
+  - Q63b 哪些卡出新题型：推荐只有复习过至少一次的卡（`last_review` 不为空）才出听音 / 拼写；第一次见的新词一律“看词”（没学过的词拼不出来）
+  - Q63c 听音的干扰项：推荐后端用代码挑 3 个干扰释义（同一词书、词频相近、词性相同优先、和正确释义不重复），随队列一起返回；只显示每个词第一个词性的释义（太长截断）；不调模型
+  - Q63d 默认评分：推荐两种题型都由代码判对错再预选评分（听音：选错 → Again、选对 → Good；拼写：完全对 → Good、只差一个字母 → Hard、其他 → Again），学习者可以改；判完翻到背面显示答案（拼写标出错的字母）
+  - Q63e 判拼写：推荐忽略大小写和首尾空格；词组的多个空格算一个；变形（复数、过去式）不算对
+  - Q63f 记录题型：推荐 `review_logs` 加 `format` 列（`recognize` / `listen` / `spell`，旧记录为 `recognize`），`POST /vocab/reviews` 带上题型；为以后按学习者拟合 FSRS 参数时区分题型。需要一次迁移
+  - Q63g 播放：推荐出卡就自动读一遍（浏览器拦了自动播放就显示大播放按钮），可以重听（按钮 + 快捷键 R）；没有任何朗读手段时（`useCanSpeak` 为假）“听音 / 拼写 / 混合”置灰并说明原因（P3 计划 §7）
+  - Q63h 拼写题的提示：推荐正面显示释义 + 发音，输入框不提示字母数；不显示音标（音标就是答案的一部分）
+  - [x] 63.1 后端：队列卡片带 `choices`（3 个干扰释义，`services/vocab/distractors.py` 纯函数挑选 + 一次查询）；`ReviewIn.format`、`review_logs.format` 迁移；单测 + 接口测试。进展（2026-10-11）：`distractors.py`（`gloss` 取第一条非专业释义行、最多 3 个词条、30 字截断；`pick` 同词性优先、和答案或已选的不共用词条；`choices_for` 用 VALUES + LATERAL 按词频上下各取 15 个邻居，两次查询；没词书用牛津 3000）；`CardOut.gloss` / `choices`（只给复习过的卡）；`ReviewIn.format`、`review(format=)`、`review_logs.format`（迁移 `dc7609c9257f`，含 CHECK）；开发库实测 100 张卡 62–87 毫秒、全部凑满 3 个；`tests/unit/test_vocab_distractors.py` 4 条、`test_vocab_api.py` 补断言；ruff、mypy 干净，全量 pytest 1654 全过
+  - [x] 63.2 前端题型切换 + 听音辨词（自动读、重听、四选一、判对错预选评分、翻面）；中英文案；Vitest。2026-10-11 完成：`lib/vocab.ts` `cardFormat` / `listenOptions`（带种子的洗牌）；`lib/preferences.ts` `useReviewChoice`（localStorage `lingo.vocab.reviewFormat`）；`Segmented` 选项可 `disabled`；`Tag` 加 `destructive`；`use-review-session.ts` `answer(suggested)`、`suggested`、`rate(rating, format)`；`review-fronts.tsx` `ListenFront` / `SpellFront` / `AnswerResult`；`review-app.tsx` 顶部题型切换和说明（没朗读 / 新词 / 干扰项不够）、出卡自动读、R 重听、1–4 选项、建议评分高亮、Enter / 空格按建议评分
+  - [x] 63.3 前端拼写（释义 + 发音、输入、判对错与标错字母、预选评分）；混合模式；Vitest。2026-10-11 完成：`judgeSpelling`（编辑距离 0 / 1 / 其他）、`spellingMarks`（沿最短编辑路径标出漏 / 错的字母）、`SUGGESTED_RATING`；`review-formats.test.tsx` 6 条、`vocab.test.ts` 加 6 条；eslint、tsc 干净
+  - [ ] 63.4 E2E（`vocab.spec.ts` 加听音和拼写各一张卡）、PLAN / P3 计划落地记录、全量检查
 - **P3f 收尾**
 - [ ] 64. P3 全链路 E2E、真模型冒烟、README 中英、Docker 重建、`make ci`、推送
 

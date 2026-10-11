@@ -20,6 +20,8 @@ from app.adaptive.rules import Rules
 from app.db.models import ReviewLog, UserCard, UserProfile, Word
 
 type Rating = Literal[1, 2, 3, 4]  # again, hard, good, easy
+# models.REVIEW_FORMATS
+type ReviewFormat = Literal["recognize", "listen", "spell"]
 type CardSource = Literal["book", "auto", "manual"]
 
 
@@ -101,6 +103,7 @@ async def review(
     now: datetime | None = None,
     duration_ms: int | None = None,
     source: CardSource = "book",
+    format: ReviewFormat = "recognize",
 ) -> UserCard:
     """Rate the learner's recall of a word and schedule its next review; does not commit.
 
@@ -135,6 +138,7 @@ async def review(
             rating=rating,
             reviewed_at=now,
             review_duration_ms=duration_ms,
+            format=format,
             card_before=before,
             card_after=_snapshot(card),
         )

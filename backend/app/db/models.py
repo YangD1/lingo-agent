@@ -60,6 +60,9 @@ ACTIVITY_KINDS = ("step", "tool", "mcp", "background")
 ACTIVITY_STATUSES = ("ok", "failed", "skipped")
 CARD_SOURCES = ("book", "auto", "manual", "placement")
 CARD_STATUSES = ("new", "learning", "known", "suspended")
+# How a card was shown when rated (task 63): the word, its sound (pick the meaning), or
+# its sound and meaning (type the word).
+REVIEW_FORMATS = ("recognize", "listen", "spell")
 PLACEMENT_STATUSES = ("in_progress", "done", "abandoned")
 PLACEMENT_STAGES = ("vocab", "grammar")
 # planning: after a placement test (ADR 0015 §6); daily: the dashboard's (ADR 0016);
@@ -939,6 +942,7 @@ class ReviewLog(Base):
     __tablename__ = "review_logs"
     __table_args__ = (
         CheckConstraint("rating BETWEEN 1 AND 4", name="rating"),
+        CheckConstraint(_in("format", REVIEW_FORMATS), name="format"),
         Index("ix_review_logs_user_id_reviewed_at", "user_id", "reviewed_at"),
     )
 
@@ -951,6 +955,8 @@ class ReviewLog(Base):
     rating: Mapped[int] = mapped_column(SmallInteger)
     reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     review_duration_ms: Mapped[int | None] = mapped_column(Integer)
+    # REVIEW_FORMATS; kept so FSRS can be fitted per format (recall from sound is harder).
+    format: Mapped[str] = mapped_column(String(10), default="recognize", server_default="recognize")
     card_before: Mapped[dict[str, Any]] = mapped_column(JSONB)
     card_after: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
