@@ -29,6 +29,10 @@ Reading (ADR 0024): an article is rewritten as ~300 words about a rover, with "u
 and "serendipity" past A2 for the glossary, and five questions whose right option starts
 "The rover"; the critic picks that option, so every question passes. reading_coach
 answers 'About "<the article's title>"', so tests can see the article reached it.
+Realtime calls (ADR 0030): /v1/realtime speaks OpenAI's Realtime protocol by a fixed
+script: the tutor opens, the learner's first 1.5 s of audio is heard as a question about
+"serendipity", which the tutor looks up and adds to the word list, then suggests hanging
+up and says goodbye.
 """
 
 import asyncio
@@ -42,7 +46,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import uvicorn
-from fastapi import FastAPI, Request, UploadFile
+from fastapi import FastAPI, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 PORT = int(os.environ.get("E2E_LLM_PORT", "8101"))
@@ -681,7 +685,107 @@ async def pronunciation(request: Request) -> dict[str, Any]:
 # The model list the settings page fetches (ADR 0007 §1): an embedding and a speech model to
 # check that only chat models are offered for chat, and "fake-tutor" first so it's the
 # recommended one. The fake ignores model names, so fake-tutor also serves as the vision model.
-MODELS = ["fake-tutor", "fake-embedding", "fake-tutor-mini", "fake-whisper", "fake-tts"]
+MODELS = [
+    "fake-tutor",
+    "fake-embedding",
+    "fake-tutor-mini",
+    "fake-whisper",
+    "fake-tts",
+    "fake-realtime",
+]
+
+# A realtime call's script (ADR 0030): what the tutor says to each `response.create`.
+CALL_WORD = "serendipity"
+# Not asked as 'what does X mean', which reflection would put on the word list again.
+CALL_LEARNER = f"Can you explain {CALL_WORD}? Please add it to my words."
+CALL_REPLIES = [
+    "Hi! What would you like to talk about?",
+    f"It means finding good things by chance. I added {CALL_WORD} to your words.",
+    "Great talking with you. Bye for now!",
+]
+# How much of the learner's audio (24 kHz PCM16) makes their one question.
+CALL_HEARD_BYTES = 24000 * 2 * 3 // 2
+# 0.2 s of a quiet tone, so the page has something to play.
+CALL_AUDIO = base64.b64encode(
+    b"".join(
+        int(800 * ((i // 27) % 2 * 2 - 1)).to_bytes(2, "little", signed=True) for i in range(4800)
+    )
+).decode()
+
+
+@app.websocket("/v1/realtime")
+async def realtime(ws: WebSocket) -> None:
+    await ws.accept()
+    replies = 0
+    heard = 0
+    calls: dict[str, str] = {}  # call_id -> tool name, as results come back
+
+    async def send(**event: Any) -> None:
+        await ws.send_text(json.dumps(event))
+
+    async def reply(text: str, tools: list[tuple[str, dict[str, str]]]) -> None:
+        nonlocal replies
+        replies += 1
+        item = f"a{replies}"
+        if text:  # a reply that only calls tools says nothing
+            await send(type="response.output_audio.delta", item_id=item, delta=CALL_AUDIO)
+            for i, word in enumerate(text.split(" ")):
+                await send(
+                    type="response.output_audio_transcript.delta",
+                    item_id=item,
+                    delta=word if i == 0 else f" {word}",
+                )
+                await asyncio.sleep(DELAY)
+            await send(type="response.output_audio_transcript.done", item_id=item, transcript=text)
+        for name, arguments in tools:
+            call_id = f"call-{replies}-{name}"
+            calls[call_id] = name
+            await send(
+                type="response.output_item.done",
+                item={
+                    "type": "function_call",
+                    "call_id": call_id,
+                    "name": name,
+                    "arguments": json.dumps(arguments),
+                },
+            )
+        await send(
+            type="response.done",
+            response={
+                "status": "completed",
+                "usage": {"input_tokens": 100, "output_tokens": 50},
+            },
+        )
+
+    try:
+        while True:
+            event = json.loads(await ws.receive_text())
+            kind = event.get("type")
+            if kind == "session.update":
+                await send(type="session.updated", session={})
+            elif kind == "input_audio_buffer.append" and heard < CALL_HEARD_BYTES:
+                heard += len(base64.b64decode(event.get("audio", "")))
+                if heard >= CALL_HEARD_BYTES:
+                    await send(type="input_audio_buffer.speech_started")
+                    await send(type="input_audio_buffer.committed", item_id="u1")
+                    await send(
+                        type="conversation.item.input_audio_transcription.completed",
+                        item_id="u1",
+                        transcript=CALL_LEARNER,
+                    )
+                    word = {"word": CALL_WORD}
+                    await reply("", [("lookup_word", word), ("add_to_vocab", word)])
+            elif kind == "response.create":
+                # The opening; then after each batch of tool results.
+                answered = sum(1 for c in calls.values() if c == "end_session")
+                if replies == 0:
+                    await reply(CALL_REPLIES[0], [])
+                elif answered:
+                    await reply(CALL_REPLIES[2], [])
+                else:
+                    await reply(CALL_REPLIES[1], [("end_session", {})])
+    except WebSocketDisconnect:
+        return
 
 
 @app.get("/v1/models")

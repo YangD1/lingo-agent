@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-10-11 任务 62 通话界面（62.1–62.6，任务 62 完成）
+
+**做了什么**：Q62a–j 按推荐确认后一口气做完 62.1–62.6，每步一个提交（d7845cc、b3f9204、b91cf4b、34c9a93、adc0f12，以及本条的收尾提交）。
+- 62.1 `frontend/src/lib/mic-tap.ts`（麦克风 AudioWorklet，跟读录音改用它）、`lib/realtime-audio.ts`（流式重采样、PCM16、100 毫秒分帧、播放排程 `createPlaybackClock`、`openCallMicrophone`、`createCallPlayer`）。
+- 62.2 `lib/realtime-call.ts` 纯 reducer `callReducer` + `parseEvent`；`components/speaking/use-realtime-call.ts` `useRealtimeCall`（点击里建播放器 → 开麦克风 → 连 WS；打断时发 `interrupt` 带已播放毫秒）。
+- 62.3 `components/speaking/realtime-call.tsx` `RealtimeCallPage`，路由 `app/(app)/speaking/call/page.tsx`。
+- 62.4 `lib/speech.ts` 能力加 `realtime` / `realtimeMinutesLeft` / `refreshCapabilities`；`speaking-list.tsx` 卡片下“打电话”、剩余分钟；修了等小结的通话被当成“继续上次”。
+- 62.5 后端 `ChatMessage.interrupted` / `MessageOut.interrupted`，`to_chat_messages` 不再合并 `voice_call` 消息（原来通话里相邻两句私教回复会被并成一句）；前端 `CallDetail`（`speaking-session.tsx`）、`call-transcript.tsx` `CallTranscript`、`SpeakingSummaryView` 加 `notice` / `children` 和通话文案；`TurnActivity` / `digest` 认识通话三个工具。
+- 62.6 `e2e/fake_llm.py` `/v1/realtime` 脚本厂商、`e2e/realtime.spec.ts` 2 条；docs（agent-tools、ADR 0030 任务 62 落地记录、P3 计划）。
+
+**验证**：pytest 1649（12 分 48 秒）、Vitest 555、E2E 66 全过；ruff、ruff format、mypy、eslint、tsc 干净。E2E 跑的是 standalone 构建，WebSocket 经 `/api` 代理能升级（Q62j）。
+
+**未完成**：没有推送；Docker 未重建（下次推送后重建，或留到 64）。真浏览器 + 真模型的通话体验（回声、延迟、44.1 kHz 设备）只在任务 64 冒烟时能验。
+
+**待用户决定**：学习者用 “what does X mean” 问的词，通话中在标签上撤销后，挂断后的反思会按 ADR 0011 再把它收进生词本（E2E 第一次跑就撞上，改了脚本里的问法绕开）。可选：反思收词跳过本通被撤销的词（需要记下撤销，比如 `agent_activities` 或一张小表），或者保持现状。另外同一个词通话中加过、反思又收一次时，活动面板会出现两段“收进生词本”。
+
+**下一步**：等用户对上面那点拍板；然后任务 63（复习卡片听音辨词 / 拼写），先拆子任务写进看板、和用户确认。
+
+**踩坑**：`next-intl` 同一命名空间里不能同时有字符串键和同名对象键（`ended` 和 `ended.*` 撞了，tsc 报 key 类型错），改成 `ended` + `endReason`。`PageProps<"/speaking/call">` 新路由要先 `next typegen` 才过 tsc。Playwright 默认单测 30 秒，满 30 秒才有小结的通话要 `test.setTimeout`。`fake_llm.py` 原本就有 3 行超 100 字符，不在 lint 范围，别整文件 `ruff format`。
+
+---
+
 ## 2026-10-11 任务 61.6 文档与收尾（任务 61 完成）
 
 **做了什么**：`docs/agent-tools.md`（“LLM 工具调用”一节说明实时通话三个工具另一套规则；实时通话一节加上 Gemini、更新过期的任务编号）；ADR 0030 加“落地记录（任务 61）”；`docs/PLAN.md` 实时语音默认路由改成和 `config/providers.*.yaml` 一致；`docs/plans/P3-voice.md` 加任务 61 落地小结。只改了文档，没改代码。
