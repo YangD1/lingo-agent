@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-11 任务 61.6 文档与收尾（任务 61 完成）
+
+**做了什么**：`docs/agent-tools.md`（“LLM 工具调用”一节说明实时通话三个工具另一套规则；实时通话一节加上 Gemini、更新过期的任务编号）；ADR 0030 加“落地记录（任务 61）”；`docs/PLAN.md` 实时语音默认路由改成和 `config/providers.*.yaml` 一致；`docs/plans/P3-voice.md` 加任务 61 落地小结。只改了文档，没改代码。
+
+**验证**：pytest 1646（约 12 分钟）、Vitest 479（`--maxWorkers=8`）、settings E2E 5 全过；ruff、ruff format、mypy、tsc、eslint 干净。
+
+**未完成**：没有推送（本地领先 origin 11 个提交（含本次），从 60.1 起都没推送）；Docker 未重建（后端容器因镜像落后于开发库迁移在重启循环，`make up` 即可）。Gemini 三点留到任务 64 真模型冒烟核实（见 ADR 0030 落地记录）。
+
+**下一步**：任务 62 通话界面，先拆子任务写进看板、和用户确认。可以先推送一次跑 CI。
+
+**踩坑**：在 Bash 里不能用 `node node_modules/.bin/tsc` 跑（`.bin` 是 shell 脚本），要把 nvm 的 bin 放进 PATH 后直接执行 `node_modules/.bin/tsc`。zsh 里单独一行 `=====` 会被当成命令展开报错，分隔线用 `-----`。
+
+---
+
 ## 2026-10-11 任务 61.5 `gemini_live` 适配器
 
 **做了什么**：抽出 `app/providers/realtime_session.py`（中立事件、`RealtimeConnectError`、`RealtimeSession` Protocol、`connect_ws`、按写法分派的 `open_session`），中继、转写、接口、连接测试都只依赖它；`openai_realtime` 只改名（`OpenAIRealtimeSession`、`open_openai_session`），行为不变，原有 22 条测试照过。新 `app/providers/gemini_live.py` `GeminiLiveSession`：setup 握手、事件翻译、工具调用与取消、`goAway` 续接（详见看板 61.5）。测试替身 `tests/fake_gemini_vendor.py`；`tests/unit/test_gemini_live.py` 7 条；`test_realtime_relay.py` 加 Gemini 一通电话 + 连接测试。`docs/agent-tools.md` 接通一行的位置改成 `realtime_session.py`。

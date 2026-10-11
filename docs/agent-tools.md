@@ -95,6 +95,8 @@
 | `suggest_practice` | `kc_id`（语法点清单里的 id） | 链接，`info` | 无（点开即建练习会话，同“开始练习”） | 不需要 |
 | `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_screen`、`placement`、`learner`、`speaking` 之一 | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
 
+**实时通话的工具**另有一套：`lookup_word`、`add_to_vocab`、`end_session`（ADR 0030 §4）。它们不出卡片：`lookup_word` 只读；`add_to_vocab` 直接加进生词本（幂等，可在生词本移除），因为通话中弹确认会打断说话；`end_session` 只提议，学习者点了才挂断。上限是每次回答 3 个、每通 20 个、单个 3 秒。参数、读写和学习者在哪里看到，见下面“实时语音通话”一节。
+
 卡片存在 `tutor_cards`（`cards/service.py`；状态 `proposed → applied | declined`、`applied → undone`，链接卡片是 `info`；提议不过期），删除会话时一起删除。接口：`GET /conversations/{id}/cards`、`POST /cards/{id}/apply|decline|undo`（只能操作自己的卡片）。回复中的卡片通过 SSE `card` 事件实时推送。
 
 **学习者在哪里看到**：卡片显示在那一轮私教回复的下方（`frontend/src/components/chat/tutor-cards.tsx`），和回复一起属于对话，不受“显示私教做了什么”开关影响。提议卡片上有“确认 / 不用了”，确认后可“撤销”；撤销被拒绝（之后又改过设置）时卡片上说明原因。每次调用在“私教做了什么”里记一行（展示了什么卡片，或没能展示）；厂商不支持工具时也有一行说明。
@@ -167,7 +169,7 @@
 
 ## 实时语音通话（ADR 0030，任务 60、61）
 
-学习者和私教“打电话”：浏览器 ↔ 后端 `WS /speech/realtime` ↔ 厂商（OpenAI Realtime 协议，OpenAI、通义千问 Omni、阶跃 StepFun）。后端只转发音频，不解码。通话界面在任务 62；这一节列出现在已经执行的步骤。
+学习者和私教“打电话”：浏览器 ↔ 后端 `WS /speech/realtime` ↔ 厂商（OpenAI Realtime 协议：OpenAI、通义千问 Omni、阶跃 StepFun；Gemini Live 协议：Gemini）。后端只转发音频，不解码。后端部分（接通、上下文、工具、转写、挂断后的反思和小结）都已执行；通话界面在任务 62。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
@@ -175,8 +177,8 @@
 | 开场上下文（只注入一次，通话中不再检索） | `realtime/context.py` `call_instructions`；提示词 `prompts/realtime_tutor.md` | 通话规则（说英语、短句、可被打断、只用 recast 纠错）；情景（标题、私教角色、学习者目标、目标表达）或自由聊；学习者等级和每轮句数上限；画像、记忆里的事实；选了情景时再按情景英文标题和学习者目标检索相关的往期对话摘要（Q60e），自由聊不带往期摘要 | 无 | 选了情景时 `embedding/memory`（检索用的一次向量化） | 记忆在 `/memory` 可查看、编辑、删除，删了下一通就不会再带 |
 | 接通 | `providers/realtime_session.py` `open_session`（按写法选 `openai_realtime` 或 `gemini_live` 适配器）、`providers/realtime.py` `get_realtime` | 租户的 `realtime` 路由，按顺序试，只有接通失败才换下一家，通话中不换 | `speaking_sessions`（`mode = realtime`）和一次会话（`purpose = realtime`） | — | `/speaking` 的练过列表 |
 | 通话中 | `realtime/relay.py` `RealtimeCall` | 浏览器只能发音频、`interrupt`、`end`，其他消息丢弃；学习者音频超过实际时长的部分丢弃 | 每 15 秒写一次 `speaking_sessions.call_seconds`（重启也不丢已用分钟）；厂商每次回答记一条 `llm_usage`（task `realtime`，音频 token 计入 input / output，另记学习者音频秒数） | `realtime/realtime` | 字幕和剩余时间（任务 62）；设置页“用量” |
-| 通话转写（Q61e、Q61f） | `realtime/transcript.py` `Transcript`、`realtime/calls.py` `save_lines` | 厂商给的双方定稿字幕（学习者的字幕是厂商另一个转写模型做的，可能和私教听到的不一样）；学习者一句话的位置按厂商提交这段语音的时刻排 | 每次回答结束就把定稿的几句追加进通话的会话（LangGraph 状态，`additional_kwargs` 标 `voice_call`，被打断的私教回复只存已收到的部分、标 `interrupted`），挂断时存剩下的；后端重启最多丢正在说的一轮 | 无 | 通话详情（任务 61.3 接口、62 界面）；删除这次练习连同对话一起删 |
-| 通话工具（ADR 0030 §4，Q61a–d） | `realtime/tools.py` `CallTools`、`realtime/relay.py` `_run_tools`；规则写在 `prompts/realtime_tutor.md` | `lookup_word`：ECDICT 词条（拼写、音标、前 3 行中文释义）和是否已在生词本；`add_to_vocab`：同上查词 | `add_to_vocab`：同反思收词（`mine.collect`，source `auto`），已有卡片的词不动、回 `existing`，所以重复调用不会多加，移除本通加的词也不会动别的；每次调用记 `agent_activities`（见上表）；`end_session` 不写库，推 `end_suggested` 让前端问学习者要不要挂断（Q61c），私教不能自己挂断 | `realtime`（工具结果交回后私教接着说，算在下一次回答的用量里） | 通话中推 `tool` 事件（字段同对话的活动记录）；挂断后在通话的活动记录里；加进生词本的词在生词本里可移除（详情页一键移除在任务 61.3 / 62） |
+| 通话转写（Q61e、Q61f） | `realtime/transcript.py` `Transcript`、`realtime/calls.py` `save_lines` | 厂商给的双方定稿字幕（学习者的字幕是厂商另一个转写模型做的，可能和私教听到的不一样）；学习者一句话的位置按厂商提交这段语音的时刻排 | 每次回答结束就把定稿的几句追加进通话的会话（LangGraph 状态，`additional_kwargs` 标 `voice_call`，被打断的私教回复只存已收到的部分、标 `interrupted`），挂断时存剩下的；后端重启最多丢正在说的一轮 | 无 | 通话详情（接口已有，界面在任务 62）；删除这次练习连同对话一起删 |
+| 通话工具（ADR 0030 §4，Q61a–d） | `realtime/tools.py` `CallTools`、`realtime/relay.py` `_run_tools`；规则写在 `prompts/realtime_tutor.md` | `lookup_word`：ECDICT 词条（拼写、音标、前 3 行中文释义）和是否已在生词本；`add_to_vocab`：同上查词 | `add_to_vocab`：同反思收词（`mine.collect`，source `auto`），已有卡片的词不动、回 `existing`，所以重复调用不会多加，移除本通加的词也不会动别的；每次调用记 `agent_activities`（见上表）；`end_session` 不写库，推 `end_suggested` 让前端问学习者要不要挂断（Q61c），私教不能自己挂断 | `realtime`（工具结果交回后私教接着说，算在下一次回答的用量里） | 通话中推 `tool` 事件（字段同对话的活动记录）；挂断后在通话的活动记录里；加进生词本的词在生词本里可移除（通话详情页一键移除在任务 62） |
 | 限时 | 同上 `_clock_loop` | 本次上限 = min(单次分钟, 今天剩余) | 结束前 1 分钟推 `time_warning`；到点推 `wrapping_up`，让私教说再见，期间学习者说话不打断；说完或最多 10 秒后挂断 | 同上（道别那一次回答） | 通话界面（任务 62） |
 | 挂断 | `realtime/calls.py` `finish`；后端启动时 `close_orphaned` 给上次重启断掉的通话补上结束时间 | — | `speaking_sessions.ended_at`、最终 `call_seconds`；`spoken_seconds` 跟着 `call_seconds`（整通时长都算口语时间，每日计划的“口语”按它算，Q61h）；状态留在 `active`，等下一步做完 | 无 | `/speaking` 的练过列表（通话也在里面，`mode = realtime`） |
 | 挂断后（ADR 0030 §6，Q61g、Q61i） | `realtime/after.py` `AfterCall`（挂断后立刻在后台跑；后端启动时 `recover` 接着做重启前没做完的）；小结复用 `speaking/sessions.py` `summarize` | 通话的会话（上面存的双方转写） | 反思：同普通对话（记忆、语法打标、自动收词），证据 source `speaking`，通话里学习者每句都算“说的”，不到 3 个词的不记错误；小结：学习者说过话、通话 ≥ 30 秒才生成，同级联口语的 `speaking_summary` 和口语能力 Elo，状态改 `done`；不满足就直接 `done`、不调模型；没配聊天模型或调用失败记 `failed`，`POST /speaking/sessions/{id}/end` 重试（通话还没挂断时这个接口回 409 `realtime_call`） | `reflect`、`memory` 向量化、`speaking_summary`（都在后台） | 通话详情 `GET /speaking/sessions/{id}`（小结）、`GET /conversations/{id}/messages`（转写）、`GET /conversations/{id}/activity`（工具和反思记录，`words_on_list` 标出本通加的词还在不在生词本）；界面在任务 62 |

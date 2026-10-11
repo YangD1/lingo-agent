@@ -67,7 +67,7 @@ tts:                                        # 可选；没配时浏览器朗读�
 pronunciation:                              # 跟读发音评测；没配时用 asr 转写对比给粗略反馈（ADR 0028）
   default: [azure:pronunciation]            # 免费档 F0 每月 5 小时；讯飞 ISE 以后按需加
 realtime:                                   # 端到端语音对话，后端中继（ADR 0030）
-  default: [qwen:qwen3.8-omni-flash-realtime, openai:gpt-realtime-2.1-mini]   # openai_realtime 协议；gemini_live 第二个做
+  default: [openai:gpt-realtime-2.1, qwen:qwen3.5-omni-flash-realtime, stepfun:stepaudio-2.5-realtime, gemini:gemini-3.8-live]   # 前三家 openai_realtime 协议，gemini 走 gemini_live
 ```
 
 ### 技术栈各自落在哪
