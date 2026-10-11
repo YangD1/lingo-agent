@@ -695,7 +695,43 @@
         "source": "来源：ECDICT"
       },
       "mispronounced": "你读这个词不太准",
-      "mispronouncedHint": "上次跟读时这个词读得不准。听一下发音，再在例句里跟读练一练。"
+      "mispronouncedHint": "上次跟读时这个词读得不准。听一下发音，再在例句里跟读练一练。",
+      "format": {
+        "label": "题型",
+        "recognize": "看词",
+        "listen": "听音",
+        "spell": "拼写",
+        "mixed": "混合",
+        "cantSpeak": "这台设备没有可用的朗读，听音和拼写用不了，先按看词复习。",
+        "newFirst": "第一次学的词先看词，复习时再听音或拼写。",
+        "noChoices": "这个词凑不齐四个不同的释义，这张改成看词。"
+      },
+      "play": "再听一遍",
+      "suggested": "建议",
+      "listen": {
+        "prompt": "听发音，选出它的意思",
+        "options": "选出意思",
+        "dontKnow": "没听出来",
+        "right": "选对了",
+        "wrong": "选错了",
+        "picked": "你选的是“{picked}”",
+        "skipped": "没听出来"
+      },
+      "spell": {
+        "prompt": "听发音，写出这个词",
+        "input": "写出这个词",
+        "check": "检查",
+        "dontKnow": "不会拼",
+        "right": "拼对了",
+        "close": "差一个字母",
+        "wrong": "拼错了",
+        "skipped": "没写出来",
+        "typed": "你写的：{typed}",
+        "answer": "正确拼写（标红的是写错或漏掉的字母）"
+      },
+      "keysListen": "<k>1</k>–<k>4</k> 选择 · <k>R</k> 再听一遍",
+      "keysSpell": "<k>Enter</k> 检查",
+      "keysSuggested": "<k>Enter</k> 按建议评分 · <k>1</k>–<k>4</k> 改评分"
     },
     "mine": {
       "title": "我的生词本",

@@ -14,6 +14,7 @@ const tagVariants = cva(
         brand: "bg-brand-soft text-brand-soft-foreground",
         success: "bg-[color-mix(in_oklab,var(--success)_13%,var(--card))] text-success",
         warning: "bg-[color-mix(in_oklab,var(--warning)_13%,var(--card))] text-warning",
+        destructive: "bg-[color-mix(in_oklab,var(--destructive)_13%,var(--card))] text-destructive",
       },
     },
     defaultVariants: { variant: "default" },

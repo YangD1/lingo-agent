@@ -9,6 +9,7 @@ export type SegmentedOption<T extends string> = {
   label: string;
   /** When set, the option shows only the icon and `label` becomes its accessible name. */
   icon?: ReactNode;
+  disabled?: boolean;
 };
 
 /** Segmented control (component-spec §4): a radio group styled as a pill switch. */
@@ -44,11 +45,12 @@ export function Segmented<T extends string>({
             type="button"
             role="radio"
             aria-checked={checked}
+            disabled={option.disabled}
             aria-label={option.icon ? option.label : undefined}
             title={option.icon ? option.label : undefined}
             onClick={() => onChange(option.value)}
             className={cn(
-              "inline-flex flex-1 items-center justify-center gap-1.5 rounded-sm px-2.5 whitespace-nowrap text-[13px] text-muted-foreground transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&_svg]:size-3.5",
+              "inline-flex flex-1 items-center justify-center gap-1.5 rounded-sm px-2.5 whitespace-nowrap text-[13px] text-muted-foreground transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50 [&_svg]:size-3.5",
               size === "sm" ? "h-6" : "h-7",
               checked && "bg-card font-semibold text-foreground shadow-(--shadow-lift)",
             )}

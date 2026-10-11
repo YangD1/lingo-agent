@@ -1,5 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 
+import { REVIEW_CHOICES, type ReviewChoice } from "@/lib/vocab";
+
 /**
  * Per-browser display preferences. Only for what changes how things look: storage can
  * be unavailable (private mode, blocked site data), and then the default applies.
@@ -7,6 +9,7 @@ import { useCallback, useSyncExternalStore } from "react";
 const SHOW_ACTIVITY_KEY = "lingo.showAgentActivity";
 const SPEAKING_AUTO_READ_KEY = "lingo.speaking.autoRead";
 const SPEAKING_HIDE_TEXT_KEY = "lingo.speaking.hideText";
+const REVIEW_FORMAT_KEY = "lingo.vocab.reviewFormat";
 const CHANGE_EVENT = "lingo:preferences";
 // What this page set, for when storage refuses it.
 const fallback = new Map<string, string>();
@@ -62,6 +65,13 @@ export function useSpeakingAutoRead(): [boolean, (on: boolean) => void] {
 /** Whether the speaking page hides the tutor's text, for listening practice (Q59e). */
 export function useSpeakingHideText(): [boolean, (hide: boolean) => void] {
   return useFlag(SPEAKING_HIDE_TEXT_KEY, false);
+}
+
+/** How review cards are shown: the word, its sound, spelling, or a mix (task 63, Q63a). */
+export function useReviewChoice(): [ReviewChoice, (choice: ReviewChoice) => void] {
+  const [value, set] = useStored(REVIEW_FORMAT_KEY);
+  const choice = REVIEW_CHOICES.find((c) => c === value) ?? "recognize";
+  return [choice, set];
 }
 
 function useFlag(key: string, fallbackValue: boolean): [boolean, (on: boolean) => void] {

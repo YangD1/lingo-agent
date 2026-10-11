@@ -25,6 +25,8 @@ const card = (id: number, spelling: string, overrides: Partial<Card> = {}): Card
   sentences: [],
   forms: [],
   ai_examples: [],
+  gloss: "v. 去",
+  choices: [],
   ...overrides,
 });
 

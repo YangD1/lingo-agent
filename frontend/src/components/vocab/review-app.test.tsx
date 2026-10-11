@@ -40,6 +40,8 @@ const card = (id: number, spelling: string, overrides: Partial<Card> = {}): Card
   ],
   forms: [spelling, `${spelling}s`],
   ai_examples: [],
+  gloss: "n. 苹果",
+  choices: [],
   ...overrides,
 });
 
@@ -94,7 +96,7 @@ describe("useReviewSession", () => {
     await act(() => result.current.rate(3));
     expect(api).toHaveBeenLastCalledWith("/vocab/reviews", {
       method: "POST",
-      json: { word_id: 1, rating: 3, duration_ms: expect.any(Number) },
+      json: { word_id: 1, rating: 3, duration_ms: expect.any(Number), format: "recognize" },
     });
     expect(result.current.current?.word.word).toBe("bread");
     expect(result.current.flipped).toBe(false);

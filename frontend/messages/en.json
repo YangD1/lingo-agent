@@ -695,7 +695,43 @@
         "source": "Source: ECDICT"
       },
       "mispronounced": "You don't say this one right yet",
-      "mispronouncedHint": "It was off the last time you read it aloud. Listen to it, then shadow an example sentence."
+      "mispronouncedHint": "It was off the last time you read it aloud. Listen to it, then shadow an example sentence.",
+      "format": {
+        "label": "Card type",
+        "recognize": "Word",
+        "listen": "Listen",
+        "spell": "Spell",
+        "mixed": "Mixed",
+        "cantSpeak": "Nothing on this device can read aloud, so listening and spelling are off; reviewing by word.",
+        "newFirst": "Words you're learning for the first time are shown as words; listening and spelling come in reviews.",
+        "noChoices": "This word lacks four distinct meanings to choose from, so it's shown as a word."
+      },
+      "play": "Play again",
+      "suggested": "Suggested",
+      "listen": {
+        "prompt": "Listen, then pick what it means",
+        "options": "Pick the meaning",
+        "dontKnow": "Didn't catch it",
+        "right": "Right",
+        "wrong": "Wrong",
+        "picked": "You picked “{picked}”",
+        "skipped": "Didn't catch it"
+      },
+      "spell": {
+        "prompt": "Listen, then type the word",
+        "input": "Type the word",
+        "check": "Check",
+        "dontKnow": "Can't spell it",
+        "right": "Spelled right",
+        "close": "One letter off",
+        "wrong": "Misspelled",
+        "skipped": "Not written",
+        "typed": "You wrote: {typed}",
+        "answer": "The spelling (letters in red were wrong or missing)"
+      },
+      "keysListen": "<k>1</k>–<k>4</k> pick · <k>R</k> play again",
+      "keysSpell": "<k>Enter</k> check",
+      "keysSuggested": "<k>Enter</k> rate as suggested · <k>1</k>–<k>4</k> rate differently"
     },
     "mine": {
       "title": "My words",

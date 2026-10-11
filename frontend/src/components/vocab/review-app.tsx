@@ -3,7 +3,7 @@
 import { ArrowLeft, Bookmark, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { LogoMark } from "@/components/brand/logo";
 
@@ -12,14 +12,25 @@ import { ReadAloudBadge } from "@/components/speech/read-aloud-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress";
+import { Segmented } from "@/components/ui/segmented";
 import { Tag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
 import { isShortcut } from "@/lib/keyboard";
+import { useReviewChoice } from "@/lib/preferences";
 import { speakWord, useCanSpeak } from "@/lib/speech";
 import { cn } from "@/lib/utils";
-import { formatInterval, type Rating } from "@/lib/vocab";
+import {
+  cardFormat,
+  formatInterval,
+  judgeSpelling,
+  listenOptions,
+  type Rating,
+  REVIEW_CHOICES,
+  SUGGESTED_RATING,
+} from "@/lib/vocab";
 import { CatLoading, LingoCat } from "@/components/brand/lingo-cat";
 
+import { type Answer, AnswerResult, ListenFront, SPELL_FORM, SpellFront } from "./review-fronts";
 import { type ReviewMode, useReviewSession } from "./use-review-session";
 import { WordMeanings } from "./word-meanings";
 
@@ -40,30 +51,94 @@ const kbd = (chunks: ReactNode) => (
 
 /**
  * Flashcards (P1 plan §6): the word first; recall it, then flip (Space) to see the
- * pronunciation and meanings, and rate how well you knew it (1–4).
+ * pronunciation and meanings, and rate how well you knew it (1–4). Words reviewed before
+ * can instead be heard, to pick their meaning or type them (task 63); the answer is
+ * judged and a rating suggested, which Enter takes.
  */
 export function ReviewApp({ mode }: { mode: ReviewMode }) {
   const t = useTranslations("vocab.review");
   const describe = useDescribeError();
   const session = useReviewSession(mode);
-  const { current, flipped, flip, rate } = session;
+  const { current, flipped, suggested, flip, answer, rate } = session;
   const speakable = useCanSpeak();
   const locale = useLocale();
+  const [choice, setChoice] = useReviewChoice();
+
+  // A card is one sitting's turn: the same word can come back after a miss.
+  const turn = current ? `${current.word.id}:${session.reviewed}` : "";
+  const seed = current ? current.word.id * 7919 + session.reviewed : 0;
+  const [answered, setAnswered] = useState<{ turn: string; answer: Answer } | null>(null);
+  const result = answered?.turn === turn ? answered.answer : null;
+  const [typing, setTyping] = useState({ turn: "", text: "" });
+  const typed = typing.turn === turn ? typing.text : "";
+  // Settled once answered, so changing the choice can't change a card being rated.
+  const format =
+    result?.format ??
+    (current && !flipped ? cardFormat(current, choice, speakable, seed) : "recognize");
+  const options = current && format === "listen" ? listenOptions(current, seed) : [];
+
+  // Heard first: read the word as the card shows (Q63g).
+  const heard = current && format !== "recognize" && !flipped ? current.word.word : null;
+  useEffect(() => {
+    if (heard) speakWord(heard);
+  }, [heard, turn]);
+
+  const pick = (option: string | null) => {
+    if (!current) return;
+    const right = option === current.gloss;
+    setAnswered({ turn, answer: { format: "listen", picked: option, right } });
+    answer(right ? 3 : 1);
+  };
+  const check = () => {
+    if (!current) return;
+    const text = typed.trim() ? typed : null;
+    const judged = text === null ? "wrong" : judgeSpelling(text, current.word.word);
+    setAnswered({ turn, answer: { format: "spell", typed: text, result: judged } });
+    answer(SUGGESTED_RATING[judged]);
+  };
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (!isShortcut(event)) return;
-      if (event.key === " ") {
+      const digit = ["1", "2", "3", "4"].indexOf(event.key);
+      if (flipped) {
+        if (digit >= 0) {
+          event.preventDefault();
+          void rate((digit + 1) as Rating, format);
+        } else if ((event.key === "Enter" || event.key === " ") && suggested !== null) {
+          event.preventDefault();
+          void rate(suggested, format);
+        }
+      } else if (format === "recognize") {
+        if (event.key === " ") {
+          event.preventDefault();
+          flip();
+        }
+      } else if (event.key.toLowerCase() === "r" && heard) {
         event.preventDefault();
-        flip();
-      } else if (["1", "2", "3", "4"].includes(event.key)) {
+        speakWord(heard);
+      } else if (format === "listen" && digit >= 0 && options[digit] !== undefined) {
         event.preventDefault();
-        void rate(Number(event.key) as Rating);
+        pick(options[digit]);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flip, rate]);
+  });
+
+  // Why the card isn't in the format picked.
+  const note =
+    choice === "recognize"
+      ? null
+      : !speakable
+        ? t("format.cantSpeak")
+        : !current || flipped
+          ? null
+          : current.last_review === null
+            ? t("format.newFirst")
+            : choice === "listen" && format === "recognize"
+              ? t("format.noChoices")
+              : null;
 
   const isNew = current && (current.status === null || current.status === "new");
   const mine = current?.source === "auto" || current?.source === "manual";
@@ -95,6 +170,25 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
           <LogoMark />
         </Link>
       </header>
+      <div className="flex shrink-0 flex-col items-center gap-1.5 px-4 pt-3">
+        <Segmented
+          size="sm"
+          label={t("format.label")}
+          value={choice}
+          onChange={setChoice}
+          options={REVIEW_CHOICES.map((c) => ({
+            value: c,
+            label: t(`format.${c}`),
+            disabled: c !== "recognize" && !speakable,
+          }))}
+          data-testid="review-format"
+        />
+        {note && (
+          <p className="max-w-[520px] text-center text-xs text-muted-foreground" data-testid="review-format-note">
+            {note}
+          </p>
+        )}
+      </div>
 
       <div className="flex min-h-0 flex-1 overflow-y-auto">
         {/* m-auto centres a short card and still lets a long one scroll from its top. */}
@@ -149,6 +243,19 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                     </Tag>
                   )}
                 </div>
+                {format === "listen" && !flipped ? (
+                  <ListenFront word={current.word.word} options={options} onPick={pick} />
+                ) : format === "spell" && !flipped ? (
+                  <SpellFront
+                    word={current.word.word}
+                    gloss={current.gloss}
+                    typed={typed}
+                    onType={(text) => setTyping({ turn, text })}
+                    onSubmit={check}
+                  />
+                ) : (
+                <>
+                {result && <AnswerResult answer={result} word={current.word.word} />}
                 {/* Front: the word alone, centred, to recall. Back: read top to bottom. */}
                 <div
                   className={cn(
@@ -188,6 +295,8 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                     </p>
                   )}
                 </div>
+                </>
+                )}
 
                 {flipped && (
                   <div className="border-t pt-4 pb-1" data-testid="review-back">
@@ -214,8 +323,9 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                     key={r}
                     type="button"
                     disabled={session.busy}
-                    onClick={() => void rate(r)}
-                    className="relative flex flex-col items-center gap-1 py-3 text-[15px] font-medium transition-colors outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:bg-accent disabled:opacity-50"
+                    onClick={() => void rate(r, format)}
+                    data-suggested={r === suggested || undefined}
+                    className="relative flex flex-col items-center gap-1 py-3 text-[15px] font-medium transition-colors outline-none hover:bg-muted data-suggested:bg-accent focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:bg-accent disabled:opacity-50"
                   >
                     <span className="flex items-center gap-1.5">
                       <span aria-hidden className={cn("size-2 rounded-full", RATING_DOT[r])} />
@@ -225,6 +335,11 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                     <span className="text-xs text-muted-foreground tabular-nums" data-testid="rating-interval">
                       {formatInterval(current.intervals[r - 1] ?? 0, locale)}
                     </span>
+                    {r === suggested && (
+                      <span className="absolute top-1 left-1.5 text-[10px] font-semibold text-primary">
+                        {t("suggested")}
+                      </span>
+                    )}
                     <span
                       aria-hidden
                       className="absolute top-1 right-1.5 font-mono text-[10px] text-muted-foreground/70 max-md:hidden"
@@ -234,13 +349,38 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
                   </button>
                 ))}
               </div>
+            ) : format === "listen" ? (
+              <Button size="lg" variant="outline" className="w-full" onClick={() => pick(null)}>
+                {t("listen.dontKnow")}
+              </Button>
+            ) : format === "spell" ? (
+              <Button
+                size="lg"
+                variant={typed.trim() ? "default" : "outline"}
+                className="w-full"
+                type="submit"
+                form={SPELL_FORM}
+              >
+                {typed.trim() ? t("spell.check") : t("spell.dontKnow")}
+              </Button>
             ) : (
               <Button size="lg" className="w-full" onClick={flip}>
                 {t("flip")}
               </Button>
             )}
             <p className="text-center text-xs text-muted-foreground max-md:hidden">
-              {t.rich("keys", { k: kbd })}
+              {t.rich(
+                flipped
+                  ? suggested !== null
+                    ? "keysSuggested"
+                    : "keys"
+                  : format === "listen"
+                    ? "keysListen"
+                    : format === "spell"
+                      ? "keysSpell"
+                      : "keys",
+                { k: kbd },
+              )}
             </p>
           </div>
         </footer>

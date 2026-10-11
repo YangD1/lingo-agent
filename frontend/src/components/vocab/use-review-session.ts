@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { type Card, fetchQueue, type Rating, rate as rateCard } from "@/lib/vocab";
+import {
+  type Card,
+  fetchQueue,
+  type Rating,
+  rate as rateCard,
+  type ReviewFormat,
+} from "@/lib/vocab";
 
 export type ReviewMode = "all" | "new";
 
@@ -12,6 +18,11 @@ export type ReviewSession = {
   loading: boolean;
   /** The back of the card is showing; rating is possible only then. */
   flipped: boolean;
+  /**
+   * The rating the answer suggests on a listening or spelling card (Q63d); null on a
+   * plain card, or when there is no answer yet.
+   */
+  suggested: Rating | null;
   /** A rating is being saved. */
   busy: boolean;
   /** Cards rated in this session. */
@@ -22,7 +33,9 @@ export type ReviewSession = {
   reviewsDue: number;
   error: unknown;
   flip: () => void;
-  rate: (rating: Rating) => Promise<void>;
+  /** Turns the card over after an answer, suggesting a rating. */
+  answer: (suggested: Rating) => void;
+  rate: (rating: Rating, format?: ReviewFormat) => Promise<void>;
 };
 
 type Batch = { cards: Card[]; beyond: number; reviewsDue: number };
@@ -46,6 +59,7 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
   const [reviewsDue, setReviewsDue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [flipped, setFlipped] = useState(false);
+  const [suggested, setSuggested] = useState<Rating | null>(null);
   const [busy, setBusy] = useState(false);
   const [reviewed, setReviewed] = useState(0);
   const [error, setError] = useState<unknown>(null);
@@ -73,15 +87,30 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
     if (current) setFlipped(true);
   }, [current]);
 
+  const answer = useCallback(
+    (rating: Rating) => {
+      if (!current || flipped) return;
+      setSuggested(rating);
+      setFlipped(true);
+    },
+    [current, flipped],
+  );
+
   const rate = useCallback(
-    async (rating: Rating) => {
+    async (rating: Rating, format: ReviewFormat = "recognize") => {
       if (!current || !flipped || busy) return;
       setBusy(true);
       setError(null);
       try {
-        await rateCard(current.word.id, rating, Math.round(performance.now() - shownAt.current));
+        await rateCard(
+          current.word.id,
+          rating,
+          Math.round(performance.now() - shownAt.current),
+          format,
+        );
         setReviewed((n) => n + 1);
         setFlipped(false);
+        setSuggested(null);
         const rest = cards.slice(1);
         if (rest.length) {
           setCards(rest);
@@ -105,12 +134,14 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
     current,
     loading,
     flipped,
+    suggested,
     busy,
     reviewed,
     remaining: cards.length + beyond,
     reviewsDue,
     error,
     flip,
+    answer,
     rate,
   };
 }

@@ -31,6 +31,10 @@ export type Card = {
   ai_examples: Example[];
   /** The learner's last assessed reading of this word was off (shadowing, Q56c). */
   mispronounced?: boolean;
+  /** The word's first sense, short: the right answer on a listening card (task 63). */
+  gloss: string;
+  /** Wrong meanings for a listening card; only for words reviewed before (Q63b, Q63c). */
+  choices: string[];
 };
 
 export type BookProgress = {
@@ -102,10 +106,15 @@ export const chooseBook = (bookId: string, dailyNew: number | null) =>
 export const fetchQueue = (mode: "all" | "new" = "all") =>
   api<Queue>(withTz("/vocab/queue", { mode }));
 
-export const rate = (wordId: number, rating: Rating, durationMs?: number) =>
+export const rate = (
+  wordId: number,
+  rating: Rating,
+  durationMs?: number,
+  format: ReviewFormat = "recognize",
+) =>
   api<Card>("/vocab/reviews", {
     method: "POST",
-    json: { word_id: wordId, rating, duration_ms: durationMs },
+    json: { word_id: wordId, rating, duration_ms: durationMs, format },
   });
 
 export const fetchScreenBatch = () => api<{ words: Word[] }>("/vocab/screen");
@@ -188,4 +197,120 @@ export function formatInterval(seconds: number, locale: string): string {
   if (seconds < 30 * DAY) return unit(Math.round(seconds / DAY), "day");
   if (seconds < 365 * DAY) return unit(Math.round(seconds / (30 * DAY)), "month");
   return unit(seconds / (365 * DAY), "year", 1);
+}
+
+/**
+ * How a card is shown (task 63): the word (recall its meaning), its sound (pick the
+ * meaning of four), or its sound and meaning (type the word).
+ */
+export type ReviewFormat = "recognize" | "listen" | "spell";
+/** What the learner picked on the review page; "mixed" draws one per card (Q63a). */
+export type ReviewChoice = ReviewFormat | "mixed";
+export const REVIEW_CHOICES: readonly ReviewChoice[] = ["recognize", "listen", "spell", "mixed"];
+
+/**
+ * The format `card` is shown in. Words never reviewed are always recognised first (Q63b);
+ * without anything to read aloud with there is no listening or spelling (P3 plan §7); a
+ * listening card needs three wrong meanings. `seed` draws the format in "mixed".
+ */
+export function cardFormat(
+  card: Card,
+  choice: ReviewChoice,
+  canSpeak: boolean,
+  seed: number,
+): ReviewFormat {
+  if (choice === "recognize" || !canSpeak || card.last_review === null) return "recognize";
+  const listenable = card.choices.length >= 3;
+  if (choice === "mixed") {
+    const formats: ReviewFormat[] = listenable
+      ? ["recognize", "listen", "spell"]
+      : ["recognize", "spell"];
+    return formats[seed % formats.length] ?? "recognize";
+  }
+  return choice === "listen" && !listenable ? "recognize" : choice;
+}
+
+/** The four meanings of a listening card, the right one among them, in an order set by `seed`. */
+export function listenOptions(card: Card, seed: number): string[] {
+  const options = [card.gloss, ...card.choices.slice(0, 3)];
+  // A small seeded generator (mulberry32), so the order stays put while the card is shown.
+  let state = seed >>> 0;
+  const next = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = options.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [options[i], options[j]] = [options[j] as string, options[i] as string];
+  }
+  return options;
+}
+
+/** Right, one letter off, or wrong (Q63d). */
+export type SpellResult = "right" | "close" | "wrong";
+
+/** The rating offered after an answer; the learner can pick another (Q63d). */
+export const SUGGESTED_RATING: Record<SpellResult, Rating> = { right: 3, close: 2, wrong: 1 };
+
+/** Case and outer spaces don't count, nor several spaces in a phrase (Q63e). */
+export const normalizeSpelling = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCase();
+
+/** Edit distance table between `a` and `b` (insert, delete, replace one letter). */
+function distances(a: string, b: string): number[][] {
+  const d = Array.from({ length: a.length + 1 }, (_, i) =>
+    Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const row = d[i] as number[];
+      const above = d[i - 1] as number[];
+      row[j] = Math.min(
+        (above[j] as number) + 1,
+        (row[j - 1] as number) + 1,
+        (above[j - 1] as number) + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+  }
+  return d;
+}
+
+/** Judges what the learner typed against `word`; inflected forms are wrong (Q63e). */
+export function judgeSpelling(typed: string, word: string): SpellResult {
+  const a = normalizeSpelling(typed);
+  const b = normalizeSpelling(word);
+  if (!a) return "wrong";
+  const distance = distances(a, b)[a.length]?.[b.length] ?? Infinity;
+  return distance === 0 ? "right" : distance === 1 ? "close" : "wrong";
+}
+
+/**
+ * The letters of `word` with whether the learner got each: a letter is missed when what
+ * they typed has another letter there, or none.
+ */
+export function spellingMarks(typed: string, word: string): { char: string; ok: boolean }[] {
+  const a = normalizeSpelling(typed);
+  const b = word.trim().replace(/\s+/g, " ");
+  const lower = b.toLowerCase();
+  const d = distances(a, lower);
+  const ok = new Array<boolean>(b.length).fill(false);
+  let i = a.length;
+  let j = b.length;
+  // Walk back along a shortest edit path; a letter kept unchanged is one they got.
+  while (i > 0 && j > 0) {
+    const here = d[i]?.[j] as number;
+    const same = a[i - 1] === lower[j - 1];
+    if (here === (d[i - 1]?.[j - 1] as number) + (same ? 0 : 1)) {
+      ok[j - 1] = same;
+      i--;
+      j--;
+    } else if (here === (d[i - 1]?.[j] as number) + 1) {
+      i--;
+    } else {
+      j--;
+    }
+  }
+  return [...b].map((char, k) => ({ char, ok: ok[k] ?? false }));
 }
