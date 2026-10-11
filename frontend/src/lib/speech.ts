@@ -329,6 +329,10 @@ export type ServerSpeech = {
   shadowing: ShadowingMode | null;
   /** Voice messages are transcribed (task 59): null until asked. */
   asr: boolean | null;
+  /** Realtime calls are set up and on (ADR 0030): null until asked. */
+  realtime: boolean | null;
+  /** Whole minutes of calls left today; 0 can still be some seconds. */
+  realtimeMinutesLeft: number;
 };
 
 /** Scored by pronunciation assessment, or only compared with a transcript. */
@@ -340,6 +344,8 @@ let server: ServerSpeech = {
   noVoice: new Set(),
   shadowing: null,
   asr: null,
+  realtime: null,
+  realtimeMinutesLeft: 0,
 };
 let capabilitiesLoad: Promise<void> | null = null;
 const serverListeners = new Set<() => void>();
@@ -359,11 +365,13 @@ type Capabilities = {
   tts_languages: ServerLang[];
   shadowing?: ShadowingMode | null;
   asr?: boolean;
+  realtime?: boolean;
+  realtime_minutes_left?: number;
 };
 
 /**
- * Asks the backend once per page which languages it reads, how it scores shadowing and
- * whether it transcribes; any error means none of them. Until it has answered, the
+ * Asks the backend once per page which languages it reads, how it scores shadowing,
+ * whether it transcribes and takes calls; any error means none of them. Until it has answered, the
  * browser reads everything.
  */
 export function loadCapabilities(): Promise<void> {
@@ -374,11 +382,27 @@ export function loadCapabilities(): Promise<void> {
         languages: new Set(caps.tts ? caps.tts_languages : []),
         shadowing: caps.shadowing ?? null,
         asr: caps.asr ?? false,
+        realtime: caps.realtime ?? false,
+        realtimeMinutesLeft: caps.realtime_minutes_left ?? 0,
       }),
     )
-    .catch((): Partial<ServerSpeech> => ({ languages: new Set(), shadowing: null, asr: false }))
+    .catch(
+      (): Partial<ServerSpeech> => ({
+        languages: new Set(),
+        shadowing: null,
+        asr: false,
+        realtime: false,
+        realtimeMinutesLeft: 0,
+      }),
+    )
     .then(setServer);
   return capabilitiesLoad;
+}
+
+/** Asks again, e.g. after a call used some of today's minutes. */
+export function refreshCapabilities(): Promise<void> {
+  capabilitiesLoad = null;
+  return loadCapabilities();
 }
 
 /** Server read-aloud on this page (asks the backend the first time). */

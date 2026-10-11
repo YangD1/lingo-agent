@@ -17,7 +17,11 @@ vi.mock("@/lib/ai-usage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ai-usage")>()),
   loadEstimates: () => new Promise(() => {}),
 }));
-const speech = vi.hoisted(() => ({ asr: true as boolean | null }));
+const speech = vi.hoisted(() => ({
+  asr: true as boolean | null,
+  realtime: false as boolean | null,
+  realtimeMinutesLeft: 0,
+}));
 vi.mock("@/lib/speech", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/speech")>()),
   useServerSpeech: () => ({
@@ -26,6 +30,8 @@ vi.mock("@/lib/speech", async (importOriginal) => ({
     noVoice: new Set(),
     shadowing: null,
     asr: speech.asr,
+    realtime: speech.realtime,
+    realtimeMinutesLeft: speech.realtimeMinutesLeft,
   }),
 }));
 const push = vi.hoisted(() => vi.fn());
@@ -88,6 +94,8 @@ beforeEach(() => {
   push.mockReset();
   calls.length = 0;
   speech.asr = true;
+  speech.realtime = false;
+  speech.realtimeMinutesLeft = 0;
 });
 
 describe("SpeakingList", () => {
@@ -145,5 +153,48 @@ describe("SpeakingList", () => {
     serve([]);
     show();
     expect(await screen.findByTestId("speaking-no-asr")).toHaveTextContent("you can still type");
+  });
+
+  it("offers a call on each card when realtime calls are on, with today's minutes", async () => {
+    speech.realtime = true;
+    speech.realtimeMinutesLeft = 12;
+    serve([]);
+    show();
+    expect(await screen.findByTestId("speaking-call-free")).toHaveAttribute("href", "/speaking/call");
+    expect(screen.getByTestId("speaking-call-cafe")).toHaveAttribute("href", "/speaking/call?scenario=cafe");
+    expect(screen.getByTestId("speaking-call-minutes")).toHaveTextContent("12 min left today");
+    // The card itself still starts push-to-talk practice.
+    await userEvent.click(screen.getByTestId("speaking-scenario-cafe"));
+    expect(push).toHaveBeenCalledWith("/speaking/new");
+  });
+
+  it("says when less than a minute is left", async () => {
+    speech.realtime = true;
+    serve([]);
+    show();
+    expect(await screen.findByTestId("speaking-call-minutes")).toHaveTextContent("less than a minute");
+  });
+
+  it("offers no call without realtime calls", async () => {
+    speech.realtime = false;
+    serve([]);
+    show();
+    await screen.findByTestId("speaking-scenario-free");
+    expect(screen.queryByTestId("speaking-call-free")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("speaking-call-minutes")).not.toBeInTheDocument();
+  });
+
+  it("shows calls in the history, and a finished one is not continued", async () => {
+    serve([
+      session("call", { mode: "realtime", status: "active", intelligibility: null, spoken_seconds: 300 }),
+      session("live", { mode: "realtime", status: "active", intelligibility: null, ended_at: null }),
+    ]);
+    show();
+    const rows = await screen.findAllByTestId("speaking-session");
+    expect(rows[0]).toHaveTextContent("called 5 min");
+    expect(rows[0]).toHaveTextContent("Call");
+    expect(rows[0]).toHaveTextContent("summarizing");
+    expect(rows[1]).toHaveTextContent("In progress");
+    expect(screen.queryByTestId("speaking-continue")).not.toBeInTheDocument();
   });
 });

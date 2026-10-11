@@ -24,6 +24,7 @@ import type { Activity, CollectedWord, WordsCollected } from "@/lib/activity";
 import { useSpeakingHideText } from "@/lib/preferences";
 import { type CallLine, type CallState, remainingSeconds, type SubtitleLine } from "@/lib/realtime-call";
 import { fetchScenarios, type Scenario, scenarioGoal, scenarioTitle } from "@/lib/speaking";
+import { refreshCapabilities } from "@/lib/speech";
 import { cn } from "@/lib/utils";
 import { removeMine } from "@/lib/vocab";
 
@@ -77,11 +78,13 @@ export function RealtimeCallPage({ scenarioId }: { scenarioId: string | null }) 
     return () => window.removeEventListener("beforeunload", guard);
   }, [inCall]);
 
-  // A call that was taken goes on to its transcript and summary (Q62b).
+  // A call that was taken goes on to its transcript and summary (Q62b); the minutes
+  // left today changed.
   const sessionId = state.session_id;
   const endReason = state.phase === "ended" ? state.end_reason : null;
   useEffect(() => {
     if (!sessionId || !endReason) return;
+    void refreshCapabilities();
     router.replace(`/speaking/${sessionId}?call_end=${endReason}`);
   }, [sessionId, endReason, router]);
 

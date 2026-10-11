@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, MessagesSquareIcon, MicOffIcon, PlayIcon, Trash2 } from "lucide-react";
+import { ChevronDownIcon, MessagesSquareIcon, MicOffIcon, PhoneIcon, PlayIcon, Trash2 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,7 +37,7 @@ export function SpeakingList() {
   const locale = useLocale();
   const router = useRouter();
   const describe = useDescribeError();
-  const { asr } = useServerSpeech();
+  const { asr, realtime, realtimeMinutesLeft } = useServerSpeech();
   const [scenarios, setScenarios] = useState<Scenarios | null>(null);
   const [sessions, setSessions] = useState<SpeakingSession[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -94,7 +94,8 @@ export function SpeakingList() {
   }
 
   const byId = new Map(scenarios?.scenarios.map((s) => [s.id, s]));
-  const open = sessions?.find((s) => s.status === "active");
+  // A call that has ended waits for its summary as `active`: there is nothing to go on with.
+  const open = sessions?.find((s) => s.status === "active" && s.mode === "cascade");
   const suits = scenarios?.scenarios.filter((s) => s.suits) ?? [];
   const others = scenarios?.scenarios.filter((s) => !s.suits) ?? [];
 
@@ -144,6 +145,15 @@ export function SpeakingList() {
 
         <section aria-label={t("scenarios")} className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold">{t("scenarios")}</h2>
+          {realtime && (
+            <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground" data-testid="speaking-call-minutes">
+              <PhoneIcon aria-hidden className="size-3.5" />
+              {realtimeMinutesLeft > 0
+                ? t("callMinutesLeft", { minutes: realtimeMinutesLeft })
+                : t("callUnderAMinute")}
+              <AiBadge feature="realtime_call" />
+            </p>
+          )}
           {scenarios === null && !error && <CatLoading size={48} label={t("loading")} />}
           {scenarios && (
             <ul className="grid gap-2 sm:grid-cols-2">
@@ -155,6 +165,7 @@ export function SpeakingList() {
                   busy={starting === ""}
                   disabled={starting !== null}
                   onStart={() => void start(null)}
+                  call={realtime === true}
                 />
               </li>
               {suits.map((s) => (
@@ -166,6 +177,7 @@ export function SpeakingList() {
                     busy={starting === s.id}
                     disabled={starting !== null}
                     onStart={() => void start(s.id)}
+                    call={realtime === true}
                   />
                 </li>
               ))}
@@ -187,6 +199,7 @@ export function SpeakingList() {
                       busy={starting === s.id}
                       disabled={starting !== null}
                       onStart={() => void start(s.id)}
+                      call={realtime === true}
                     />
                   </li>
                 ))}
@@ -239,6 +252,7 @@ function ScenarioCard({
   busy,
   disabled,
   onStart,
+  call,
 }: {
   scenario?: Scenario;
   title: string;
@@ -247,9 +261,11 @@ function ScenarioCard({
   busy: boolean;
   disabled: boolean;
   onStart: () => void;
+  /** Also offer a realtime call (Q62a): a link under the card, which is a button itself. */
+  call: boolean;
 }) {
   const t = useTranslations("speaking.list");
-  return (
+  const card = (
     <button
       type="button"
       onClick={onStart}
@@ -278,6 +294,21 @@ function ScenarioCard({
         </span>
       )}
     </button>
+  );
+  if (!call) return card;
+  const href = scenario ? `/speaking/call?${new URLSearchParams({ scenario: scenario.id })}` : "/speaking/call";
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card">
+      <div className="flex-1 [&>button]:rounded-none [&>button]:border-0">{card}</div>
+      <Link
+        href={href}
+        data-testid={`speaking-call-${scenario?.id ?? "free"}`}
+        className="flex items-center justify-center gap-1.5 border-t px-4 py-2 text-sm text-primary outline-none transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <PhoneIcon aria-hidden className="size-4" />
+        {t("call")}
+      </Link>
+    </div>
   );
 }
 
@@ -308,8 +339,13 @@ function HistoryRow({
             {format.dateTime(new Date(s.started_at), { dateStyle: "medium", timeStyle: "short" })}
           </time>
           <span aria-hidden>·</span>
-          <span className="tabular-nums">{t("spoken", { minutes })}</span>
-          {s.status === "active" && <Tag variant="brand">{t("status.active")}</Tag>}
+          <span className="tabular-nums">{t(s.mode === "realtime" ? "called" : "spoken", { minutes })}</span>
+          {s.mode === "realtime" && <Tag variant="outline">{t("callTag")}</Tag>}
+          {s.status === "active" && (
+            <Tag variant="brand">
+              {s.mode === "realtime" && s.ended_at ? t("status.summarizing") : t("status.active")}
+            </Tag>
+          )}
           {s.status === "failed" && <Tag variant="warning">{t("status.failed")}</Tag>}
           {s.intelligibility && (
             <Tag variant={s.intelligibility === "hard" ? "warning" : "success"}>

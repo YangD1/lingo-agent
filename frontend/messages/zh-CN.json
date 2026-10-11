@@ -1844,7 +1844,8 @@
       "spoken": "说了 {minutes} 分钟",
       "status": {
         "active": "进行中",
-        "failed": "小结没生成"
+        "failed": "小结没生成",
+        "summarizing": "正在生成小结"
       },
       "intelligibility": {
         "hard": "不太好懂",
@@ -1855,7 +1856,12 @@
       "confirmDelete": "删除这次练习和它的小结？",
       "delete": "删除",
       "more": "加载更早的",
-      "loadingMore": "加载中…"
+      "loadingMore": "加载中…",
+      "call": "打电话",
+      "callMinutesLeft": "也可以给私教打电话：今天还剩 {minutes} 分钟",
+      "callUnderAMinute": "也可以给私教打电话：今天还剩不到 1 分钟",
+      "called": "通话 {minutes} 分钟",
+      "callTag": "通话"
     },
     "session": {
       "loading": "正在加载这次练习…",
