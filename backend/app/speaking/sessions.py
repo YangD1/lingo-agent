@@ -13,16 +13,21 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive.elo import update_ability
+from app.adaptive.exercise.worker import structured_call
 from app.adaptive.kc.catalog import CEFR_LEVELS, CefrLevel
 from app.adaptive.rules import Intelligibility, Rules, get_rules
 from app.agents.chat_graph import ChatGraph
 from app.agents.exercise_graph import StructuredCall
+from app.chat.locks import ConversationLocks
 from app.chat.service import thread_config
 from app.db.models import Conversation, SpeakingSession, UserProfile
+from app.providers.llm import get_chat_models
+from app.providers.tenant import load_provider_context
 from app.services.speech.shadowing import speaking_ability
 from app.speaking import summary
 from app.speaking.scenarios import Scenario, get_scenarios, rank
@@ -124,6 +129,35 @@ async def idle_sessions(
         )
     )
     return list(rows)
+
+
+async def summarize(
+    maker: async_sessionmaker[AsyncSession],
+    graph: ChatGraph,
+    locks: ConversationLocks,
+    tenant_id: uuid.UUID,
+    session_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+) -> SpeakingSession | None:
+    """`end` with the tenant's summary model, under the conversation's lock; None when
+    the lock is taken (a reply is being generated, or it is being ended already).
+    Raises NoModelConfiguredError before taking the lock."""
+    async with maker() as session:
+        ctx = await load_provider_context(session, tenant_id)
+        user_id = await session.scalar(
+            select(SpeakingSession.user_id).where(SpeakingSession.id == session_id)
+        )
+    get_chat_models(ctx, summary.TASK)  # raises before anything is ended
+    config: RunnableConfig = {
+        "metadata": {"user_id": str(user_id), "conversation_id": str(conversation_id)},
+    }
+    call = structured_call(ctx, config, summary.TASK)
+    if not locks.acquire(conversation_id):
+        return None
+    try:
+        return await end(maker, graph, session_id, call)
+    finally:
+        locks.release(conversation_id)
 
 
 async def end(

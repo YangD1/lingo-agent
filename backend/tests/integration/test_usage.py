@@ -403,7 +403,9 @@ async def test_realtime_estimates_are_per_minute_of_call(
     await register(client, "owner@example.com")
     tenant_id = await tenant_of(db_session, "owner@example.com")
 
-    call, _embed = by_feature((await client.get("/usage/estimates")).json())["realtime_call"]
+    call, _embed, *_after = by_feature((await client.get("/usage/estimates")).json())[
+        "realtime_call"
+    ]
     assert (call["per"], call["source"]) == ("minute", "default")
     assert (call["input_tokens"], call["output_tokens"]) == (20000, 1000)
 
@@ -414,7 +416,9 @@ async def test_realtime_estimates_are_per_minute_of_call(
     await add_call(db_session, tenant_id, 10, [(90_000, 9_000)])
     await add_call(db_session, tenant_id, 600, [(90_000, 9_000)], status="active")
 
-    call, _embed = by_feature((await client.get("/usage/estimates")).json())["realtime_call"]
+    call, _embed, *_after = by_feature((await client.get("/usage/estimates")).json())[
+        "realtime_call"
+    ]
 
     assert (call["source"], call["samples"]) == ("history", 2)
     assert (call["input_tokens"], call["output_tokens"]) == (30000, 1500)

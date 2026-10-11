@@ -133,6 +133,7 @@ async def until(ws: ClientConnection, kind: str) -> dict[str, Any]:
 
 
 async def test_a_call_relays_audio_subtitles_and_usage(
+    app: FastAPI,
     client: AsyncClient,
     db_session: AsyncSession,
     server: str,
@@ -199,10 +200,16 @@ async def test_a_call_relays_audio_subtitles_and_usage(
         "gpt-realtime-2.1",
         False,
     )
+    # Under 30 s: done without a summary (Q61g).
+    await app.state.after_call.wait_idle()
     db_session.expire_all()
     row = await db_session.scalar(select(SpeakingSession))
     assert row is not None
     assert (row.mode, row.status, row.scenario_id) == ("realtime", "done", "self_intro")
+    assert row.summary is None
+    # The whole call counts as speaking time (Q61h); each learner line is a turn.
+    assert row.spoken_seconds == row.call_seconds
+    assert (row.turns, row.spoken_turns) == (1, 1)
     assert row.ended_at is not None and row.call_seconds > 0
     conversation = await db_session.get(Conversation, row.conversation_id)
     assert conversation is not None and conversation.purpose == "realtime"
@@ -372,6 +379,7 @@ async def test_time_warning_goodbye_and_shutdown_end_calls(
             assert await until(ws, "ended") == {"type": "ended", "reason": "server_stopping"}
         assert len(app.state.realtime_calls) == 0
 
+    await app.state.after_call.wait_idle()
     db_session.expire_all()
     rows = (await db_session.scalars(select(SpeakingSession))).all()
     assert [r.status for r in rows] == ["done", "done", "done"]
@@ -468,8 +476,14 @@ async def test_cut_off_calls_are_closed_and_never_idle(
     closed = await db_session.get(SpeakingSession, call_id)
     still = await db_session.get(SpeakingSession, talk_id)
     assert closed is not None and still is not None
-    assert (closed.status, still.status) == ("done", "active")
+    # Ended, waiting for its follow-up, which the start then runs.
+    assert (closed.status, still.status) == ("active", "active")
     assert closed.ended_at is not None
+    assert await app.state.after_call.recover() == 1
+    await app.state.after_call.wait_idle()
+    db_session.expire_all()
+    closed = await db_session.get(SpeakingSession, call_id)
+    assert closed is not None and closed.status == "done"
 
 
 # --- connection test (task 60.6) ----------------------------------------------------------

@@ -11,13 +11,11 @@ from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, BackgroundTasks, Query, Request, status
 from langchain_core.messages import HumanMessage
-from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.adaptive.exercise.worker import structured_call
 from app.adaptive.kc.catalog import CefrLevel
 from app.adaptive.rules import get_rules
 from app.agents.chat_graph import ChatGraph
@@ -30,12 +28,9 @@ from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
 from app.memory.reflection import LOCALE_COOKIE
 from app.memory.service import get_profile
 from app.providers.errors import NoModelConfiguredError
-from app.providers.llm import get_chat_models
-from app.providers.tenant import load_provider_context
 from app.speaking import sessions
 from app.speaking.evidence import mark_corrected
 from app.speaking.scenarios import Scenario, get_scenarios
-from app.speaking.summary import TASK as SUMMARY_TASK
 
 router = APIRouter(prefix="/speaking", tags=["speaking"])
 
@@ -210,7 +205,10 @@ async def get_session(
     "/sessions/{session_id}/end",
     responses={
         404: {"description": "session_not_found"},
-        409: {"description": "conversation_busy, no_llm_configured or models_disabled"},
+        409: {
+            "description": "conversation_busy, no_llm_configured, models_disabled or "
+            "realtime_call (a call still going)"
+        },
     },
 )
 async def end_session(
@@ -226,6 +224,10 @@ async def end_session(
     row = await _owned(session, user.id, session_id)
     if row.status == "done":
         return SessionDetailOut.model_validate(row)
+    if row.mode == "realtime" and row.ended_at is None:
+        raise api_error(
+            status.HTTP_409_CONFLICT, "realtime_call", "The call is still going; hang up first."
+        )
     try:
         ended = await _end(request, graph, tenant.id, row.id, row.conversation_id)
     except NoModelConfiguredError as exc:
@@ -305,23 +307,8 @@ async def _end(
     """Sum up under the conversation's lock; None when a reply is being generated.
     Raises NoModelConfiguredError before taking the lock."""
     maker: async_sessionmaker[AsyncSession] = request.app.state.sessionmaker
-    async with maker() as session:
-        ctx = await load_provider_context(session, tenant_id)
-        user_id = await session.scalar(
-            select(SpeakingSession.user_id).where(SpeakingSession.id == session_id)
-        )
-    get_chat_models(ctx, SUMMARY_TASK)  # raises before anything is ended
-    config: RunnableConfig = {
-        "metadata": {"user_id": str(user_id), "conversation_id": str(conversation_id)},
-    }
-    call = structured_call(ctx, config, SUMMARY_TASK)
     locks: ConversationLocks = request.app.state.conversation_locks
-    if not locks.acquire(conversation_id):
-        return None
-    try:
-        return await sessions.end(maker, graph, session_id, call)
-    finally:
-        locks.release(conversation_id)
+    return await sessions.summarize(maker, graph, locks, tenant_id, session_id, conversation_id)
 
 
 async def _end_quietly(

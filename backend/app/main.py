@@ -53,6 +53,7 @@ from app.memory.worker import ReflectionWorker
 from app.observability import setup_tracing, shutdown_tracing
 from app.placement.service import PlacementRuntime
 from app.providers.llm import get_providers_config
+from app.realtime.after import AfterCall
 from app.realtime.calls import RealtimeCalls, close_orphaned
 from app.scheduler.jobs import JOBS
 from app.scheduler.service import Scheduler
@@ -116,6 +117,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         enabled=settings.memory_reflection_enabled,
     )
     await app.state.reflection_worker.recover()
+    # After the reflection worker: a call's follow-up schedules its reflection.
+    app.state.after_call = AfterCall(
+        app.state.sessionmaker,
+        app.state.chat_graph,
+        app.state.reflection_worker,
+        app.state.conversation_locks,
+    )
+    if waiting := await app.state.after_call.recover():
+        logger.info("summing up %d realtime calls ended before the last shutdown", waiting)
     app.state.practice_worker = PracticeWorker(app.state.sessionmaker, build_exercise_graph())
     interrupted = await app.state.practice_worker.recover()
     if interrupted:
@@ -146,6 +156,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # First, while the database is still there: each call closes its row and tells
         # the browser why it ended (ADR 0030 §1).
         await app.state.realtime_calls.stop_all()
+        # Calls still waiting for their summary are picked up at the next start.
+        await app.state.after_call.stop()
         try:
             async with asyncio.timeout(5):
                 # Cut-off runs are marked failed at the next start, then caught up.

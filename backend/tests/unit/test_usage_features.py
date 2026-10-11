@@ -85,8 +85,14 @@ def test_tts_calls_are_estimated_by_characters() -> None:
 
 
 def test_realtime_calls_are_estimated_per_minute_of_tokens() -> None:
-    realtime, embed = get_features().features["realtime_call"].calls
+    realtime, embed, *after = get_features().features["realtime_call"].calls
     assert (embed.task, embed.section, embed.per) == ("memory", "embedding", "call")
+    # After hanging up (task 61.3), per call, off the learner's way.
+    assert [(c.task, c.timing, c.per) for c in after] == [
+        ("reflect", "background", "call"),
+        ("memory", "background", "call"),
+        ("speaking_summary", "background", "call"),
+    ]
     assert (realtime.task, realtime.section, realtime.per, unit_of(realtime)) == (
         "realtime",
         "realtime",

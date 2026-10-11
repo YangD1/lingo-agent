@@ -25,12 +25,13 @@ from app.auth.service import get_personal_tenant
 from app.db.models import User
 from app.deps import AUTH_COOKIE, CurrentTenant, CurrentUser, Manager, SessionDep
 from app.memory.embedding import memory_embedder
-from app.memory.reflection import LOCALE_COOKIE
+from app.memory.reflection import LOCALE_COOKIE, memory_language
 from app.providers.errors import NoModelConfiguredError
 from app.providers.openai_realtime import RealtimeConnectError, RealtimeSession, open_session
 from app.providers.realtime import RealtimeRoute, get_realtime
 from app.providers.tenant import load_provider_context
 from app.realtime import calls
+from app.realtime.after import AfterCall
 from app.realtime.calls import RealtimeCalls
 from app.realtime.context import call_instructions
 from app.realtime.limits import CallLimit, LimitState, call_limit
@@ -177,6 +178,9 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
         await call.run()
     finally:
         registry.done(call)
+        # Reflection and the summary (ADR 0030 §6), off the socket's lifetime.
+        after: AfterCall = websocket.app.state.after_call
+        after.schedule(row.id, language=memory_language(websocket.cookies.get(LOCALE_COOKIE)))
 
 
 async def _connect(

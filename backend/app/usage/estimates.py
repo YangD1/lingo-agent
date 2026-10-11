@@ -149,7 +149,8 @@ async def minute_history(
         .where(
             Conversation.tenant_id == tenant_id,
             SpeakingSession.mode == "realtime",
-            SpeakingSession.status == "done",
+            # Hung up; the summary may still be coming (task 61.3).
+            SpeakingSession.ended_at.is_not(None),
             SpeakingSession.call_seconds >= MIN_CALL_SECONDS,
         )
         .order_by(SpeakingSession.ended_at.desc(), SpeakingSession.id.desc())

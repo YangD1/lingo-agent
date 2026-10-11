@@ -16,7 +16,7 @@ from app.adaptive import mastery
 from app.adaptive.evidence import ChatEvidence
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import Rules, get_rules
-from app.db.models import Attachment, KCEvidence, SpeakingSession
+from app.db.models import Attachment, Conversation, KCEvidence, SpeakingSession
 from app.writing.text import word_count
 
 # Conversations whose turns are spoken practice.
@@ -30,9 +30,15 @@ def evidence_source(purpose: str | None) -> str:
 async def spoken_message_ids(
     session: AsyncSession, conversation_id: uuid.UUID, message_ids: Sequence[str]
 ) -> set[str]:
-    """Of `message_ids`, the learner messages sent as a recording."""
+    """Of `message_ids`, the learner messages sent as a recording; on a realtime call,
+    every one of them (Q61i)."""
     if not message_ids:
         return set()
+    purpose = await session.scalar(
+        select(Conversation.purpose).where(Conversation.id == conversation_id)
+    )
+    if purpose == "realtime":
+        return set(message_ids)
     rows = await session.scalars(
         select(Attachment.message_id).where(
             Attachment.conversation_id == conversation_id,

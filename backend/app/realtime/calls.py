@@ -1,6 +1,10 @@
 """A realtime call's row (ADR 0030 §6): opened once the vendor accepted the session,
-its duration written as it goes, closed at hangup. Calls cut off by a restart are
-closed at startup with the duration last written."""
+its duration written as it goes, its transcript saved a reply at a time, ended at
+hangup. Calls cut off by a restart are ended at startup with the duration last written.
+
+An ended call stays `active` until its summary is made (`after.py`). Its whole length
+counts as speaking time for the daily plan (Q61h): `spoken_seconds` follows
+`call_seconds`; every learner line is a spoken turn."""
 
 import asyncio
 import logging
@@ -26,7 +30,7 @@ async def save_progress(
         await session.execute(
             update(SpeakingSession)
             .where(SpeakingSession.id == session_id)
-            .values(call_seconds=max(0.0, seconds))
+            .values(call_seconds=max(0.0, seconds), spoken_seconds=max(0.0, seconds))
         )
         await session.commit()
 
@@ -46,35 +50,51 @@ async def save_lines(
         {"messages": [line.message() for line in lines]},
         as_node=SPEAKING_COACH_NODE,
     )
+    learner = sum(1 for line in lines if line.role == "learner")
     async with maker() as session:
         await session.execute(
             update(Conversation)
             .where(Conversation.id == conversation_id)
             .values(updated_at=func.now())
         )
+        if learner:
+            await session.execute(
+                update(SpeakingSession)
+                .where(SpeakingSession.conversation_id == conversation_id)
+                .values(
+                    turns=SpeakingSession.turns + learner,
+                    spoken_turns=SpeakingSession.spoken_turns + learner,
+                )
+            )
         await session.commit()
 
 
 async def finish(
     maker: async_sessionmaker[AsyncSession], session_id: uuid.UUID, seconds: float
 ) -> None:
-    """The call hung up. Transcripts, reflection and the summary come with task 61."""
+    """The call hung up; what follows is `after.py`'s."""
+    seconds = max(0.0, seconds)
     async with maker() as session:
         await session.execute(
             update(SpeakingSession)
-            .where(SpeakingSession.id == session_id, SpeakingSession.status == "active")
-            .values(call_seconds=max(0.0, seconds), status="done", ended_at=datetime.now(UTC))
+            .where(SpeakingSession.id == session_id, SpeakingSession.ended_at.is_(None))
+            .values(call_seconds=seconds, spoken_seconds=seconds, ended_at=datetime.now(UTC))
         )
         await session.commit()
 
 
 async def close_orphaned(maker: async_sessionmaker[AsyncSession]) -> int:
-    """At startup: calls still `active` were cut off by the last shutdown."""
+    """At startup: calls never ended were cut off by the last shutdown. Their summary
+    comes from `AfterCall.recover`."""
     async with maker() as session:
         result = await session.execute(
             update(SpeakingSession)
-            .where(SpeakingSession.mode == "realtime", SpeakingSession.status == "active")
-            .values(status="done", ended_at=datetime.now(UTC))
+            .where(
+                SpeakingSession.mode == "realtime",
+                SpeakingSession.status == "active",
+                SpeakingSession.ended_at.is_(None),
+            )
+            .values(ended_at=datetime.now(UTC))
         )
         await session.commit()
     return int(getattr(result, "rowcount", 0) or 0)

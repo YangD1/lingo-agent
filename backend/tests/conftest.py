@@ -48,6 +48,7 @@ from app.main import create_app  # noqa: E402
 from app.memory.worker import ReflectionWorker  # noqa: E402
 from app.placement.service import PlacementRuntime  # noqa: E402
 from app.providers import net_guard  # noqa: E402
+from app.realtime.after import AfterCall  # noqa: E402
 from app.scheduler.jobs import JOBS  # noqa: E402
 from app.scheduler.service import Scheduler  # noqa: E402
 from app.services.reading.worker import ReadingWorker  # noqa: E402
@@ -183,6 +184,13 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         app.state.reflection_worker = ReflectionWorker(
             app.state.sessionmaker, app.state.chat_graph, enabled=False
         )
+        # Follows each realtime call: its reflection (off, above) and summary.
+        app.state.after_call = AfterCall(
+            app.state.sessionmaker,
+            app.state.chat_graph,
+            app.state.reflection_worker,
+            app.state.conversation_locks,
+        )
         # Without a model configured, sets come from the placement bank (Q33d).
         # Generating the next set ahead is off unless a test switches it on.
         app.state.practice_worker = PracticeWorker(
@@ -199,6 +207,7 @@ async def app(db_engine: AsyncEngine, db_session: AsyncSession) -> AsyncIterator
         # Not started: tests run jobs themselves.
         app.state.scheduler = Scheduler(app.state.sessionmaker, JOBS)
         yield app
+        await app.state.after_call.stop()
         await app.state.word_audio_worker.stop()
         await app.state.reading_worker.stop()
         await app.state.writing_worker.stop()
