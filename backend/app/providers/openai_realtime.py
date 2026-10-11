@@ -1,15 +1,6 @@
-"""The `openai_realtime` adapter (ADR 0030 §2): one live voice session with a vendor that
+"""The `openai_realtime` adapter (ADR 0030 §2): a `RealtimeSession` with a vendor that
 speaks the OpenAI Realtime protocol, in either spelling (`ga` or `beta`, see
 `app/providers/realtime.py`).
-
-The relay talks to it in vendor-neutral terms: it sends the learner's PCM16 audio,
-interruptions, instructions and tool results, and reads `RealtimeEvent`s back. Audio is
-only base64-wrapped and unwrapped here, never decoded or resampled (ADR 0030 §1).
-
-    async with await open_session(target, instructions=..., tools=[]) as call:
-        await call.send_audio(pcm)
-        async for event in call.events():
-            ...
 
 Vendor messages are untrusted: anything this module doesn't know is dropped, and what
 it passes on is parsed defensively (a missing field is a skipped event, not a crash).
@@ -24,23 +15,31 @@ import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Any, Literal, Self
-from urllib.parse import urlsplit
+from typing import Any, Self
 
 import anyio
-from websockets.asyncio.client import ClientConnection, connect
+from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosed
 
-from app.providers.net_guard import guarded_socket
 from app.providers.realtime import RealtimeTarget, redact_key
-from app.settings import get_settings
+from app.providers.realtime_session import (
+    SESSION_TIMEOUT,
+    AudioOut,
+    LearnerTurn,
+    RealtimeConnectError,
+    RealtimeEvent,
+    ResponseDone,
+    Role,
+    SpeechStarted,
+    Subtitle,
+    ToolCall,
+    ToolCalls,
+    Usage,
+    VendorError,
+    connect_ws,
+)
 
 logger = logging.getLogger(__name__)
-
-# Waiting for the vendor to accept the session settings; Qwen drops audio sent before.
-SESSION_TIMEOUT = 10.0
-# A vendor message is an audio chunk or an event; a few hundred KB at most.
-MAX_MESSAGE_BYTES = 4 * 1024 * 1024
 
 # Server-side voice activity detection (Q60d): the vendor decides when the learner is
 # done, and stops talking when they start (barge-in).
@@ -51,90 +50,8 @@ _VAD: dict[str, Any] = {
 }
 
 
-class RealtimeConnectError(Exception):
-    """The vendor could not be reached or refused the session; the cause is chained."""
-
-
-type Role = Literal["learner", "tutor"]
-
-
-@dataclass(frozen=True)
-class AudioOut:
-    """A chunk of the tutor's speech: PCM16 mono at the target's output rate."""
-
-    data: bytes
-
-
-@dataclass(frozen=True)
-class Subtitle:
-    """Part of what someone said (`final=False`: more text follows), or all of it."""
-
-    role: Role
-    item_id: str
-    text: str
-    final: bool
-
-
-@dataclass(frozen=True)
-class SpeechStarted:
-    """The learner started talking: the tutor's reply, if any, should stop playing."""
-
-
-@dataclass(frozen=True)
-class LearnerTurn:
-    """The learner's speech became turn `item_id`; its subtitle may come later. Turns
-    come in the conversation's order, which late subtitles don't (ADR 0030 §6)."""
-
-    item_id: str
-
-
-@dataclass(frozen=True)
-class ToolCall:
-    call_id: str
-    name: str
-    arguments: str  # JSON text as the model wrote it: parse and validate before use
-
-
-@dataclass(frozen=True)
-class ToolCalls:
-    """The calls of one reply, to run together: the results go back in one go and the
-    tutor answers once (ADR 0013: calls may run in parallel). Comes after the reply's
-    `ResponseDone`."""
-
-    calls: tuple[ToolCall, ...]
-
-
-@dataclass(frozen=True)
-class Usage:
-    input_tokens: int
-    output_tokens: int
-    input_audio_tokens: int = 0
-    output_audio_tokens: int = 0
-
-
-@dataclass(frozen=True)
-class ResponseDone:
-    """The tutor finished (or was stopped in) one reply."""
-
-    status: str  # completed / cancelled / failed / incomplete, as the vendor says
-    usage: Usage | None
-
-
-@dataclass(frozen=True)
-class VendorError:
-    """The vendor reported an error; the session may still go on."""
-
-    code: str
-    message: str
-
-
-type RealtimeEvent = (
-    AudioOut | Subtitle | SpeechStarted | LearnerTurn | ToolCalls | ResponseDone | VendorError
-)
-
-
 @dataclass
-class RealtimeSession:
+class OpenAIRealtimeSession:
     target: RealtimeTarget
     _ws: ClientConnection
     # The tutor's reply being spoken, for truncating it on interruption (ga only).
@@ -363,44 +280,21 @@ def session_settings(
     return {"type": "session.update", "session": session}
 
 
-async def open_session(
+async def open_openai_session(
     target: RealtimeTarget,
     *,
     instructions: str,
     tools: list[dict[str, Any]] | None = None,
-) -> RealtimeSession:
-    """Connect, send the session settings and wait until the vendor accepts them.
-    Raises `RealtimeConnectError`; the caller then tries the route's next target."""
+) -> OpenAIRealtimeSession:
+    """See `realtime_session.open_session`."""
     model = target.model
-    if target.dialect == "gemini":
-        raise RealtimeConnectError(
-            f"{model.connection}:{model.model}: Gemini Live not supported yet"
-        )
-    parts = urlsplit(target.url)
-    host = parts.hostname or ""
-    port = parts.port or (443 if parts.scheme == "wss" else 80)
     timeout = float(model.params.get("timeout") or SESSION_TIMEOUT)
     headers = {}
     if model.api_key is not None:
         headers["Authorization"] = f"Bearer {model.api_key.get_secret_value()}"
     ws: ClientConnection | None = None
     try:
-        with anyio.fail_after(timeout):
-            sock = await guarded_socket(
-                host, port, allow_private=get_settings().provider_allow_private_networks
-            )
-        ws = await connect(
-            target.url,
-            sock=sock,
-            additional_headers=headers,
-            # Never through an environment proxy: it would bypass the address check.
-            proxy=None,
-            # Base64 audio barely compresses; deflate would cost memory per call.
-            compression=None,
-            open_timeout=timeout,
-            max_size=MAX_MESSAGE_BYTES,
-            user_agent_header=None,
-        )
+        ws = await connect_ws(target.url, headers, timeout)
         await ws.send(json.dumps(session_settings(target, instructions, tools or [])))
         with anyio.fail_after(min(timeout, SESSION_TIMEOUT)):
             await _until_accepted(ws)
@@ -409,7 +303,7 @@ async def open_session(
             with contextlib.suppress(Exception):
                 await ws.close()
         raise RealtimeConnectError(redact_key(f"{model.connection}:{model.model}: {exc}")) from exc
-    return RealtimeSession(target, ws)
+    return OpenAIRealtimeSession(target, ws)
 
 
 async def _until_accepted(ws: ClientConnection) -> None:

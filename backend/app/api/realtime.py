@@ -27,8 +27,8 @@ from app.deps import AUTH_COOKIE, CurrentTenant, CurrentUser, Manager, SessionDe
 from app.memory.embedding import memory_embedder
 from app.memory.reflection import LOCALE_COOKIE, memory_language
 from app.providers.errors import NoModelConfiguredError
-from app.providers.openai_realtime import RealtimeConnectError, RealtimeSession, open_session
 from app.providers.realtime import RealtimeRoute, get_realtime
+from app.providers.realtime_session import RealtimeConnectError, RealtimeSession, open_session
 from app.providers.tenant import load_provider_context
 from app.realtime import calls
 from app.realtime.after import AfterCall

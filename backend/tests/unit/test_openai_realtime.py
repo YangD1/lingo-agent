@@ -8,9 +8,10 @@ from types import SimpleNamespace
 import pytest
 from pydantic import SecretStr
 
-from app.providers import openai_realtime
+from app.providers import realtime_session
 from app.providers.config import ResolvedModel
-from app.providers.openai_realtime import (
+from app.providers.realtime import RealtimeTarget, realtime_target
+from app.providers.realtime_session import (
     AudioOut,
     RealtimeConnectError,
     RealtimeEvent,
@@ -24,7 +25,6 @@ from app.providers.openai_realtime import (
     VendorError,
     open_session,
 )
-from app.providers.realtime import RealtimeTarget, realtime_target
 from tests.fake_realtime_vendor import FakeVendor, fake_vendor
 
 TOOLS = [
@@ -39,7 +39,7 @@ TOOLS = [
 @pytest.fixture(autouse=True)
 def local_vendors_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = SimpleNamespace(provider_allow_private_networks=True)
-    monkeypatch.setattr(openai_realtime, "get_settings", lambda: settings)
+    monkeypatch.setattr(realtime_session, "get_settings", lambda: settings)
 
 
 def target(
@@ -273,7 +273,7 @@ async def test_connect_failures_are_reported_for_fallback(monkeypatch: pytest.Mo
 
     # Without private networks allowed, a local address is refused before connecting.
     monkeypatch.setattr(
-        openai_realtime,
+        realtime_session,
         "get_settings",
         lambda: SimpleNamespace(provider_allow_private_networks=False),
     )

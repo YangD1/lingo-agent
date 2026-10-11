@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
-from app.providers.openai_realtime import Role, Subtitle
+from app.providers.realtime_session import Role, Subtitle
 
 # Marks on the saved messages (`additional_kwargs`).
 VOICE_CALL = "voice_call"

@@ -1,6 +1,6 @@
 """A realtime call's transcript order and marks (Q61e, Q61f)."""
 
-from app.providers.openai_realtime import Subtitle
+from app.providers.realtime_session import Subtitle
 from app.realtime.transcript import INTERRUPTED, MAX_WAITING, VOICE_CALL, Transcript
 
 

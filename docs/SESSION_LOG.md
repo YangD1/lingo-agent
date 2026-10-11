@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-11 任务 61.5 `gemini_live` 适配器
+
+**做了什么**：抽出 `app/providers/realtime_session.py`（中立事件、`RealtimeConnectError`、`RealtimeSession` Protocol、`connect_ws`、按写法分派的 `open_session`），中继、转写、接口、连接测试都只依赖它；`openai_realtime` 只改名（`OpenAIRealtimeSession`、`open_openai_session`），行为不变，原有 22 条测试照过。新 `app/providers/gemini_live.py` `GeminiLiveSession`：setup 握手、事件翻译、工具调用与取消、`goAway` 续接（详见看板 61.5）。测试替身 `tests/fake_gemini_vendor.py`；`tests/unit/test_gemini_live.py` 7 条；`test_realtime_relay.py` 加 Gemini 一通电话 + 连接测试。`docs/agent-tools.md` 接通一行的位置改成 `realtime_session.py`。
+
+**验证**：pytest 1646 全过（约 12 分钟）；`ruff check`、`ruff format --check`、`mypy app evals` 干净（tests 目录的 mypy 错误是原来就有的，不在 lint 范围，本次新文件没有）。前端没改。
+
+**未完成**：没有推送；Docker 未重建。Gemini 协议细节按 2026-10-11 核实的文档和已知写法实现，本会话访问不了 `ai.google.dev`，以下几点要等任务 64 真模型冒烟确认：`usageMetadata` 是按轮还是累计（现在取每轮最后一条）、`functionDeclarations.parameters` 类型名大写是否必需、开场用一句用户文字 `START_CUE` 让私教先说是否自然。
+
+**下一步**：61.6 文档与收尾（agent-tools 工具表、ADR 0030 落地记录 Q61a–j、PLAN 第 70 行注释、P3 计划、全量检查、settings E2E）。
+
+**踩坑**：适配器一条厂商消息可能翻出多个事件（如 `toolCall` → `ResponseDone` + `ToolCalls`），单测里 `collect` 提前 break 会把同一条消息剩下的事件丢掉，要一次收够。ruff 的 ASYNC109 不让 async 函数参数叫 `timeout`（改叫 `wait`）。
+
 ## 2026-10-11 任务 61.4 `gemini` 连接类型
 
 **做了什么**：上一会话因附件太多请求超限中断，迁移文件写到一半，这次接着做完。迁移 `159018254c68` 放宽 `ck_provider_connections_kind`（autogenerate 不比较 CHECK，手写；downgrade 先删 gemini 连接）。`gemini` 进 `PROVIDER_KINDS` / `REALTIME_KINDS` / `SPEECH_ONLY_KINDS`（因此 LLM、向量、转写、朗读、发音路由都拒绝它）和 `_KEY_REQUIRED`；`CallParams.realtime_dialect` 仍只许 ga / beta（gemini 写法由种类决定）。`realtime.py`：`_GEMINI` 厂商表（16k 进 / 24k 出，固定 `BidiGenerateContent` 地址，`realtime_url` 可覆盖，供假厂商用）、`realtime_target` 对 gemini 返回 dialect `gemini`、`redact_key`（`?key=` / `&key=` → `***`），用在 `open_session` 的出错信息和连接测试写进 `last_error` 的信息。`model_catalog._gemini_live_ids`：`/v1beta/models` 翻页，只列 `supportedGenerationMethods` 含 `bidiGenerateContent` 的，key 用 `x-goog-api-key` 头。`_test_purpose` 对 gemini 一律 `realtime`。`open_session` 对 gemini 暂时直接抛 `RealtimeConnectError("Gemini Live not supported yet")`，路由会跳到下一家。dev / prod 预设 `gemini`（`gemini-3.8-live`），排在 `realtime` 默认链最后。前端：`PROVIDER_KINDS` 加 gemini；连接卡片 gemini 和 Azure 一样当“无对话模型”（模型框起始为预设第一个、列全部、无“保存模型”、提示 `testRealtimeHint`）；实时语音路由对 gemini 连接列全部模型（名字里没有 realtime）。开发库已 `make migrate`。

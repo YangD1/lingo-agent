@@ -34,7 +34,7 @@ from app.db.models import (
     Word,
 )
 from app.deps import AUTH_COOKIE
-from app.providers import openai_realtime
+from app.providers import realtime_session
 from app.providers.llm import get_providers_config
 from app.realtime import calls, relay
 from app.realtime import tools as realtime_tools
@@ -43,13 +43,14 @@ from app.speaking import sessions
 from app.speaking.scenarios import get_scenarios
 from app.usage import recorder as usage_recorder
 from app.usage.recorder import UsageRecord
+from tests.fake_gemini_vendor import fake_gemini, heard, said, turn_complete
 from tests.fake_realtime_vendor import FakeVendor, fake_vendor
 
 
 @pytest.fixture(autouse=True)
 def local_vendors(monkeypatch: pytest.MonkeyPatch) -> None:
     settings = SimpleNamespace(provider_allow_private_networks=True)
-    monkeypatch.setattr(openai_realtime, "get_settings", lambda: settings)
+    monkeypatch.setattr(realtime_session, "get_settings", lambda: settings)
 
 
 @pytest.fixture
@@ -740,3 +741,69 @@ async def test_a_slow_tool_is_a_timeout_result(
     assert (shown["name"], shown["status"]) == ("lookup_word", "failed")
     (result,) = vendor.of_type("conversation.item.create")
     assert json.loads(result["item"]["output"]) == {"error": "timed out"}
+
+
+async def test_a_gemini_call_and_its_connection_test(
+    client: AsyncClient, db_session: AsyncSession, server: str
+) -> None:
+    """Gemini Live behind the same relay (61.5): 16 kHz in, the tutor first, tool
+    results sent back without asking for a reply, the transcript in turn order."""
+    token = await sign_up(client)
+    tenant_id = await db_session.scalar(select(TenantMember.tenant_id).limit(1))
+    assert tenant_id is not None
+    async with fake_gemini() as vendor:
+        await service.create_connection(
+            db_session,
+            tenant_id=tenant_id,
+            config=get_providers_config(),
+            keyring=get_keyring(),
+            allow_private=True,
+            preset=None,
+            name="gem",
+            kind="gemini",
+            base_url="https://generativelanguage.googleapis.com",
+            api_key=SecretStr("AIza-test-key"),
+            params=service.CallParams(realtime_url=vendor.url),
+        )
+        (conn,) = (await client.get("/tenant/connections")).json()
+        tested = await client.post(
+            f"/tenant/connections/{conn['id']}/test", json={"model": "gemini-3.8-live"}
+        )
+        assert (tested.json()["ok"], tested.json()["purpose"]) == (True, "realtime"), tested.text
+        assert [next(iter(m)) for m in vendor.received] == ["setup"]  # no reply asked
+        vendor.received.clear()
+
+        await set_route(client, "gem:gemini-3.8-live")
+        vendor.on("clientContent", said("Hello!"), turn_complete(40, 10))
+        vendor.on(
+            "realtimeInput",
+            heard("Bye now."),
+            {"toolCall": {"functionCalls": [{"id": "c1", "name": "end_session", "args": {}}]}},
+        )
+        vendor.on("realtimeInput")  # later audio: no answer
+        vendor.on("toolResponse", said("Goodbye!"), turn_complete(60, 8))
+        async with dial(server, token) as ws:
+            ready = await next_json(ws)
+            assert (ready["input_rate"], ready["output_rate"]) == (16_000, 24_000)
+            tutor = await until(ws, "subtitle")
+            assert (tutor["role"], tutor["text"], tutor["final"]) == ("tutor", "Hello!", False)
+            await until(ws, "response_done")
+            await ws.send(b"\x00\x00" * 1600)
+            tool = await until(ws, "tool")
+            assert (tool["name"], tool["status"]) == ("end_session", "ok")
+            assert await next_json(ws) == {"type": "end_suggested"}
+            await until(ws, "response_done")
+            await ws.send(json.dumps({"type": "end"}))
+            await until(ws, "ended")
+
+    (response,) = vendor.of_kind("toolResponse")
+    assert response["functionResponses"][0]["id"] == "c1"
+    assert response["functionResponses"][0]["response"]["ok"] is True
+    # The opening cue only: the model goes on by itself after tool results.
+    assert len(vendor.of_kind("clientContent")) == 1
+    history = await client.get(f"/conversations/{ready['conversation_id']}/messages")
+    assert [(m["role"], m["content"]) for m in history.json()] == [
+        ("assistant", "Hello!"),
+        ("user", "Bye now."),
+        ("assistant", "Goodbye!"),
+    ]

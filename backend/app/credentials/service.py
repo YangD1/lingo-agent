@@ -47,9 +47,9 @@ from app.providers.net_guard import (
     validate_base_url,
     validate_realtime_url,
 )
-from app.providers.openai_realtime import RealtimeConnectError, open_session
 from app.providers.pronunciation import AssessmentError, NoSpeechError, PronunciationAssessor
 from app.providers.realtime import realtime_target, redact_key
+from app.providers.realtime_session import RealtimeConnectError, open_session
 from app.providers.tts import (
     LANGUAGES,
     EndpointError,

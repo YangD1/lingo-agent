@@ -19,7 +19,7 @@ from app.db.models import ProviderConnection
 from app.providers import asr, net_guard, pronunciation, tts
 from app.providers.model_catalog import DiscoveredModel, ModelListError
 from app.providers.net_guard import IPAddress
-from app.providers.openai_realtime import RealtimeConnectError
+from app.providers.realtime_session import RealtimeConnectError
 from app.providers.tenant import load_provider_context
 
 SECRET = "sk-live-abcdefghijklmnop"

@@ -37,7 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.activity import service as activity
 from app.prompts import load_prompt
-from app.providers.openai_realtime import (
+from app.providers.realtime_session import (
     AudioOut,
     LearnerTurn,
     RealtimeSession,

@@ -16,7 +16,7 @@ from app.adaptive.evidence import ChatEvidence
 from app.adaptive.rules import get_rules
 from app.db.models import SpeakingSession, Tenant, User
 from app.memory.worker import ReflectionWorker
-from app.providers.openai_realtime import Subtitle
+from app.providers.realtime_session import Subtitle
 from app.realtime import calls
 from app.realtime.transcript import Transcript
 from app.speaking import sessions
