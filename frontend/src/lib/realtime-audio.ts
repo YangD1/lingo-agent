@@ -98,21 +98,32 @@ export function createFramer(rate: number, onFrame: (frame: ArrayBuffer) => void
 
 /**
  * When each chunk of the tutor's reply starts: right after the previous one so they
- * join without gaps, or a little ahead of now when playback has run dry. `clear` forgets
- * the queue (barge-in).
+ * join without gaps, or a little ahead of now when playback has run dry. It also knows
+ * how much of the current reply has been heard, which OpenAI uses to forget the rest
+ * when the learner cuts in. `clear` forgets the queue (barge-in).
  */
 export function createPlaybackClock() {
   let next = 0;
+  let replyStart: number | null = null;
   return {
     schedule(now: number, seconds: number): number {
       const start = Math.max(next, now + PLAYBACK_LEAD_SECONDS);
+      replyStart ??= start;
       next = start + seconds;
       return start;
     },
     /** Whether anything scheduled is still playing at `now`. */
     busy: (now: number) => next > now,
+    /** Milliseconds of the current reply played by `now`. */
+    playedMs: (now: number) =>
+      replyStart === null ? 0 : Math.max(0, Math.round((Math.min(now, next) - replyStart) * 1000)),
+    /** The next chunk starts another reply. */
+    newReply() {
+      replyStart = null;
+    },
     clear() {
       next = 0;
+      replyStart = null;
     },
   };
 }
@@ -167,6 +178,10 @@ export type CallPlayer = {
   clear: () => void;
   /** Whether the tutor's voice is still playing. */
   busy: () => boolean;
+  /** Milliseconds heard of the reply now playing. */
+  playedMs: () => number;
+  /** The tutor finished a reply: the next chunk starts another. */
+  newReply: () => void;
   close: () => void;
 };
 
@@ -199,6 +214,8 @@ export function createCallPlayer(): CallPlayer {
     },
     clear,
     busy: () => clock.busy(context.currentTime),
+    playedMs: () => clock.playedMs(context.currentTime),
+    newReply: () => clock.newReply(),
     close() {
       clear();
       void context.close();

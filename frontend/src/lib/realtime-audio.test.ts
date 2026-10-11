@@ -122,4 +122,16 @@ describe("createPlaybackClock", () => {
     expect(clock.busy(1)).toBe(false);
     expect(clock.schedule(1, 0.2)).toBeCloseTo(1.05);
   });
+
+  it("counts what was heard of the current reply", () => {
+    const clock = createPlaybackClock();
+    expect(clock.playedMs(1)).toBe(0);
+    clock.schedule(0, 1); // plays 0.05–1.05
+    clock.schedule(0.5, 1); // then 1.05–2.05
+    expect(clock.playedMs(0.55)).toBe(500);
+    expect(clock.playedMs(3)).toBe(2000); // no more than was queued
+    clock.newReply();
+    clock.schedule(3, 1);
+    expect(clock.playedMs(3.15)).toBe(100);
+  });
 });
