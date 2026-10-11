@@ -21,6 +21,7 @@ from websockets.exceptions import InvalidStatus
 
 from app.adaptive.rules import get_rules
 from app.api import realtime as realtime_api
+from app.chat.service import thread_config
 from app.credentials import service
 from app.credentials.crypto import get_keyring
 from app.db.models import Conversation, SpeakingSession, Tenant, TenantMember, User
@@ -488,3 +489,102 @@ async def test_connection_test_opens_a_session_and_hangs_up(
         result = (await client.post(url, json={"model": "my-voice"})).json()
         assert (result["ok"], result["purpose"]) == (False, "realtime")
         assert "bad key" in result["error"]
+
+
+async def test_the_transcript_is_saved_turn_by_turn(
+    app: FastAPI, client: AsyncClient, db_session: AsyncSession, server: str
+) -> None:
+    """Q61e, Q61f: lines in the turns' order although the learner's subtitle comes late;
+    a reply talked over keeps what had come, marked; what's left is saved at hang-up."""
+    token = await sign_up(client)
+    graph = app.state.chat_graph
+
+    async def saved(conversation_id: Any) -> list[Any]:
+        state = await graph.aget_state(thread_config(conversation_id))
+        return list(state.values.get("messages", []))
+
+    async def saved_at_least(conversation_id: Any, count: int) -> list[Any]:
+        """The browser hears `response_done` before the lines are saved."""
+        for _ in range(100):
+            if len(messages := await saved(conversation_id)) >= count:
+                return messages
+            await asyncio.sleep(0.02)
+        return messages
+
+    async with fake_vendor() as vendor:
+        await add_vendor(db_session, client, "voice", vendor)
+        await set_route(client, "voice:gpt-realtime-2.1")
+        vendor.on(
+            "input_audio_buffer.append",
+            {"type": "input_audio_buffer.speech_started"},
+            {"type": "input_audio_buffer.committed", "item_id": "u1"},
+            {"type": "response.output_audio_transcript.done", "item_id": "a1", "transcript": "Hi!"},
+            {
+                "type": "conversation.item.input_audio_transcription.completed",
+                "item_id": "u1",
+                "transcript": "Hello there",
+            },
+            {"type": "response.done", "response": {"status": "completed"}},
+        )
+        vendor.on(
+            "input_audio_buffer.append",
+            {"type": "response.output_audio_transcript.delta", "item_id": "a2", "delta": "Let "},
+            {"type": "response.output_audio_transcript.delta", "item_id": "a2", "delta": "me"},
+            {"type": "input_audio_buffer.speech_started"},
+            {"type": "input_audio_buffer.committed", "item_id": "u2"},
+            # Text for the reply after it was talked over isn't what the learner heard.
+            {
+                "type": "response.output_audio_transcript.done",
+                "item_id": "a2",
+                "transcript": "Let me tell you a story.",
+            },
+            {"type": "response.done", "response": {"status": "cancelled"}},
+            {
+                "type": "conversation.item.input_audio_transcription.completed",
+                "item_id": "u2",
+                "transcript": "Wait, sorry",
+            },
+        )
+        vendor.on(
+            "input_audio_buffer.append",
+            {"type": "input_audio_buffer.committed", "item_id": "u3"},  # never transcribed
+            {"type": "response.output_audio_transcript.delta", "item_id": "a3", "delta": "Bye"},
+            {"type": "response.done", "response": {"status": "completed"}},
+        )
+        async with dial(server, token) as ws:
+            ready = await next_json(ws)
+            conversation_id = ready["conversation_id"]
+            await ws.send(b"\x00\x00" * 2400)
+            await until(ws, "response_done")
+            first = await saved_at_least(conversation_id, 2)
+            assert [(m.type, m.text) for m in first] == [("human", "Hello there"), ("ai", "Hi!")]
+            await ws.send(b"\x00\x00" * 2400)
+            await until(ws, "response_done")
+            # The reply talked over is saved; u2's subtitle is still to come.
+            assert [m.text for m in await saved_at_least(conversation_id, 3)][2:] == ["Let me"]
+            await until(ws, "subtitle")
+            await ws.send(b"\x00\x00" * 2400)
+            await until(ws, "response_done")
+            await ws.send(json.dumps({"type": "end"}))
+            await until(ws, "ended")
+
+    messages = await saved(conversation_id)
+    assert [(m.type, m.text) for m in messages] == [
+        ("human", "Hello there"),
+        ("ai", "Hi!"),
+        ("ai", "Let me"),
+        ("human", "Wait, sorry"),
+        ("ai", "Bye"),
+    ]
+    assert all(m.additional_kwargs.get("voice_call") for m in messages)
+    assert [bool(m.additional_kwargs.get("interrupted")) for m in messages] == [
+        False,
+        False,
+        True,
+        False,
+        False,
+    ]
+    # The call's conversation shows in no chat list but reads like one.
+    history = await client.get(f"/conversations/{conversation_id}/messages")
+    assert history.status_code == 200
+    assert [m["role"] for m in history.json()] == ["user", "assistant", "user", "assistant"]

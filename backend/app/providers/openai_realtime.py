@@ -81,6 +81,14 @@ class SpeechStarted:
 
 
 @dataclass(frozen=True)
+class LearnerTurn:
+    """The learner's speech became turn `item_id`; its subtitle may come later. Turns
+    come in the conversation's order, which late subtitles don't (ADR 0030 §6)."""
+
+    item_id: str
+
+
+@dataclass(frozen=True)
 class ToolCall:
     call_id: str
     name: str
@@ -111,7 +119,9 @@ class VendorError:
     message: str
 
 
-type RealtimeEvent = AudioOut | Subtitle | SpeechStarted | ToolCall | ResponseDone | VendorError
+type RealtimeEvent = (
+    AudioOut | Subtitle | SpeechStarted | LearnerTurn | ToolCall | ResponseDone | VendorError
+)
 
 
 @dataclass
@@ -218,8 +228,14 @@ class RealtimeSession:
                 return _subtitle("learner", payload, key, final=False)
             case "conversation.item.input_audio_transcription.completed":
                 return _subtitle("learner", payload, "transcript", final=True)
+            case "conversation.item.input_audio_transcription.failed":
+                # Nothing more will come for this turn: it is done, with no text.
+                return _subtitle("learner", {**payload, "transcript": ""}, "transcript", final=True)
             case "input_audio_buffer.speech_started":
                 return [SpeechStarted()]
+            case "input_audio_buffer.committed":
+                item = payload.get("item_id")
+                return [LearnerTurn(item)] if isinstance(item, str) else []
             case "response.function_call_arguments.done":
                 return self._tool_call(payload)
             case "response.output_item.done":

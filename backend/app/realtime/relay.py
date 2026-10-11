@@ -14,8 +14,10 @@ are the tutor's audio; text frames are JSON events:
     error           {code}: the vendor reported an error; the call may go on
     ended           {reason}: last message before the backend closes the socket
 
-The audio is never decoded (ADR 0030 §1); the learner's is metered so a client can't
-send it faster than real time, which the vendor would bill as audio tokens.
+Both sides' final subtitles are saved to the call's conversation a reply at a time
+(`transcript.py`, Q61e). The audio is never decoded (ADR 0030 §1); the learner's is
+metered so a client can't send it faster than real time, which the vendor would bill as
+audio tokens.
 """
 
 import contextlib
@@ -23,7 +25,7 @@ import json
 import logging
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
@@ -33,6 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.prompts import load_prompt
 from app.providers.openai_realtime import (
     AudioOut,
+    LearnerTurn,
     RealtimeSession,
     ResponseDone,
     SpeechStarted,
@@ -42,6 +45,7 @@ from app.providers.openai_realtime import (
 )
 from app.realtime import calls
 from app.realtime.limits import WARNING_SECONDS
+from app.realtime.transcript import Line, Transcript
 from app.usage.recorder import UsageRecord, submit_usage
 
 logger = logging.getLogger(__name__)
@@ -91,6 +95,7 @@ class RealtimeCall:
         vendor: RealtimeSession,
         info: CallInfo,
         maker: async_sessionmaker[AsyncSession],
+        save: Callable[[list[Line]], Awaitable[None]],
         *,
         clock: Callable[[], float] = time.monotonic,
         tick_seconds: float = 1.0,
@@ -99,6 +104,8 @@ class RealtimeCall:
         self._vendor = vendor
         self._info = info
         self._maker = maker
+        self._save = save
+        self._transcript = Transcript()
         self._clock = clock
         self._tick = tick_seconds
         self._started = clock()
@@ -152,6 +159,7 @@ class RealtimeCall:
         finally:
             reason: EndReason = self._reason or "error"
             await self._vendor.close()
+            await self._save_lines(self._transcript.take_all())
             with anyio.CancelScope(shield=True):
                 try:
                     await calls.finish(self._maker, self._info.session_id, self.elapsed)
@@ -212,7 +220,10 @@ class RealtimeCall:
                 case AudioOut(data=data):
                     self._reply_started = self._reply_started or self._clock()
                     await self._browser.send_bytes(data)
+                case LearnerTurn(item_id=item_id):
+                    self._transcript.learner_turn(item_id)
                 case Subtitle():
+                    self._transcript.subtitle(event)
                     if event.role == "tutor":
                         self._reply_started = self._reply_started or self._clock()
                     await self._browser.send_json(
@@ -225,10 +236,13 @@ class RealtimeCall:
                         }
                     )
                 case SpeechStarted():
+                    self._transcript.speech_started()
                     await self._browser.send_json({"type": "speech_started"})
                 case ResponseDone():
                     self._record(event)
                     await self._browser.send_json({"type": "response_done"})
+                    self._transcript.response_done(event.status)
+                    await self._save_lines(self._transcript.take_settled())
                     if self._goodbye_asked:
                         self._end("time_limit")
                     elif self._wrapping:
@@ -272,6 +286,15 @@ class RealtimeCall:
             if elapsed - saved >= PROGRESS_SECONDS:
                 saved = elapsed
                 await calls.save_progress(self._maker, self._info.session_id, elapsed)
+
+    async def _save_lines(self, lines: list[Line]) -> None:
+        """A failed save loses those lines, never the call. Shielded: a hang-up during
+        the save would otherwise cut the query off and leave the connection unusable."""
+        try:
+            with anyio.CancelScope(shield=True):
+                await self._save(lines)
+        except Exception:
+            logger.exception("could not save realtime call %s transcript", self._info.session_id)
 
     async def _say_goodbye(self) -> None:
         self._goodbye_asked = True

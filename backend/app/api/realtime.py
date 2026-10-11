@@ -12,6 +12,7 @@ import logging
 import time
 import uuid
 from datetime import UTC, datetime
+from functools import partial
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -29,6 +30,7 @@ from app.providers.errors import NoModelConfiguredError
 from app.providers.openai_realtime import RealtimeConnectError, RealtimeSession, open_session
 from app.providers.realtime import RealtimeRoute, get_realtime
 from app.providers.tenant import load_provider_context
+from app.realtime import calls
 from app.realtime.calls import RealtimeCalls
 from app.realtime.context import call_instructions
 from app.realtime.limits import CallLimit, LimitState, call_limit
@@ -165,6 +167,7 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
             is_fallback=position > 0,
         ),
         maker,
+        partial(calls.save_lines, maker, websocket.app.state.chat_graph, row.conversation_id),
     )
     registry.add(call)
     try:

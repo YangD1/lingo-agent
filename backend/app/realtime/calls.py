@@ -8,10 +8,13 @@ import uuid
 from datetime import UTC, datetime
 from typing import Protocol
 
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.models import SpeakingSession
+from app.agents.chat_graph import SPEAKING_COACH_NODE, ChatGraph
+from app.chat.service import thread_config
+from app.db.models import Conversation, SpeakingSession
+from app.realtime.transcript import Line
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +27,30 @@ async def save_progress(
             update(SpeakingSession)
             .where(SpeakingSession.id == session_id)
             .values(call_seconds=max(0.0, seconds))
+        )
+        await session.commit()
+
+
+async def save_lines(
+    maker: async_sessionmaker[AsyncSession],
+    graph: ChatGraph,
+    conversation_id: uuid.UUID,
+    lines: list[Line],
+) -> None:
+    """Append finished lines to the call's conversation (Q61e). The graph never runs
+    on it (nobody types into a call), so the update stands as the thread's state."""
+    if not lines:
+        return
+    await graph.aupdate_state(
+        thread_config(conversation_id),
+        {"messages": [line.message() for line in lines]},
+        as_node=SPEAKING_COACH_NODE,
+    )
+    async with maker() as session:
+        await session.execute(
+            update(Conversation)
+            .where(Conversation.id == conversation_id)
+            .values(updated_at=func.now())
         )
         await session.commit()
 
