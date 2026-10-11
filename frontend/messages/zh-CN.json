@@ -213,7 +213,10 @@
         "tools": "工具",
         "handoff": "转交",
         "writing_review": "批改作文",
-        "reading_context": "读取文章"
+        "reading_context": "读取文章",
+        "lookup_word": "查词",
+        "add_to_vocab": "加入生词本",
+        "end_session": "建议挂断"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -264,7 +267,12 @@
       "coaches": {
         "writing_coach": "写作教练",
         "reading_coach": "阅读教练"
-      }
+      },
+      "lookedUpCount": "查了 {n} 个词",
+      "lookedUp": "通话中查了 {word}",
+      "notInDictionary": "通话中查了 {word}，词典里没有，私教自己解释了",
+      "endSuggested": "私教建议结束通话",
+      "callToolFailed": "{step}没成功，私教已经知道并接着聊了。"
     },
     "practice": {
       "label": "语法练习：{kc}",
@@ -1922,7 +1930,13 @@
       "shadow": "跟读：{sentence}",
       "addToList": "加入生词本",
       "added": "已在生词本",
-      "notInDictionary": "词典里没有这个说法"
+      "notInDictionary": "词典里没有这个说法",
+      "callAgain": "再打一次",
+      "called": "通话 {minutes} 分钟",
+      "callTag": "通话",
+      "summarizing": "正在整理这通电话：小结、记忆和错误稍后出现…",
+      "callOngoing": "这通电话还没结束（可能在别的页面里）。挂断后这里会显示转写和小结。",
+      "callTooShort": "这通电话不到 30 秒或没有开口，所以没有小结。"
     },
     "call": {
       "back": "回到口语练习",
@@ -1981,6 +1995,19 @@
         "microphone_denied": "没有麦克风权限。请在浏览器里允许后再打。",
         "recording_unsupported": "这个浏览器不支持通话，换用新版 Chrome、Edge、Safari 或 Firefox 试试。",
         "refused": "没能接通。"
+      }
+    },
+    "callDetail": {
+      "transcript": "通话转写",
+      "noTranscript": "这通电话没有留下转写。",
+      "interrupted": "被打断",
+      "transcriptNote": "转写由实时语音服务另外生成，可能和私教实际听到的不完全一样。",
+      "endReason": {
+        "time_limit": "时间到了，通话自动结束。",
+        "vendor_closed": "实时语音服务断开了，通话提前结束。",
+        "server_stopping": "服务器重启，通话提前结束。",
+        "error": "通话出错，提前结束了。",
+        "browser_closed": "连接断了，通话提前结束。"
       }
     }
   }

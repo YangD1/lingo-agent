@@ -608,10 +608,17 @@ async def test_the_transcript_is_saved_turn_by_turn(
         False,
         False,
     ]
-    # The call's conversation shows in no chat list but reads like one.
+    # The call's conversation shows in no chat list but reads like one; each reply is
+    # its own line (never joined like a chat turn's parts), the cut-short one marked.
     history = await client.get(f"/conversations/{conversation_id}/messages")
     assert history.status_code == 200
-    assert [m["role"] for m in history.json()] == ["user", "assistant", "user", "assistant"]
+    assert [(m["role"], m["content"], m["interrupted"]) for m in history.json()] == [
+        ("user", "Hello there", False),
+        ("assistant", "Hi!", False),
+        ("assistant", "Let me", True),
+        ("user", "Wait, sorry", False),
+        ("assistant", "Bye", False),
+    ]
 
 
 def function_call(call_id: str, name: str, arguments: str) -> dict[str, Any]:

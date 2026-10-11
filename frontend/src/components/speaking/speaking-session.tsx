@@ -12,6 +12,7 @@ import { MessageList } from "@/components/chat/message-list";
 import { type ChatMessage, useChatSession } from "@/components/chat/use-chat-session";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { ErrorText } from "@/components/ui/error-text";
 import { Tag } from "@/components/ui/tag";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +33,7 @@ import {
 import { type SpeechStream, speakStream, stopSpeaking, useCanSpeak, useServerSpeech } from "@/lib/speech";
 import type { Attachment } from "@/lib/types";
 
+import { CALL_POLL_MS, CallTranscript } from "./call-transcript";
 import { SpeakingInput } from "./speaking-input";
 import { SpeakingSummaryView } from "./speaking-summary";
 
@@ -53,7 +55,7 @@ const asError = (e: unknown): ApiErrorLike =>
  * One speaking practice (task 59.3, ADR 0029 §3): the conversation while it is open, its
  * summary once it has ended.
  */
-export function SpeakingSessionPage({ id }: { id: string }) {
+export function SpeakingSessionPage({ id, callEnd = null }: { id: string; callEnd?: string | null }) {
   const t = useTranslations("speaking.session");
   const describe = useDescribeError();
   const [detail, setDetail] = useState<SpeakingSessionDetail | null>(null);
@@ -87,10 +89,54 @@ export function SpeakingSessionPage({ id }: { id: string }) {
     );
   }
   if (!detail) return <CatLoading size={48} className="m-auto" label={t("loading")} />;
+  if (detail.mode === "realtime") {
+    return <CallDetail detail={detail} scenario={scenario} callEnd={callEnd} onChange={setDetail} onStale={reload} />;
+  }
   if (detail.status === "active") {
     return <SpeakingTalk detail={detail} scenario={scenario} onEnded={setDetail} onStale={reload} />;
   }
   return <SpeakingSummaryView detail={detail} scenario={scenario} onChange={setDetail} />;
+}
+
+// How the call ended, said above its summary when it was not the learner hanging up.
+const CALL_END_NOTES = new Set(["time_limit", "vendor_closed", "server_stopping", "error", "browser_closed"]);
+
+/**
+ * A realtime call after hanging up (task 62.5, Q62h): its summary once the background
+ * work is done (asked for again until then), with the transcript and what the tutor did.
+ */
+function CallDetail({
+  detail,
+  scenario,
+  callEnd,
+  onChange,
+  onStale,
+}: {
+  detail: SpeakingSessionDetail;
+  scenario: Scenario | null;
+  /** The call page's reason, when it came straight from the call. */
+  callEnd: string | null;
+  onChange: (detail: SpeakingSessionDetail) => void;
+  onStale: () => void;
+}) {
+  const t = useTranslations("speaking.callDetail");
+  const active = detail.status === "active";
+  useEffect(() => {
+    if (!active) return;
+    const timer = setInterval(onStale, CALL_POLL_MS);
+    return () => clearInterval(timer);
+  }, [active, onStale]);
+  const notice =
+    callEnd && CALL_END_NOTES.has(callEnd) ? (
+      <Callout tone="warning" data-testid="call-end-note">
+        {t(`endReason.${callEnd}` as Parameters<typeof t>[0])}
+      </Callout>
+    ) : null;
+  return (
+    <SpeakingSummaryView detail={detail} scenario={scenario} onChange={onChange} notice={notice}>
+      <CallTranscript conversationId={detail.conversation_id} />
+    </SpeakingSummaryView>
+  );
 }
 
 function SpeakingTalk({

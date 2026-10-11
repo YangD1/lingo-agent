@@ -213,7 +213,10 @@
         "tools": "Tools",
         "handoff": "Handoff",
         "writing_review": "Writing review",
-        "reading_context": "Reading the article"
+        "reading_context": "Reading the article",
+        "lookup_word": "Looking up a word",
+        "add_to_vocab": "Adding to the word list",
+        "end_session": "Suggesting to hang up"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -264,7 +267,12 @@
       "coaches": {
         "writing_coach": "writing coach",
         "reading_coach": "reading coach"
-      }
+      },
+      "lookedUpCount": "looked up {n, plural, one {# word} other {# words}}",
+      "lookedUp": "Looked up {word} on the call",
+      "notInDictionary": "Looked up {word} on the call: not in the dictionary, so the tutor explained it",
+      "endSuggested": "The tutor suggested hanging up",
+      "callToolFailed": "{step} failed; the tutor was told and went on."
     },
     "practice": {
       "label": "Grammar practice: {kc}",
@@ -1922,7 +1930,13 @@
       "shadow": "Shadow: {sentence}",
       "addToList": "Add to word list",
       "added": "On your list",
-      "notInDictionary": "Not in the dictionary"
+      "notInDictionary": "Not in the dictionary",
+      "callAgain": "Call again",
+      "called": "called {minutes} min",
+      "callTag": "Call",
+      "summarizing": "Going over the call: the summary, memories and mistakes will show up shortly…",
+      "callOngoing": "This call hasn't ended yet (it may be open in another tab). The transcript and summary appear here after hanging up.",
+      "callTooShort": "The call was shorter than 30 seconds or you didn't speak, so there's no summary."
     },
     "call": {
       "back": "Back to speaking",
@@ -1981,6 +1995,19 @@
         "microphone_denied": "No microphone permission. Allow it in your browser, then call again.",
         "recording_unsupported": "This browser can't make calls. Try a recent Chrome, Edge, Safari or Firefox.",
         "refused": "The call couldn't be connected."
+      }
+    },
+    "callDetail": {
+      "transcript": "Transcript",
+      "noTranscript": "Nothing was transcribed on this call.",
+      "interrupted": "cut short",
+      "transcriptNote": "The transcript is made separately by the realtime voice service and may differ a little from what the tutor heard.",
+      "endReason": {
+        "time_limit": "Time was up, so the call ended.",
+        "vendor_closed": "The realtime voice service hung up, so the call ended early.",
+        "server_stopping": "The server restarted, so the call ended early.",
+        "error": "Something went wrong, so the call ended early.",
+        "browser_closed": "The connection dropped, so the call ended early."
       }
     }
   }

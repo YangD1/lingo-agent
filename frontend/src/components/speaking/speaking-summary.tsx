@@ -1,13 +1,13 @@
 "use client";
 
-import { ArrowLeftIcon, CheckIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckIcon, PhoneIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
-import { LingoCat } from "@/components/brand/lingo-cat";
+import { CatLoading, LingoCat } from "@/components/brand/lingo-cat";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { ShadowingBadge, ShadowingButton } from "@/components/speech/shadowing-button";
 import { ShadowingPanel } from "@/components/speech/shadowing-panel";
@@ -35,10 +35,16 @@ export function SpeakingSummaryView({
   detail,
   scenario,
   onChange,
+  notice,
+  children,
 }: {
   detail: SpeakingSessionDetail;
   scenario: Scenario | null;
   onChange: (detail: SpeakingSessionDetail) => void;
+  /** Above the summary: how a realtime call ended, when that needs saying. */
+  notice?: ReactNode;
+  /** Below it: a realtime call's transcript (task 62.5). */
+  children?: ReactNode;
 }) {
   const t = useTranslations("speaking.summary");
   const locale = useLocale();
@@ -60,7 +66,18 @@ export function SpeakingSummaryView({
     }
   }
 
+  const call = detail.mode === "realtime";
+
   async function again() {
+    if (call) {
+      // Another call (Q62b): its page connects on the learner's click.
+      router.push(
+        detail.scenario_id
+          ? `/speaking/call?${new URLSearchParams({ scenario: detail.scenario_id })}`
+          : "/speaking/call",
+      );
+      return;
+    }
     setBusy("again");
     setError(null);
     try {
@@ -90,8 +107,8 @@ export function SpeakingSummaryView({
             </Link>
             <h1 className="min-w-0 flex-1 truncate text-xl font-semibold">{title}</h1>
             <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void again()}>
-              <RotateCcwIcon />
-              {t("again")}
+              {call ? <PhoneIcon /> : <RotateCcwIcon />}
+              {call ? t("callAgain") : t("again")}
             </Button>
           </div>
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
@@ -101,7 +118,8 @@ export function SpeakingSummaryView({
             <span aria-hidden>·</span>
             <span className="tabular-nums">{t("turns", { n: detail.turns })}</span>
             <span aria-hidden>·</span>
-            <span className="tabular-nums">{t("spoken", { minutes })}</span>
+            <span className="tabular-nums">{t(call ? "called" : "spoken", { minutes })}</span>
+            {call && <Tag variant="outline">{t("callTag")}</Tag>}
             {summary && (
               <Tag variant={summary.intelligibility === "hard" ? "warning" : "success"} data-testid="speaking-intelligibility">
                 {t(`intelligibility.${summary.intelligibility}`)}
@@ -110,8 +128,19 @@ export function SpeakingSummaryView({
           </p>
         </header>
 
+        {notice}
         {error && <ErrorText>{error}</ErrorText>}
 
+        {detail.status === "active" && (
+          <div
+            role="status"
+            data-testid="speaking-summarizing"
+            className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-8 text-center text-sm text-muted-foreground"
+          >
+            <CatLoading size={48} label="" />
+            {detail.ended_at ? t("summarizing") : t("callOngoing")}
+          </div>
+        )}
         {detail.status === "failed" && (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-8 text-center text-sm text-muted-foreground">
             <LingoCat mood="oops" size={48} label="" />
@@ -125,10 +154,11 @@ export function SpeakingSummaryView({
         {detail.status === "done" && !summary && (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-8 text-center text-sm text-muted-foreground">
             <LingoCat mood="idle" size={48} label="" />
-            {t("nothingSaid")}
+            {call ? t("callTooShort") : t("nothingSaid")}
           </div>
         )}
         {summary && <SummaryBody summary={summary} sessionId={detail.id} />}
+        {children}
       </div>
     </div>
   );

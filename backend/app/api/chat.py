@@ -118,6 +118,8 @@ class MessageOut(BaseModel):
     role: Literal["user", "assistant"]
     content: str
     attachments: list[AttachmentOut] = []
+    # A tutor reply on a realtime call that the learner cut short (Q61f).
+    interrupted: bool = False
 
 
 def _purpose(conversation: Conversation) -> PlanningPurpose | None:
@@ -255,6 +257,7 @@ async def get_messages(
             role=m.role,
             content=m.content,
             attachments=[AttachmentOut.of(a) for a in attached.get(m.id or "", [])],
+            interrupted=m.interrupted,
         )
         for m in history
     ]

@@ -17,7 +17,9 @@ import {
   type KCRef,
   type MemoryChanges,
   type MemoryRef,
+  CALL_TOOL_NAMES,
   TOOL_NAMES,
+  type WordLookedUp,
   type WordsCollected,
 } from "@/lib/activity";
 import { learnerHref } from "@/lib/learner";
@@ -47,6 +49,7 @@ const STEP_NAMES = [
   "writing_review",
   "reading_context",
   ...TOOL_NAMES,
+  ...CALL_TOOL_NAMES,
 ] as const;
 type StepName = (typeof STEP_NAMES)[number];
 const isStep = (name: string): name is StepName => (STEP_NAMES as readonly string[]).includes(name);
@@ -78,6 +81,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
     d.profileUpdated && t("profileUpdated"),
     d.mistakes > 0 && t("mistakes", { n: d.mistakes }),
     d.usedCorrectly > 0 && t("usedCorrectly", { n: d.usedCorrectly }),
+    d.wordsLookedUp > 0 && t("lookedUpCount", { n: d.wordsLookedUp }),
     d.wordsCollected > 0 && t("words", { n: d.wordsCollected }),
     d.cardsShown > 0 && t("cards", { n: d.cardsShown }),
     d.summaryUpdated && t("summaryUpdated"),
@@ -143,7 +147,14 @@ function Step({
   const locale = useLocale();
   if (!isStep(a.name)) return null; // from a newer backend
   const step = t(`steps.${a.name}`);
-  if (a.kind === "tool") {
+  if (a.name === "lookup_word") {
+    if (a.status !== "ok") return <p>{t("callToolFailed", { step })}</p>;
+    const s = a.summary as WordLookedUp;
+    return <p>{s.word_id ? t("lookedUp", { word: s.word }) : t("notInDictionary", { word: s.word })}</p>;
+  }
+  if (a.name === "end_session") return <p>{t("endSuggested")}</p>;
+  if (a.name === "add_to_vocab" && a.status !== "ok") return <p>{t("callToolFailed", { step })}</p>;
+  if (a.kind === "tool" && a.name !== "add_to_vocab") {
     if (a.status !== "ok") return <p>{t("toolFailed", { step })}</p>;
     const kind = (a.summary as CardShown).card_kind ?? "";
     const key = `cardKinds.${kind}` as Parameters<typeof t>[0];
@@ -254,7 +265,8 @@ function Step({
         </section>
       );
     }
-    case "vocab_collect": {
+    case "vocab_collect":
+    case "add_to_vocab": {
       const s = a.summary as WordsCollected;
       if (!s.added?.length && !s.existing?.length) return null;
       return (

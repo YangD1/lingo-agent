@@ -29,6 +29,10 @@ export type WritingReviewed = { submission_id: number; mistakes: number };
 export type ReadingContextRead = { article_id: number; level: string | null; words: number };
 /** A tool call of the tutor (ADR 0015): the card it showed, if any. */
 export type CardShown = { card_id: string | null; card_kind: string | null };
+/** `lookup_word` on a realtime call: the entry found, or what was looked up in vain. */
+export type WordLookedUp = { word: string; word_id?: number | null };
+/** Activity names of a realtime call's tools (backend app/realtime/tools.py, Q61a–c). */
+export const CALL_TOOL_NAMES = ["lookup_word", "add_to_vocab", "end_session"] as const;
 /** Activity names of the tutor's tools (backend app/cards/tools.py). */
 export const TOOL_NAMES = [
   "propose_word_book",
@@ -108,6 +112,8 @@ export type TurnDigest = {
   usedCorrectly: number;
   summaryUpdated: boolean;
   wordsCollected: number;
+  /** Words the tutor looked up on a realtime call. */
+  wordsLookedUp: number;
   /** Steps that failed or were skipped (no model configured). */
   failed: string[];
   skipped: string[];
@@ -130,6 +136,7 @@ export function digest(activities: Activity[]): TurnDigest {
     usedCorrectly: 0,
     summaryUpdated: false,
     wordsCollected: 0,
+    wordsLookedUp: 0,
     failed: [],
     skipped: [],
   };
@@ -148,6 +155,10 @@ export function digest(activities: Activity[]): TurnDigest {
       d.writingReviewed = true;
     } else if (a.name === "reading_context") {
       d.articleRead = true;
+    } else if (a.name === "lookup_word") {
+      d.wordsLookedUp += 1;
+    } else if (a.name === "add_to_vocab") {
+      d.wordsCollected += (a.summary as WordsCollected).added?.length ?? 0;
     } else if (a.kind === "tool") {
       if ((a.summary as CardShown).card_id) d.cardsShown += 1;
     } else if (a.name === "reflect_memory") {

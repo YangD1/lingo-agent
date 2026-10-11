@@ -161,6 +161,36 @@ describe("TurnActivity", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("tells what the tutor did on a realtime call", () => {
+    const onRemoveWord = vi.fn();
+    show({
+      activities: [
+        step("lookup_word", { word: "sustainable", word_id: 5 }, { kind: "tool", call_id: "a" }),
+        step("lookup_word", { word: "blorft", word_id: null }, { kind: "tool", call_id: "b" }),
+        step("lookup_word", {}, { kind: "tool", call_id: "c", status: "failed" }),
+        step(
+          "add_to_vocab",
+          { added: [{ word_id: 5, word: "sustainable" }], existing: [] },
+          { kind: "tool", call_id: "d" },
+        ),
+        step("end_session", {}, { kind: "tool", call_id: "e" }),
+      ],
+      wordsOnList: { 5: true },
+      onRemoveWord,
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "What the tutor did: looked up 2 words · added 1 word to your word list · some steps didn't finish",
+      }),
+    );
+    expect(screen.getByText("Looked up sustainable on the call")).toBeInTheDocument();
+    expect(screen.getByText(/Looked up blorft on the call: not in the dictionary/)).toBeInTheDocument();
+    expect(screen.getByText("Looking up a word failed; the tutor was told and went on.")).toBeInTheDocument();
+    expect(screen.getByText("The tutor suggested hanging up")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove sustainable from your word list" }));
+    expect(onRemoveWord).toHaveBeenCalledWith(5);
+  });
+
   it("lists collected words, each removable, and those already being learned", async () => {
     const onRemoveWord = vi.fn().mockRejectedValueOnce(new Error("offline"));
     const { rerender } = show({

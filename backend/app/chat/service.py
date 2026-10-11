@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adaptive.kc.catalog import GrammarKC
 from app.agents.chat_graph import ChatGraph
 from app.db.models import Article, Attachment, Conversation
+from app.realtime.transcript import INTERRUPTED, VOICE_CALL
 from app.services.vocab.scheduler import day_bounds
 
 
@@ -27,6 +28,8 @@ class ChatMessage:
     id: str | None
     role: Literal["user", "assistant"]
     content: str
+    # A tutor reply on a realtime call that the learner cut short (Q61f).
+    interrupted: bool = False
 
 
 _ROLES: dict[str, Literal["user", "assistant"]] = {"human": "user", "ai": "assistant"}
@@ -222,18 +225,23 @@ def to_chat_messages(messages: list[BaseMessage]) -> list[ChatMessage]:
     """User-visible turns only (system/tool messages are internal).
 
     A turn with tool calls has several tutor messages (ADR 0015 §5); they show as one,
-    under the last one's id, with the calls themselves left out.
+    under the last one's id, with the calls themselves left out. A realtime call's lines
+    are each one reply (its tools are not messages), so they are never joined.
     """
     out: list[ChatMessage] = []
+    joinable = False  # the last one is a chat reply another part may join
     for m in messages:
         if m.type not in _ROLES:
             continue
         role = _ROLES[m.type]
-        if role == "assistant" and out and out[-1].role == "assistant":
+        voice = bool(m.additional_kwargs.get(VOICE_CALL))
+        if role == "assistant" and joinable and not voice:
             parts = [p for p in (out[-1].content, m.text) if p]
             out[-1] = ChatMessage(id=m.id, role=role, content=REPLY_PART_SEPARATOR.join(parts))
             continue
-        out.append(ChatMessage(id=m.id, role=role, content=m.text))
+        interrupted = voice and bool(m.additional_kwargs.get(INTERRUPTED))
+        out.append(ChatMessage(id=m.id, role=role, content=m.text, interrupted=interrupted))
+        joinable = role == "assistant" and not voice
     return out
 
 
