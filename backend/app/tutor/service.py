@@ -81,6 +81,9 @@ def validate(choice: TutorChoice, options: TutorOptions) -> dict[str, Any]:
     name = (choice.name or "").strip() or None
     if name is not None and len(name) > MAX_NAME_LENGTH:
         raise InvalidChoiceError("name", f"at most {MAX_NAME_LENGTH} characters")
+    # It goes into the tutor's prompts: one line of plain text.
+    if name is not None and not name.isprintable():
+        raise InvalidChoiceError("name", "a name is one line of plain text")
     if choice.avatar is not None and choice.avatar not in TUTOR_AVATARS:
         raise InvalidChoiceError("avatar", f"unknown avatar {choice.avatar!r}")
     color = choice.color.lower() if choice.color else None

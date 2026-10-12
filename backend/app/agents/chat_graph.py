@@ -71,6 +71,7 @@ from app.memory.language import DEFAULT_CHAT_LANGUAGE, ChatLanguage
 from app.prompts import load_prompt
 from app.providers.config import TenantProviderContext
 from app.providers.llm import get_llm, get_llm_with_tools
+from app.tutor.prompt import tutor_name
 
 logger = logging.getLogger(__name__)
 
@@ -434,6 +435,7 @@ async def _call(
         tools_section,
         language=state.get("language") or DEFAULT_CHAT_LANGUAGE,
         base=base,
+        name=pick.name if (pick := runtime.context.providers.tutor) else None,
     )
     messages = [SystemMessage(prompt), *history]
     if not any(isinstance(m, HumanMessage) for m in history):
@@ -527,11 +529,12 @@ def system_prompt(
     *,
     language: ChatLanguage = DEFAULT_CHAT_LANGUAGE,
     base: str = "tutor_system",
+    name: str | None = None,
 ) -> str:
-    """The tutor's instructions and which language to talk in, then what it knows about
-    the learner, then (in a practice or planning conversation) what this conversation is
-    for, then what its tools can do."""
-    sections = [load_prompt(base), load_prompt(f"language_{language}")]
+    """The tutor's instructions, the name the learner gave it, and which language to talk
+    in, then what it knows about the learner, then (in a practice or planning
+    conversation) what this conversation is for, then what its tools can do."""
+    sections = [load_prompt(base), *tutor_name(name), load_prompt(f"language_{language}")]
     if learner_context:
         # replace, not format: memories may contain braces.
         sections.append(

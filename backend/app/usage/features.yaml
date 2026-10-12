@@ -80,6 +80,7 @@ features:
   # Counted in characters (qwen3-tts-flash reports characters too). Bailian's qwen-audio
   # also reports tokens, recorded alongside; it makes word pronunciations, not replies
   # (task 64.2b).
+  # Also the tutor page's voice preview (ADR 0032): a sample sentence read aloud.
   read_aloud:
     calls:
       - task: tts

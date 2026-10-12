@@ -21,7 +21,7 @@ string (`?key=`), so every error that may quote the address goes through `redact
 
 import re
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal, cast
 from urllib.parse import quote, urlsplit
 
@@ -179,4 +179,14 @@ def get_realtime(ctx: TenantProviderContext) -> RealtimeRoute:
     for model in resolved:
         if model.kind not in REALTIME_KINDS:  # routes are validated on save; YAML at startup
             raise ProviderConfigError(f"connection {model.connection!r} has no realtime voice API")
-    return RealtimeRoute(ctx.tenant_id, tuple(realtime_target(m) for m in resolved))
+    targets = [realtime_target(m) for m in resolved]
+    tutor = ctx.tutor
+    if tutor is not None and tutor.realtime_voice is not None:
+        # The learner's voice, for the model it was picked for (ADR 0032 §3).
+        targets = [
+            replace(t, voice=tutor.realtime_voice)
+            if f"{t.model.connection}:{t.model.model}" == tutor.realtime_model
+            else t
+            for t in targets
+        ]
+    return RealtimeRoute(ctx.tenant_id, tuple(targets))

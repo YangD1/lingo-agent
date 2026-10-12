@@ -464,6 +464,7 @@ def tts_task(config: ProvidersConfig, ctx: TenantProviderContext, task: str) -> 
 def get_tts(ctx: TenantProviderContext, task: str = "default") -> TextToSpeech:
     """Raises NoModelConfiguredError (code `no_tts_model`) when nothing is configured."""
     config = get_providers_config()
+    asked = task
     task = tts_task(config, ctx, task)
     resolved = resolve_route(config, ctx, "tts", task)
     for model in resolved:
@@ -475,4 +476,20 @@ def get_tts(ctx: TenantProviderContext, task: str = "default") -> TextToSpeech:
         route_for(config, context_for(config, ctx, "tts", task), "tts", task).params.get("voices")
         or {}
     )
+    if asked == "default":  # word audio keeps its route's voices (ADR 0032 §1)
+        voices = _with_tutor_voices(ctx, resolved, voices)
     return TextToSpeech(ctx.tenant_id, tuple(resolved), voices)
+
+
+def _with_tutor_voices(
+    ctx: TenantProviderContext, resolved: list[ResolvedModel], voices: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    """The learner's voices over the route's, for the model they were picked for: the
+    first in the chain; fallbacks keep the route's (ADR 0032 §3)."""
+    tutor = ctx.tutor
+    if tutor is None or not tutor.voices or not resolved:
+        return voices
+    first = f"{resolved[0].connection}:{resolved[0].model}"
+    if tutor.tts_model != first:
+        return voices
+    return {**voices, first: {**voices.get(first, {}), **tutor.voices}}

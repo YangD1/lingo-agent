@@ -157,7 +157,9 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
     if scenario is not None and found is None:
         await refuse("unknown_scenario")
         return
-    instructions = await call_instructions(maker, user.id, found, memory_embedder(ctx))
+    instructions = await call_instructions(
+        maker, user.id, found, memory_embedder(ctx), ctx.tutor.name if ctx.tutor else None
+    )
     connected = await _connect(route, instructions, user.id)
     if connected is None:
         await refuse("realtime_unavailable")

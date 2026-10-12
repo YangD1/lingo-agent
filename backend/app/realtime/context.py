@@ -22,6 +22,7 @@ from app.memory.context import DatabaseLearner, render_learner_context
 from app.memory.embedding import MemoryEmbedder
 from app.prompts import load_prompt
 from app.speaking.scenarios import Scenario
+from app.tutor.prompt import tutor_name
 
 
 async def call_instructions(
@@ -29,6 +30,7 @@ async def call_instructions(
     user_id: uuid.UUID,
     scenario: Scenario | None,
     embedder: MemoryEmbedder | None,
+    name: str | None = None,
 ) -> str:
     rules = get_rules()
     async with maker() as session:
@@ -48,6 +50,7 @@ async def call_instructions(
     opening = scenario.opening if scenario else FREE_OPENING
     parts = [
         load_prompt("realtime_tutor").replace("{opening}", opening).strip(),
+        *tutor_name(name),
         render_speaking(focus),
     ]
     if rendered := render_learner_context(learner):

@@ -250,6 +250,24 @@ class TenantProviderContext:
     # part of cache keys.
     version: str
     sponsor: "Sponsor | None" = None
+    # The learner's own tutor (ADR 0032); never set on a main account's lent context.
+    tutor: "TutorPick | None" = None
+
+
+@dataclass(frozen=True)
+class TutorPick:
+    """What the learner picked for the tutor talking to them (ADR 0032 §1, §3).
+
+    Model refs name a model of whichever chain serves the learner; a pick no longer in
+    that chain is ignored. Voices apply only to the model they were picked for.
+    """
+
+    name: str | None = None
+    chat_model: str | None = None
+    tts_model: str | None = None
+    voices: Mapping[str, str] = field(default_factory=dict)
+    realtime_model: str | None = None
+    realtime_voice: str | None = None
 
 
 @dataclass(frozen=True)
@@ -335,7 +353,7 @@ def resolve_route_with_source(
     has a model and the member's quota for it is used up.
     """
     try:
-        return _resolve_own(config, ctx, section, task)
+        resolved, source = _resolve_own(config, ctx, section, task)
     except NoModelConfiguredError as exc:
         sponsor = ctx.sponsor
         if sponsor is None or exc.code == "models_disabled":
@@ -347,7 +365,28 @@ def resolve_route_with_source(
         if section in sponsor.exhausted:
             raise QuotaExhaustedError(section, task) from None
         billed = sponsor.ctx.tenant_id
-        return [replace(r, billed_tenant_id=billed) for r in resolved], source
+        resolved = [replace(r, billed_tenant_id=billed) for r in resolved]
+    return _picked_first(ctx.tutor, section, task, resolved), source
+
+
+# The chains a learner may pick a model in, and which pick (ADR 0032 §1).
+_PICKS: dict[tuple[str, str], str] = {
+    ("llm", "chat"): "chat_model",
+    ("realtime", "default"): "realtime_model",
+}
+
+
+def _picked_first(
+    tutor: TutorPick | None, section: Section, task: str, resolved: list[ResolvedModel]
+) -> list[ResolvedModel]:
+    """The learner's pick moved to the front, the rest kept as fallbacks in order; a pick
+    not in the chain (any more) changes nothing (ADR 0032 §3)."""
+    pick = _PICKS.get((section, task))
+    picked = getattr(tutor, pick) if tutor is not None and pick else None
+    if picked is None:
+        return resolved
+    first = [r for r in resolved if f"{r.connection}:{r.model}" == picked]
+    return first + [r for r in resolved if r not in first] if first else resolved
 
 
 def own_only(ctx: TenantProviderContext) -> TenantProviderContext:

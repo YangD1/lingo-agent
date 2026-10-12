@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.credentials.crypto import DecryptError, Keyring, connection_aad, get_keyring
-from app.db.models import ProviderConnection, Tenant, TenantModelRoute
+from app.db.models import ProviderConnection, Tenant, TenantModelRoute, TutorProfile
 from app.org.service import active_membership
 from app.org.usage import exhausted_sections
 from app.providers.config import (
@@ -21,6 +21,7 @@ from app.providers.config import (
     RouteSpec,
     Sponsor,
     TenantProviderContext,
+    TutorPick,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ async def load_provider_context(
     """The tenant's connections and routes, and its main account's when it is a member
     (ADR 0031 §5). Quotas are checked here, once per load (§6)."""
     keyring = keyring or get_keyring()
-    own = await _load(session, tenant_id, keyring)
+    own = await _with_tutor(session, await _load(session, tenant_id, keyring))
     membership = await active_membership(session, tenant_id)
     if membership is None:
         return own
@@ -45,6 +46,25 @@ async def load_provider_context(
         version=f"{own.version}:{lent.version}",
         sponsor=Sponsor(ctx=lent, name=sponsor_tenant.name, exhausted=exhausted),
     )
+
+
+async def _with_tutor(session: AsyncSession, ctx: TenantProviderContext) -> TenantProviderContext:
+    """The learner's own tutor picks (ADR 0032 §3). A personal tenant has one learner;
+    the picks are part of the version, so cached models follow a change."""
+    profile = await session.scalar(
+        select(TutorProfile).where(TutorProfile.tenant_id == ctx.tenant_id).limit(1)
+    )
+    if profile is None:
+        return ctx
+    tutor = TutorPick(
+        name=profile.name,
+        chat_model=profile.chat_model,
+        tts_model=profile.tts_model,
+        voices=dict(profile.voices),
+        realtime_model=profile.realtime_model,
+        realtime_voice=profile.realtime_voice,
+    )
+    return replace(ctx, tutor=tutor, version=f"{ctx.version}:t{profile.updated_at.isoformat()}")
 
 
 async def _load(
