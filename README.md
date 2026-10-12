@@ -8,13 +8,14 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 **Stack:** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **Status: P2 complete.** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. It runs practice sets checked by a critic, reviews your writing, rewrites news for your level, diagnoses the root causes of your recurring grammar mistakes and drafts a daily study plan. Voice (P3) comes next. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
+> **Status: P3 complete.** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. It runs practice sets checked by a critic, reviews your writing, rewrites news for your level, diagnoses the root causes of your recurring grammar mistakes and drafts a daily study plan. By voice, it reads aloud with a server voice, scores your shadowing, practises speaking in scenarios, takes real-time calls and quizzes words by ear and by spelling. Enterprise polish (P4) comes next. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
 
 | | |
 |---|---|
 | ![Chat: the tutor corrects a mistake and shows what it did](docs/screenshots/chat-en.png) | ![Dashboard: CEFR level, vocabulary size, streak and today's plan](docs/screenshots/dashboard-en.png) |
 | ![Grammar practice: a wrong translation, graded with the correction and the grammar point](docs/screenshots/practice-en.png) | ![Writing: each sentence corrected, mistakes explained, four scores](docs/screenshots/writing-en.png) |
 | ![Reading: a news article rewritten for A2, words above the level underlined](docs/screenshots/reading-en.png) | ![Vocabulary: today's FSRS queue and word books](docs/screenshots/vocab-en.png) |
+| ![Speaking practice: the summary after a scenario, with mistakes, more natural ways to say things and expressions to try](docs/screenshots/speaking-en.png) | ![A real-time call: subtitles, and the tutor looking up a word and adding it to the word list](docs/screenshots/call-en.png) |
 
 <sub>Screenshots use a demo account with scripted model replies.</sub>
 
@@ -24,10 +25,11 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 - **A tutor that remembers you.** After each reply, a background step decides what is worth remembering (your goals, interests, recurring problems) and summarizes the conversation. The **Memory** page shows everything it keeps, and you can edit or delete any of it.
 - **Grammar tracking.** The same step tags your mistakes against 119 grammar points (A1–C2). Mastery is then updated by an algorithm (BKT and Elo), not scored by the model. The **Learner model** page shows each point with the evidence behind it, and you can delete any piece of evidence.
-- **Vocabulary with FSRS.** Pick a word book (Oxford 3000, Zhongkao, Gaokao, CET-4/6, postgraduate entrance, IELTS, TOEFL or GRE), skip words you already know, and review daily on an FSRS schedule. The back of each card shows the Chinese meanings by part of speech and up to two real example sentences with human translations from Tatoeba; for words without one, AI examples are written ahead for the cards coming up in the next day (a background job you can switch off), or when you ask. Unfamiliar words from your conversations are collected automatically.
-- **Replies you can follow.** Above the message box, switch the tutor between mostly Chinese and mostly English (until you choose, it follows your level: mostly Chinese at A1–A2 or before the placement test); it applies from the next reply. Hover or tap an English word in a reply to see its pronunciation, meanings, base form and the sentence it is in, ask for AI example sentences, or add it to your words. Every reply can be read aloud with the browser's own voices: the best ones on the device are picked automatically (Edge's Natural, Chrome's Google, macOS Premium voices), Chinese and English each in their own, sentence by sentence; under **Settings → Read aloud** (or the gear next to **Read aloud**) you can choose the voices, an American or British accent and the English speed, kept in that browser. If the site has a read-aloud route (Azure Speech, an OpenAI-compatible `/audio/speech` service such as SiliconFlow or OpenAI, or a local Kokoro), replies, words and review cards are read with that server voice instead, sentence by sentence; a sentence read once is cached and not billed again, and if the service fails the browser's voices take over. Learners can turn the server voice off for their browser and clear the recordings made for them; recordings unused for 30 days are deleted. Admins can also generate a whole word book's pronunciations ahead of time under **Settings → Word pronunciations** (with the words, characters, size and an estimated cost shown first; generated in the background in batches, can be paused and resumed, and carries on after a restart), so reading a word aloud plays it with no model call. Replies can also be shown in Chinese or English; translations are saved, so switching back and forth calls no model.
+- **Vocabulary with FSRS.** Pick a word book (Oxford 3000, Zhongkao, Gaokao, CET-4/6, postgraduate entrance, IELTS, TOEFL or GRE), skip words you already know, and review daily on an FSRS schedule. The back of each card shows the Chinese meanings by part of speech and up to two real example sentences with human translations from Tatoeba; for words without one, AI examples are written ahead for the cards coming up in the next day (a background job you can switch off), or when you ask. Unfamiliar words from your conversations are collected automatically. Besides flipping cards, reviews can be taken by ear (the word is read aloud and you pick its meaning from four) or by spelling (you see the meaning, hear the word and type it; wrong letters are marked), or a mix; the answer is checked by code and suggests a rating, which you can change.
+- **Replies you can follow.** Above the message box, switch the tutor between mostly Chinese and mostly English (until you choose, it follows your level: mostly Chinese at A1–A2 or before the placement test); it applies from the next reply. Hover or tap an English word in a reply to see its pronunciation, meanings, base form and the sentence it is in, ask for AI example sentences, or add it to your words. Every reply can be read aloud with the browser's own voices: the best ones on the device are picked automatically (Edge's Natural, Chrome's Google, macOS Premium voices), Chinese and English each in their own, sentence by sentence; under **Settings → Read aloud** (or the gear next to **Read aloud**) you can choose the voices, an American or British accent and the English speed, kept in that browser. If the site has a read-aloud route (Azure Speech, Qwen TTS on Alibaba Cloud Model Studio, an OpenAI-compatible `/audio/speech` service such as SiliconFlow or OpenAI, or a local Kokoro), replies, words and review cards are read with that server voice instead, sentence by sentence; a sentence read once is cached and not billed again, and if the service fails the browser's voices take over. Learners can turn the server voice off for their browser and clear the recordings made for them; recordings unused for 30 days are deleted. Admins can also generate a whole word book's pronunciations ahead of time under **Settings → Word pronunciations** (with the words, characters, size and an estimated cost shown first; generated in the background in batches, can be paused and resumed, and carries on after a restart), so reading a word aloud plays it with no model call. Replies can also be shown in Chinese or English; translations are saved, so switching back and forth calls no model.
 - **Shadowing.** Next to a tutor reply, after each reading paragraph and after each review example sentence, a microphone lets you listen to the sentence and read it back (up to 30 seconds). With pronunciation assessment set up (Azure Speech, under **Settings → Pronunciation**), you get an overall score with accuracy, fluency, completeness and (American English) prosody, each word coloured by how well you said it, and the sounds of a word you tap; words you said wrong can go to your word list and are marked on their review cards. Without it, a speech-to-text model compares what it heard with the sentence and shows the words left out or heard as others, labelled as a rough result. Recordings are not kept; your readings are listed on the learner model page, where you can delete them.
 - **Speaking practice.** On the **Speaking** page, pick a scenario for your level (introducing yourself, a job interview, ordering food, asking for directions and more) or just chat. The tutor plays the other person and speaks first. Hold the microphone button to talk (or tap once to start and again to send; on a desktop, hold the space bar); what you said is transcribed and sent, and the reply is read aloud as it is written. If the transcript got you wrong, fix your last voice message and it is sent again. The tutor keeps the conversation going instead of correcting every sentence; when you finish you get a summary: what went well, your mistakes with corrections, more natural ways to say things, and expressions to try next time, each of which you can shadow or add to your words. Mistakes count as grammar evidence, except in very short voice turns that may be misheard. Without speech-to-text you can practise by typing.
+- **Real-time calls.** With a real-time voice route (OpenAI Realtime, Qwen-Omni Realtime, StepFun or Gemini Live), **Call** on the Speaking page talks with the tutor like a phone call: low latency, you can interrupt, with subtitles. The tutor starts knowing your level, goals, memories and the scenario; during the call it can look up a word and add it to your word list (shown in the call, with undo). After you hang up, the transcript goes through the same reflection as a chat (memory, grammar evidence, new words) and calls of 30 seconds or more get the same summary as speaking practice. Admins set the longest call and the minutes per learner per day (15 and 30 by default; 0 turns calls off). Audio is relayed by the backend and never stored.
 - **Placement test.** About 10 minutes: up to 40 vocabulary and 20 grammar questions, adaptive, with no model involved. It sets your CEFR level. It can also mark your word book's words that you very likely know, all at once: you confirm first, and you can undo it.
 - **Dashboard.** Word book progress, grammar mastery, skill estimates, common mistakes and a study calendar, plus today's conversation with the tutor. The algorithm picks what is worth doing and offers it as quick replies; the tutor talks it over with you, with cards you can confirm. One conversation a day, created with your first message, so opening the dashboard calls no model. Without a model you get the algorithm's picks as links.
 - **Today's plan.** On the dashboard, a plan for today fitted to your daily minutes: due reviews, new words, a practice set, an article, and sometimes a piece of writing, with the estimated time. It is drafted by an algorithm, so opening the dashboard calls no model. Adjust the counts and switch items on or off before confirming; each item links to where you do it and ticks off as you go. Speaking practice is an optional item: switch it on and it counts as done once you have spoken for 5 minutes yourself that day. Tell the tutor in today's conversation that you only have 10 minutes, and it proposes a lighter plan on a card; confirming replaces the plan, and you can undo it.
@@ -51,7 +53,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Usage table:** calls, tokens, errors, fallbacks and latency per day and model.
 - **English and Chinese UI.**
 
-Not built yet (see [docs/PLAN.md](docs/PLAN.md)): real-time voice conversation (P3); evaluation in CI, rate limiting and cost dashboards (P4).
+Not built yet (see [docs/PLAN.md](docs/PLAN.md)): organization accounts with per-member quotas, evaluation in CI, rate limiting and cost dashboards (P4).
 
 ## Quick start (Docker)
 
@@ -131,7 +133,7 @@ make e2e      # Playwright; starts its own backend, frontend and a fake model
 make lint     # ruff + mypy, eslint + TypeScript
 make fmt      # format and autofix backend code
 make ci       # everything CI runs, in the same order
-make eval     # evaluation sets (critic, grading, diagnosis) replayed from recorded model replies
+make eval     # evaluation sets (critic, grading, diagnosis, speaking summary) replayed from recorded model replies
 ```
 
 `make eval-live ARGS='--email <account>'` runs the evaluation sets against the models of one of your accounts instead (add `--record` to save new recordings); it calls real APIs and costs tokens.
@@ -143,15 +145,18 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs backend checks,
 ```mermaid
 flowchart LR
     B[Browser] -->|:3000| F["Next.js<br/>(pages + /api proxy)"]
-    F -->|"HTTP / SSE"| A[FastAPI]
-    A --> G["LangGraph<br/>supervisor → coaches + tools ·<br/>practice · writing · reading ·<br/>diagnosis · placement test"]
+    F -->|"HTTP / SSE / WebSocket"| A[FastAPI]
+    A --> W
+    A --> G["LangGraph<br/>supervisor → coaches + tools ·<br/>practice · writing · reading ·<br/>speaking · diagnosis · placement test"]
+    W["Real-time call relay<br/>(WebSocket)"] -->|"after the call"| R
     G -->|"after each reply"| R["Background reflection<br/>memory · grammar tags ·<br/>word collection"]
     R --> L["Learner model<br/>(BKT / Elo mastery,<br/>grammar graph)"]
     A --> V["Vocabulary and grammar reviews<br/>(FSRS scheduling)"]
     S["Scheduler<br/>feeds · pre-generation ·<br/>daily budget"] --> G
     G --> P["Provider layer<br/>(per-tenant connections,<br/>fallback chains)"]
     R --> P
-    P --> M[("Model APIs:<br/>LLM · vision ·<br/>speech-to-text · embeddings")]
+    W --> P
+    P --> M[("Model APIs:<br/>LLM · vision · embeddings ·<br/>speech-to-text · read-aloud ·<br/>pronunciation · real-time voice")]
     A --> D[("PostgreSQL + pgvector<br/>users · encrypted keys · conversations ·<br/>memories · mastery · cards · words")]
 ```
 
@@ -161,8 +166,9 @@ The browser only talks to Next.js; the login cookie is httpOnly and requests rea
 backend/app/     FastAPI app: api/ routes, agents/ LangGraph graphs (supervisor and coaches),
                  providers/ model access, memory/ long-term memory and reflection,
                  adaptive/ grammar points, mastery, grammar graph, practice sets and diagnosis,
-                 placement/, writing/, services/ vocab (word books, FSRS), news (feeds) and
-                 reading (rewrites, questions), scheduler/ background jobs, cards/ tutor tools,
+                 placement/, writing/, speaking/ speaking practice, realtime/ real-time calls,
+                 services/ vocab (word books, FSRS), news (feeds), reading (rewrites,
+                 questions) and speech (read-aloud cache, shadowing), scheduler/ background jobs, cards/ tutor tools,
                  advice/, dashboard/, usage/, attachments/, prompts/,
                  credentials/ key encryption, db/ models and migrations
 backend/evals/   evaluation sets with recorded model replies (make eval)
@@ -178,7 +184,8 @@ Design documents:
 - [docs/PLAN.md](docs/PLAN.md): the full design and roadmap
 - [docs/plans/P1-mvp.md](docs/plans/P1-mvp.md): the P1 implementation plan
 - [docs/plans/P2-adaptive-reading-writing.md](docs/plans/P2-adaptive-reading-writing.md): the P2 implementation plan
-- [docs/decisions/](docs/decisions): architecture decision records, e.g. [provider layer](docs/decisions/0002-provider-layer.md), [tenant credentials](docs/decisions/0004-tenant-credentials.md), [attachments](docs/decisions/0008-multimodal-attachments.md), [long-term memory](docs/decisions/0009-long-term-memory.md), [learner model](docs/decisions/0010-learner-model.md), [vocabulary and FSRS](docs/decisions/0011-vocabulary-and-fsrs.md), [agent tools and disclosure](docs/decisions/0013-agent-tools-and-disclosure.md), [AI usage labels](docs/decisions/0014-ai-usage-disclosure.md), [confirmation cards](docs/decisions/0015-tutor-tools-and-confirmation-cards.md), [exercise engine](docs/decisions/0021-exercise-engine.md), [grammar graph](docs/decisions/0022-grammar-graph-in-postgres.md), [supervisor and coaches](docs/decisions/0023-supervisor-and-coaches.md), [reading sources and copyright](docs/decisions/0024-reading-sources-and-copyright.md), [scheduler and background budget](docs/decisions/0025-scheduler-and-background-budget.md), [daily plan](docs/decisions/0027-daily-plan.md)
+- [docs/plans/P3-voice.md](docs/plans/P3-voice.md): the P3 implementation plan
+- [docs/decisions/](docs/decisions): architecture decision records, e.g. [provider layer](docs/decisions/0002-provider-layer.md), [tenant credentials](docs/decisions/0004-tenant-credentials.md), [attachments](docs/decisions/0008-multimodal-attachments.md), [long-term memory](docs/decisions/0009-long-term-memory.md), [learner model](docs/decisions/0010-learner-model.md), [vocabulary and FSRS](docs/decisions/0011-vocabulary-and-fsrs.md), [agent tools and disclosure](docs/decisions/0013-agent-tools-and-disclosure.md), [AI usage labels](docs/decisions/0014-ai-usage-disclosure.md), [confirmation cards](docs/decisions/0015-tutor-tools-and-confirmation-cards.md), [exercise engine](docs/decisions/0021-exercise-engine.md), [grammar graph](docs/decisions/0022-grammar-graph-in-postgres.md), [supervisor and coaches](docs/decisions/0023-supervisor-and-coaches.md), [reading sources and copyright](docs/decisions/0024-reading-sources-and-copyright.md), [scheduler and background budget](docs/decisions/0025-scheduler-and-background-budget.md), [daily plan](docs/decisions/0027-daily-plan.md), [speech providers](docs/decisions/0028-speech-providers-tts-pronunciation.md), [speaking practice](docs/decisions/0029-speaking-practice.md), [real-time voice](docs/decisions/0030-realtime-voice.md)
 
 ## Deploying
 

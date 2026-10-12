@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-12 任务 64.4 完成
+
+**做了什么**：查了上次推送的 CI run 38231804049，四个 job 全绿。64.4：临时 Playwright 脚本 `frontend/e2e/_shots.spec.ts`（已删）在 E2E 栈上截了 `docs/screenshots/speaking-{zh,en}.png`（口语小结，`page.route` 把小结换成像样的内容）和 `call-{zh,en}.png`（通话中：字幕、查词、加词）。README 中英：状态改“P3 已完成”、截图表加一行、背词听音 / 拼写、朗读厂商加百炼、新增“实时通话”一条、“还没做”改 P4、架构图和目录说明补语音部分、P3 计划和 ADR 0028–0030 链接。`docs/PLAN.md` P3 标完成，`docs/plans/P3-voice.md` 状态改“已完成”。
+
+**验证**：README 引用的 docs 路径都存在；只改了文档和图片，没跑测试（64.5 的 `make ci` 全跑）。
+
+**未完成**：64.5（`make ci`、推送、CI 全绿、Docker 重建含 WebSocket 经前端代理实测、看板进入 P4）。本地领先 origin（d224020 + 本次提交），未推送。
+
+**下一步**：64.5。
+
+**踩坑**：`next build` 会类型检查 `e2e/` 下的文件，临时用例有类型错误时 Playwright 只报“webServer 起不来”，要自己跑 `tsc --noEmit` 看原因。`launchOptions` 不能放在 `test.describe` 里的 `test.use`，要放顶层。假实时厂商的字幕是逐词推的，要按 `item_id` 过滤整句。截假通话：`page.routeWebSocket(/\/api\/speech\/realtime/, ...)` 加 `connectToServer()` 就能在浏览器这边改服务端推来的消息。
+
+---
+
 ## 2026-10-12 任务 64.3 完成
 
 **做了什么**：用户允许开发期间保留百炼 key（只存在本机记忆 `bailian-dev-key.md`，不进仓库），Q64t–x 按推荐。64.3.1（6ea6caf）`ResolvedModel.deployment_defaults` + `tts._timeout`：qwen-audio 的 60 秒只压过 YAML 全局默认、不压过租户填的。64.3.2（8efc35b）预生成节奏从请求开始计时、预估加 `seconds_per_word`、设置页按较慢者算并按小时显示、失败记 warning。64.3.3（4840c2c）口语小结：提示词不改标点 / 通话断句说明（`prompts/speaking_summary_call.md`），`summary.check` 丢掉只改标点大小写和通话里只补被切部分的条目；新评估器 `evals/speaking_summary.py` 6 条，用临时账号 + qwen-plus 录制 6/6（临时账号已删）。64.3.4 `features.yaml` 实时 8,000 / 400、口语轮 1,500 / 80，ADR 0029 / 0030 落地记录，README 中英 `ASR_HF_ENDPOINT`。

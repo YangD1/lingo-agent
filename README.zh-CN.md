@@ -8,13 +8,14 @@
 
 **技术栈：** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **状态：P2 已完成。** 私教能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级；能出经过 critic 检查的语法练习、批改写作、按你的等级改写新闻，还会诊断你反复出错的语法点的根因，并按你每天的时间排好今天的计划。下一阶段是语音（P3）。见[现在能做什么](#现在能做什么)和[路线图](docs/PLAN.md)。
+> **状态：P3 已完成。** 私教能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级；能出经过 critic 检查的语法练习、批改写作、按你的等级改写新闻，还会诊断你反复出错的语法点的根因，并按你每天的时间排好今天的计划。语音方面，能用服务端的声音朗读、给你的跟读打分、按情景练口语、实时打电话，背单词也能听音辨词和拼写。下一阶段是企业级打磨（P4）。见[现在能做什么](#现在能做什么)和[路线图](docs/PLAN.md)。
 
 | | |
 |---|---|
 | ![对话：私教纠错，并列出它做了什么](docs/screenshots/chat-zh.png) | ![看板：CEFR 等级、词汇量、连续学习和今天的学习](docs/screenshots/dashboard-zh.png) |
 | ![语法练习：翻译题答错，给出改正和对应的语法点](docs/screenshots/practice-zh.png) | ![写作：逐句改正、点错误看讲解、四项评分](docs/screenshots/writing-zh.png) |
 | ![阅读：新闻按 A2 改写，超出等级的词标了下划线](docs/screenshots/reading-zh.png) | ![背单词：今天的 FSRS 队列和词书](docs/screenshots/vocab-zh.png) |
+| ![口语练习：一个情景结束后的小结，有说错的和改法、更地道的说法、下次可以试的表达](docs/screenshots/speaking-zh.png) | ![实时通话：有字幕，私教查了一个词并加入生词本](docs/screenshots/call-zh.png) |
 
 <sub>截图用的是演示账号，模型回复是预先写好的。</sub>
 
@@ -24,10 +25,11 @@
 
 - **记得你的私教**：每次回复后，后台会判断哪些值得记住（你的目标、兴趣、反复出现的问题），并给会话写摘要。**记忆**页面列出它记住的全部内容，每一条都可以修改或删除。
 - **语法跟踪**：同一个后台步骤会把你的错误标到 119 个语法点上（A1–C2）。掌握度由算法（BKT 和 Elo）根据这些证据更新，不由模型打分。**学习者模型**页面列出每个语法点和背后的证据，每条证据都可以删除。
-- **FSRS 背单词**：选一本词书（牛津 3000、中考、高考、四级、六级、考研、雅思、托福、GRE），先筛掉认识的词，再按 FSRS 安排每天的复习。卡片背面按词性列出中文释义，下面最多两句来自 Tatoeba 的真实例句（人工翻译）；没有真例句的词，接下来一天要复习或要学的会在后台预先写好 AI 例句（可以关），其余的点了才生成。对话里遇到的生词会自动收进生词本。
-- **读得懂私教的话**：输入框上方可以切换“多说中文 / 多说英文”（没选过时按等级：A1–A2 或还没定级时多说中文），从下一句开始生效。私教回复里的英文单词，悬停或点按就能看音标、释义、原形和原句，还可以生成 AI 例句、一键加入生词本。每条回复都能朗读：用浏览器自带的声音，自动挑这台设备上最好的（Edge 的 Natural、Chrome 的 Google、macOS 的 Premium 声音），中英文各用各的声音，逐句读；在**设置 → 朗读**（或朗读按钮旁的齿轮）里可以自己选声音、美音或英音、英文语速，设置存在当前浏览器。部署方配了朗读路由（Azure 语音、硅基流动或 OpenAI 等兼容 `/audio/speech` 的服务，或本地 Kokoro）时，回复、单词和复习卡片改用服务端的声音逐句朗读；读过的句子会缓存、不再计费，朗读服务出错时自动换回浏览器的声音。学习者可以在自己的浏览器里关掉服务端朗读，也可以清除为自己生成的录音；30 天没人播的录音会自动删除。部署方还可以在**设置 → 单词发音**里把整本词书的单词发音提前生成好（先看词数、字符数、预计占用和按单价估算的费用，后台分批生成，可暂停、继续，重启后接着跑），学习者点单词朗读时直接播放，不再调用模型。回复也能切换看中文版或英文版，译文保存下来，来回切换不再调用模型。
+- **FSRS 背单词**：选一本词书（牛津 3000、中考、高考、四级、六级、考研、雅思、托福、GRE），先筛掉认识的词，再按 FSRS 安排每天的复习。卡片背面按词性列出中文释义，下面最多两句来自 Tatoeba 的真实例句（人工翻译）；没有真例句的词，接下来一天要复习或要学的会在后台预先写好 AI 例句（可以关），其余的点了才生成。对话里遇到的生词会自动收进生词本。除了翻卡片，复习还可以切到听音辨词（读出单词，从四个释义里选）、拼写（看释义、听发音，输入单词，标出拼错的字母）或混合；对错由代码判，并预选一个评分，你可以改。
+- **读得懂私教的话**：输入框上方可以切换“多说中文 / 多说英文”（没选过时按等级：A1–A2 或还没定级时多说中文），从下一句开始生效。私教回复里的英文单词，悬停或点按就能看音标、释义、原形和原句，还可以生成 AI 例句、一键加入生词本。每条回复都能朗读：用浏览器自带的声音，自动挑这台设备上最好的（Edge 的 Natural、Chrome 的 Google、macOS 的 Premium 声音），中英文各用各的声音，逐句读；在**设置 → 朗读**（或朗读按钮旁的齿轮）里可以自己选声音、美音或英音、英文语速，设置存在当前浏览器。部署方配了朗读路由（Azure 语音、阿里云百炼的通义千问 TTS、硅基流动或 OpenAI 等兼容 `/audio/speech` 的服务，或本地 Kokoro）时，回复、单词和复习卡片改用服务端的声音逐句朗读；读过的句子会缓存、不再计费，朗读服务出错时自动换回浏览器的声音。学习者可以在自己的浏览器里关掉服务端朗读，也可以清除为自己生成的录音；30 天没人播的录音会自动删除。部署方还可以在**设置 → 单词发音**里把整本词书的单词发音提前生成好（先看词数、字符数、预计占用和按单价估算的费用，后台分批生成，可暂停、继续，重启后接着跑），学习者点单词朗读时直接播放，不再调用模型。回复也能切换看中文版或英文版，译文保存下来，来回切换不再调用模型。
 - **跟读**：私教回复旁、阅读文章每段末尾、复习卡片例句后面都有麦克风，可以先听示范、再录自己读一遍（最长 30 秒）。部署方配了发音评测（Azure 语音，在**设置 → 发音评测**）时，能看到总分和准确度、流利度、完整度（美音还有韵律），每个词按读得好坏着色，点开一个词能看每个音的得分；读不准的词可以一键加入生词本，复习卡片上也会标出来。没配时用语音转写对比，标出漏读和读成别的词，并注明是粗略结果。录音不保存；跟读记录在学习者模型页，可以逐条删除或清空。
 - **口语练习**：在“口语”页选一个适合你等级的情景（自我介绍、面试、点餐、问路等），或者自由聊。私教扮演对方、先开口。按住麦克风说话（或点一下开始、再点一下发送；电脑上可以按住空格），说完自动转写并发送，私教的回复边生成边朗读。转写错了可以“改一下”最后一条语音，改好后重新发送。私教不逐句纠错，只顺着把对话接下去；结束后给一份小结：说得好的、说错的和改法、更地道的说法、下次可以试的表达，都可以跟读，表达可以加入生词本。说错的地方计入语法证据，太短、可能听错的语音不算。没配语音转写时可以打字练。
+- **实时通话**：部署方配了实时语音路由（OpenAI Realtime、通义千问 Omni Realtime、阶跃 StepFun 或 Gemini Live）时，在“口语”页点**打电话**，就能像打电话一样和私教聊：延迟低、可以打断、有字幕。私教一接通就知道你的等级、目标、记忆和情景；通话中能查词、把词加进生词本（通话界面上看得到，可以撤销）。挂断后，转写文本和普通对话一样进反思（记忆、语法证据、收词），30 秒以上的通话还会生成和口语练习一样的小结。管理员可以设单次通话上限和每人每天的分钟数（默认 15 和 30 分钟，填 0 关闭）。音频由后端转发，不保存。
 - **入学测**：大约 10 分钟，最多 40 道词汇题和 20 道语法题，自适应出题，不调用模型。结果会更新你的 CEFR 等级；还可以把词书里你大概率认识的词一次性标为熟词，要先确认，也可以撤销。
 - **看板**：词书进度、语法掌握、技能估计、常错语法点和学习打卡，还有“今天的学习”：和私教的对话框。算法挑出值得做的事，作为快捷回复给你；私教和你商量，用卡片提议，你确认才执行。每天一段对话，你发第一条消息时才创建，所以打开看板不调模型。没配模型时显示算法挑的建议链接。
 - **今天的计划**：看板上按你每天的学习时间排好今天要做的：到期复习、新词、一组练习、一篇阅读，有时还有一篇写作，并估好时间。计划由算法排，打开看板不调模型。确认前可以调数量、开关某一项；每项都能直接点过去做，做完自动打勾。口语练习是可选的一项：打开后，当天自己说满 5 分钟就算完成。在“今天的学习”里跟私教说“今天只有 10 分钟”，私教会用卡片提一份更轻的计划，确认后替换，也可以撤销。
@@ -51,7 +53,7 @@
 - **用量表**：按天、按模型统计调用次数、token、错误、fallback 次数和延迟。
 - **中英文界面**。
 
-还没做（规划见 [docs/PLAN.md](docs/PLAN.md)）：实时语音对话（P3）；评估集进 CI、限流和成本看板（P4）。
+还没做（规划见 [docs/PLAN.md](docs/PLAN.md)）：组织账号和按成员分配额度、评估集进 CI、限流和成本看板（P4）。
 
 ## 快速开始（Docker）
 
@@ -131,7 +133,7 @@ make e2e      # Playwright；自己启动后端、前端和一个假模型
 make lint     # ruff + mypy、eslint + TypeScript
 make fmt      # 格式化并自动修复后端代码
 make ci       # 按 CI 的顺序跑一遍 CI 的全部检查
-make eval     # 评估集（critic、批改、诊断），回放录好的模型回复
+make eval     # 评估集（critic、批改、诊断、口语小结），回放录好的模型回复
 ```
 
 `make eval-live ARGS='--email <账号>'` 改用你某个账号配置的模型跑评估集（加 `--record` 保存新的录制）；它会调用真实 API，要花 token。
@@ -143,15 +145,18 @@ CI（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）在每次推送到
 ```mermaid
 flowchart LR
     B[浏览器] -->|:3000| F["Next.js<br/>（页面 + /api 代理）"]
-    F -->|"HTTP / SSE"| A[FastAPI]
-    A --> G["LangGraph<br/>supervisor → 各 coach + 工具 ·<br/>练习 · 写作 · 阅读 ·<br/>诊断 · 入学测"]
+    F -->|"HTTP / SSE / WebSocket"| A[FastAPI]
+    A --> W
+    A --> G["LangGraph<br/>supervisor → 各 coach + 工具 ·<br/>练习 · 写作 · 阅读 ·<br/>口语 · 诊断 · 入学测"]
+    W["实时通话中继<br/>（WebSocket）"] -->|"挂断后"| R
     G -->|"每次回复后"| R["后台反思<br/>记忆 · 语法打标 ·<br/>收词"]
     R --> L["学习者模型<br/>（BKT / Elo 掌握度、<br/>语法图谱）"]
     A --> V["单词和语法点复习<br/>（FSRS 调度）"]
     S["定时任务<br/>抓取订阅 · 预生成 ·<br/>每日上限"] --> G
     G --> P["provider 层<br/>（按租户的连接、<br/>fallback 链）"]
     R --> P
-    P --> M[("模型 API：<br/>LLM · 看图 ·<br/>语音转写 · embedding")]
+    W --> P
+    P --> M[("模型 API：<br/>LLM · 看图 · embedding ·<br/>语音转写 · 朗读 ·<br/>发音评测 · 实时语音")]
     A --> D[("PostgreSQL + pgvector<br/>用户 · 加密的 key · 会话 ·<br/>记忆 · 掌握度 · 卡片 · 词库")]
 ```
 
@@ -161,7 +166,8 @@ flowchart LR
 backend/app/     FastAPI 应用：api/ 路由，agents/ LangGraph 图（supervisor 和各 coach），
                  providers/ 模型访问，memory/ 长期记忆与反思，
                  adaptive/ 语法点、掌握度、语法图谱、练习组和诊断，placement/，writing/，
-                 services/ 下的 vocab（词书与 FSRS）、news（订阅源）、reading（改写和理解题），
+                 speaking/ 口语练习，realtime/ 实时通话，services/ 下的 vocab（词书与 FSRS）、
+                 news（订阅源）、reading（改写和理解题）、speech（朗读缓存、跟读），
                  scheduler/ 定时任务，cards/ 私教工具，advice/，dashboard/，
                  usage/，attachments/，prompts/，credentials/ key 加密，db/ 模型和迁移
 backend/evals/   评估集和录好的模型回复（make eval）
@@ -177,7 +183,8 @@ docs/            PLAN.md（设计）、PROGRESS.md（进度）、decisions/（AD
 - [docs/PLAN.md](docs/PLAN.md)：完整设计和路线图
 - [docs/plans/P1-mvp.md](docs/plans/P1-mvp.md)：P1 实施计划
 - [docs/plans/P2-adaptive-reading-writing.md](docs/plans/P2-adaptive-reading-writing.md)：P2 实施计划
-- [docs/decisions/](docs/decisions)：架构决策记录，比如 [provider 层](docs/decisions/0002-provider-layer.md)、[租户凭据](docs/decisions/0004-tenant-credentials.md)、[附件](docs/decisions/0008-multimodal-attachments.md)、[长期记忆](docs/decisions/0009-long-term-memory.md)、[学习者模型](docs/decisions/0010-learner-model.md)、[词库与 FSRS](docs/decisions/0011-vocabulary-and-fsrs.md)、[agent 工具与公示](docs/decisions/0013-agent-tools-and-disclosure.md)、[AI 用量标记](docs/decisions/0014-ai-usage-disclosure.md)、[确认卡](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)、[练习引擎](docs/decisions/0021-exercise-engine.md)、[语法图谱](docs/decisions/0022-grammar-graph-in-postgres.md)、[supervisor 与各 coach](docs/decisions/0023-supervisor-and-coaches.md)、[阅读来源与版权](docs/decisions/0024-reading-sources-and-copyright.md)、[定时任务与后台上限](docs/decisions/0025-scheduler-and-background-budget.md)、[每日计划](docs/decisions/0027-daily-plan.md)
+- [docs/plans/P3-voice.md](docs/plans/P3-voice.md)：P3 实施计划
+- [docs/decisions/](docs/decisions)：架构决策记录，比如 [provider 层](docs/decisions/0002-provider-layer.md)、[租户凭据](docs/decisions/0004-tenant-credentials.md)、[附件](docs/decisions/0008-multimodal-attachments.md)、[长期记忆](docs/decisions/0009-long-term-memory.md)、[学习者模型](docs/decisions/0010-learner-model.md)、[词库与 FSRS](docs/decisions/0011-vocabulary-and-fsrs.md)、[agent 工具与公示](docs/decisions/0013-agent-tools-and-disclosure.md)、[AI 用量标记](docs/decisions/0014-ai-usage-disclosure.md)、[确认卡](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)、[练习引擎](docs/decisions/0021-exercise-engine.md)、[语法图谱](docs/decisions/0022-grammar-graph-in-postgres.md)、[supervisor 与各 coach](docs/decisions/0023-supervisor-and-coaches.md)、[阅读来源与版权](docs/decisions/0024-reading-sources-and-copyright.md)、[定时任务与后台上限](docs/decisions/0025-scheduler-and-background-budget.md)、[每日计划](docs/decisions/0027-daily-plan.md)、[语音厂商](docs/decisions/0028-speech-providers-tts-pronunciation.md)、[口语练习](docs/decisions/0029-speaking-practice.md)、[实时语音](docs/decisions/0030-realtime-voice.md)
 
 ## 部署
 
