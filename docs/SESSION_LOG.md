@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-12 任务 64.2a 百炼 qwen-audio 朗读
+
+**做了什么**：64.2a.1–64.2a.5 全部完成，每步一个提交。`backend/app/providers/tts.py`：第三种端点（`is_qwen_audio` 按模型名判断，`_qwen_audio` POST `tts_url` → 读 `output.audio.url` → 不带 key 的 GET；`qwen_audio_prompt` 引号转义；`retry_after` + 429 重试一次；`QWEN_AUDIO_VOICES` 描述、`QWEN_AUDIO_SEED`）。`providers/config.py` `SPEECH_URL_PARAMS` / `NON_SDK_PARAMS`；`credentials/service.py` `CallParams.tts_url` + `net_guard.validate_speech_url`，路由参数拒绝，`VoiceName` 上限 300。两份 YAML qwen 预设加模型。`services/speech/word_audio.py` `max_rate` 封顶 120 次 / 分钟。`fake_llm.py` 假百炼两步接口，`speech.spec.ts` 一条 E2E。ADR 0028 落地记录、`features.yaml`、PLAN、`agent-tools.md` 已同步；设置页声音提示加“qwen-audio 填英文描述”。
+
+**验证**：后端单测 998、`test_model_settings_api.py` 57、`test_word_audio*.py` 18、`speech.spec.ts` 8 条全过；ruff、mypy、eslint、tsc 干净。全量 pytest / E2E 留给 64.5 的 `make ci`。
+
+**未完成**：Q64n——设置页没有连接参数编辑，`tts_url`（和 `realtime_url` 一样）目前只能用 API 填，是否给 qwen 预设加“工作空间 ID”输入框待用户定。64.2–64.5。本地领先 origin 10 个提交，未推送。
+
+**下一步**：用户答 Q64n；64.2 冒烟要百炼 key 和 WorkspaceId（不存），先 `make asr-up`；重点听同一 seed 下逐句声音是否一致、试一句像指令的话、量单次耗时（默认超时 20 秒）。
+
+**踩坑**：`qwen-audio-3.1-tts-next` 名字里有 “tts”，`default_voice` 必须先判 qwen-audio 再判 “tts”，否则会给 OpenAI 的 coral。`fake_llm.py` 本身有 3 处原有的超长行（不在 ruff 范围内），别误以为是新引入的。Bash 里 eslint / tsc 用 `sh node_modules/.bin/eslint`（PATH 加 nvm 的 bin），直接用 node 跑 `.bin` 下的 shim 会语法错误。
+
+---
+
 ## 2026-10-12 任务 64 拆分、64.1 完成、64.2a 方案
 
 **做了什么**：任务 64 拆成 64.1–64.5（Q64a–g 按推荐）。64.1 完成并提交 bfe0303：`frontend/e2e/p3-demo.spec.ts` 串起整个 P3；`use-attachments.test.ts` 五个 `waitFor` 加 4 秒超时（Q64f）。Docker 已按任务 63 的代码重建（先 backend 后 frontend，前端约 10 分钟），`/healthz`、前端 200，迁移 head `dc7609c9257f`。用户改主意：朗读不用 OpenAI，改接**百炼 `qwen-audio-3.1-tts-next`**，插入 64.2a（Q64h–m 按推荐确认，计划细到文件和函数，见看板）。用户另提“组织账号与额度”需求，记为任务 65（P4 第一项，方向已定：邀请加入、按能力分配额度、子账号自己配的优先）。

@@ -107,3 +107,16 @@ Q57a–g 按推荐确认。和上文的差异与补充：
 - **E2E**（57.5）：`fake_llm.py` 加了假的 Azure 评测接口（固定把 “went” 评为读不准）；Playwright 用 Chromium 假麦克风跑真实的录音和编码，评测和粗略两种各一条。E2E 抓出前端把粗略结果的逐词字段当成 `error`（实际是 `status`）导致页面崩溃，已修，`wordIssue()` 统一读两种。
 - **未验证**：真实 Azure key、Safari 和 Firefox 上的 AudioWorklet 录音。
 
+## 落地记录（百炼 qwen-audio，任务 64.2a，2026-10-12）
+
+朗读改接阿里百炼 `qwen-audio-3.1-tts-next`（用户决定），Q64h–m 按推荐确认。和上文的差异与补充：
+
+- **接法**（Q64h）：不新增连接类型，沿用 `openai_compatible`（qwen 预设），模型名以 `qwen-audio` 开头就走第三种端点。接口只在工作空间自己的域名上（只有北京区），所以连接加参数 `tts_url`（`https://<WorkspaceId>.cn-beijing.maas.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer`）：和 `realtime_url` 一样存连接时按 base_url 的规则校验（https、私网开关），不进模型 SDK 参数，路由参数里出现就拒绝。没填时这个模型报配置错误、轮到路由里下一个。设置页目前没有连接参数编辑，只能走 API 填（Q64n 待定）。
+- **两步**：`POST {tts_url}`，body `model` + `input{text_prompt, format=mp3, sample_rate=24000, channels=1, rate, seed}`，同步、非流式；返回 `output.audio.url`（24 小时有效的签名链接），再 GET 下载，下载不带 key。非 200、没有链接、下载失败、空音频都算这个模型失败。
+- **声音**（Q64i）：没有预置声音，声音是一句英文描述，写在 `text_prompt` 开头；内置三条（en-US 美式、en-GB 英式、zh-CN 普通话，都是女老师，和其他厂商保持同性别），路由 `voices` 覆盖填的就是描述（上限因此从 128 放宽到 300 字符）。`seed` 固定，让同一段回复逐句合成的声音尽量一致；冒烟时听，不一致再改用参考音频。
+- **防止读成指令**（Q64j）：`text_prompt` = `<描述> reads the following text aloud word for word, with no sound effects or background sound: "<原文>"`，原文里的反斜杠和双引号转义。
+- **语速与格式**（Q64k）：语速映射到 `rate`（夹到 0.5–2）；mp3、24 kHz、单声道，和现有缓存一致。
+- **限速**（Q64l）：百炼按账号每秒 3 次。碰到 429 按 `Retry-After`（没有就 1 秒，最多 10 秒）等一次再试一次，仍 429 就算失败、轮到下一个模型。单词发音预生成用到 qwen-audio 时，速度不管填多少都封顶每分钟 120 次（`word_audio.max_rate`），给同时朗读的私教回复留余量。
+- **计费与用量**：百炼按 token 计费（输入 6 元 / 百万、输出 12 元 / 百万），但响应只给 `usage.duration`（秒），不给 token；用量仍按字符记，`duration` 不存，费用估计等冒烟实测后再定。
+- **测试**：单测覆盖 prompt 转义、默认描述、两步请求、429 重试、各种失败、没填 `tts_url`；`fake_llm.py` 加假的百炼接口，`speech.spec.ts` 一条 E2E。
+- **未验证**：真实百炼 key（留给 64.2 冒烟）、同一 seed 下逐句声音是否一致、单次合成耗时（默认超时 20 秒，太短再给 tts 设 `task_params`）。

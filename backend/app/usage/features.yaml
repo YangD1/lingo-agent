@@ -77,6 +77,8 @@ features:
 
   # Server read-aloud, one sentence per call; repeats come from the cache and cost
   # nothing (ADR 0028 §3). Without a tts route the browser reads aloud: no call, no badge.
+  # Counted in characters for every vendor; Bailian's qwen-audio bills by token but only
+  # reports seconds of audio, so its cost is estimated from characters too (task 64.2a).
   read_aloud:
     calls:
       - task: tts
