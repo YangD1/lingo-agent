@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { voiceLevel } from "@/lib/voice-level";
+
 import {
+  createCallPlayer,
   createFramer,
   createPlaybackClock,
   createResampler,
@@ -133,5 +136,42 @@ describe("createPlaybackClock", () => {
     clock.newReply();
     clock.schedule(3, 1);
     expect(clock.playedMs(3.15)).toBe(100);
+  });
+});
+
+describe("createCallPlayer", () => {
+  it("plays through an analyser the avatar's mouth follows, until it closes", () => {
+    const connected: unknown[] = [];
+    let analyser: { connect: (to: unknown) => void } | null = null;
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        currentTime = 0;
+        destination = { name: "speakers" };
+        resume = () => Promise.resolve();
+        close = () => Promise.resolve();
+        createAnalyser = () =>
+          (analyser = {
+            connect: (to: unknown) => connected.push(["analyser", to]),
+            getFloatTimeDomainData: (samples: Float32Array) => samples.fill(0.3),
+          } as never);
+        createBuffer = () => ({ duration: 0.1, copyToChannel: () => {} });
+        createBufferSource = () => ({
+          connect: (to: unknown) => connected.push(["source", to]),
+          start: () => {},
+          stop: () => {},
+        });
+      },
+    );
+    const player = createCallPlayer();
+    player.play(toPcm16(Float32Array.from([0.5, -0.5])), 24000);
+    expect(connected).toEqual([
+      ["analyser", { name: "speakers" }],
+      ["source", analyser],
+    ]);
+    expect(voiceLevel(0)).toBeCloseTo(1);
+    player.close();
+    expect(voiceLevel(0)).toBe(0);
+    vi.unstubAllGlobals();
   });
 });

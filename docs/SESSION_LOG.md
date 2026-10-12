@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-13 任务 66.4 完成（私教形象引擎）
+
+**做了什么**：按用户决定（形象一律是 Lingo 猫，靠装扮区分；学习者选的颜色是毛色，装扮颜色固定）写了 `frontend/src/components/tutor/`：`avatar-state.ts`（纯函数动画状态机：待机眨眼呼吸 / 听 / 想 / 说 / 开心一次性跳 + 星星，指数缓动，嘴快开慢合）、`avatar-draw.ts`（100×100 盒子里画猫 + 5 套装扮：cat 原样、classic 眼镜铅笔领结、casual 卫衣帽耳机、sporty 发带哨子、artsy 贝雷帽围巾；`paletteFor` 从毛色推阴影高光）、`tutor-avatar.tsx`（Canvas 按 devicePixelRatio、rAF 循环、reduced motion / 动画关只画一帧、页面隐藏停帧）。`lib/voice-level.ts` 音量总线；`speech.ts` 服务端朗读接分析器、浏览器朗读用 boundary 脉冲（没有就 4Hz 摆动）；`realtime-audio.ts` 通话播放器在 destination 前插分析器。
+
+**未完成**：66.5（“我的私教”页，色板用 `FUR_SWATCHES`）、66.6（挂载）、66.7（E2E、文档、推送、CI、Docker）。未推送的提交：d28cddb 之后的 66.1–66.4。
+
+**下一步**：等用户看完预览图（`/tmp/avatar-preview/preview.png`、`big.png`，不入库）的反馈，再开 66.5。
+
+**踩坑**：把 `<audio>` 接进 suspended 的 AudioContext 会让朗读没声音，所以要先 `resume()` 确认 running 才接，且只有页面上有动的形象（`watchLevel`）时才接。动画里眨眼和说话点头要加在返回的副本上，不能写回持久 pose，否则会累积。Bash 里跑前端命令要先 `unset -f pnpm node npm npx` 再把 nvm 的 node 加进 PATH。预览脚本要放在 `frontend/` 下跑才能 import `@playwright/test`。
+
+---
+
 ## 2026-10-12 任务 65.8 完成，任务 65 完成
 
 **做了什么**：新增 `frontend/e2e/org.spec.ts`（两个浏览器上下文：主账号建邀请 → 成员打开链接预览、加入 → 路由卡片和 `AiBadge` 显示“由 Ada 提供” → 聊天 → 主账号看到成员用量、把文本日上限调到 10、用量卡片切到成员 → 成员聊天被拒、路由卡片提示用尽 → 成员自己加连接后照常聊 → 退出，主账号显示已离开），单独跑通。README 中英加“把模型分给成员用”、用量表说明、ADR 0031 链接；ADR 0031 加落地记录；PLAN P4 组织账号标完成。

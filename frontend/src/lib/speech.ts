@@ -1,6 +1,14 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 import { api, apiFetch, ApiError } from "@/lib/api";
+import {
+  analyserLevel,
+  browserMouth,
+  levelWatched,
+  type BrowserMouth,
+  setLevelSource,
+  type LevelSource,
+} from "@/lib/voice-level";
 import { isOnline, pickVoices, type VoiceChoice, type VoiceLike } from "@/lib/voices";
 
 /**
@@ -502,6 +510,54 @@ function unlockPlayer() {
   player ??= new Audio();
   player.src = SILENCE;
   player.play()?.catch(() => {}); // refused here: refused later too, and caught there
+  if (levelWatched()) measurePlayer(player);
+}
+
+// The player's loudness, for the avatar's mouth (ADR 0032 §4), once it is measured.
+let playerLevel: LevelSource | null = null;
+let measuring = false;
+
+/**
+ * Routes `element` through an analyser. An element routed into an audio context is heard
+ * only while that context runs, so it is routed only once the context does (it started
+ * inside a click); otherwise it stays as it was and the mouth is made up instead.
+ */
+function measurePlayer(element: HTMLAudioElement) {
+  if (measuring || typeof AudioContext === "undefined") return;
+  measuring = true;
+  let context: AudioContext;
+  try {
+    context = new AudioContext();
+  } catch {
+    return;
+  }
+  void Promise.resolve(context.resume())
+    .then(() => {
+      if (context.state !== "running") throw new Error("audio context not running");
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      context.createMediaElementSource(element).connect(analyser);
+      analyser.connect(context.destination);
+      playerLevel = analyserLevel(analyser);
+    })
+    .catch(() => {
+      measuring = false; // try again on the next click
+      void context.close();
+    });
+}
+
+// Stops the level source of what is being read now.
+let quiet: (() => void) | null = null;
+
+/** The avatar's mouth follows `source` until `quietLevel`. */
+function speakLevel(source: LevelSource) {
+  quiet?.();
+  quiet = setLevelSource(source);
+}
+
+function quietLevel() {
+  quiet?.();
+  quiet = null;
 }
 
 // How to drop the sentence playing now when cut off.
@@ -518,6 +574,7 @@ function playAudio(audio: Blob, rate = 1): Promise<boolean> {
     const end = (ok: boolean) => {
       if (stopAudio !== drop) return;
       stopAudio = null;
+      quietLevel();
       element.onended = element.onerror = null;
       URL.revokeObjectURL(url);
       resolve(ok);
@@ -532,6 +589,7 @@ function playAudio(audio: Blob, rate = 1): Promise<boolean> {
     // Loading a source resets playbackRate to the default rate, so set both.
     element.defaultPlaybackRate = element.playbackRate = rate;
     element.src = url;
+    speakLevel(playerLevel ?? browserMouth(performance.now()).level);
     Promise.resolve(element.play()).catch(() => end(false));
   });
 }
@@ -596,13 +654,22 @@ function play(
 
   queue.forEach((item, i) => {
     const utterance = toUtterance(item);
+    // No audio to measure: each word the browser reaches opens the avatar's mouth.
+    let mouth: BrowserMouth | null = null;
     utterance.onstart = () => {
       if (!live()) return;
       started[i] = true;
       clearTimeout(timer);
+      mouth = browserMouth(performance.now());
+      speakLevel(mouth.level);
+    };
+    utterance.onboundary = (event) => {
+      if (live() && event.name !== "sentence") mouth?.pulse(performance.now());
     };
     utterance.onend = () => {
-      if (live()) (silent(i) ? fail : done)(i);
+      if (!live()) return;
+      quietLevel();
+      (silent(i) ? fail : done)(i);
     };
     utterance.onerror = (event) => {
       // Cut off by `cancel()`: a new reading, or the stop button.
@@ -624,6 +691,7 @@ function cutOff() {
   stopRequests?.abort();
   stopRequests = null;
   stopAudio?.();
+  quietLevel();
   if (canSpeak()) window.speechSynthesis.cancel();
 }
 

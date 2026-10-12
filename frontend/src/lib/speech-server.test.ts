@@ -328,3 +328,88 @@ describe("reading a reply while it streams (task 59.1)", () => {
     expect(requests.map((r) => r.text)).toEqual(["One."]);
   });
 });
+
+describe("the avatar's voice level (ADR 0032 §4)", () => {
+  const levels = async () => {
+    const { voiceLevel } = await import("@/lib/voice-level");
+    return Array.from({ length: 40 }, (_, i) => voiceLevel(i * 25));
+  };
+
+  function stubAudioContext(state: AudioContextState) {
+    const routed = vi.fn();
+    const close = vi.fn(() => Promise.resolve());
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        state = state;
+        destination = {};
+        resume = () => Promise.resolve();
+        close = close;
+        createAnalyser = () => ({
+          fftSize: 0,
+          connect: vi.fn(),
+          getFloatTimeDomainData: (samples: Float32Array) => samples.fill(0.3),
+        });
+        createMediaElementSource = () => {
+          routed();
+          return { connect: vi.fn() };
+        };
+      },
+    );
+    return { routed, close };
+  }
+
+  it("makes up a mouth for server audio it doesn't measure, and is silent once it ends", async () => {
+    const speech = await load();
+    speech.speakSegments("m1", [{ text: "Hello there.", lang: "en-US" }]);
+    await flush();
+    expect(Math.max(...(await levels()))).toBeGreaterThan(0.5);
+    await endAudio();
+    expect(Math.max(...(await levels()))).toBe(0);
+  });
+
+  it("measures the server audio once an animated avatar watches it", async () => {
+    const { routed } = stubAudioContext("running");
+    const speech = await load();
+    const { watchLevel, voiceLevel } = await import("@/lib/voice-level");
+    const stopWatching = watchLevel();
+    speech.speakSegments("m1", [{ text: "Hello there.", lang: "en-US" }]);
+    await flush();
+    await endAudio(); // the first sentence plays while the analyser is set up
+    speech.speakSegments("m1", [{ text: "Hello again.", lang: "en-US" }]);
+    await flush();
+    expect(routed).toHaveBeenCalledTimes(1);
+    expect(voiceLevel(0)).toBeCloseTo(1); // an RMS of 0.3 is full
+    stopWatching();
+  });
+
+  it("leaves the audio alone when no avatar watches it, or the context won't run", async () => {
+    const { routed, close } = stubAudioContext("suspended");
+    const speech = await load();
+    speech.speakSegments("m1", [{ text: "Hello there.", lang: "en-US" }]);
+    await flush();
+    const { watchLevel } = await import("@/lib/voice-level");
+    const stopWatching = watchLevel();
+    speech.speakSegments("m1", [{ text: "Hello again.", lang: "en-US" }]);
+    await flush();
+    expect(routed).not.toHaveBeenCalled(); // routed into a suspended context, it'd be silent
+    expect(close).toHaveBeenCalled();
+    stopWatching();
+  });
+
+  it("opens the mouth on each word a browser voice reaches, and stops with the reading", async () => {
+    const speech = await load([]);
+    const { voiceLevel } = await import("@/lib/voice-level");
+    speech.speakSegments("m1", [{ text: "Hello there.", lang: "en-US" }]);
+    const utterance = spoken[0] as Utterance & {
+      onstart: () => void;
+      onboundary: (event: { name: string }) => void;
+    };
+    vi.spyOn(performance, "now").mockReturnValue(5000);
+    utterance.onstart();
+    utterance.onboundary({ name: "word" });
+    expect(voiceLevel(5000)).toBeGreaterThan(0.8);
+    speech.stopSpeaking();
+    expect(voiceLevel(5000)).toBe(0);
+  });
+});

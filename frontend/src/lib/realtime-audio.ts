@@ -8,6 +8,7 @@
 
 import { meterLevel, rmsDbfs } from "@/components/chat/use-recorder";
 import { type MicTap, openMicTap } from "@/lib/mic-tap";
+import { analyserLevel, setLevelSource } from "@/lib/voice-level";
 
 /** The learner's audio goes out in frames of 100 ms. */
 export const FRAME_MS = 100;
@@ -189,6 +190,11 @@ export type CallPlayer = {
 export function createCallPlayer(): CallPlayer {
   const context = new AudioContext();
   void context.resume();
+  // Everything played passes an analyser on its way out: the avatar's mouth follows it.
+  const analyser = context.createAnalyser();
+  analyser.fftSize = 1024;
+  analyser.connect(context.destination);
+  const quiet = setLevelSource(analyserLevel(analyser));
   const clock = createPlaybackClock();
   const sources = new Set<AudioBufferSourceNode>();
   const clear = () => {
@@ -207,7 +213,7 @@ export function createCallPlayer(): CallPlayer {
       buffer.copyToChannel(samples, 0);
       const source = context.createBufferSource();
       source.buffer = buffer;
-      source.connect(context.destination);
+      source.connect(analyser);
       source.onended = () => sources.delete(source);
       sources.add(source);
       source.start(clock.schedule(context.currentTime, buffer.duration));
@@ -218,6 +224,7 @@ export function createCallPlayer(): CallPlayer {
     newReply: () => clock.newReply(),
     close() {
       clear();
+      quiet();
       void context.close();
     },
   };
