@@ -26,6 +26,7 @@ const call = (overrides: Partial<CallEstimate>): CallEstimate => ({
   samples: 0,
   source: "default",
   model: null,
+  provided_by: null,
   ...overrides,
 });
 
@@ -44,7 +45,10 @@ const estimates = {
       calls: [call({ task: "asr", audio_seconds: 10.5, source: "history", samples: 3 })],
     },
     { feature: "chat_image", calls: [call({ task: "vision", per: "image" })] },
-    { feature: "read_aloud", calls: [call({ task: "tts", characters: 60 })] },
+    {
+      feature: "read_aloud",
+      calls: [call({ task: "tts", characters: 60, model: "school:tts-1", provided_by: "Riverside School" })],
+    },
     {
       feature: "realtime_call",
       calls: [call({ task: "realtime", per: "minute", input_tokens: 20000, output_tokens: 1000 })],
@@ -108,6 +112,8 @@ describe("AiBadge", () => {
     await userEvent.click(screen.getByRole("button", { name: /使用 AI/ }));
     expect(await screen.findByText(/约 60 个字符（按字符计费/)).toBeInTheDocument();
     expect(screen.getByText("朗读")).toBeInTheDocument();
+    // A member's call on their main account's model says whose quota it uses (ADR 0031 §8).
+    expect(screen.getByText("由 Riverside School 提供：扣对方分给你的额度。")).toBeInTheDocument();
   });
 
   it("estimates a realtime call per minute", async () => {
@@ -119,6 +125,7 @@ describe("AiBadge", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("realtime call")).toBeInTheDocument();
     expect(screen.getByTestId("ai-badge-details")).toHaveTextContent("costs several times");
+    expect(screen.queryByText(/Provided by/)).not.toBeInTheDocument();
   });
 
   it("explains every feature behind one control", async () => {

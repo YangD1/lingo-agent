@@ -1618,7 +1618,8 @@
     "loading": "正在加载估计…",
     "failed": "估计加载失败。",
     "footer": "只显示 token 数，价格取决于你的模型服务商。",
-    "characters": "约 {characters} 个字符（按字符计费，不按 token；读过的句子走缓存不计费）"
+    "characters": "约 {characters} 个字符（按字符计费，不按 token；读过的句子走缓存不计费）",
+    "providedBy": "由 {name} 提供：扣对方分给你的额度。"
   },
   "speech": {
     "title": "朗读",

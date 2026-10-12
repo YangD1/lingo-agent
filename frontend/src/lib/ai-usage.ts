@@ -83,6 +83,8 @@ export type CallEstimate = {
   source: "history" | "default";
   /** "<connection>:<model>" it would run on now; null when none is configured. */
   model: string | null;
+  /** A member's call on their main account's connections: its name, and their quota it uses (ADR 0031 §8). */
+  provided_by: string | null;
 };
 
 export type UsageEstimates = {

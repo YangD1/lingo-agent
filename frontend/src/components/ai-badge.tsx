@@ -135,6 +135,7 @@ function CallLine({ call }: { call: CallEstimate }) {
       <span className={cn("text-muted-foreground", call.model && "font-mono")}>
         {call.model ? t("model", { model: call.model }) : t("noModel")}
       </span>
+      {call.provided_by && <span>{t("providedBy", { name: call.provided_by })}</span>}
       <span className="text-[11px] text-muted-foreground">
         {call.source === "history" ? t("fromHistory", { samples: call.samples }) : t("fromDefault")}
       </span>

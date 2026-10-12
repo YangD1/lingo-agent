@@ -1,9 +1,11 @@
+import uuid
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from app.providers.config import RouteSpec
-from app.usage.estimates import TaskHistory, current_model, estimate_call, unit_of
+from app.providers.config import RouteSpec, Sponsor
+from app.usage.estimates import TaskHistory, current_model, estimate_call, provided_by, unit_of
 from app.usage.features import FeatureCall, FeaturesError, get_features, load_features
 from tests.unit.provider_fixtures import conn, make_config, make_ctx
 
@@ -169,3 +171,18 @@ def test_current_model_is_none_when_nothing_is_configured() -> None:
     assert current_model(config, ctx, asr) is None
     assert current_model(config, ctx, call(task="vision")) is None
     assert current_model(config, make_ctx(), call()) is None
+
+
+def test_provided_by_names_the_main_account_whose_models_a_call_would_use() -> None:
+    config = make_config()
+    lent = replace(make_ctx(conn("openai")), tenant_id=uuid.uuid4())
+    member = replace(make_ctx(), sponsor=Sponsor(ctx=lent, name="Main"))
+    assert provided_by(config, member, call()) == "Main"
+    assert current_model(config, member, call()) == "openai:gpt-5-mini"
+    # Used up: still the main account's quota the learner is told about.
+    used_up = replace(member, sponsor=Sponsor(ctx=lent, name="Main", exhausted=frozenset({"llm"})))
+    assert provided_by(config, used_up, call()) == "Main"
+    # Their own model comes first: nothing of the main account's.
+    own = replace(make_ctx(conn("openai")), sponsor=Sponsor(ctx=lent, name="Main"))
+    assert provided_by(config, own, call()) is None
+    assert provided_by(config, make_ctx(conn("openai")), call()) is None

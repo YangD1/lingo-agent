@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-12 任务 65.6、65.7 前端完成
+
+**做了什么**：补齐 `settings.org.*`、`settings.route.providedBy / quotaExhausted`、`settings.toc.members / membership`、`errors.invite_invalid / own_invite / already_member / quota_exhausted` 中英文案；修 `JoinPanel` 自动预览的 effect（eslint `set-state-in-effect`）；新增 Vitest（members / membership / usage / org / route / ai-badge）。补了两处原计划里没写完的：`/tenant/usage` 原来只按 `tenant_id` 查，主账号看不到成员在自己连接上的调用，现在加 `billed_tenant_id = 自己` 的行并带 `member`，卡片里“谁的用量”切换；`/usage/estimates` 每个调用加 `provided_by`，`AiBadge` 写“由 X 提供：扣对方分给你的额度”。ADR 0031 §8 补了用量可见范围一句。提交 88f2483（65.6）和本条（65.7）。
+
+**未完成**：65.8：E2E（邀请 → 加入 → 用主账号模型聊天 → 额度用尽提示 → 自己配连接后不再扣 → 退出）、README 中英、ADR 落地记录、`make ci`、推送、CI、Docker 重建。
+
+**下一步**：65.8 先看 `frontend/e2e/` 里假模型和多账号的写法，写 `org.spec.ts`。
+
+**踩坑**：vitest 5 里 `beforeEach(mockReset)` 之后用 `mockImplementation(async () => { throw … })` 或 `() => Promise.reject(…)` 做持续拒绝，会被算成测试失败（报的就是那个 ApiError），即使组件已经处理了这个拒绝；改用 `mockRejectedValueOnce` 就没事，原因没查清。等待脚本别用 `pgrep -f "<命令片段>"`：会匹配到等待脚本自己的命令行，永远不退出。`speech-settings-server.test.tsx` 有一次在全量运行时超时（5.7s），单跑通过。
+
+---
+
 ## 2026-10-12 任务 65.2–65.5 后端完成（上一会话上下文溢出后接手）
 
 **做了什么**：上一会话写完 65.2–65.5 的后端代码（`app/org/{quotas,service,usage}.py`、`app/api/org.py`、迁移 `e3f39baaa371`、provider 解析接入主账号赞助与额度）但没提交、没写交接。本会话核实：ruff / mypy 干净，全量 pytest 1729 过；看板标 65.4、65.5 完成并提交。

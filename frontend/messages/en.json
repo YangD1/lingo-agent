@@ -1618,7 +1618,8 @@
     "loading": "Loading the estimate…",
     "failed": "Couldn't load the estimate.",
     "footer": "Token counts only. The price depends on your model provider.",
-    "characters": "About {characters} characters (billed by characters, not tokens; cached sentences are free)"
+    "characters": "About {characters} characters (billed by characters, not tokens; cached sentences are free)",
+    "providedBy": "Provided by {name}: counts against the quota it gives you."
   },
   "speech": {
     "title": "Read aloud",

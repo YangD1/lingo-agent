@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Conversation, LLMUsage, SpeakingSession
 from app.providers.config import ProvidersConfig, TenantProviderContext, resolve_route
-from app.providers.errors import NoModelConfiguredError, ProviderConfigError
+from app.providers.errors import NoModelConfiguredError, ProviderConfigError, QuotaExhaustedError
 from app.usage.features import AUDIO_SECTIONS, FeatureCall, FeatureCatalog, Per, Timing
 
 EstimateSource = Literal["history", "default"]
@@ -49,6 +49,8 @@ class CallEstimate:
     source: EstimateSource
     # "<connection>:<model>" the call would run on now; None when none is configured.
     model: str | None
+    # The main account whose connection and the member's quota it would use (ADR 0031 §8).
+    provided_by: str | None = None
 
 
 @dataclass(frozen=True)
@@ -58,7 +60,10 @@ class FeatureEstimate:
 
 
 def estimate_call(
-    call: FeatureCall, history: TaskHistory | None, model: str | None
+    call: FeatureCall,
+    history: TaskHistory | None,
+    model: str | None,
+    provided_by: str | None = None,
 ) -> CallEstimate:
     if history is None or history.samples == 0:
         return CallEstimate(
@@ -72,6 +77,7 @@ def estimate_call(
             samples=0,
             source="default",
             model=model,
+            provided_by=provided_by,
         )
     return CallEstimate(
         task=call.task,
@@ -84,6 +90,7 @@ def estimate_call(
         samples=history.samples,
         source="history",
         model=model,
+        provided_by=provided_by,
     )
 
 
@@ -199,6 +206,21 @@ def current_model(
     return f"{first.connection}:{first.model}"
 
 
+def provided_by(
+    config: ProvidersConfig, ctx: TenantProviderContext, call: FeatureCall
+) -> str | None:
+    """The main account's name when the call would run on its connections, quota left or not."""
+    if ctx.sponsor is None:
+        return None
+    try:
+        first = resolve_route(config, ctx, call.section, call.route_task)[0]
+    except QuotaExhaustedError:
+        return ctx.sponsor.name
+    except (NoModelConfiguredError, ProviderConfigError):
+        return None
+    return ctx.sponsor.name if first.billed_tenant_id is not None else None
+
+
 async def feature_estimates(
     session: AsyncSession,
     catalog: FeatureCatalog,
@@ -229,7 +251,10 @@ async def feature_estimates(
             feature=name,
             calls=[
                 estimate_call(
-                    call, histories.get((call.task, call.per)), current_model(config, ctx, call)
+                    call,
+                    histories.get((call.task, call.per)),
+                    current_model(config, ctx, call),
+                    provided_by(config, ctx, call),
                 )
                 for call in feature.calls
             ],

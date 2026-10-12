@@ -61,6 +61,7 @@ class CallEstimateOut(BaseModel):
     samples: int
     source: EstimateSource
     model: str | None
+    provided_by: str | None
 
 
 class FeatureEstimateOut(BaseModel):
