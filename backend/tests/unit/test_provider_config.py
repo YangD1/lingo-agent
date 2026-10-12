@@ -168,6 +168,19 @@ def test_task_params_sit_between_defaults_and_the_connection() -> None:
     assert model.params["timeout"] == 30
 
 
+def test_params_left_at_the_deployment_defaults_are_marked() -> None:
+    config = make_config(
+        llm={"default": ["openai:gpt-5-mini"], "task_params": {"slow": {"timeout": 120}}}
+    )
+    (model,) = resolve_route(config, make_ctx(conn("openai")), "llm", "other")
+    assert model.deployment_defaults == {"timeout", "max_retries"}
+    # Set anywhere else (task, connection, route), a param is no longer the default (Q64t).
+    (model,) = resolve_route(config, make_ctx(conn("openai")), "llm", "slow")
+    assert model.deployment_defaults == {"max_retries"}
+    (model,) = resolve_route(config, make_ctx(conn("openai", timeout=10)), "llm", "other")
+    assert model.deployment_defaults == {"max_retries"}
+
+
 def test_shipped_configs_give_slow_tasks_a_longer_timeout() -> None:
     for name in ("providers.dev.yaml", "providers.prod.yaml"):
         config = load_providers_config(REPO_ROOT / "config" / name)

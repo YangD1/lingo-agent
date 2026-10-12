@@ -254,6 +254,9 @@ class ResolvedModel:
     base_url: str
     api_key: SecretStr | None
     params: dict[str, Any] = field(default_factory=dict)
+    # Params whose value is only the deployment's `defaults` (no task, connection or route
+    # set it): a model that needs more, e.g. a slower timeout, may go over them (Q64t).
+    deployment_defaults: frozenset[str] = frozenset()
 
 
 def sdk_params(params: Mapping[str, Any]) -> dict[str, Any]:
@@ -360,4 +363,5 @@ def _resolved(
         base_url=conn.base_url,
         api_key=conn.api_key,
         params={**config.defaults, **by_task, **conn.params, **route.params},
+        deployment_defaults=frozenset(config.defaults) - {*by_task, *conn.params, *route.params},
     )

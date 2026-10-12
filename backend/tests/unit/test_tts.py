@@ -82,6 +82,31 @@ def test_qwen_audio_prompt_quotes_the_text() -> None:
 
 
 @pytest.mark.parametrize(
+    ("timeout", "deployment_default", "expected"),
+    [
+        (None, False, 60.0),  # nothing set: the model's own
+        (30, True, 60.0),  # the deployment's 30 s cut qwen-audio off (task 64.2, Q64t)
+        (90, True, 90.0),  # a longer deployment default still counts
+        (30, False, 30.0),  # the tenant set 30 s: theirs wins
+    ],
+)
+def test_timeout_a_model_needs_beats_only_the_deployment_default(
+    timeout: int | None, deployment_default: bool, expected: float
+) -> None:
+    params = {"timeout": timeout} if timeout is not None else {}
+    model = ResolvedModel(
+        "qwen",
+        "openai_compatible",
+        "qwen-audio-3.1-tts-next",
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        None,
+        params,
+        frozenset({"timeout"}) if deployment_default else frozenset(),
+    )
+    assert tts._timeout(model, tts.QWEN_AUDIO_TIMEOUT) == expected
+
+
+@pytest.mark.parametrize(
     ("header", "seconds"), [(None, 1.0), ("2", 2.0), ("0", 0.0), ("soon", 1.0), ("600", 10.0)]
 )
 def test_retry_after(header: str | None, seconds: float) -> None:

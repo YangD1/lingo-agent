@@ -301,10 +301,21 @@ class TextToSpeech:
         )
 
 
+def _timeout(model: ResolvedModel, model_default: float) -> float:
+    """A timeout the tenant set wins; the deployment's default only when it's longer than
+    the model's own (task 64.2: a 30 s default cut qwen-audio's 13-30 s calls off, Q64t)."""
+    value = model.params.get("timeout")
+    if not value:
+        return model_default
+    if "timeout" in model.deployment_defaults:
+        return max(float(value), model_default)
+    return float(value)
+
+
 def _client(model: ResolvedModel, default_timeout: float = DEFAULT_TIMEOUT) -> httpx2.AsyncClient:
-    timeout = float(model.params.get("timeout") or default_timeout)
     return make_async_http_client(
-        allow_private=get_settings().provider_allow_private_networks, timeout=timeout
+        allow_private=get_settings().provider_allow_private_networks,
+        timeout=_timeout(model, default_timeout),
     )
 
 
