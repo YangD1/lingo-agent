@@ -121,7 +121,7 @@ realtime:                                   # 端到端语音对话，后端中�
 
 ## 三、核心数据模型（初稿）
 
-- `tenants`（含实时语音的单次 / 每日分钟上限，ADR 0030 §5）, `tenant_members`, `provider_connections`（加密 key）, `tenant_model_routes`（见 ADR 0004）, `llm_usage`（见 ADR 0005）
+- `tenants`（含实时语音的单次 / 每日分钟上限，ADR 0030 §5）, `tenant_members`, `provider_connections`（加密 key）, `tenant_model_routes`（见 ADR 0004）, `llm_usage`（见 ADR 0005；P4 加付费方 `billed_tenant_id` 和所属节 `section`，ADR 0031）；`org_invites`（邀请码只存哈希、有效期、次数上限、可撤销）、`org_memberships`（主账号 → 成员、状态、每项能力的日 / 月额度，一人同时只在一个主账号下，ADR 0031），`tenants` 加成员默认额度模板
 - `users`, `user_profile`（母语、目标、目标考试、兴趣、职业、每日时长、讲解语言、CEFR、时区）, `memories`（kind[fact/episode], content, 来源会话, 可选 embedding；见 ADR 0009）
 - `skill_estimates`（user, skill[listening/speaking/reading/writing/grammar/vocab], rating, uncertainty, updated_at）, `placement_sessions`（入学测子图的 thread 和状态）
 - `learning_advice`（每人一行：看板上的 AI 建议缓存，见 `docs/plans/P1-mvp.md` §7.5）
@@ -161,7 +161,10 @@ monorepo（`backend/` uv + FastAPI，`frontend/` Next.js，`docker-compose.yml`�
 - **背词听音 / 拼写**：复习卡片两种新题型，发音走朗读三层。
 
 **P4 企业级打磨**
-评估集（pytest）+ CI 回归评测；用量/成本看板；限流；提示词版本管理；低配服务器部署（compose + 资源限制）；README 架构图与演示脚本。
+顺序：组织账号与额度（任务 65）→ 学习者自选私教（任务 66）→ 下面原列各项。
+- **组织账号与额度**（ADR 0031）：任何个人账号都能邀请别人成为成员（链接 / 码，本人确认后加入，一人同时只在一个主账号下）；成员仍在自己的个人租户里，学习数据不动；成员某项能力自己没配连接就用主账号的连接和路由（key 只在服务端解密），按能力扣分配的额度（文本 token、朗读字符、转写 / 发音评测 / 通话分钟，每日 / 每月上限）；用尽时这项当成没模型（朗读退回浏览器、后台任务跳过）。主账号只看成员的用量，看不到学习数据。
+- **学习者自选私教**：模型、音色、形象（任务 66，开工前另写 ADR）。
+- 评估集（pytest）+ CI 回归评测；用量/成本看板；限流；提示词版本管理；低配服务器部署（compose + 资源限制）；README 架构图与演示脚本。
 
 ---
 
