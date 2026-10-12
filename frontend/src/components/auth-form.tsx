@@ -96,7 +96,10 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
         <p className="text-center text-sm text-muted-foreground">
           {t(`${mode}.switchPrompt`)}{" "}
           <Link
-            href={mode === "login" ? "/register" : "/login"}
+            // Keep where to go after: an invite link sends new people to register (ADR 0031 §2).
+            href={`${mode === "login" ? "/register" : "/login"}${
+              next ? `?next=${encodeURIComponent(next)}` : ""
+            }`}
             className="text-primary underline-offset-4 hover:underline"
           >
             {t(`${mode}.switchLink`)}

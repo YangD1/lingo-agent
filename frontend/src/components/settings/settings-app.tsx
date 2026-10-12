@@ -9,6 +9,8 @@ import {
   AudioLines,
   Phone,
   Plug,
+  UserRoundPlus,
+  Users,
   Volume2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -22,6 +24,8 @@ import { BackgroundSection } from "./background-section";
 import { RouteSection } from "./route-section";
 import { ConnectionsSection } from "./connections-section";
 import { DisplaySection } from "./display-section";
+import { MembersSection } from "./members-section";
+import { MembershipSection } from "./membership-section";
 import { ReadAloudSection } from "./read-aloud-section";
 import { RealtimeSection } from "./realtime-section";
 import { UsageSection } from "./usage-section";
@@ -36,11 +40,15 @@ const SECTIONS = [
   { id: "word-audio", icon: AudioLines },
   { id: "realtime", icon: Phone },
   { id: "background", icon: CalendarClock },
+  { id: "members", icon: Users },
+  { id: "membership", icon: UserRoundPlus },
   { id: "usage", icon: ChartColumn },
 ] as const satisfies readonly { id: string; icon: LucideIcon }[];
 
 const ALWAYS_SHOWN: ReadonlySet<string> = new Set(
-  SECTIONS.map(({ id }) => id).filter((id) => id !== "word-audio" && id !== "realtime"),
+  SECTIONS.map(({ id }) => id).filter(
+    (id) => id !== "word-audio" && id !== "realtime" && id !== "members",
+  ),
 );
 
 export function SettingsApp() {
@@ -87,6 +95,8 @@ export function SettingsApp() {
             <WordAudioSection />
             <RealtimeSection />
             <BackgroundSection />
+            <MembersSection />
+            <MembershipSection />
             <UsageSection />
           </div>
           <aside className="max-lg:hidden">
@@ -113,7 +123,7 @@ function SettingsToc({
 }) {
   const t = useTranslations("settings.toc");
   const [current, setCurrent] = useState<string>(SECTIONS[0].id);
-  // Sections some people don't get (word audio and realtime limits are for admins) are left out until shown.
+  // Sections some people don't get (word audio, realtime limits and members are for admins) are left out until shown.
   const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set(ALWAYS_SHOWN));
 
   useEffect(() => {

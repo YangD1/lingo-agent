@@ -27,6 +27,8 @@ class UsageRowOut(BaseModel):
     errors: int
     fallbacks: int
     avg_latency_ms: int
+    # None: this account's own calls; else a member's on its connections (ADR 0031 §8).
+    member: str | None
 
 
 class UsageOut(BaseModel):
@@ -40,7 +42,8 @@ async def tenant_usage(
     session: SessionDep,
     days: Annotated[int, Query(ge=1, le=90)] = 30,
 ) -> UsageOut:
-    """Per UTC day and model over the last `days` days (today included)."""
+    """Per UTC day and model over the last `days` days (today included), the account's
+    own calls and each member's on its connections apart."""
     today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     since = today - timedelta(days=days - 1)
     rows = await summarize_usage(session, tenant.id, since)

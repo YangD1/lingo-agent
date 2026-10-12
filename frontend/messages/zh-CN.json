@@ -933,7 +933,9 @@
       "voiceDefault": "默认：{voice}",
       "voiceNone": "没有内置声音，这种语言交给下一个模型或浏览器",
       "voiceBuiltIn": "内置默认声音（保存后显示）",
-      "voicesHint": "每个模型下可以按语言指定声音，留空用内置声音。Azure 连接可以从它的声音列表里选；qwen-audio 模型填一句英文的声音描述（如 \"A calm British man\"）。"
+      "voicesHint": "每个模型下可以按语言指定声音，留空用内置声音。Azure 连接可以从它的声音列表里选；qwen-audio 模型填一句英文的声音描述（如 \"A calm British man\"）。",
+      "providedBy": "由 {name} 提供：你自己没有配这项的模型。",
+      "quotaExhausted": "{name} 给你的这项额度暂时用完了。可以自己添加连接，或等额度重置（UTC）。"
     },
     "usage": {
       "title": "用量",
@@ -951,7 +953,9 @@
       "fallbacks": "回退",
       "avg_latency_ms": "平均延迟（毫秒）",
       "total": "合计",
-      "characters": "朗读字符"
+      "characters": "朗读字符",
+      "whose": "谁的用量",
+      "mine": "我自己"
     },
     "display": {
       "title": "显示",
@@ -968,7 +972,9 @@
       "background": "后台任务",
       "usage": "用量",
       "word-audio": "单词发音",
-      "realtime": "实时语音"
+      "realtime": "实时语音",
+      "members": "成员",
+      "membership": "主账号"
     },
     "background": {
       "title": "后台任务",
@@ -1084,6 +1090,88 @@
       "save": "保存",
       "off": "本工作区所有人的实时通话都已关闭。",
       "usedToday": "你今天（UTC）已用 {used} / {limit} 分钟。"
+    },
+    "org": {
+      "capability": "能力",
+      "daily": "每日上限",
+      "monthly": "每月上限",
+      "today": "今天",
+      "thisMonth": "本月",
+      "noCap": "不限",
+      "off": "关闭",
+      "capsHint": "留空表示不限，填 0 表示关闭这项。日和月按 UTC 计算。",
+      "save": "保存",
+      "cancel": "取消",
+      "capabilities": {
+        "text": "对话与文本",
+        "tts": "朗读",
+        "asr": "语音转文字",
+        "pronunciation": "发音评测",
+        "realtime": "语音通话"
+      },
+      "units": {
+        "tokens": "token",
+        "characters": "字符",
+        "minutes": "分钟"
+      },
+      "members": {
+        "title": "成员",
+        "description": "成员在你分配的额度内使用你的模型连接，看不到你的 key；你只能看到他们的用量，看不到学习内容。",
+        "list": "成员列表",
+        "empty": "还没有成员。创建邀请链接发给对方。",
+        "past": "{count, plural, other {# 位已离开的成员}}",
+        "status": {
+          "active": "使用中",
+          "left": "已退出",
+          "removed": "已移除"
+        },
+        "joined": "{email} · {date} 加入",
+        "editQuotas": "调整额度",
+        "remove": "移除",
+        "removeQuestion": "移除 {name}？对方会立即停止使用你的模型。",
+        "usageOf": "{name} 的用量"
+      },
+      "invite": {
+        "title": "邀请",
+        "days": "有效期",
+        "daysOption": "{days, plural, other {# 天}}",
+        "uses": "可用次数",
+        "anyUses": "不限",
+        "create": "创建邀请链接",
+        "createdHint": "把这个链接发给对方。它只显示这一次，离开页面前请复制。",
+        "link": "邀请链接",
+        "copy": "复制链接",
+        "code": "邀请码：{code}",
+        "open": "有效的邀请",
+        "openRow": "{expires} 过期 · 已用 {used} / {max}",
+        "revoke": "撤销",
+        "revokeQuestion": "撤销这个邀请？链接会立即失效。"
+      },
+      "defaults": {
+        "title": "新成员的默认额度",
+        "hint": "成员加入时拿到的额度。改这里不影响已有成员。",
+        "saved": "已保存。"
+      },
+      "membership": {
+        "title": "主账号",
+        "description": "其他账号可以在额度内把模型借给你用。你自己配的连接总是优先。",
+        "using": "从 {date} 起使用 {name} 提供的模型。",
+        "usage": "你的额度",
+        "ownFirst": "你自己配好的连接会优先使用，不扣这份额度。",
+        "leave": "退出",
+        "leaveQuestion": "不再使用 {name} 提供的模型？"
+      },
+      "join": {
+        "title": "加入主账号",
+        "description": "在对方分配的额度内使用对方的模型。",
+        "code": "邀请码",
+        "look": "查看",
+        "offer": "{name} 给你的额度：",
+        "quotas": "提供的额度",
+        "privacy": "对方能看到你的用量，看不到你的对话、记忆和学习记录。你自己的连接仍然优先，随时可以退出。",
+        "confirm": "加入 {name}",
+        "cancel": "取消"
+      }
     }
   },
   "placement": {
@@ -1230,7 +1318,11 @@
     "plan_expired": "这是之前某一天的计划，已经过期了。",
     "job_active": "已经有一个单词发音任务在进行或暂停中。",
     "no_tts_model": "还没有配置朗读模型。",
-    "speaking_ended": "这次练习已经结束了。"
+    "speaking_ended": "这次练习已经结束了。",
+    "quota_exhausted": "主账号给你的额度暂时用完了。可以到设置里自己添加连接，或等额度重置。",
+    "invite_invalid": "邀请码无效：不存在、已过期、次数已用完或已撤销。",
+    "own_invite": "这是你自己的邀请。",
+    "already_member": "你已经在使用另一个主账号，先退出它。"
   },
   "dashboard": {
     "title": "能力看板",

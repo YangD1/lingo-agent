@@ -128,9 +128,12 @@ export function RouteSection({
   // The chain as the tenant saved it (switched-off rows and rows whose connection is off
   // included), or what runs now when nothing is saved: the YAML route may name connections
   // this tenant doesn't have.
-  const shown = route ? (route.overridden ? route.models : route.effective) : [];
+  // A member's task served by their main account shows the main account's chain (ADR 0031 §5).
+  const lent = !!route?.provided_by;
+  const shown = route ? (route.overridden && !lent ? route.models : route.effective) : [];
 
   function stateOf(ref: string): RowState {
+    if (lent) return "on"; // the main account's connections: not in this tenant's list
     if (route?.disabled.includes(ref)) return "off";
     const c = connections.find((x) => x.name === ref.slice(0, ref.indexOf(":")));
     if (!c) return "connectionMissing";
@@ -284,7 +287,13 @@ export function RouteSection({
       <CardContent className="flex flex-col gap-3">
         {route && rows === null && (
           <>
-            {allOff ? (
+            {route.quota_exhausted ? (
+              <ErrorText size="xs">{t("quotaExhausted", { name: route.provided_by ?? "" })}</ErrorText>
+            ) : lent ? (
+              <p className="text-xs text-muted-foreground" data-testid={`route-source-${task}`}>
+                {t("providedBy", { name: route.provided_by ?? "" })}
+              </p>
+            ) : allOff ? (
               <ErrorText size="xs">{t("allOff")}</ErrorText>
             ) : (
               <p className="text-xs text-muted-foreground" data-testid={`route-source-${task}`}>

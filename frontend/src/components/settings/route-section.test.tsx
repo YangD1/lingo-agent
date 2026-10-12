@@ -394,4 +394,29 @@ describe("RouteSection", () => {
     await userEvent.type(chinese, "詹妮");
     expect(await screen.findAllByRole("option")).toHaveLength(1);
   });
+
+  it("says a member's task runs on their main account's models (ADR 0031 §5)", async () => {
+    api.mockImplementation(async (path: string) =>
+      path === "/tenant/routes"
+        ? [route({ task: "chat", effective: ["school:gpt-x"], effective_source: "auto", provided_by: "Riverside School" })]
+        : undefined,
+    );
+    show("chat");
+
+    expect(await screen.findByTestId("route-source-chat")).toHaveTextContent("Provided by Riverside School");
+    expect(screen.getByRole("list", { name: "Chat model" })).toHaveTextContent("school:gpt-x");
+    // The main account's connections aren't this tenant's: not marked missing.
+    expect(screen.queryByText("Connection deleted")).not.toBeInTheDocument();
+  });
+
+  it("says when the quota from the main account is used up", async () => {
+    api.mockImplementation(async (path: string) =>
+      path === "/tenant/routes"
+        ? [route({ task: "chat", provided_by: "Riverside School", quota_exhausted: true })]
+        : undefined,
+    );
+    show("chat");
+
+    expect(await screen.findByText(/Your quota from Riverside School for this is used up/)).toBeInTheDocument();
+  });
 });

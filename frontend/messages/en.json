@@ -933,7 +933,9 @@
       "voiceDefault": "Default: {voice}",
       "voiceNone": "No built-in voice: the next model or the browser reads this language",
       "voiceBuiltIn": "Built-in voice (shown once saved)",
-      "voicesHint": "Under each model you can choose a voice per language; empty uses the built-in one. An Azure connection offers its voices; for a qwen-audio model, describe the voice in English (e.g. \"A calm British man\")."
+      "voicesHint": "Under each model you can choose a voice per language; empty uses the built-in one. An Azure connection offers its voices; for a qwen-audio model, describe the voice in English (e.g. \"A calm British man\").",
+      "providedBy": "Provided by {name}: you don't have a model of your own for this.",
+      "quotaExhausted": "Your quota from {name} for this is used up for now. Add a connection of your own, or wait for it to reset (UTC)."
     },
     "usage": {
       "title": "Usage",
@@ -951,7 +953,9 @@
       "fallbacks": "Fallbacks",
       "avg_latency_ms": "Avg latency (ms)",
       "total": "Total",
-      "characters": "Characters read"
+      "characters": "Characters read",
+      "whose": "Whose use",
+      "mine": "Mine"
     },
     "display": {
       "title": "Display",
@@ -968,7 +972,9 @@
       "background": "Background",
       "usage": "Usage",
       "word-audio": "Word pronunciations",
-      "realtime": "Realtime voice"
+      "realtime": "Realtime voice",
+      "members": "Members",
+      "membership": "Main account"
     },
     "background": {
       "title": "Background work",
@@ -1084,6 +1090,88 @@
       "save": "Save",
       "off": "Realtime calls are off for everyone in this workspace.",
       "usedToday": "You have used {used} of {limit} minutes today (UTC)."
+    },
+    "org": {
+      "capability": "Capability",
+      "daily": "Daily cap",
+      "monthly": "Monthly cap",
+      "today": "Today",
+      "thisMonth": "This month",
+      "noCap": "No cap",
+      "off": "Off",
+      "capsHint": "Leave a box empty for no cap; 0 turns the capability off. Days and months are UTC.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "capabilities": {
+        "text": "Chat and text",
+        "tts": "Read aloud",
+        "asr": "Speech to text",
+        "pronunciation": "Pronunciation",
+        "realtime": "Voice calls"
+      },
+      "units": {
+        "tokens": "tokens",
+        "characters": "characters",
+        "minutes": "minutes"
+      },
+      "members": {
+        "title": "Members",
+        "description": "People who use your model connections within the quotas you give them. They never see your keys; you see only how much they use, not what they learn.",
+        "list": "Members",
+        "empty": "No members yet. Create an invite link and send it to them.",
+        "past": "{count, plural, one {# past member} other {# past members}}",
+        "status": {
+          "active": "Active",
+          "left": "Left",
+          "removed": "Removed"
+        },
+        "joined": "{email} · joined {date}",
+        "editQuotas": "Edit quotas",
+        "remove": "Remove",
+        "removeQuestion": "Remove {name}? They stop using your models right away.",
+        "usageOf": "Use by {name}"
+      },
+      "invite": {
+        "title": "Invite",
+        "days": "Valid for",
+        "daysOption": "{days, plural, one {# day} other {# days}}",
+        "uses": "Uses",
+        "anyUses": "Any",
+        "create": "Create invite link",
+        "createdHint": "Send this link. It's shown only now: copy it before leaving the page.",
+        "link": "Invite link",
+        "copy": "Copy link",
+        "code": "Code: {code}",
+        "open": "Open invites",
+        "openRow": "Expires {expires} · used {used} / {max}",
+        "revoke": "Revoke",
+        "revokeQuestion": "Revoke this invite? The link stops working."
+      },
+      "defaults": {
+        "title": "Quotas for new members",
+        "hint": "What a member gets when they join. Changing this doesn't change existing members.",
+        "saved": "Saved."
+      },
+      "membership": {
+        "title": "Main account",
+        "description": "Another account can lend you its models within a quota. Your own connections always come first.",
+        "using": "Using models from {name} since {date}.",
+        "usage": "Your quota",
+        "ownFirst": "Whatever you've set up yourself is used first and doesn't count against this quota.",
+        "leave": "Leave",
+        "leaveQuestion": "Stop using models from {name}?"
+      },
+      "join": {
+        "title": "Join a main account",
+        "description": "Use another account's models within the quota it gives you.",
+        "code": "Invite code",
+        "look": "Check",
+        "offer": "{name} offers you these quotas:",
+        "quotas": "Quotas offered",
+        "privacy": "They'll see how much you use, not your conversations, memories or learning records. Your own connections stay first. You can leave any time.",
+        "confirm": "Join {name}",
+        "cancel": "Cancel"
+      }
     }
   },
   "placement": {
@@ -1230,7 +1318,11 @@
     "plan_expired": "This plan was for another day.",
     "job_active": "A word pronunciation job is already running or paused.",
     "no_tts_model": "No read-aloud model is configured.",
-    "speaking_ended": "This practice has ended."
+    "speaking_ended": "This practice has ended.",
+    "quota_exhausted": "Your quota from your main account is used up for now. Add a connection of your own in Settings, or wait for it to reset.",
+    "invite_invalid": "This invite is unknown, expired, used up or revoked.",
+    "own_invite": "This invite is your own.",
+    "already_member": "You already use another main account. Leave it first."
   },
   "dashboard": {
     "title": "Dashboard",

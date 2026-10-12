@@ -30,6 +30,8 @@ export function UsageSection() {
   const describe = useDescribeError();
   const [days, setDays] = useState(7);
   const [usage, setUsage] = useState<Usage | null>(null);
+  // null: this account's own calls; else a member's (ADR 0031 §8).
+  const [whose, setWhose] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(
@@ -46,7 +48,10 @@ export function UsageSection() {
   );
   useEffect(() => void load(), [load]);
 
-  const rows = usage?.rows ?? [];
+  const members = [...new Set((usage?.rows ?? []).flatMap((r) => (r.member === null ? [] : [r.member])))];
+  // A member gone from the range shows the account's own calls again.
+  const shownWhose = whose !== null && members.includes(whose) ? whose : null;
+  const rows = (usage?.rows ?? []).filter((r) => r.member === shownWhose);
   const total = (key: (typeof NUMERIC)[number]) => rows.reduce((sum, r) => sum + r[key], 0);
   // Read-aloud's column only once something was read aloud.
   const columns = NUMERIC.filter((key) => key !== "characters" || total("characters") > 0);
@@ -58,6 +63,21 @@ export function UsageSection() {
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
         <CardAction className="flex items-center gap-1.5">
+          {members.length > 0 && (
+            <NativeSelect
+              aria-label={t("whose")}
+              value={shownWhose ?? ""}
+              onChange={(e) => setWhose(e.target.value || null)}
+              className="h-8 md:h-8"
+            >
+              <option value="">{t("mine")}</option>
+              {members.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </NativeSelect>
+          )}
           <NativeSelect
             aria-label={t("range")}
             value={days}

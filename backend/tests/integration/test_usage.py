@@ -184,6 +184,7 @@ async def test_usage_summary_per_day_and_model(
             "errors": 0,
             "fallbacks": 0,
             "avg_latency_ms": 100,
+            "member": None,
         },
         {
             "day": today,
@@ -196,6 +197,7 @@ async def test_usage_summary_per_day_and_model(
             "errors": 1,
             "fallbacks": 1,
             "avg_latency_ms": 200,
+            "member": None,
         },
         {
             "day": yesterday,
@@ -208,6 +210,7 @@ async def test_usage_summary_per_day_and_model(
             "errors": 0,
             "fallbacks": 0,
             "avg_latency_ms": 100,
+            "member": None,
         },
     ]
 
@@ -426,3 +429,33 @@ async def test_realtime_estimates_are_per_minute_of_call(
 
 async def test_estimates_require_login(client: AsyncClient) -> None:
     assert (await client.get("/usage/estimates")).status_code == 401
+
+
+async def test_usage_shows_members_calls_on_this_accounts_connections(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await register(client, "member@example.com")
+    member_tenant = await tenant_of(db_session, "member@example.com")
+    member = await db_session.scalar(select(User).where(User.email == "member@example.com"))
+    assert member is not None
+    member.display_name = "Alex"
+    await register(client, "owner@example.com")  # the client is now logged in as owner
+    owner_tenant = await tenant_of(db_session, "owner@example.com")
+    now = datetime.now(UTC)
+    await add_usage(
+        db_session,
+        record(owner_tenant),
+        # On the owner's connection, counted against the member's quota (ADR 0031 §6).
+        record(member_tenant, user_id=member.id, billed_tenant_id=owner_tenant, input_tokens=7),
+        # On the member's own connection: none of the owner's business (Q65c).
+        record(member_tenant, user_id=member.id, connection_name="mine"),
+        at=now,
+    )
+
+    response = await client.get("/tenant/usage")
+
+    rows = response.json()["rows"]
+    assert [(r["member"], r["connection"], r["input_tokens"]) for r in rows] == [
+        (None, "openai", 10),
+        ("Alex", "openai", 7),
+    ]

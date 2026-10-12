@@ -111,6 +111,10 @@ export type TaskRoute = {
   default_voices?: Record<string, Record<VoiceLanguage, string | null>> | null;
   /** tts only: per "<connection>:<model>", the voices it offers to pick from (Q64q). */
   voice_options?: Record<string, VoiceOption[]> | null;
+  /** The main account's name when its connections serve this task for a member (ADR 0031 §5). */
+  provided_by?: string | null;
+  /** ... and the member's quota for it is used up for now. */
+  quota_exhausted?: boolean;
 };
 /** A voice a read-aloud model offers (backend/app/providers/tts_voices.py). */
 export type VoiceOption = {
@@ -139,6 +143,8 @@ export type UsageRow = {
   errors: number;
   fallbacks: number;
   avg_latency_ms: number;
+  /** null: this account's own calls; else a member's on its connections (ADR 0031 §8). */
+  member: string | null;
 };
 export type Usage = { days: number; rows: UsageRow[] };
 

@@ -4,10 +4,10 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from sqlalchemy import Date, case, cast, func, select
+from sqlalchemy import Date, case, cast, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import LLMUsage
+from app.db.models import LLMUsage, User
 
 
 @dataclass(frozen=True)
@@ -23,12 +23,19 @@ class UsageSummaryRow:
     errors: int
     fallbacks: int
     avg_latency_ms: int
+    # None: the tenant's own calls; else the member (display name or email) whose calls
+    # ran on this tenant's connections and count against their quota (ADR 0031 §8).
+    member: str | None = None
 
 
 async def summarize_usage(
     session: AsyncSession, tenant_id: uuid.UUID, since: datetime
 ) -> list[UsageSummaryRow]:
     day = cast(func.timezone("UTC", LLMUsage.created_at), Date).label("day")
+    own = LLMUsage.tenant_id == tenant_id
+    member = case(
+        (own, literal(None)), else_=func.coalesce(User.display_name, User.email, "?")
+    ).label("member")
     stmt = (
         select(
             day,
@@ -41,10 +48,12 @@ async def summarize_usage(
             func.count(case((LLMUsage.status == "error", 1))),
             func.count(case((LLMUsage.is_fallback, 1))),
             func.coalesce(func.avg(LLMUsage.latency_ms), 0),
+            member,
         )
-        .where(LLMUsage.tenant_id == tenant_id, LLMUsage.created_at >= since)
-        .group_by(day, LLMUsage.connection_name, LLMUsage.model)
-        .order_by(day.desc(), LLMUsage.connection_name, LLMUsage.model)
+        .outerjoin(User, User.id == LLMUsage.user_id)
+        .where(or_(own, LLMUsage.billed_tenant_id == tenant_id), LLMUsage.created_at >= since)
+        .group_by(day, member, LLMUsage.connection_name, LLMUsage.model)
+        .order_by(day.desc(), member.nulls_first(), LLMUsage.connection_name, LLMUsage.model)
     )
     return [
         UsageSummaryRow(
@@ -58,6 +67,7 @@ async def summarize_usage(
             errors=row[7],
             fallbacks=row[8],
             avg_latency_ms=round(row[9]),
+            member=row[10],
         )
         for row in await session.execute(stmt)
     ]

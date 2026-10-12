@@ -34,5 +34,6 @@ export const config = {
     "/vocab/:path*",
     "/placement/:path*",
     "/settings/:path*",
+    "/join/:path*",
   ],
 };
