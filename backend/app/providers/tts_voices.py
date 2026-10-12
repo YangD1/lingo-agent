@@ -27,7 +27,7 @@ ENGLISH: tuple[Language, ...] = ("en-US", "en-GB")
 class VoiceOption:
     id: str  # what the vendor takes: a name, or for qwen-audio a description
     name: str  # what the vendor calls it, for people
-    gender: Gender
+    gender: Gender | None  # None: the vendor doesn't say
     languages: tuple[Language, ...]  # the app's languages it reads well
     accent: str | None = None  # e.g. "en-US", when the vendor names one
     note: str = ""  # the vendor's own description, in Chinese

@@ -78,6 +78,7 @@ BUSINESS_TABLES = (
     "skill_estimates",
     "memories",
     "user_profiles",
+    "tutor_profiles",
     "attachments",
     "llm_usage",
     "org_memberships",

@@ -59,7 +59,7 @@ class PresetOut(BaseModel):
 class VoiceOptionOut(BaseModel):
     id: str
     name: str
-    gender: Gender
+    gender: Gender | None
     languages: list[Language]
     accent: str | None
     note: str

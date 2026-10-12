@@ -99,6 +99,26 @@ def _vendor(host: str, kind: str) -> _Vendor:
     return _Vendor("ga" if kind == "openai" else "beta", 24_000, 24_000)
 
 
+type RealtimeVendor = Literal["openai", "qwen", "stepfun", "gemini"]
+
+
+def realtime_vendor(model: ResolvedModel) -> RealtimeVendor | None:
+    """Whose realtime API a model is, when known: for its voice catalog (ADR 0032 §3).
+    None for other servers, even ones speaking a vendor's protocol."""
+    if model.kind == "gemini":
+        return "gemini"
+    configured = model.params.get("realtime_url")
+    host = (urlsplit(configured or model.base_url).hostname or "").lower()
+    vendor = _vendor(host, model.kind)
+    if vendor is _OPENAI:
+        return "openai"
+    if vendor in (_QWEN, _QWEN_INTL):
+        return "qwen"
+    if vendor is _STEPFUN:
+        return "stepfun"
+    return None
+
+
 @dataclass(frozen=True)
 class RealtimeTarget:
     """One model to connect to: where, in which spelling, at which sample rates."""

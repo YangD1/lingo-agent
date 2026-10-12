@@ -92,6 +92,8 @@ EXERCISE_SET_STATUSES = ("generating", "ready", "in_progress", "done", "failed")
 WORD_AUDIO_JOB_STATUSES = ("running", "paused", "done", "cancelled")
 # Where a shadowed sentence came from, and who scored it (ADR 0028 §6).
 SHADOWING_SOURCES = ("chat", "reading", "vocab", "speaking")
+# The tutor's looks (ADR 0032 §4); drawn by the frontend's TutorAvatar.
+TUTOR_AVATARS = ("cat", "classic", "casual", "sporty", "artsy")
 SHADOWING_PROVIDERS = ("azure", "asr_fallback")
 SHADOWING_LANGUAGES = ("en-US", "en-GB")
 # rejected: kept for the record, never shown; reported: the learner flagged it, so its
@@ -610,6 +612,41 @@ class UserProfile(TimestampMixin, Base):
     manual_fields: Mapped[list[str]] = mapped_column(
         ARRAY(String(50)), default=list, server_default="{}"
     )
+
+
+class TutorProfile(TimestampMixin, Base):
+    """The learner's own tutor: name, looks, and which model and voices talk to them
+    (ADR 0032). Every choice is optional; null follows the settings page's routes.
+
+    Model refs are `<connection>:<model>` on whichever account serves the chain (the
+    learner's own, or their main account's); a voice applies only while its model is
+    the one in use, since voice ids are vendor-specific.
+    """
+
+    __tablename__ = "tutor_profiles"
+    __table_args__ = (
+        CheckConstraint(f"avatar IS NULL OR {_in('avatar', TUTOR_AVATARS)}", name="avatar"),
+        CheckConstraint("color IS NULL OR color ~ '^#[0-9a-f]{6}$'", name="color"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    # Provider loading knows only the tenant; a personal tenant has one learner.
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str | None] = mapped_column(String(40))
+    avatar: Mapped[str | None] = mapped_column(String(20))
+    color: Mapped[str | None] = mapped_column(String(7))
+    # Off: the avatar is drawn still, like with the system's reduced motion.
+    animate: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    chat_model: Mapped[str | None] = mapped_column(String(300))
+    # The read-aloud model `voices` were picked from, and {language: voice}.
+    tts_model: Mapped[str | None] = mapped_column(String(300))
+    voices: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict, server_default="{}")
+    realtime_model: Mapped[str | None] = mapped_column(String(300))
+    realtime_voice: Mapped[str | None] = mapped_column(String(200))
 
 
 class Memory(TimestampMixin, Base):
