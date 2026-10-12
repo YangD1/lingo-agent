@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-12 任务 65.8 进行中：E2E、README、ADR 落地记录
+
+**做了什么**：新增 `frontend/e2e/org.spec.ts`（两个浏览器上下文：主账号建邀请 → 成员打开链接预览、加入 → 路由卡片和 `AiBadge` 显示“由 Ada 提供” → 聊天 → 主账号看到成员用量、把文本日上限调到 10、用量卡片切到成员 → 成员聊天被拒、路由卡片提示用尽 → 成员自己加连接后照常聊 → 退出，主账号显示已离开），单独跑通。README 中英加“把模型分给成员用”、用量表说明、ADR 0031 链接；ADR 0031 加落地记录；PLAN P4 组织账号标完成。
+
+**未完成**：`make ci` 各步骤已全过（pytest 1731、Vitest 593、E2E 71），已分 `test:` / `docs:` 两次提交；剩推送、看 CI、重建 Docker，65.8 标 `[x]`。
+
+**下一步**：上面这些；然后任务 66（学习者自选私教，开工前写 ADR、拆任务、和用户确认）。
+
+**踩坑**：Vitest 全量并行跑（负载 ~12）时 `learner-app`、`speech-settings-server`、`members-section` 偶发超时，单跑都过；已把 Testing Library `asyncUtilTimeout` 调到 3s（`vitest.setup.ts`）、`testTimeout` 调到 15s（`vitest.config.mts`）。Bash 里 `pnpm` 是 zsh 函数包装，会无限递归（`_load_nvm`），用 `command pnpm` 或直接调 `node_modules/.../vitest.mjs`。Playwright `getByRole("table", { name: "用量" })` 默认是子串匹配，会匹配到成员行的“Bo 的用量”表，要加 `exact: true`。
+
+---
+
 ## 2026-10-12 任务 65.6、65.7 前端完成
 
 **做了什么**：补齐 `settings.org.*`、`settings.route.providedBy / quotaExhausted`、`settings.toc.members / membership`、`errors.invite_invalid / own_invite / already_member / quota_exhausted` 中英文案；修 `JoinPanel` 自动预览的 effect（eslint `set-state-in-effect`）；新增 Vitest（members / membership / usage / org / route / ai-badge）。补了两处原计划里没写完的：`/tenant/usage` 原来只按 `tenant_id` 查，主账号看不到成员在自己连接上的调用，现在加 `billed_tenant_id = 自己` 的行并带 `member`，卡片里“谁的用量”切换；`/usage/estimates` 每个调用加 `provided_by`，`AiBadge` 写“由 X 提供：扣对方分给你的额度”。ADR 0031 §8 补了用量可见范围一句。提交 88f2483（65.6）和本条（65.7）。
