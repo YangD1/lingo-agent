@@ -18,7 +18,7 @@ from app.db.models import Tenant, WordAudioJob
 from app.deps import CurrentTenant, CurrentUser, Manager, SessionDep
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
-from app.providers.tts import TextToSpeech, get_tts
+from app.providers.tts import WORDS_TASK, TextToSpeech, get_tts
 from app.services.speech import word_audio
 from app.services.speech.word_audio import Accent, ActiveJobError, NoAccentError
 from app.services.speech.worker import WordAudioWorker
@@ -111,7 +111,7 @@ class WordAudioOut(BaseModel):
 async def _route(session: AsyncSession, tenant: Tenant) -> TextToSpeech | None:
     ctx = await load_provider_context(session, tenant.id)
     try:
-        return get_tts(ctx)
+        return get_tts(ctx, WORDS_TASK)
     except NoModelConfiguredError:
         return None
 

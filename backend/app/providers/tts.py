@@ -28,12 +28,13 @@ import httpx2
 
 from app.providers.config import (
     TTS_KINDS,
+    ProvidersConfig,
     ResolvedModel,
     TenantProviderContext,
     resolve_route,
     route_for,
 )
-from app.providers.errors import ProviderConfigError
+from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 from app.providers.llm import get_providers_config
 from app.providers.net_guard import make_async_http_client
 from app.settings import get_settings
@@ -422,13 +423,31 @@ async def _post_then_fetch(
     return answer, audio.content
 
 
-def get_tts(ctx: TenantProviderContext) -> TextToSpeech:
+# The route for word pronunciations made ahead of time (Q64s): a slow, good voice can make
+# them without slowing replies read aloud. Empty means the same as `default`.
+WORDS_TASK = "words"
+
+
+def tts_task(config: ProvidersConfig, ctx: TenantProviderContext, task: str) -> str:
+    """The route `task` reads with: one with no model this tenant can use reads like the
+    default one, unless the tenant switched its models off (ADR 0026)."""
+    if task == "default":
+        return task
+    try:
+        resolve_route(config, ctx, "tts", task)
+    except NoModelConfiguredError as exc:
+        return task if exc.code == "models_disabled" else "default"
+    return task
+
+
+def get_tts(ctx: TenantProviderContext, task: str = "default") -> TextToSpeech:
     """Raises NoModelConfiguredError (code `no_tts_model`) when nothing is configured."""
     config = get_providers_config()
-    resolved = resolve_route(config, ctx, "tts", "default")
+    task = tts_task(config, ctx, task)
+    resolved = resolve_route(config, ctx, "tts", task)
     for model in resolved:
         if model.kind not in TTS_KINDS:  # routes are validated on save; YAML at startup
             raise ProviderConfigError(f"connection {model.connection!r} cannot read text aloud")
     # Voice overrides are the route's own params (ADR 0028 §3).
-    voices = route_for(config, ctx, "tts", "default").params.get("voices") or {}
+    voices = route_for(config, ctx, "tts", task).params.get("voices") or {}
     return TextToSpeech(ctx.tenant_id, tuple(resolved), voices)

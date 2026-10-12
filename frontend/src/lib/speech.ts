@@ -466,6 +466,8 @@ async function fetchSpeech(piece: Piece, stop: AbortSignal): Promise<Fetched | n
         text: piece.text,
         language,
         speed: piece.word ? 1 : piece.lang === "en-US" ? settings.enRate : ZH_RATE,
+        // A word's pronunciation made ahead of time is used when there is one (Q64s).
+        ...(piece.word ? { word: true } : {}),
       }),
       signal: request.signal,
     });

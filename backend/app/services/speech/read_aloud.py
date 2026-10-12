@@ -66,15 +66,20 @@ async def read_aloud(
     speed: float,
     user_id: uuid.UUID | None,
     tts: TextToSpeech | None = None,
+    recorded: TextToSpeech | None = None,
 ) -> Audio:
     """Raises NoModelConfiguredError when the tenant has no read-aloud route, and
-    SpeechSynthesisError when no model in it could read the text."""
+    SpeechSynthesisError when no model in it could read the text.
+
+    `recorded` is a route whose audio is looked up first but never paid for here: a
+    word's pronunciation made ahead of time (Q64s)."""
     tts = tts or get_tts(ctx)
     # Audio from any model in the route will do, the earliest one first: a fallback's
     # recording beats paying the primary for the same sentence again.
+    sources = [*(recorded.candidates(language) if recorded else []), *tts.candidates(language)]
     rates = {
         cache_key(text, language, voice, speed, model): playback_rate(model, speed)
-        for model, voice in tts.candidates(language)
+        for model, voice in sources
     }
     keys = list(rates)
     if keys:

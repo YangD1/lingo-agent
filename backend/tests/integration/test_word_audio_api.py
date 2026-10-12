@@ -245,3 +245,48 @@ async def test_delete_old_voices_and_books(
     # "banana" goes with CET-4, though GRE has it too.
     assert response.json()["deleted"] == 1
     assert book(await get(client), "gre")["made"]["en-US"] == 1
+
+
+async def test_words_have_their_own_route_and_a_word_read_aloud_uses_its_recording(
+    client: AsyncClient, app: FastAPI, db_session: AsyncSession, vendor: Vendor
+) -> None:
+    """Q64s: a slow, good voice makes word pronunciations ahead of time while replies are
+    read by a fast one; a learner reading a word gets the recording, not a new one."""
+    await setup(client, db_session)
+    response = await client.post(
+        "/tenant/connections",
+        json={
+            "name": "two",
+            "kind": "openai_compatible",
+            "base_url": "https://two.example.com/v1",
+            "api_key": "sk-test-0123456789",
+        },
+    )
+    assert response.status_code == 201, response.text
+    # Nothing on the words route yet: words read like everything else.
+    estimate = await get(client, "/tenant/word-audio/estimate", book_id="cet4", accents=["en-US"])
+    assert estimate["voices"]["en-US"]["connection"] == "one"
+
+    response = await client.put(
+        "/tenant/routes/tts/words",
+        json={"models": ["two:tts-1"], "params": {"voices": {"two:tts-1": {"en-US": "slow"}}}},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["effective"] == ["two:tts-1"]
+    estimate = await get(client, "/tenant/word-audio/estimate", book_id="cet4", accents=["en-US"])
+    assert estimate["voices"]["en-US"] == {"connection": "two", "model": "tts-1", "voice": "slow"}
+    response = await client.post("/tenant/word-audio/jobs", json=start(accents=["en-US"]))
+    assert response.status_code == 201, response.text
+    await app.state.word_audio_worker.wait_idle()
+    asked = len(vendor.asked)
+
+    word = {"text": "apple", "language": "en-US", "speed": 1, "word": True}
+    recorded = await client.post("/speech/tts", json=word)
+    assert (recorded.headers["x-tts-cached"], recorded.content) == ("1", b"mp3:apple:slow")
+    # A word nobody made ahead of time is read by the fast route, not the slow one.
+    fresh = await client.post("/speech/tts", json={**word, "text": "cherry"})
+    assert (fresh.headers["x-tts-cached"], fresh.content) == ("0", b"mp3:cherry:coral")
+    # Not asked as a word: the reply's route only.
+    sentence = await client.post("/speech/tts", json={**word, "word": False})
+    assert sentence.content == b"mp3:apple:coral"
+    assert len(vendor.asked) == asked + 2

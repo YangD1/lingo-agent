@@ -437,3 +437,33 @@ async def test_other_models_read_at_the_speed_asked(
     serve(monkeypatch, {"openai.example.com": mp3()})
     speech = await speaker("openai:tts-1").synthesize("Hi", language="en-US", speed=0.8)
     assert (speech.playback_rate, speech.mime_type) == (1.0, "audio/mpeg")
+
+
+def test_a_words_route_nothing_can_use_reads_like_the_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = make_config(
+        presets=PRESETS,
+        llm={"default": ["openai:m"]},
+        tts={"default": ["openai:tts-1"], "routes": {"words": ["qwen:qwen-audio-3.1-tts-next"]}},
+    )
+    monkeypatch.setattr(tts, "get_providers_config", lambda: config)
+    words = tts.WORDS_TASK
+
+    assert tts.tts_task(config, make_ctx(conn("openai")), words) == "default"
+    assert tts.get_tts(make_ctx(conn("openai")), words).models[0].model == "tts-1"
+    both = make_ctx(conn("openai"), conn("qwen", "openai_compatible"))
+    assert tts.get_tts(both, words).models[0].model == "qwen-audio-3.1-tts-next"
+    # Switched off on purpose: no quiet move to the default route (ADR 0026).
+    off = make_ctx(
+        conn("openai"),
+        conn("qwen", "openai_compatible"),
+        routes={
+            ("tts", words): RouteSpec(
+                models=["qwen:qwen-audio-3.1-tts-next"], disabled=["qwen:qwen-audio-3.1-tts-next"]
+            )
+        },
+    )
+    assert tts.tts_task(config, off, words) == words
+    with pytest.raises(NoModelConfiguredError):
+        tts.get_tts(off, words)

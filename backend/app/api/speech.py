@@ -19,11 +19,21 @@ from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.providers.asr import get_asr
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
+from app.providers.llm import get_providers_config
 from app.providers.pronunciation import Language as ShadowingLanguage
 from app.providers.pronunciation import get_pronunciation
 from app.providers.realtime import get_realtime
 from app.providers.tenant import load_provider_context
-from app.providers.tts import LANGUAGES, Language, NoVoiceError, SpeechSynthesisError, get_tts
+from app.providers.tts import (
+    LANGUAGES,
+    WORDS_TASK,
+    Language,
+    NoVoiceError,
+    SpeechSynthesisError,
+    TextToSpeech,
+    get_tts,
+    tts_task,
+)
 from app.realtime.limits import call_limit
 from app.services.speech.read_aloud import clear_user_audio, read_aloud
 from app.services.speech.shadowing import ShadowingError, Source, shadow
@@ -66,6 +76,8 @@ class TtsIn(BaseModel):
     language: Language
     # The learner's setting (ADR 0018 §2): English 0.6-1.2, Chinese 1.0.
     speed: Annotated[float, Field(ge=0.5, le=1.5)] = 1.0
+    # A single word: its pronunciation made ahead of time is used when there is one (Q64s).
+    word: bool = False
 
     @field_validator("text")
     @classmethod
@@ -113,6 +125,16 @@ async def capabilities(
     return out.model_copy(update={"tts": bool(languages), "tts_languages": languages})
 
 
+def _words_route(ctx: TenantProviderContext) -> TextToSpeech | None:
+    """The word pronunciation route, when it isn't the read-aloud one (Q64s)."""
+    if tts_task(get_providers_config(), ctx, WORDS_TASK) == "default":
+        return None
+    try:
+        return get_tts(ctx, WORDS_TASK)
+    except NoModelConfiguredError:
+        return None
+
+
 @router.post(
     "/tts",
     response_class=Response,
@@ -128,7 +150,13 @@ async def post_tts(
     ctx = await load_provider_context(session, tenant.id)
     try:
         audio = await read_aloud(
-            session, ctx, body.text, language=body.language, speed=body.speed, user_id=user.id
+            session,
+            ctx,
+            body.text,
+            language=body.language,
+            speed=body.speed,
+            user_id=user.id,
+            recorded=_words_route(ctx) if body.word else None,
         )
     except NoModelConfiguredError as exc:
         raise api_error(

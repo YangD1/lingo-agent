@@ -29,7 +29,8 @@ const MAX_ROWS = 5; // the backend's limit on a route's fallback chain
 /**
  * The routes the settings page edits: chat, the two that attachments need (ADR 0008 §5),
  * the background model that keeps the tutor's memory (ADR 0009), read-aloud and
- * pronunciation assessment (ADR 0028), realtime voice calls (ADR 0030).
+ * pronunciation assessment (ADR 0028), realtime voice calls (ADR 0030), and the read-aloud
+ * route for word pronunciations made ahead of time (Q64s).
  */
 export type RouteTask =
   | "chat"
@@ -37,6 +38,7 @@ export type RouteTask =
   | "vision"
   | "asr"
   | "tts"
+  | "words"
   | "pronunciation"
   | "realtime";
 const SECTION: Record<RouteTask, TaskRoute["section"]> = {
@@ -45,6 +47,7 @@ const SECTION: Record<RouteTask, TaskRoute["section"]> = {
   vision: "llm",
   asr: "asr",
   tts: "tts",
+  words: "tts",
   pronunciation: "pronunciation",
   realtime: "realtime",
 };
@@ -55,6 +58,7 @@ const TASK_KEY: Record<RouteTask, string> = {
   vision: "vision",
   asr: "default",
   tts: "default",
+  words: "words",
   pronunciation: "default",
   realtime: "default",
 };
@@ -90,6 +94,8 @@ export function RouteSection({
 }) {
   const t = useTranslations("settings.route");
   const section = SECTION[task];
+  // Both read-aloud routes pick voices.
+  const reads = section === "tts";
   const path = `/tenant/routes/${section}/${TASK_KEY[task]}`;
   const describe = useDescribeError();
   const [route, setRoute] = useState<TaskRoute | null>(null);
@@ -198,7 +204,7 @@ export function RouteSection({
     const use =
       task === "asr"
         ? "speech"
-        : task === "tts"
+        : reads
           ? c.kind === "azure_speech"
             ? "all"
             : "tts"
@@ -213,7 +219,7 @@ export function RouteSection({
       (ids) =>
         setCatalogs((all) => ({
           ...all,
-          [name]: task === "tts" ? ids.filter((id) => id !== PRONUNCIATION_MODEL) : ids,
+          [name]: reads ? ids.filter((id) => id !== PRONUNCIATION_MODEL) : ids,
         })),
       () => setCatalogs((all) => ({ ...all, [name]: "failed" })),
     );
@@ -317,7 +323,7 @@ export function RouteSection({
                       {state === "connectionMissing" && (
                         <Tag variant="outline">{t("connectionMissing")}</Tag>
                       )}
-                      {task === "tts" && savedVoices[m] && (
+                      {reads && savedVoices[m] && (
                         <span className="truncate text-xs text-muted-foreground">
                           {VOICE_LANGUAGES.flatMap((lang) =>
                             savedVoices[m]?.[lang]
@@ -359,7 +365,7 @@ export function RouteSection({
         {rows !== null && (
           <>
             <p className="text-xs text-muted-foreground">{t("editHint")}</p>
-            {task === "tts" && <p className="text-xs text-muted-foreground">{t("voicesHint")}</p>}
+            {reads && <p className="text-xs text-muted-foreground">{t("voicesHint")}</p>}
             <ol
               className="flex flex-col divide-y border-y"
               aria-label={t("editLabel", { title: t(`tasks.${task}.title`) })}
@@ -451,7 +457,7 @@ export function RouteSection({
                         <X />
                       </Button>
                     </div>
-                    {task === "tts" && (
+                    {reads && (
                       <VoiceInputs
                         index={i}
                         voices={r.voices}

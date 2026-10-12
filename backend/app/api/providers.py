@@ -40,7 +40,7 @@ from app.providers.model_catalog import (
     looks_like_text_to_speech,
 )
 from app.providers.tenant import load_provider_context
-from app.providers.tts import LANGUAGES, Language, default_voice
+from app.providers.tts import LANGUAGES, Language, default_voice, tts_task
 from app.providers.tts_voices import Gender, voice_options
 
 router = APIRouter(tags=["model settings"])
@@ -362,7 +362,9 @@ def _task_route_out(
     overridden: bool,
 ) -> TaskRouteOut:
     try:
-        chain, source = resolve_route_with_source(config, ctx, section, task)
+        # A tts task route nothing can use reads like the default one (Q64s).
+        reads = tts_task(config, ctx, task) if section == "tts" else task
+        chain, source = resolve_route_with_source(config, ctx, section, reads)
     except NoModelConfiguredError:
         effective, effective_source = [], None
     else:

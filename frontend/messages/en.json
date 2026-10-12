@@ -896,6 +896,11 @@
           "description": "Reads tutor replies, words and examples with a server voice (Azure Speech, or an OpenAI-compatible /audio/speech endpoint such as SiliconFlow, OpenAI or a local speaches). Sentences already read are cached.",
           "none": "Not set up: learners' browsers read aloud."
         },
+        "words": {
+          "title": "Word pronunciations",
+          "description": "The read-aloud models that make a word book's pronunciations ahead of time (Settings → Word pronunciations). A slow voice is fine here, e.g. Bailian qwen-audio. When none of them can be used, words are made like everything else read aloud. A learner reading a word gets these recordings first.",
+          "none": "Not set up: word pronunciations use the read-aloud route."
+        },
         "pronunciation": {
           "title": "Pronunciation",
           "description": "Scores learners' pronunciation when they read after the model: overall, per word and per sound (Azure Speech only for now, model pronunciation). Without it, shadowing compares a transcript with the sentence and gives only a rough result.",
@@ -921,7 +926,10 @@
         "zh-CN": "Chinese"
       },
       "voice": "{lang} voice of model {n}",
-      "voiceGender": { "female": "female", "male": "male" },
+      "voiceGender": {
+        "female": "female",
+        "male": "male"
+      },
       "voiceDefault": "Default: {voice}",
       "voiceNone": "No built-in voice: the next model or the browser reads this language",
       "voiceBuiltIn": "Built-in voice (shown once saved)",

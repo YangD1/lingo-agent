@@ -23,7 +23,7 @@ from app.db.models import WordAudioJob
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
-from app.providers.tts import TextToSpeech, get_tts
+from app.providers.tts import WORDS_TASK, TextToSpeech, get_tts
 from app.services.speech import word_audio
 from app.services.speech.word_audio import Sleep
 from app.services.vocab.books import get_book
@@ -34,12 +34,16 @@ logger = logging.getLogger(__name__)
 type RouteFactory = Callable[[TenantProviderContext], TextToSpeech]
 
 
+def words_route(ctx: TenantProviderContext) -> TextToSpeech:
+    return get_tts(ctx, WORDS_TASK)
+
+
 class WordAudioWorker:
     def __init__(
         self,
         sessionmaker: async_sessionmaker[AsyncSession],
         *,
-        route: RouteFactory = get_tts,
+        route: RouteFactory = words_route,
         sleep: Sleep = asyncio.sleep,
     ) -> None:
         self._sessionmaker = sessionmaker

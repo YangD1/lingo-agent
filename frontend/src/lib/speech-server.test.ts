@@ -167,7 +167,7 @@ describe("server read-aloud", () => {
     speech.speakWord(" abandon ");
     await flush();
     // Speed 1 is what the deployment generated ahead of time: the cache has it.
-    expect(requests).toEqual([{ text: "abandon", language: "en-GB", speed: 1 }]);
+    expect(requests).toEqual([{ text: "abandon", language: "en-GB", speed: 1, word: true }]);
     expect(players.at(-1)!.playbackRate).toBe(0.8);
 
     // A sentence is still asked at the learner's speed and played as it comes.

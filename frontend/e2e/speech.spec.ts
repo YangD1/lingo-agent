@@ -378,7 +378,7 @@ test("a deployment generates a book's word pronunciations, and reading a word pl
   await page.getByRole("button", { name: "朗读", exact: true }).click();
 
   await expect.poll(() => cached).toEqual(["1"]);
-  expect(asked).toEqual([{ text: "the", language: "en-US", speed: 1 }]);
+  expect(asked).toEqual([{ text: "the", language: "en-US", speed: 1, word: true }]);
   await expect.poll(() => played(page)).toHaveLength(1);
   expect(await spoken(page)).toEqual([]);
 

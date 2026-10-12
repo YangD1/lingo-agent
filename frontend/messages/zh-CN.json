@@ -896,6 +896,11 @@
           "description": "用服务端的声音朗读私教回复、单词和例句（Azure 语音、OpenAI 兼容的 /audio/speech 接口，比如硅基流动、OpenAI 或本地的 speaches）。读过的句子会缓存。",
           "none": "未配置：由学习者的浏览器朗读。"
         },
+        "words": {
+          "title": "单词发音",
+          "description": "预生成词书单词发音（设置 → 单词发音）用的朗读模型。这里慢一点没关系，比如百炼 qwen-audio。都用不了时，单词和其他朗读一样生成。学习者点单词时先用这里生成的录音。",
+          "none": "未配置：单词发音用朗读路由。"
+        },
         "pronunciation": {
           "title": "发音评测",
           "description": "跟读时给学习者的发音打分：整体、逐词、逐音素（目前只支持 Azure 语音，模型填 pronunciation）。没配时，跟读用语音转写和原句对比，只给粗略结果。",
@@ -921,7 +926,10 @@
         "zh-CN": "中文"
       },
       "voice": "第 {n} 个模型的{lang}声音",
-      "voiceGender": { "female": "女", "male": "男" },
+      "voiceGender": {
+        "female": "女",
+        "male": "男"
+      },
       "voiceDefault": "默认：{voice}",
       "voiceNone": "没有内置声音，这种语言交给下一个模型或浏览器",
       "voiceBuiltIn": "内置默认声音（保存后显示）",
