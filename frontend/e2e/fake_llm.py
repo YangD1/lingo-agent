@@ -5,7 +5,8 @@ Replies are deterministic; a message containing "long" gets a slow ~4s reply so 
 "stop generating" test has something to interrupt. It also stands in for the attachment
 models (ADR 0008): structured image readings via function calling, a reply that says how
 many images it was shown, /audio/transcriptions, /audio/speech for read-aloud, Bailian's
-qwen-audio read-aloud, and Azure's pronunciation assessment (one word always said wrong).
+qwen-audio and qwen3-tts-flash read-aloud, and Azure's pronunciation assessment (one
+word always said wrong).
 
 Memory (ADR 0009): reflection remembers what follows "remember that" in a learner
 message, and "what do you remember" gets back the facts found in the system prompt, so
@@ -666,6 +667,26 @@ async def qwen_audio_clip(clip: str) -> Response:
     if clip not in QWEN_AUDIO:
         return Response(status_code=404)
     return Response(QWEN_AUDIO[clip], media_type="audio/mpeg")
+
+
+# Bailian's qwen3-tts-flash (task 64.2b): a named voice, no speed, a link to a wav.
+@app.post("/api/v1/services/aigc/multimodal-generation/generation")
+async def qwen_tts(request: Request) -> JSONResponse:
+    if request.headers.get("authorization") != "Bearer sk-fake":
+        return JSONResponse({"code": "InvalidApiKey"}, status_code=401)
+    spec = (await request.json())["input"]
+    clip = str(uuid.uuid4())
+    QWEN_AUDIO[clip] = f"wav:{spec['voice']}:{spec['language_type']}:{spec['text']}".encode()
+    url = f"{str(request.base_url).rstrip('/')}/qwen-audio/{clip}.wav"
+    usage = {"characters": len(spec["text"])}
+    return JSONResponse({"output": {"audio": {"url": url}}, "usage": usage})
+
+
+@app.get("/qwen-audio/{clip}.wav")
+async def qwen_tts_clip(clip: str) -> Response:
+    if clip not in QWEN_AUDIO:
+        return Response(status_code=404)
+    return Response(QWEN_AUDIO[clip], media_type="audio/wav")
 
 
 # Pronunciation assessment (ADR 0028 §5): Azure's short-audio REST API, reached through an

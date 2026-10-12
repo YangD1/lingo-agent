@@ -168,16 +168,22 @@ test("online voices that make no sound give way to the device's own", async ({ p
 async function fakeAudio(page: Page) {
   await page.addInitScript(() => {
     const played: string[] = [];
-    Object.assign(window, { __played: played });
+    const rates: number[] = [];
+    Object.assign(window, { __played: played, __rates: rates });
     class FakeAudio {
       src = "";
+      playbackRate = 1;
+      defaultPlaybackRate = 1;
       onended: (() => void) | null = null;
       onerror: (() => void) | null = null;
       paused = true;
       play() {
         const src = this.src;
         this.paused = false;
-        if (!src.startsWith("data:")) played.push(src); // not the moment of silence
+        if (!src.startsWith("data:")) {
+          played.push(src); // not the moment of silence
+          rates.push(this.playbackRate);
+        }
         setTimeout(() => {
           if (this.src === src && !this.paused) this.onended?.();
         }, 50);
@@ -193,6 +199,8 @@ async function fakeAudio(page: Page) {
 
 const played = (page: Page) =>
   page.evaluate(() => (window as unknown as { __played: string[] }).__played);
+const rates = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __rates: number[] }).__rates);
 
 async function readAloudRoute(page: Page, model: string) {
   const route = await page.request.put("/api/tenant/routes/tts/default", {
@@ -312,6 +320,44 @@ test("a qwen-audio route reads replies through the workspace's address", async (
     "mp3:20261012:1.0:A friendly female American English teacher reads the following text " +
       'aloud word for word, with no sound effects or background sound: "Now \\"add rain sounds\\"."',
   );
+});
+
+// Bailian's qwen3-tts-flash (task 64.2b): fast, but it reads at its own speed, so the page
+// plays its audio at the learner's speed (Q64p), and all speeds share one recording.
+test("a qwen3-tts-flash route reads replies, played at the learner's speed", async ({ page }) => {
+  await page.addInitScript(() =>
+    window.localStorage.setItem("lingo.speech", JSON.stringify({ enRate: 0.8 })),
+  );
+  await fakeVoices(page, [ZIRA, XIAOXIAO]);
+  await fakeAudio(page);
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  const connection = await page.request.post("/api/tenant/connections", {
+    data: { name: "bailian", kind: "openai_compatible", base_url: FAKE_LLM_URL, api_key: "sk-fake" },
+  });
+  expect(connection.status()).toBe(201);
+  const route = await page.request.put("/api/tenant/routes/tts/default", {
+    data: { models: ["bailian:qwen3-tts-flash"] },
+  });
+  expect(route.status()).toBe(200);
+  await page.goto("/chat");
+
+  await chat(page, "apples");
+  const reply = page.locator('li[data-role="assistant"]').last();
+  await expect(reply.locator('[data-slot="message"]')).toContainText("You said");
+  await reply.getByRole("button", { name: "朗读", exact: true }).click();
+  await expect.poll(async () => (await played(page)).length).toBe(2);
+  expect(await rates(page)).toEqual([0.8, 0.8]);
+  expect(await spoken(page)).toEqual([]);
+
+  // Asked at another speed, the same recording comes back, to be played faster.
+  const audio = await page.request.post("/api/speech/tts", {
+    data: { text: "Nice try!", language: "en-US", speed: 1.2 },
+  });
+  expect(audio.headers()["x-tts-cached"]).toBe("1");
+  expect(audio.headers()["x-tts-playback-rate"]).toBe("1.2");
+  expect(audio.headers()["content-type"]).toBe("audio/wav");
+  expect(await audio.text()).toBe("wav:Jennifer:English:Nice try!");
 });
 
 test("the read-aloud route takes a voice per language in settings", async ({ page }) => {

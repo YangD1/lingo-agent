@@ -120,3 +120,19 @@ Q57a–g 按推荐确认。和上文的差异与补充：
 - **计费与用量**：百炼按 token 计费（输入 6 元 / 百万、输出 12 元 / 百万），但响应只给 `usage.duration`（秒），不给 token；用量仍按字符记，`duration` 不存，费用估计等冒烟实测后再定。
 - **测试**：单测覆盖 prompt 转义、默认描述、两步请求、429 重试、各种失败、没填 `tts_url`；`fake_llm.py` 加假的百炼接口，`speech.spec.ts` 一条 E2E。
 - **未验证**：真实百炼 key（留给 64.2 冒烟）、同一 seed 下逐句声音是否一致、单次合成耗时（默认超时 20 秒，太短再给 tts 设 `task_params`）。
+
+## 落地记录（冒烟后改接 qwen3-tts-flash，任务 64.2 / 64.2b，2026-10-12）
+
+64.2 第一轮冒烟（用户的百炼 key，直接调适配器）推翻了上一节的几处前提，用户据此决定：**交互朗读改接 `qwen3-tts-flash`，qwen-audio 只做单词发音预生成**（Q64o）；`tts_url` 不填用公共地址（Q64n）；Q64p、Q64r、Q64s 按推荐；音色改为可选可配置（Q64q，用户要求）。
+
+- **实测**：qwen-audio 公共地址 `https://dashscope.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer` 就能用，不需要 WorkspaceId；响应**有** `usage.input_tokens` / `output_tokens`（文档说只有时长）；音频链接是 http（OSS 北京）；**每句 13.6–27.2 秒**，远超前端 4 秒的首字节退回线。同一 key 的 `qwen3-tts-flash` 一句 0.45–1.07 秒。
+- **qwen-audio 收尾**：`tts_url` 不填时按连接 base_url 的主机拼公共地址；token 记进 `llm_usage`；默认超时 60 秒，连接测试也放到 60 秒。
+- **flash 适配器**：模型名以 `qwen3-tts` 开头（不含 realtime）。`POST {base_url 主机}/api/v1/services/aigc/multimodal-generation/generation`，body `model` + `input{text, voice, language_type}`；和 qwen-audio 共用“POST → 429 重试一次 → GET 链接”。只出 wav（24 kHz 16 位单声道，约 48 KB/秒，`format` / `rate` 放 input 或 parameters 都被忽略），按字符计（`usage.characters`）。
+- **语速**（Q64p）：flash 不能调速，按语速 1 合成，缓存键记 1（不同语速共用一份）；`/speech/tts` 响应头 `X-Tts-Playback-Rate` 给出倍数，前端用 `playbackRate` 播放（单词再乘学习者语速）。
+- **wav 体积**（Q64r）：照存 wav，后端不装 ffmpeg；200 MB 缓存约 1,400 句。
+- **音色**（Q64q）：`providers/tts_voices.py` 的 `VoiceOption`（id、名字、性别、适用语言、口音、说明）。flash 列官方 49 个非实时音色（方言音色不给中文）；qwen-audio 列 6 条推荐描述。路由接口 `voice_options` 下发，设置页声音框按目录列出（口音相符的排前），仍可手填。默认 en-US Jennifer、zh-CN Cherry；官方没有英式声音，en-GB 交给路由下一个模型或浏览器。目录按“以后学习者也能选”设计（任务 66：学习者自选模型、音色、动画形象）。
+- **单词发音单独路由**（Q64s）：`tts` 节加路由任务 `words`（YAML 默认 `qwen:qwen-audio-3.1-tts-next`）；路由里没有可用模型时按 `default` 读，学习者停用的不回退（ADR 0026）。预生成用 `words`；学习者点单词（`/speech/tts` 带 `word: true`）先查 `words` 路由的缓存，没有再用 `default` 现合成，不拿慢模型现合成。设置页模型路由多一张“单词发音”卡片。
+- **YAML**：`tts.default` 末尾加 `qwen:qwen3-tts-flash`；qwen 预设模型加 `qwen3-tts-flash`。
+- **测试**：单测（flash 请求与 wav、声音与语速、公共地址与 token、words 路由回退与停用）；集成（flash 不同语速共用缓存与响应头、音色目录、words 路由预生成与点单词命中录音）；Vitest（播放倍数、音色目录）；E2E（`fake_llm.py` 假 flash 接口，`speech.spec.ts` flash 读回复按 0.8 播放）。
+- **未验证**：真实 key 下 flash 的音色听感、逐句是否一致（同名音色应一致）；qwen-audio 的 a–e 样本待用户听；qwen-audio 预生成整本词书的实际耗时与费用（64.2 继续）。
+

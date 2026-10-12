@@ -62,8 +62,10 @@ llm:
     vision: anthropic:claude-sonnet-5       # 读图、回复带图的那一轮（ADR 0008）
 asr:                                        # OpenAI 兼容 /audio/transcriptions，走租户连接（ADR 0008）
   default: [groq:whisper-large-v3-turbo, siliconflow:FunAudioLLM/SenseVoiceSmall, openai:gpt-transcribe]  # 大陆访问不了 Groq/OpenAI 时用硅基流动；dev 可改为本地 speaches 连接
-tts:                                        # 可选；没配时浏览器朗读（ADR 0018）。兼容 OpenAI 的 /audio/speech、azure_speech 连接，或百炼 qwen-audio（连接填 tts_url，ADR 0028）
-  default: [azure:en-US-AvaMultilingualNeural, speaches:kokoro]
+tts:                                        # 可选；没配时浏览器朗读（ADR 0018）。兼容 OpenAI 的 /audio/speech、azure_speech 连接，或百炼 qwen3-tts-flash / qwen-audio（ADR 0028）
+  default: [azure:en-US-AvaMultilingualNeural, speaches:kokoro, qwen:qwen3-tts-flash]
+  routes:
+    words: [qwen:qwen-audio-3.1-tts-next]    # 单词发音预生成；没有可用模型时按 default
 pronunciation:                              # 跟读发音评测；没配时用 asr 转写对比给粗略反馈（ADR 0028）
   default: [azure:pronunciation]            # 免费档 F0 每月 5 小时；讯飞 ISE 以后按需加
 realtime:                                   # 端到端语音对话，后端中继（ADR 0030）

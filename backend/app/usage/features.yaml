@@ -77,8 +77,9 @@ features:
 
   # Server read-aloud, one sentence per call; repeats come from the cache and cost
   # nothing (ADR 0028 §3). Without a tts route the browser reads aloud: no call, no badge.
-  # Counted in characters for every vendor; Bailian's qwen-audio bills by token but only
-  # reports seconds of audio, so its cost is estimated from characters too (task 64.2a).
+  # Counted in characters (qwen3-tts-flash reports characters too). Bailian's qwen-audio
+  # also reports tokens, recorded alongside; it makes word pronunciations, not replies
+  # (task 64.2b).
   read_aloud:
     calls:
       - task: tts
@@ -89,6 +90,7 @@ features:
 
   # A word book's pronunciations, generated ahead of time when the deployment asks
   # (ADR 0028 §4). Per word and accent; not against the daily background budget (Q7).
+  # Runs on the tts `words` route when it has a usable model, else `default` (Q64s).
   word_audio_prefetch:
     calls:
       - task: word_audio
