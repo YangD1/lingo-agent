@@ -1,3 +1,4 @@
+import json
 from typing import Any
 
 import httpx2
@@ -326,3 +327,59 @@ def test_cache_key_depends_on_everything_that_changes_the_audio() -> None:
         ),
     }
     assert base not in others and len(others) == 5
+
+
+async def test_a_model_without_speed_control_is_cached_once_for_every_speed(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """qwen3-tts-flash reads at its own speed (Q64p): one recording, played faster or
+    slower by the page, which the response header tells."""
+    asked: list[dict[str, Any]] = []
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        if request.method == "GET":
+            return httpx2.Response(200, content=b"RIFF-wav")
+        asked.append(json.loads(request.content))
+        return httpx2.Response(
+            200, json={"output": {"audio": {"url": "https://oss.example.com/a.wav"}}}
+        )
+
+    def fake(*, allow_private: bool, timeout: float | None) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(transport=httpx2.MockTransport(handle))
+
+    monkeypatch.setattr(tts, "make_async_http_client", fake)
+    response = await client.post(
+        "/auth/register", json={"email": "f@example.com", "password": "password123"}
+    )
+    assert response.status_code == 201
+    response = await client.post(
+        "/tenant/connections",
+        json={
+            "name": "qwen",
+            "kind": "openai_compatible",
+            "base_url": "https://dashscope.example.com/compatible-mode/v1",
+            "api_key": "sk-test-0123456789",
+        },
+    )
+    assert response.status_code == 201, response.text
+    response = await client.put(
+        "/tenant/routes/tts/default", json={"models": ["qwen:qwen3-tts-flash"]}
+    )
+    assert response.status_code == 200, response.text
+
+    slow = await client.post("/speech/tts", json=say(speed=0.8))
+    usual = await client.post("/speech/tts", json=say(speed=1.0))
+
+    assert (slow.status_code, slow.headers["content-type"]) == (200, "audio/wav")
+    assert (slow.headers["x-tts-cached"], slow.headers["x-tts-playback-rate"]) == ("0", "0.8")
+    assert (usual.headers["x-tts-cached"], usual.headers["x-tts-playback-rate"]) == ("1", "1")
+    assert usual.content == b"RIFF-wav"
+    assert asked == [
+        {
+            "model": "qwen3-tts-flash",
+            "input": {"text": "Nice to meet you.", "voice": "Jennifer", "language_type": "English"},
+        }
+    ]
+    # British English has no flash voice: the browser reads it.
+    british = await client.post("/speech/tts", json=say(language="en-GB"))
+    assert british.json()["detail"]["code"] == "no_tts_voice"

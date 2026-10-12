@@ -435,11 +435,23 @@ function serverReads(kind: SpeechLang, settings: SpeechSettings): boolean {
 // lost (ADR 0028 §3), and the browser reads from there on.
 export const SERVER_START_TIMEOUT_MS = 4000;
 
+/** A sentence of the server's audio, and how much faster to play it than recorded. */
+type Fetched = { audio: Blob; rate: number };
+
+/**
+ * The rate the server says its audio needs: above 1 when the model read at its own speed
+ * instead of the one asked for (Q64p).
+ */
+export function playbackRate(header: string | null): number {
+  const rate = Number(header);
+  return Number.isFinite(rate) && rate > 0 ? rate : 1;
+}
+
 /**
  * The server's audio for one sentence, or null after marking what failed: the language
  * when the route has no voice for it, the server (for this page) on anything else.
  */
-async function fetchSpeech(piece: Piece, stop: AbortSignal): Promise<Blob | null> {
+async function fetchSpeech(piece: Piece, stop: AbortSignal): Promise<Fetched | null> {
   const settings = currentSettings();
   const language = serverLang(piece.lang, settings);
   const request = new AbortController();
@@ -459,7 +471,9 @@ async function fetchSpeech(piece: Piece, stop: AbortSignal): Promise<Blob | null
     });
     clearTimeout(timer);
     const audio = await response.blob();
-    if (audio.size > 0) return audio;
+    if (audio.size > 0) {
+      return { audio, rate: playbackRate(response.headers.get("x-tts-playback-rate")) };
+    }
     setServer({ down: true });
   } catch (error) {
     if (stop.aborted) return null; // stopped: nothing failed
@@ -636,7 +650,7 @@ function read(
   }
   setSpeaking(owner);
 
-  const fetched = new Map<number, Promise<Blob | null>>();
+  const fetched = new Map<number, Promise<Fetched | null>>();
   const fetchAt = (i: number) => {
     let audio = fetched.get(i);
     if (!audio) fetched.set(i, (audio = fetchSpeech(pieces[i], controller.signal)));
@@ -663,15 +677,16 @@ function read(
       });
       return play(owner, plan.utterances, () => step(end));
     }
-    void fetchAt(i).then(async (audio) => {
+    void fetchAt(i).then(async (got) => {
       if (!live()) return;
-      if (!audio) return step(i); // what failed is marked: the browser reads it
+      if (!got) return step(i); // what failed is marked: the browser reads it
       const next = i + 1;
       if (next < pieces.length && serverReads(pieces[next].lang, currentSettings())) {
         void fetchAt(next);
       }
-      const rate = pieces[i].word ? currentSettings().enRate : 1;
-      if (await playAudio(audio, rate)) return step(next);
+      // Words are always recorded at speed 1 and played at the learner's (Q55a).
+      const rate = (pieces[i].word ? currentSettings().enRate : 1) * got.rate;
+      if (await playAudio(got.audio, rate)) return step(next);
       if (!live()) return;
       setServer({ down: true }); // the page can't play it (blocked, or not audio)
       step(i);

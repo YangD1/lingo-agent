@@ -178,6 +178,38 @@ describe("server read-aloud", () => {
     expect(players.at(-1)!.playbackRate).toBe(1);
   });
 
+  it("plays faster or slower when the model read at its own speed (Q64p)", async () => {
+    window.localStorage.setItem("lingo.speech", JSON.stringify({ accent: "en-US", enRate: 0.8 }));
+    const speech = await load();
+    const fixed = () => {
+      const response = audio();
+      response.headers.set("x-tts-playback-rate", "0.8");
+      return response;
+    };
+    respond = fixed;
+    speech.speak("Abandon ship.");
+    await flush();
+    expect(players.at(-1)!.playbackRate).toBe(0.8);
+
+    // A word asks for speed 1, so the server says 1; the learner's speed still applies.
+    respond = () => {
+      const response = audio();
+      response.headers.set("x-tts-playback-rate", "1");
+      return response;
+    };
+    speech.speakWord("abandon");
+    await flush();
+    expect(players.at(-1)!.playbackRate).toBe(0.8);
+  });
+
+  it("reads the rate header defensively", async () => {
+    const speech = await load();
+    expect(speech.playbackRate("1.25")).toBe(1.25);
+    expect(speech.playbackRate(null)).toBe(1);
+    expect(speech.playbackRate("fast")).toBe(1);
+    expect(speech.playbackRate("0")).toBe(1);
+  });
+
   it("falls back to the browser for the page when the server fails", async () => {
     const speech = await load();
     respond = () => failure(502, "tts_unavailable");

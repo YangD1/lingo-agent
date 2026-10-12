@@ -6,6 +6,9 @@ capped per tenant and evicts the least recently used audio first, except pinned 
 A reply read aloud may say something personal (Q54c): each row keeps the learner who
 first asked for it, who can clear their rows, and unpinned rows unused for
 `UNUSED_DAYS` are dropped by a daily job.
+
+A model that can't change speed (qwen3-tts-flash, Q64p) is cached at the speed it read
+at, so learners at any speed share one recording; `playback_rate` tells the player.
 """
 
 import hashlib
@@ -21,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import TtsAudio
 from app.providers.config import ResolvedModel, TenantProviderContext
-from app.providers.tts import Language, TextToSpeech, get_tts
+from app.providers.tts import Language, TextToSpeech, get_tts, synthesis_speed
 
 # Per tenant, unpinned rows only. A sentence of mp3 is tens of KB, so this keeps
 # thousands of sentences without growing the database much.
@@ -34,10 +37,17 @@ class Audio:
     audio: bytes
     mime_type: str
     cached: bool
+    playback_rate: float = 1.0
 
 
 def cache_key(text: str, language: str, voice: str, speed: float, model: ResolvedModel) -> str:
-    return audio_key(text, language, voice, speed, model.connection, model.model)
+    """The key for `text` read by `model` for a learner at `speed`."""
+    read_at = synthesis_speed(model, speed)
+    return audio_key(text, language, voice, read_at, model.connection, model.model)
+
+
+def playback_rate(model: ResolvedModel, speed: float) -> float:
+    return round(speed / synthesis_speed(model, speed), 2)
 
 
 def audio_key(
@@ -62,9 +72,11 @@ async def read_aloud(
     tts = tts or get_tts(ctx)
     # Audio from any model in the route will do, the earliest one first: a fallback's
     # recording beats paying the primary for the same sentence again.
-    keys = [
-        cache_key(text, language, voice, speed, model) for model, voice in tts.candidates(language)
-    ]
+    rates = {
+        cache_key(text, language, voice, speed, model): playback_rate(model, speed)
+        for model, voice in tts.candidates(language)
+    }
+    keys = list(rates)
     if keys:
         rows = {
             row.key: row
@@ -80,7 +92,7 @@ async def read_aloud(
             audio = await session.scalar(select(TtsAudio.audio).where(TtsAudio.id == hit.id))
             await session.commit()
             if audio is not None:
-                return Audio(audio, hit.mime_type, cached=True)
+                return Audio(audio, hit.mime_type, cached=True, playback_rate=rates[hit.key])
 
     speech = await tts.synthesize(text, language=language, speed=speed, user_id=user_id)
     served_by = next(
@@ -105,7 +117,7 @@ async def read_aloud(
     )
     await evict(session, ctx.tenant_id)
     await session.commit()
-    return Audio(speech.audio, speech.mime_type, cached=False)
+    return Audio(speech.audio, speech.mime_type, cached=False, playback_rate=speech.playback_rate)
 
 
 async def evict(

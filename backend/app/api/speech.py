@@ -149,6 +149,8 @@ async def post_tts(
         media_type=audio.mime_type,
         headers={
             "X-Tts-Cached": "1" if audio.cached else "0",
+            # 1 unless the model read at its own speed (Q64p): the player speeds it up.
+            "X-Tts-Playback-Rate": f"{audio.playback_rate:g}",
             # Same text, same voice: the browser may keep it for this learner.
             "Cache-Control": "private, max-age=86400",
         },
