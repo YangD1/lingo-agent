@@ -4,15 +4,15 @@
 
 ---
 
-## 2026-10-12 任务 65.8 进行中：E2E、README、ADR 落地记录
+## 2026-10-12 任务 65.8 完成，任务 65 完成
 
 **做了什么**：新增 `frontend/e2e/org.spec.ts`（两个浏览器上下文：主账号建邀请 → 成员打开链接预览、加入 → 路由卡片和 `AiBadge` 显示“由 Ada 提供” → 聊天 → 主账号看到成员用量、把文本日上限调到 10、用量卡片切到成员 → 成员聊天被拒、路由卡片提示用尽 → 成员自己加连接后照常聊 → 退出，主账号显示已离开），单独跑通。README 中英加“把模型分给成员用”、用量表说明、ADR 0031 链接；ADR 0031 加落地记录；PLAN P4 组织账号标完成。
 
-**未完成**：`make ci` 各步骤已全过（pytest 1731、Vitest 593、E2E 71），已分 `test:` / `docs:` 两次提交；剩推送、看 CI、重建 Docker，65.8 标 `[x]`。
+**未完成**：`make ci` 各步骤已全过（pytest 1731、Vitest 593、E2E 71），已分 `test:` / `docs:` 两次提交；已推送到 2fae760，CI run 38261504402 四个 job 全绿，Docker 已重建（迁移 head `e3f39baaa371`，`/healthz` 200）。任务 65 没有遗留。
 
 **下一步**：上面这些；然后任务 66（学习者自选私教，开工前写 ADR、拆任务、和用户确认）。
 
-**踩坑**：Vitest 全量并行跑（负载 ~12）时 `learner-app`、`speech-settings-server`、`members-section` 偶发超时，单跑都过；已把 Testing Library `asyncUtilTimeout` 调到 3s（`vitest.setup.ts`）、`testTimeout` 调到 15s（`vitest.config.mts`）。Bash 里 `pnpm` 是 zsh 函数包装，会无限递归（`_load_nvm`），用 `command pnpm` 或直接调 `node_modules/.../vitest.mjs`。Playwright `getByRole("table", { name: "用量" })` 默认是子串匹配，会匹配到成员行的“Bo 的用量”表，要加 `exact: true`。
+**踩坑**：`make up` 第一次失败是前端镜像里 corepack 从 registry.npmjs.org 下载 pnpm 连接超时，重试即可。Vitest 全量并行跑（负载 ~12）时 `learner-app`、`speech-settings-server`、`members-section` 偶发超时，单跑都过；已把 Testing Library `asyncUtilTimeout` 调到 3s（`vitest.setup.ts`）、`testTimeout` 调到 15s（`vitest.config.mts`）。Bash 里 `pnpm` 是 zsh 函数包装，会无限递归（`_load_nvm`），用 `command pnpm` 或直接调 `node_modules/.../vitest.mjs`。Playwright `getByRole("table", { name: "用量" })` 默认是子串匹配，会匹配到成员行的“Bo 的用量”表，要加 `exact: true`。
 
 ---
 
