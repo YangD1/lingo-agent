@@ -94,6 +94,20 @@ async def validate_realtime_url(url: str, *, allow_private: bool) -> str:
     return "ws" + checked.removeprefix("http")
 
 
+async def validate_speech_url(url: str, *, allow_private: bool) -> str:
+    """Check a tenant-supplied speech endpoint (Bailian's `tts_url`, task 64.2a) like a
+    base_url, but by its own name in errors; returns it normalized."""
+    try:
+        return await validate_base_url(url.strip(), allow_private=allow_private)
+    except ProviderConfigError as exc:
+        message = str(exc)
+        if "base_url" in message:
+            message = message.replace("base_url", "tts_url")
+        else:
+            message = f"tts_url: {message}"
+        raise ProviderConfigError(message) from exc
+
+
 async def guarded_socket(host: str, port: int, *, allow_private: bool) -> socket.socket:
     """A TCP socket connected to a checked address of `host`, for clients that don't go
     through httpx (the realtime WebSocket, ADR 0030): the same connect-time check as

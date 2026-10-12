@@ -23,9 +23,9 @@ from app.db.models import PROVIDER_KINDS, ProviderConnection, TenantModelRoute
 from app.providers.asr import SpeechToText, TranscriptionError, silent_clip
 from app.providers.cache import TTLCache
 from app.providers.config import (
+    NON_SDK_PARAMS,
     PRONUNCIATION_KINDS,
     REALTIME_KINDS,
-    REALTIME_PARAMS,
     SPEECH_ONLY_KINDS,
     ProviderKind,
     ProvidersConfig,
@@ -46,6 +46,7 @@ from app.providers.net_guard import (
     make_async_http_client,
     validate_base_url,
     validate_realtime_url,
+    validate_speech_url,
 )
 from app.providers.pronunciation import AssessmentError, NoSpeechError, PronunciationAssessor
 from app.providers.realtime import realtime_target, redact_key
@@ -107,6 +108,10 @@ class CallParams(BaseModel):
     realtime_url: Annotated[str, Field(max_length=500)] | None = None
     # Gemini's is told by the connection's kind, never set here.
     realtime_dialect: Literal["ga", "beta"] | None = None
+    # Bailian's qwen-audio read-aloud address, on the workspace's own host (task 64.2a):
+    # https://<WorkspaceId>.cn-beijing.maas.aliyuncs.com/api/v1/services/audio/tts/
+    # SpeechSynthesizer. Never sent to an SDK.
+    tts_url: Annotated[str, Field(max_length=500)] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return self.model_dump(exclude_none=True)
@@ -118,12 +123,15 @@ def key_hint(api_key: str) -> str:
 
 async def _check_connection_params(params: CallParams, *, allow_private: bool) -> CallParams:
     """Connection params reach every SDK the connection is used with; returns them with
-    `realtime_url` normalized."""
+    `realtime_url` and `tts_url` normalized."""
     if params.voices is not None:
         raise ProviderConfigError("voices belong on a text-to-speech route, not a connection")
     if params.realtime_url is not None:
         url = await validate_realtime_url(params.realtime_url, allow_private=allow_private)
         params = params.model_copy(update={"realtime_url": url})
+    if params.tts_url is not None:
+        url = await validate_speech_url(params.tts_url, allow_private=allow_private)
+        params = params.model_copy(update={"tts_url": url})
     return params
 
 
@@ -518,8 +526,10 @@ async def put_route(
     for ref in route.models:
         if ref.partition(":")[0] not in connections:
             raise ProviderConfigError(f"no connection named {ref.partition(':')[0]!r}")
-    if REALTIME_PARAMS & route.params.keys():
-        raise ProviderConfigError("realtime_url and realtime_dialect belong on a connection")
+    if NON_SDK_PARAMS & route.params.keys():
+        raise ProviderConfigError(
+            ", ".join(sorted(NON_SDK_PARAMS & route.params.keys())) + " belong on a connection"
+        )
     if route.params.get("voices") is not None:
         if section != "tts":
             raise ProviderConfigError("voices can only be set on a text-to-speech route")

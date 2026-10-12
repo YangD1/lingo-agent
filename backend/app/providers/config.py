@@ -39,6 +39,11 @@ REALTIME_KINDS: frozenset[str] = frozenset({"openai", "openai_compatible", "gemi
 # Connection params only realtime calls read (Q60c): never passed to a chat or
 # embeddings SDK, whose constructors take every other param.
 REALTIME_PARAMS: frozenset[str] = frozenset({"realtime_url", "realtime_dialect"})
+# Connection params only speech endpoints read, never passed to an SDK either: Bailian's
+# qwen-audio reads aloud on the workspace's own host (task 64.2a).
+SPEECH_URL_PARAMS: frozenset[str] = frozenset({"tts_url"})
+# Every param that belongs on a connection and must never reach an SDK constructor.
+NON_SDK_PARAMS: frozenset[str] = REALTIME_PARAMS | SPEECH_URL_PARAMS
 # Sections a deployment may leave out entirely.
 OPTIONAL_SPEECH_SECTIONS: frozenset[str] = frozenset({"asr", "tts", "pronunciation", "realtime"})
 # Tasks needing a capability that can't be inferred from a model's name (ADR 0008 §5):
@@ -252,8 +257,9 @@ class ResolvedModel:
 
 
 def sdk_params(params: Mapping[str, Any]) -> dict[str, Any]:
-    """A model's params for an SDK constructor: without the ones only realtime reads."""
-    return {k: v for k, v in params.items() if k not in REALTIME_PARAMS}
+    """A model's params for an SDK constructor: without the ones only realtime or a
+    speech endpoint reads."""
+    return {k: v for k, v in params.items() if k not in NON_SDK_PARAMS}
 
 
 def load_providers_config(path: Path) -> ProvidersConfig:

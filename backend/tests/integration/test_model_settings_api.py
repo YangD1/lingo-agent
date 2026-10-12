@@ -943,6 +943,35 @@ async def test_realtime_routes_and_their_connection_params(client: AsyncClient) 
         assert bad.status_code == 422, params
 
 
+async def test_qwen_audio_reads_aloud_from_the_connections_tts_url(client: AsyncClient) -> None:
+    """Bailian's qwen-audio (task 64.2a): where the workspace reads aloud is a checked
+    connection param, https only, kept off routes and away from the chat SDK."""
+    await login(client)
+    url = "https://ws-1.cn-beijing.maas.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer"
+    qwen = await create(client, preset="qwen", api_key=SECRET, params={"tts_url": f" {url}/ "})
+    assert qwen["params"]["tts_url"] == url
+
+    response = await client.put(
+        "/tenant/routes/tts/default", json={"models": ["qwen:qwen-audio-3.1-tts-next"]}
+    )
+    assert response.status_code == 200, response.text
+    voices = response.json()["default_voices"]["qwen:qwen-audio-3.1-tts-next"]
+    assert voices["en-US"] == "A friendly female American English teacher"
+    on_route = await client.put(
+        "/tenant/routes/tts/default",
+        json={"models": ["qwen:qwen-audio-3.1-tts-next"], "params": {"tts_url": url}},
+    )
+    assert on_route.status_code == 422
+    assert "tts_url belong on a connection" in on_route.json()["detail"]["message"]
+
+    for bad_url in (url.replace("https", "http"), "https://127.0.0.1/tts", "ftp://x.example.com"):
+        bad = await client.patch(
+            f"/tenant/connections/{qwen['id']}", json={"params": {"tts_url": bad_url}}
+        )
+        assert bad.status_code == 422, bad_url
+        assert "tts_url" in bad.json()["detail"]["message"]
+
+
 async def test_gemini_connection_takes_realtime_calls_only(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

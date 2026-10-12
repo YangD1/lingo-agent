@@ -147,7 +147,12 @@ def test_keys_in_query_strings_are_redacted() -> None:
 
 
 def test_realtime_params_never_reach_an_sdk() -> None:
-    params = {"timeout": 20, "realtime_url": "wss://x.example.com", "realtime_dialect": "ga"}
+    params = {
+        "timeout": 20,
+        "realtime_url": "wss://x.example.com",
+        "realtime_dialect": "ga",
+        "tts_url": "https://ws-1.example.com/api/v1/services/audio/tts/SpeechSynthesizer",
+    }
     assert sdk_params(params) == {"timeout": 20}
 
 
