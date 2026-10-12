@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-12 任务 64.2 全栈冒烟完成、64.3 拆分
+
+**做了什么**：Docker 按 5f81cdd 重建（后端、前端先后建）。用百炼 key 在临时账号上跑完 64.2：接口脚本 `/tmp/qwen-smoke/stack_a.py`（朗读、跟读、单词发音预生成）+ 临时 Playwright 用例（对 Docker 3000 端口，假麦克风用 `--use-file-for-fake-audio-capture` 播 flash 合成的英文 + 14 秒静音：对话 + 朗读、级联口语一个情景、实时通话 2 分钟）。三项界面流程全过。详细数字记在看板 64.2 下。临时租户、账号、两个连接已用 SQL 删除（经 `tenant_members` 定位，确认只有 1 个成员），临时用例已删，`asr` 已停。
+
+**发现**（都拆进 64.3，Q64t–x 待用户确认）：qwen-audio 超时被 YAML 全局 `timeout: 30` 盖掉（预生成 12 个失败 3 个，都是 30 秒 ReadTimeout）；预生成串行一个词 13 秒，预估“27 分钟”实际约 6 小时；失败无日志；口语 / 通话小结把转写痕迹（标点、停顿切句）当学习者错误；实时通话实测每分钟约 6,500 / 370 token，估计写的是 20,000 / 1,000；`asr` 容器要设 `ASR_HF_ENDPOINT` 才能下模型。
+
+**未完成**：64.3.1–64.3.4（一行代码没写）、64.4、64.5。本地领先 origin 18 个提交，未推送。
+
+**下一步**：用户确认 Q64t–x 后按 64.3.1 起逐个做。
+
+**踩坑**：`asr` 起不来时看 `docker compose logs asr`，是卡在 huggingface.co；`ASR_HF_ENDPOINT=https://hf-mirror.com docker compose --profile asr up -d asr`。Playwright 用例放 `frontend/` 下的临时目录才能解析 `@playwright/test`，跑 `node node_modules/@playwright/test/cli.js test -c <config>`。实时用的假麦克风文件要在语音后留长静音，否则服务端 VAD 不断句。
+
+---
+
 ## 2026-10-12 任务 64.2b 完成、flash 冒烟
 
 **做了什么**：64.2b.1–64.2b.5 完成（提交 d0f7d4c…5f81cdd）：交互朗读接 `qwen3-tts-flash`（按语速 1 合成，`X-Tts-Playback-Rate` 交给前端调速，存 wav），qwen-audio 改走 `tts` 节的 `words` 路由只做单词预生成，`providers/tts_voices.py` 音色目录下发到设置页。随后用用户的百炼 key 直接调 `tts._synthesize` 做了 flash 冒烟（脚本 `/tmp/qwen-smoke/flash.py`，没建账号）：官方 48 个音色全部可用，单次 0.40–0.70 秒；指令样的句子照读；qwen-audio 单词 13–33 秒。文档里的“49 个音色”是笔误，PROGRESS 和 ADR 0028 已改成 48。
