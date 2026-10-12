@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-12 任务 64.2b 完成、flash 冒烟
+
+**做了什么**：64.2b.1–64.2b.5 完成（提交 d0f7d4c…5f81cdd）：交互朗读接 `qwen3-tts-flash`（按语速 1 合成，`X-Tts-Playback-Rate` 交给前端调速，存 wav），qwen-audio 改走 `tts` 节的 `words` 路由只做单词预生成，`providers/tts_voices.py` 音色目录下发到设置页。随后用用户的百炼 key 直接调 `tts._synthesize` 做了 flash 冒烟（脚本 `/tmp/qwen-smoke/flash.py`，没建账号）：官方 48 个音色全部可用，单次 0.40–0.70 秒；指令样的句子照读；qwen-audio 单词 13–33 秒。文档里的“49 个音色”是笔误，PROGRESS 和 ADR 0028 已改成 48。
+
+**未完成**：64.2 其余冒烟项（Q64c / Q64m）：Docker 全栈临时账号上跑 `qwen-plus` 对话、flash 朗读、`words` 路由预生成一小本、跟读（转写走 `make asr-up` 本地 whisper）、级联口语一个情景、`qwen3.5-omni-flash-realtime` 通话 2–3 分钟。Docker 镜像还是任务 63 的代码，要先重建（先 backend 后 frontend）。64.3–64.5。本地领先 origin 17 个提交，未推送。
+
+**下一步**：用户试听 `/tmp/qwen-smoke/flash/` 的样本；确认后重建 Docker、`make asr-up`，再请用户给 key 跑全栈冒烟，用完删临时账号、租户和连接。
+
+**踩坑**：`/tmp` 下的脚本跑 `app.*` 要加 `PYTHONPATH=.`（在 backend 目录下运行）。flash 返回的 wav 是流式头，`nframes` 是占位值，时长要按文件大小 ÷ 48000 估。
+
+---
+
 ## 2026-10-12 任务 64.2a 百炼 qwen-audio 朗读
 
 **做了什么**：64.2a.1–64.2a.5 全部完成，每步一个提交。`backend/app/providers/tts.py`：第三种端点（`is_qwen_audio` 按模型名判断，`_qwen_audio` POST `tts_url` → 读 `output.audio.url` → 不带 key 的 GET；`qwen_audio_prompt` 引号转义；`retry_after` + 429 重试一次；`QWEN_AUDIO_VOICES` 描述、`QWEN_AUDIO_SEED`）。`providers/config.py` `SPEECH_URL_PARAMS` / `NON_SDK_PARAMS`；`credentials/service.py` `CallParams.tts_url` + `net_guard.validate_speech_url`，路由参数拒绝，`VoiceName` 上限 300。两份 YAML qwen 预设加模型。`services/speech/word_audio.py` `max_rate` 封顶 120 次 / 分钟。`fake_llm.py` 假百炼两步接口，`speech.spec.ts` 一条 E2E。ADR 0028 落地记录、`features.yaml`、PLAN、`agent-tools.md` 已同步；设置页声音提示加“qwen-audio 填英文描述”。

@@ -130,7 +130,7 @@ Q57a–g 按推荐确认。和上文的差异与补充：
 - **flash 适配器**：模型名以 `qwen3-tts` 开头（不含 realtime）。`POST {base_url 主机}/api/v1/services/aigc/multimodal-generation/generation`，body `model` + `input{text, voice, language_type}`；和 qwen-audio 共用“POST → 429 重试一次 → GET 链接”。只出 wav（24 kHz 16 位单声道，约 48 KB/秒，`format` / `rate` 放 input 或 parameters 都被忽略），按字符计（`usage.characters`）。
 - **语速**（Q64p）：flash 不能调速，按语速 1 合成，缓存键记 1（不同语速共用一份）；`/speech/tts` 响应头 `X-Tts-Playback-Rate` 给出倍数，前端用 `playbackRate` 播放（单词再乘学习者语速）。
 - **wav 体积**（Q64r）：照存 wav，后端不装 ffmpeg；200 MB 缓存约 1,400 句。
-- **音色**（Q64q）：`providers/tts_voices.py` 的 `VoiceOption`（id、名字、性别、适用语言、口音、说明）。flash 列官方 49 个非实时音色（方言音色不给中文）；qwen-audio 列 6 条推荐描述。路由接口 `voice_options` 下发，设置页声音框按目录列出（口音相符的排前），仍可手填。默认 en-US Jennifer、zh-CN Cherry；官方没有英式声音，en-GB 交给路由下一个模型或浏览器。目录按“以后学习者也能选”设计（任务 66：学习者自选模型、音色、动画形象）。
+- **音色**（Q64q）：`providers/tts_voices.py` 的 `VoiceOption`（id、名字、性别、适用语言、口音、说明）。flash 列官方 48 个非实时音色（2026-10-12 用真 key 逐个实测，全部可用）（方言音色不给中文）；qwen-audio 列 6 条推荐描述。路由接口 `voice_options` 下发，设置页声音框按目录列出（口音相符的排前），仍可手填。默认 en-US Jennifer、zh-CN Cherry；官方没有英式声音，en-GB 交给路由下一个模型或浏览器。目录按“以后学习者也能选”设计（任务 66：学习者自选模型、音色、动画形象）。
 - **单词发音单独路由**（Q64s）：`tts` 节加路由任务 `words`（YAML 默认 `qwen:qwen-audio-3.1-tts-next`）；路由里没有可用模型时按 `default` 读，学习者停用的不回退（ADR 0026）。预生成用 `words`；学习者点单词（`/speech/tts` 带 `word: true`）先查 `words` 路由的缓存，没有再用 `default` 现合成，不拿慢模型现合成。设置页模型路由多一张“单词发音”卡片。
 - **YAML**：`tts.default` 末尾加 `qwen:qwen3-tts-flash`；qwen 预设模型加 `qwen3-tts-flash`。
 - **测试**：单测（flash 请求与 wav、声音与语速、公共地址与 token、words 路由回退与停用）；集成（flash 不同语速共用缓存与响应头、音色目录、words 路由预生成与点单词命中录音）；Vitest（播放倍数、音色目录）；E2E（`fake_llm.py` 假 flash 接口，`speech.spec.ts` flash 读回复按 0.8 播放）。
