@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-10-12 任务 64.5 完成，P3 全部完成
+
+**做了什么**：`make ci` 分段跑完：后端 ruff / mypy 干净、pytest 1692；前端 lint、typecheck、Vitest 571、build；E2E 70。推送 d919560..5073399，CI run 38235253808 四个 job 全绿。Docker 先后端、再前端各建一次，`/healthz` 200，空闲内存 backend 215MiB / frontend 59MiB / postgres 104MiB。WebSocket 经前端 3000 端口实测：未登录返回 403（后端日志里请求来自前端容器，说明代理把升级请求转过去了）；临时账号登录后升级成功，收到 `ended / refused / no_realtime_model`（这个账号没配实时模型，符合预期），测完已删临时账号（只删了这一行 users，其他表级联）。看板“当前阶段”改为进入 P4。
+
+**未完成**：无（P3 收尾完毕）。
+
+**下一步**：拆分 P4。先读 `docs/PLAN.md` 的 P4 一节和看板 P4 下“已定方向”（任务 65 组织账号与额度：邀请加入、按能力分别给额度、子账号自己配了就用自己的），把任务 65 拆成子任务写进看板，列出待确认的问题，和用户确认后再写代码；任务 66（学习者自选私教的模型、音色、形象）排在 65 之后。
+
+**踩坑**：
+- 第一次跑 `make ci` 时机器负载高（load 14.7），Vitest 每次挂的用例都不一样（5 秒超时、`findByRole` 等不到），单独跑都过；负载降下来后全量连跑两次全过。以后遇到这种情况先看 `uptime` 再判断是不是真问题。
+- Bash 工具里 `pnpm` 是 nvm 懒加载函数，会报 `_load_nvm` 找不到；先 `unset -f pnpm node npm npx`，再把 `~/.nvm/versions/node/v24.14.0/bin` 放到 PATH 前面就能用 `pnpm`。
+- 实时通话接口有同源检查：带 Cookie 测时要加和 Host 一致的 `Origin` 头，否则关闭码 1008。
+
+---
+
 ## 2026-10-12 任务 64.4 完成
 
 **做了什么**：查了上次推送的 CI run 38231804049，四个 job 全绿。64.4：临时 Playwright 脚本 `frontend/e2e/_shots.spec.ts`（已删）在 E2E 栈上截了 `docs/screenshots/speaking-{zh,en}.png`（口语小结，`page.route` 把小结换成像样的内容）和 `call-{zh,en}.png`（通话中：字幕、查词、加词）。README 中英：状态改“P3 已完成”、截图表加一行、背词听音 / 拼写、朗读厂商加百炼、新增“实时通话”一条、“还没做”改 P4、架构图和目录说明补语音部分、P3 计划和 ADR 0028–0030 链接。`docs/PLAN.md` P3 标完成，`docs/plans/P3-voice.md` 状态改“已完成”。
