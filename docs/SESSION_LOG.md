@@ -10,9 +10,11 @@
 
 **验证**：全量 pytest 1683（64.3.1 时），之后相关测试：`test_word_audio*.py` 24、`test_speaking_summary.py` + `test_speaking_api.py` 14、evals replay 7、usage 50；Vitest 571；ruff / mypy / eslint / tsc 干净。全量 pytest 和 E2E 留给 64.5 `make ci`。
 
-**未完成**：64.4（README 截图、状态改“P3 完成”、PLAN / P3 计划标完成）、64.5（`make ci`、推送、Docker 重建）。本地领先 origin 约 22 个提交，未推送。
+**未完成**：64.4（README 截图、状态改“P3 完成”、PLAN / P3 计划标完成）、64.5（`make ci`、推送、Docker 重建）。已推送。
 
-**下一步**：64.4 → 64.5。
+**推送**：2026-10-12 推送到 d919560（本地全量 pytest / E2E 没跑，靠 CI），CI run 38231804049，结果待新会话用 `gh run view 38231804049` 查；失败就先修。
+
+**下一步**：查 CI → 64.4 → 64.5。
 
 **踩坑**：summary 的 `_normal` 保留撇号，词两边的单引号（'serendipity'）要另去（`_bare`），但词中间的不能去（it's / its）。eval live 用开发库里账号的租户，所以临时账号要建在 Docker 后端上（同一个库、同一把加密密钥）。
 
