@@ -8,5 +8,7 @@ export default defineConfig({
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./vitest.setup.ts"],
+    // The full parallel run is much slower per test than one file alone (see vitest.setup.ts).
+    testTimeout: 15_000,
   },
 });
