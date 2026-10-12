@@ -109,6 +109,18 @@ export type TaskRoute = {
    * `params.voices` doesn't say; null: none, so that language goes to the next model.
    */
   default_voices?: Record<string, Record<VoiceLanguage, string | null>> | null;
+  /** tts only: per "<connection>:<model>", the voices it offers to pick from (Q64q). */
+  voice_options?: Record<string, VoiceOption[]> | null;
+};
+/** A voice a read-aloud model offers (backend/app/providers/tts_voices.py). */
+export type VoiceOption = {
+  /** What the route's `voices` store: a name, or for qwen-audio a description. */
+  id: string;
+  name: string;
+  gender: "female" | "male";
+  languages: VoiceLanguage[];
+  accent: string | null;
+  note: string;
 };
 /** The languages a read-aloud route has voices for (backend/app/providers/tts.py). */
 export const VOICE_LANGUAGES = ["en-US", "en-GB", "zh-CN"] as const;

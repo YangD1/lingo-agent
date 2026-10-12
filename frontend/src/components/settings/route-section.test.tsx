@@ -331,4 +331,67 @@ describe("RouteSection", () => {
       },
     });
   });
+
+  it("offers a model's own voices with who they are, the matching accent first (Q64q)", async () => {
+    const flash = "qwen:qwen3-tts-flash";
+    const tts = route({
+      section: "tts",
+      task: "default",
+      models: [flash],
+      overridden: true,
+      effective: [flash],
+      effective_source: "override",
+      default_voices: { [flash]: { "en-US": "Jennifer", "en-GB": null, "zh-CN": "Cherry" } },
+      voice_options: {
+        [flash]: [
+          {
+            id: "Cherry",
+            name: "芊悦",
+            gender: "female",
+            languages: ["en-US", "en-GB", "zh-CN"],
+            accent: null,
+            note: "sunny",
+          },
+          {
+            id: "Jennifer",
+            name: "詹妮弗",
+            gender: "female",
+            languages: ["en-US", "en-GB", "zh-CN"],
+            accent: "en-US",
+            note: "cinematic",
+          },
+          {
+            id: "Rocky",
+            name: "粤语-阿强",
+            gender: "male",
+            languages: ["en-US", "en-GB"],
+            accent: null,
+            note: "Cantonese",
+          },
+        ],
+      },
+    });
+    api.mockImplementation(async (path: string) =>
+      path === "/tenant/routes" ? [...ROUTES, tts] : undefined,
+    );
+    show("tts", [{ ...RELAY, name: "qwen" }]);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Edit order" }));
+    await userEvent.click(screen.getByLabelText("American voice of model 1"));
+    const american = await screen.findAllByRole("option");
+    expect(american.map((o) => o.textContent)).toEqual([
+      "Jennifer詹妮弗 · female · American · cinematic",
+      "Cherry芊悦 · female · sunny",
+      "Rocky粤语-阿强 · male · Cantonese",
+    ]);
+    await userEvent.keyboard("{Escape}");
+
+    // A dialect voice isn't offered for Chinese; typing filters by who they are too.
+    const chinese = screen.getByLabelText("Chinese voice of model 1");
+    await userEvent.click(chinese);
+    const ids = (await screen.findAllByRole("option")).map((o) => o.textContent?.slice(0, 6));
+    expect(ids).toEqual(["Cherry", "Jennif"]);
+    await userEvent.type(chinese, "詹妮");
+    expect(await screen.findAllByRole("option")).toHaveLength(1);
+  });
 });

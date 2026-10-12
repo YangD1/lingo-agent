@@ -41,6 +41,7 @@ from app.providers.model_catalog import (
 )
 from app.providers.tenant import load_provider_context
 from app.providers.tts import LANGUAGES, Language, default_voice
+from app.providers.tts_voices import Gender, voice_options
 
 router = APIRouter(tags=["model settings"])
 
@@ -51,6 +52,15 @@ class PresetOut(BaseModel):
     label: str | None
     base_url: str
     models: list[str]
+
+
+class VoiceOptionOut(BaseModel):
+    id: str
+    name: str
+    gender: Gender
+    languages: list[Language]
+    accent: str | None
+    note: str
 
 
 class TaskRouteOut(BaseModel):
@@ -67,6 +77,9 @@ class TaskRouteOut(BaseModel):
     # tts only: the built-in voice each model in the chain reads each language with,
     # where the route's `voices` don't say (null: none, so it's skipped for that language).
     default_voices: dict[str, dict[Language, str | None]] | None = None
+    # tts only: the voices each model in the chain offers to pick from (Q64q); models
+    # whose voices aren't listed have none here.
+    voice_options: dict[str, list[VoiceOptionOut]] | None = None
 
 
 class PresetsOut(BaseModel):
@@ -367,6 +380,9 @@ def _task_route_out(
         default_voices=(
             _default_voices(ctx, [*route.models, *effective]) if section == "tts" else None
         ),
+        voice_options=(
+            _voice_options(ctx, [*route.models, *effective]) if section == "tts" else None
+        ),
     )
 
 
@@ -381,6 +397,29 @@ def _default_voices(
             continue
         resolved = ResolvedModel(name, conn.kind, model, conn.base_url, None)
         out[ref] = {lang: default_voice(resolved, lang) for lang in LANGUAGES}
+    return out
+
+
+def _voice_options(ctx: TenantProviderContext, refs: list[str]) -> dict[str, list[VoiceOptionOut]]:
+    out: dict[str, list[VoiceOptionOut]] = {}
+    for ref in refs:
+        name, _, model = ref.partition(":")
+        conn = ctx.connections.get(name)
+        if conn is None or ref in out:
+            continue
+        options = voice_options(ResolvedModel(name, conn.kind, model, conn.base_url, None))
+        if options:
+            out[ref] = [
+                VoiceOptionOut(
+                    id=o.id,
+                    name=o.name,
+                    gender=o.gender,
+                    languages=list(o.languages),
+                    accent=o.accent,
+                    note=o.note,
+                )
+                for o in options
+            ]
     return out
 
 

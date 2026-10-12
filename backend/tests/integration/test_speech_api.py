@@ -366,6 +366,19 @@ async def test_a_model_without_speed_control_is_cached_once_for_every_speed(
         "/tenant/routes/tts/default", json={"models": ["qwen:qwen3-tts-flash"]}
     )
     assert response.status_code == 200, response.text
+    # Its voices are offered to pick from (Q64q); none is British.
+    options = response.json()["voice_options"]["qwen:qwen3-tts-flash"]
+    jennifer = next(o for o in options if o["id"] == "Jennifer")
+    assert jennifer == {
+        "id": "Jennifer",
+        "name": "詹妮弗",
+        "gender": "female",
+        "languages": ["en-US", "en-GB", "zh-CN"],
+        "accent": "en-US",
+        "note": jennifer["note"],
+    }
+    assert not any(o["accent"] == "en-GB" for o in options)
+    assert "zh-CN" not in next(o for o in options if o["id"] == "Rocky")["languages"]
 
     slow = await client.post("/speech/tts", json=say(speed=0.8))
     usual = await client.post("/speech/tts", json=say(speed=1.0))

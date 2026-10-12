@@ -16,6 +16,8 @@ type Props = Omit<ComponentProps<"input">, "value" | "defaultValue" | "onChange"
   onOpenChange?: (open: boolean) => void;
   /** Shown in the popup when nothing matches (or while `items` is still loading). */
   empty?: ReactNode;
+  /** Says what an item is, next to it in the list; also matched when filtering. */
+  describe?: (item: string) => string;
 };
 
 /** A text input with a searchable suggestion list: for free-form values with known options. */
@@ -25,12 +27,15 @@ export function AutocompleteInput({
   items,
   onOpenChange,
   empty,
+  describe,
   className,
   ...inputProps
 }: Props) {
   const [typing, setTyping] = useState(false);
   const query = value.trim().toLowerCase();
-  const shown = typing && query ? items.filter((i) => i.toLowerCase().includes(query)) : items;
+  const matches = (i: string) =>
+    i.toLowerCase().includes(query) || (describe?.(i).toLowerCase().includes(query) ?? false);
+  const shown = typing && query ? items.filter(matches) : items;
   return (
     <Autocomplete.Root
       items={items}
@@ -66,9 +71,12 @@ export function AutocompleteInput({
                 <Autocomplete.Item
                   key={item}
                   value={item}
-                  className="flex min-h-8 cursor-default items-center rounded-sm px-2 py-1 font-mono select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
+                  className="flex min-h-8 cursor-default flex-wrap items-center gap-x-2 rounded-sm px-2 py-1 font-mono select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground"
                 >
                   {item}
+                  {describe && (
+                    <span className="font-sans text-xs text-muted-foreground">{describe(item)}</span>
+                  )}
                 </Autocomplete.Item>
               )}
             </Autocomplete.List>

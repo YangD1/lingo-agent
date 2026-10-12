@@ -17,6 +17,7 @@ import {
   type TaskRoute,
   VOICE_LANGUAGES,
   type VoiceLanguage,
+  type VoiceOption,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -455,6 +456,7 @@ export function RouteSection({
                         index={i}
                         voices={r.voices}
                         defaults={route?.default_voices?.[refs[i]]}
+                        options={route?.voice_options?.[refs[i]]}
                         catalog={
                           connections.find((c) => c.name === r.connection)?.kind ===
                             "azure_speech" && Array.isArray(catalog)
@@ -507,12 +509,14 @@ export function RouteSection({
 
 /**
  * The voice a read-aloud model reads each language with (Q54b). Empty means the built-in
- * voice, shown as the placeholder; an Azure connection offers its voices for the language.
+ * voice, shown as the placeholder; an Azure connection offers its voices for the language,
+ * and a model with a voice list (Q64q) its voices that read it, the matching accent first.
  */
 function VoiceInputs({
   index,
   voices,
   defaults,
+  options,
   catalog,
   onOpen,
   onChange,
@@ -521,11 +525,27 @@ function VoiceInputs({
   voices: Voices;
   /** The built-in voices, known once the route is saved with this model. */
   defaults: Record<VoiceLanguage, string | null> | undefined;
+  /** The voices the model offers, known once the route is saved with it. */
+  options: VoiceOption[] | undefined;
   catalog: string[];
   onOpen: () => void;
   onChange: (voices: Voices) => void;
 }) {
   const t = useTranslations("settings.route");
+  const byId = new Map((options ?? []).map((o) => [o.id, o]));
+  const describe = (id: string) => {
+    const o = byId.get(id);
+    if (!o) return "";
+    const accent = o.accent ? ` · ${t(`voiceLang.${o.accent as VoiceLanguage}`)}` : "";
+    return `${o.name} · ${t(`voiceGender.${o.gender}`)}${accent}${o.note ? ` · ${o.note}` : ""}`;
+  };
+  const offered = (lang: VoiceLanguage) =>
+    options
+      ? options
+          .filter((o) => o.languages.includes(lang))
+          .sort((a, b) => Number(b.accent === lang) - Number(a.accent === lang))
+          .map((o) => o.id)
+      : catalog.filter((id) => id.startsWith(`${lang}-`) || id.includes("Multilingual"));
   return (
     <div className="grid w-full gap-2 pl-6 sm:grid-cols-3" data-testid={`voices-${index + 1}`}>
       {VOICE_LANGUAGES.map((lang) => {
@@ -537,7 +557,8 @@ function VoiceInputs({
               aria-label={t("voice", { lang: t(`voiceLang.${lang}`), n: index + 1 })}
               value={voices[lang] ?? ""}
               onValueChange={(voice) => onChange({ ...voices, [lang]: voice })}
-              items={catalog.filter((id) => id.startsWith(`${lang}-`) || id.includes("Multilingual"))}
+              items={offered(lang)}
+              describe={options ? describe : undefined}
               onOpenChange={(open) => open && onOpen()}
               empty={t("modelsNoMatch")}
               placeholder={

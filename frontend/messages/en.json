@@ -921,6 +921,7 @@
         "zh-CN": "Chinese"
       },
       "voice": "{lang} voice of model {n}",
+      "voiceGender": { "female": "female", "male": "male" },
       "voiceDefault": "Default: {voice}",
       "voiceNone": "No built-in voice: the next model or the browser reads this language",
       "voiceBuiltIn": "Built-in voice (shown once saved)",
