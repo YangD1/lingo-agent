@@ -92,7 +92,7 @@ EXERCISE_SET_STATUSES = ("generating", "ready", "in_progress", "done", "failed")
 WORD_AUDIO_JOB_STATUSES = ("running", "paused", "done", "cancelled")
 # Where a shadowed sentence came from, and who scored it (ADR 0028 §6).
 SHADOWING_SOURCES = ("chat", "reading", "vocab", "speaking")
-# The tutor's looks (ADR 0032 §4); drawn by the frontend's TutorAvatar.
+# The tutor cat's outfits (ADR 0032 §4); drawn by the frontend's TutorAvatar.
 TUTOR_AVATARS = ("cat", "classic", "casual", "sporty", "artsy")
 SHADOWING_PROVIDERS = ("azure", "asr_fallback")
 SHADOWING_LANGUAGES = ("en-US", "en-GB")
