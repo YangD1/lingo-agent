@@ -1,8 +1,10 @@
 """Tenant-scoped text-to-speech: the server reads aloud (ADR 0018 §3, ADR 0028 §3).
 
-Two kinds of endpoint:
+Three kinds of endpoint:
 - OpenAI's `POST /audio/speech` (OpenAI, SiliconFlow, a local speaches with Kokoro);
-- Azure's text-to-speech REST API, SSML in, mp3 out (`azure_speech` connections).
+- Azure's text-to-speech REST API, SSML in, mp3 out (`azure_speech` connections);
+- Alibaba Bailian's qwen-audio speech synthesis: the voice is described in a prompt, and
+  the answer is a link to the audio, fetched in a second request (task 64.2a).
 
     tts = get_tts(ctx)
     speech = await tts.synthesize("Nice to meet you.", language="en-US", speed=0.9)
@@ -11,12 +13,15 @@ Models in the route are tried in order; a model with no voice for the language i
 skipped. Each attempt is written to llm_usage by characters, not tokens.
 """
 
+import asyncio
 import time
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 from xml.sax.saxutils import escape, quoteattr
+
+import httpx2
 
 from app.providers.config import (
     TTS_KINDS,
@@ -57,6 +62,20 @@ KOKORO_VOICES: Mapping[Language, str] = {
 # OpenAI's voices read every language; so do CosyVoice's, named "<model>:<voice>".
 OPENAI_VOICE = "coral"
 COSYVOICE_VOICE = "anna"
+# qwen-audio has no built-in voices: a description in the prompt is the voice, and a
+# fixed seed keeps the sentences of one reply in the same one (Q64i). Female teachers,
+# like the voices above.
+QWEN_AUDIO_VOICES: Mapping[Language, str] = {
+    "en-US": "A friendly female American English teacher",
+    "en-GB": "A friendly female British English teacher",
+    "zh-CN": "A friendly female Mandarin Chinese teacher",
+}
+QWEN_AUDIO_SEED = 20261012
+QWEN_AUDIO_SAMPLE_RATE = 24000
+# One retry after a 429 (Bailian allows 3 requests a second, Q64l), waiting what
+# Retry-After says, within reason.
+DEFAULT_RETRY_AFTER = 1.0
+MAX_RETRY_AFTER = 10.0
 
 
 @dataclass(frozen=True)
@@ -96,6 +115,8 @@ def default_voice(model: ResolvedModel, language: Language) -> str | None:
         if "Multilingual" in name and locale.split("-")[0] != language.split("-")[0]:
             return name
         return AZURE_VOICES[language]
+    if is_qwen_audio(model):  # before the "tts" check: its names contain "tts" too
+        return QWEN_AUDIO_VOICES[language]
     lowered = name.lower()
     if "kokoro" in lowered:
         return KOKORO_VOICES.get(language)
@@ -104,6 +125,30 @@ def default_voice(model: ResolvedModel, language: Language) -> str | None:
     if model.kind == "openai" or "tts" in lowered:
         return OPENAI_VOICE
     return None
+
+
+def is_qwen_audio(model: ResolvedModel) -> bool:
+    return model.model.lower().startswith("qwen-audio")
+
+
+def qwen_audio_prompt(voice: str, text: str) -> str:
+    """The prompt reading `text` in the described voice. The text is quoted and the
+    reading pinned to it word for word, so a line like "add rain sounds" is read, not
+    obeyed (Q64j)."""
+    quoted = text.replace("\\", "\\\\").replace('"', '\\"')
+    return (
+        f"{voice.strip().rstrip('.')} reads the following text aloud word for word, "
+        f'with no sound effects or background sound: "{quoted}"'
+    )
+
+
+def retry_after(response: httpx2.Response) -> float:
+    """Seconds a 429 asks to wait: Retry-After in seconds, else a second."""
+    try:
+        seconds = float(response.headers.get("retry-after", ""))
+    except ValueError:
+        return DEFAULT_RETRY_AFTER
+    return min(max(seconds, 0.0), MAX_RETRY_AFTER)
 
 
 def azure_rate(speed: float) -> str:
@@ -196,9 +241,18 @@ class TextToSpeech:
         )
 
 
+def _client(model: ResolvedModel) -> httpx2.AsyncClient:
+    timeout = float(model.params.get("timeout") or DEFAULT_TIMEOUT)
+    return make_async_http_client(
+        allow_private=get_settings().provider_allow_private_networks, timeout=timeout
+    )
+
+
 async def _synthesize(
     model: ResolvedModel, text: str, language: Language, voice: str, speed: float
 ) -> bytes:
+    if is_qwen_audio(model):
+        return await _qwen_audio(model, text, voice, speed)
     key = model.api_key.get_secret_value() if model.api_key else None
     if model.kind == "azure_speech":
         url = f"{model.base_url}/cognitiveservices/v1"
@@ -220,10 +274,7 @@ async def _synthesize(
             "speed": min(max(speed, 0.25), 4.0),
             "response_format": "mp3",
         }
-    timeout = float(model.params.get("timeout") or DEFAULT_TIMEOUT)
-    async with make_async_http_client(
-        allow_private=get_settings().provider_allow_private_networks, timeout=timeout
-    ) as client:
+    async with _client(model) as client:
         if isinstance(body, str):
             response = await client.post(url, headers=headers, content=body.encode())
         else:
@@ -233,6 +284,49 @@ async def _synthesize(
     if not response.content:
         raise EndpointError(response.status_code, "empty audio")
     return response.content
+
+
+async def _qwen_audio(model: ResolvedModel, text: str, voice: str, speed: float) -> bytes:
+    """POST the prompt to the workspace's `tts_url`, then GET the audio it links to."""
+    url = model.params.get("tts_url")
+    if not url:
+        raise ProviderConfigError(
+            f"connection {model.connection!r} needs tts_url, the Bailian workspace address, "
+            "to read aloud with qwen-audio"
+        )
+    key = model.api_key.get_secret_value() if model.api_key else None
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+    body = {
+        "model": model.model,
+        "input": {
+            "text_prompt": qwen_audio_prompt(voice, text),
+            "format": "mp3",
+            "sample_rate": QWEN_AUDIO_SAMPLE_RATE,
+            "channels": 1,
+            "rate": min(max(speed, 0.5), 2.0),
+            "seed": QWEN_AUDIO_SEED,
+        },
+    }
+    async with _client(model) as client:
+        response = await client.post(url, headers=headers, json=body)
+        if response.status_code == 429:
+            await asyncio.sleep(retry_after(response))
+            response = await client.post(url, headers=headers, json=body)
+        if response.status_code != 200:
+            raise EndpointError(response.status_code, response.text.strip()[:200])
+        try:
+            audio_url = response.json()["output"]["audio"]["url"]
+        except (ValueError, KeyError, TypeError):
+            audio_url = None
+        if not isinstance(audio_url, str) or not audio_url:
+            raise EndpointError(response.status_code, "no audio url")
+        # A signed storage link: the key stays with the API.
+        audio = await client.get(audio_url)
+    if audio.status_code != 200:
+        raise EndpointError(audio.status_code, "audio download failed")
+    if not audio.content:
+        raise EndpointError(audio.status_code, "empty audio")
+    return audio.content
 
 
 def get_tts(ctx: TenantProviderContext) -> TextToSpeech:

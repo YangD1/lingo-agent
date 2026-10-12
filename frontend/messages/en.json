@@ -924,7 +924,7 @@
       "voiceDefault": "Default: {voice}",
       "voiceNone": "No built-in voice: the next model or the browser reads this language",
       "voiceBuiltIn": "Built-in voice (shown once saved)",
-      "voicesHint": "Under each model you can choose a voice per language; empty uses the built-in one. An Azure connection offers its voices."
+      "voicesHint": "Under each model you can choose a voice per language; empty uses the built-in one. An Azure connection offers its voices; for a qwen-audio model, describe the voice in English (e.g. \"A calm British man\")."
     },
     "usage": {
       "title": "Usage",

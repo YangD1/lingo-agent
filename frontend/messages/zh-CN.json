@@ -924,7 +924,7 @@
       "voiceDefault": "默认：{voice}",
       "voiceNone": "没有内置声音，这种语言交给下一个模型或浏览器",
       "voiceBuiltIn": "内置默认声音（保存后显示）",
-      "voicesHint": "每个模型下可以按语言指定声音，留空用内置声音。Azure 连接可以从它的声音列表里选。"
+      "voicesHint": "每个模型下可以按语言指定声音，留空用内置声音。Azure 连接可以从它的声音列表里选；qwen-audio 模型填一句英文的声音描述（如 \"A calm British man\"）。"
     },
     "usage": {
       "title": "用量",

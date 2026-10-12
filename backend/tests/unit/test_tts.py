@@ -7,7 +7,7 @@ import pytest
 
 from app.providers import tts
 from app.providers.config import ProviderKind, ResolvedModel, RouteSpec
-from app.providers.errors import NoModelConfiguredError
+from app.providers.errors import NoModelConfiguredError, ProviderConfigError
 from app.usage import recorder
 from app.usage.recorder import UsageRecord
 from tests.unit.provider_fixtures import TENANT, conn, make_config, make_ctx
@@ -17,7 +17,10 @@ PRESETS = {
     "azure": {"kind": "azure_speech", "base_url": "https://eastasia.tts.speech.microsoft.com"},
     "sf": {"kind": "openai_compatible", "base_url": "https://sf.example.com/v1"},
     "local": {"kind": "openai_compatible", "base_url": "https://local.example.com/v1"},
+    "qwen": {"kind": "openai_compatible", "base_url": "https://qwen.example.com/v1"},
+    "qwen_bare": {"kind": "openai_compatible", "base_url": "https://qwen_bare.example.com/v1"},
 }
+QWEN_TTS_URL = "https://ws1.cn-beijing.maas.example.com/api/v1/services/audio/tts/SpeechSynthesizer"
 
 
 def model(connection: str, name: str, kind: ProviderKind) -> ResolvedModel:
@@ -46,6 +49,13 @@ def model(connection: str, name: str, kind: ProviderKind) -> ResolvedModel:
         ("gpt-4o-mini-tts", "openai", "zh-CN", "coral"),
         ("tts-1", "openai_compatible", "en-US", "coral"),  # an OpenAI model behind a relay
         ("my-voice-server", "openai_compatible", "en-US", None),  # unknown: needs a voice
+        # qwen-audio: a description, even though the name contains "tts".
+        (
+            "qwen-audio-3.1-tts-next",
+            "openai_compatible",
+            "en-GB",
+            "A friendly female British English teacher",
+        ),
     ],
 )
 def test_default_voice(name: str, kind: ProviderKind, language: tts.Language, voice: str) -> None:
@@ -61,6 +71,22 @@ def test_ssml_escapes_text_and_sets_the_rate() -> None:
     )
     assert tts.azure_rate(1.0) == "+0%"
     assert tts.azure_rate(1.2) == "+20%"
+
+
+def test_qwen_audio_prompt_quotes_the_text() -> None:
+    prompt = tts.qwen_audio_prompt("A calm male teacher. ", 'Say "add rain sounds" \\ now')
+    assert prompt == (
+        "A calm male teacher reads the following text aloud word for word, with no sound "
+        'effects or background sound: "Say \\"add rain sounds\\" \\\\ now"'
+    )
+
+
+@pytest.mark.parametrize(
+    ("header", "seconds"), [(None, 1.0), ("2", 2.0), ("0", 0.0), ("soon", 1.0), ("600", 10.0)]
+)
+def test_retry_after(header: str | None, seconds: float) -> None:
+    headers = {"retry-after": header} if header is not None else {}
+    assert tts.retry_after(httpx2.Response(429, headers=headers)) == seconds
 
 
 @pytest.fixture
@@ -106,6 +132,8 @@ def speaker(monkeypatch: pytest.MonkeyPatch) -> Any:
             conn("azure", "azure_speech", base_url=PRESETS["azure"]["base_url"]),
             conn("sf", "openai_compatible"),
             conn("local", "openai_compatible", key=None),
+            conn("qwen", "openai_compatible", tts_url=QWEN_TTS_URL),
+            conn("qwen_bare", "openai_compatible"),
             routes={
                 ("tts", "default"): RouteSpec(models=list(refs), params={"voices": voices or {}})
             },
@@ -219,3 +247,129 @@ def test_no_tts_route_means_not_configured(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_tenant_ids_are_kept(speaker: Any) -> None:
     assert speaker("openai:tts-1").tenant_id == TENANT
+
+
+def bailian(
+    monkeypatch: pytest.MonkeyPatch, *answers: httpx2.Response, audio: httpx2.Response | None = None
+) -> list[httpx2.Request]:
+    """A fake Bailian: answers the POSTs in turn, and serves the linked audio."""
+    seen: list[httpx2.Request] = []
+    queue = list(answers)
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        if request.method == "GET":
+            return audio if audio is not None else mp3(b"qwen-audio")
+        return queue.pop(0)
+
+    def client(*, allow_private: bool, timeout: float | None) -> httpx2.AsyncClient:
+        return httpx2.AsyncClient(transport=httpx2.MockTransport(handle))
+
+    monkeypatch.setattr(tts, "make_async_http_client", client)
+    return seen
+
+
+def linked(url: str = "https://oss.example.com/a.mp3?Signature=x") -> httpx2.Response:
+    return httpx2.Response(200, json={"output": {"audio": {"url": url}}, "usage": {"duration": 2}})
+
+
+QWEN = "qwen:qwen-audio-3.1-tts-next"
+
+
+async def test_qwen_audio_posts_the_prompt_then_downloads_the_audio(
+    speaker: Any, monkeypatch: pytest.MonkeyPatch, usage: list[UsageRecord]
+) -> None:
+    seen = bailian(monkeypatch, linked())
+
+    speech = await speaker(QWEN).synthesize("Hi there.", language="en-US", speed=0.4)
+
+    assert (speech.audio, speech.voice) == (
+        b"qwen-audio",
+        "A friendly female American English teacher",
+    )
+    post, get = seen
+    assert str(post.url) == QWEN_TTS_URL
+    assert post.headers["authorization"] == "Bearer sk-test"
+    assert json.loads(post.content) == {
+        "model": "qwen-audio-3.1-tts-next",
+        "input": {
+            "text_prompt": tts.qwen_audio_prompt(speech.voice, "Hi there."),
+            "format": "mp3",
+            "sample_rate": 24000,
+            "channels": 1,
+            "rate": 0.5,  # clamped to what Bailian takes
+            "seed": tts.QWEN_AUDIO_SEED,
+        },
+    }
+    assert str(get.url) == "https://oss.example.com/a.mp3?Signature=x"
+    assert "authorization" not in get.headers  # the key stays with the API
+    ((record),) = usage
+    assert (record.model, record.characters, record.status) == (
+        "qwen-audio-3.1-tts-next",
+        9,
+        "ok",
+    )
+
+
+async def test_qwen_audio_route_voice_is_the_description(
+    speaker: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = bailian(monkeypatch, linked())
+    tts_ = speaker(QWEN, voices={QWEN: {"en-US": "A cheerful young man from Texas"}})
+
+    await tts_.synthesize("Hi", language="en-US")
+
+    prompt = json.loads(seen[0].content)["input"]["text_prompt"]
+    assert prompt.startswith("A cheerful young man from Texas reads the following text")
+
+
+async def test_qwen_audio_retries_once_after_429(
+    speaker: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    busy = httpx2.Response(429, text="Throttling", headers={"retry-after": "0"})
+    seen = bailian(monkeypatch, busy, linked())
+
+    speech = await speaker(QWEN).synthesize("Hi", language="en-US")
+
+    assert speech.audio == b"qwen-audio"
+    assert [r.method for r in seen] == ["POST", "POST", "GET"]
+
+    bailian(monkeypatch, busy, busy)
+    with pytest.raises(tts.SpeechSynthesisError) as info:
+        await speaker(QWEN).synthesize("Hi", language="en-US")
+    assert isinstance(info.value.__cause__, tts.EndpointError)
+    assert info.value.__cause__.status == 429
+
+
+@pytest.mark.parametrize(
+    ("answer", "audio", "message"),
+    [
+        (httpx2.Response(400, text="InvalidParameter"), None, "HTTP 400: InvalidParameter"),
+        (httpx2.Response(200, json={"output": {}}), None, "HTTP 200: no audio url"),
+        (httpx2.Response(200, text="not json"), None, "HTTP 200: no audio url"),
+        (linked(), httpx2.Response(403), "HTTP 403: audio download failed"),
+        (linked(), httpx2.Response(200, content=b""), "HTTP 200: empty audio"),
+    ],
+)
+async def test_qwen_audio_failures(
+    speaker: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    answer: httpx2.Response,
+    audio: httpx2.Response | None,
+    message: str,
+) -> None:
+    bailian(monkeypatch, answer, audio=audio)
+    with pytest.raises(tts.SpeechSynthesisError) as info:
+        await speaker(QWEN).synthesize("Hi", language="en-US")
+    assert str(info.value.__cause__) == message
+
+
+async def test_qwen_audio_needs_the_workspace_address(
+    speaker: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    seen = bailian(monkeypatch)
+    with pytest.raises(tts.SpeechSynthesisError) as info:
+        await speaker("qwen_bare:qwen-audio-3.1-tts-next").synthesize("Hi", language="en-US")
+    assert isinstance(info.value.__cause__, ProviderConfigError)
+    assert "tts_url" in str(info.value.__cause__)
+    assert seen == []

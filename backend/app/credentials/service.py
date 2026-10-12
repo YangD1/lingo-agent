@@ -69,7 +69,8 @@ _KEY_REQUIRED: frozenset[str] = frozenset(
 
 
 type TestPurpose = Literal["chat", "asr", "vision", "tts", "pronunciation", "realtime"]
-type VoiceName = Annotated[str, Field(min_length=1, max_length=128)]
+# A voice name, or a description of one for qwen-audio (task 64.2a).
+type VoiceName = Annotated[str, Field(min_length=1, max_length=300)]
 
 
 class NotFoundError(Exception):
