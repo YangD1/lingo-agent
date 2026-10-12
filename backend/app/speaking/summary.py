@@ -2,8 +2,10 @@
 
 One `speaking_summary` structured call over the conversation; code then keeps only
 what it can check: a mistake or a more natural way of saying something must quote the
-learner's own words. The summary is shown, never recorded as evidence (reflection
-already did that); its intelligibility rating moves speaking ability in code (Q58d).
+learner's own words and change more than punctuation or case (task 64.2: the model
+"corrected" quotation marks in speech). The summary is shown, never recorded as
+evidence (reflection already did that); its intelligibility rating moves speaking
+ability in code (Q58d).
 """
 
 import re
@@ -72,7 +74,9 @@ def summary_messages(
     scenario: Scenario | None,
     level: CefrLevel,
     explain_in: ExplainIn,
+    call: bool = False,
 ) -> list[BaseMessage]:
+    """`call`: a realtime call, whose transcripts break at the learner's pauses (Q64w)."""
     situation = (
         f"{scenario.title_en}. The learner's goal: {scenario.learner_goal_en}"
         if scenario
@@ -88,6 +92,8 @@ def summary_messages(
         .replace("{language}", "Simplified Chinese" if explain_in == "zh" else "English")
         .replace("{level}", level)
     )
+    if call:
+        prompt = f"{prompt}\n\n{load_prompt(f'{TASK}_call')}"
     return [
         SystemMessage(prompt),
         HumanMessage(
@@ -97,9 +103,13 @@ def summary_messages(
     ]
 
 
-def check(summary: SpeakingSummary, learner_texts: Sequence[str]) -> dict[str, Any]:
+def check(
+    summary: SpeakingSummary, learner_texts: Sequence[str], *, call: bool = False
+) -> dict[str, Any]:
     """The summary to store: quotes not found in the learner's turns are dropped, and
-    empty strings left out."""
+    empty strings left out. In a call, so is a "fix" that only adds words in front of a
+    turn's start or after its end: that mends where recognition cut, not the learner
+    (Q64w)."""
     # Padded so a quote matches whole words only ("he" is not in "she").
     said = [f" {_normal(text)} " for text in learner_texts]
 
@@ -107,13 +117,30 @@ def check(summary: SpeakingSummary, learner_texts: Sequence[str]) -> dict[str, A
         needle = _normal(quote)
         return bool(needle) and any(f" {needle} " in text for text in said)
 
+    turns = [_bare(text) for text in learner_texts]
+
+    def changed(quote: str, better: str) -> bool:
+        q, b = _bare(quote), _bare(better)
+        if not b or b == q:
+            return False
+        if call and q:
+            starts = any(t == q or t.startswith(f"{q} ") for t in turns)
+            ends = any(t == q or t.endswith(f" {q}") for t in turns)
+            if (starts and b.endswith(f" {q}")) or (ends and b.startswith(f"{q} ")):
+                return False
+        return True
+
     return {
         "went_well": [w.strip() for w in summary.went_well if w.strip()],
         "mistakes": [
-            m.model_dump() for m in summary.mistakes if quoted(m.quote) and m.correction.strip()
+            m.model_dump()
+            for m in summary.mistakes
+            if quoted(m.quote) and changed(m.quote, m.correction)
         ],
         "more_natural": [
-            n.model_dump() for n in summary.more_natural if quoted(n.quote) and n.natural.strip()
+            n.model_dump()
+            for n in summary.more_natural
+            if quoted(n.quote) and changed(n.quote, n.natural)
         ],
         "next_expressions": [e.model_dump() for e in summary.next_expressions if e.expression],
         "intelligibility": summary.intelligibility,
@@ -124,3 +151,9 @@ def _normal(text: str) -> str:
     """Lower case, words and apostrophes only, single spaces: a quote may differ from
     the turn in case, punctuation or spacing."""
     return " ".join(re.sub(r"[^\w']+", " ", text.lower()).split())
+
+
+def _bare(text: str) -> str:
+    """`_normal`, and single quotes around a word dropped too ('serendipity'); an
+    apostrophe inside one stays (it's / its)."""
+    return " ".join(word.strip("'") for word in _normal(text).split())

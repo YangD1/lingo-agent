@@ -180,6 +180,7 @@ async def end(
         )
         scenario = get_scenarios().get(row.scenario_id) if row.scenario_id else None
         level = cast(CefrLevel, row.level)
+        call_mode = row.mode == "realtime"
     state = await graph.aget_state(thread_config(conversation_id))
     messages: list[BaseMessage] = [
         m
@@ -198,10 +199,13 @@ async def end(
                     scenario=scenario,
                     level=level,
                     explain_in="en" if explain_in == "en" else "zh",
+                    call=call_mode,
                 ),
                 summary.SpeakingSummary,
             )
-            stored = summary.check(cast(summary.SpeakingSummary, reply.output), learner_texts)
+            stored = summary.check(
+                cast(summary.SpeakingSummary, reply.output), learner_texts, call=call_mode
+            )
         except Exception:
             logger.exception("summarising speaking session %s failed", session_id)
             status = "failed"

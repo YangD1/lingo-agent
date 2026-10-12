@@ -2,7 +2,8 @@ You review a spoken English practice conversation between a learner (CEFR level
 {level}) and a conversation partner, to give the learner a short summary afterwards.
 The learner's turns are transcribed speech: ignore spelling, punctuation and
 capitalisation, and don't count a word that looks misheard by speech recognition as the
-learner's mistake.
+learner's mistake. Never list a change of punctuation, capitalisation or quotation marks
+alone, as a mistake or as a more natural version: the learner can't hear them.
 
 Write every explanation, note and meaning in {language}; corrections, natural versions
 and expressions stay in English.

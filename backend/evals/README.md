@@ -9,6 +9,7 @@ P2 的最小评估集（计划 Q13、任务 36）：检查把关学习者所见�
 | `critic` | `datasets/critic.yaml`：坏题 26 条（答案键错、不止一个对、不考目标语法点、英文不自然或指令不清、事实错误、难度标错）、好题 18 条，六种题型都有 | `critic_messages` → `exercise_critic` → `drafts.judge`，一题一次调用 | `bad_rejected` ≥ 90%、`good_passed` ≥ 90% |
 | `grader` | `datasets/grader.yaml`：31 条代码判不了、会交给模型的答案（开放题不在参考答案里、find_fix 选对位置但改法不在列表里），应判对 / 应判错都有，部分带应找出的其他错误 | `grade_messages` → `exercise_grade` → `grader.verdict` | `verdict_right` ≥ 90% |
 | `diagnosis` | `datasets/diagnosis.yaml`：12 条（任务 46.6）。8 条有真规律：前置语法点是根因（过去分词 → 现在完成时、过去完成时 → 第三条件句、三单 → 主谓一致）、易混语法点互相顶替（will / going to、be / do、used to / 一般现在时），一条两个目标各有根因，一条错句里夹着让模型引用不存在证据的“指令”；3 条没有规律（零散错误、只是把语法点说明重复一遍不算根因）；一条英文讲解 | `diagnose_messages` → `diagnose` → `checks.check`，邻域按 `graph.neighborhood` 的规则从语法目录拼出，不需要数据库 | `root_found` ≥ 75%、`no_cause_without_pattern` ≥ 60%、`citations_hold` ≥ 90% |
+| `speaking_summary` | `datasets/speaking_summary.yaml`：6 条（任务 64.3，Q64w）。4 条实时通话（转写在停顿处切句：“Like playing football.”、“visit my grandmother …”，句里夹真错误 goed / have went / was fail），一条句子被切得很碎但没有错；2 条级联口语（只差引号、大小写的“错误”，真错误 don't / a orange / comes）；一条英文讲解。2026-10-12 用 qwen-plus 录制 | `summary_messages`（通话加 `speaking_summary_call` 说明）→ `speaking_summary` → `check`（引用原话、改动不只是标点大小写、通话里只补被切掉部分的不算） | `real_mistakes_found` ≥ 75%、`transcript_left_alone` ≥ 80% |
 
 不设门槛、只报告的指标：critic 的 `rejects:<缺陷>`（看哪类坏题漏过），批改的 `other_mistakes_found`、`no_extra_mistakes`（对的答案没被挑出多余错误）。
 

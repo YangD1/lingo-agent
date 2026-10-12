@@ -1,0 +1,306 @@
+{
+ "0ac17e81e3391a13": {
+  "case": "call-clean-but-fragmented",
+  "output": {
+   "intelligibility": "mostly",
+   "mistakes": [],
+   "more_natural": [
+    {
+     "natural": "where is",
+     "note": "在问路时，'Where is...?' 比 'How do I get to...?' 更常用、更简洁",
+     "quote": "how do I get to"
+    },
+    {
+     "natural": "Is it far?",
+     "note": "因为上下文已经明确是‘从这里’，所以 'from here' 通常可以省略，更自然",
+     "quote": "Is it far from here?"
+    },
+    {
+     "natural": "Thanks so much!",
+     "note": "日常对话中，'Thanks so much!' 更口语化、更常用",
+     "quote": "Thanks a lot for your help."
+    }
+   ],
+   "next_expressions": [
+    {
+     "expression": "Could you repeat that, please?",
+     "meaning": "当你没听清方向时，礼貌地请对方重复"
+    },
+    {
+     "expression": "Just to check, I go straight and then left?",
+     "meaning": "确认理解是否正确，比简单说 'So...' 更清晰有礼"
+    },
+    {
+     "expression": "That’s really helpful, thanks!",
+     "meaning": "比普通感谢更热情、更真诚的表达方式"
+    },
+    {
+     "expression": "Which way is the train station, please?",
+     "meaning": "另一种自然、礼貌的问路方式"
+    }
+   ],
+   "went_well": [
+    "成功问到了火车站怎么走",
+    "用 'So I go straight and turn left at the bank?' 确认了方向，清楚又礼貌",
+    "最后用 'Thanks a lot for your help.' 自然地表达了感谢"
+   ]
+  },
+  "task": "speaking_summary"
+ },
+ "10beb4e764b53dc1": {
+  "case": "call-cut-before-the-object",
+  "output": {
+   "intelligibility": "mostly",
+   "mistakes": [
+    {
+     "correction": "I've been to Emei Mountain twice.",
+     "explanation": "‘have went’ 语法错误；‘go’ 的过去分词是 ‘gone’，但这里想表达‘去过某地’，应该用现在完成时的固定搭配 ‘have been to’。",
+     "quote": "I have went to Emei Mountain two times."
+    },
+    {
+     "correction": "He goes to school by bus every day.",
+     "explanation": "主语是第三人称单数‘He’，动词要用第三人称单数形式‘goes’；‘every day’ 是固定短语，不能加‘s’。",
+     "quote": "He go to school by bus every days"
+    }
+   ],
+   "more_natural": [
+    {
+     "natural": "I'm really passionate about hiking.",
+     "note": "‘passionate about’ 比 ‘into’ 更正式、更常用于口语中表达强烈爱好。",
+     "quote": "I'm really into hiking."
+    },
+    {
+     "natural": "I've been to Emei Mountain twice.",
+     "note": "‘twice’ 比 ‘two times’ 更自然、更常用。",
+     "quote": "I have went to Emei Mountain two times."
+    }
+   ],
+   "next_expressions": [
+    {
+     "expression": "What do you enjoy doing in your free time?",
+     "meaning": "一个更自然、更常用的问对方爱好的方式。"
+    },
+    {
+     "expression": "I usually… / I often…",
+     "meaning": "用来描述经常性的爱好活动，比单纯说‘I like…’更丰富。"
+    },
+    {
+     "expression": "It's a great way to…",
+     "meaning": "接在爱好后面解释原因，比如‘It's a great way to relax and enjoy nature.’"
+    },
+    {
+     "expression": "How did you get into…?",
+     "meaning": "用来礼貌地问对方是怎么开始喜欢上某个爱好的。"
+    }
+   ],
+   "went_well": [
+    "成功介绍了自己最喜欢的爱好（hiking）",
+    "提到了具体地点（Emei Mountain），让对话更生动",
+    "尝试用 'I'm really into...' 表达强烈的兴趣，符合B1水平"
+   ]
+  },
+  "task": "speaking_summary"
+ },
+ "922d7569758d7474": {
+  "case": "cascade-quotes-and-case",
+  "output": {
+   "intelligibility": "mostly",
+   "mistakes": [
+    {
+     "correction": "She doesn't like coffee, but I like it very much.",
+     "explanation": "第三人称单数主语 she 后面动词要用 doesn't，不是 don't。",
+     "quote": "She don't like coffee but I like it very much"
+    },
+    {
+     "correction": "I am a student.",
+     "explanation": "英语中第一人称代词 I 永远大写。",
+     "quote": "i am a student"
+    }
+   ],
+   "more_natural": [
+    {
+     "natural": "By the way, what does 'serendipity' mean?",
+     "note": "引号更自然地突出要问的单词，且省略 the word 更简洁。",
+     "quote": "By the way, what does the word serendipity mean"
+    },
+    {
+     "natural": "I study computer science at Sichuan University.",
+     "note": "在大学名称前用介词 at，且专有名词首字母需大写。",
+     "quote": "I study computer science in sichuan university"
+    }
+   ],
+   "next_expressions": [
+    {
+     "expression": "I'm from [place].",
+     "meaning": "用来介绍自己来自哪里，是自我介绍的核心句型。"
+    },
+    {
+     "expression": "In my free time, I like…",
+     "meaning": "用来自然引出兴趣爱好，比直接说 I like… 更完整。"
+    },
+    {
+     "expression": "Nice to meet you!",
+     "meaning": "初次见面时常用的礼貌表达，让对话更友好自然。"
+    },
+    {
+     "expression": "I'm studying…",
+     "meaning": "用现在进行时表示正在读的专业，听起来更自然、更常用。"
+    }
+   ],
+   "went_well": [
+    "成功介绍了姓名（Hi, I am Tom）",
+    "清楚说明了职业身份（i am a student）",
+    "准确表达了学习专业和学校（I study computer science in sichuan university）"
+   ]
+  },
+  "task": "speaking_summary"
+ },
+ "a06cf50c5e8fdebd": {
+  "case": "call-cut-at-a-pause",
+  "output": {
+   "intelligibility": "mostly",
+   "mistakes": [
+    {
+     "correction": "I'm from Chengdu",
+     "explanation": "缺少动词be（am），英语中‘来自某地’必须用‘be from’结构。",
+     "quote": "I from Chengdu"
+    },
+    {
+     "correction": "I went to the park",
+     "explanation": "go的过去式是不规则变化went，不是goed。",
+     "quote": "I goed to the park"
+    }
+   ],
+   "more_natural": [
+    {
+     "natural": "I like playing football",
+     "note": "单独说‘Like playing football’缺少主语和动词，听起来像句子没说完；加‘I like’才构成完整、自然的句子。",
+     "quote": "Like playing football"
+    }
+   ],
+   "next_expressions": [
+    {
+     "expression": "I’m studying [subject]",
+     "meaning": "用来说明正在学什么专业，比如‘I’m studying computer science’"
+    },
+    {
+     "expression": "In my free time, I …",
+     "meaning": "比‘like doing…’更自然地引出兴趣爱好"
+    },
+    {
+     "expression": "I was born in …",
+     "meaning": "另一种介绍家乡的方式，比‘I’m from…’稍正式一点"
+    },
+    {
+     "expression": "I enjoy …",
+     "meaning": "和‘I like…’意思相近，但更强调享受做某事的过程"
+    }
+   ],
+   "went_well": [
+    "成功介绍了名字（My name is Tom）",
+    "提到了自己的学生身份（I am a student）",
+    "尝试表达兴趣爱好（Like playing football）"
+   ]
+  },
+  "task": "speaking_summary"
+ },
+ "e27c22f202e9063f": {
+  "case": "cascade-real-mistakes-only",
+  "output": {
+   "intelligibility": "mostly",
+   "mistakes": [
+    {
+     "correction": "an orange juice",
+     "explanation": "orange 以元音音素开头，前面要用 an，不是 a",
+     "quote": "a orange juice"
+    },
+    {
+     "correction": "Does it come with rice?",
+     "explanation": "助动词 does 后面要用动词原形 come，不能加 -s",
+     "quote": "Does it comes with rice?"
+    },
+    {
+     "correction": "Could we get the bill, please?",
+     "explanation": "after 单独用在这里意思不清楚；点完餐后要账单，更自然的说法是加 please 或说 now",
+     "quote": "Could we get the bill after?"
+    }
+   ],
+   "more_natural": [
+    {
+     "natural": "I'll have the chicken.",
+     "note": "在餐厅点餐时，'I'll have...' 比 'I want...' 更常用、更礼貌",
+     "quote": "I want the chicken."
+    },
+    {
+     "natural": "Can I have an orange juice, please?",
+     "note": "虽然这里已有 please，但冠词错误影响理解，需优先修正",
+     "quote": "Can I have a orange juice, please?"
+    }
+   ],
+   "next_expressions": [
+    {
+     "expression": "I'd like...",
+     "meaning": "点餐时更礼貌地说‘我想要……’，比如 I'd like the chicken and an orange juice"
+    },
+    {
+     "expression": "What's in the chicken dish?",
+     "meaning": "用来问一道菜里有什么食材，比问是否配米饭更丰富"
+    },
+    {
+     "expression": "We're ready to order.",
+     "meaning": "告诉服务员‘我们准备好了，可以点餐了’，是点餐开始的常用句"
+    },
+    {
+     "expression": "Could we have the bill, please?",
+     "meaning": "最标准、最礼貌的要账单说法"
+    }
+   ],
+   "went_well": [
+    "成功用 'Could we get the bill after?' 问了要账单，意思清楚",
+    "用 'Does it comes with rice?' 主动问了菜式细节，达到了目标"
+   ]
+  },
+  "task": "speaking_summary"
+ },
+ "f435d005a5293d6e": {
+  "case": "call-cut-explained-in-english",
+  "output": {
+   "intelligibility": "mostly",
+   "mistakes": [
+    {
+     "correction": "The test failed twice yesterday.",
+     "explanation": "After 'was', we need the past participle 'failed' for passive voice, but here the test itself performed the action, so active voice 'failed' is correct; 'twice' is the natural adverb for 'two times'.",
+     "quote": "The test was fail two times yesterday."
+    }
+   ],
+   "more_natural": [
+    {
+     "natural": "Let me give you a quick update on my part.",
+     "note": "A fluent speaker would usually frame it as a polite offer to speak, not just state the topic.",
+     "quote": "Quick update on my side."
+    },
+    {
+     "natural": "we've hit an issue with the payment system.",
+     "note": "'Hit an issue' is a common, natural collocation; 'payment system' is more precise than 'payment' when referring to technical functionality.",
+     "quote": "we've run into an issue with the payment."
+    }
+   ],
+   "next_expressions": [
+    {
+     "expression": "I'd like to flag a concern about...",
+     "meaning": "A polite, professional way to introduce a problem in a meeting."
+    },
+    {
+     "expression": "Could we possibly loop in the bank team?",
+     "meaning": "A collaborative, less direct way to suggest involving others."
+    }
+   ],
+   "went_well": [
+    "Gave a clear, concise update on progress ('We finished the login page last Friday')",
+    "Successfully raised a problem ('we've run into an issue with the payment')",
+    "Made a concrete suggestion for next step ('ask the bank team for help')"
+   ]
+  },
+  "task": "speaking_summary"
+ }
+}

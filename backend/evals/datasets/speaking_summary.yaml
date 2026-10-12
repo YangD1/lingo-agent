@@ -1,0 +1,104 @@
+# Speaking summary evaluation set (task 64.3, Q64w): does the summary, after the code
+# checks, name the learner's real mistakes and leave transcription artefacts alone?
+#
+#   mode             cascade (push to talk: whole sentences) or realtime (a call, cut
+#                    where the learner paused)
+#   scenario, level  as a session has them (scenario id from app/speaking/scenarios)
+#   turns            {learner: ...} or {partner: ...}, in order, as transcribed
+#   expect_mistakes  words of a real mistake some kept mistake must quote
+#   artefacts        how a turn that only looks wrong because of transcription begins:
+#                    no kept mistake or more natural version may quote from there
+#
+# Every conversation is made up; the first two follow what the task 64.2 smoke showed.
+
+thresholds:
+  real_mistakes_found: 0.75
+  transcript_left_alone: 0.8
+
+cases:
+  - id: call-cut-at-a-pause
+    mode: realtime
+    scenario: self_intro
+    level: A2
+    turns:
+      - partner: "Hi! I'm Sam, I just joined the design team. What's your name?"
+      - learner: "Hi. My name is Tom. I am a student."
+      - learner: "Like playing football. By the way, what does the word serendipity mean?"
+      - partner: "Nice to meet you, Tom! Serendipity means finding something good by chance. Where are you from?"
+      - learner: "I from Chengdu. Yesterday I goed to the park"
+      - learner: "with my friends."
+      - partner: "Sounds fun! What did you do there?"
+    expect_mistakes: ["goed"]
+    artefacts: ["Like playing football", "with my friends"]
+
+  - id: cascade-quotes-and-case
+    mode: cascade
+    scenario: self_intro
+    level: A2
+    turns:
+      - partner: "Hi, I'm Sam from the design team. And you are?"
+      - learner: "Hi, I am Tom. By the way, what does the word serendipity mean"
+      - partner: "It means finding something good by chance. What do you do, Tom?"
+      - learner: "i am a student. She don't like coffee but I like it very much"
+      - partner: "Ha, so you're the coffee fan. What do you study?"
+      - learner: "I study computer science in sichuan university"
+    expect_mistakes: ["She don't like"]
+    artefacts: ["what does the word serendipity mean", "i am a student"]
+
+  - id: call-cut-before-the-object
+    mode: realtime
+    scenario: hobbies_chat
+    level: B1
+    turns:
+      - partner: "This party's great, isn't it? What do you like doing in your free time?"
+      - learner: "I really want to"
+      - learner: "visit my grandmother next week, she lives in the countryside."
+      - partner: "That's lovely. Do you go there often?"
+      - learner: "Not often. He go to school by bus every days, my brother I mean."
+      - partner: "Ah, your brother. And what about your hobbies?"
+      - learner: "I'm really into hiking. I have went to Emei Mountain two times."
+    expect_mistakes: ["He go to school", "have went"]
+    artefacts: ["visit my grandmother", "I really want to"]
+
+  - id: cascade-real-mistakes-only
+    mode: cascade
+    scenario: ordering_food
+    level: A2
+    turns:
+      - partner: "Good evening! I'll be your server today. What would you like to drink?"
+      - learner: "Can I have a orange juice, please?"
+      - partner: "Of course. And to eat?"
+      - learner: "I want the chicken. Does it comes with rice?"
+      - partner: "It comes with rice or fries."
+      - learner: "Rice, please. Could we get the bill after?"
+    expect_mistakes: ["a orange juice", "Does it comes with rice"]
+
+  - id: call-clean-but-fragmented
+    mode: realtime
+    scenario: asking_directions
+    level: B1
+    turns:
+      - partner: "Hi there, you look a little lost. Can I help?"
+      - learner: "Yes, thank you. Excuse me, how do I get to"
+      - learner: "the train station?"
+      - partner: "Go straight for two blocks and turn left at the bank."
+      - learner: "So I go straight and"
+      - learner: "turn left at the bank? Is it far from here?"
+      - partner: "About ten minutes on foot."
+      - learner: "Thanks a lot for your help."
+    artefacts: ["the train station", "turn left at the bank", "Yes, thank you. Excuse me, how do I get to", "So I go straight and"]
+
+  - id: call-cut-explained-in-english
+    mode: realtime
+    scenario: meeting_update
+    level: B1
+    explain_in: en
+    turns:
+      - partner: "Morning everyone. Could you give us a quick update on your part?"
+      - learner: "Quick update on my side. We finished the login page"
+      - learner: "last Friday, but we've run into an issue with the payment."
+      - partner: "What kind of issue?"
+      - learner: "The test was fail two times yesterday. I'd suggest we"
+      - learner: "ask the bank team for help."
+    expect_mistakes: ["was fail"]
+    artefacts: ["last Friday", "ask the bank team"]
