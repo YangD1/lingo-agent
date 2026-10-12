@@ -707,14 +707,15 @@
     - 2026-10-12 qwen-audio 第一轮（用户给了 key，没存；直接调适配器，没建账号）：**公共地址 `https://dashscope.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer` 就能用，不需要 WorkspaceId**；响应**有** `usage.input_tokens` / `output_tokens`（“Hello”191 / 336），和文档说的只给时长不同；音频链接是 **http**（OSS 北京），守卫客户端能下载；**每句 13.6–27.2 秒**（5 句，单个“Hello”15.6 秒），远超默认超时 20 秒和前端首字节 4 秒的退回线 → 交互式朗读基本都会退回浏览器。音频时长正常（0.8 语速更长），声音一致性和“add rain sounds”有没有加音效待用户听 `/tmp/qwen-smoke/a–e.mp3`。对比：同一 key 的 `qwen3-tts-flash`（`/api/v1/services/aigc/multimodal-generation/generation`，预置声音 Cherry，按字符计）一句 1.07 秒，返回 wav 链接
     - 用户定（2026-10-12）：Q64o 交互朗读接 `qwen3-tts-flash`，qwen-audio 只用于单词发音预生成；Q64n `tts_url` 不填时用公共地址，设置页不加输入框。插入 64.2b，做完再接着冒烟
     - flash 核实（官方文档 + 用该 key 实测）：`POST https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`，body `model` + `input{text, voice, language_type}`（English / Chinese）；单次 ≤ 600 字符；**没有语速和格式参数**（`format` / `rate` 放 input 或 parameters 都被忽略），只出 wav（24 kHz 16 位单声道，约 48 KB/秒，是 mp3 的 6–8 倍）；返回 24 小时 http 链接；`usage.characters`，tokens 为 0；“Nice try!” 0.45–0.54 秒，一句 11 词 1.07 秒；预置声音要按官方声音表选
-  - [ ] 64.2b 交互朗读接 `qwen3-tts-flash`、单词发音单独路由（Q64o / Q64n 后续；Q64p–s 待确认）
+  - [ ] 64.2b 交互朗读接 `qwen3-tts-flash`、单词发音单独路由（Q64o / Q64n 后续；Q64p、Q64r、Q64s 按推荐确认，Q64q 按用户要求改为音色可选可配置，2026-10-12）
     - Q64p 语速：flash 不能调速。推荐**按语速 1 合成、缓存键里语速记 1（不同语速共用一份），响应头 `X-Tts-Playback-Rate` 告诉前端用 `playbackRate` 调速**（和单词发音 Q55a 一样）。备选：不支持调速，忽略学习者的语速
-    - Q64q 声音：推荐按官方“系统音色”表选美式女声、普通话女声（Cherry 中英都行）；**没有英式声音就 en-GB 返回 None**（英音学习者交给路由下一个模型或浏览器）
+    - Q64q 声音：~~推荐按官方表选美式女声、普通话女声~~ → **用户要求音色可选可配置**（以后学习者要能选模型、音色、形象——一套可驱动的 canvas 动画小人，记入任务 65 之后的 P4 待办）。做法：后端为每类模型给一份**音色目录**（`VoiceOption`：id、中文名、性别、口音、说明；flash 取官方 49 个非实时音色，qwen-audio 给几条推荐描述，其他厂商沿用现状），通过路由接口的 `voice_options` 下发；设置页每种语言的声音框按目录列出“名字 · 中文名 · 性别 · 口音”，可选也可手填。默认 en-US Jennifer（美式女）、zh-CN Cherry；官方表**没有英式声音**，en-GB 默认 None（英音学习者交给路由下一个模型或浏览器），想用美式读也可以在设置里给 en-GB 选一个。目录结构按“以后放到学习者设置里”设计，这次只做租户级
     - Q64r wav 体积：推荐**照存 wav**（后端不装 ffmpeg，线上内存紧），200 MB 缓存约能存 1,400 句；`Speech.mime_type` 按模型给 `audio/wav`，缓存表已有 `mime_type`
     - Q64s 单词发音用 qwen-audio、交互用 flash，两者都在 `tts/default` 会互相影响（预生成取路由里第一个能读的模型）。推荐 **`tts` 节加路由任务 `words`**（没配就用 `default`），`word_audio` 用它；设置页“单词发音”一节里放这个路由的编辑（`RouteSection` 支持 tts 节的 `words` 任务）。备选：不分路由，预生成时在“单词发音”里单独选一个模型
-    - [ ] 64.2b.1 flash 适配器（`tts.py`）：`is_qwen_tts_flash`（名字以 `qwen3-tts` 开头或含 `-tts-flash`），地址由连接 base_url 的主机拼出（`dashscope.aliyuncs.com` / `dashscope-intl.aliyuncs.com`），POST → GET wav；声音表 `QWEN_TTS_VOICES`；按 Q64p 处理语速；`Speech` 带 `audio/wav` 和实际语速
+    - [~] 64.2b.1 flash 适配器（`tts.py`）：`is_qwen_tts_flash`（名字以 `qwen3-tts` 开头或含 `-tts-flash`），地址由连接 base_url 的主机拼出（`dashscope.aliyuncs.com` / `dashscope-intl.aliyuncs.com`），POST → GET wav；声音表 `QWEN_TTS_VOICES`；按 Q64p 处理语速；`Speech` 带 `audio/wav` 和实际语速
     - [ ] 64.2b.2 qwen-audio 收尾：`tts_url` 不填按 base_url 主机拼公共地址（Q64n）；用量记响应里的 `input_tokens` / `output_tokens`；默认超时 60 秒
     - [ ] 64.2b.3 `read_aloud.py` / `/speech/tts`：缓存键按实际合成语速、`X-Tts-Playback-Rate` 响应头；前端 `lib/speech.ts` 收到就设 `playbackRate`
+    - [ ] 64.2b.3a 音色目录（Q64q）：`providers/tts_voices.py`（`VoiceOption`、`voice_options(model)`：flash 49 个、qwen-audio 推荐描述）；`api/providers.py` 路由响应加 `voice_options`；设置页 `VoiceInputs` 用它（标签显示中文名、性别、口音，可手填）；Vitest
     - [ ] 64.2b.4 `words` 路由（Q64s）：YAML `tts.routes.words`、`word_audio` 改用 `get_tts(ctx, "words")`、设置页“单词发音”里编辑这个路由
     - [ ] 64.2b.5 测试与文档：单测、`fake_llm.py` 加 flash 假接口、`speech.spec.ts`（flash 读回复、按 `playbackRate` 调速）、预生成 E2E 走 `words` 路由；两份 YAML qwen 预设加 `qwen3-tts-flash`；ADR 0028 落地记录、`features.yaml`（flash 按字符、qwen-audio 按 token）、PLAN、`agent-tools.md
   - [ ] 64.3 按 64.2 处理：`features.yaml` 估计、厂商小表默认值、ADR 0028 / 0030 落地记录、发现的小问题
@@ -723,6 +724,7 @@
 
 ## P4 企业级打磨
 - [ ] 65.（待拆，2026-10-12 用户提出）组织账号与额度：主账号（租户）共享模型连接和额度给子账号，主账号给每个子账号分配额度；子账号看不到主账号的 key；子账号可以用分配的额度，也可以自己配连接（朗读 TTS、语音识别等，和现有租户连接一样）。现状（2026-10-12 核实）：每人注册即一个个人租户、自己是 owner；`tenant_members` 的 admin / member 和 org 租户只在表结构里，没有邀请或加入流程；连接和路由只按租户、只有 owner / admin 能看（key 从不返回，只给末 4 位）；额度只有租户级的后台每日 token 和实时通话分钟（通话分钟按人计），没有按人的 token 额度；朗读用不用服务端是浏览器本地开关。开工前要写 ADR、拆子任务、和用户确认
+- [ ] 66.（待拆，2026-10-12 用户提出）学习者自选私教：模型、音色、形象（一套可驱动的动画小人，如 canvas 实现，随朗读 / 通话说话）。64.2b 的音色目录（`VoiceOption`）按这个方向设计，到时把租户级的选择下放到学习者设置；和任务 65 的额度一起考虑费用。开工前写 ADR、拆子任务、和用户确认
   - 已定方向（2026-10-12 用户选推荐）：P3 收尾（任务 64）做完推送后再做，作为 P4 第一项；子账号由主账号**邀请**加入（邀请链接 / 邀请码，对方用自己的邮箱注册或登录后加入，学习数据归本人）；额度**按能力分别给**（对话等文本按 token、朗读按字符、转写按分钟、通话按分钟，每日 / 每月上限）；子账号自己配了某项能力就**优先用自己的**、不扣主账号额度，没配的用主账号的、扣分配的额度
 - [ ] （进入 P4 时拆分）
 - [ ] 后续视觉优化（2026-10-02 用户决定：等功能彻底做完再做；hop 动画的使用位置也在这时一起看）
