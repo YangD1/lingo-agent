@@ -1,10 +1,12 @@
 """Tenant-scoped text-to-speech: the server reads aloud (ADR 0018 §3, ADR 0028 §3).
 
-Three kinds of endpoint:
+Four kinds of endpoint:
 - OpenAI's `POST /audio/speech` (OpenAI, SiliconFlow, a local speaches with Kokoro);
 - Azure's text-to-speech REST API, SSML in, mp3 out (`azure_speech` connections);
-- Alibaba Bailian's qwen-audio speech synthesis: the voice is described in a prompt, and
-  the answer is a link to the audio, fetched in a second request (task 64.2a).
+- Alibaba Bailian (DashScope), both answering with a link to the audio, fetched in a
+  second request: qwen3-tts-flash, fast, with named voices and no speed control, for
+  reading aloud (task 64.2b); qwen-audio, slow (13-27 s a sentence), the voice described
+  in a prompt, for word pronunciations made ahead of time (task 64.2a).
 
     tts = get_tts(ctx)
     speech = await tts.synthesize("Nice to meet you.", language="en-US", speed=0.9)
@@ -18,7 +20,8 @@ import time
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
+from urllib.parse import urlsplit
 from xml.sax.saxutils import escape, quoteattr
 
 import httpx2
@@ -40,6 +43,7 @@ type Language = Literal["en-US", "en-GB", "zh-CN"]
 LANGUAGES: tuple[Language, ...] = ("en-US", "en-GB", "zh-CN")
 
 MIME_TYPE = "audio/mpeg"
+WAV_MIME_TYPE = "audio/wav"
 AZURE_OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3"
 # Azure requires a User-Agent naming the application.
 USER_AGENT = "lingo-agent"
@@ -72,6 +76,20 @@ QWEN_AUDIO_VOICES: Mapping[Language, str] = {
 }
 QWEN_AUDIO_SEED = 20261012
 QWEN_AUDIO_SAMPLE_RATE = 24000
+# Measured 13.6-27.2 s a sentence (task 64.2).
+QWEN_AUDIO_TIMEOUT = 60.0
+# Without `tts_url`, the region's shared host takes the request (task 64.2: no workspace
+# needed); both paths are under the connection's own host.
+QWEN_AUDIO_PATH = "/api/v1/services/audio/tts/SpeechSynthesizer"
+QWEN_TTS_PATH = "/api/v1/services/aigc/multimodal-generation/generation"
+# qwen3-tts-flash's named voices (Q64q, the full list is in tts_voices.py). None is
+# British: a British learner's sentences go to the next model, or the browser.
+QWEN_TTS_VOICES: Mapping[Language, str] = {"en-US": "Jennifer", "zh-CN": "Cherry"}
+QWEN_TTS_LANGUAGES: Mapping[Language, str] = {
+    "en-US": "English",
+    "en-GB": "English",
+    "zh-CN": "Chinese",
+}
 # One retry after a 429 (Bailian allows 3 requests a second, Q64l), waiting what
 # Retry-After says, within reason.
 DEFAULT_RETRY_AFTER = 1.0
@@ -85,6 +103,17 @@ class Speech:
     model: str
     voice: str
     mime_type: str = MIME_TYPE
+    # How much faster the player should play it: the speed asked for, when the model
+    # can't read at that speed itself (qwen3-tts-flash, Q64p); else 1.
+    playback_rate: float = 1.0
+
+
+@dataclass(frozen=True)
+class _Synthesized:
+    audio: bytes
+    mime_type: str = MIME_TYPE
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class SpeechSynthesisError(Exception):
@@ -117,6 +146,8 @@ def default_voice(model: ResolvedModel, language: Language) -> str | None:
         return AZURE_VOICES[language]
     if is_qwen_audio(model):  # before the "tts" check: its names contain "tts" too
         return QWEN_AUDIO_VOICES[language]
+    if is_qwen_tts(model):
+        return QWEN_TTS_VOICES.get(language)
     lowered = name.lower()
     if "kokoro" in lowered:
         return KOKORO_VOICES.get(language)
@@ -129,6 +160,24 @@ def default_voice(model: ResolvedModel, language: Language) -> str | None:
 
 def is_qwen_audio(model: ResolvedModel) -> bool:
     return model.model.lower().startswith("qwen-audio")
+
+
+def is_qwen_tts(model: ResolvedModel) -> bool:
+    """qwen3-tts-flash and its snapshots; not the realtime ones, which need a WebSocket."""
+    name = model.model.lower()
+    return name.startswith("qwen3-tts") and "realtime" not in name
+
+
+def synthesis_speed(model: ResolvedModel, speed: float) -> float:
+    """The speed `model` is asked to read at: 1 when it can't change speed (Q64p)."""
+    return 1.0 if is_qwen_tts(model) else speed
+
+
+def dashscope_url(model: ResolvedModel, path: str) -> str:
+    """`path` on the connection's own host (https://dashscope.aliyuncs.com for the
+    preset's base_url .../compatible-mode/v1)."""
+    parts = urlsplit(model.base_url)
+    return f"{parts.scheme}://{parts.netloc}{path}"
 
 
 def qwen_audio_prompt(voice: str, text: str) -> str:
@@ -196,14 +245,22 @@ class TextToSpeech:
         last_error: Exception | None = None
         for i, (model, voice) in enumerate(candidates):
             started = time.monotonic()
+            read_at = synthesis_speed(model, speed)
             try:
-                audio = await _synthesize(model, text, language, voice, speed)
+                made = await _synthesize(model, text, language, voice, read_at)
             except Exception as exc:
                 last_error = exc
                 self._record(model, i, started, text, user_id, background, error=exc)
                 continue
-            self._record(model, i, started, text, user_id, background)
-            return Speech(audio=audio, connection=model.connection, model=model.model, voice=voice)
+            self._record(model, i, started, text, user_id, background, made=made)
+            return Speech(
+                audio=made.audio,
+                connection=model.connection,
+                model=model.model,
+                voice=voice,
+                mime_type=made.mime_type,
+                playback_rate=round(speed / read_at, 2),
+            )
         raise SpeechSynthesisError(
             f"every text-to-speech model failed on {language}"
         ) from last_error
@@ -217,6 +274,7 @@ class TextToSpeech:
         user_id: uuid.UUID | None,
         background: bool,
         *,
+        made: _Synthesized | None = None,
         error: Exception | None = None,
     ) -> None:
         submit_usage(
@@ -227,8 +285,9 @@ class TextToSpeech:
                 task=self.task,
                 connection_name=model.connection,
                 model=model.model,
-                input_tokens=0,
-                output_tokens=0,
+                # Only qwen-audio reports tokens; the rest bill by characters.
+                input_tokens=made.input_tokens if made else 0,
+                output_tokens=made.output_tokens if made else 0,
                 latency_ms=int((time.monotonic() - started) * 1000),
                 status="error" if error is not None else "ok",
                 is_fallback=position > 0,
@@ -241,8 +300,8 @@ class TextToSpeech:
         )
 
 
-def _client(model: ResolvedModel) -> httpx2.AsyncClient:
-    timeout = float(model.params.get("timeout") or DEFAULT_TIMEOUT)
+def _client(model: ResolvedModel, default_timeout: float = DEFAULT_TIMEOUT) -> httpx2.AsyncClient:
+    timeout = float(model.params.get("timeout") or default_timeout)
     return make_async_http_client(
         allow_private=get_settings().provider_allow_private_networks, timeout=timeout
     )
@@ -250,9 +309,11 @@ def _client(model: ResolvedModel) -> httpx2.AsyncClient:
 
 async def _synthesize(
     model: ResolvedModel, text: str, language: Language, voice: str, speed: float
-) -> bytes:
+) -> _Synthesized:
     if is_qwen_audio(model):
         return await _qwen_audio(model, text, voice, speed)
+    if is_qwen_tts(model):
+        return await _qwen_tts(model, text, language, voice)
     key = model.api_key.get_secret_value() if model.api_key else None
     if model.kind == "azure_speech":
         url = f"{model.base_url}/cognitiveservices/v1"
@@ -283,19 +344,13 @@ async def _synthesize(
         raise EndpointError(response.status_code, response.text.strip()[:200])
     if not response.content:
         raise EndpointError(response.status_code, "empty audio")
-    return response.content
+    return _Synthesized(response.content)
 
 
-async def _qwen_audio(model: ResolvedModel, text: str, voice: str, speed: float) -> bytes:
-    """POST the prompt to the workspace's `tts_url`, then GET the audio it links to."""
-    url = model.params.get("tts_url")
-    if not url:
-        raise ProviderConfigError(
-            f"connection {model.connection!r} needs tts_url, the Bailian workspace address, "
-            "to read aloud with qwen-audio"
-        )
-    key = model.api_key.get_secret_value() if model.api_key else None
-    headers = {"Authorization": f"Bearer {key}"} if key else {}
+async def _qwen_audio(model: ResolvedModel, text: str, voice: str, speed: float) -> _Synthesized:
+    """POST the prompt to `tts_url` (a workspace's host, or else the connection's own),
+    then GET the audio it links to."""
+    url = model.params.get("tts_url") or dashscope_url(model, QWEN_AUDIO_PATH)
     body = {
         "model": model.model,
         "input": {
@@ -307,7 +362,44 @@ async def _qwen_audio(model: ResolvedModel, text: str, voice: str, speed: float)
             "seed": QWEN_AUDIO_SEED,
         },
     }
-    async with _client(model) as client:
+    answer, audio = await _post_then_fetch(model, url, body, QWEN_AUDIO_TIMEOUT)
+    usage = answer.get("usage")
+    if not isinstance(usage, dict):
+        usage = {}
+    return _Synthesized(
+        audio,
+        input_tokens=_count(usage.get("input_tokens")),
+        output_tokens=_count(usage.get("output_tokens")),
+    )
+
+
+async def _qwen_tts(
+    model: ResolvedModel, text: str, language: Language, voice: str
+) -> _Synthesized:
+    """qwen3-tts-flash: a named voice, always at its own speed, wav only (Q64p, Q64r)."""
+    body = {
+        "model": model.model,
+        "input": {"text": text, "voice": voice, "language_type": QWEN_TTS_LANGUAGES[language]},
+    }
+    _, audio = await _post_then_fetch(model, dashscope_url(model, QWEN_TTS_PATH), body)
+    return _Synthesized(audio, mime_type=WAV_MIME_TYPE)
+
+
+def _count(value: object) -> int:
+    return value if isinstance(value, int) and value >= 0 else 0
+
+
+async def _post_then_fetch(
+    model: ResolvedModel,
+    url: str,
+    body: Mapping[str, object],
+    default_timeout: float = DEFAULT_TIMEOUT,
+) -> tuple[dict[str, Any], bytes]:
+    """DashScope's synthesis: POST, wait out one 429, then GET the audio the answer links
+    to (a signed storage link, valid a day). Returns the answer and the audio."""
+    key = model.api_key.get_secret_value() if model.api_key else None
+    headers = {"Authorization": f"Bearer {key}"} if key else {}
+    async with _client(model, default_timeout) as client:
         response = await client.post(url, headers=headers, json=body)
         if response.status_code == 429:
             await asyncio.sleep(retry_after(response))
@@ -315,18 +407,19 @@ async def _qwen_audio(model: ResolvedModel, text: str, voice: str, speed: float)
         if response.status_code != 200:
             raise EndpointError(response.status_code, response.text.strip()[:200])
         try:
-            audio_url = response.json()["output"]["audio"]["url"]
+            answer = response.json()
+            audio_url = answer["output"]["audio"]["url"]
         except (ValueError, KeyError, TypeError):
-            audio_url = None
+            answer, audio_url = {}, None
         if not isinstance(audio_url, str) or not audio_url:
             raise EndpointError(response.status_code, "no audio url")
-        # A signed storage link: the key stays with the API.
+        # The key stays with the API.
         audio = await client.get(audio_url)
     if audio.status_code != 200:
         raise EndpointError(audio.status_code, "audio download failed")
     if not audio.content:
         raise EndpointError(audio.status_code, "empty audio")
-    return audio.content
+    return answer, audio.content
 
 
 def get_tts(ctx: TenantProviderContext) -> TextToSpeech:

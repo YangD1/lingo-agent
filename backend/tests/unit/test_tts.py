@@ -7,7 +7,7 @@ import pytest
 
 from app.providers import tts
 from app.providers.config import ProviderKind, ResolvedModel, RouteSpec
-from app.providers.errors import NoModelConfiguredError, ProviderConfigError
+from app.providers.errors import NoModelConfiguredError
 from app.usage import recorder
 from app.usage.recorder import UsageRecord
 from tests.unit.provider_fixtures import TENANT, conn, make_config, make_ctx
@@ -364,12 +364,76 @@ async def test_qwen_audio_failures(
     assert str(info.value.__cause__) == message
 
 
-async def test_qwen_audio_needs_the_workspace_address(
+async def test_qwen_audio_without_tts_url_uses_the_connections_host(
+    speaker: Any, monkeypatch: pytest.MonkeyPatch, usage: list[UsageRecord]
+) -> None:
+    """No workspace needed (task 64.2); the tokens it reports are recorded."""
+    answer = httpx2.Response(
+        200,
+        json={
+            "output": {"audio": {"url": "https://oss.example.com/a.mp3"}},
+            "usage": {"duration": 2, "input_tokens": 191, "output_tokens": 336},
+        },
+    )
+    seen = bailian(monkeypatch, answer)
+
+    await speaker("qwen_bare:qwen-audio-3.1-tts-next").synthesize("Hi", language="en-US")
+
+    assert str(seen[0].url) == (
+        "https://qwen_bare.example.com/api/v1/services/audio/tts/SpeechSynthesizer"
+    )
+    ((record),) = usage
+    assert (record.input_tokens, record.output_tokens, record.characters) == (191, 336, 2)
+
+
+FLASH = "qwen_bare:qwen3-tts-flash"
+
+
+async def test_qwen_tts_flash_reads_with_a_named_voice_and_leaves_speed_to_the_player(
+    speaker: Any, monkeypatch: pytest.MonkeyPatch, usage: list[UsageRecord]
+) -> None:
+    seen = bailian(
+        monkeypatch,
+        httpx2.Response(
+            200,
+            json={
+                "output": {"audio": {"url": "http://oss.example.com/b.wav?Signature=y"}},
+                "usage": {"characters": 9},
+            },
+        ),
+        audio=httpx2.Response(200, content=b"RIFF-wav"),
+    )
+
+    speech = await speaker(FLASH).synthesize("Nice try!", language="en-US", speed=0.8)
+
+    assert speech == tts.Speech(
+        b"RIFF-wav", "qwen_bare", "qwen3-tts-flash", "Jennifer", "audio/wav", 0.8
+    )
+    post, get = seen
+    assert str(post.url) == (
+        "https://qwen_bare.example.com/api/v1/services/aigc/multimodal-generation/generation"
+    )
+    assert json.loads(post.content) == {
+        "model": "qwen3-tts-flash",
+        "input": {"text": "Nice try!", "voice": "Jennifer", "language_type": "English"},
+    }
+    assert str(get.url) == "http://oss.example.com/b.wav?Signature=y"
+    ((record),) = usage
+    assert (record.characters, record.input_tokens) == (9, 0)
+
+
+def test_qwen_tts_flash_voices_and_speed() -> None:
+    flash = model("q", "qwen3-tts-flash", "openai_compatible")
+    assert tts.default_voice(flash, "zh-CN") == "Cherry"
+    assert tts.default_voice(flash, "en-GB") is None  # no British voice (Q64q)
+    assert tts.synthesis_speed(flash, 0.7) == 1.0
+    assert tts.synthesis_speed(model("q", "tts-1", "openai"), 0.7) == 0.7
+    assert not tts.is_qwen_tts(model("q", "qwen3-tts-flash-realtime", "openai_compatible"))
+
+
+async def test_other_models_read_at_the_speed_asked(
     speaker: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    seen = bailian(monkeypatch)
-    with pytest.raises(tts.SpeechSynthesisError) as info:
-        await speaker("qwen_bare:qwen-audio-3.1-tts-next").synthesize("Hi", language="en-US")
-    assert isinstance(info.value.__cause__, ProviderConfigError)
-    assert "tts_url" in str(info.value.__cause__)
-    assert seen == []
+    serve(monkeypatch, {"openai.example.com": mp3()})
+    speech = await speaker("openai:tts-1").synthesize("Hi", language="en-US", speed=0.8)
+    assert (speech.playback_rate, speech.mime_type) == (1.0, "audio/mpeg")

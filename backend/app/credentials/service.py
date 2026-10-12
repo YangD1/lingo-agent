@@ -53,11 +53,13 @@ from app.providers.realtime import realtime_target, redact_key
 from app.providers.realtime_session import RealtimeConnectError, open_session
 from app.providers.tts import (
     LANGUAGES,
+    QWEN_AUDIO_TIMEOUT,
     EndpointError,
     Language,
     SpeechSynthesisError,
     TextToSpeech,
     default_voice,
+    is_qwen_audio,
 )
 from app.settings import get_settings
 from app.usage.recorder import UsageLabels, make_recorder
@@ -349,6 +351,9 @@ async def verify_connection(
             "timeout": min(conn.params.get("timeout", 20), 20),
         },
     )
+    if is_qwen_audio(resolved):  # 13-27 s a sentence (task 64.2)
+        limit = QWEN_AUDIO_TIMEOUT
+        resolved.params["timeout"] = min(conn.params.get("timeout", limit), limit)
     started = time.monotonic()
     error: str | None = None
     error_code: str | None = None
