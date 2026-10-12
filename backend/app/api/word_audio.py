@@ -169,7 +169,10 @@ class EstimateOut(BaseModel):
     cost: float | None
     requests_per_minute: int
     suggested_price: float | None
-    # At `requests_per_minute`, one request per piece left to make.
+    # How long one word takes on a model slow enough to set the pace (qwen-audio); null:
+    # `requests_per_minute` does. The page works out other paces with it (Q64u).
+    seconds_per_word: float | None
+    # At `requests_per_minute`, one word at a time; longer when the model is slower.
     minutes: int
 
 
@@ -205,7 +208,10 @@ async def estimate(
         cost=found.cost,
         requests_per_minute=found.requests_per_minute,
         suggested_price=found.suggested_price,
-        minutes=-(-to_make // found.requests_per_minute),
+        seconds_per_word=found.seconds_per_word,
+        minutes=word_audio.minutes_needed(
+            to_make, found.requests_per_minute, found.seconds_per_word
+        ),
     )
 
 

@@ -124,6 +124,25 @@ async def test_qwen_audio_jobs_stay_under_the_account_limit(
     assert estimate.requests_per_minute == 60
     assert job.requests_per_minute == word_audio.QWEN_AUDIO_MAX_REQUESTS_PER_MINUTE
     assert word_audio.max_rate(TextToSpeech(tenant_id, (model(),)), estimate.voices) is None
+    # One word at a time at ~13 s each: the model, not the pace, says how long (Q64u).
+    assert estimate.seconds_per_word == word_audio.QWEN_AUDIO_SECONDS_PER_WORD
+    other = await word_audio.estimate(
+        db_session, TextToSpeech(tenant_id, (model(),)), BOOK, ["en-US"]
+    )
+    assert other.seconds_per_word is None
+
+
+@pytest.mark.parametrize(
+    ("pieces", "rate", "per_word", "minutes"),
+    [
+        (1603, 60, None, 27),  # the pace: one a second
+        (1603, 60, 13.0, 348),  # zhongkao on qwen-audio: about 6 hours (task 64.2)
+        (10, 2, 13.0, 5),  # a pace slower than the model
+        (0, 60, 13.0, 0),
+    ],
+)
+def test_minutes_needed(pieces: int, rate: int, per_word: float | None, minutes: int) -> None:
+    assert word_audio.minutes_needed(pieces, rate, per_word) == minutes
 
 
 async def test_estimate_counts_what_is_left_to_make(
@@ -189,7 +208,7 @@ async def test_a_job_reads_each_word_once_per_accent_and_pins_it(
     # Five requests, all to the first model; the learner's "apple" was pinned, not bought.
     assert len(vendor.asked) == 5
     assert ("apple", "af_heart") not in vendor.asked
-    assert sleeps.seconds == [3.0] * 5
+    assert sleeps.seconds == pytest.approx([3.0] * 5, abs=0.1)
     rows = await pinned(db_session, tenant_id)
     assert [(r.word_id, r.language) for r in rows] == [
         (ids[w], accent) for w in ("apple", "banana", "cherry") for accent in ("en-GB", "en-US")
@@ -270,8 +289,31 @@ async def test_no_model_reads_the_accents(
         )
 
 
-async def test_rate_limits_back_off_and_failures_are_counted(
+async def test_the_pace_counts_from_each_request_start(
     client: AsyncClient, db_session: AsyncSession, vendor: Vendor
+) -> None:
+    """A word that took 1.5 s of a 3 s gap leaves 1.5 s to wait; a slower one, none (Q64u)."""
+    tenant_id, user_id = await tenant(client, db_session)
+    await words(db_session, "apple", "banana")
+    route = TextToSpeech(tenant_id, (model(),))
+    ticks = iter([0.0, 1.5, 10.0, 15.0])
+    sleeps = Sleeps()
+    job = await word_audio.start(
+        db_session, route, BOOK, ["en-US"], user_id=user_id, requests_per_minute=20
+    )
+
+    await word_audio.run_batch(
+        db_session, job.id, route, BOOK, sleep=sleeps, clock=lambda: next(ticks)
+    )
+
+    assert sleeps.seconds == [1.5, 0.0]
+
+
+async def test_rate_limits_back_off_and_failures_are_counted(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    vendor: Vendor,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     tenant_id, user_id = await tenant(client, db_session)
     await words(db_session, "apple", "banana")
@@ -286,7 +328,9 @@ async def test_rate_limits_back_off_and_failures_are_counted(
 
     await db_session.refresh(job)
     assert (job.status, job.done, job.failed) == ("done", 1, 1)
-    assert sleeps.seconds == [word_audio.RATE_LIMIT_BACKOFF[0], 1.0, 1.0]
+    assert sleeps.seconds == pytest.approx([word_audio.RATE_LIMIT_BACKOFF[0], 1.0, 1.0], abs=0.1)
+    # Failures are logged by class name only (Q64v).
+    assert "word audio for 'banana' (en-US) failed: EndpointError" in caplog.text
     # Failed words are left out; a new job makes only those.
     again = await word_audio.estimate(db_session, route, BOOK, ["en-US"])
     assert (again.existing, again.characters) == (1, len("banana"))

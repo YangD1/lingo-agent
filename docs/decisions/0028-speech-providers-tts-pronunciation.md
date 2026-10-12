@@ -117,6 +117,7 @@ Q57a–g 按推荐确认。和上文的差异与补充：
 - **防止读成指令**（Q64j）：`text_prompt` = `<描述> reads the following text aloud word for word, with no sound effects or background sound: "<原文>"`，原文里的反斜杠和双引号转义。
 - **语速与格式**（Q64k）：语速映射到 `rate`（夹到 0.5–2）；mp3、24 kHz、单声道，和现有缓存一致。
 - **限速**（Q64l）：百炼按账号每秒 3 次。碰到 429 按 `Retry-After`（没有就 1 秒，最多 10 秒）等一次再试一次，仍 429 就算失败、轮到下一个模型。单词发音预生成用到 qwen-audio 时，速度不管填多少都封顶每分钟 120 次（`word_audio.max_rate`），给同时朗读的私教回复留余量。
+- **实测与修正**（任务 64.2 / 64.3）：qwen-audio 一个词 12–13 秒，预生成一次只做一个词，所以实际速度由模型决定（中考 1,603 词约 6 小时），不是每分钟请求数。节奏改为从每次请求开始计时；预估接口多给 `seconds_per_word`，设置页按“限速”和“模型耗时”取慢的算时间、超过 1 小时按小时显示，并说明原因。qwen-audio 自带 60 秒超时只压过部署全局默认（YAML `defaults.timeout: 30`），不压过租户填的（`ResolvedModel.deployment_defaults`）。失败按异常类名记 warning 日志。
 - **计费与用量**：百炼按 token 计费（输入 6 元 / 百万、输出 12 元 / 百万），但响应只给 `usage.duration`（秒），不给 token；用量仍按字符记，`duration` 不存，费用估计等冒烟实测后再定。
 - **测试**：单测覆盖 prompt 转义、默认描述、两步请求、429 重试、各种失败、没填 `tts_url`；`fake_llm.py` 加假的百炼接口，`speech.spec.ts` 一条 E2E。
 - **未验证**：真实百炼 key（留给 64.2 冒烟）、同一 seed 下逐句声音是否一致、单次合成耗时（默认超时 20 秒，太短再给 tts 设 `task_params`）。

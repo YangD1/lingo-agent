@@ -47,6 +47,7 @@ const ESTIMATE: WordAudioEstimate = {
   cost: 0.915,
   requests_per_minute: 20,
   suggested_price: 15,
+  seconds_per_word: null,
   minutes: 385,
 };
 
@@ -111,7 +112,7 @@ describe("WordAudioSection", () => {
     expect(within(form).getByLabelText("Price per million characters")).toHaveValue(15);
     expect(within(form).getByLabelText("Currency")).toHaveValue("USD");
     expect(within(form).getByLabelText("Requests per minute")).toHaveValue(20);
-    expect(within(form).getByText(/About 61,000 characters, 51.4 MB, 385 minutes · about 0.915 USD/)).toBeInTheDocument();
+    expect(within(form).getByText(/About 61,000 characters, 51.4 MB, about 6.4 hours · about 0.915 USD/)).toBeInTheDocument();
     expect(api).toHaveBeenCalledWith(
       "/tenant/word-audio/estimate?book_id=cet4&accents=en-US&accents=en-GB",
     );
@@ -132,6 +133,22 @@ describe("WordAudioSection", () => {
     expect(screen.getByText("1,000 of 3,849 done, 2 failed")).toBeInTheDocument();
     // One job at a time.
     expect(screen.getByRole("button", { name: "Generate pronunciations for GRE" })).toBeDisabled();
+  });
+
+  it("times a slow model by its seconds a word, not the pace", async () => {
+    const qwen = { ...ESTIMATE, voices: { "en-US": AVA }, pieces: 1603, requests_per_minute: 60, seconds_per_word: 13, cost: null };
+    api.mockImplementation(async (path: string) => {
+      if (path === "/tenant/word-audio") return state();
+      if (path.startsWith("/tenant/word-audio/estimate")) return qwen;
+      throw new Error(`unexpected ${path}`);
+    });
+    show();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Generate pronunciations for CET-4" }));
+    const form = await screen.findByRole("form", { name: "Generate word pronunciations" });
+    // 1,603 words at 13 s each, one at a time: about 5.8 hours, not 27 minutes (task 64.2).
+    expect(await within(form).findByText(/about 5.8 hours/)).toBeInTheDocument();
+    expect(within(form).getByText(/takes about 13 s a word/)).toBeInTheDocument();
   });
 
   it("pauses a running job and shows why one paused by itself", async () => {

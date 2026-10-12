@@ -9,12 +9,16 @@ audio already cached under the same key is pinned instead of paid for again. Row
 pinned (never evicted) and carry the word, so they can be counted and deleted per book.
 
 Words are always read at speed 1.0: the page plays them faster or slower (Q55a).
-Requests are paced to `requests_per_minute` (Q55e), capped for vendors with an account
-limit (qwen-audio, task 64.2a); a 429 backs off and retries, other
-failures are counted and the job goes on, until enough fail in a row that it pauses.
+Requests are paced to `requests_per_minute` (Q55e), counted from each request's start
+and capped for vendors with an account limit (qwen-audio, task 64.2a); one word at a
+time, so a slow model sets the pace instead (task 64.2: qwen-audio takes ~13 s a word).
+A 429 backs off and retries, other failures are logged and counted and the job goes on,
+until enough fail in a row that it pauses.
 """
 
 import asyncio
+import logging
+import time
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
@@ -37,6 +41,8 @@ from app.providers.tts import (
 from app.services.speech.read_aloud import audio_key
 from app.services.vocab.books import Book
 
+logger = logging.getLogger(__name__)
+
 type Accent = Language
 ACCENTS: tuple[Accent, ...] = ("en-US", "en-GB")
 WORD_SPEED = 1.0
@@ -56,6 +62,9 @@ OTHER_REQUESTS_PER_MINUTE = 60
 # Bailian's qwen-audio allows 3 requests a second for the whole account (Q64l): word audio
 # never goes past 2, leaving room for replies read aloud meanwhile.
 QWEN_AUDIO_MAX_REQUESTS_PER_MINUTE = 120
+# A word takes this long on qwen-audio (12-13 s each, task 64.2): with one word at a time
+# that, not the pace asked for, says how long a book takes (Q64u).
+QWEN_AUDIO_SECONDS_PER_WORD = 13.0
 # Azure neural voices, standard tier, per million characters (azure.microsoft.com
 # pricing, 2026-10-09); a suggestion the deployment can change (Q55d).
 AZURE_PRICE_PER_MILLION = 15.0
@@ -96,6 +105,8 @@ class Estimate:
     # What to suggest in the confirm dialog (Q55d, Q55e).
     requests_per_minute: int
     suggested_price: float | None
+    # How long one word takes on a model slow enough to matter; None: the pace decides.
+    seconds_per_word: float | None = None
 
 
 def current_voices(tts: TextToSpeech, accents: Sequence[Accent]) -> dict[Accent, Voice]:
@@ -120,6 +131,19 @@ def max_rate(tts: TextToSpeech, voices: dict[Accent, Voice]) -> int | None:
     if any(is_qwen_audio(m) for m in tts.models if (m.connection, m.model) in used):
         return QWEN_AUDIO_MAX_REQUESTS_PER_MINUTE
     return None
+
+
+def seconds_per_word(tts: TextToSpeech, voices: dict[Accent, Voice]) -> float | None:
+    used = {(v.connection, v.model) for v in voices.values()}
+    if any(is_qwen_audio(m) for m in tts.models if (m.connection, m.model) in used):
+        return QWEN_AUDIO_SECONDS_PER_WORD
+    return None
+
+
+def minutes_needed(pieces: int, requests_per_minute: int, per_word: float | None) -> int:
+    """Whole minutes for `pieces` words one at a time: the pace, or the model if slower."""
+    each = max(60 / requests_per_minute, per_word or 0)
+    return -(-round(pieces * each) // 60)
 
 
 def suggested_rate(tts: TextToSpeech, voices: dict[Accent, Voice]) -> int:
@@ -198,6 +222,7 @@ async def estimate(
         cost=None if price_per_million is None else characters / 1_000_000 * price_per_million,
         requests_per_minute=suggested_rate(tts, voices),
         suggested_price=suggested_price(tts, voices),
+        seconds_per_word=seconds_per_word(tts, voices),
     )
 
 
@@ -299,6 +324,13 @@ async def _read(
             if backoff is not None and isinstance(cause, EndpointError) and cause.status == 429:
                 await sleep(backoff)
                 continue
+            # The class name only: a vendor's message can echo the request (Q64v).
+            logger.warning(
+                "word audio for %r (%s) failed: %s",
+                word,
+                accent,
+                type(cause or exc).__name__,
+            )
             return None
         return speech.audio, speech.mime_type
     return None
@@ -312,6 +344,7 @@ async def run_batch(
     *,
     batch_size: int = BATCH_SIZE,
     sleep: Sleep = asyncio.sleep,
+    clock: Callable[[], float] = time.monotonic,
 ) -> bool:
     """Works through the next batch of the job's words; True while there is more to do
     and the job is still running. Progress is saved after each word, and a pause or
@@ -365,8 +398,9 @@ async def run_batch(
                 tally.done += 1
                 continue
             tally.characters += len(word)
+            started = clock()
             result = await _read(readers[accent], word, accent, sleep)
-            await sleep(interval)
+            await sleep(max(0.0, interval - (clock() - started)))
             if result is None:
                 tally.failed += 1
                 failures_in_a_row += 1

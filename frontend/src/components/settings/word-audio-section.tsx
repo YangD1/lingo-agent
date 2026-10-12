@@ -348,7 +348,17 @@ function StartForm({
   }
 
   const toMake = estimate ? estimate.pieces - estimate.existing : 0;
-  const minutes = estimate && rateValid ? Math.ceil(toMake / rateValue) : null;
+  // One word at a time: the pace, or the model when it's slower (task 64.3, Q64u).
+  const minutes =
+    estimate && rateValid
+      ? Math.ceil((toMake * Math.max(60 / rateValue, estimate.seconds_per_word ?? 0)) / 60)
+      : null;
+  const duration =
+    minutes === null
+      ? "—"
+      : minutes < 60
+        ? t("durationMinutes", { minutes })
+        : t("durationHours", { hours: format.number(minutes / 60, { maximumFractionDigits: 1 }) });
   const readable = estimate ? accents.filter((a) => estimate.voices[a]) : [];
 
   return (
@@ -439,10 +449,15 @@ function StartForm({
             {t("estimateCost", {
               characters: format.number(estimate.characters),
               megabytes: megabytes(estimate.bytes),
-              minutes: minutes ?? "—",
+              duration,
             })}
             {estimate.cost !== null && ` · ${t("cost", { cost: money(estimate.cost, currency.trim() || null) })}`}
           </p>
+          {estimate.seconds_per_word !== null && (
+            <p className="text-muted-foreground">
+              {t("slowModel", { seconds: format.number(estimate.seconds_per_word) })}
+            </p>
+          )}
           {estimate.missing.length > 0 && (
             <p className="text-muted-foreground">
               {t("missing", { accents: estimate.missing.map((a) => t(`accent.${a}`)).join("、") })}

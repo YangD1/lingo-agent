@@ -734,8 +734,8 @@
     - Q64w 小结把转写痕迹当错：推荐 `speaking_summary` 提示词加一条：**学习者的话是语音转写，不纠正标点、大小写、引号；实时通话的转写会在停顿处切断，句首缺词不算错**（只对 `mode` 为语音 / 通话的会话加），评估集加 2 条
     - Q64x 用量估计：推荐按实测改 `features.yaml`：`realtime_call` 每分钟 20,000 / 1,000 → **8,000 / 400**（qwen 实测 6,500 / 370，留余量；注释写明 OpenAI 等其他厂商未实测）、`word_audio_prefetch` 注明 qwen-audio 约 180 / 240 token、`read_aloud` 60 字符保持；`speaking_turn` 的 `speaking` 4,000 / 80 → **1,500 / 80**（实测 700 / 42，新账号上下文短，留余量）；ADR 0028 / 0030 记实测结论；README 的本地转写说明补“国内设 `ASR_HF_ENDPOINT`”
     - [x] 64.3.1 Q64t 超时（`tts.py` `_client` / `providers/config.py` 分清来源）+ 单测。2026-10-12 完成：`ResolvedModel.deployment_defaults`（只来自 YAML `defaults` 的参数名），`tts._timeout` 让模型自带默认值只压过部署默认、不压过租户填的；`test_tts.py` / `test_provider_config.py` 78 条过，ruff、mypy 干净，全量 pytest 1683 过
-    - [~] 64.3.2 Q64u 预估 + Q64v 日志（`services/speech/word_audio.py`、设置页文案如需）+ 单测
-    - [ ] 64.3.3 Q64w 小结提示词（`prompts/` 下 speaking_summary）+ 评估集 2 条。范围更正：小结还没有评估集 → 新建 `evals/speaking_summary.py` + 数据集 4–6 条，用 qwen-plus 录制；另在 `summary.check` 丢掉改法与原话归一化后相同（只差标点 / 大小写）的条目；通话会话（`row.mode == "realtime"`）在提示里说明转写会在停顿处断句
+    - [x] 64.3.2 Q64u 预估 + Q64v 日志（`services/speech/word_audio.py`、设置页文案如需）+ 单测。2026-10-12 完成：`run_batch` 节奏从请求开始计时（可注入 `clock`）；`seconds_per_word` / `minutes_needed`（qwen-audio 13 秒）；`/tenant/word-audio/estimate` 加 `seconds_per_word`；`_read` 失败记 warning（异常类名）；设置页时间按两者取慢、≥ 60 分钟显示“约 N 小时”，慢模型加说明；`test_word_audio*.py` 24 过、Vitest 571 过，ruff / mypy / eslint / tsc 干净
+    - [~] 64.3.3 Q64w 小结提示词（`prompts/` 下 speaking_summary）+ 评估集 2 条。范围更正：小结还没有评估集 → 新建 `evals/speaking_summary.py` + 数据集 4–6 条，用 qwen-plus 录制；另在 `summary.check` 丢掉改法与原话归一化后相同（只差标点 / 大小写）的条目；通话会话（`row.mode == "realtime"`）在提示里说明转写会在停顿处断句
     - [ ] 64.3.4 Q64x `features.yaml`、ADR 0028 / 0030 落地记录、README 中英本地转写说明
   - [ ] 64.4 README 中英截图和语音一节、PLAN / P3 计划标 P3 完成
   - [ ] 64.5 `make ci` 全过、推送、CI 全绿、Docker 重建（含 WebSocket 经前端代理实测）、看板进入 P4

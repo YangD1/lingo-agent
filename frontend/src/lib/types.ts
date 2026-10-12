@@ -245,6 +245,8 @@ export type WordAudioEstimate = {
   cost: number | null;
   requests_per_minute: number;
   suggested_price: number | null;
+  /** One word's time on a model slow enough to set the pace (qwen-audio); null: the pace does. */
+  seconds_per_word: number | null;
   minutes: number;
 };
 export type RealtimeLimits = {
