@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-12 任务 64 拆分、64.1 完成、64.2a 方案
+
+**做了什么**：任务 64 拆成 64.1–64.5（Q64a–g 按推荐）。64.1 完成并提交 bfe0303：`frontend/e2e/p3-demo.spec.ts` 串起整个 P3；`use-attachments.test.ts` 五个 `waitFor` 加 4 秒超时（Q64f）。Docker 已按任务 63 的代码重建（先 backend 后 frontend，前端约 10 分钟），`/healthz`、前端 200，迁移 head `dc7609c9257f`。用户改主意：朗读不用 OpenAI，改接**百炼 `qwen-audio-3.1-tts-next`**，插入 64.2a（Q64h–m 按推荐确认，计划细到文件和函数，见看板）。用户另提“组织账号与额度”需求，记为任务 65（P4 第一项，方向已定：邀请加入、按能力分配额度、子账号自己配的优先）。
+
+**未完成**：64.2a.1–64.2a.5（一行代码还没写）；64.2–64.5。本地领先 origin 4 个提交（63 的三个 + bfe0303），未推送。
+
+**下一步**：新会话从 64.2a.1 开始，按看板逐步做；64.2 冒烟时向用户要百炼 key 和 WorkspaceId（不存），对话用 `qwen-plus`、实时用 `qwen3.5-omni-flash-realtime`、转写先 `make asr-up` 用本地 whisper。
+
+**踩坑**：p3-demo 的复习循环，按键后要等“已复习 n”变化，并用 `word.or(listen)` 同时等新卡或听音题，否则会读到上一张卡（全量跑时超时）。Bash 里 `pnpm` 会因 nvm 懒加载函数无限递归，用绝对路径 `~/.nvm/versions/node/v24.14.0/bin/pnpm` 并把该目录加到 PATH。qwen-audio 接口要点：只有北京区、地址带 WorkspaceId、没有预置声音（靠 `text_prompt` 描述或参考音频）、非流式且先返回 24 小时有效的音频 url、只返回时长不返回 token、每秒 3 次。
+
+---
+
 ## 2026-10-11 任务 63 复习卡片听音辨词 / 拼写
 
 **做了什么**：拆成 63.1–63.4，Q63a–h 按推荐确认，全部完成。后端 `app/services/vocab/distractors.py`（`gloss` / `pick` / `choices_for`：同一词书按词频上下各 15 个邻居，同词性优先、不共用词条，不调模型）；`CardOut.gloss` / `choices`（只给复习过的卡）；`ReviewIn.format` → `review(format=)` → `review_logs.format`（迁移 `dc7609c9257f`，带 CHECK）。前端 `lib/vocab.ts` `cardFormat` / `listenOptions` / `judgeSpelling` / `spellingMarks` / `SUGGESTED_RATING`；`lib/preferences.ts` `useReviewChoice`；`components/vocab/review-fronts.tsx`；`review-app.tsx` 顶部题型切换、自动读、R 重听、1–4 选项、建议评分（Enter / 空格采用）；`Segmented` 选项可禁用、`Tag` 加 `destructive`。提交 0e2f00a、4671247，文档和 E2E 一起提交。
