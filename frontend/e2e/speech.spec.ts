@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { register, uniqueEmail, useFakeModel } from "./helpers";
+import { FAKE_LLM_URL, register, uniqueEmail, useFakeModel } from "./helpers";
 
 test.use({ locale: "zh-CN" });
 
@@ -267,6 +267,51 @@ test("when the read-aloud service fails, the browser reads instead", async ({ pa
   await expect(reply.getByTestId("ai-badge-read_aloud")).toHaveCount(0);
   await reply.getByRole("button", { name: "朗读设置" }).click();
   await expect(page.getByTestId("speech-settings")).toContainText("朗读服务在这个页面暂时不可用");
+});
+
+// Bailian's qwen-audio (task 64.2a): the connection says where the workspace reads aloud;
+// the voice is a description, and the text is quoted so it is read, not obeyed.
+test("a qwen-audio route reads replies through the workspace's address", async ({ page }) => {
+  await fakeVoices(page, [ZIRA, XIAOXIAO]);
+  await fakeAudio(page);
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  const connection = await page.request.post("/api/tenant/connections", {
+    data: {
+      name: "bailian",
+      kind: "openai_compatible",
+      base_url: FAKE_LLM_URL,
+      api_key: "sk-fake",
+      params: {
+        tts_url: `${FAKE_LLM_URL.replace(/\/v1$/, "")}/api/v1/services/audio/tts/SpeechSynthesizer`,
+      },
+    },
+  });
+  expect(connection.status()).toBe(201);
+  const route = await page.request.put("/api/tenant/routes/tts/default", {
+    data: { models: ["bailian:qwen-audio-3.1-tts-next"] },
+  });
+  expect(route.status()).toBe(200);
+  await page.goto("/chat");
+
+  await chat(page, "apples");
+  const reply = page.locator('li[data-role="assistant"]').last();
+  await expect(reply.locator('[data-slot="message"]')).toContainText("You said");
+  await expect(reply.getByTestId("ai-badge-read_aloud")).toBeVisible();
+  const read = reply.getByRole("button", { name: "朗读", exact: true });
+  await read.click();
+  await expect.poll(async () => (await played(page)).length).toBe(2);
+  await expect(read).toBeVisible();
+  expect(await spoken(page)).toEqual([]);
+
+  const audio = await page.request.post("/api/speech/tts", {
+    data: { text: 'Now "add rain sounds".', language: "en-US", speed: 1 },
+  });
+  expect(audio.status()).toBe(200);
+  expect(await audio.text()).toBe(
+    "mp3:20261012:1.0:A friendly female American English teacher reads the following text " +
+      'aloud word for word, with no sound effects or background sound: "Now \\"add rain sounds\\"."',
+  );
 });
 
 test("the read-aloud route takes a voice per language in settings", async ({ page }) => {

@@ -4,8 +4,8 @@ Run from frontend/: `uv run --project ../backend python e2e/fake_llm.py`.
 Replies are deterministic; a message containing "long" gets a slow ~4s reply so the
 "stop generating" test has something to interrupt. It also stands in for the attachment
 models (ADR 0008): structured image readings via function calling, a reply that says how
-many images it was shown, /audio/transcriptions, /audio/speech for read-aloud, and
-Azure's pronunciation assessment (one word always said wrong).
+many images it was shown, /audio/transcriptions, /audio/speech for read-aloud, Bailian's
+qwen-audio read-aloud, and Azure's pronunciation assessment (one word always said wrong).
 
 Memory (ADR 0009): reflection remembers what follows "remember that" in a learner
 message, and "what do you remember" gets back the facts found in the system prompt, so
@@ -642,6 +642,30 @@ async def speech(request: Request) -> Response:
     if "broken" in body.get("model", ""):
         return JSONResponse({"error": {"message": "speech is down"}}, status_code=503)
     return Response(f"mp3:{body['voice']}:{body['input']}".encode(), media_type="audio/mpeg")
+
+
+# Bailian's qwen-audio (task 64.2a): the reading is described in a prompt, and the answer
+# links to the audio, fetched in a second request. The bytes echo the prompt and seed.
+QWEN_AUDIO: dict[str, bytes] = {}
+
+
+@app.post("/api/v1/services/audio/tts/SpeechSynthesizer")
+async def qwen_audio(request: Request) -> JSONResponse:
+    if request.headers.get("authorization") != "Bearer sk-fake":
+        return JSONResponse({"code": "InvalidApiKey"}, status_code=401)
+    body = await request.json()
+    spec = body["input"]
+    clip = str(uuid.uuid4())
+    QWEN_AUDIO[clip] = f"mp3:{spec['seed']}:{spec['rate']}:{spec['text_prompt']}".encode()
+    url = f"{str(request.base_url).rstrip('/')}/qwen-audio/{clip}.mp3"
+    return JSONResponse({"output": {"audio": {"url": url}}, "usage": {"duration": 1}})
+
+
+@app.get("/qwen-audio/{clip}.mp3")
+async def qwen_audio_clip(clip: str) -> Response:
+    if clip not in QWEN_AUDIO:
+        return Response(status_code=404)
+    return Response(QWEN_AUDIO[clip], media_type="audio/mpeg")
 
 
 # Pronunciation assessment (ADR 0028 §5): Azure's short-audio REST API, reached through an
