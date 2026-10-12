@@ -4,14 +4,18 @@ import logging
 import os
 import uuid
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal, Self
 
 import yaml
 from pydantic import BaseModel, ConfigDict, SecretStr, ValidationError, model_validator
 
-from app.providers.errors import NoModelConfiguredError, ProviderConfigError
+from app.providers.errors import (
+    NoModelConfiguredError,
+    ProviderConfigError,
+    QuotaExhaustedError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -242,8 +246,22 @@ class TenantProviderContext:
     tenant_id: uuid.UUID
     connections: Mapping[str, ConnectionSpec]  # in creation order (the auto fallback order)
     routes: Mapping[tuple[str, str], RouteSpec]  # (section, task) -> tenant override
-    # Changes whenever the tenant's connections or routes change; part of cache keys.
+    # Changes whenever the tenant's connections or routes change, or its main account's;
+    # part of cache keys.
     version: str
+    sponsor: "Sponsor | None" = None
+
+
+@dataclass(frozen=True)
+class Sponsor:
+    """The main account lending this tenant its connections (ADR 0031 §5)."""
+
+    # The main account's own connections and routes (never its own main account's).
+    ctx: TenantProviderContext
+    name: str
+    # Sections the member may not use the main account's models for right now: the
+    # capability's quota is used up today or this month, or set to 0.
+    exhausted: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -257,6 +275,9 @@ class ResolvedModel:
     # Params whose value is only the deployment's `defaults` (no task, connection or route
     # set it): a model that needs more, e.g. a slower timeout, may go over them (Q64t).
     deployment_defaults: frozenset[str] = frozenset()
+    # The main account paying for this model, when a member uses its connection (ADR
+    # 0031 §6); None: the tenant itself.
+    billed_tenant_id: uuid.UUID | None = None
 
 
 def sdk_params(params: Mapping[str, Any]) -> dict[str, Any]:
@@ -305,6 +326,50 @@ def resolve_route(
 
 
 def resolve_route_with_source(
+    config: ProvidersConfig, ctx: TenantProviderContext, section: Section, task: str
+) -> tuple[list[ResolvedModel], RouteSource]:
+    """The tenant's own chain when it has one, else its main account's (ADR 0031 §5).
+
+    Never a mix: a member's own models don't fall back to the main account's. Models the
+    member switched off stay off. Raises QuotaExhaustedError when only the main account
+    has a model and the member's quota for it is used up.
+    """
+    try:
+        return _resolve_own(config, ctx, section, task)
+    except NoModelConfiguredError as exc:
+        sponsor = ctx.sponsor
+        if sponsor is None or exc.code == "models_disabled":
+            raise
+        try:
+            resolved, source = _resolve_own(config, sponsor.ctx, section, task)
+        except NoModelConfiguredError:
+            raise exc from None
+        if section in sponsor.exhausted:
+            raise QuotaExhaustedError(section, task) from None
+        billed = sponsor.ctx.tenant_id
+        return [replace(r, billed_tenant_id=billed) for r in resolved], source
+
+
+def own_only(ctx: TenantProviderContext) -> TenantProviderContext:
+    """The tenant's own connections, without its main account's: for work a member may
+    not spend the main account's quota on, like pinning word audio (ADR 0031 §7)."""
+    return replace(ctx, sponsor=None) if ctx.sponsor is not None else ctx
+
+
+def context_for(
+    config: ProvidersConfig, ctx: TenantProviderContext, section: Section, task: str
+) -> TenantProviderContext:
+    """Whose connections and routes serve `task`: the tenant's, or its main account's."""
+    if ctx.sponsor is not None:
+        try:
+            if resolve_route(config, ctx, section, task)[0].billed_tenant_id is not None:
+                return ctx.sponsor.ctx
+        except NoModelConfiguredError:
+            pass
+    return ctx
+
+
+def _resolve_own(
     config: ProvidersConfig, ctx: TenantProviderContext, section: Section, task: str
 ) -> tuple[list[ResolvedModel], RouteSource]:
     """Tenant override > YAML route; if neither matches a connection, each connection's

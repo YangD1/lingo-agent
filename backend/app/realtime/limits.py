@@ -16,6 +16,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import SpeakingSession, Tenant
+from app.org.service import active_membership
+from app.org.usage import realtime_seconds_left
+from app.providers.config import TenantProviderContext
+from app.providers.errors import NoModelConfiguredError
+from app.providers.realtime import get_realtime
 
 # A call shorter than this isn't worth connecting.
 MIN_CALL_SECONDS = 60
@@ -68,3 +73,20 @@ async def call_limit(
         state=state,
         allowed_seconds=allowed if state == "ok" else 0,
     )
+
+
+async def quota_seconds_left(
+    session: AsyncSession, ctx: TenantProviderContext, now: datetime
+) -> float | None:
+    """How long a call may last on a member's realtime quota (ADR 0031 §6); None when the
+    call wouldn't use the main account's connection, or the quota has no cap."""
+    try:
+        route = get_realtime(ctx)
+    except NoModelConfiguredError:
+        return None
+    if route.targets[0].model.billed_tenant_id is None:
+        return None
+    membership = await active_membership(session, ctx.tenant_id)
+    if membership is None:  # left since the context was loaded
+        return None
+    return await realtime_seconds_left(session, membership, now)

@@ -305,6 +305,8 @@ class PronunciationAssessor:
                 error_code=type(error).__name__[:64] if error is not None else None,
                 # Billed by the audio sent, failed requests included when they reached it.
                 audio_seconds=seconds,
+                billed_tenant_id=model.billed_tenant_id,
+                section="pronunciation",
             )
         )
 

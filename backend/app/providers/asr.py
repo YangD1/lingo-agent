@@ -118,6 +118,8 @@ class SpeechToText:
                 # The class name only: messages can echo request details.
                 error_code=type(error).__name__[:64] if error is not None else None,
                 audio_seconds=transcript.duration_seconds if transcript is not None else None,
+                billed_tenant_id=model.billed_tenant_id,
+                section="asr",
             )
         )
 

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.errors import api_error
 from app.db.models import Tenant, WordAudioJob
 from app.deps import CurrentTenant, CurrentUser, Manager, SessionDep
+from app.providers.config import own_only
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.providers.tts import WORDS_TASK, TextToSpeech, get_tts
@@ -109,7 +110,8 @@ class WordAudioOut(BaseModel):
 
 
 async def _route(session: AsyncSession, tenant: Tenant) -> TextToSpeech | None:
-    ctx = await load_provider_context(session, tenant.id)
+    # Pinned word audio is the tenant's own spending, never a main account's (ADR 0031 §7).
+    ctx = own_only(await load_provider_context(session, tenant.id))
     try:
         return get_tts(ctx, WORDS_TASK)
     except NoModelConfiguredError:

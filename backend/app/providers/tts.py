@@ -31,6 +31,7 @@ from app.providers.config import (
     ProvidersConfig,
     ResolvedModel,
     TenantProviderContext,
+    context_for,
     resolve_route,
     route_for,
 )
@@ -223,6 +224,13 @@ class TextToSpeech:
     voices: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     task: str = "tts"  # llm_usage label; connection tests use their own
 
+    @property
+    def cache_tenant_id(self) -> uuid.UUID:
+        """Whose read-aloud cache this route's audio goes in: the main account's when a
+        member reads with its connection, so members share it (ADR 0031 §7, Q65h)."""
+        billed = self.models[0].billed_tenant_id if self.models else None
+        return billed or self.tenant_id
+
     def voice_for(self, model: ResolvedModel, language: Language) -> str | None:
         override = self.voices.get(f"{model.connection}:{model.model}", {}).get(language)
         return override or default_voice(model, language)
@@ -297,6 +305,8 @@ class TextToSpeech:
                 # Vendors bill a failed request too when it reached them; count what was sent.
                 characters=len(text),
                 background=background,
+                billed_tenant_id=model.billed_tenant_id,
+                section="tts",
             )
         )
 
@@ -459,6 +469,10 @@ def get_tts(ctx: TenantProviderContext, task: str = "default") -> TextToSpeech:
     for model in resolved:
         if model.kind not in TTS_KINDS:  # routes are validated on save; YAML at startup
             raise ProviderConfigError(f"connection {model.connection!r} cannot read text aloud")
-    # Voice overrides are the route's own params (ADR 0028 §3).
-    voices = route_for(config, ctx, "tts", task).params.get("voices") or {}
+    # Voice overrides are the route's own params (ADR 0028 §3): the main account's when
+    # the route is (ADR 0031 §5).
+    voices = (
+        route_for(config, context_for(config, ctx, "tts", task), "tts", task).params.get("voices")
+        or {}
+    )
     return TextToSpeech(ctx.tenant_id, tuple(resolved), voices)

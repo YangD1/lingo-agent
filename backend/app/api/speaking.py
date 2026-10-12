@@ -27,7 +27,7 @@ from app.db.models import Conversation, SpeakingSession
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
 from app.memory.reflection import LOCALE_COOKIE
 from app.memory.service import get_profile
-from app.providers.errors import NoModelConfiguredError
+from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
 from app.speaking import sessions
 from app.speaking.evidence import mark_corrected
 from app.speaking.scenarios import Scenario, get_scenarios
@@ -231,11 +231,10 @@ async def end_session(
     try:
         ended = await _end(request, graph, tenant.id, row.id, row.conversation_id)
     except NoModelConfiguredError as exc:
-        message = (
-            "Every chat model is switched off. Turn one back on in Settings."
-            if exc.code == "models_disabled"
-            else "No chat model is configured. Add one in Settings."
-        )
+        message = {
+            "models_disabled": "Every chat model is switched off. Turn one back on in Settings.",
+            "quota_exhausted": QUOTA_MESSAGE,
+        }.get(exc.code, "No chat model is configured. Add one in Settings.")
         raise api_error(status.HTTP_409_CONFLICT, exc.code, message) from exc
     if ended is None:
         raise api_error(

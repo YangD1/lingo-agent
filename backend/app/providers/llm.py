@@ -103,7 +103,14 @@ def get_chat_models(ctx: TenantProviderContext, task: str) -> tuple[BaseChatMode
                 task,
                 callbacks=[
                     make_recorder(
-                        UsageLabels(ctx.tenant_id, task, r.connection, r.model, is_fallback=i > 0)
+                        UsageLabels(
+                            ctx.tenant_id,
+                            task,
+                            r.connection,
+                            r.model,
+                            is_fallback=i > 0,
+                            billed_tenant_id=r.billed_tenant_id,
+                        )
                     )
                 ],
             )

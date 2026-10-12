@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-12 任务 65.2–65.5 后端完成（上一会话上下文溢出后接手）
+
+**做了什么**：上一会话写完 65.2–65.5 的后端代码（`app/org/{quotas,service,usage}.py`、`app/api/org.py`、迁移 `e3f39baaa371`、provider 解析接入主账号赞助与额度）但没提交、没写交接。本会话核实：ruff / mypy 干净，全量 pytest 1729 过；看板标 65.4、65.5 完成并提交。
+
+**未完成**：65.6 / 65.7 前端已起草但没验证：`components/settings/{members-section,membership-section,quota-fields,join-app}.tsx`、`lib/org.ts`、`app/(app)/join/page.tsx`，`settings-app.tsx` 已挂上“成员 / 成员身份”两节，`route-section.tsx` 显示 `providedBy` / `quotaExhausted`。`tsc` 报错：`messages/{en,zh-CN}.json` 缺 `settings.org.*`（能力名、单位、`noCap`、`capsHint`、`join.title/description` 等）、`settings.routes.providedBy` / `quotaExhausted`、`settings.sections.members` / `membership`。没有 Vitest。
+
+**下一步**：65.6 标 `[~]`：补文案 → tsc / eslint → 写 Vitest；再做 65.7（`AiBadge` 说明扣谁的额度、用量页按成员分组还没写）。
+
+**踩坑**：上一会话留下的 `pytest -q` 还在后台跑，和新的一轮共用 `lingo_test` 库，两轮都卡到 30 分钟以上；先 `pgrep -af bin/pytest` 确认没有残留再跑。全量 pytest 单独跑约 13.5 分钟（每个测试 TRUNCATE 偏慢）。
+
+---
+
 ## 2026-10-12 拆分 P4 任务 65（组织账号与额度）
 
 **做了什么**：核实现状（学习数据全按个人租户存、`load_provider_context` 约 30 处调用、`resolve_route` 只看本租户连接、`llm_usage` 没有付费方、后台预算和通话分钟各自先查后记、记忆向量带 `embedding_model`），在看板把任务 65 拆成 65.1–65.8，写了拆分思路 D65（成员不搬家，加“赞助关系”，调用记 `billed_tenant_id`）和待确认问题 Q65a–k（都带推荐）。原挂在 66 下面的“已定方向”挪回 65。P4 原列项排到 66 之后再拆。

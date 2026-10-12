@@ -25,11 +25,13 @@ from app.providers.config import (
     RouteSpec,
     Section,
     TenantProviderContext,
+    context_for,
+    own_only,
     resolve_route,
     resolve_route_with_source,
     route_for,
 )
-from app.providers.errors import NoModelConfiguredError, ProviderConfigError
+from app.providers.errors import NoModelConfiguredError, ProviderConfigError, QuotaExhaustedError
 from app.providers.llm import get_providers_config
 from app.providers.model_catalog import (
     AZURE_PRONUNCIATION_MODEL,
@@ -80,6 +82,10 @@ class TaskRouteOut(BaseModel):
     # tts only: the voices each model in the chain offers to pick from (Q64q); models
     # whose voices aren't listed have none here.
     voice_options: dict[str, list[VoiceOptionOut]] | None = None
+    # The main account's name when its connections serve this task for a member (ADR
+    # 0031 §5); `quota_exhausted` when they would, but the member's quota is used up.
+    provided_by: str | None = None
+    quota_exhausted: bool = False
 
 
 class PresetsOut(BaseModel):
@@ -314,7 +320,8 @@ async def _test_purpose(
         return "tts"
     if conn.kind in REALTIME_KINDS and looks_like_realtime(model):
         return "realtime"
-    ctx = await load_provider_context(session, tenant_id)
+    # The tenant's own routes: a main account's same-named connection is another one.
+    ctx = own_only(await load_provider_context(session, tenant_id))
 
     def on_route(section: Section, task: str) -> bool:
         config = get_providers_config()
@@ -361,15 +368,23 @@ def _task_route_out(
     *,
     overridden: bool,
 ) -> TaskRouteOut:
+    provided_by: str | None = None
+    quota_exhausted = False
+    # A tts task route nothing can use reads like the default one (Q64s).
+    reads = tts_task(config, ctx, task) if section == "tts" else task
     try:
-        # A tts task route nothing can use reads like the default one (Q64s).
-        reads = tts_task(config, ctx, task) if section == "tts" else task
         chain, source = resolve_route_with_source(config, ctx, section, reads)
-    except NoModelConfiguredError:
+    except NoModelConfiguredError as exc:
         effective, effective_source = [], None
+        if isinstance(exc, QuotaExhaustedError) and ctx.sponsor is not None:
+            provided_by, quota_exhausted = ctx.sponsor.name, True
     else:
         effective = [f"{m.connection}:{m.model}" for m in chain]
         effective_source = source
+        if chain[0].billed_tenant_id is not None and ctx.sponsor is not None:
+            provided_by = ctx.sponsor.name
+    # Voices are looked up on whichever account's connections the chain uses.
+    voices_ctx = context_for(config, ctx, section, reads)
     return TaskRouteOut(
         section=section,
         task=task,
@@ -380,11 +395,13 @@ def _task_route_out(
         effective=effective,
         effective_source=effective_source,
         default_voices=(
-            _default_voices(ctx, [*route.models, *effective]) if section == "tts" else None
+            _default_voices(voices_ctx, [*route.models, *effective]) if section == "tts" else None
         ),
         voice_options=(
-            _voice_options(ctx, [*route.models, *effective]) if section == "tts" else None
+            _voice_options(voices_ctx, [*route.models, *effective]) if section == "tts" else None
         ),
+        provided_by=provided_by,
+        quota_exhausted=quota_exhausted,
     )
 
 

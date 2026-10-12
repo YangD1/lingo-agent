@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 import uvicorn
 from fastapi import FastAPI
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -814,3 +814,40 @@ async def test_a_gemini_call_and_its_connection_test(
         ("user", "Bye now."),
         ("assistant", "Goodbye!"),
     ]
+
+
+async def test_member_calls_on_the_main_accounts_connection_use_their_minutes(
+    app: FastAPI, client: AsyncClient, db_session: AsyncSession, server: str
+) -> None:
+    """ADR 0031 §6: the call lasts no longer than the member's realtime quota, and is
+    billed to the main account."""
+    await sign_up(client, "main@example.com")
+    owner_tenant = await db_session.scalar(select(TenantMember.tenant_id))
+    async with fake_vendor() as vendor:
+        # Before the member exists: add_vendor gives it to the only tenant.
+        await add_vendor(db_session, client, "voice", vendor)
+        await set_route(client, "voice:gpt-realtime-2.1")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as member:
+            token = await sign_up(member, "member@example.com")
+            code = (await client.post("/org/invites", json={})).json()["code"]
+            assert (await member.post("/org/join", json={"code": code})).status_code == 201
+            membership_id = (await client.get("/org/members")).json()[0]["id"]
+            quotas = (await client.get("/org/default-quotas")).json()
+            quotas["realtime"] = {"daily": 3, "monthly": None}
+            await client.put(f"/org/members/{membership_id}/quotas", json=quotas)
+
+            caps = (await member.get("/speech/capabilities")).json()
+            assert (caps["realtime"], caps["realtime_minutes_left"]) == (True, 3)
+            async with dial(server, token) as ws:
+                assert (await next_json(ws))["limit_seconds"] == 180
+                await ws.send(json.dumps({"type": "end"}))
+                await until(ws, "ended")
+            row = await db_session.scalar(
+                select(SpeakingSession).order_by(SpeakingSession.started_at.desc())
+            )
+            assert row is not None and row.billed_tenant_id == owner_tenant
+
+            quotas["realtime"] = {"daily": 0, "monthly": None}
+            await client.put(f"/org/members/{membership_id}/quotas", json=quotas)
+            async with dial(server, token) as ws:
+                assert (await next_json(ws))["code"] == "quota_exhausted"

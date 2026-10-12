@@ -46,6 +46,9 @@ class UsageLabels:
     model: str
     # Only reached when every earlier model in the task's chain failed.
     is_fallback: bool = False
+    # The main account paying, when a member uses its connection (ADR 0031 §6).
+    billed_tenant_id: uuid.UUID | None = None
+    section: str = "llm"
 
 
 @dataclass(frozen=True)
@@ -66,6 +69,9 @@ class UsageRecord:
     background: bool = False
     # Text-to-speech bills by characters (ADR 0028 §1).
     characters: int | None = None
+    # ADR 0031 §6: the main account paying (None: the tenant), and the call's section.
+    billed_tenant_id: uuid.UUID | None = None
+    section: str | None = None
 
 
 UsageSink = Callable[[UsageRecord], None]
@@ -190,6 +196,8 @@ class UsageRecorder(BaseCallbackHandler):
             is_fallback=labels.is_fallback,
             error_code=error_code,
             background=run.background,
+            billed_tenant_id=labels.billed_tenant_id,
+            section=labels.section,
         )
         try:
             self._sink(record)

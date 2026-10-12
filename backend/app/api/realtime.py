@@ -34,7 +34,13 @@ from app.realtime import calls
 from app.realtime.after import AfterCall
 from app.realtime.calls import RealtimeCalls
 from app.realtime.context import call_instructions
-from app.realtime.limits import CallLimit, LimitState, call_limit
+from app.realtime.limits import (
+    MIN_CALL_SECONDS,
+    CallLimit,
+    LimitState,
+    call_limit,
+    quota_seconds_left,
+)
 from app.realtime.relay import TASK, CallInfo, RealtimeCall
 from app.realtime.tools import SPECS as TOOL_SPECS
 from app.realtime.tools import CallTools
@@ -119,6 +125,7 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
             return
         ctx = await load_provider_context(session, tenant.id)
         limit = await call_limit(session, tenant, user.id, datetime.now(UTC))
+        quota_seconds = await quota_seconds_left(session, ctx, datetime.now(UTC))
     await websocket.accept()
     browser = _Browser(websocket)
 
@@ -139,6 +146,13 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
     if limit.state != "ok":
         await refuse("realtime_off" if limit.state == "off" else "realtime_used_up")
         return
+    # On the main account's connection, also within the member's minutes (ADR 0031 §6).
+    allowed = limit.allowed_seconds
+    if quota_seconds is not None:
+        allowed = int(min(allowed, quota_seconds))
+        if allowed < MIN_CALL_SECONDS:
+            await refuse("quota_exhausted")
+            return
     found = get_scenarios().get(scenario) if scenario is not None else None
     if scenario is not None and found is None:
         await refuse("unknown_scenario")
@@ -157,6 +171,8 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
             scenario,
             locale=websocket.cookies.get(LOCALE_COOKIE),
             mode="realtime",
+            # A call on the main account's connection uses the member's minutes (ADR 0031 §6).
+            billed_tenant_id=vendor.target.model.billed_tenant_id,
         )
     call = RealtimeCall(
         browser,
@@ -166,7 +182,7 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
             user_id=user.id,
             session_id=row.id,
             conversation_id=row.conversation_id,
-            limit_seconds=limit.allowed_seconds,
+            limit_seconds=allowed,
             is_fallback=position > 0,
         ),
         maker,
@@ -209,6 +225,8 @@ async def _connect(
                     status="error",
                     is_fallback=position > 0,
                     error_code=type(cause).__name__[:64],
+                    billed_tenant_id=target.model.billed_tenant_id,
+                    section="realtime",
                 )
             )
     return None

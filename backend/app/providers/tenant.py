@@ -4,14 +4,24 @@ import hashlib
 import logging
 import uuid
 from collections.abc import Sequence
+from dataclasses import replace
+from datetime import UTC, datetime
 
 from pydantic import SecretStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.credentials.crypto import DecryptError, Keyring, connection_aad, get_keyring
-from app.db.models import ProviderConnection, TenantModelRoute
-from app.providers.config import ConnectionSpec, ProviderKind, RouteSpec, TenantProviderContext
+from app.db.models import ProviderConnection, Tenant, TenantModelRoute
+from app.org.service import active_membership
+from app.org.usage import exhausted_sections
+from app.providers.config import (
+    ConnectionSpec,
+    ProviderKind,
+    RouteSpec,
+    Sponsor,
+    TenantProviderContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +29,27 @@ logger = logging.getLogger(__name__)
 async def load_provider_context(
     session: AsyncSession, tenant_id: uuid.UUID, keyring: Keyring | None = None
 ) -> TenantProviderContext:
+    """The tenant's connections and routes, and its main account's when it is a member
+    (ADR 0031 §5). Quotas are checked here, once per load (§6)."""
     keyring = keyring or get_keyring()
+    own = await _load(session, tenant_id, keyring)
+    membership = await active_membership(session, tenant_id)
+    if membership is None:
+        return own
+    lent = await _load(session, membership.sponsor_tenant_id, keyring)
+    sponsor_tenant = await session.get(Tenant, membership.sponsor_tenant_id)
+    assert sponsor_tenant is not None  # FK, cascade
+    exhausted = await exhausted_sections(session, membership, datetime.now(UTC))
+    return replace(
+        own,
+        version=f"{own.version}:{lent.version}",
+        sponsor=Sponsor(ctx=lent, name=sponsor_tenant.name, exhausted=exhausted),
+    )
+
+
+async def _load(
+    session: AsyncSession, tenant_id: uuid.UUID, keyring: Keyring
+) -> TenantProviderContext:
     connections = (
         await session.scalars(
             select(ProviderConnection)

@@ -14,7 +14,7 @@ from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.db.models import UserCard, Word, WordSentence
 from app.deps import CurrentTenant, CurrentUser, SessionDep
-from app.providers.errors import NoModelConfiguredError
+from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.services.speech.shadowing import mispronounced_words
 from app.services.vocab import distractors, examples, mine, placement_known, progress, screening
@@ -473,9 +473,12 @@ async def post_examples(
             session, ctx, word, cefr, {"metadata": {"user_id": str(user.id)}}
         )
     except NoModelConfiguredError as exc:
-        raise api_error(
-            status.HTTP_409_CONFLICT, exc.code, "No chat model is configured. Add one in Settings."
-        ) from exc
+        message = (
+            QUOTA_MESSAGE
+            if exc.code == "quota_exhausted"
+            else "No chat model is configured. Add one in Settings."
+        )
+        raise api_error(status.HTTP_409_CONFLICT, exc.code, message) from exc
     except examples.ExamplesInvalidError as exc:
         raise api_error(
             status.HTTP_502_BAD_GATEWAY,

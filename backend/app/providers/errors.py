@@ -25,3 +25,16 @@ class NoModelConfiguredError(Exception):
         else:
             self.code = f"no_{section}_configured"
         super().__init__(f"{section}.{task}: none of {refs} is configured for this tenant")
+
+
+QUOTA_MESSAGE = "Your quota from your main account is used up for now."
+
+
+class QuotaExhaustedError(NoModelConfiguredError):
+    """Only the main account has a model for this task, and the member's quota for it is
+    used up or 0 (ADR 0031 §6): to callers, like having no model."""
+
+    def __init__(self, section: str, task: str) -> None:
+        super().__init__(section, task, [])
+        self.code = "quota_exhausted"
+        self.args = (f"{section}.{task}: the member's quota is used up",)

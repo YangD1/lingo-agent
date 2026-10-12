@@ -82,11 +82,13 @@ async def read_aloud(
         for model, voice in sources
     }
     keys = list(rates)
+    # A member reading with the main account's route uses its cache (ADR 0031 §7).
+    caches = {tts.cache_tenant_id, *([recorded.cache_tenant_id] if recorded else [])}
     if keys:
         rows = {
             row.key: row
             for row in await session.scalars(
-                select(TtsAudio).where(TtsAudio.tenant_id == ctx.tenant_id, TtsAudio.key.in_(keys))
+                select(TtsAudio).where(TtsAudio.tenant_id.in_(caches), TtsAudio.key.in_(keys))
             )
         }
         hit = next((rows[k] for k in keys if k in rows), None)
@@ -106,7 +108,7 @@ async def read_aloud(
     await session.execute(
         insert(TtsAudio)
         .values(
-            tenant_id=ctx.tenant_id,
+            tenant_id=tts.cache_tenant_id,
             user_id=user_id,
             key=cache_key(text, language, speech.voice, speed, served_by),
             language=language,
@@ -120,7 +122,7 @@ async def read_aloud(
         # Two learners asking for the same sentence at once: keep the first.
         .on_conflict_do_nothing(index_elements=["tenant_id", "key"])
     )
-    await evict(session, ctx.tenant_id)
+    await evict(session, tts.cache_tenant_id)
     await session.commit()
     return Audio(speech.audio, speech.mime_type, cached=False, playback_rate=speech.playback_rate)
 

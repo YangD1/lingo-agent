@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.models import WordAudioJob
-from app.providers.config import TenantProviderContext
+from app.providers.config import TenantProviderContext, own_only
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.providers.tts import WORDS_TASK, TextToSpeech, get_tts
@@ -100,7 +100,7 @@ class WordAudioWorker:
             if book is None:
                 await word_audio.pause(session, job_id, f"unknown word book {job.book_id}")
                 return False
-            ctx = await load_provider_context(session, job.tenant_id)
+            ctx = own_only(await load_provider_context(session, job.tenant_id))
             try:
                 route = self._route(ctx)
             except NoModelConfiguredError:

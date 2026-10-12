@@ -48,7 +48,7 @@ from app.memory.embedding import memory_embedder
 from app.memory.reflection import LOCALE_COOKIE, memory_language
 from app.memory.worker import ReflectionWorker
 from app.providers.config import TenantProviderContext
-from app.providers.errors import NoModelConfiguredError
+from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
 from app.providers.llm import get_chat_models
 from app.providers.tenant import load_provider_context
 from app.services.news import feeds
@@ -507,6 +507,8 @@ async def _providers_for(
 def _no_model_message(exc: NoModelConfiguredError, what: str) -> str:
     if exc.code == "models_disabled":
         return f"Every {what} model is switched off. Turn one back on in Settings."
+    if exc.code == "quota_exhausted":
+        return QUOTA_MESSAGE
     return f"No {what} model is configured. Add one in Settings."
 
 

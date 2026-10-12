@@ -38,4 +38,6 @@ def memory_embedder(ctx: TenantProviderContext) -> MemoryEmbedder | None:
         embeddings = get_embeddings(ctx, EMBEDDING_TASK)
     except (NoModelConfiguredError, ProviderConfigError):
         return None
-    return MemoryEmbedder(f"{resolved.connection}:{resolved.model}", embeddings)
+    # A main account's connection may share a name with the member's own (ADR 0031 §5).
+    owner = "sponsor:" if resolved.billed_tenant_id is not None else ""
+    return MemoryEmbedder(f"{owner}{resolved.connection}:{resolved.model}", embeddings)

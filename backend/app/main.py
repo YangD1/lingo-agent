@@ -29,6 +29,7 @@ from app.api import (
     health,
     learner,
     memory,
+    org,
     placement,
     plan,
     practice,
@@ -244,6 +245,7 @@ def create_app() -> FastAPI:
     app.include_router(word_audio.router)
     app.include_router(speaking.router)
     app.include_router(realtime.router)
+    app.include_router(org.router)
     return app
 
 

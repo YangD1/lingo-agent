@@ -49,7 +49,9 @@ SKILL = "speaking"
 FALLBACK_TASK = "shadowing_asr"
 
 type Source = Literal["chat", "reading", "vocab", "speaking"]
-type ErrorCode = Literal["invalid_audio", "no_speech", "not_configured", "unavailable"]
+type ErrorCode = Literal[
+    "invalid_audio", "no_speech", "not_configured", "unavailable", "quota_exhausted"
+]
 
 
 class ShadowingError(Exception):
@@ -162,6 +164,8 @@ async def _compare_transcript(
     except NoModelConfiguredError as exc:
         if attempt.fallback_reason == "failed":
             raise ShadowingError("unavailable", "pronunciation assessment failed") from exc
+        if exc.code == "quota_exhausted":  # a member's, on the main account (ADR 0031 §6)
+            raise ShadowingError("quota_exhausted", "the speech quota is used up") from exc
         raise ShadowingError("not_configured", "no pronunciation or speech-to-text model") from exc
     try:
         transcript = await stt.transcribe(

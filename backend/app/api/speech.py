@@ -18,7 +18,7 @@ from app.db.models import PronunciationAttempt
 from app.deps import CurrentTenant, CurrentUser, SessionDep
 from app.providers.asr import get_asr
 from app.providers.config import TenantProviderContext
-from app.providers.errors import NoModelConfiguredError
+from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
 from app.providers.llm import get_providers_config
 from app.providers.pronunciation import Language as ShadowingLanguage
 from app.providers.pronunciation import get_pronunciation
@@ -34,7 +34,7 @@ from app.providers.tts import (
     get_tts,
     tts_task,
 )
-from app.realtime.limits import call_limit
+from app.realtime.limits import call_limit, quota_seconds_left
 from app.services.speech.read_aloud import clear_user_audio, read_aloud
 from app.services.speech.shadowing import ShadowingError, Source, shadow
 
@@ -113,6 +113,10 @@ async def capabilities(
         realtime = limit.state != "off"
         if realtime:
             left = limit.daily_minutes * 60 - limit.used_seconds
+            # A member's minutes on the main account's connection (ADR 0031 §6).
+            quota = await quota_seconds_left(session, ctx, datetime.now(UTC))
+            if quota is not None:
+                left = min(left, quota)
             minutes_left = max(0, int(left // 60))
     out = CapabilitiesOut(
         tts=False, shadowing=mode, asr=asr, realtime=realtime, realtime_minutes_left=minutes_left
@@ -159,9 +163,10 @@ async def post_tts(
             recorded=_words_route(ctx) if body.word else None,
         )
     except NoModelConfiguredError as exc:
-        raise api_error(
-            status.HTTP_409_CONFLICT, exc.code, "No read-aloud model is configured."
-        ) from exc
+        message = (
+            QUOTA_MESSAGE if exc.code == "quota_exhausted" else "No read-aloud model is configured."
+        )
+        raise api_error(status.HTTP_409_CONFLICT, exc.code, message) from exc
     except NoVoiceError as exc:
         raise api_error(
             status.HTTP_409_CONFLICT, "no_tts_voice", "No read-aloud voice for this language."
@@ -237,6 +242,7 @@ _SHADOWING_STATUS = {
     "invalid_audio": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "no_speech": status.HTTP_422_UNPROCESSABLE_CONTENT,
     "not_configured": status.HTTP_409_CONFLICT,
+    "quota_exhausted": status.HTTP_409_CONFLICT,
     "unavailable": status.HTTP_502_BAD_GATEWAY,
 }
 

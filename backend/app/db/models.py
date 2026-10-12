@@ -30,11 +30,14 @@ from app.adaptive.exercise.formats import FORMATS
 from app.adaptive.kc.catalog import ERROR_TYPES
 from app.adaptive.rules import EVIDENCE_KINDS, INTELLIGIBILITY, SEVERITIES
 from app.db.base import Base, TimestampMixin
+from app.org.quotas import DEFAULT_QUOTAS
 
 # Stored as CHECK-constrained strings rather than PG ENUM types: adding a value is a
 # one-line migration instead of ALTER TYPE.
 TENANT_KINDS = ("personal", "org")
 MEMBER_ROLES = ("owner", "admin", "member")
+# active -> left (the member left) | removed (the main account removed them), ADR 0031.
+ORG_MEMBERSHIP_STATUSES = ("active", "left", "removed")
 PROVIDER_KINDS = (
     "deepseek",
     "anthropic",
@@ -129,6 +132,13 @@ class Tenant(TimestampMixin, Base):
     # day; either 0 turns realtime calls off.
     realtime_session_minutes: Mapped[int] = mapped_column(Integer, default=15, server_default="15")
     realtime_daily_minutes: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
+    # Quotas a member invited by this tenant starts with (ADR 0031 §2, Q65e): an
+    # `app.org.quotas.Quotas` dump.
+    member_default_quotas: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        default=lambda: DEFAULT_QUOTAS.model_dump(),
+        server_default=DEFAULT_QUOTAS.model_dump_json(),
+    )
 
 
 class User(TimestampMixin, Base):
@@ -154,6 +164,73 @@ class TenantMember(Base):
     )
     role: Mapped[str] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class OrgInvite(Base):
+    """A main account's invitation to become its member (ADR 0031 §2, Q65i).
+
+    Only the code's SHA-256 is kept: the code itself is shown once, in the link.
+    """
+
+    __tablename__ = "org_invites"
+    __table_args__ = (
+        CheckConstraint("max_uses IS NULL OR max_uses >= 1", name="max_uses"),
+        CheckConstraint("used_count >= 0", name="used_count"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    code_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # NULL: any number of people may join with it.
+    max_uses: Mapped[int | None] = mapped_column(Integer)
+    used_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class OrgMembership(TimestampMixin, Base):
+    """A main account lending its model connections to a member (ADR 0031 §1).
+
+    The member stays in their personal tenant, so their learning data never moves; a
+    capability they have no model for uses the main account's, within `quotas`. Rows
+    that ended are kept (status `left` / `removed`) so the main account's usage page
+    can still name past members. One active row per member (Q65b).
+    """
+
+    __tablename__ = "org_memberships"
+    __table_args__ = (
+        CheckConstraint(_in("status", ORG_MEMBERSHIP_STATUSES), name="status"),
+        CheckConstraint("sponsor_tenant_id <> member_tenant_id", name="not_self"),
+        Index(
+            "uq_org_memberships_active_member",
+            "member_user_id",
+            unique=True,
+            postgresql_where="status = 'active'",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    sponsor_tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    member_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    # The member's personal tenant: what provider loading and background work know.
+    member_tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(10), default="active", server_default="active")
+    # An `app.org.quotas.Quotas` dump, copied from the main account's template on join.
+    quotas: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    invite_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("org_invites.id", ondelete="SET NULL")
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Conversation(TimestampMixin, Base):
@@ -247,7 +324,16 @@ class LLMUsage(Base):
         Index("ix_llm_usage_tenant_id_created_at", "tenant_id", "created_at"),
         # The learner dashboard counts chat turns per day from here.
         Index("ix_llm_usage_user_id_created_at", "user_id", "created_at"),
+        # A member's quota use on a main account (ADR 0031 §6).
+        Index(
+            "ix_llm_usage_billed_tenant_id_tenant_id_created_at",
+            "billed_tenant_id",
+            "tenant_id",
+            "created_at",
+            postgresql_where="billed_tenant_id IS NOT NULL",
+        ),
         CheckConstraint(_in("status", USAGE_STATUSES), name="status"),
+        CheckConstraint(f"section IS NULL OR {_in('section', ROUTE_SECTIONS)}", name="section"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -273,6 +359,11 @@ class LLMUsage(Base):
     # Made by background work nobody was waiting for: counts against the tenant's daily
     # background budget (ADR 0025 §5).
     background: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # The main account whose connection served this call, when a member used one (ADR
+    # 0031 §6); NULL: the tenant paid itself. No FK: billing history outlives accounts.
+    billed_tenant_id: Mapped[uuid.UUID | None]
+    # The provider-layer section of the task; NULL on rows from before ADR 0031.
+    section: Mapped[str | None] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -1490,6 +1581,9 @@ class SpeakingSession(Base):
     # Realtime only: how long the call has been connected (ADR 0030 §5, Q60f), written
     # as it goes so a call cut off by a restart still counts toward the daily minutes.
     call_seconds: Mapped[float] = mapped_column(Float, default=0, server_default="0")
+    # A realtime call on a main account's connection (ADR 0031 §6): its minutes count
+    # against the member's realtime quota. NULL: the learner's own connection.
+    billed_tenant_id: Mapped[uuid.UUID | None]
     summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     intelligibility: Mapped[str | None] = mapped_column(String(10))
     # The summary moved speaking ability (Q58d: enough spoken turns).

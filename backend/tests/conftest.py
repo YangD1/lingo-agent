@@ -80,6 +80,8 @@ BUSINESS_TABLES = (
     "user_profiles",
     "attachments",
     "llm_usage",
+    "org_memberships",
+    "org_invites",
     "tenant_model_routes",
     "provider_connections",
     "conversations",

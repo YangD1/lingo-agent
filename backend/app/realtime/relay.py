@@ -393,6 +393,8 @@ class RealtimeCall:
                 is_fallback=self._info.is_fallback,
                 error_code=None,
                 audio_seconds=round(self._audio_bytes / rate, 2),
+                billed_tenant_id=model.billed_tenant_id,
+                section="realtime",
             )
         )
         self._audio_bytes = 0

@@ -52,6 +52,7 @@ async def start(
     *,
     locale: str | None = None,
     mode: SpeakingMode = "cascade",
+    billed_tenant_id: uuid.UUID | None = None,
 ) -> SpeakingSession:
     """A new speaking conversation and its session, at the learner's level; commits.
     A realtime one (ADR 0030 §6) is a `purpose = realtime` conversation. Raises
@@ -78,6 +79,7 @@ async def start(
         scenario_id=scenario_id,
         mode=mode,
         level=level or rules.practice.default_level,
+        billed_tenant_id=billed_tenant_id,
     )
     session.add(row)
     await session.commit()

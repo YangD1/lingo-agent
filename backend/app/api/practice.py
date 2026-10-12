@@ -291,10 +291,14 @@ async def answer(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_response", str(exc)
         ) from exc
     except answering.GradingFailedError as exc:
-        no_model = isinstance(exc.__cause__, NoModelConfiguredError)
+        cause = exc.__cause__
+        code = "grading_failed"
+        if isinstance(cause, NoModelConfiguredError):
+            # A member's used-up quota says so (ADR 0031 §6); the rest is missing setup.
+            code = "quota_exhausted" if cause.code == "quota_exhausted" else "no_llm_configured"
         raise api_error(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "no_llm_configured" if no_model else "grading_failed",
+            code,
             "the answer could not be graded; nothing was saved, submit it again",
         ) from exc
     if result.set_done:
