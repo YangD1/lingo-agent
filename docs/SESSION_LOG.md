@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-10-13 任务 66.4 形象按参考图重画（完成）
+
+**做了什么**：用户决定仍用 Canvas，按参考图 `docs/design/cats.png` 重画 `frontend/src/components/tutor/avatar-draw.ts`：深棕粗描边（`OUTLINE` `#563f39`，新导出）、宽脸 + 坐姿全身 + 奶油色肚子 / 口鼻 / 前爪、常驻腮红、`ω` 嘴，想 = 撇嘴，说 / 开心 = 张嘴带舌头；5 套装扮按图（classic 眼镜 + 笔 + 领结 + 毛衣背心，casual 耳机 + 卫衣领口抽绳口袋，sporty 头带 + 背心白 V 领 + 奖牌，artsy 贝雷帽 + 黄围巾 + 罩衫）；`FUR_SWATCHES` 换成图里 8 色，`DEFAULT_FUR` 改 `#e98b60`；`Palette` 去掉 `edge`（一律描边），深色阈值 0.1（`#48484f` 算深色 → 黄眼、灰肚子）。之前的 EYE_STYLE / 球衣试验已丢弃。同步了 ADR 0032 §4 的装扮描述。测试改了 `avatar-draw.test.ts`。
+
+**未完成**：`docs/design/cats.png` 未提交（是否入库待用户定）。之后 66.5–66.7。未推送：d28cddb 之后 66.1–66.4 的提交。
+
+**踩坑**：上一会话因整页大截图和反复看图导致自动压缩反复失败；看效果只截 ~170px 高的小条。预览工具在 `/tmp/avatar-preview`（`node_modules` 软链到 frontend，`build.mjs` → `shot.mjs`）。
+
+---
+
 ## 2026-10-13 任务 66.4 完成（私教形象引擎）
 
 **做了什么**：按用户决定（形象一律是 Lingo 猫，靠装扮区分；学习者选的颜色是毛色，装扮颜色固定）写了 `frontend/src/components/tutor/`：`avatar-state.ts`（纯函数动画状态机：待机眨眼呼吸 / 听 / 想 / 说 / 开心一次性跳 + 星星，指数缓动，嘴快开慢合）、`avatar-draw.ts`（100×100 盒子里画猫 + 5 套装扮：cat 原样、classic 眼镜铅笔领结、casual 卫衣帽耳机、sporty 发带哨子、artsy 贝雷帽围巾；`paletteFor` 从毛色推阴影高光）、`tutor-avatar.tsx`（Canvas 按 devicePixelRatio、rAF 循环、reduced motion / 动画关只画一帧、页面隐藏停帧）。`lib/voice-level.ts` 音量总线；`speech.ts` 服务端朗读接分析器、浏览器朗读用 boundary 脉冲（没有就 4Hz 摆动）；`realtime-audio.ts` 通话播放器在 destination 前插分析器。
