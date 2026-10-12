@@ -91,6 +91,7 @@ features:
   # A word book's pronunciations, generated ahead of time when the deployment asks
   # (ADR 0028 §4). Per word and accent; not against the daily background budget (Q7).
   # Runs on the tts `words` route when it has a usable model, else `default` (Q64s).
+  # On qwen-audio a word also costs ~180 input and ~240 output tokens (task 64.2).
   word_audio_prefetch:
     calls:
       - task: word_audio
@@ -135,10 +136,12 @@ features:
         section: asr
         timing: now
         default: {audio_seconds: 8}
+      # Measured 700 / 42 on qwen-plus early in a conversation (task 64.2); it grows
+      # with the conversation, hence the margin.
       - task: speaking
         route: chat
         timing: now
-        default: {input_tokens: 4000, output_tokens: 80}
+        default: {input_tokens: 1500, output_tokens: 80}
       - task: reflect
         timing: background
         default: {input_tokens: 13000, output_tokens: 200}
@@ -156,13 +159,15 @@ features:
   # calls have per-call and per-day limits (Q60g). Transcripts, reflection and the
   # summary after hanging up come with task 61. With a scenario, connecting first looks
   # up the related memories (Q60e): one embedding of its title and goal.
+  # Measured (task 64.2, qwen3.5-omni-flash-realtime, a 2-minute call): ~6,500 in and
+  # ~370 out a minute; other vendors not measured, so a margin on top.
   realtime_call:
     calls:
       - task: realtime
         section: realtime
         timing: now
         per: minute
-        default: {input_tokens: 20000, output_tokens: 1000}
+        default: {input_tokens: 8000, output_tokens: 400}
       - task: memory
         section: embedding
         timing: now

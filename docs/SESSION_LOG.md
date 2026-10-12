@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-12 任务 64.3 完成
+
+**做了什么**：用户允许开发期间保留百炼 key（只存在本机记忆 `bailian-dev-key.md`，不进仓库），Q64t–x 按推荐。64.3.1（6ea6caf）`ResolvedModel.deployment_defaults` + `tts._timeout`：qwen-audio 的 60 秒只压过 YAML 全局默认、不压过租户填的。64.3.2（8efc35b）预生成节奏从请求开始计时、预估加 `seconds_per_word`、设置页按较慢者算并按小时显示、失败记 warning。64.3.3（4840c2c）口语小结：提示词不改标点 / 通话断句说明（`prompts/speaking_summary_call.md`），`summary.check` 丢掉只改标点大小写和通话里只补被切部分的条目；新评估器 `evals/speaking_summary.py` 6 条，用临时账号 + qwen-plus 录制 6/6（临时账号已删）。64.3.4 `features.yaml` 实时 8,000 / 400、口语轮 1,500 / 80，ADR 0029 / 0030 落地记录，README 中英 `ASR_HF_ENDPOINT`。
+
+**验证**：全量 pytest 1683（64.3.1 时），之后相关测试：`test_word_audio*.py` 24、`test_speaking_summary.py` + `test_speaking_api.py` 14、evals replay 7、usage 50；Vitest 571；ruff / mypy / eslint / tsc 干净。全量 pytest 和 E2E 留给 64.5 `make ci`。
+
+**未完成**：64.4（README 截图、状态改“P3 完成”、PLAN / P3 计划标完成）、64.5（`make ci`、推送、Docker 重建）。本地领先 origin 约 22 个提交，未推送。
+
+**下一步**：64.4 → 64.5。
+
+**踩坑**：summary 的 `_normal` 保留撇号，词两边的单引号（'serendipity'）要另去（`_bare`），但词中间的不能去（it's / its）。eval live 用开发库里账号的租户，所以临时账号要建在 Docker 后端上（同一个库、同一把加密密钥）。
+
+---
+
 ## 2026-10-12 任务 64.2 全栈冒烟完成、64.3 拆分
 
 **做了什么**：Docker 按 5f81cdd 重建（后端、前端先后建）。用百炼 key 在临时账号上跑完 64.2：接口脚本 `/tmp/qwen-smoke/stack_a.py`（朗读、跟读、单词发音预生成）+ 临时 Playwright 用例（对 Docker 3000 端口，假麦克风用 `--use-file-for-fake-audio-capture` 播 flash 合成的英文 + 14 秒静音：对话 + 朗读、级联口语一个情景、实时通话 2 分钟）。三项界面流程全过。详细数字记在看板 64.2 下。临时租户、账号、两个连接已用 SQL 删除（经 `tenant_members` 定位，确认只有 1 个成员），临时用例已删，`asr` 已停。

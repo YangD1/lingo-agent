@@ -103,7 +103,7 @@ API key 不放在 `.env` 或 YAML 文件里，由每个用户在 **设置** 里�
 1. 在 `.env` 里设置 `PROVIDER_ALLOW_PRIVATE_NETWORKS=true`，再执行一次 `make up`。
 2. 添加一个 **自定义** 连接。从 Docker 里访问要填 `http://host.docker.internal:11434/v1`，不能填 `localhost`（在容器里，`localhost` 指的是后端容器自己），同时让 Ollama 监听 127.0.0.1 以外的地址（`OLLAMA_HOST=0.0.0.0`）。如果后端直接跑在宿主机上（见下文），填 `http://localhost:11434/v1`，Ollama 预设可以直接用。
 
-**本地语音转写（可选，开发用）**：`make asr-up` 会在 8200 端口启动 [speaches](https://github.com/speaches-ai/speaches)（faster-whisper），第一次启动会下载模型，转写时约占 1.4 GB 内存。然后在允许私有网络的前提下，用 **Speaches** 预设添加连接（Docker 里的后端用 `http://asr:8000/v1`，宿主机上的后端用 `http://localhost:8200/v1`），把 `speaches:Systran/faster-whisper-small` 放进“语音转文字”的模型顺序。详见 [`.env.example`](.env.example) 里的注释。
+**本地语音转写（可选，开发用）**：`make asr-up` 会在 8200 端口启动 [speaches](https://github.com/speaches-ai/speaches)（faster-whisper），第一次启动会下载模型（容器不走宿主机代理；连不上 huggingface.co 时在 `.env` 里设 `ASR_HF_ENDPOINT=https://hf-mirror.com`，否则容器会一直重启），转写时约占 1.4 GB 内存。然后在允许私有网络的前提下，用 **Speaches** 预设添加连接（Docker 里的后端用 `http://asr:8000/v1`，宿主机上的后端用 `http://localhost:8200/v1`），把 `speaches:Systran/faster-whisper-small` 放进“语音转文字”的模型顺序。详见 [`.env.example`](.env.example) 里的注释。
 
 **本地朗读（可选，开发用）**：同一个容器还能用 Kokoro 朗读。先下载一次模型：`curl -X POST http://localhost:8200/v1/models/speaches-ai/Kokoro-82M-v1.0-ONNX`，再把 `speaches:speaches-ai/Kokoro-82M-v1.0-ONNX` 放进“朗读”的模型顺序。它只能读美式和英式英语（speaches 0.9 不支持中文，中文交给浏览器朗读）。开发机上实测：加载后约占 0.9 GB 内存，两个请求同时来时约 1.5 GB，一句 9 秒的英文约 2 秒合成完。没配朗读路由时由浏览器朗读（ADR 0018）；线上建议用 Azure 语音等托管服务（ADR 0028）。
 

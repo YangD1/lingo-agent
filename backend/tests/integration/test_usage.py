@@ -407,7 +407,7 @@ async def test_realtime_estimates_are_per_minute_of_call(
         "realtime_call"
     ]
     assert (call["per"], call["source"]) == ("minute", "default")
-    assert (call["input_tokens"], call["output_tokens"]) == (20000, 1000)
+    assert (call["input_tokens"], call["output_tokens"]) == (8000, 400)
 
     # 3 minutes in all: 90k in, 4.5k out -> 30k / 1.5k a minute.
     await add_call(db_session, tenant_id, 60, [(20_000, 1_000), (10_000, 500)])
