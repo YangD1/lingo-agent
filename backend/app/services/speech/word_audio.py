@@ -9,7 +9,8 @@ audio already cached under the same key is pinned instead of paid for again. Row
 pinned (never evicted) and carry the word, so they can be counted and deleted per book.
 
 Words are always read at speed 1.0: the page plays them faster or slower (Q55a).
-Requests are paced to `requests_per_minute` (Q55e); a 429 backs off and retries, other
+Requests are paced to `requests_per_minute` (Q55e), capped for vendors with an account
+limit (qwen-audio, task 64.2a); a 429 backs off and retries, other
 failures are counted and the job goes on, until enough fail in a row that it pauses.
 """
 
@@ -31,6 +32,7 @@ from app.providers.tts import (
     Language,
     SpeechSynthesisError,
     TextToSpeech,
+    is_qwen_audio,
 )
 from app.services.speech.read_aloud import audio_key
 from app.services.vocab.books import Book
@@ -51,6 +53,9 @@ FAILURES_BEFORE_PAUSE = 20
 # Pacing suggested when starting (Q55e): Azure's free tier allows 20 requests a minute.
 AZURE_REQUESTS_PER_MINUTE = 20
 OTHER_REQUESTS_PER_MINUTE = 60
+# Bailian's qwen-audio allows 3 requests a second for the whole account (Q64l): word audio
+# never goes past 2, leaving room for replies read aloud meanwhile.
+QWEN_AUDIO_MAX_REQUESTS_PER_MINUTE = 120
 # Azure neural voices, standard tier, per million characters (azure.microsoft.com
 # pricing, 2026-10-09); a suggestion the deployment can change (Q55d).
 AZURE_PRICE_PER_MILLION = 15.0
@@ -109,10 +114,18 @@ def _uses_azure(tts: TextToSpeech, voices: dict[Accent, Voice]) -> bool:
     return any(m.kind == "azure_speech" for m in tts.models if (m.connection, m.model) in used)
 
 
+def max_rate(tts: TextToSpeech, voices: dict[Accent, Voice]) -> int | None:
+    """The pace a job can't exceed whatever is asked, or None when the vendor sets none."""
+    used = {(v.connection, v.model) for v in voices.values()}
+    if any(is_qwen_audio(m) for m in tts.models if (m.connection, m.model) in used):
+        return QWEN_AUDIO_MAX_REQUESTS_PER_MINUTE
+    return None
+
+
 def suggested_rate(tts: TextToSpeech, voices: dict[Accent, Voice]) -> int:
     if _uses_azure(tts, voices):
         return AZURE_REQUESTS_PER_MINUTE
-    return OTHER_REQUESTS_PER_MINUTE
+    return min(OTHER_REQUESTS_PER_MINUTE, max_rate(tts, voices) or OTHER_REQUESTS_PER_MINUTE)
 
 
 def suggested_price(tts: TextToSpeech, voices: dict[Accent, Voice]) -> float | None:
@@ -204,6 +217,8 @@ async def start(
     if not voices:
         raise NoAccentError(f"no text-to-speech model reads {', '.join(accents)}")
     words = await session.scalar(select(func.count()).select_from(Word).where(book.words()))
+    if (cap := max_rate(tts, voices)) is not None:
+        requests_per_minute = min(requests_per_minute, cap)
     job = WordAudioJob(
         tenant_id=tts.tenant_id,
         created_by=user_id,

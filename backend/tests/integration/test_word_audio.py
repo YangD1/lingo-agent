@@ -107,6 +107,25 @@ async def run(session: AsyncSession, job_id: uuid.UUID, route: TextToSpeech, **k
     return batches
 
 
+async def test_qwen_audio_jobs_stay_under_the_account_limit(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Bailian allows 3 requests a second per account (Q64l): word audio keeps to 2."""
+    tenant_id, user_id = await tenant(client, db_session)
+    await words(db_session, "apple")
+    qwen = TextToSpeech(tenant_id, (model("qwen", "qwen-audio-3.1-tts-next"),))
+
+    estimate = await word_audio.estimate(db_session, qwen, BOOK, ["en-US"])
+    job = await word_audio.start(
+        db_session, qwen, BOOK, ["en-US"], user_id=user_id, requests_per_minute=600
+    )
+
+    assert estimate.voices["en-US"].voice == tts.QWEN_AUDIO_VOICES["en-US"]
+    assert estimate.requests_per_minute == 60
+    assert job.requests_per_minute == word_audio.QWEN_AUDIO_MAX_REQUESTS_PER_MINUTE
+    assert word_audio.max_rate(TextToSpeech(tenant_id, (model(),)), estimate.voices) is None
+
+
 async def test_estimate_counts_what_is_left_to_make(
     client: AsyncClient, db_session: AsyncSession, vendor: Vendor
 ) -> None:
