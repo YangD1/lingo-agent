@@ -773,9 +773,18 @@
   - [x] 66.3 后端生效：对话类任务（`chat` 链上的聊天、口语、阅读辅导、练习开场等）解析时把所选模型放链首；交互朗读用所选音色（单词发音不变）；通话用所选模型和音色（`RealtimeTarget.voice`，补 OpenAI / Qwen-Omni / StepFun 的通话音色目录）；名字写进 `tutor_system` / `realtime_tutor` / 口语提示词；所选模型不可用了（连接删了、被停用、退出主账号）就静默跟随设置页，并在“我的私教”页提示；`usage/features.yaml` 登记“试听”；单测。2026-10-12 完成： `TutorPick` + `TenantProviderContext.tutor`（`tenant.py` `_with_tutor` 加载、版本带 `t<updated_at>`）、`config._picked_first`（`llm/chat`、`realtime/default` 所选放链首）、`tts._with_tutor_voices`（只在 `get_tts(ctx)` 默认任务、只替换链首模型）、`get_realtime` 所选音色、`prompts/tutor_name.md` + `app/tutor/prompt.py`（聊天各 coach 与通话指令）、名字只允许一行可打印文本、`features.yaml` 试听沿用 `read_aloud`；`test_tutor_pick.py` 8 过、`test_tutor_api.py` 12 过；全量 pytest 1754 过，ruff / mypy 干净
   - [x] 66.4 前端形象引擎：`TutorAvatar`（Canvas 2D，按 devicePixelRatio 绘制，状态：待机眨眼呼吸 / 听 / 想 / 说 / 开心）、一只猫 + 5 套装扮图层、毛色推导阴影高光；音量总线：服务端朗读接 `MediaElementAudioSourceNode → AnalyserNode`，通话播放器在 `destination` 前插 `AnalyserNode`，浏览器朗读用 `boundary` 事件模拟口型；`prefers-reduced-motion` 和学习者开关下只画静态；页面不可见时停帧；Vitest（状态机、音量映射）。**完成**（2026-10-13）：`components/tutor/{avatar-state,avatar-draw,tutor-avatar}`、`lib/voice-level.ts`；服务端朗读只在 AudioContext 确认 running 且页面上有动的形象时才接分析器（避免 suspended 时静音）；毛色 8 个色板 `FUR_SWATCHES`，深色毛换黄眼、浅色毛加描边；Vitest 629 全过，eslint / tsc 干净；本地 Playwright 预览图（不入库）
     - [x] 形象照参考图重画（2026-10-13 用户确认；Vitest 629 全过，tsc / eslint 干净）：仍用 Canvas，`avatar-draw.ts` 按用户给的“小猫 · Canvas 形象”参考图重画（深棕粗描边、坐姿全身、奶油色肚子和口鼻、5 套装扮按图），`FUR_SWATCHES` 换成图里 8 种毛色（橘 / 金 / 米 / 灰 / 蓝 / 黑 / 白 / 粉）；之前未提交的眼睛 / 装扮调整已丢弃
-  - [ ] 66.5 前端“我的私教”页：选形象（预设 + 配色，实时预览）、名字、对话模型、每种语言的音色（按目录列，试听时形象跟着说，挂 `AiBadge`）、通话模型和音色、恢复默认；成员看到“由 X 提供、扣 X 给的额度”；中英文案；Vitest
-  - [ ] 66.6 前端挂载：聊天回复头像和私教面板、口语练习、通话页用 `TutorAvatar`，随朗读 / 通话说话、等首个 token 时“想”、录音时“听”；`LingoCat` 保留做品牌和加载；Vitest
-  - [ ] 66.7 E2E（选形象和音色 → 聊天朗读时形象在动、请求带所选音色 → 成员只能选主账号链里的模型 → 恢复默认）+ README 中英 + `docs/agent-tools.md`（如有变化）+ ADR 落地记录 + `make ci` + 推送 + CI 全绿 + Docker 重建
+  - **2026-10-13 用户调整 Q66i**：形象**不替换** Lingo 猫（logo、聊天头像、空状态、总结页等都不动），改成**桌宠**陪伴学习：全站浮在角落，朗读 / 通话时说话、录音时听、等回复时想、答对 / 打卡时开心、久不操作打盹；点它打开私教对话小窗；聊天、口语、通话页里不再另放大形象。下面 66.5–66.9 按此重拆（**待用户确认后开工**）
+  - [ ] 66.5 前端“我的私教”页：选形象（装扮 + 毛色，实时预览）、名字、对话模型、每种语言的音色（按目录列，试听时形象跟着说，挂 `AiBadge`）、通话模型和音色、桌宠开关、恢复默认；成员看到“由 X 提供、扣 X 给的额度”；中英文案；Vitest
+  - [ ] 66.6 桌宠外壳 `TutorPet`：挂在 `(app)/layout`，默认右下角，可拖动、松手贴边、可收起成小按钮（位置和收起状态存本机）；手机上缩小、避开底部导航；减少动态时只画静态；关掉桌宠时不渲染；Vitest
+  - [ ] 66.7 桌宠反应：`lib/tutor-pet.ts` 事件总线（listen / think / happy），`avatar-state` 加 `sleeping`（打盹，闭眼 + zzz）；接入点：朗读 / 通话音量（已有 `voice-level`）、录音（聊天语音、跟读、口语）、等私教首个 token、练习答对 / 背词一轮完成 / 今日打卡；Vitest
+  - [ ] 66.8 私教对话小窗：点桌宠在当前页弹出小聊天窗（复用 `use-chat-session`），可“在聊天页打开”；在聊天页点桌宠只聚焦输入框；`features.yaml` 登记入口、小窗挂 `AiBadge`；Vitest
+  - [ ] 66.9 E2E（设置形象和音色 → 桌宠出现、拖动收起、朗读时动、点开小窗对话 → 成员只能选主账号链里的模型 → 恢复默认）+ README 中英 + `docs/agent-tools.md`（如有变化）+ ADR 0032 落地记录 + `make ci` + 推送 + CI 全绿 + Docker 重建
+  - Q66l–p（2026-10-13 新增，待确认；括号里是推荐）：
+    - Q66l 桌宠开关存哪：（**服务端随“我的私教”设置、默认开，跨设备一致；位置和收起状态只存本机**）/ 全部存本机
+    - Q66m 小窗用哪个会话：（**接着最近一次对话，和聊天页共用会话列表**）/ 每次打开都新开一个对话
+    - Q66n 小窗带不带当前页内容：（**第一版不带**，只是随手问；带上当前文章 / 正在复习的词要改后端上下文和评估集，以后单独做）/ 这次就带
+    - Q66o 打盹：（**3 分钟没操作就打盹，打盹时停帧省电，有操作就醒**）/ 不打盹
+    - Q66p 开心的时机：（**练习答对、背词一轮完成、今日打卡完成；每次最多跳一下，不连跳**）/ 另定
   - Q66a–k（2026-10-12 用户确认：全部按推荐，即括号里的做法）：
     - Q66a 模型能选到哪些任务：（**只选“私教对话”一个模型 + 通话模型；出题、批改、critic、记忆、诊断仍按设置页路由**）/ 每个任务都能选
     - Q66b 成员能选主账号的哪些模型：（**主账号对话链 / 通话链里已有的都能选，不另设白名单**）/ 主账号另设可选清单
