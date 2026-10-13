@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-10-13 任务 66.6 完成（桌宠外壳）
+
+**做了什么**：`components/tutor/tutor-pet.tsx` 挂在 `(app)/layout.tsx`，用 `useTutor()` 读开关、装扮、毛色和动画；位置和收起状态由 `preferences.usePetPlace` 存在本机。默认右侧离底 160px，避开聊天输入框。可拖动，松手后贴最近的左右边；可收起；手机上缩小并高于底部导航。点桌宠暂时没有动作，66.8 接小窗。
+
+**下一步**：66.7 桌宠反应。新增 `lib/tutor-pet.ts` 事件总线，`avatar-state` 加 `sleeping`；接入朗读 / 通话音量、录音、等首个 token、答对 / 背词一轮 / 打卡。
+
+**踩坑**：按下时就 `setPointerCapture`，点击事件会落到外层，收起按钮就点不到了，所以要等移动超过阈值再捕获。`preferences` 在内存里留了一份兜底值（`fallback` Map），测试之间光清 localStorage 不够，要在 beforeEach 里写回默认值。
+
+---
+
 ## 2026-10-13 任务 66.5 完成（“我的私教”页）
 
 **做了什么**：用户确认 66.5–66.9 和 Q66l–p 全部按推荐，写进 ADR 0032 §4a 和 `docs/PLAN.md`（dfa2937）。66.5 后端：`tutor_profiles.pet` + 迁移 `fe7fd0a7941a`；`POST /speech/tts` 加可选 `voice` 用来试听还没保存的音色（`tutor.service.check_voice` 校验，`tts.trying_voice` 只用链首模型、不退后备）（accddc4）。前端：`/tutor` 页、`lib/tutor.ts`（含 `useTutor` / `setTutor` 共享状态）、`speech.tryServerVoice`、侧栏和设置页入口、中英文案、Vitest（`tutor.test.ts` 5 条、`tutor-app.test.tsx` 7 条）。

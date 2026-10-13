@@ -2234,5 +2234,10 @@
       "vendorDefault": "厂商默认",
       "noVoices": "这个模型的声音不能选，用厂商默认。"
     }
+  },
+  "tutorPet": {
+    "label": "{name}，你的私教",
+    "collapse": "收起桌宠",
+    "expand": "展开桌宠 {name}"
   }
 }

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { MobileTabBar, MobileTopBar } from "@/components/shell/mobile-nav";
+import { TutorPet } from "@/components/tutor/tutor-pet";
 import { ApiError } from "@/lib/api";
 import { serverApi } from "@/lib/server-api";
 import type { Me } from "@/lib/types";
@@ -29,6 +30,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <div className="relative flex min-h-0 flex-1 overflow-hidden">{children}</div>
         <MobileTabBar user={user} />
       </div>
+      <TutorPet />
     </div>
   );
 }

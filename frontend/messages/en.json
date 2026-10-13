@@ -2234,5 +2234,10 @@
       "vendorDefault": "Vendor default",
       "noVoices": "This model's voice can't be picked; the vendor default is used."
     }
+  },
+  "tutorPet": {
+    "label": "{name}, your tutor",
+    "collapse": "Collapse the desk pet",
+    "expand": "Show {name}, your desk pet"
   }
 }

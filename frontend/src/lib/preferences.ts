@@ -10,6 +10,7 @@ const SHOW_ACTIVITY_KEY = "lingo.showAgentActivity";
 const SPEAKING_AUTO_READ_KEY = "lingo.speaking.autoRead";
 const SPEAKING_HIDE_TEXT_KEY = "lingo.speaking.hideText";
 const REVIEW_FORMAT_KEY = "lingo.vocab.reviewFormat";
+const PET_PLACE_KEY = "lingo.tutorPet.place";
 const CHANGE_EVENT = "lingo:preferences";
 // What this page set, for when storage refuses it.
 const fallback = new Map<string, string>();
@@ -72,6 +73,41 @@ export function useReviewChoice(): [ReviewChoice, (choice: ReviewChoice) => void
   const [value, set] = useStored(REVIEW_FORMAT_KEY);
   const choice = REVIEW_CHOICES.find((c) => c === value) ?? "recognize";
   return [choice, set];
+}
+
+/**
+ * Where the desk pet sits on this device (ADR 0032 §4a): against the left or right edge,
+ * `bottom` CSS pixels above the window's bottom (the page keeps it on screen), or collapsed
+ * to a small button there.
+ */
+export type PetPlace = { side: "left" | "right"; bottom: number; collapsed: boolean };
+
+// High enough to keep clear of the chat box and the send button below it.
+export const DEFAULT_PET_PLACE: PetPlace = { side: "right", bottom: 160, collapsed: false };
+
+/** What is stored, or the default for anything missing or malformed. */
+export function parsePetPlace(raw: string | null): PetPlace {
+  try {
+    const value: unknown = JSON.parse(raw ?? "null");
+    if (typeof value !== "object" || value === null) return DEFAULT_PET_PLACE;
+    const { side, bottom, collapsed } = value as Record<string, unknown>;
+    return {
+      side: side === "left" ? "left" : "right",
+      bottom:
+        typeof bottom === "number" && Number.isFinite(bottom) && bottom >= 0
+          ? Math.round(bottom)
+          : DEFAULT_PET_PLACE.bottom,
+      collapsed: collapsed === true,
+    };
+  } catch {
+    return DEFAULT_PET_PLACE;
+  }
+}
+
+export function usePetPlace(): [PetPlace, (place: PetPlace) => void] {
+  const [value, set] = useStored(PET_PLACE_KEY);
+  const setPlace = useCallback((place: PetPlace) => set(JSON.stringify(place)), [set]);
+  return [parsePetPlace(value), setPlace];
 }
 
 function useFlag(key: string, fallbackValue: boolean): [boolean, (on: boolean) => void] {
