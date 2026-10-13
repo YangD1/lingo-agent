@@ -7,13 +7,20 @@ import anyio
 import pytest
 from langchain_core.callbacks import AsyncCallbackManagerForLLMRun, CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
+from langchain_core.messages import (
+    AIMessage,
+    AIMessageChunk,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+)
 from langchain_core.messages.ai import UsageMetadata
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.runnables import RunnableConfig, RunnableLambda
 from pydantic import SecretStr
 
+from app.prompts import load_prompt, prompt_version
 from app.providers import llm
 from app.providers.config import ResolvedModel
 from app.usage import recorder as usage_recorder
@@ -129,6 +136,20 @@ async def test_langgraph_thread_id_is_the_conversation_id() -> None:
     )
 
     assert records[0].conversation_id == CONVERSATION
+
+
+async def test_records_which_prompts_the_call_used() -> None:
+    records: list[UsageRecord] = []
+    system = SystemMessage(f"{load_prompt('tutor_system')}\n\n{load_prompt('language_zh')}")
+    model = metered(records)
+    await model.ainvoke([system, HumanMessage(PROMPT)])
+    await model.ainvoke([HumanMessage(PROMPT)])
+
+    assert records[0].prompts == {
+        "language_zh": prompt_version("language_zh"),
+        "tutor_system": prompt_version("tutor_system"),
+    }
+    assert records[1].prompts is None
 
 
 async def test_a_run_can_record_under_another_task() -> None:

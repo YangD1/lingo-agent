@@ -96,6 +96,8 @@ class CallInfo:
     limit_seconds: float
     # Connected to a later model in the route, the first ones having failed.
     is_fallback: bool = False
+    # The prompts in the call's instructions (ADR 0033 §2).
+    prompts: dict[str, str] | None = None
 
 
 class RealtimeCall:
@@ -395,6 +397,7 @@ class RealtimeCall:
                 audio_seconds=round(self._audio_bytes / rate, 2),
                 billed_tenant_id=model.billed_tenant_id,
                 section="realtime",
+                prompts=self._info.prompts,
             )
         )
         self._audio_bytes = 0

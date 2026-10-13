@@ -136,6 +136,7 @@ make lint     # ruff + mypy, eslint + TypeScript
 make fmt      # format and autofix backend code
 make ci       # everything CI runs, in the same order
 make eval     # evaluation sets (critic, grading, diagnosis, speaking summary) replayed from recorded model replies
+make prompts  # each prompt's version (a hash of its text); usage rows record which versions a call used
 ```
 
 `make eval-live ARGS='--email <account>'` runs the evaluation sets against the models of one of your accounts instead (add `--record` to save new recordings); it calls real APIs and costs tokens.

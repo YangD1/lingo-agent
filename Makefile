@@ -132,6 +132,10 @@ eval: ## Evaluation sets replayed from their recordings (no key or database need
 eval-live: ## Evaluation sets on real models: ARGS='--email <account> [--record] [name ...]'
 	cd backend && uv run python -m evals --live $(ARGS)
 
+.PHONY: prompts
+prompts: ## Each prompt's version (hash of its text, ADR 0033) and length
+	cd backend && uv run python -m app.prompts
+
 .PHONY: e2e
 e2e: ## Playwright end-to-end tests (needs dev-db; starts its own backend, fake model and frontend)
 	cd frontend && $(PNPM) e2e

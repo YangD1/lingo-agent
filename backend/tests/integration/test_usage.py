@@ -92,6 +92,20 @@ async def test_stop_drains_the_queue(db_engine: AsyncEngine, db_session: AsyncSe
     assert await usage_count(db_session) == 5
 
 
+async def test_writer_stores_prompt_versions(
+    db_engine: AsyncEngine, db_session: AsyncSession
+) -> None:
+    tenant_id = await make_tenant(db_session)
+    writer = UsageWriter(create_sessionmaker(db_engine), batch_size=50, flush_interval=60)
+    writer.start()
+    writer.submit(record(tenant_id, prompts={"route": "0a1b2c3d"}))
+    writer.submit(record(tenant_id))
+    await writer.stop()
+
+    stored = (await db_session.scalars(select(LLMUsage.prompts).order_by(LLMUsage.id))).all()
+    assert stored == [{"route": "0a1b2c3d"}, None]
+
+
 async def test_full_queue_drops_instead_of_blocking(
     db_engine: AsyncEngine, db_session: AsyncSession
 ) -> None:

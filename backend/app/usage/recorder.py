@@ -15,7 +15,8 @@ that routed it, e.g. a practice opening served by the chat model but not counted
 learner's chat turn. Work nobody is waiting for that counts against the tenant's daily
 background budget (ADR 0025 §5) sets `background: True`.
 
-Only metadata is recorded - never prompts, completions or exception messages.
+Only metadata is recorded - never prompts, completions or exception messages. Which
+prompt templates a call used, and their versions, is metadata (ADR 0033 §2).
 """
 
 import logging
@@ -28,6 +29,8 @@ from typing import Any
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
+
+from app.prompts import prompt_versions
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +75,8 @@ class UsageRecord:
     # ADR 0031 §6: the main account paying (None: the tenant), and the call's section.
     billed_tenant_id: uuid.UUID | None = None
     section: str | None = None
+    # `{prompt name: version}` the call used (ADR 0033 §2); None: none recognised.
+    prompts: dict[str, str] | None = None
 
 
 UsageSink = Callable[[UsageRecord], None]
@@ -84,6 +89,7 @@ class _PendingRun:
     conversation_id: uuid.UUID | None
     task: str | None
     background: bool
+    prompts: dict[str, str] | None
 
 
 def _as_uuid(value: Any) -> uuid.UUID | None:
@@ -144,6 +150,7 @@ class UsageRecorder(BaseCallbackHandler):
             conversation_id=_as_uuid(meta.get("conversation_id") or meta.get("thread_id")),
             task=str(meta["usage_task"])[:64] if meta.get("usage_task") else None,
             background=meta.get("background") is True,
+            prompts=prompt_versions("\n".join(m.text for batch in messages for m in batch)),
         )
 
     def on_llm_end(
@@ -198,6 +205,7 @@ class UsageRecorder(BaseCallbackHandler):
             background=run.background,
             billed_tenant_id=labels.billed_tenant_id,
             section=labels.section,
+            prompts=run.prompts,
         )
         try:
             self._sink(record)

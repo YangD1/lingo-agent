@@ -26,6 +26,7 @@ from app.db.models import User
 from app.deps import AUTH_COOKIE, CurrentTenant, CurrentUser, Manager, SessionDep
 from app.memory.embedding import memory_embedder
 from app.memory.reflection import LOCALE_COOKIE, memory_language
+from app.prompts import prompt_versions
 from app.providers.errors import NoModelConfiguredError
 from app.providers.realtime import RealtimeRoute, get_realtime
 from app.providers.realtime_session import RealtimeConnectError, RealtimeSession, open_session
@@ -186,6 +187,7 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
             conversation_id=row.conversation_id,
             limit_seconds=allowed,
             is_fallback=position > 0,
+            prompts=prompt_versions(instructions),
         ),
         maker,
         partial(calls.save_lines, maker, websocket.app.state.chat_graph, row.conversation_id),
@@ -229,6 +231,7 @@ async def _connect(
                     error_code=type(cause).__name__[:64],
                     billed_tenant_id=target.model.billed_tenant_id,
                     section="realtime",
+                    prompts=prompt_versions(instructions),
                 )
             )
     return None

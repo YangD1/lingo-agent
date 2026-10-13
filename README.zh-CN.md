@@ -136,6 +136,7 @@ make lint     # ruff + mypy、eslint + TypeScript
 make fmt      # 格式化并自动修复后端代码
 make ci       # 按 CI 的顺序跑一遍 CI 的全部检查
 make eval     # 评估集（critic、批改、诊断、口语小结），回放录好的模型回复
+make prompts  # 各提示词的版本（文本哈希）；用量记录里会记每次调用用了哪些版本
 ```
 
 `make eval-live ARGS='--email <账号>'` 改用你某个账号配置的模型跑评估集（加 `--record` 保存新的录制）；它会调用真实 API，要花 token。

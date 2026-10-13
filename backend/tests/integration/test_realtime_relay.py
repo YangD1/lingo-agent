@@ -34,6 +34,7 @@ from app.db.models import (
     Word,
 )
 from app.deps import AUTH_COOKIE
+from app.prompts import prompt_version
 from app.providers import realtime_session
 from app.providers.llm import get_providers_config
 from app.realtime import calls, relay
@@ -201,6 +202,9 @@ async def test_a_call_relays_audio_subtitles_and_usage(
         "gpt-realtime-2.1",
         False,
     )
+    # The call's instructions are recognised as the realtime tutor prompt (ADR 0033 §2).
+    assert usage.prompts is not None
+    assert usage.prompts["realtime_tutor"] == prompt_version("realtime_tutor")
     # Under 30 s: done without a summary (Q61g).
     await app.state.after_call.wait_idle()
     db_session.expire_all()
@@ -248,6 +252,7 @@ async def test_falls_back_when_connecting_only(
 
     failed, answered = (r for r in usage_records if r.task == "realtime")
     assert (failed.connection_name, failed.status, failed.is_fallback) == ("first", "error", False)
+    assert failed.prompts == answered.prompts and failed.prompts is not None
     assert (answered.connection_name, answered.status, answered.is_fallback) == (
         "second",
         "ok",

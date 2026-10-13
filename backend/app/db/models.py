@@ -366,6 +366,9 @@ class LLMUsage(Base):
     billed_tenant_id: Mapped[uuid.UUID | None]
     # The provider-layer section of the task; NULL on rows from before ADR 0031.
     section: Mapped[str | None] = mapped_column(String(20))
+    # `{prompt name: version}` the call used (ADR 0033 §2); NULL: none recognised, or
+    # a row from before it.
+    prompts: Mapped[dict[str, str] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
