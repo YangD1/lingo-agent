@@ -12,7 +12,9 @@
 - 前端：`ApiError.retryAfter`；`errors.rate_limited` 带秒数；通话拒绝提示；朗读 429 只这一句改用浏览器的声音。
 - 验证：pytest 1841、Vitest 684、E2E 74 全过，lint 干净。提交 7e2443c、9cdf15a、a41218c 和本次的前端 / 文档提交。
 
-**未完成**：没推送，Docker 没重建，等用户决定。
+**推送与部署**：推送到 28c708d，CI run 38407332516 四个 job 全绿。Docker 已重建（先后端再前端），迁移 head `7332e2a8d1d8`，`/healthz` 200；经前端代理用不存在的邮箱实测，连错 10 次后第 11 次返回 429，带 `retry-after: 900`。空闲内存 backend 222MiB / frontend 55MiB / postgres 77MiB。
+
+**未完成**：无。
 
 **下一步**：任务 71（低配服务器部署）先细化 71.1–71.2、和用户确认。71 加 Caddy 时要确认它会覆盖 `X-Forwarded-For`（Caddy 默认不信任来源带的这个头），并在 prod 覆盖里把这一点写清楚（ADR 0035 §4）。
 
