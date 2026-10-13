@@ -473,3 +473,68 @@ async def test_usage_shows_members_calls_on_this_accounts_connections(
         (None, "openai", 10),
         ("Alex", "openai", 7),
     ]
+
+
+# --- /tenant/usage/dashboard --------------------------------------------------------------
+
+
+async def test_dashboard_totals_series_and_groups(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await register(client, "member@example.com")
+    member_tenant = await tenant_of(db_session, "member@example.com")
+    member = await db_session.scalar(select(User).where(User.email == "member@example.com"))
+    assert member is not None
+    await register(client, "owner@example.com")
+    tenant_id = await tenant_of(db_session, "owner@example.com")
+    now = datetime.now(UTC)
+    await add_usage(
+        db_session,
+        record(tenant_id, input_tokens=100, output_tokens=20),
+        record(tenant_id, task="reflect", background=True, status="error", is_fallback=True),
+        record(
+            tenant_id,
+            task="asr",
+            section="asr",
+            input_tokens=0,
+            output_tokens=0,
+            audio_seconds=90.0,
+        ),
+        record(member_tenant, user_id=member.id, billed_tenant_id=tenant_id, input_tokens=7),
+        # On the member's own connection: not this account's.
+        record(member_tenant, user_id=member.id, connection_name="mine"),
+        at=now,
+    )
+    await add_usage(db_session, record(tenant_id), at=now - timedelta(days=2))
+    await add_usage(db_session, record(tenant_id), at=now - timedelta(days=7))  # out of range
+
+    response = await client.get("/tenant/usage/dashboard", params={"days": 7})
+
+    assert response.status_code == 200
+    body = response.json()
+    total = body["total"]
+    assert (total["calls"], total["errors"], total["fallbacks"]) == (5, 1, 1)
+    assert total["input_tokens"] == 100 + 10 + 0 + 7 + 10
+    assert total["audio_minutes"] == pytest.approx(1.5)
+    assert total["cost"] is None and not body["priced"]
+    assert len(body["series"]) == 7
+    assert body["series"][-1]["day"] == now.date().isoformat()
+    assert [d["calls"] for d in body["series"]] == [0, 0, 0, 0, 1, 0, 4]
+    assert [(t["task"], t["background"], t["calls"]) for t in body["tasks"]] == [
+        ("chat", False, 3),
+        ("asr", False, 1),
+        ("reflect", True, 1),
+    ]
+    assert [(m["connection"], m["calls"]) for m in body["models"]] == [("openai", 5)]
+    assert [(m["member"], m["calls"]) for m in body["members"]] == [
+        (None, 4),
+        ("member@example.com", 1),
+    ]
+
+
+async def test_dashboard_is_for_managers_and_bounded(client: AsyncClient) -> None:
+    assert (await client.get("/tenant/usage/dashboard")).status_code == 401
+    await register(client, "owner@example.com")
+    for days in (0, 91):
+        response = await client.get("/tenant/usage/dashboard", params={"days": days})
+        assert response.status_code == 422
