@@ -18,7 +18,7 @@
 - 通过 LangChain 回调（`on_chat_model_start` / `on_llm_end` / `on_llm_error`）采集，数据来源是 `usage_metadata`。在后台批量写入，不阻塞回复。
 - **只记录元数据，不记录 prompt 和回复内容。**
 - 租户能在设置页看到自己的用量（P0 只做按天和按模型的汇总表格，图表放到 P4）。
-- 不在代码里内置价格表去换算金额：各厂商价格经常变，而且租户可能走中转代理，价格未必相同。只记 token 数；是否展示金额，以后作为租户可配置项再决定。
+- 不在代码里内置价格表去换算金额：各厂商价格经常变，而且租户可能走中转代理，价格未必相同。只记 token 数；是否展示金额，以后作为租户可配置项再决定。（后续：ADR 0034 加了租户自填单价，填了才显示估算费用，仍不内置价格。）
 - **实现细节**（P0 任务 8 第 5 步）：
   - 构建模型时，`get_chat_models` 给 fallback 链里的每个模型挂一个 `UsageRecorder`（`app/usage/recorder.py`）。tenant、task、connection、model 和链中位置（`is_fallback`）在构建时就确定了。
   - 模型按租户缓存、同一租户所有用户共用，所以 `user_id` 和 `conversation_id` 在调用时通过 `RunnableConfig.metadata` 传入。metadata 会传给所有子调用；LangGraph 还会把 `configurable.thread_id` 自动复制进 metadata，所以会话 id 取 `conversation_id`，没有时取 `thread_id`。缺失或格式不对就记为 NULL，不报错，因为后台任务本来就没有这两个 id。
