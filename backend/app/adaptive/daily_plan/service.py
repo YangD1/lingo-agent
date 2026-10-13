@@ -105,7 +105,12 @@ async def _practice_kc(
     )
     if ranked.weak:
         return ranked.weak[0]
-    due = [k for k in ranked.learned if (d := ranked.states[k].due) is not None and d <= now]
+    # Consolidating KCs only appear once an answer could pass the gate (ADR 0033 §6).
+    due = [
+        k
+        for k in ranked.review(now)
+        if k in ranked.consolidating or ((d := ranked.states[k].due) is not None and d <= now)
+    ]
     return due[0] if due else None
 
 

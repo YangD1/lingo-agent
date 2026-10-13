@@ -806,6 +806,9 @@ class KCMastery(TimestampMixin, Base):
     difficulty: Mapped[float | None] = mapped_column(Float)
     due: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_review: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Consolidating (p_mastery >= bkt.mastered, not learned yet): the earliest time an
+    # answer could pass the gate, when practice brings the KC back (ADR 0033 §6).
+    gate_ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class KCEdge(Base):

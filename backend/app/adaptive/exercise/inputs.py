@@ -178,6 +178,7 @@ async def load(
             has_own_sentence=row.kc_id in own,
             learned=row.mastered_at is not None,
             due=row.due,
+            gate_ready_at=row.gate_ready_at,
         )
         for row in rows
         if row.kc_id in catalog

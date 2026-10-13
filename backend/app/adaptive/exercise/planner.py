@@ -2,8 +2,10 @@
 
 A pure function of the learner's KC states and `rules.yaml`; the model only writes the
 items afterwards. Weak KCs are ranked by weakness x importance x recent mistakes
-(x a diagnosis boost, from P2d); learned KCs come back when FSRS says they are due.
-Most of a set goes to weak KCs, the rest to learned ones, and the items are
+(x a diagnosis boost, from P2d; x `untested_factor` for KCs with no evidence yet);
+learned KCs come back when FSRS says they are due, consolidating ones (mastered by
+p_mastery, short of the gate) once an answer could pass the gate (ADR 0033 §6).
+Most of a set goes to weak KCs, the rest to review, and the items are
 interleaved: the same KC never twice in a row, the same format only a few times. A set
 started from one KC (Q35a) gives that KC its `max_items_per_kc` items first and plans
 the rest as usual.
@@ -41,6 +43,8 @@ class KCState:
     has_own_sentence: bool = False
     learned: bool = False
     due: datetime | None = None
+    # Consolidating: when an answer could first pass the mastery gate (learned.py).
+    gate_ready_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,6 +175,18 @@ class Candidates:
     # Learned: due ones first (most overdue first), then those coming due soonest.
     learned: list[str]
     states: dict[str, KCState]
+    # Consolidating KCs whose gate could pass now, longest ready first.
+    consolidating: list[str] = field(default_factory=list)
+
+    def review(self, now: datetime) -> list[str]:
+        """Learned and consolidating KCs together, the soonest due (or ready) first."""
+
+        def when(kc_id: str) -> tuple[bool, datetime, str]:
+            state = self.states[kc_id]
+            at = state.due if state.learned else state.gate_ready_at
+            return (at is None, at or now, kc_id)
+
+        return sorted([*self.learned, *self.consolidating], key=when)
 
 
 def candidates(
@@ -192,12 +208,14 @@ def candidates(
     window = practice.importance_by_gap
     known: dict[str, KCState] = {}
     gaps: dict[str, int] = {}
+    untested: set[str] = set()
     for kc in catalog.kcs:
         gap = CEFR_LEVELS.index(level) - CEFR_LEVELS.index(kc.cefr)
         if kc.id in states:
             known[kc.id] = states[kc.id]
         elif min(window) <= gap <= max(window) or kc.id == focus or kc.id in (boost or {}):
             known[kc.id] = KCState(p_mastery=prior(kc.cefr, learner_level, rules))
+            untested.add(kc.id)
         else:
             continue
         gaps[kc.id] = gap
@@ -210,14 +228,26 @@ def candidates(
             * importance(gaps[kc_id], rules)
             * (1 + n / (n + practice.mistake_half))
             * (boost or {}).get(kc_id, 1.0)
+            * (practice.untested_factor if kc_id in untested else 1.0)
         )
 
-    weak = sorted((k for k, s in known.items() if not s.learned), key=lambda k: (-priority(k), k))
+    consolidating = sorted(
+        (
+            k
+            for k, s in known.items()
+            if not s.learned and s.gate_ready_at is not None and s.gate_ready_at <= now
+        ),
+        key=lambda k: (known[k].gate_ready_at or now, k),
+    )
+    weak = sorted(
+        (k for k, s in known.items() if not s.learned and k not in consolidating),
+        key=lambda k: (-priority(k), k),
+    )
     learned = sorted(
         (k for k, s in known.items() if s.learned),
         key=lambda k: (known[k].due is None, known[k].due or now, k),
     )
-    return Candidates(weak, learned, known)
+    return Candidates(weak, learned, known, consolidating)
 
 
 def plan(
@@ -239,7 +269,7 @@ def plan(
     ranked = candidates(
         catalog, states, learner_level=learner_level, now=now, rules=rules, boost=boost, focus=focus
     )
-    weak, learned, known = ranked.weak, ranked.learned, ranked.states
+    weak, learned, known = ranked.weak, ranked.review(now), ranked.states
 
     size = practice.set_size
     used: Counter[Format] = Counter()

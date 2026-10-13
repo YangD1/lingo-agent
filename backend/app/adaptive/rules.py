@@ -252,6 +252,7 @@ class PracticeRules(_Strict):
     wait_budget_seconds: float = Field(gt=0)
     default_level: CefrLevel
     importance_by_gap: dict[int, Annotated[float, Field(gt=0)]] = Field(min_length=1)
+    untested_factor: float = Field(gt=0, le=1)
     recent_mistake_days: int = Field(ge=1)
     mistake_half: float = Field(gt=0)
     max_items_per_kc: int = Field(ge=1)

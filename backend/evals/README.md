@@ -30,6 +30,10 @@ make eval ARGS='--update-baseline'                      # 改了评估器以后�
 
 退出码：0 门槛全达到且回放等于基线；1 有门槛没达到、调用失败或回放和基线不同；2 录制过期，需要重录。重录时只要有一条调用失败就不写文件；写的时候整份替换，不再用到的录制会被删掉。没有录制文件的数据集回放时跳过。真实模型模式不记 `llm_usage`。
 
+## 模拟学习者（任务 68.3，ADR 0033 §5–§6）
+
+`simulated_learner.py`：一个 B1 学习者，预设 3 个弱点（答对率从 25% 起、每练一题加 6 个百分点）和 2 个只是对话里偶尔说错的点，其余答对率 93%；每天一套题，走 app 自己的纯函数（`bkt.replay`、`learned.progress`、`planner.plan`、`elo`），不调模型、不用数据库。`test_simulated_learner.py` 用 3 个种子检查：首套题集中在弱点上；有近期错误、掌握度 < 0.8 的点每套都练到；掌握度达标但没过门槛的点不会断档、最终过门槛；学不会的弱点每天都练。`uv run python -m evals.simulated_learner` 打印每天各点的掌握度。
+
 ## 什么时候要重录
 
 改了 `prompts/exercise_critic.md`、`prompts/exercise_grade.md`、语法目录、`rules.yaml` 的难度量表，或者改了 `messages.py` / `grader.py` 拼消息的方式，回放就会失败。用一个配好模型的账号跑 `make eval-live ARGS='--email … --record'`，先看报告：失败的用例逐条看原因，分清是用例本身有歧义（改用例）还是模型或提示词的问题（改提示词，或者作为已知弱点留着）。

@@ -203,3 +203,30 @@ def test_learned_focus_kc_counts_as_review() -> None:
 def test_unknown_focus_kc_is_an_error() -> None:
     with pytest.raises(ValueError):
         run(focus="g.no_such_kc")
+
+
+# --- ADR 0033 §6 ------------------------------------------------------------------------
+
+
+def test_a_shown_weakness_ranks_above_untested_kcs() -> None:
+    """Q68d: a KC with mistakes at p 0.75 beats KCs that only the prior calls weak."""
+    shown = next(kc.id for kc in CATALOG.kcs if kc.cefr == "A2")
+    states = {shown: KCState(p_mastery=0.75, recent_mistakes=2)}
+    ranked = candidates(CATALOG, states, learner_level="A2", now=NOW, rules=RULES)
+    assert ranked.weak[0] == shown
+
+
+def test_consolidating_kcs_are_reviewed_once_ready() -> None:
+    """Q68e: mastered by p_mastery, short of the gate: back once an answer could pass."""
+    ready = KCState(p_mastery=0.97, gate_ready_at=NOW - timedelta(hours=1))
+    waiting = KCState(p_mastery=0.97, gate_ready_at=NOW + timedelta(days=3))
+    states = {A1[0]: ready, A1[1]: waiting, A1[2]: learned(-0.5)}
+    ranked = candidates(CATALOG, states, learner_level="A2", now=NOW, rules=RULES)
+
+    assert ranked.consolidating == [A1[0]]
+    assert A1[0] not in ranked.weak
+    # Ready an hour before the learned KC's review came due twelve hours ago.
+    assert ranked.review(NOW) == [A1[2], A1[0]]
+    items = run(states)
+    assert {i.kc_id for i in items if i.role == "review"} == {A1[0], A1[2]}
+    assert A1[1] not in {i.kc_id for i in items}

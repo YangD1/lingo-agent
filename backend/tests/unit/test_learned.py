@@ -179,3 +179,29 @@ def test_replay_is_deterministic() -> None:
     assert first.card is not None and second.card is not None
     assert first.card.to_dict() == second.card.to_dict()
     assert first == second
+
+
+# --- consolidating (ADR 0033 §6) ----------------------------------------------------------
+
+
+def test_consolidating_is_ready_once_span_and_clean_days_allow() -> None:
+    # Mastered by p_mastery within one sitting, after a chat mistake: not learned yet.
+    result = run([chat_mistake(-1), ex("choice4", 0), ex("cloze", 0.1), ex("transform", 0.2)])
+    assert result.mastered_at is None
+    gate = RULES.mastery_gate
+    span_ready = T0 + timedelta(hours=gate.min_span_hours)
+    clean_ready = T0 + timedelta(hours=-1, days=gate.clean_days)
+    assert result.gate_ready_at == max(span_ready, clean_ready)
+
+
+def test_consolidating_without_a_wait_is_ready_at_its_last_answer() -> None:
+    # Two formats only, over more than a day and no free mistake: the next item can
+    # be the missing format.
+    result = run([ex("choice4", 0), ex("cloze", 25)])
+    assert result.mastered_at is None
+    assert result.gate_ready_at == T0 + timedelta(hours=25)
+
+
+def test_not_consolidating_when_learned_or_low() -> None:
+    assert run(three_formats()).gate_ready_at is None
+    assert run([ex("choice4", 0, correct=False)], p_init=0.3).gate_ready_at is None

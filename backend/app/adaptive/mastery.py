@@ -49,6 +49,7 @@ def _learned_columns(learned: Learned) -> dict[str, Any]:
         "difficulty": card.difficulty if card else None,
         "due": card.due if card else None,
         "last_review": card.last_review if card else None,
+        "gate_ready_at": learned.gate_ready_at,
     }
 
 

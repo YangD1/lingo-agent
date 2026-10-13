@@ -13,6 +13,10 @@ observations in order:
   for each counted mistake in conversation or writing;
 - revoked: when p_mastery falls below bkt.weak, the KC is no longer learned, its FSRS
   state is dropped and the progress counts again from the next observation.
+
+A KC at p_mastery >= bkt.mastered that has not passed the gate yet is consolidating:
+`gate_ready_at` is the earliest time an answer could pass it (ADR 0033 §6), when
+practice brings it back.
 """
 
 from collections.abc import Iterable
@@ -49,6 +53,8 @@ class Learned:
     mastered_at: datetime | None
     # Set exactly when mastered_at is.
     card: fsrs.Card | None
+    # Consolidating only: when the span and clean-days conditions can first hold.
+    gate_ready_at: datetime | None = None
 
 
 def _passes(obs: Observation) -> Format | None:
@@ -141,6 +147,19 @@ class _Walk:
             else:
                 self.review(obs.at, True, FIRST_RATING)
 
+    def ready_at(self, p: float, last_at: datetime) -> datetime | None:
+        """When a correct answer could next pass the gate; None unless consolidating.
+        A missing format is not a wait: the next item can be in it."""
+        if self.mastered_at is not None or p < self.rules.bkt.mastered:
+            return None
+        gate = self.rules.mastery_gate
+        times = [last_at]
+        if self.first_correct is not None:
+            times.append(self.first_correct + timedelta(hours=gate.min_span_hours))
+        if self.last_mistake is not None:
+            times.append(self.last_mistake + timedelta(days=gate.clean_days))
+        return max(times)
+
     def revoke(self) -> None:
         self.mastered_at = None
         self.card = None
@@ -153,9 +172,11 @@ def progress(observations: Iterable[Observation], p_init: float, rules: Rules) -
     """Learned state of one KC from its full evidence history (BKT steps as `replay`)."""
     walk = _Walk(rules)
     p = p_init
+    last_at: datetime | None = None
     for obs in counted(observations, rules):
         p = update(p, obs.correct, obs.evidence, rules)
         walk.step(obs, p)
+        last_at = obs.at
     walk.flush()
     return Learned(
         formats_passed=tuple(f for f in FORMATS if f in walk.formats),
@@ -163,4 +184,5 @@ def progress(observations: Iterable[Observation], p_init: float, rules: Rules) -
         last_mistake_at=walk.last_mistake,
         mastered_at=walk.mastered_at,
         card=walk.card,
+        gate_ready_at=walk.ready_at(p, last_at) if last_at is not None else None,
     )

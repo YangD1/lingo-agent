@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-10.3"
+version: "2026-10-13.1"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -279,6 +279,10 @@ practice:
     1: 0.8
     0: 1.0
     -1: 0.7
+  # A candidate KC with no evidence at all ranks at this share of its priority, so a
+  # weakness the learner has shown comes before KCs only the prior calls weak (ADR
+  # 0033 §6, found by the simulated learner).
+  untested_factor: 0.4
   # Counted mistakes on a KC in the last `recent_mistake_days` raise its priority by
   # a factor of 1 + n / (n + mistake_half): half the full boost at `mistake_half`.
   recent_mistake_days: 30
