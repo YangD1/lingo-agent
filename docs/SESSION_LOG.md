@@ -10,15 +10,15 @@
 
 **下一步**（新会话）：先请用户确认 66.5–66.9 和 Q66l–p → 改 ADR 0032（§4 形象放在哪、Q66i 调整、桌宠 / 小窗 / 打盹）和 `docs/PLAN.md` 对应段落 → 从 66.5 开工。
 
-**环境状态**：开发服务器已停；Docker 的 frontend / backend 容器被停掉了（镜像旧，没有 66.x），postgres 仍在跑。看效果用 `make dev-backend` + `make dev-frontend`，或 66 全部完成后重建 Docker。`docs/design/cats.png` 仍未提交，是否入库待用户定。
+**环境状态**：开发服务器已停；Docker 的 frontend / backend 容器被停掉了（镜像旧，没有 66.x），postgres 仍在跑。看效果用 `make dev-backend` + `make dev-frontend`，或 66 全部完成后重建 Docker。参考图已按用户要求入库为设计存档 `docs/design/tutor-pet/2026-10-13-batch1-cats.png`（目录里有 README 说明命名）。
 
 ---
 
 ## 2026-10-13 任务 66.4 形象按参考图重画（完成）
 
-**做了什么**：用户决定仍用 Canvas，按参考图 `docs/design/cats.png` 重画 `frontend/src/components/tutor/avatar-draw.ts`：深棕粗描边（`OUTLINE` `#563f39`，新导出）、宽脸 + 坐姿全身 + 奶油色肚子 / 口鼻 / 前爪、常驻腮红、`ω` 嘴，想 = 撇嘴，说 / 开心 = 张嘴带舌头；5 套装扮按图（classic 眼镜 + 笔 + 领结 + 毛衣背心，casual 耳机 + 卫衣领口抽绳口袋，sporty 头带 + 背心白 V 领 + 奖牌，artsy 贝雷帽 + 黄围巾 + 罩衫）；`FUR_SWATCHES` 换成图里 8 色，`DEFAULT_FUR` 改 `#e98b60`；`Palette` 去掉 `edge`（一律描边），深色阈值 0.1（`#48484f` 算深色 → 黄眼、灰肚子）。之前的 EYE_STYLE / 球衣试验已丢弃。同步了 ADR 0032 §4 的装扮描述。测试改了 `avatar-draw.test.ts`。
+**做了什么**：用户决定仍用 Canvas，按参考图 `docs/design/tutor-pet/2026-10-13-batch1-cats.png` 重画 `frontend/src/components/tutor/avatar-draw.ts`：深棕粗描边（`OUTLINE` `#563f39`，新导出）、宽脸 + 坐姿全身 + 奶油色肚子 / 口鼻 / 前爪、常驻腮红、`ω` 嘴，想 = 撇嘴，说 / 开心 = 张嘴带舌头；5 套装扮按图（classic 眼镜 + 笔 + 领结 + 毛衣背心，casual 耳机 + 卫衣领口抽绳口袋，sporty 头带 + 背心白 V 领 + 奖牌，artsy 贝雷帽 + 黄围巾 + 罩衫）；`FUR_SWATCHES` 换成图里 8 色，`DEFAULT_FUR` 改 `#e98b60`；`Palette` 去掉 `edge`（一律描边），深色阈值 0.1（`#48484f` 算深色 → 黄眼、灰肚子）。之前的 EYE_STYLE / 球衣试验已丢弃。同步了 ADR 0032 §4 的装扮描述。测试改了 `avatar-draw.test.ts`。
 
-**未完成**：`docs/design/cats.png` 未提交（是否入库待用户定）。之后 66.5–66.7。未推送：d28cddb 之后 66.1–66.4 的提交。
+**未完成**：之后 66.5–66.7。未推送：d28cddb 之后 66.1–66.4 的提交。
 
 **踩坑**：上一会话因整页大截图和反复看图导致自动压缩反复失败；看效果只截 ~170px 高的小条。预览工具在 `/tmp/avatar-preview`（`node_modules` 软链到 frontend，`build.mjs` → `shot.mjs`）。
 
