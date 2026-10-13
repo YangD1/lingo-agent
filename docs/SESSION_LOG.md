@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-13 任务 66.9 完成，任务 66 完成（学习者自选私教）
+
+**做了什么**：`frontend/e2e/tutor.spec.ts` 2 条：学习者在“我的私教”起名、换装扮、填音色 → 桌宠变样、拖动贴边（刷新后保留）、收起展开 → 朗读回复时桌宠在“说”、音色是所选的 → 聊天页点它聚焦输入框，别的页弹小窗接着同一对话 → 恢复默认 → 关掉桌宠；成员只能选主账号链里的模型（链外 422），所选的确实被用上。E2E 找出并修了两个真问题：`tutor-pet.tsx` 快速拖动时指针离开桌宠后收不到 `pointermove`（改成按下后在 `window` 上跟踪，在 effect 里挂监听）；`pet-chat.tsx` 打开时输入框还在加载历史、是禁用的，聚焦落空（`Composer` / `TutorPanel` 加 `autoFocus`，输入框可用时才聚焦）。README 中英、`agent-tools.md`、ADR 0032 落地记录、PLAN 已同步。`make ci` 全过（pytest 1756、Vitest 671、E2E 73）。
+
+**未完成**：无。Docker 重建见看板。
+
+**下一步**：P4 剩余各项先拆任务、和用户确认。
+
+**踩坑**：`pnpm` 在 Bash 工具里是 nvm 的懒加载函数，会无限递归，要用 `~/.nvm/versions/node/v24.14.0/bin/pnpm` 绝对路径；llm 路由的接口是 `/tenant/routes/llm/chat`，不是 `routes/chat/default`；`react-hooks/refs` 不允许渲染时写 `ref.current`，所以把拖动处理放进依赖 `drag` 的 effect 里；全量 E2E 在负载下 `p2-demo` 的文章改写偶尔超过 30 秒。
+
+---
+
 ## 2026-10-13 任务 66.8 完成（私教对话小窗）
 
 **做了什么**：`components/tutor/pet-chat.tsx`。点桌宠在当前页弹出小窗，接着 `/conversations` 里最近的一条对话，里面复用 `TutorPanel`。小窗可以“在聊天页打开”，Esc 或关闭按钮关掉。在聊天页点桌宠只聚焦输入框（`data-chat-input`），进入聊天页时小窗会自动关掉。`features.yaml` 在 `chat_message` 加了注释，说明小窗沿用它。

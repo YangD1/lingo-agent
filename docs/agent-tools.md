@@ -10,11 +10,11 @@
 
 | 功能（清单里的 key） | 入口 | 触发的调用（task） |
 |---|---|---|
-| `chat_message` | 聊天输入框“发送”；看板和入学测结果页对话框的输入框、看板的快捷回复（ADR 0016） | `chat`（立即）；私教调用了工具时再加 `chat_tools`（拿到工具结果后的回复，走 `chat` 路由）；`reflect`、`memory` 向量化（回复后在后台） |
+| `chat_message` | 聊天输入框“发送”；看板和入学测结果页对话框的输入框、看板的快捷回复（ADR 0016）；桌宠对话小窗的输入框（ADR 0032 §4a，接着最近一次对话，同聊天页） | `chat`（立即）；私教调用了工具时再加 `chat_tools`（拿到工具结果后的回复，走 `chat` 路由）；`reflect`、`memory` 向量化（回复后在后台） |
 | `chat_image` | 聊天输入框“附件” | `vision`（每张图；带图的那一轮回复也走 `vision`） |
 | `chat_pdf` | 同上 | `vision`（只有扫描页，每页一次） |
 | `chat_audio` | 聊天输入框“录音” | `asr`（按音频秒数） |
-| `read_aloud` | 私教气泡、单词气泡、背单词页的朗读按钮（只在租户配了朗读路由时显示标记；没配时浏览器朗读，不调用模型，ADR 0018、0028） | `tts`（按字符；一次一句；同租户同一句、同声音和语速只合成一次，之后读缓存） |
+| `read_aloud` | 私教气泡、单词气泡、背单词页的朗读按钮；“我的私教”页的“试听”（读一句示范，ADR 0032）（只在租户配了朗读路由时显示标记；没配时浏览器朗读，不调用模型，ADR 0018、0028） | `tts`（按字符；一次一句；同租户同一句、同声音和语速只合成一次，之后读缓存） |
 | `shadowing` / `shadowing_rough` | 私教回复工具栏、阅读段落末尾、复习卡片例句末尾的“跟读”（任务 57；按 `GET /speech/capabilities` 的 `shadowing` 挂其中一个，两种都没配时不显示入口，ADR 0028 §5） | `shadowing`：`pronunciation`（按音频秒数，每次一句，最长 30 秒）；评测失败且配了转写时再加一次 `shadowing_asr`。`shadowing_rough`：`shadowing_asr`（走 `asr` 路由，按音频秒数） |
 | `practice_start` | 看板常错语法点的“对话练”、`/learner` 语法点详情和私教练习卡片的“对话练习” | `practice_opening`（走 `chat` 路由） |
 | `plan_start` | 入学测结果页对话框里的“和私教聊聊这次结果” | `plan_opening`（走 `chat` 路由）；之后每轮同 `chat_message` |
