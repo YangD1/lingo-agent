@@ -203,4 +203,4 @@ lingo-agent/
 - 自适应引擎：用模拟学习者跑多轮，验证系统能识别出预设的弱点、练习集中在这些点上、掌握度曲线随之上升（任务 68.3：确定性规则学习者，`backend/evals/simulated_learner.py`，进 CI；`python -m evals.simulated_learner` 打印每天的掌握度，可作演示素材）。
 - 后端：pytest（FSRS 调度、BKT/Elo 更新、选题优先级、CEFR 更新、provider 切换的单测）；LangGraph 图用固定输入跑集成测试。
 - 可观测：开启 OTel 后在本地 Phoenix 看 trace，确认路由、记忆读写节点按预期执行；P4 起跑评估集（pytest）并对比分数。
-- 端到端：`docker compose up` 后在浏览器走完“注册→入学测→对话（第二次会话能引用第一次的记忆）→背单词→阅读→语音跟读”全流程。
+- 端到端：`docker compose up` 后在浏览器走完“注册→入学测→对话（第二次会话能引用第一次的记忆）→背单词→阅读→语音跟读”全流程。走查清单见 `docs/demo.md`（演示账号走一遍，加“新账号全流程走查”一节）。

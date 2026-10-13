@@ -19,7 +19,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 | ![Speaking practice: the summary after a scenario, with mistakes, more natural ways to say things and expressions to try](docs/screenshots/speaking-en.png) | ![A real-time call: subtitles, and the tutor looking up a word and adding it to the word list](docs/screenshots/call-en.png) |
 | ![My tutor: name, outfit, fur colour, the desk pet and the model it talks with](docs/screenshots/tutor-en.png) | |
 
-<sub>Screenshots use a demo account's learning history (`make demo-seed`); only what a model writes on the spot (chat replies, the call) is scripted. `make screenshots` retakes them.</sub>
+<sub>Screenshots use a demo account's learning history (`make demo-seed`); only what a model writes on the spot (chat replies, the call) is scripted. `make screenshots` retakes them. To show the app to someone, follow the [demo script](docs/demo.en.md).</sub>
 
 ## What works now
 
@@ -58,7 +58,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 - **Rate limits.** Repeated wrong passwords pause logins for a while (counted per IP + email, per IP and per email), sign-ups and invite codes are limited per IP, and features that call models are limited per user per minute, against password guessing and scripts burning through model quota. When a limit is hit, the page says how many seconds to wait. Change the defaults in `.env` (`RATE_LIMIT_*`, see `.env.example`).
 - **English and Chinese UI.**
 
-Not built yet (see [docs/PLAN.md](docs/PLAN.md)): a deployment override and backup scripts for small servers, and a demo script (P4).
+Not built yet (see [docs/PLAN.md](docs/PLAN.md)): a deployment override and backup scripts for small servers (P4).
 
 ## Quick start (Docker)
 

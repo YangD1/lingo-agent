@@ -19,7 +19,7 @@
 | ![口语练习：一个情景结束后的小结，有说错的和改法、更地道的说法、下次可以试的表达](docs/screenshots/speaking-zh.png) | ![实时通话：有字幕，私教查了一个词并加入生词本](docs/screenshots/call-zh.png) |
 | ![我的私教：名字、装扮、毛色、桌宠和它用的对话模型](docs/screenshots/tutor-zh.png) | |
 
-<sub>截图用的是演示账号的学习记录（`make demo-seed`）；只有模型当场写的内容（对话回复、通话）是预先写好的。`make screenshots` 可以重拍。</sub>
+<sub>截图用的是演示账号的学习记录（`make demo-seed`）；只有模型当场写的内容（对话回复、通话）是预先写好的。`make screenshots` 可以重拍。要给别人演示，可以照着[演示脚本](docs/demo.md)走一遍。</sub>
 
 ## 现在能做什么
 
@@ -58,7 +58,7 @@
 - **限流**：登录连续输错会被暂停一段时间（按 IP + 邮箱、IP、邮箱分别计数），注册和加入码按 IP 限次数，会调用模型的功能按用户限每分钟次数，防止被暴力猜密码或被脚本刷掉模型额度。超限时界面会提示还要等几秒。默认值可以在 `.env` 里改（`RATE_LIMIT_*`，见 `.env.example`）。
 - **中英文界面**。
 
-还没做（规划见 [docs/PLAN.md](docs/PLAN.md)）：低配服务器的部署覆盖与备份脚本、演示脚本（P4）。
+还没做（规划见 [docs/PLAN.md](docs/PLAN.md)）：低配服务器的部署覆盖与备份脚本（P4）。
 
 ## 快速开始（Docker）
 
