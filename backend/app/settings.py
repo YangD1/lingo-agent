@@ -4,8 +4,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.ratelimit import Limit
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_JWT_SECRET = "change-me"
@@ -51,10 +53,47 @@ class Settings(BaseSettings):
     # A mirror must serve the same file: it is checked against the pinned sha256.
     ecdict_url: str = ""
 
+    # Rate limits (ADR 0035), "count/window" with window in s, m or h. Login buckets count
+    # failed attempts only; model buckets are per user, per minute by default.
+    rate_limit_enabled: bool = True
+    rate_limit_login: str = "10/15m"  # per IP + email
+    rate_limit_login_ip: str = "50/15m"
+    rate_limit_login_email: str = "30/15m"
+    rate_limit_signup: str = "10/1h"  # per IP: register, invite codes
+    rate_limit_chat: str = "20/1m"
+    rate_limit_generate: str = "10/1m"
+    rate_limit_tts: str = "60/1m"
+    rate_limit_asr: str = "30/1m"
+
     # Observability (ADR 0005). Off by default: traces carry full conversation content.
     otel_tracing_enabled: bool = False
     otel_exporter_otlp_endpoint: str = "http://localhost:6006/v1/traces"
     otel_service_name: str = "lingo-agent-backend"
+
+    @field_validator(
+        "rate_limit_login",
+        "rate_limit_login_ip",
+        "rate_limit_login_email",
+        "rate_limit_signup",
+        "rate_limit_chat",
+        "rate_limit_generate",
+        "rate_limit_tts",
+        "rate_limit_asr",
+    )
+    @classmethod
+    def _check_rate_limit(cls, value: str) -> str:
+        Limit.parse(value)
+        return value
+
+    @property
+    def rate_limits(self) -> dict[str, Limit]:
+        """Bucket name → limit, from the `rate_limit_<bucket>` fields."""
+        prefix = "rate_limit_"
+        return {
+            name.removeprefix(prefix): Limit.parse(value)
+            for name, value in self.model_dump().items()
+            if name.startswith(prefix) and isinstance(value, str)
+        }
 
     @model_validator(mode="after")
     def _check_prod_secrets(self) -> Self:

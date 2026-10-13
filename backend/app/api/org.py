@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.api.errors import api_error
 from app.db.models import OrgInvite, OrgMembership, Tenant
-from app.deps import CurrentTenant, CurrentUser, Manager, SessionDep
+from app.deps import CurrentTenant, CurrentUser, Manager, SessionDep, per_ip
 from app.org import service, usage
 from app.org.quotas import Capability, Quotas
 
@@ -181,7 +181,7 @@ async def set_default_quotas(body: Quotas, session: SessionDep, tenant: CurrentT
 # --- the member ---------------------------------------------------------------------
 
 
-@router.post("/join/preview")
+@router.post("/join/preview", dependencies=[per_ip("signup")])
 async def preview_join(body: CodeIn, session: SessionDep, user: CurrentUser) -> InvitePreviewOut:
     try:
         found = await service.preview_invite(session, body.code, datetime.now(UTC))
@@ -192,7 +192,7 @@ async def preview_join(body: CodeIn, session: SessionDep, user: CurrentUser) -> 
     )
 
 
-@router.post("/join", status_code=status.HTTP_201_CREATED)
+@router.post("/join", status_code=status.HTTP_201_CREATED, dependencies=[per_ip("signup")])
 async def join(
     body: CodeIn, session: SessionDep, user: CurrentUser, tenant: CurrentTenant
 ) -> MembershipOut:

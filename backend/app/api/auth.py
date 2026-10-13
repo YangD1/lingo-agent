@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -9,7 +9,17 @@ from app.api.errors import api_error
 from app.auth.security import create_access_token
 from app.auth.service import EmailTakenError, authenticate, register_user
 from app.db.models import User
-from app.deps import AUTH_COOKIE, CurrentTenant, CurrentUser, SessionDep, SettingsDep
+from app.deps import (
+    AUTH_COOKIE,
+    CurrentTenant,
+    CurrentUser,
+    RateLimiterDep,
+    SessionDep,
+    SettingsDep,
+    per_ip,
+    too_many_requests,
+)
+from app.ratelimit import RateLimitedError, RateLimiter, client_ip
 from app.settings import Settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -73,7 +83,31 @@ def _set_auth_cookie(response: Response, user: User, settings: Settings) -> None
     )
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def _login(
+    request: Request, limiter: RateLimiter, session: SessionDep, email: str, password: str
+) -> User:
+    """Authenticate within the login limits, which count failures only (ADR 0035 §3)."""
+    ip, email_key = client_ip(request), email.lower()
+    keys = [("login", f"{ip} {email_key}"), ("login_ip", ip), ("login_email", email_key)]
+    waits: list[RateLimitedError] = []
+    for bucket, key in keys:
+        try:
+            limiter.check(bucket, key)
+        except RateLimitedError as exc:
+            waits.append(exc)
+    if waits:
+        # Refused before the password is checked, so it can't be probed meanwhile.
+        raise too_many_requests(max(waits, key=lambda e: e.retry_after))
+    user = await authenticate(session, email, password)
+    if user is None:
+        for bucket, key in keys:
+            limiter.record(bucket, key)
+        raise _INVALID_CREDENTIALS
+    limiter.reset(*keys[0])
+    return user
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED, dependencies=[per_ip("signup")])
 async def register(
     body: RegisterRequest, response: Response, session: SessionDep, settings: SettingsDep
 ) -> UserOut:
@@ -89,11 +123,14 @@ async def register(
 
 @router.post("/login")
 async def login(
-    body: LoginRequest, response: Response, session: SessionDep, settings: SettingsDep
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    session: SessionDep,
+    settings: SettingsDep,
+    limiter: RateLimiterDep,
 ) -> UserOut:
-    user = await authenticate(session, body.email, body.password)
-    if user is None:
-        raise _INVALID_CREDENTIALS
+    user = await _login(request, limiter, session, body.email, body.password)
     _set_auth_cookie(response, user, settings)
     return UserOut.model_validate(user)
 
@@ -101,13 +138,13 @@ async def login(
 @router.post("/token")
 async def token(
     form: Annotated[OAuth2PasswordRequestForm, Depends()],
+    request: Request,
     session: SessionDep,
     settings: SettingsDep,
+    limiter: RateLimiterDep,
 ) -> TokenOut:
     """OAuth2 password flow for non-browser clients; returns a Bearer token, sets no cookie."""
-    user = await authenticate(session, form.username, form.password)
-    if user is None:
-        raise _INVALID_CREDENTIALS
+    user = await _login(request, limiter, session, form.username, form.password)
     return TokenOut(access_token=create_access_token(user.id, settings))
 
 

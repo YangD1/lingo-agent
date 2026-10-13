@@ -55,6 +55,7 @@ from app.memory.worker import ReflectionWorker
 from app.observability import setup_tracing, shutdown_tracing
 from app.placement.service import PlacementRuntime
 from app.providers.llm import get_providers_config
+from app.ratelimit import RateLimiter
 from app.realtime.after import AfterCall
 from app.realtime.calls import RealtimeCalls, close_orphaned
 from app.scheduler.jobs import JOBS
@@ -222,6 +223,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="lingo-agent", version="0.1.0", lifespan=lifespan)
     app.state.conversation_locks = ConversationLocks()
     app.state.realtime_calls = RealtimeCalls()
+    settings = get_settings()
+    app.state.rate_limiter = RateLimiter(settings.rate_limits, enabled=settings.rate_limit_enabled)
     install_error_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)

@@ -50,6 +50,16 @@ services:
       SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
       # Proxy for fetching RSS feeds only (Q41h); empty = direct.
       FEED_HTTP_PROXY: ${COMPOSE_FEED_HTTP_PROXY:-}
+      # Rate limits (ADR 0035); see .env.example.
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_LOGIN: ${RATE_LIMIT_LOGIN:-10/15m}
+      RATE_LIMIT_LOGIN_IP: ${RATE_LIMIT_LOGIN_IP:-50/15m}
+      RATE_LIMIT_LOGIN_EMAIL: ${RATE_LIMIT_LOGIN_EMAIL:-30/15m}
+      RATE_LIMIT_SIGNUP: ${RATE_LIMIT_SIGNUP:-10/1h}
+      RATE_LIMIT_CHAT: ${RATE_LIMIT_CHAT:-20/1m}
+      RATE_LIMIT_GENERATE: ${RATE_LIMIT_GENERATE:-10/1m}
+      RATE_LIMIT_TTS: ${RATE_LIMIT_TTS:-60/1m}
+      RATE_LIMIT_ASR: ${RATE_LIMIT_ASR:-30/1m}
       # Address of the `asr` service below as seen from this container (speaches preset).
       SPEACHES_BASE_URL: http://asr:8000/v1
       OTEL_TRACING_ENABLED: ${OTEL_TRACING_ENABLED:-false}

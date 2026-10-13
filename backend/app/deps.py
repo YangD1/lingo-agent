@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -10,6 +10,7 @@ from app.api.errors import api_error
 from app.auth.security import InvalidTokenError, decode_access_token
 from app.auth.service import get_personal_tenant
 from app.db.models import Tenant, TenantMember, User
+from app.ratelimit import RateLimitedError, RateLimiter, client_ip
 from app.settings import Settings, get_settings
 
 AUTH_COOKIE = "lingo_access_token"
@@ -93,3 +94,45 @@ async def require_tenant_manager(
 
 # Route dependency: `dependencies=[Manager]`.
 Manager = Depends(require_tenant_manager)
+
+
+def get_rate_limiter(request: Request) -> RateLimiter:
+    limiter: RateLimiter = request.app.state.rate_limiter
+    return limiter
+
+
+RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
+
+
+def too_many_requests(exc: RateLimitedError) -> HTTPException:
+    return api_error(
+        status.HTTP_429_TOO_MANY_REQUESTS,
+        "rate_limited",
+        f"too many requests, retry after {exc.retry_after}s",
+        headers={"Retry-After": str(exc.retry_after)},
+    )
+
+
+def _hit(limiter: RateLimiter, bucket: str, key: str) -> None:
+    try:
+        limiter.hit(bucket, key)
+    except RateLimitedError as exc:
+        raise too_many_requests(exc) from exc
+
+
+def per_user(bucket: str) -> Any:
+    """Route dependency (ADR 0035): `dependencies=[per_user("chat")]`."""
+
+    async def dependency(user: CurrentUser, limiter: RateLimiterDep) -> None:
+        _hit(limiter, bucket, str(user.id))
+
+    return Depends(dependency)
+
+
+def per_ip(bucket: str) -> Any:
+    """Route dependency (ADR 0035): `dependencies=[per_ip("signup")]`."""
+
+    async def dependency(request: Request, limiter: RateLimiterDep) -> None:
+        _hit(limiter, bucket, client_ip(request))
+
+    return Depends(dependency)

@@ -15,10 +15,14 @@ import psycopg
 
 PORT = os.environ.get("E2E_BACKEND_PORT", "8100")
 # The server to test against, via its maintenance database; lingo_e2e is created next to it.
-ADMIN_URL = os.environ.get("E2E_ADMIN_DB", "postgresql://lingo:lingo@localhost:5433/postgres")
+ADMIN_URL = os.environ.get(
+    "E2E_ADMIN_DB", "postgresql://lingo:lingo@localhost:5433/postgres"
+)
 DB_NAME = "lingo_e2e"
 # A small real slice of ECDICT: the Oxford 3000 book has 7 of its words.
-WORDS_CSV = Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "ecdict_sample.csv"
+WORDS_CSV = (
+    Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "ecdict_sample.csv"
+)
 # Two Tatoeba sentences for "go" (one by an inflected form, one in traditional Chinese
 # that the import simplifies), in the export layout import_tatoeba reads.
 TATOEBA = {
@@ -63,6 +67,8 @@ os.environ.update(
     LANGSMITH_TRACING="false",
     # Tests drive background work themselves; no scheduled jobs firing mid-test.
     SCHEDULER_ENABLED="false",
+    # Every spec registers its own accounts, all from 127.0.0.1 (ADR 0035).
+    RATE_LIMIT_SIGNUP="1000/1h",
 )
 
 
