@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Usage, UsageRow } from "@/lib/types";
 
 import en from "../../../messages/en.json";
-import { UsageSection } from "./usage-section";
+import { UsageDetails } from "./usage-details";
 
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -32,19 +32,19 @@ const row = (overrides: Partial<UsageRow>): UsageRow => ({
 function show() {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <UsageSection />
+      <UsageDetails days={7} reload={0} />
     </NextIntlClientProvider>,
   );
 }
 
 beforeEach(() => api.mockReset());
 
-describe("UsageSection", () => {
+describe("UsageDetails", () => {
   it("shows the account's own use, without a picker when nobody else uses its models", async () => {
     api.mockResolvedValue({ days: 7, rows: [row({})] } satisfies Usage);
     show();
 
-    expect(await screen.findByRole("table", { name: "Usage" })).toHaveTextContent("openai:gpt-5-mini");
+    expect(await screen.findByRole("table", { name: "Details (per day and model)" })).toHaveTextContent("openai:gpt-5-mini");
     expect(screen.queryByRole("combobox", { name: "Whose use" })).not.toBeInTheDocument();
   });
 
@@ -55,7 +55,7 @@ describe("UsageSection", () => {
     } satisfies Usage);
     show();
 
-    const table = await screen.findByRole("table", { name: "Usage" });
+    const table = await screen.findByRole("table", { name: "Details (per day and model)" });
     expect(within(table).getByRole("row", { name: /Total/ })).toHaveTextContent("10");
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Whose use" }), "Alex");
 

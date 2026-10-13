@@ -615,6 +615,14 @@
       "more": "加载更早的",
       "clear": "清空跟读记录",
       "clearConfirm": "删除你的全部跟读记录？已经计入的口语能力和单词发音不会变。"
+    },
+    "usage": {
+      "title": "我的 AI 用量",
+      "description": "本月（UTC）各项能力调用模型的用量。",
+      "sponsored": "本月（UTC）的用量；右边是 {name} 分给你的额度还剩多少（按今天和本月里更紧的那个算）。",
+      "empty": "本月还没用过 AI。",
+      "used": "{amount} {unit}",
+      "left": "剩 {amount} {unit}"
     }
   },
   "vocab": {
@@ -940,7 +948,7 @@
     },
     "usage": {
       "title": "用量",
-      "description": "按天和模型统计的 token 数，数据来自服务商返回的用量，不含价格。",
+      "description": "这个账号和成员用你的连接调用模型的情况，按 UTC 天统计。不内置价格，填了单价才显示估算费用。",
       "range": "时间范围",
       "lastDays": "最近 {days} 天",
       "refresh": "刷新",
@@ -956,7 +964,80 @@
       "total": "合计",
       "characters": "朗读字符",
       "whose": "谁的用量",
-      "mine": "我自己"
+      "mine": "我自己",
+      "details": "明细（按天和模型）",
+      "totals": "本期合计",
+      "tokens": "token",
+      "tokensSplit": "输入 {input} · 输出 {output}",
+      "audio_minutes": "音频分钟",
+      "errorRate": "错误率",
+      "fallbackRate": "回退率",
+      "cost": "估算费用",
+      "costPartial": "部分估算：有模型没填对应单价",
+      "costNote": "按当前单价估算",
+      "costFootnote": "* 有用量没填单价，这部分没算进去。费用按当前单价估算，不是账单。",
+      "perDay": "每天",
+      "metricLabel": "图表显示",
+      "metric": {
+        "calls": "调用",
+        "tokens": "token",
+        "cost": "费用"
+      },
+      "groupLabel": "分组",
+      "group": {
+        "tasks": "按用途",
+        "models": "按模型",
+        "members": "按成员"
+      },
+      "groupColumn": {
+        "tasks": "用途",
+        "models": "模型",
+        "members": "成员"
+      },
+      "background": "后台",
+      "usedBy": "用于：{features}",
+      "separator": "、",
+      "feature": {
+        "chat_message": "私教对话",
+        "chat_image": "聊天发图片",
+        "chat_pdf": "聊天发 PDF",
+        "chat_audio": "聊天发语音",
+        "read_aloud": "朗读",
+        "word_audio_prefetch": "单词发音预生成",
+        "shadowing": "跟读评测",
+        "shadowing_rough": "跟读（转写对比）",
+        "speaking_start": "口语练习开场",
+        "speaking_turn": "口语练习",
+        "realtime_call": "实时通话",
+        "speaking_summary": "口语小结",
+        "practice_start": "练习开场",
+        "practice_set": "出一组练习",
+        "practice_grade": "批改练习",
+        "reading_rewrite": "改写文章",
+        "reading_coach": "阅读教练",
+        "reading_prerewrite": "后台改写文章",
+        "writing_submit": "写作批改",
+        "plan_start": "学习规划对话",
+        "word_examples": "AI 例句",
+        "word_examples_prefetch": "后台生成例句",
+        "diagnosis": "诊断",
+        "message_translate": "翻译消息",
+        "memory_edit": "编辑记忆"
+      },
+      "prices": {
+        "title": "单价",
+        "hint": "按你的服务商价格填，留空 = 不算这一项。只列出这段时间用过的模型和已填过单价的模型。",
+        "noModels": "这段时间没有用过模型。",
+        "currency": "币种",
+        "model": "模型",
+        "input_per_mtok": "输入 / 百万 token",
+        "output_per_mtok": "输出 / 百万 token",
+        "per_kchar": "每千字符",
+        "per_minute": "每分钟",
+        "none": "不填",
+        "save": "保存单价",
+        "saved": "单价已保存"
+      }
     },
     "display": {
       "title": "显示",

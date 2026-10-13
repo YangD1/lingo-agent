@@ -32,6 +32,7 @@ import {
 import { DiagnosisCard } from "./diagnosis-card";
 import { ShadowingHistory } from "./shadowing-history";
 import { KCItem, STATE_BAR } from "./kc-item";
+import { MyUsageCard } from "./my-usage-card";
 
 const SKILLS = ["grammar", "vocab", "reading", "listening", "speaking", "writing"] as const;
 const emptyButton = buttonVariants({ size: "sm", variant: "outline" });
@@ -302,6 +303,8 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
         </Card>
 
         <ShadowingHistory />
+
+        <MyUsageCard />
 
         <Card className="border-destructive/35">
           <CardHeader>

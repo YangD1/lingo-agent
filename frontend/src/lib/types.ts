@@ -1,6 +1,7 @@
 // Response shapes of the backend API (backend/app/api/*).
 
 import type { AiFeature } from "@/lib/ai-usage";
+import type { Capability, Limit, UNITS, Used } from "@/lib/org";
 
 export type User = { id: string; email: string; display_name: string | null };
 export type Tenant = { id: string; name: string; kind: string };
@@ -148,6 +149,56 @@ export type UsageRow = {
   member: string | null;
 };
 export type Usage = { days: number; rows: UsageRow[] };
+
+/** backend/app/api/usage.py TallyOut (ADR 0034 §2). */
+export type UsageTally = {
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  characters: number;
+  audio_minutes: number;
+  errors: number;
+  fallbacks: number;
+  /** In the tenant's currency; null: nothing in it was priced (ADR 0034 §3). */
+  cost: number | null;
+  /** Some usage in it had no price, so `cost` leaves it out. */
+  cost_partial: boolean;
+};
+export type UsageDashboard = {
+  days: number;
+  total: UsageTally;
+  series: (UsageTally & { day: string })[];
+  tasks: (UsageTally & { task: string; background: boolean })[];
+  models: (UsageTally & { connection: string; model: string })[];
+  members: (UsageTally & { member: string | null })[];
+  /** Some call was priced: show costs at all. */
+  priced: boolean;
+  currency: PriceCurrency;
+};
+export const PRICE_CURRENCIES = ["CNY", "USD"] as const;
+export type PriceCurrency = (typeof PRICE_CURRENCIES)[number];
+/** backend/app/api/usage.py ModelPriceIO: per million tokens, thousand characters, minute. */
+export type ModelPrice = {
+  connection: string;
+  model: string;
+  input_per_mtok: number | null;
+  output_per_mtok: number | null;
+  per_kchar: number | null;
+  per_minute: number | null;
+};
+export type Prices = { currency: PriceCurrency; prices: ModelPrice[] };
+/** backend/app/api/usage.py MyUsageOut (ADR 0034 §4). */
+export type MyUsage = {
+  month_start: string;
+  sponsor_name: string | null;
+  capabilities: {
+    capability: Capability;
+    unit: (typeof UNITS)[Capability];
+    month: number;
+    /** Only for a member: their quota from the main account. left: null = no cap. */
+    quota: (Limit & Used & { left: number | null }) | null;
+  }[];
+};
 
 /** backend/app/memory/reflection.py EXAM_TAGS (the word books of ADR 0011). */
 export const EXAMS = ["zk", "gk", "cet4", "cet6", "ky", "toefl", "ielts", "gre"] as const;

@@ -13,33 +13,46 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { NativeSelect } from "@/components/ui/native-select";
-import { ErrorText } from "@/components/ui/error-text";
-import { api } from "@/lib/api";
-import type { Usage, UsageRow } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorText } from "@/components/ui/error-text";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Segmented } from "@/components/ui/segmented";
+import { Tag } from "@/components/ui/tag";
+import { isAiTask, loadEstimates } from "@/lib/ai-usage";
+import { api } from "@/lib/api";
+import type { UsageDashboard, UsageTally } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
+import { type ChartMetric, UsageChart } from "./usage-chart";
+import { UsageDetails } from "./usage-details";
+import { UsagePrices } from "./usage-prices";
 import { useDescribeError } from "./use-describe-error";
 
-const NUMERIC = ["calls", "input_tokens", "output_tokens", "characters", "errors", "fallbacks"] as const;
+type Grouping = "tasks" | "models" | "members";
+type GroupRow = { key: string; name: string; hint?: string; background?: boolean; tally: UsageTally };
 
+/** Where this account's model calls went and, with prices entered, what they cost (ADR 0034). */
 export function UsageSection() {
   const t = useTranslations("settings.usage");
+  const tTask = useTranslations("aiBadge.task");
   const format = useFormatter();
   const describe = useDescribeError();
   const [days, setDays] = useState(7);
-  const [usage, setUsage] = useState<Usage | null>(null);
-  // null: this account's own calls; else a member's (ADR 0031 §8).
-  const [whose, setWhose] = useState<string | null>(null);
+  const [board, setBoard] = useState<UsageDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [metric, setMetric] = useState<ChartMetric>("calls");
+  const [grouping, setGrouping] = useState<Grouping>("tasks");
+  const [details, setDetails] = useState(false);
+  const [reload, setReload] = useState(0);
+  // task -> the features that make it (features.yaml), for the hover hint.
+  const [featuresOf, setFeaturesOf] = useState<Record<string, string[]>>({});
 
   const load = useCallback(
     () =>
-      api<Usage>(`/tenant/usage?days=${days}`).then(
-        (u) => {
+      api<UsageDashboard>(`/tenant/usage/dashboard?days=${days}`).then(
+        (b) => {
           setError(null);
-          setUsage(u);
+          setBoard(b);
         },
         (e: unknown) => setError(describe(e)),
       ),
@@ -47,15 +60,51 @@ export function UsageSection() {
     [days],
   );
   useEffect(() => void load(), [load]);
+  useEffect(() => {
+    loadEstimates().then(
+      (estimates) => {
+        const out: Record<string, string[]> = {};
+        for (const f of estimates.features)
+          for (const c of f.calls) if (!(out[c.task] ??= []).includes(f.feature)) out[c.task].push(f.feature);
+        setFeaturesOf(out);
+      },
+      // Only the hint is missing.
+      () => undefined,
+    );
+  }, []);
 
-  const members = [...new Set((usage?.rows ?? []).flatMap((r) => (r.member === null ? [] : [r.member])))];
-  // A member gone from the range shows the account's own calls again.
-  const shownWhose = whose !== null && members.includes(whose) ? whose : null;
-  const rows = (usage?.rows ?? []).filter((r) => r.member === shownWhose);
-  const total = (key: (typeof NUMERIC)[number]) => rows.reduce((sum, r) => sum + r[key], 0);
-  // Read-aloud's column only once something was read aloud.
-  const columns = NUMERIC.filter((key) => key !== "characters" || total("characters") > 0);
-  const n = (value: number) => format.number(value);
+  const n = (v: number) => format.number(v);
+  const minutes = (v: number) => format.number(v, { maximumFractionDigits: 1 });
+  const percent = (part: number, whole: number) =>
+    format.number(whole ? part / whole : 0, { style: "percent", maximumFractionDigits: 1 });
+  const money = (v: number) =>
+    format.number(v, { style: "currency", currency: board?.currency ?? "CNY", maximumFractionDigits: 2 });
+  const cost = (tally: UsageTally) =>
+    tally.cost === null ? "—" : `${money(tally.cost)}${tally.cost_partial ? "*" : ""}`;
+
+  const total = board?.total;
+  const shownMetric = metric === "cost" && !board?.priced ? "calls" : metric;
+  const shownGrouping = grouping === "members" && (board?.members.length ?? 0) < 2 ? "tasks" : grouping;
+  const featureName = (feature: string) => {
+    // A key built from server data: a feature added later just shows its id.
+    const key = `feature.${feature}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : feature;
+  };
+  const rows: GroupRow[] = !board
+    ? []
+    : shownGrouping === "tasks"
+      ? board.tasks.map((r) => ({
+          key: `${r.task}/${r.background}`,
+          name: isAiTask(r.task) ? tTask(r.task) : r.task,
+          hint: featuresOf[r.task]?.length
+            ? t("usedBy", { features: featuresOf[r.task].map(featureName).join(t("separator")) })
+            : r.task,
+          background: r.background,
+          tally: r,
+        }))
+      : shownGrouping === "models"
+        ? board.models.map((r) => ({ key: `${r.connection}:${r.model}`, name: `${r.connection}:${r.model}`, tally: r }))
+        : board.members.map((r) => ({ key: r.member ?? "", name: r.member ?? t("mine"), tally: r }));
 
   return (
     <Card id="usage" className="scroll-mt-14 lg:scroll-mt-4">
@@ -63,21 +112,6 @@ export function UsageSection() {
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
         <CardAction className="flex items-center gap-1.5">
-          {members.length > 0 && (
-            <NativeSelect
-              aria-label={t("whose")}
-              value={shownWhose ?? ""}
-              onChange={(e) => setWhose(e.target.value || null)}
-              className="h-8 md:h-8"
-            >
-              <option value="">{t("mine")}</option>
-              {members.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </NativeSelect>
-          )}
           <NativeSelect
             aria-label={t("range")}
             value={days}
@@ -90,76 +124,161 @@ export function UsageSection() {
               </option>
             ))}
           </NativeSelect>
-          <Button size="icon-sm" variant="ghost" aria-label={t("refresh")} title={t("refresh")} onClick={load}>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t("refresh")}
+            title={t("refresh")}
+            onClick={() => {
+              void load();
+              setReload((r) => r + 1);
+            }}
+          >
             <RefreshCw />
           </Button>
         </CardAction>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-4">
         {error &&
-          (usage ? (
+          (board ? (
             <ErrorText>{error}</ErrorText>
           ) : (
             // Nothing loaded: the whole area failed, so the big oops cat.
             <EmptyState tone="error" title={error} />
           ))}
-        {usage && rows.length === 0 && (
+        {board && total && total.calls === 0 && (
           <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
             {t("empty")}
           </p>
         )}
-        {rows.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-[13px] whitespace-nowrap" aria-label={t("title")}>
-              <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium">{t("day")}</th>
-                  <th className="px-3 py-2 font-medium">{t("model")}</th>
-                  {columns.map((key) => (
-                    <th key={key} className="px-3 py-2 text-right font-medium">
-                      {t(key)}
-                    </th>
-                  ))}
-                  <th className="px-3 py-2 text-right font-medium">{t("avg_latency_ms")}</th>
-                </tr>
-              </thead>
-              <tbody className="font-mono">
-                {rows.map((r: UsageRow) => (
-                  <tr key={`${r.day}/${r.connection}/${r.model}`} className="border-t">
-                    <td className="px-3 py-2">{r.day}</td>
-                    <td className="px-3 py-2">{`${r.connection}:${r.model}`}</td>
-                    {columns.map((key) => (
-                      <td
-                        key={key}
-                        className={cn(
-                          "px-3 py-2 text-right",
-                          key === "errors" && r.errors > 0 && "text-destructive",
+        {board && total && total.calls > 0 && (
+          <>
+            <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4" aria-label={t("totals")}>
+              <Stat label={t("calls")} value={n(total.calls)} />
+              <Stat
+                label={t("tokens")}
+                value={format.number(total.input_tokens + total.output_tokens, { notation: "compact" })}
+                sub={t("tokensSplit", { input: n(total.input_tokens), output: n(total.output_tokens) })}
+              />
+              {total.characters > 0 && <Stat label={t("characters")} value={n(total.characters)} />}
+              {total.audio_minutes > 0 && <Stat label={t("audio_minutes")} value={minutes(total.audio_minutes)} />}
+              <Stat
+                label={t("errorRate")}
+                value={percent(total.errors, total.calls)}
+                tone={total.errors > 0 ? "bad" : undefined}
+              />
+              <Stat label={t("fallbackRate")} value={percent(total.fallbacks, total.calls)} />
+              {board.priced && total.cost !== null && (
+                <Stat
+                  label={t("cost")}
+                  value={money(total.cost)}
+                  sub={total.cost_partial ? t("costPartial") : t("costNote")}
+                />
+              )}
+            </dl>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">{t("perDay")}</h3>
+                <Segmented
+                  size="sm"
+                  label={t("metricLabel")}
+                  value={shownMetric}
+                  onChange={setMetric}
+                  options={[
+                    { value: "calls", label: t("metric.calls") },
+                    { value: "tokens", label: t("metric.tokens") },
+                    ...(board.priced ? [{ value: "cost" as const, label: t("metric.cost") }] : []),
+                  ]}
+                />
+              </div>
+              <UsageChart board={board} metric={shownMetric} />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Segmented
+                size="sm"
+                label={t("groupLabel")}
+                value={shownGrouping}
+                onChange={setGrouping}
+                className="w-fit"
+                options={[
+                  { value: "tasks", label: t("group.tasks") },
+                  { value: "models", label: t("group.models") },
+                  ...(board.members.length > 1 ? [{ value: "members" as const, label: t("group.members") }] : []),
+                ]}
+              />
+              <div className="overflow-x-auto rounded-lg border">
+                <table className="w-full text-[13px] whitespace-nowrap" aria-label={t(`group.${shownGrouping}`)}>
+                  <thead className="bg-muted/60 text-left text-xs text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">{t(`groupColumn.${shownGrouping}`)}</th>
+                      <th className="px-3 py-2 text-right font-medium">{t("calls")}</th>
+                      <th className="px-3 py-2 text-right font-medium">{t("tokens")}</th>
+                      {total.characters > 0 && <th className="px-3 py-2 text-right font-medium">{t("characters")}</th>}
+                      {total.audio_minutes > 0 && (
+                        <th className="px-3 py-2 text-right font-medium">{t("audio_minutes")}</th>
+                      )}
+                      <th className="px-3 py-2 text-right font-medium">{t("errors")}</th>
+                      {board.priced && <th className="px-3 py-2 text-right font-medium">{t("cost")}</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.key} className="border-t">
+                        <td className="px-3 py-2" title={r.hint}>
+                          {r.name}
+                          {r.background && <Tag className="ml-1.5">{t("background")}</Tag>}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono">{n(r.tally.calls)}</td>
+                        <td className="px-3 py-2 text-right font-mono">
+                          {n(r.tally.input_tokens + r.tally.output_tokens)}
+                        </td>
+                        {total.characters > 0 && (
+                          <td className="px-3 py-2 text-right font-mono">{n(r.tally.characters)}</td>
                         )}
-                      >
-                        {n(r[key])}
-                      </td>
+                        {total.audio_minutes > 0 && (
+                          <td className="px-3 py-2 text-right font-mono">{minutes(r.tally.audio_minutes)}</td>
+                        )}
+                        <td
+                          className={cn("px-3 py-2 text-right font-mono", r.tally.errors > 0 && "text-destructive")}
+                        >
+                          {n(r.tally.errors)}
+                        </td>
+                        {board.priced && <td className="px-3 py-2 text-right font-mono">{cost(r.tally)}</td>}
+                      </tr>
                     ))}
-                    <td className="px-3 py-2 text-right">{n(r.avg_latency_ms)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="font-mono font-semibold">
-                <tr className="border-t bg-muted/30">
-                  <td className="px-3 py-2 font-sans" colSpan={2}>
-                    {t("total")}
-                  </td>
-                  {columns.map((key) => (
-                    <td key={key} className="px-3 py-2 text-right">
-                      {n(total(key))}
-                    </td>
-                  ))}
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+              {board.priced && <p className="text-xs text-muted-foreground">{t("costFootnote")}</p>}
+            </div>
+
+            <details className="group" onToggle={(e) => setDetails(e.currentTarget.open)}>
+              <summary className="cursor-pointer text-sm font-semibold">{t("details")}</summary>
+              <div className="mt-2">{details && <UsageDetails days={days} reload={reload} />}</div>
+            </details>
+          </>
+        )}
+        {board && (
+          <UsagePrices
+            models={board.models.map((m) => ({ connection: m.connection, model: m.model }))}
+            onSaved={() => void load()}
+          />
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "bad" }) {
+  return (
+    <div className="rounded-lg border px-3 py-2">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className={cn("font-mono text-lg font-semibold tabular-nums", tone === "bad" && "text-destructive")}>
+        {value}
+      </dd>
+      {sub && <dd className="text-xs text-muted-foreground">{sub}</dd>}
+    </div>
   );
 }

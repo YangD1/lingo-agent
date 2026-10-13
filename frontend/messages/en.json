@@ -615,6 +615,14 @@
       "more": "Load earlier",
       "clear": "Clear shadowing history",
       "clearConfirm": "Delete all your readings? What they counted toward speaking and word pronunciation stays."
+    },
+    "usage": {
+      "title": "My AI use",
+      "description": "This month's (UTC) model use per capability.",
+      "sponsored": "This month's (UTC) use; on the right, what's left of the quota {name} gives you (the tighter of today's and this month's).",
+      "empty": "No AI use yet this month.",
+      "used": "{amount} {unit}",
+      "left": "{amount} {unit} left"
     }
   },
   "vocab": {
@@ -940,7 +948,7 @@
     },
     "usage": {
       "title": "Usage",
-      "description": "Token counts per day and model, as reported by the providers. Prices are not included.",
+      "description": "Model calls by this account, and by members on your connections, per UTC day. No prices are built in: enter yours to see estimated costs.",
       "range": "Time range",
       "lastDays": "Last {days} days",
       "refresh": "Refresh",
@@ -956,7 +964,80 @@
       "total": "Total",
       "characters": "Characters read",
       "whose": "Whose use",
-      "mine": "Mine"
+      "mine": "Mine",
+      "details": "Details (per day and model)",
+      "totals": "Totals",
+      "tokens": "Tokens",
+      "tokensSplit": "In {input} · out {output}",
+      "audio_minutes": "Audio minutes",
+      "errorRate": "Error rate",
+      "fallbackRate": "Fallback rate",
+      "cost": "Estimated cost",
+      "costPartial": "Partial: some models have no price for what they used",
+      "costNote": "At current prices",
+      "costFootnote": "* Some usage has no price and is left out. Costs are estimates at current prices, not a bill.",
+      "perDay": "Per day",
+      "metricLabel": "Chart shows",
+      "metric": {
+        "calls": "Calls",
+        "tokens": "Tokens",
+        "cost": "Cost"
+      },
+      "groupLabel": "Group by",
+      "group": {
+        "tasks": "By use",
+        "models": "By model",
+        "members": "By member"
+      },
+      "groupColumn": {
+        "tasks": "Use",
+        "models": "Model",
+        "members": "Member"
+      },
+      "background": "Background",
+      "usedBy": "Used by: {features}",
+      "separator": ", ",
+      "feature": {
+        "chat_message": "Tutor chat",
+        "chat_image": "Images in chat",
+        "chat_pdf": "PDFs in chat",
+        "chat_audio": "Voice messages",
+        "read_aloud": "Read aloud",
+        "word_audio_prefetch": "Word audio ahead",
+        "shadowing": "Shadowing",
+        "shadowing_rough": "Shadowing (transcript check)",
+        "speaking_start": "Speaking opener",
+        "speaking_turn": "Speaking practice",
+        "realtime_call": "Live calls",
+        "speaking_summary": "Speaking summary",
+        "practice_start": "Practice opener",
+        "practice_set": "Practice sets",
+        "practice_grade": "Practice grading",
+        "reading_rewrite": "Article rewrite",
+        "reading_coach": "Reading coach",
+        "reading_prerewrite": "Article rewrite ahead",
+        "writing_submit": "Writing review",
+        "plan_start": "Study plan chat",
+        "word_examples": "AI examples",
+        "word_examples_prefetch": "Examples ahead",
+        "diagnosis": "Diagnosis",
+        "message_translate": "Message translation",
+        "memory_edit": "Memory edits"
+      },
+      "prices": {
+        "title": "Prices",
+        "hint": "Enter your provider's prices; leave a box empty to not count it. Lists models used in this range and ones already priced.",
+        "noModels": "No models used in this range.",
+        "currency": "Currency",
+        "model": "Model",
+        "input_per_mtok": "Input / 1M tokens",
+        "output_per_mtok": "Output / 1M tokens",
+        "per_kchar": "Per 1K chars",
+        "per_minute": "Per minute",
+        "none": "None",
+        "save": "Save prices",
+        "saved": "Prices saved"
+      }
     },
     "display": {
       "title": "Display",
