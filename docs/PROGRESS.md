@@ -820,8 +820,11 @@
     - [x] 69.5 前端单价编辑 + 学习者卡：用量一节加“单价”编辑（列出本期出现过的 `连接:模型`，币种下拉）；学习者模型页加“我的 AI 用量”卡（Q69f）；i18n 中英；Vitest。2026-10-13 完成：`usage-prices.tsx`（用量一节里的“单价”，展开才加载；列出本期用过的和已填过的 `连接:模型`，币种下拉，四项单价留空 = 不算，负数不能保存，保存后看板重新加载）；`learner/my-usage-card.tsx` 放在学习者模型页跟读记录下面（用过的或有额度的能力才列；成员显示剩余 / 不限 / 关闭）；中英文案。验证：Vitest 全量 680 全过（新增 `usage-prices.test.tsx` 2 条、`my-usage-card.test.tsx` 3 条），tsc / eslint 干净
     - [x] 69.6 E2E（看板有数、填单价后出现费用、学习者卡）+ 文档（README 功能列表、PLAN 标完成）+ `make ci`。2026-10-13 完成：`settings.spec.ts` 改成看板（合计、柱状图有柱、按用途有“回复”和“复盘这一轮”、明细表数字不变、填单价后出现 `US$0.17` 和“部分估算”、学习者模型页“我的 AI 用量”有 token 且无费用），`org.spec.ts` 改用“按成员”分组，`tutor.spec.ts` 改为展开明细再选成员；用途里补了 `connection_test` 的名字（“测试连接”）；README 中英功能列表、“还没做”和 ADR 链接，PLAN 标完成，ADR 0034 加落地记录。验证：E2E 全量 73 过（第一次全量时 `p2-demo.spec.ts` 阅读改写 30 秒内没出来，单独跑和改动前的 2096de6 上都过，第二次全量也过，算负载下偶发）；pytest 1805（1 条偶发，见 69.3）、Vitest 680、`make lint` 全过；`make ci` 的各步分开跑过，没有整条跑
   - [ ] 70. 限流
-    - [ ] 70.1 进程内限流器（单 worker 足够，不引入 Redis；Q70a）：滑动窗口计数；登录按 IP + 邮箱（如 10 次 / 15 分钟）、注册和加入码按 IP；会调模型的接口按用户（聊天 / 练习 / 写作 / 朗读 / 转写各一档，Q70b）；超限 429 + `Retry-After`；配置走 settings；单测 + API 测试
-    - [ ] 70.2 前端统一提示“操作太频繁，X 秒后再试”；E2E；`.env.example`（如有新变量）；文档
+    - 现状（2026-10-13 拆分时核实）：没有任何限流；后端没有返回过 429。登录 `/auth/login`、`/auth/token`，注册 `/auth/register`，加入码 `/org/join`、`/org/join/preview`（要登录）都可无限次试。模型调用只有成员额度（ADR 0031）、后台每日预算（ADR 0025）、通话分钟。浏览器 → Next（`/api` rewrite）→ 后端，后端看到的 `request.client.host` 是 Next 的地址，真实 IP 要从 `X-Forwarded-For` 取；compose 里后端端口只绑 `127.0.0.1`，外部伪造不了。前端错误统一是 `ApiError(status, code, message)`，文案走 `useErrorMessage`（`errors.<code>`），不带 `Retry-After`
+    - [x] 70.0 ADR 0035（限流）+ PLAN 同步：存储（Q70a 进程内）、算法、按什么计数、客户端 IP 怎么取（Q70d）、各档默认值和接口归档（Q70b、Q70e）、和成员额度 / 后台预算的分工（限流防突发和爆破，额度管总量）。2026-10-13 完成：`docs/decisions/0035-rate-limiting.md`（登录三档只数失败：IP + 邮箱、IP、邮箱）；PLAN 的 P4 一节和存储图里的 Redis 同步
+    - [~] 70.1 限流器核心 + 登录注册：`app/ratelimit.py`（滑动日志：每个 key 一个时间戳队列，最多存 limit 个；定期清掉空闲 key；`asyncio` 单线程不加锁）；`Settings` 加 `rate_limit_enabled` 和各档 `RATE_LIMIT_<档>="次数/时长"`（如 `20/1m`、`10/15m`、`10/1h`）；客户端 IP（Q70d：`X-Forwarded-For` 最右一项）；FastAPI 依赖 `rate_limit("<档>")` 超限抛 429 `rate_limited` + `Retry-After`（秒，向上取整）；接到登录（按 Q70c）、注册、加入码；pytest 每个测试前清空计数；单测（窗口滑动、Retry-After、配置解析、IP 解析）+ API 测试
+    - [ ] 70.2 模型接口按用户限流（按 Q70e 的归档表）；API 测试每档各一条；`.env.example` 列出全部变量（留默认值注释）
+    - [ ] 70.3 前端：`ApiError` 带 `retryAfter`（`api.ts`、`sse.ts`、`server-api.ts` 都读 `Retry-After`）；`errors.rate_limited` 中英文案“操作太频繁，{seconds} 秒后再试”，经 `useErrorMessage` 让现有所有报错位置自动生效（Q70f）；Vitest；E2E（Playwright 后端把注册档调高免得自身被限，单测一个登录连错 N 次出现提示）；README 中英、`docs/agent-tools.md`（如需）、PLAN 标完成、ADR 落地记录
   - [ ] 71. 低配服务器部署
     - [ ] 71.1 `docker-compose.prod.yml` 覆盖：Caddy 自动 HTTPS 反代（Q71a）、各服务 `cpus` 限制、日志轮转、postgres 低内存参数；目标规格按 Q71b
     - [ ] 71.2 `make backup` / `make restore`（pg_dump，含加密主密钥提醒）；实测空闲和负载下内存 / CPU，写进 ADR 落地记录；`docs/deploy.md`（中英 README 链过去）
@@ -841,6 +844,12 @@
     - Q69f 学习者卡放哪：（**学习者模型页 `/learner`，不显示费用（费用只给付钱的账号看）**）/ “我的私教”页
     - Q70a 限流存哪：（**进程内存，单 worker 够用；重启清零可接受；以后多 worker 再换 Redis**）/ 现在就用 Redis（多一个常驻服务）/ Postgres
     - Q70b 模型接口的默认档：（**每用户每分钟：聊天 20、练习 / 写作 / 阅读生成 10、朗读 60、转写 30；登录 每 IP+邮箱 15 分钟 10 次；注册 / 加入码 每 IP 每小时 10 次；都可在 `.env` 改**）/ 另定
+    - Q70c–g（2026-10-13 拆 70 时提出，用户确认按推荐）：
+      - Q70c 登录怎么计数：（**只数失败：每 IP + 邮箱 15 分钟 10 次失败，登录成功清零该 key；另加每 IP 15 分钟 50 次失败的总上限，防一个 IP 换着邮箱试**）/ 成功失败都数（正常用户多设备登录也可能被限）
+      - Q70d 客户端 IP：原推荐“`TRUSTED_PROXY_HOPS` 从右数第 N 个”。实测 Next 16 的 rewrite 不追加 `X-Forwarded-For`，只在没有这个头时补上（`base-server.js` 用 `??=`），浏览器自带的头会被原样转给后端，所以改问一次，用户确认：（**取 `X-Forwarded-For` 最右一项，没有就用 `request.client.host`，不加 `TRUSTED_PROXY_HOPS`；ADR 和部署文档写明公网部署必须在前面放一层覆盖这个头的反代（任务 71 的 Caddy）；登录另加不看 IP 的“每个邮箱 15 分钟失败 30 次”**，代价是攻击者能让别人的账号 15 分钟内登不上）/ 不加按邮箱一档 / 加开关 `TRUST_FORWARDED_FOR` 默认关
+      - Q70e 接口归档（每用户；括号外是档名）：（**chat 20/分钟：发消息、开场白、聊天附件、消息翻译、口语开始 / 结束、阅读 coach、通话 WebSocket 每次连接；generate 10/分钟：练习出题 `/practice/sets`、练习判分、阅读改写 / 开读 / 交答案、写作提交、例句生成、手动加记忆；tts 60/分钟：`/speech/tts`；asr 30/分钟：跟读评测、语音附件转写。不限：纯读写数据库的接口、主账号的测试连接（已只有管理员能点）、后台任务（已有每日预算）**）/ 另定
+      - Q70f 前端怎么提示：（**不加全局弹窗，沿用各处现有的报错位置，文案带秒数；不做自动倒计时和自动重试**）/ 全局 toast + 倒计时
+      - Q70g 关掉开关：（**`RATE_LIMIT_ENABLED=true` 默认开；自部署只有自己用的可以关**）/ 不给开关
     - Q71a HTTPS：（**prod 覆盖里带 Caddy，填域名自动签证书**）/ 只写文档、让部署方自己配反代
     - Q71b 目标服务器：（**1 核 2G，不开语音本地模型、不开 Phoenix**）/ 2 核 4G
     - Q72a 截图：（**Playwright + 假模型自动生成，界面改了重跑就行**）/ 手动截图
