@@ -12,9 +12,11 @@
 - 前端：设置页用量一节改成看板（`usage-section.tsx` / `usage-chart.tsx` / `usage-details.tsx` / `usage-prices.tsx`），学习者模型页 `my-usage-card.tsx`。
 - 验证：pytest 1805、Vitest 680、E2E 73、`make lint` 全过。提交 f190b5a、1f16d03、6d6b3f1、02c4586 和本次文档 / E2E 提交。
 
-**未完成**：没推送、没重建 Docker（Docker 后端镜像落后于迁移 `7332e2a8d1d8`，重建前不要用 Docker 后端测）。
+**推送与部署**：推送到 30458bf，CI run 38390110467 四个 job 全绿。Docker 已重建（先后端再前端，各约半分钟），迁移 head `7332e2a8d1d8`，`/healthz` 200，空闲内存 backend 221MiB / frontend 55MiB / postgres 103MiB。
 
-**下一步**：推送并看 CI；任务 70（限流）先细化 70.1–70.2、和用户确认。
+**未完成**：无。
+
+**下一步**：任务 70（限流）先细化 70.1–70.2、和用户确认。
 
 **踩坑**：
 - `llm_usage.background` 只标没人在等的定时 / 预生成工作；回复后的复盘不算后台。E2E 一开始按“复盘 = 后台”写错了。
