@@ -1037,6 +1037,9 @@
         "none": "不填",
         "save": "保存单价",
         "saved": "单价已保存"
+      },
+      "task": {
+        "connection_test": "测试连接"
       }
     },
     "display": {

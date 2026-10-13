@@ -68,14 +68,42 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   // Usage: the two connection tests, the chat reply and the memory reflection that follows
   // it (ADR 0009), all recorded asynchronously.
   await page.getByRole("link", { name: "设置" }).click();
-  const usage = page.getByRole("table", { name: "用量" });
+  // The dashboard (ADR 0034): totals, the daily chart, and calls per use.
+  const totals = page.getByLabel("本期合计");
   await expect(async () => {
     await page.getByRole("button", { name: "刷新", exact: true }).click();
-    await expect(usage.locator("tbody tr")).toHaveCount(1, { timeout: 1000 });
-    await expect(usage.locator("tbody tr td").nth(2)).toHaveText("4", { timeout: 1000 });
+    await expect(totals).toContainText("调用次数4", { timeout: 1000 });
   }).toPass({ timeout: 15_000 });
+  await expect(page.getByTestId("usage-chart").locator(".recharts-bar-rectangle")).not.toHaveCount(0);
+  const uses = page.getByRole("table", { name: "按用途" });
+  await expect(uses.getByRole("row", { name: /^回复/ })).toBeVisible();
+  await expect(uses.getByRole("row", { name: /^复盘这一轮/ })).toBeVisible();
+  await expect(totals).not.toContainText("估算费用");
+
+  // The old per-day table lives under the details.
+  await page.getByText("明细（按天和模型）").click();
+  const usage = page.getByRole("table", { name: "明细（按天和模型）" });
+  await expect(usage.locator("tbody tr")).toHaveCount(1);
   await expect(usage.locator("tbody tr td").nth(1)).toHaveText("fake:fake-tutor");
+  await expect(usage.locator("tbody tr td").nth(2)).toHaveText("4");
   await expect(usage.locator("tbody tr td").nth(3)).toHaveText("168"); // 42 prompt tokens x 4
+
+  // Prices are the tenant's own: entered, they turn into an estimated cost.
+  await page.getByText("单价", { exact: true }).click();
+  await page.getByLabel("币种").selectOption("USD");
+  await page.getByLabel("fake:fake-tutor · 输入 / 百万 token").fill("1000");
+  await page.getByRole("button", { name: "保存单价" }).click();
+  await expect(totals).toContainText("估算费用US$0.17"); // 168 tokens at 1000 per million
+  await expect(totals).toContainText("部分估算"); // output tokens have no price
+  await page.getByTestId("usage-chart").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: test.info().outputPath("usage-dashboard.png"), fullPage: true });
+
+  // The learner sees their own month on the learner model page, without costs.
+  await page.goto("/learner");
+  const mine = page.getByTestId("learner-usage");
+  await expect(mine.getByTestId("usage-text")).toContainText(/对话与文本[\d,]+ token/);
+  await expect(mine).not.toContainText("US$");
+  await page.goto("/settings");
 
   // Custom order, all with dropdowns: switch row 1 to the mini model, add a fallback
   // (prefilled with the connection's default model), then move it to the top.

@@ -46,3 +46,15 @@
 - 不存价格历史：厂商降价后，旧月份的费用会按新价显示偏低。看板标明“按当前单价估算”。
 - 按 task 分组时，不同功能共用的 task（如 `reflect`）只显示一行，看不出对话和口语各占多少。要拆的话得在每次调用里记功能名，`llm_usage` 要加列，40 多处调用都要改；现在的粒度已经够看出钱花在哪里。
 - 汇总直接查 `llm_usage`，不建汇总表。90 天、单租户的量（每个学习者一天几百行）走 `(tenant_id, created_at)` 索引就够了，部署规模变大以后再加物化汇总。
+
+## 落地记录（任务 69，2026-10-13）
+- 后端：
+  - `app/usage/dashboard.py`：一次按“天 × 成员 × 连接 × 模型 × task × 前台 / 后台”查询，在 Python 里汇总；费用的纯函数 `cost_of` 也在这里。
+  - `app/usage/prices.py`：单价整表替换，四项都空的不存。
+  - `app/usage/mine.py`：学习者本月用量。`section` 为空的旧行（ADR 0031 之前）算文本；通话分钟取 `speaking_sessions`，和额度的算法一致。
+  - 接口 `GET /tenant/usage/dashboard`、`GET / PUT /tenant/prices`、`GET /me/usage`；迁移 `7332e2a8d1d8`。
+- 前端：
+  - 设置页用量一节：`usage-section.tsx`（看板）、`usage-chart.tsx`（单系列柱状图）、`usage-details.tsx`（原明细表，展开才加载）、`usage-prices.tsx`（单价）。
+  - 学习者模型页：`learner/my-usage-card.tsx`。
+- §1 的“前台 / 后台”用的是 `llm_usage.background`，也就是没人在等的定时 / 预生成工作（ADR 0025）。回复后的复盘虽然在后台跑，但学习者那一轮触发的，记为前台，和后台每日上限的口径一致。
+- 用途名复用 AI 标记的 task 名（`aiBadge.task`）。不属于任何功能的 task（`connection_test`）在用量一节自己起名；以后新增的、没起名的 task 显示原 id。

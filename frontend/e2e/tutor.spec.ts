@@ -206,8 +206,9 @@ test("a member picks the chat model from the main account's chain, and nothing e
   await page.goto("/settings#usage");
   await expect(async () => {
     await page.reload();
+    await page.getByText("明细（按天和模型）").click({ timeout: 2_000 });
     await page.getByRole("combobox", { name: "谁的用量" }).selectOption("Bo", { timeout: 2_000 });
-    await expect(page.getByRole("table", { name: "用量", exact: true })).toContainText("fake:fake-alt", {
+    await expect(page.getByRole("table", { name: "明细（按天和模型）" })).toContainText("fake:fake-alt", {
       timeout: 2_000,
     });
   }).toPass({ timeout: 20_000 });

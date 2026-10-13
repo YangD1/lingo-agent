@@ -57,10 +57,9 @@ test("invite, join, use the main account's model until the quota runs out, then 
   await row.getByRole("button", { name: "保存" }).click();
   await expect(row.getByRole("table", { name: "Bo 的用量" }).locator("tbody tr").first()).toContainText("/ 10");
   // Its usage card shows the member's calls apart from its own.
-  await page.getByRole("combobox", { name: "谁的用量" }).selectOption("Bo");
-  await expect(page.getByRole("table", { name: "用量", exact: true }).locator("tbody tr").first()).toContainText(
-    "fake:fake-tutor",
-  );
+  await page.getByRole("radio", { name: "按成员" }).click();
+  const byMember = page.getByRole("table", { name: "按成员" });
+  await expect(byMember.getByRole("row", { name: /^Bo/ })).toBeVisible();
   await page.screenshot({ path: test.info().outputPath("main-members.png"), fullPage: true });
 
   // The member's quota is used up: chat says so, and so does settings.

@@ -84,18 +84,23 @@ export function UsageSection() {
 
   const total = board?.total;
   const shownMetric = metric === "cost" && !board?.priced ? "calls" : metric;
-  const shownGrouping = grouping === "members" && (board?.members.length ?? 0) < 2 ? "tasks" : grouping;
-  const featureName = (feature: string) => {
-    // A key built from server data: a feature added later just shows its id.
-    const key = `feature.${feature}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key) : feature;
+  // Members only once someone else used this account's connections (ADR 0031 §8).
+  const hasMembers = (board?.members ?? []).some((m) => m.member !== null);
+  const shownGrouping = grouping === "members" && !hasMembers ? "tasks" : grouping;
+  // Keys built from server data: anything added later just shows its id.
+  const named = (prefix: "feature" | "task", id: string) => {
+    const key = `${prefix}.${id}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : id;
   };
+  const featureName = (feature: string) => named("feature", feature);
+  // Tasks no feature makes (connection tests) are named here, not in the AI badge.
+  const taskName = (task: string) => (isAiTask(task) ? tTask(task) : named("task", task));
   const rows: GroupRow[] = !board
     ? []
     : shownGrouping === "tasks"
       ? board.tasks.map((r) => ({
           key: `${r.task}/${r.background}`,
-          name: isAiTask(r.task) ? tTask(r.task) : r.task,
+          name: taskName(r.task),
           hint: featuresOf[r.task]?.length
             ? t("usedBy", { features: featuresOf[r.task].map(featureName).join(t("separator")) })
             : r.task,
@@ -205,7 +210,7 @@ export function UsageSection() {
                 options={[
                   { value: "tasks", label: t("group.tasks") },
                   { value: "models", label: t("group.models") },
-                  ...(board.members.length > 1 ? [{ value: "members" as const, label: t("group.members") }] : []),
+                  ...(hasMembers ? [{ value: "members" as const, label: t("group.members") }] : []),
                 ]}
               />
               <div className="overflow-x-auto rounded-lg border">

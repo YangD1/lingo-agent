@@ -1037,6 +1037,9 @@
         "none": "None",
         "save": "Save prices",
         "saved": "Prices saved"
+      },
+      "task": {
+        "connection_test": "Connection test"
       }
     },
     "display": {
