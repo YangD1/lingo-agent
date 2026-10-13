@@ -20,12 +20,19 @@ vi.mock("@/components/chat/tutor-panel", () => ({
     conversationId,
     sendFeature,
     onConversationCreated,
+    autoFocus,
   }: {
     conversationId: string | null;
     sendFeature?: string;
     onConversationCreated: (c: Conversation) => void;
+    autoFocus?: boolean;
   }) => (
-    <div data-testid="panel" data-conversation={conversationId ?? "new"} data-feature={sendFeature ?? ""}>
+    <div
+      data-testid="panel"
+      data-conversation={conversationId ?? "new"}
+      data-feature={sendFeature ?? ""}
+      data-autofocus={autoFocus || undefined}
+    >
       <textarea aria-label="Message" />
       <button onClick={() => onConversationCreated(conversation("c9", "Fresh"))}>create</button>
     </div>
@@ -64,7 +71,8 @@ describe("PetChat", () => {
     const panel = await screen.findByTestId("panel");
     expect(panel).toHaveAttribute("data-conversation", "c2");
     expect(screen.getByRole("heading", { name: "Weekend plans" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Message")).toHaveFocus();
+    // The panel focuses its input box once the history is in.
+    expect(panel).toHaveAttribute("data-autofocus", "true");
     expect(screen.getByTestId("pet-chat-open-in-chat")).toHaveAttribute("href", "/chat?c=c2");
   });
 

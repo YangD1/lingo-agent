@@ -54,6 +54,8 @@ type Props = {
   error?: ApiErrorLike | null;
   /** What sending a message calls, for the input box's AI badge. */
   sendFeature?: AiFeature;
+  /** Put the cursor in the input box once it can be typed in. */
+  autoFocus?: boolean;
   className?: string;
 };
 
@@ -74,6 +76,7 @@ export function TutorPanel({
   empty,
   error: outerError = null,
   sendFeature,
+  autoFocus,
   className,
 }: Props) {
   const t = useTranslations("chat");
@@ -170,6 +173,7 @@ export function TutorPanel({
         onStop={session.stop}
         toolbar={<LanguageSwitch />}
         sendFeature={sendFeature}
+        autoFocus={autoFocus}
       />
     </section>
   );

@@ -116,11 +116,12 @@ describe("TutorPet", () => {
     const pet = screen.getByTestId("tutor-pet");
     pet.getBoundingClientRect = () => new DOMRect(900, 600, 88, 88);
     fireEvent.pointerDown(pet, { button: 0, pointerId: 1, clientX: 940, clientY: 640 });
-    fireEvent.pointerMove(pet, { pointerId: 1, clientX: 700, clientY: 640 });
+    // A quick drag is off the pet's box at once: the page hears the rest of it.
+    fireEvent.pointerMove(document.body, { pointerId: 1, clientX: 700, clientY: 640 });
     // Still on the right half while moving: it follows the pointer.
     expect(pet.style.left).toBe("660px");
-    fireEvent.pointerMove(pet, { pointerId: 1, clientX: 200, clientY: 340 });
-    fireEvent.pointerUp(pet, { pointerId: 1, clientX: 200, clientY: 340 });
+    fireEvent.pointerMove(document.body, { pointerId: 1, clientX: 200, clientY: 340 });
+    fireEvent.pointerUp(document.body, { pointerId: 1, clientX: 200, clientY: 340 });
 
     expect(stored()).toEqual({ side: "left", bottom: 412, collapsed: false });
     expect(pet).toHaveAttribute("data-side", "left");

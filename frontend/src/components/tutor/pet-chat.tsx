@@ -3,7 +3,7 @@
 import { ExternalLinkIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { TutorPanel } from "@/components/chat/tutor-panel";
 import { buttonVariants } from "@/components/ui/button";
@@ -46,7 +46,6 @@ export function PetChat({
   const t = useTranslations("tutorPet");
   // undefined: still finding the conversation to go on with.
   const [conversation, setConversation] = useState<Conversation | null | undefined>(kept ?? undefined);
-  const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let live = true;
@@ -72,16 +71,9 @@ export function PetChat({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Open to typing: the input box takes the focus once it is there.
-  useEffect(() => {
-    if (conversation === undefined) return;
-    box.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
-  }, [conversation]);
-
   const chatHref = conversation ? `/chat?c=${conversation.id}` : "/chat";
   return (
     <div
-      ref={box}
       role="dialog"
       aria-label={t("chatTitle", { name })}
       data-testid="pet-chat"
@@ -131,6 +123,8 @@ export function PetChat({
             }, () => {});
           }}
           sendFeature={conversation?.article_id ? "reading_coach" : undefined}
+          // Open to typing.
+          autoFocus
         />
       )}
     </div>

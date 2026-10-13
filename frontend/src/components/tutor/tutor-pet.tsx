@@ -102,6 +102,52 @@ export function TutorPet() {
     if (onChatPage) setChatOpen(false);
   }
 
+  // Followed on the window while pressed: a quick drag leaves the pet's box before it
+  // counts as one, and the box would hear no more of it.
+  const collapsed = place.collapsed;
+  useEffect(() => {
+    if (!drag) return;
+    const move = (e: PointerEvent) => {
+      if (e.pointerId !== drag.pointer) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (!drag.at && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      // Captured only once it is a drag: capturing on press would take a tap's click away
+      // from the button pressed.
+      if (!drag.at) box.current?.setPointerCapture?.(e.pointerId);
+      const { rect } = drag;
+      setDrag({
+        ...drag,
+        at: {
+          left: clamp(rect.left + dx, 0, window.innerWidth - rect.width),
+          top: clamp(rect.top + dy, 0, window.innerHeight - rect.height),
+        },
+      });
+    };
+    const up = (e: PointerEvent) => {
+      if (e.pointerId !== drag.pointer) return;
+      setDrag(null);
+      if (!drag.at) return;
+      dragged.current = true;
+      setPlace(
+        placeAfterDrop(
+          { ...drag.at, width: drag.rect.width, height: drag.rect.height },
+          { width: window.innerWidth, height: window.innerHeight },
+          collapsed,
+        ),
+      );
+    };
+    const cancel = () => setDrag(null);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+    };
+  }, [drag, collapsed, setPlace]);
+
   if (!tutor?.pet) return null;
   const name = tutor.display_name;
   const size = place.collapsed ? COLLAPSED_SIZE : wide ? PET_SIZE.wide : PET_SIZE.narrow;
@@ -116,36 +162,6 @@ export function TutorPet() {
       rect: box.current.getBoundingClientRect(),
       at: null,
     });
-  };
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!drag || e.pointerId !== drag.pointer) return;
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
-    if (!drag.at && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
-    // Captured only once it is a drag: capturing on press would take a tap's click away
-    // from the button pressed.
-    if (!drag.at) box.current?.setPointerCapture?.(e.pointerId);
-    const { rect } = drag;
-    setDrag({
-      ...drag,
-      at: {
-        left: clamp(rect.left + dx, 0, window.innerWidth - rect.width),
-        top: clamp(rect.top + dy, 0, window.innerHeight - rect.height),
-      },
-    });
-  };
-  const onPointerUp = (e: React.PointerEvent) => {
-    if (!drag || e.pointerId !== drag.pointer) return;
-    setDrag(null);
-    if (!drag.at) return;
-    dragged.current = true;
-    setPlace(
-      placeAfterDrop(
-        { ...drag.at, width: drag.rect.width, height: drag.rect.height },
-        { width: window.innerWidth, height: window.innerHeight },
-        place.collapsed,
-      ),
-    );
   };
   // A tap opens the chat window; on the chat page it only puts the cursor in the input box.
   const onTap = () => {
@@ -178,9 +194,6 @@ export function TutorPet() {
       data-collapsed={place.collapsed || undefined}
       style={style}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={() => setDrag(null)}
       onClickCapture={notAfterDrag}
       className={cn(
         "group fixed z-40 touch-none select-none",

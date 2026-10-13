@@ -7,6 +7,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -36,6 +37,8 @@ type Props = {
   toolbar?: ReactNode;
   /** What sending calls (ADR 0014): reading_coach in a reading conversation. */
   sendFeature?: AiFeature;
+  /** Put the cursor in the input box once it can be typed in. */
+  autoFocus?: boolean;
 };
 
 const clock = (seconds: number) =>
@@ -49,11 +52,18 @@ export function Composer({
   onStop,
   toolbar,
   sendFeature = "chat_message",
+  autoFocus = false,
 }: Props) {
   const t = useTranslations("chat");
   const [text, setText] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   const recorder = useRecorder((file) => tray.add([file]));
+
+  // Disabled while the history loads: focused once it is enabled.
+  useEffect(() => {
+    if (autoFocus && !disabled) input.current?.focus();
+  }, [autoFocus, disabled]);
 
   const empty = !text.trim() && tray.items.length === 0;
   const blocked = streaming || disabled || tray.pending || recorder.recording;
@@ -181,6 +191,7 @@ export function Composer({
               </div>
             ) : (
               <Textarea
+                ref={input}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={onKeyDown}
