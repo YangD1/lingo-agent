@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-10-13 任务 66.8 完成（私教对话小窗）
+
+**做了什么**：`components/tutor/pet-chat.tsx`。点桌宠在当前页弹出小窗，接着 `/conversations` 里最近的一条对话，里面复用 `TutorPanel`。小窗可以“在聊天页打开”，Esc 或关闭按钮关掉。在聊天页点桌宠只聚焦输入框（`data-chat-input`），进入聊天页时小窗会自动关掉。`features.yaml` 在 `chat_message` 加了注释，说明小窗沿用它。
+
+**下一步**：66.9：E2E（设置形象和音色 → 桌宠出现 → 拖动和收起 → 朗读时动 → 点开小窗对话 → 成员只能选主账号链里的模型 → 恢复默认）、截图核对桌宠和“我的私教”页的实际样子、README 中英、ADR 0032 落地记录、`make ci`、推送、CI、重建 Docker。
+
+**踩坑**：测试里没有 Next 路由时 `usePathname()` 返回 null，要写 `?? ""`。eslint 的 `react-hooks/set-state-in-effect` 不允许在 effect 里同步 setState，“进入聊天页就关小窗”改成在渲染时比较上一次的路径来调整状态。
+
+---
+
 ## 2026-10-13 任务 66.7 完成（桌宠反应）
 
 **做了什么**：`lib/tutor-pet.ts` 事件总线：听 / 想按计数叠加，开心一次只跳一下，今日计划每天只开心一次，3 分钟没操作就打盹，入睡 2 秒后停帧。“说”来自 `voice-level` 新增的 `voiceActive`。形象加了 `sleeping` 状态、`stillPose` 和 z 字动画。接入点：两个录音 hook、`use-chat-session`（等首个 token）、练习答对、背词一轮完成、看板今日计划完成。

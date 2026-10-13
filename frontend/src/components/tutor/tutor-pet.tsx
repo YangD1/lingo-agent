@@ -1,14 +1,16 @@
 "use client";
 
 import { ChevronDownIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { type PetPlace, usePetPlace } from "@/lib/preferences";
 import { useTutor } from "@/lib/tutor";
 import { usePetState } from "@/lib/tutor-pet";
 import { cn } from "@/lib/utils";
 
+import { PetChat } from "./pet-chat";
 import { TutorAvatar } from "./tutor-avatar";
 
 /** A press that moves less than this is a tap, not a drag. */
@@ -89,6 +91,16 @@ export function TutorPet() {
   const [drag, setDrag] = useState<Drag | null>(null);
   // A drag ends with a click on what was pressed: that click is not a tap.
   const dragged = useRef(false);
+  const pathname = usePathname() ?? "";
+  const onChatPage = pathname === "/chat" || pathname.startsWith("/chat/");
+  const [chatOpen, setChatOpen] = useState(false);
+  const closeChat = useCallback(() => setChatOpen(false), []);
+  // The chat page is the conversation itself: arriving there closes the window.
+  const [wasOnChatPage, setWasOnChatPage] = useState(onChatPage);
+  if (onChatPage !== wasOnChatPage) {
+    setWasOnChatPage(onChatPage);
+    if (onChatPage) setChatOpen(false);
+  }
 
   if (!tutor?.pet) return null;
   const name = tutor.display_name;
@@ -135,6 +147,11 @@ export function TutorPet() {
       ),
     );
   };
+  // A tap opens the chat window; on the chat page it only puts the cursor in the input box.
+  const onTap = () => {
+    if (!onChatPage) return setChatOpen((open) => !open);
+    document.querySelector<HTMLTextAreaElement>("[data-chat-input]")?.focus();
+  };
   const notAfterDrag = (e: React.MouseEvent) => {
     if (!dragged.current) return;
     dragged.current = false;
@@ -152,6 +169,8 @@ export function TutorPet() {
       };
 
   return (
+    <>
+    {chatOpen && <PetChat name={name} side={place.side} onClose={closeChat} />}
     <div
       ref={box}
       data-testid="tutor-pet"
@@ -191,15 +210,26 @@ export function TutorPet() {
         </button>
       ) : (
         <>
-          <TutorAvatar
-            outfit={tutor.display_avatar}
-            fur={tutor.color}
-            animate={tutor.animate && !dozing}
-            state={state}
-            size={size}
-            label={t("label", { name })}
-            className="drop-shadow-md"
-          />
+          <button
+            type="button"
+            aria-label={onChatPage ? t("focusInput", { name }) : t("open", { name })}
+            title={onChatPage ? t("focusInput", { name }) : t("open", { name })}
+            aria-expanded={onChatPage ? undefined : chatOpen}
+            aria-haspopup={onChatPage ? undefined : "dialog"}
+            onClick={onTap}
+            data-testid="tutor-pet-button"
+            className="block rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <TutorAvatar
+              outfit={tutor.display_avatar}
+              fur={tutor.color}
+              animate={tutor.animate && !dozing}
+              state={state}
+              size={size}
+              label={t("label", { name })}
+              className="drop-shadow-md"
+            />
+          </button>
           <button
             type="button"
             aria-label={t("collapse")}
@@ -217,6 +247,7 @@ export function TutorPet() {
         </>
       )}
     </div>
+    </>
   );
 }
 

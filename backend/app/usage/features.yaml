@@ -23,6 +23,8 @@
 window: 20
 
 features:
+  # Also the desk pet's chat window (ADR 0032 §4a): the same conversation, the same calls;
+  # its input box carries this badge.
   chat_message:
     calls:
       - task: chat

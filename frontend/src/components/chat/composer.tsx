@@ -187,6 +187,7 @@ export function Composer({
                 onPaste={onPaste}
                 placeholder={t("placeholder")}
                 aria-label={t("placeholder")}
+                data-chat-input
                 maxLength={MAX_LENGTH}
                 rows={2}
                 disabled={disabled}

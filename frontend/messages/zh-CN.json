@@ -2238,6 +2238,11 @@
   "tutorPet": {
     "label": "{name}，你的私教",
     "collapse": "收起桌宠",
-    "expand": "展开桌宠 {name}"
+    "expand": "展开桌宠 {name}",
+    "open": "和 {name} 聊天",
+    "focusInput": "{name}：在输入框里打字",
+    "chatTitle": "和 {name} 聊天",
+    "openInChat": "在聊天页打开",
+    "close": "关闭"
   }
 }

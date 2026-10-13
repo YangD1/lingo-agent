@@ -15,6 +15,18 @@ vi.mock("@/lib/tutor", async (importOriginal) => ({
   useTutor: () => tutor.current,
 }));
 
+const nav = vi.hoisted(() => ({ pathname: "/dashboard" }));
+vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }));
+
+// The window has its own tests.
+vi.mock("./pet-chat", () => ({
+  PetChat: ({ side, onClose }: { side: string; onClose: () => void }) => (
+    <div role="dialog" data-side={side}>
+      <button onClick={onClose}>close window</button>
+    </div>
+  ),
+}));
+
 // jsdom has no 2D canvas; the avatar has its own tests.
 vi.mock("./tutor-avatar", () => ({
   TutorAvatar: ({
@@ -50,6 +62,7 @@ function show() {
 }
 
 beforeEach(() => {
+  nav.pathname = "/dashboard";
   tutor.current = { ...DEFAULT_TUTOR, name: "Max", display_name: "Max" };
   vi.stubGlobal("innerWidth", 1000);
   vi.stubGlobal("innerHeight", 800);
@@ -197,6 +210,46 @@ describe("TutorPet reacting", () => {
       expect(avatar()).toHaveAttribute("data-animate", "true");
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe("TutorPet chat", () => {
+  it("opens the chat window on a tap, on its side, and closes it again", async () => {
+    show();
+    const pet = screen.getByRole("button", { name: "Chat with Max" });
+    expect(pet).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(pet);
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-side", "right");
+    expect(pet).toHaveAttribute("aria-expanded", "true");
+    await userEvent.click(screen.getByRole("button", { name: "close window" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("doesn't open after a drag", () => {
+    show();
+    const pet = screen.getByTestId("tutor-pet");
+    pet.getBoundingClientRect = () => new DOMRect(900, 600, 88, 88);
+    const button = screen.getByTestId("tutor-pet-button");
+    fireEvent.pointerDown(button, { button: 0, pointerId: 1, clientX: 940, clientY: 640 });
+    fireEvent.pointerMove(button, { pointerId: 1, clientX: 600, clientY: 640 });
+    fireEvent.pointerUp(button, { pointerId: 1, clientX: 600, clientY: 640 });
+    fireEvent.click(button);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("on the chat page only puts the cursor in the message box", async () => {
+    nav.pathname = "/chat";
+    const input = document.createElement("textarea");
+    input.setAttribute("data-chat-input", "");
+    document.body.append(input);
+    try {
+      show();
+      await userEvent.click(screen.getByRole("button", { name: "Max: type in the message box" }));
+      expect(input).toHaveFocus();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    } finally {
+      input.remove();
     }
   });
 });
