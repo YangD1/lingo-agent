@@ -9,16 +9,32 @@
 export type LevelSource = (now: number) => number;
 
 let current: LevelSource | null = null;
+const activeListeners = new Set<() => void>();
+
+function setCurrent(source: LevelSource | null) {
+  const was = current !== null;
+  current = source;
+  if (was !== (source !== null)) activeListeners.forEach((listener) => listener());
+}
 
 /**
  * Makes `source` the one the avatar follows; the returned function stops it, unless
  * another source has taken over since.
  */
 export function setLevelSource(source: LevelSource): () => void {
-  current = source;
+  setCurrent(source);
   return () => {
-    if (current === source) current = null;
+    if (current === source) setCurrent(null);
   };
+}
+
+/** Whether the tutor's voice is playing now (a reading, or a call): the pet talks. */
+export const voiceActive = () => current !== null;
+
+/** Calls `listener` whenever the voice starts or stops; returns how to stop listening. */
+export function subscribeVoiceActive(listener: () => void): () => void {
+  activeListeners.add(listener);
+  return () => activeListeners.delete(listener);
 }
 
 /** The tutor's level now: 0 when nothing is speaking. */

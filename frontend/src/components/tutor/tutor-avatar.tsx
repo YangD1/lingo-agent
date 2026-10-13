@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { voiceLevel, watchLevel } from "@/lib/voice-level";
 
 import { drawAvatar, OUTFITS, paletteFor, type Outfit } from "./avatar-draw";
-import { createAnimator, REST_POSE, type AvatarState } from "./avatar-state";
+import { createAnimator, stillPose, type AvatarState } from "./avatar-state";
 
 /**
  * The learner's tutor, a cat in an outfit (ADR 0032 §4), drawn on a canvas at the screen's
@@ -58,7 +58,7 @@ export function TutorAvatar({
     if (moving) return;
     const ctx = prepare(canvas.current, size);
     if (!ctx) return;
-    drawAvatar(ctx, REST_POSE, {
+    drawAvatar(ctx, stillPose(state), {
       outfit: shownOutfit,
       palette,
       small,

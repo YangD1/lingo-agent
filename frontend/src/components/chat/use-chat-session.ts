@@ -8,6 +8,7 @@ import { api, ApiError, isAbortError } from "@/lib/api";
 import type { TutorCard } from "@/lib/cards";
 import { type ChatEvent, OPENING_TURN_ID, streamChat, streamOpening } from "@/lib/sse";
 import type { Attachment, Conversation, HistoryMessage } from "@/lib/types";
+import { usePetHold } from "@/lib/tutor-pet";
 
 export type ChatMessage = {
   key: string;
@@ -286,6 +287,10 @@ export function useChatSession(conversationId: string | null, options: Options) 
   }, [conversationId, apply, markInterrupted]);
 
   const stop = useCallback(() => abortRef.current?.abort(), []);
+
+  // Waiting on the tutor's first words: the desk pet thinks (ADR 0032 §4a).
+  const last = messages.at(-1);
+  usePetHold("thinking", streaming && last?.role === "assistant" && last.content === "");
 
   /** The conversation whose history is on screen, once it is; null before that. */
   const readyFor = loadedFor === conversationId ? conversationId : null;

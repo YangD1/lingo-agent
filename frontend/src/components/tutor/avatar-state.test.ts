@@ -8,6 +8,8 @@ import {
   createAnimator,
   followMouth,
   JOY_MS,
+  REST_POSE,
+  stillPose,
   type AvatarState,
 } from "./avatar-state";
 
@@ -97,6 +99,23 @@ describe("states", () => {
     const hops = poses.filter((p) => p.hop < -5).map((p) => p.t);
     expect(hops.some((t) => t < 2000)).toBe(true);
     expect(hops.some((t) => t > 2500)).toBe(true);
+  });
+
+  it("sleeping shuts the eyes, without blinking, and lets the z's rise", () => {
+    const poses = run(BLINK_MAX_MS * 2, "sleeping");
+    const settled = poses.filter((p) => p.t > 1000);
+    expect(Math.max(...settled.map((p) => p.eyes))).toBeLessThan(0.01);
+    expect(settled.at(-1)!.sleep).toBeCloseTo(1, 2);
+    expect(settled.at(-1)!.dip).toBeGreaterThan(1.9);
+    // Waking: the eyes open again.
+    const woken = run(2000, (t) => (t < 1000 ? "sleeping" : "idle")).at(-1)!;
+    expect(woken.eyes).toBeGreaterThan(0.95);
+    expect(woken.sleep).toBeLessThan(0.01);
+  });
+
+  it("draws asleep when still, everything else at rest", () => {
+    expect(stillPose("sleeping")).toMatchObject({ eyes: 0, sleep: 1 });
+    expect(stillPose("speaking")).toBe(REST_POSE);
   });
 
   it("takes a long gap (hidden tab) as one short step", () => {

@@ -2,10 +2,11 @@
 
 import { ChevronDownIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { type PetPlace, usePetPlace } from "@/lib/preferences";
 import { useTutor } from "@/lib/tutor";
+import { usePetState } from "@/lib/tutor-pet";
 import { cn } from "@/lib/utils";
 
 import { TutorAvatar } from "./tutor-avatar";
@@ -19,6 +20,22 @@ const PET_SIZE = { wide: 88, narrow: 64 };
 const COLLAPSED_SIZE = 40;
 
 const WIDE = "(min-width: 768px)";
+/** Once asleep this long, the pet is drawn still: no frames while it dozes (Q66o). */
+export const DOZE_SETTLE_MS = 2000;
+
+/** Whether `on` has held for `ms`. */
+function useHeld(on: boolean, ms: number): boolean {
+  const [held, setHeld] = useState(false);
+  useEffect(() => {
+    if (!on) return;
+    const timer = setTimeout(() => setHeld(true), ms);
+    return () => {
+      clearTimeout(timer);
+      setHeld(false);
+    };
+  }, [on, ms]);
+  return on && held;
+}
 
 function useWide(): boolean {
   return useSyncExternalStore(
@@ -59,12 +76,14 @@ type Drag = {
  * The learner's tutor as a desk pet (ADR 0032 §4a): floating in a corner of every page,
  * draggable to either edge, collapsible to a small button. Where it sits is kept on this
  * device; whether it shows is the learner's tutor setting. Smaller on phones, and above
- * the tab bar there.
+ * the tab bar there. It reacts to what the pages report (`lib/tutor-pet.ts`).
  */
 export function TutorPet() {
   const tutor = useTutor();
   const [place, setPlace] = usePetPlace();
   const wide = useWide();
+  const state = usePetState();
+  const dozing = useHeld(state === "sleeping", DOZE_SETTLE_MS);
   const t = useTranslations("tutorPet");
   const box = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -175,7 +194,8 @@ export function TutorPet() {
           <TutorAvatar
             outfit={tutor.display_avatar}
             fur={tutor.color}
-            animate={tutor.animate}
+            animate={tutor.animate && !dozing}
+            state={state}
             size={size}
             label={t("label", { name })}
             className="drop-shadow-md"

@@ -137,6 +137,7 @@ export function drawAvatar(ctx: Ctx, pose: Pose, options: DrawOptions) {
   if (!small) {
     if (pose.think > 0.01) drawDots(ctx, pose, options.ink);
     if (pose.listen > 0.01) drawWaves(ctx, pose, options.ink);
+    if (pose.sleep > 0.01) drawZs(ctx, pose, options.ink);
   }
   if (pose.sparkle > 0.01) drawSparkles(ctx, pose);
   if (options.speakerMark) drawSpeaker(ctx, options.ink);
@@ -336,6 +337,14 @@ function drawEyes(ctx: Ctx, pose: Pose, p: Palette) {
   for (const side of [-1, 1]) {
     const x = 50 + side * EYE_X + pose.lookX * 1.6;
     const y = EYE_Y + pose.lookY * 1.6;
+    if (pose.sleep > 0.5) {
+      // Asleep: shut, curving down.
+      stroke(ctx, OUTLINE, 2.4, () => {
+        ctx.moveTo(x - 4, y - 0.5);
+        ctx.quadraticCurveTo(x, y + 3.5, x + 4, y - 0.5);
+      });
+      continue;
+    }
     if (pose.smile > 0.5) {
       // ^^: happy, squeezed shut.
       stroke(ctx, OUTLINE, 2.4, () => {
@@ -536,6 +545,21 @@ function drawWaves(ctx: Ctx, pose: Pose, ink: string) {
     ctx.beginPath();
     ctx.arc(86, 40, 3 + i * 3.5, -Math.PI / 3.2, Math.PI / 3.2);
     ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawZs(ctx: Ctx, pose: Pose, ink: string) {
+  ctx.fillStyle = ink;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i < 3; i++) {
+    // Each z rises from the head and fades, bigger as it goes; still, they sit in a row.
+    const phase = (pose.time / 3 + i / 3) % 1;
+    const rise = pose.time > 0 ? phase : i / 3;
+    ctx.globalAlpha = pose.sleep * (pose.time > 0 ? Math.sin(Math.PI * rise) : 0.8);
+    ctx.font = `bold ${7 + rise * 6}px sans-serif`;
+    ctx.fillText("z", 76 + rise * 14, 22 - rise * 16);
   }
   ctx.globalAlpha = 1;
 }

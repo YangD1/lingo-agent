@@ -7,7 +7,7 @@ import { DEFAULT_PET_PLACE, parsePetPlace } from "@/lib/preferences";
 import { DEFAULT_TUTOR, type Tutor } from "@/lib/tutor";
 
 import en from "../../../messages/en.json";
-import { placeAfterDrop, TutorPet } from "./tutor-pet";
+import { DOZE_SETTLE_MS, placeAfterDrop, TutorPet } from "./tutor-pet";
 
 const tutor = vi.hoisted(() => ({ current: null as Tutor | null }));
 vi.mock("@/lib/tutor", async (importOriginal) => ({
@@ -17,12 +17,23 @@ vi.mock("@/lib/tutor", async (importOriginal) => ({
 
 // jsdom has no 2D canvas; the avatar has its own tests.
 vi.mock("./tutor-avatar", () => ({
-  TutorAvatar: ({ label, size, animate }: { label: string; size: number; animate: boolean }) => (
+  TutorAvatar: ({
+    label,
+    size,
+    animate,
+    state,
+  }: {
+    label: string;
+    size: number;
+    animate: boolean;
+    state?: string;
+  }) => (
     <span
       role={label ? "img" : undefined}
       aria-label={label || undefined}
       data-size={size}
       data-animate={String(animate)}
+      data-state={state}
     />
   ),
 }));
@@ -157,5 +168,35 @@ describe("parsePetPlace", () => {
       bottom: 42,
       collapsed: true,
     });
+  });
+});
+
+describe("TutorPet reacting", () => {
+  it("shows what the pages report, and stops drawing once it has dozed off", async () => {
+    vi.useFakeTimers();
+    try {
+      const bus = await import("@/lib/tutor-pet");
+      bus.resetPet();
+      show();
+      const avatar = () => screen.getByRole("img", { name: "Max, your tutor" });
+      let stop = () => {};
+      act(() => {
+        stop = bus.petHold("listening");
+      });
+      expect(avatar()).toHaveAttribute("data-state", "listening");
+      act(() => stop());
+
+      act(() => bus.checkSleep(Date.now() + bus.SLEEP_AFTER_MS));
+      expect(avatar()).toHaveAttribute("data-state", "sleeping");
+      expect(avatar()).toHaveAttribute("data-animate", "true"); // still settling
+      act(() => vi.advanceTimersByTime(DOZE_SETTLE_MS));
+      expect(avatar()).toHaveAttribute("data-animate", "false");
+
+      act(() => bus.petActivity());
+      expect(avatar()).toHaveAttribute("data-state", "idle");
+      expect(avatar()).toHaveAttribute("data-animate", "true");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

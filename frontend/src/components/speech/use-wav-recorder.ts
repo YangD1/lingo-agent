@@ -12,6 +12,7 @@ import {
 } from "@/components/chat/use-recorder";
 import { canTapMicrophone, type MicTap, MicTapError, openMicTap } from "@/lib/mic-tap";
 import { recordingToWav } from "@/lib/wav";
+import { usePetHold } from "@/lib/tutor-pet";
 
 /** Pronunciation assessment takes at most 30 seconds (ADR 0028 §5). */
 export const MAX_SHADOWING_SECONDS = 30;
@@ -116,5 +117,6 @@ export function useWavRecorder(onRecorded: (file: File) => void) {
   // Leaving the page mid-recording releases the microphone and keeps nothing.
   useEffect(() => cancel, [cancel]);
 
+  usePetHold("listening", recording); // the desk pet listens along (ADR 0032 §4a)
   return { recording, seconds, level, error, start, stop, cancel };
 }

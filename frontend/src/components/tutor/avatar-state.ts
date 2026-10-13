@@ -3,8 +3,11 @@
  * the time and the voice level into one frame's pose. Drawing is `avatar-draw.ts`.
  */
 
-/** What the tutor is doing: waiting, hearing the learner, waiting on the reply, talking, glad. */
-export type AvatarState = "idle" | "listening" | "thinking" | "speaking" | "happy";
+/**
+ * What the tutor is doing: waiting, hearing the learner, waiting on the reply, talking, glad,
+ * or dozing after the learner has left it alone for a while (ADR 0032 §4a).
+ */
+export type AvatarState = "idle" | "listening" | "thinking" | "speaking" | "happy" | "sleeping";
 
 export type Pose = {
   /** Seconds since the animator started: for what loops (breath, tail, dots, waves). */
@@ -28,6 +31,8 @@ export type Pose = {
   listen: number;
   think: number;
   sparkle: number;
+  /** 0..1: dozing, eyes shut and the z's rising. */
+  sleep: number;
   /** 0..1 through the happy hop and sparkles; 1 once they are over. */
   joy: number;
 };
@@ -46,18 +51,39 @@ export const REST_POSE: Pose = {
   listen: 0,
   think: 0,
   sparkle: 0,
+  sleep: 0,
   joy: 1,
 };
 
-type Target = Pick<Pose, "tilt" | "dip" | "eyes" | "smile" | "lookX" | "lookY" | "listen" | "think" | "sparkle">;
+/** The still pose for `state`: asleep is drawn asleep, everything else at rest. */
+export function stillPose(state: AvatarState): Pose {
+  return state === "sleeping" ? { ...REST_POSE, ...TARGETS.sleeping } : REST_POSE;
+}
 
-const IDLE: Target = { tilt: 0, dip: 0, eyes: 1, smile: 0, lookX: 0, lookY: 0, listen: 0, think: 0, sparkle: 0 };
+type Target = Pick<
+  Pose,
+  "tilt" | "dip" | "eyes" | "smile" | "lookX" | "lookY" | "listen" | "think" | "sparkle" | "sleep"
+>;
+
+const IDLE: Target = {
+  tilt: 0,
+  dip: 0,
+  eyes: 1,
+  smile: 0,
+  lookX: 0,
+  lookY: 0,
+  listen: 0,
+  think: 0,
+  sparkle: 0,
+  sleep: 0,
+};
 
 const TARGETS: Record<Exclude<AvatarState, "happy">, Target> = {
   idle: IDLE,
   listening: { ...IDLE, tilt: 0.12, dip: 1.5, eyes: 1.12, lookX: 0.3, listen: 1 },
   thinking: { ...IDLE, tilt: -0.08, eyes: 0.9, lookX: 0.6, lookY: -0.8, think: 1 },
   speaking: IDLE,
+  sleeping: { ...IDLE, tilt: 0.1, dip: 2, eyes: 0, lookY: 0.4, sleep: 1 },
 };
 
 // Changes of state ease over about this long, so the cat never jumps.
@@ -140,7 +166,8 @@ export function createAnimator(random: () => number = Math.random): Animator {
       if (now >= nextBlink + BLINK_MS) nextBlink = now + blinkGap();
       // On top of the eased pose, not into it: the blink, and talking's small nod.
       const nod = state === "speaking" ? 0.04 * Math.sin(pose.time * 5) * pose.mouth : 0;
-      return { ...pose, tilt: pose.tilt + nod, eyes: pose.eyes * (1 - blinkAt(now - nextBlink)) };
+      const blink = state === "sleeping" ? 0 : blinkAt(now - nextBlink);
+      return { ...pose, tilt: pose.tilt + nod, eyes: pose.eyes * (1 - blink) };
     },
   };
 }

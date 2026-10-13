@@ -3,7 +3,7 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PlanEditor, roundMinutes, useItemLabel } from "@/components/plan/plan-editor";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import {
   type PlanChoice,
   type PlanItem,
 } from "@/lib/plan";
+import { petPlanDone } from "@/lib/tutor-pet";
 import { cn } from "@/lib/utils";
 
 /**
@@ -110,6 +111,11 @@ function PlanBody({
   const [choice, setChoice] = useState<PlanChoice>(plan.choice);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiErrorLike | null>(null);
+  const allDone =
+    plan.status === "applied" && plan.items.length > 0 && plan.items.every((i) => i.complete);
+  useEffect(() => {
+    if (allDone) petPlanDone(plan.day); // the desk pet hops, once a day (ADR 0032 §4a)
+  }, [allDone, plan.day]);
 
   const act = (action: PlanAction) => {
     setBusy(true);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePetHold } from "@/lib/tutor-pet";
 
 /** Voice messages stop here on their own (ADR 0008 §3: the backend only limits size). */
 export const MAX_RECORDING_SECONDS = 180;
@@ -165,5 +166,6 @@ export function useRecorder(
   // Leaving the page mid-recording releases the microphone and keeps nothing.
   useEffect(() => cancel, [cancel]);
 
+  usePetHold("listening", recording); // the desk pet listens along (ADR 0032 §4a)
   return { recording, seconds, level, error, start, stop, cancel };
 }

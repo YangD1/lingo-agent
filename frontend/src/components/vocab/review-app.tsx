@@ -17,6 +17,7 @@ import { Tag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
 import { isShortcut } from "@/lib/keyboard";
 import { useReviewChoice } from "@/lib/preferences";
+import { petHappy } from "@/lib/tutor-pet";
 import { speakWord, useCanSpeak } from "@/lib/speech";
 import { cn } from "@/lib/utils";
 import {
@@ -63,6 +64,11 @@ export function ReviewApp({ mode }: { mode: ReviewMode }) {
   const speakable = useCanSpeak();
   const locale = useLocale();
   const [choice, setChoice] = useReviewChoice();
+  // A round of words done: the desk pet hops (ADR 0032 §4a).
+  const roundDone = !session.loading && !current && session.error == null && session.reviewed > 0;
+  useEffect(() => {
+    if (roundDone) petHappy();
+  }, [roundDone]);
 
   // A card is one sitting's turn: the same word can come back after a miss.
   const turn = current ? `${current.word.id}:${session.reviewed}` : "";

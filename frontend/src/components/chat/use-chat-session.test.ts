@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api";
 import type { ChatEvent } from "@/lib/sse";
+import { petState, resetPet } from "@/lib/tutor-pet";
 
 import { useChatSession } from "./use-chat-session";
 
@@ -87,6 +88,33 @@ describe("useChatSession", () => {
     rerender({ id: "c1" });
     expect(api).toHaveBeenCalledTimes(1);
     expect(result.current.messages).toHaveLength(2);
+  });
+
+  it("has the desk pet think until the tutor's first words", async () => {
+    resetPet();
+    api.mockResolvedValue([]);
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    streamChat.mockReturnValue(
+      (async function* () {
+        yield { event: "activity", turn_id: "u1", name: "load_context", kind: "step", call_id: "", status: "ok", duration_ms: 1, summary: {} } as ChatEvent;
+        await gate;
+        yield { event: "token", text: "Hi" } as ChatEvent;
+        yield { event: "done", message_id: "m1", turn_id: "u1", usage: {} } as ChatEvent;
+      })(),
+    );
+    const { result } = setup("c1");
+
+    let sending: Promise<boolean> = Promise.resolve(true);
+    act(() => {
+      sending = result.current.send("Hello");
+    });
+    await waitFor(() => expect(petState()).toBe("thinking"));
+    await act(async () => {
+      release();
+      await sending;
+    });
+    expect(petState()).toBe("idle");
   });
 
   it("takes everything back when the first send is refused", async () => {

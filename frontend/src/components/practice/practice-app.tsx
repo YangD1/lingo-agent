@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorText } from "@/components/ui/error-text";
 import { ApiError } from "@/lib/api";
 import { kcName } from "@/lib/learner";
+import { petHappy } from "@/lib/tutor-pet";
 import {
   answerItem,
   fetchRecentSets,
@@ -137,6 +138,7 @@ export function PracticeApp({ from, kc }: { from: Origin | null; kc: string | nu
     try {
       const { item, set_done } = await run();
       setView({ kind: "set", set: replaceItem(set, item), current });
+      if (item.result?.correct) petHappy();
       if (set_done) setFinished(true);
     } catch (e) {
       setItemError(describe(e));
