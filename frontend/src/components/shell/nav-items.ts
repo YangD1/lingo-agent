@@ -1,5 +1,6 @@
 import {
   BookOpenIcon,
+  CatIcon,
   ClipboardCheckIcon,
   FilePenLineIcon,
   LayoutGridIcon,
@@ -23,6 +24,7 @@ export type NavKey =
   | "speaking"
   | "learner"
   | "placement"
+  | "tutor"
   | "memory"
   | "settings";
 
@@ -52,6 +54,7 @@ export const NAV_GROUPS: { key: "groupLearn" | "groupProgress" | "groupMine"; it
   {
     key: "groupMine",
     items: [
+      { key: "tutor", href: "/tutor", icon: CatIcon },
       { key: "memory", href: "/memory", icon: NotebookPenIcon },
       { key: "settings", href: "/settings", icon: SettingsIcon },
     ],

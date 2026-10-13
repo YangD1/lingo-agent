@@ -882,6 +882,46 @@ export function speakWord(word: string) {
   read(null, [{ text: word.trim(), lang: "en-US", word: true }]);
 }
 
+/**
+ * Reads `text` for `owner` with a server `voice` not saved yet, cutting off whatever was
+ * being read: a voice tried on the tutor page (ADR 0032 §2). Only the server can, so no
+ * browser fallback; rejects with the server's error (e.g. an ApiError) for the page to show.
+ */
+export async function tryServerVoice(
+  owner: string,
+  text: string,
+  language: ServerLang,
+  voice: string,
+): Promise<void> {
+  cutOff();
+  const id = reading;
+  const controller = new AbortController();
+  stopRequests = controller;
+  unlockPlayer();
+  setSpeaking(owner);
+  try {
+    const response = await apiFetch("/speech/tts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text,
+        language,
+        speed: language === "zh-CN" ? ZH_RATE : currentSettings().enRate,
+        voice,
+      }),
+      signal: controller.signal,
+    });
+    const audio = await response.blob();
+    if (id !== reading) return;
+    await playAudio(audio, playbackRate(response.headers.get("x-tts-playback-rate")));
+  } catch (error) {
+    if (controller.signal.aborted) return; // stopped: nothing failed
+    throw error;
+  } finally {
+    if (id === reading) setSpeaking(null);
+  }
+}
+
 export function stopSpeaking() {
   cutOff();
   setSpeaking(null);

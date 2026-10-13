@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-10-13 任务 66.5 完成（“我的私教”页）
+
+**做了什么**：用户确认 66.5–66.9 和 Q66l–p 全部按推荐，写进 ADR 0032 §4a 和 `docs/PLAN.md`（dfa2937）。66.5 后端：`tutor_profiles.pet` + 迁移 `fe7fd0a7941a`；`POST /speech/tts` 加可选 `voice` 用来试听还没保存的音色（`tutor.service.check_voice` 校验，`tts.trying_voice` 只用链首模型、不退后备）（accddc4）。前端：`/tutor` 页、`lib/tutor.ts`（含 `useTutor` / `setTutor` 共享状态）、`speech.tryServerVoice`、侧栏和设置页入口、中英文案、Vitest（`tutor.test.ts` 5 条、`tutor-app.test.tsx` 7 条）。
+
+**下一步**：66.6 桌宠外壳 `TutorPet`。挂在 `(app)/layout.tsx`，用 `useTutor()` 读 `pet`、`avatar`、`color`、`animate`，拖动和收起状态存 localStorage。
+
+**踩坑**：全量 Vitest 在机器负载高时，`mine-app.test.tsx` 的“adds a word…”偶尔超时，单跑能过。tsc / eslint 要用 `node node_modules/typescript/bin/tsc`、`node node_modules/eslint/bin/eslint.js`，因为 `.bin` 下是 shell 脚本，不能用 node 直接执行。还没在浏览器里看过实际页面，留到 66.9 用 E2E 截图核对。
+
+---
+
 ## 2026-10-13 任务 66 改为桌宠方向，重拆 66.5–66.9（待确认）
 
 **做了什么**：用户看完后说明形象不是替换 Lingo 猫，而是像桌宠一样陪伴学习。用户已选：全站浮在角落；朗读 / 通话说话、录音听、等回复想、答对 / 打卡开心、久不操作打盹；点它打开私教对话小窗；聊天 / 口语 / 通话页不再另放大形象。据此在 `docs/PROGRESS.md` 把原 66.5–66.7 重拆成 66.5–66.9，新增 Q66l–p（开关存哪、小窗用哪个会话、带不带当前页内容、打盹、开心时机），**都还没确认，也没写代码**。

@@ -133,7 +133,8 @@
     "practice": "Grammar practice",
     "writing": "Writing",
     "reading": "Reading",
-    "speaking": "Speaking"
+    "speaking": "Speaking",
+    "tutor": "My tutor"
   },
   "chat": {
     "newChat": "New chat",
@@ -1172,7 +1173,8 @@
         "confirm": "Join {name}",
         "cancel": "Cancel"
       }
-    }
+    },
+    "tutorLink": "Only want to change your tutor’s name, looks, model or voice? Go to"
   },
   "placement": {
     "title": "Placement test",
@@ -2150,6 +2152,87 @@
         "error": "Something went wrong, so the call ended early.",
         "browser_closed": "The connection dropped, so the call ended early."
       }
+    }
+  },
+  "tutor": {
+    "intro": "Your tutor's name and looks, and the model and voices that talk to you. Only what talks with you directly; exercises, grading and the rest follow the settings page.",
+    "save": "Save",
+    "saved": "Saved.",
+    "reset": "Reset to default",
+    "resetTitle": "Reset your tutor?",
+    "resetDescription": "Name, looks, model and voices all go back to the defaults and follow the settings page.",
+    "resetDone": "Back to the defaults.",
+    "followSettings": "Follow settings (now: {current})",
+    "toSettings": "Open settings",
+    "providedBy": "Provided by {name}: their connection, from the share they gave you.",
+    "quotaExhausted": "Today's share is used up. You can set up your own connection in settings to go on.",
+    "dropped": "What you picked can't be used now (the connection was removed, turned off or no longer shared); {model} is used instead. Saving switches it to follow settings.",
+    "droppedNone": "What you picked can't be used now (the connection was removed, turned off or no longer shared). Saving switches it to follow settings.",
+    "looks": {
+      "title": "Looks",
+      "description": "How the desk pet and the preview look. Only shown here; it doesn't change what the tutor says.",
+      "preview": "Preview of {name}",
+      "name": "Name",
+      "nameHint": "Your tutor calls itself by this name. Only a name: it is still an AI tutor.",
+      "outfit": "Outfit",
+      "outfits": {
+        "cat": "No outfit",
+        "classic": "Scholar: glasses, bow tie, sweater vest",
+        "casual": "Casual: headphones, hoodie",
+        "sporty": "Sporty: headband, vest, medal",
+        "artsy": "Artsy: beret, scarf"
+      },
+      "fur": "Fur",
+      "furs": {
+        "orange": "Orange",
+        "gold": "Gold",
+        "beige": "Beige",
+        "grey": "Grey",
+        "blue": "Blue grey",
+        "black": "Black",
+        "white": "White",
+        "pink": "Pink"
+      },
+      "furCustom": "Custom",
+      "pet": "Desk pet",
+      "petHint": "Keeps you company in a corner of the page; tap it to ask your tutor. The same on every device.",
+      "animate": "Animation",
+      "animateHint": "Off: a still picture. Also still when your system asks for reduced motion."
+    },
+    "chat": {
+      "title": "Conversation model",
+      "description": "The model your tutor uses for chat, speaking practice, reading help and practice openings.",
+      "model": "Model",
+      "none": "No conversation model is available yet.",
+      "hint": "The one you pick goes first; the others follow in the settings page's order as fallbacks. If it can't be used, settings are followed."
+    },
+    "voices": {
+      "title": "Read-aloud voices",
+      "description": "The voices your tutor reads replies, articles and shadowing examples with. Word pronunciations don't change.",
+      "none": "No server read-aloud is set up; this device's own voices read aloud.",
+      "model": "Read-aloud model: {model}",
+      "lang": {
+        "en-US": "American",
+        "en-GB": "British",
+        "zh-CN": "Chinese"
+      },
+      "gender": {
+        "female": "female",
+        "male": "male"
+      },
+      "noVoice": "This model doesn't read this language",
+      "try": "Try",
+      "stop": "Stop",
+      "typed": "This model has no voice list: type one of its voice names, or leave it empty for the default.",
+      "hint": "Trying reads a sample sentence, billed by characters; what was read is cached. Only the chosen model's voices change; fallbacks keep the settings page's."
+    },
+    "call": {
+      "title": "Realtime calls",
+      "description": "The model and voice for calls with your tutor.",
+      "model": "Call model",
+      "voice": "Voice",
+      "vendorDefault": "Vendor default",
+      "noVoices": "This model's voice can't be picked; the vendor default is used."
     }
   }
 }

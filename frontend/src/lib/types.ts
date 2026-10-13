@@ -121,7 +121,8 @@ export type VoiceOption = {
   /** What the route's `voices` store: a name, or for qwen-audio a description. */
   id: string;
   name: string;
-  gender: "female" | "male";
+  /** null: the vendor doesn't say (OpenAI's call voices). */
+  gender: "female" | "male" | null;
   languages: VoiceLanguage[];
   accent: string | null;
   note: string;

@@ -552,7 +552,8 @@ function VoiceInputs({
     const o = byId.get(id);
     if (!o) return "";
     const accent = o.accent ? ` · ${t(`voiceLang.${o.accent as VoiceLanguage}`)}` : "";
-    return `${o.name} · ${t(`voiceGender.${o.gender}`)}${accent}${o.note ? ` · ${o.note}` : ""}`;
+    const gender = o.gender ? ` · ${t(`voiceGender.${o.gender}`)}` : "";
+    return `${o.name}${gender}${accent}${o.note ? ` · ${o.note}` : ""}`;
   };
   const offered = (lang: VoiceLanguage) =>
     options

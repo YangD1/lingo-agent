@@ -7,15 +7,18 @@ import {
   ListOrdered,
   type LucideIcon,
   AudioLines,
+  CatIcon,
   Phone,
   Plug,
   UserRoundPlus,
   Users,
   Volume2,
 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
+import { Callout } from "@/components/ui/callout";
 import { api } from "@/lib/api";
 import type { Connection, Presets } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -53,6 +56,7 @@ const ALWAYS_SHOWN: ReadonlySet<string> = new Set(
 
 export function SettingsApp() {
   const tNav = useTranslations("nav");
+  const t = useTranslations("settings");
   const [presets, setPresets] = useState<Presets | null>(null);
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -69,6 +73,14 @@ export function SettingsApp() {
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_10rem] lg:gap-8">
           <div className="flex min-w-0 flex-col gap-3.5 md:gap-4">
             <SettingsToc scroller={scroller} className="lg:hidden" />
+            <Callout tone="brand" icon={<CatIcon aria-hidden />} data-testid="settings-tutor-link">
+              <span className="flex-1">
+                {t("tutorLink")}{" "}
+                <Link href="/tutor" className="font-medium underline-offset-4 hover:underline">
+                  {tNav("tutor")}
+                </Link>
+              </span>
+            </Callout>
             {presets && connections && (
               <>
                 <ConnectionsSection
