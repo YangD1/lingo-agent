@@ -92,6 +92,10 @@ kc-sync: ## Sync the grammar graph (kc_edges) from grammar.yaml into DATABASE_UR
 vocab-import: ## Import the ECDICT word list into DATABASE_URL (downloads to data/; CSV=path to use a local copy)
 	cd backend && uv run python -m app.services.vocab.import_ecdict $(if $(CSV),--csv $(abspath $(CSV)))
 
+.PHONY: demo-seed
+demo-seed: ## Create or recreate the demo account demo@lingo.example.com in DATABASE_URL, no model calls (ARGS='--password … --lang en')
+	cd backend && uv run python -m app.demo.seed $(ARGS)
+
 .PHONY: sentences-import
 sentences-import: ## Import Tatoeba example sentences into DATABASE_URL (after vocab-import; DIR=local exports, REFRESH=1 to download again)
 	cd backend && uv run python -m app.services.vocab.import_tatoeba $(if $(DIR),--dir $(abspath $(DIR))) $(if $(REFRESH),--refresh)

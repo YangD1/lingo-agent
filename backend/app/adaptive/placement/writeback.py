@@ -106,8 +106,15 @@ async def save_result(
     rules: Rules,
     catalog: GrammarCatalog,
     bank: ItemBank,
+    now: datetime | None = None,
+    calibrate: bool = True,
 ) -> bool:
-    """Store the result and commit; False when the session was already done."""
+    """Store the result and commit; False when the session was already done.
+
+    `now` dates the result and its evidence (the demo seed backdates them); `calibrate`
+    False leaves the shared item difficulties alone, for answers no real learner gave.
+    """
+    now = now or datetime.now(UTC)
     placement = await session.get(PlacementSession, session_id, with_for_update=True)
     if placement is None or placement.user_id != user_id:
         raise SessionNotFoundError(session_id)
@@ -116,7 +123,7 @@ async def save_result(
     placement.status = "done"
     placement.stage = "grammar"
     placement.result = dict(result)
-    placement.finished_at = datetime.now(UTC)
+    placement.finished_at = now
 
     profile = await session.get(UserProfile, user_id)
     if profile is None:
@@ -146,10 +153,12 @@ async def save_result(
                 source="placement",
                 error_type="wrong_choice" if wrong else None,
                 severity="medium" if wrong else None,
+                created_at=now,
             )
         )
     await session.flush()
     await mastery.rebuild(session, user_id, rules=rules, catalog=catalog)
-    await _calibrate_items(session, result, bank, rules)
+    if calibrate:
+        await _calibrate_items(session, result, bank, rules)
     await session.commit()
     return True

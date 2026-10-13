@@ -4,6 +4,31 @@
 
 ---
 
+## 2026-10-13 任务 72.3 完成（演示数据 `make demo-seed`）
+
+**做了什么**：
+- Q72h（用户确认）：先做 72.3，再做 72.2，让截图用演示种子的真数据。
+- `backend/app/demo/seed.py`：`seed()` 和 `remove()`，以及命令行入口；`content.py` 放模型会写的文字。全程不调模型，数字都由引擎算出，时间都往前倒填。
+- 引擎上的两处小改动：
+  - `placement/writeback.save_result` 加 `now` 和 `calibrate`；
+  - 口语的 `move_ability` 改为公开函数。
+- `make demo-seed ARGS='--password … --lang en'`。
+- 开发库实测：B1、词汇约 3,468、10 天、弱点 / 巩固中 / 已学会各一个；中英各跑一次，重建正常。
+- 测试：pytest 1844 全过，ruff 和 `mypy app evals` 都干净。
+- 用户同意后，删了开发库里一个空的孤立租户 `wsprobe-…`（2026-10-12 留下的，没有成员和数据）。
+
+**未完成**：72.2、72.4、72.5。Docker 镜像里还没有 `app.demo`，等 72.5 重建后才能 `docker compose exec backend python -m app.demo.seed`。
+
+**下一步**：72.2 截图。`screenshots.spec.ts` 先用 `uv run --project ../backend python -m app.demo.seed` 对 `lingo_e2e` 跑种子（环境变量见 `run_backend.py`），再登录演示账号截图。e2e 库只有 7 个牛津词，所以看板上的词汇数会很小，要考虑截图前导入更多词，或者用 `page.route` 改看板数字。`home-*.png` 没有被引用，要问用户是重截还是删掉。
+
+**踩坑**：
+- 登录接口的 `EmailStr` 拒绝 `.local`、`.test` 这类保留域名，所以演示邮箱改成 `demo@lingo.example.com`（Q72f 已注明）。
+- 全量 pytest 要跑约 15 分钟，不要用 `timeout 900` 包着跑；放到后台跑。
+- 项目的 mypy 只检查 `app evals`，`mypy tests` 本来就有 98 个错误，不用管。
+- 每天复习 3 个新词，小词库很快用完，会出现某天没有到期卡片、连续天数断掉的情况；现在这种日子会提前复习最快到期的那个词。
+
+---
+
 ## 2026-10-13 任务 72.1 完成（README 架构图）
 
 **做了什么**：

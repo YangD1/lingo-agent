@@ -221,13 +221,13 @@ async def end(
         if stored is not None:
             row.summary = stored
             row.intelligibility = cast(str, stored["intelligibility"])
-            await _move_ability(session, row, scenario, rules)
+            await move_ability(session, row, scenario, rules)
         await session.commit()
         await session.refresh(row)
         return row
 
 
-async def _move_ability(
+async def move_ability(
     session: AsyncSession, row: SpeakingSession, scenario: Scenario | None, rules: Rules
 ) -> None:
     """One Elo step on speaking ability from the intelligibility rating (Q58d), once,
