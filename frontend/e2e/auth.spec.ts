@@ -31,6 +31,30 @@ test("register, log out, and log back in to the page you asked for", async ({ pa
   await expect(page).toHaveURL(/\/settings$/);
 });
 
+test("too many wrong passwords: wait before trying again (ADR 0035)", async ({ page }) => {
+  const email = uniqueEmail();
+  await register(page, email);
+  await page.getByRole("button", { name: "账户" }).click();
+  await page.getByRole("button", { name: "退出登录" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+
+  const alert = page.locator("form").getByRole("alert");
+  // The default limit: 10 failed attempts per IP and email in 15 minutes.
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await page.locator("#email").fill(email);
+    await page.locator("#password").fill("wrong password");
+    const answered = page.waitForResponse((r) => r.url().endsWith("/auth/login"));
+    await page.getByRole("button", { name: "登录" }).click();
+    expect((await answered).status()).toBe(401);
+    await expect(alert).toHaveText("邮箱或密码不正确。");
+  }
+  // Now even the right password waits.
+  await page.locator("#password").fill(PASSWORD);
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(alert).toHaveText(/^操作太频繁，请 \d+ 秒后再试。$/);
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test("registering a taken email shows a localized error", async ({ page, browser }) => {
   const email = uniqueEmail();
   await register(page, email);

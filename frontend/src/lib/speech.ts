@@ -445,6 +445,8 @@ export const SERVER_START_TIMEOUT_MS = 4000;
 
 /** A sentence of the server's audio, and how much faster to play it than recorded. */
 type Fetched = { audio: Blob; rate: number };
+/** Rate limited (ADR 0035): the browser reads this sentence, the server the next. */
+const LIMITED = "limited";
 
 /**
  * The rate the server says its audio needs: above 1 when the model read at its own speed
@@ -458,8 +460,12 @@ export function playbackRate(header: string | null): number {
 /**
  * The server's audio for one sentence, or null after marking what failed: the language
  * when the route has no voice for it, the server (for this page) on anything else.
+ * `LIMITED` when rate limited: nothing failed.
  */
-async function fetchSpeech(piece: Piece, stop: AbortSignal): Promise<Fetched | null> {
+async function fetchSpeech(
+  piece: Piece,
+  stop: AbortSignal,
+): Promise<Fetched | typeof LIMITED | null> {
   const settings = currentSettings();
   const language = serverLang(piece.lang, settings);
   const request = new AbortController();
@@ -489,6 +495,8 @@ async function fetchSpeech(piece: Piece, stop: AbortSignal): Promise<Fetched | n
     if (stop.aborted) return null; // stopped: nothing failed
     if (error instanceof ApiError && error.code === "no_tts_voice") {
       setServer({ noVoice: new Set([...server.noVoice, language]) });
+    } else if (error instanceof ApiError && error.code === "rate_limited") {
+      return LIMITED;
     } else {
       setServer({ down: true });
     }
@@ -720,11 +728,20 @@ function read(
   }
   setSpeaking(owner);
 
-  const fetched = new Map<number, Promise<Fetched | null>>();
+  const fetched = new Map<number, Promise<Fetched | typeof LIMITED | null>>();
   const fetchAt = (i: number) => {
     let audio = fetched.get(i);
     if (!audio) fetched.set(i, (audio = fetchSpeech(pieces[i], controller.signal)));
     return audio;
+  };
+
+  const inBrowser = (i: number, end: number): void => {
+    if (!canSpeak()) return step(end);
+    const plan = planSpeech(pieces.slice(i, end), browserVoices(), {
+      ...currentSettings(),
+      failed: failedVoices,
+    });
+    play(owner, plan.utterances, () => step(end));
   };
 
   // Synchronous until a sentence goes to the server, so the browser's first sentence is
@@ -740,16 +757,12 @@ function read(
     if (!serverReads(pieces[i].lang, settings)) {
       let end = i;
       while (end < pieces.length && !serverReads(pieces[end].lang, settings)) end++;
-      if (!canSpeak()) return step(end);
-      const plan = planSpeech(pieces.slice(i, end), browserVoices(), {
-        ...settings,
-        failed: failedVoices,
-      });
-      return play(owner, plan.utterances, () => step(end));
+      return inBrowser(i, end);
     }
     void fetchAt(i).then(async (got) => {
       if (!live()) return;
       if (!got) return step(i); // what failed is marked: the browser reads it
+      if (got === LIMITED) return inBrowser(i, i + 1);
       const next = i + 1;
       if (next < pieces.length && serverReads(pieces[next].lang, currentSettings())) {
         void fetchAt(next);

@@ -67,8 +67,10 @@ os.environ.update(
     LANGSMITH_TRACING="false",
     # Tests drive background work themselves; no scheduled jobs firing mid-test.
     SCHEDULER_ENABLED="false",
-    # Every spec registers its own accounts, all from 127.0.0.1 (ADR 0035).
+    # Every spec registers its own accounts, all from 127.0.0.1 (ADR 0035); the
+    # per-IP login count would also build up over repeated local runs.
     RATE_LIMIT_SIGNUP="1000/1h",
+    RATE_LIMIT_LOGIN_IP="1000/15m",
 )
 
 

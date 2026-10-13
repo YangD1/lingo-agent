@@ -53,9 +53,10 @@
 - **把模型分给成员用**：在**设置 → 成员**里创建邀请链接（有效 1–30 天，可以限定几个人用）发给别人。成员用你的模型连接，但看不到 key；你按能力给每个成员设每日和每月额度（文本 token、朗读字符、语音转写、发音评测和通话分钟），也可以设新成员的默认额度。成员自己配了连接的能力用自己的，不扣额度。主账号只看得到成员的用量，看不到对话、记忆和学习记录。额度用完时，对话和练习会提示（朗读退回浏览器的声音）；AI 标记会写明这次扣谁的额度。成员随时可以退出，主账号也可以移除成员。
 - **聊天附件**：图片（由看图模型读取）；PDF、DOCX、TXT、Markdown 文档（扫描版 PDF 的页面交给看图模型）；在浏览器里录的语音或音频文件（由语音转写模型转成文字）。发送前可以检查、修改提取出来的文字。
 - **用量与成本看板**：在“设置 → 用量”里看本期合计、按天趋势图，以及按用途（私教回复、复盘、出题……）、按模型、按成员分组的调用次数、token、错误和分钟数，还有按天的明细表。不内置价格：按模型填上你的服务商单价，看板就会估算费用。学习者在学习者模型页能看到自己本月的用量和额度剩余。
+- **限流**：登录连续输错会被暂停一段时间（按 IP + 邮箱、IP、邮箱分别计数），注册和加入码按 IP 限次数，会调用模型的功能按用户限每分钟次数，防止被暴力猜密码或被脚本刷掉模型额度。超限时界面会提示还要等几秒。默认值可以在 `.env` 里改（`RATE_LIMIT_*`，见 `.env.example`）。
 - **中英文界面**。
 
-还没做（规划见 [docs/PLAN.md](docs/PLAN.md)）：评估集进 CI 和限流（P4）。
+还没做（规划见 [docs/PLAN.md](docs/PLAN.md)）：低配服务器的部署覆盖与备份脚本、演示脚本（P4）。
 
 ## 快速开始（Docker）
 
@@ -187,7 +188,7 @@ docs/            PLAN.md（设计）、PROGRESS.md（进度）、decisions/（AD
 - [docs/plans/P1-mvp.md](docs/plans/P1-mvp.md)：P1 实施计划
 - [docs/plans/P2-adaptive-reading-writing.md](docs/plans/P2-adaptive-reading-writing.md)：P2 实施计划
 - [docs/plans/P3-voice.md](docs/plans/P3-voice.md)：P3 实施计划
-- [docs/decisions/](docs/decisions)：架构决策记录，比如 [provider 层](docs/decisions/0002-provider-layer.md)、[租户凭据](docs/decisions/0004-tenant-credentials.md)、[附件](docs/decisions/0008-multimodal-attachments.md)、[长期记忆](docs/decisions/0009-long-term-memory.md)、[学习者模型](docs/decisions/0010-learner-model.md)、[词库与 FSRS](docs/decisions/0011-vocabulary-and-fsrs.md)、[agent 工具与公示](docs/decisions/0013-agent-tools-and-disclosure.md)、[AI 用量标记](docs/decisions/0014-ai-usage-disclosure.md)、[确认卡](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)、[练习引擎](docs/decisions/0021-exercise-engine.md)、[语法图谱](docs/decisions/0022-grammar-graph-in-postgres.md)、[supervisor 与各 coach](docs/decisions/0023-supervisor-and-coaches.md)、[阅读来源与版权](docs/decisions/0024-reading-sources-and-copyright.md)、[定时任务与后台上限](docs/decisions/0025-scheduler-and-background-budget.md)、[每日计划](docs/decisions/0027-daily-plan.md)、[语音厂商](docs/decisions/0028-speech-providers-tts-pronunciation.md)、[口语练习](docs/decisions/0029-speaking-practice.md)、[实时语音](docs/decisions/0030-realtime-voice.md)、[主账号与额度](docs/decisions/0031-org-accounts-and-quotas.md)、[用量看板与单价](docs/decisions/0034-usage-dashboard-and-prices.md)
+- [docs/decisions/](docs/decisions)：架构决策记录，比如 [provider 层](docs/decisions/0002-provider-layer.md)、[租户凭据](docs/decisions/0004-tenant-credentials.md)、[附件](docs/decisions/0008-multimodal-attachments.md)、[长期记忆](docs/decisions/0009-long-term-memory.md)、[学习者模型](docs/decisions/0010-learner-model.md)、[词库与 FSRS](docs/decisions/0011-vocabulary-and-fsrs.md)、[agent 工具与公示](docs/decisions/0013-agent-tools-and-disclosure.md)、[AI 用量标记](docs/decisions/0014-ai-usage-disclosure.md)、[确认卡](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)、[练习引擎](docs/decisions/0021-exercise-engine.md)、[语法图谱](docs/decisions/0022-grammar-graph-in-postgres.md)、[supervisor 与各 coach](docs/decisions/0023-supervisor-and-coaches.md)、[阅读来源与版权](docs/decisions/0024-reading-sources-and-copyright.md)、[定时任务与后台上限](docs/decisions/0025-scheduler-and-background-budget.md)、[每日计划](docs/decisions/0027-daily-plan.md)、[语音厂商](docs/decisions/0028-speech-providers-tts-pronunciation.md)、[口语练习](docs/decisions/0029-speaking-practice.md)、[实时语音](docs/decisions/0030-realtime-voice.md)、[主账号与额度](docs/decisions/0031-org-accounts-and-quotas.md)、[用量看板与单价](docs/decisions/0034-usage-dashboard-and-prices.md)、[限流](docs/decisions/0035-rate-limiting.md)
 
 ## 部署
 
@@ -196,6 +197,7 @@ docs/            PLAN.md（设计）、PROGRESS.md（进度）、decisions/（AD
 - 设置 `APP_ENV=prod` 和 `PROVIDERS_CONFIG=config/providers.prod.yaml`。prod 模式下登录 cookie 只通过 HTTPS 发送，所以要在 3000 端口前面加一个 HTTPS 反向代理。
 - 保持 `PROVIDER_ALLOW_PRIVATE_NETWORKS=false`。
 - 只有前端端口对外；Postgres 和后端只监听 127.0.0.1。
+- 按 IP 的限流从 `X-Forwarded-For` 取客户端地址。Next 会把浏览器带来的这个头原样转给后端，所以前面的反向代理必须用真实地址覆盖它（Caddy 默认就会这样做），否则按 IP 的限流可以被绕过（见 [ADR 0035](docs/decisions/0035-rate-limiting.md)）。
 - 后端每两小时抓一次阅读来源。服务器网络连不上某些来源时，设置 `FEED_HTTP_PROXY`（compose 里的后端用 `COMPOSE_FEED_HTTP_PROXY`）；它只用于抓 RSS，对地址的检查比直连宽松（见 `.env.example`）。
 
 ## 参与贡献

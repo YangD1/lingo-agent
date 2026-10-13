@@ -1408,7 +1408,8 @@
     "quota_exhausted": "主账号给你的额度暂时用完了。可以到设置里自己添加连接，或等额度重置。",
     "invite_invalid": "邀请码无效：不存在、已过期、次数已用完或已撤销。",
     "own_invite": "这是你自己的邀请。",
-    "already_member": "你已经在使用另一个主账号，先退出它。"
+    "already_member": "你已经在使用另一个主账号，先退出它。",
+    "rate_limited": "操作太频繁，请 {seconds} 秒后再试。"
   },
   "dashboard": {
     "title": "能力看板",
@@ -2209,7 +2210,8 @@
         "realtime_busy": "你在别的页面正在通话，先挂断那一通。",
         "realtime_unavailable": "实时语音服务暂时连不上，稍后再试。",
         "unknown_scenario": "找不到这个情景。",
-        "other": "没能接通。"
+        "other": "没能接通。",
+        "rate_limited": "刚才拨打太频繁，请 {seconds} 秒后再打。"
       },
       "endReason": {
         "hangup": "已取消。",

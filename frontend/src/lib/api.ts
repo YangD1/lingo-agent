@@ -12,6 +12,8 @@ export class ApiError extends Error implements ApiErrorLike {
     readonly code: string,
     message: string,
     readonly issues: ValidationIssue[] = [],
+    /** Seconds to wait, from a 429's Retry-After (ADR 0035). */
+    readonly retryAfter: number | null = null,
   ) {
     super(message);
     this.name = "ApiError";
@@ -20,6 +22,11 @@ export class ApiError extends Error implements ApiErrorLike {
 
 export function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+function retryAfterOf(response: Response): number | null {
+  const seconds = Number(response.headers.get("retry-after") ?? NaN);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : null;
 }
 
 /** Turn a non-2xx response into an ApiError; every backend error is `{detail: {code, message}}`. */
@@ -38,7 +45,7 @@ export async function toApiError(response: Response): Promise<ApiError> {
   const detail = (body as { detail?: unknown } | null)?.detail;
   if (detail && typeof detail === "object" && "code" in detail && "message" in detail) {
     const { code, message, errors } = detail as ApiErrorLike & { errors?: ValidationIssue[] };
-    return new ApiError(response.status, code, message, errors ?? []);
+    return new ApiError(response.status, code, message, errors ?? [], retryAfterOf(response));
   }
   return fallback;
 }

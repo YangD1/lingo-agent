@@ -51,6 +51,8 @@ export type CallState = {
   end_reason: EndReason | null;
   /** With `refused`: why (`realtime_used_up`, `realtime_busy`…). */
   refused_code: string | null;
+  /** With `rate_limited`: seconds to wait (ADR 0035). */
+  retry_after: number | null;
 };
 
 export const initialCall: CallState = {
@@ -67,6 +69,7 @@ export const initialCall: CallState = {
   error: null,
   end_reason: null,
   refused_code: null,
+  retry_after: null,
 };
 
 /** A JSON event from the relay. Anything else is ignored. */
@@ -87,7 +90,7 @@ export type ServerEvent =
   | { type: "time_warning"; remaining_seconds: number }
   | { type: "wrapping_up" }
   | { type: "error"; code: string }
-  | { type: "ended"; reason: EndReason; code?: string };
+  | { type: "ended"; reason: EndReason; code?: string; retry_after?: number };
 
 export type CallAction =
   | { type: "connect" }
@@ -202,6 +205,7 @@ function onEvent(state: CallState, event: ServerEvent): CallState {
         phase: "ended",
         end_reason: event.reason,
         refused_code: event.reason === "refused" ? (event.code ?? null) : null,
+        retry_after: event.retry_after ?? null,
         end_suggested: false,
         lines: dropHeld(state.lines),
       };

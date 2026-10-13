@@ -58,6 +58,21 @@ describe("api", () => {
     await expect(api("/auth/register")).rejects.toMatchObject({ issues: [issue] });
   });
 
+  it("keeps how long a 429 says to wait", async () => {
+    const detail = { code: "rate_limited", message: "too many requests" };
+    mockFetch(
+      new Response(JSON.stringify({ detail }), { status: 429, headers: { "retry-after": "30" } }),
+    );
+    await expect(api("/speech/tts")).rejects.toMatchObject({
+      status: 429,
+      code: "rate_limited",
+      retryAfter: 30,
+    });
+
+    mockFetch(json({ detail }, 429));
+    await expect(api("/speech/tts")).rejects.toMatchObject({ retryAfter: null });
+  });
+
   it("falls back to http_<status> for non-JSON errors", async () => {
     mockFetch(new Response("<html>Bad Gateway</html>", { status: 502, statusText: "Bad Gateway" }));
 

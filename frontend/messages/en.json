@@ -1408,7 +1408,8 @@
     "quota_exhausted": "Your quota from your main account is used up for now. Add a connection of your own in Settings, or wait for it to reset.",
     "invite_invalid": "This invite is unknown, expired, used up or revoked.",
     "own_invite": "This invite is your own.",
-    "already_member": "You already use another main account. Leave it first."
+    "already_member": "You already use another main account. Leave it first.",
+    "rate_limited": "Too many requests. Try again in {seconds} s."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -2209,7 +2210,8 @@
         "realtime_busy": "You're already on a call in another tab. Hang that one up first.",
         "realtime_unavailable": "The realtime voice service can't be reached right now. Try again later.",
         "unknown_scenario": "This scenario doesn't exist.",
-        "other": "The call couldn't be connected."
+        "other": "The call couldn't be connected.",
+        "rate_limited": "Too many calls just now. Try again in {seconds} s."
       },
       "endReason": {
         "hangup": "Cancelled.",

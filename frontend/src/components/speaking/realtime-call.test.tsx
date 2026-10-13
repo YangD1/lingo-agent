@@ -240,6 +240,18 @@ describe("RealtimeCallPage", () => {
     expect(call.start).toHaveBeenCalledWith("cafe");
   });
 
+  it("says how long to wait after calling too often, and offers a retry", () => {
+    show({
+      ...initialCall,
+      phase: "ended",
+      end_reason: "refused",
+      refused_code: "rate_limited",
+      retry_after: 25,
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("Too many calls just now. Try again in 25 s.");
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+
   it("falls back to a general text for an unknown refusal", () => {
     show({ ...initialCall, phase: "ended", end_reason: "refused", refused_code: "something_new" });
     expect(screen.getByRole("alert")).toHaveTextContent("The call couldn't be connected.");

@@ -223,6 +223,19 @@ describe("server read-aloud", () => {
     expect(requests).toEqual([]);
   });
 
+  it("reads only the sentence that was rate limited in the browser", async () => {
+    const speech = await load();
+    respond = (body) => (body.text === "One." ? failure(429, "rate_limited") : audio());
+    speech.speakSegments("m1", [{ text: "One. Two.", lang: "en-US" }]);
+    await flush();
+    expect(read()).toEqual(["One."]);
+    spoken[0].onend!();
+    await flush();
+    expect(read()).toEqual(["One."]);
+    expect(playing()).toMatch(/^blob:/); // the next sentence is the server's again
+    expect(requests.map((r) => r.text)).toEqual(["One.", "Two."]);
+  });
+
   it("falls back when the server hasn't answered in 4 seconds", async () => {
     const speech = await load();
     respond = () => new Promise<Response>(() => {});

@@ -355,7 +355,9 @@ function NotConnected({ state, onRetry }: { state: CallState; onRetry: () => voi
   const code = state.refused_code;
   const message =
     state.end_reason === "refused"
-      ? code && REFUSALS.has(code)
+      ? code === "rate_limited"
+        ? t("refused.rate_limited", { seconds: state.retry_after ?? 1 })
+        : code && REFUSALS.has(code)
         ? t(`refused.${code}` as Parameters<typeof t>[0])
         : t("refused.other")
       : t(`endReason.${state.end_reason ?? "error"}` as Parameters<typeof t>[0]);

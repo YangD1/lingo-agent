@@ -164,6 +164,14 @@ describe("callReducer", () => {
     expect(state).toMatchObject({ end_reason: "refused", refused_code: "realtime_used_up" });
   });
 
+  it("keeps how long to wait when rate limited", () => {
+    const state = run(
+      { type: "connect" },
+      { type: "ended", reason: "refused", code: "rate_limited", retry_after: 12 },
+    );
+    expect(state).toMatchObject({ refused_code: "rate_limited", retry_after: 12 });
+  });
+
   it("ends when the page loses the call", () => {
     expect(run({ type: "connect" }, { type: "lost", reason: "connection_lost" })).toMatchObject({
       phase: "ended",

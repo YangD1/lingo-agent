@@ -61,3 +61,18 @@
 - 进程内计数不跨进程，重启就清零。单 worker 的约束是调度器定的，这里没有引入新约束。
 - 不加反代时，按 IP 的档可以被绕过（§4）。`login_email` 兜住了暴力猜密码，批量注册和猜加入码在这种部署下挡不住，所以部署文档要求公网部署必须加反代。
 - 不做按租户的总限流：成员用主账号连接时已经有额度，自己的连接由自己付钱。
+
+## 落地记录（任务 70，2026-10-13）
+- 后端：
+  - `app/ratelimit.py`：`Limit.parse`、`RateLimiter`（`check` / `record` / `hit` / `reset` / `sweep`，每 1000 次记录清一次空闲 key）、`client_ip`。
+  - `Settings.rate_limit_*` 和 `rate_limits`；计数器放在 `app.state.rate_limiter`，由 `create_app` 创建，所以每个测试的 app 自带一份新的计数。
+  - `deps.py`：`per_user(档)`、`per_ip(档)` 两个路由依赖，以及 `too_many_requests`。登录在 `api/auth.py:_login` 里先查三档，失败再记。
+  - 练习判分把 `grade_call` 包一层，真调模型时才计数；超限时 `GradingFailedError` 的 cause 是 `RateLimitedError`，转成 429，答案不保存。
+  - 聊天附件上传时先嗅探类型：音频算 `asr`，其余算 `chat`；认不出的文件返回 415，不计数。
+  - 通话 WebSocket 在 accept 之后、查路由之前计数。
+  - `docker-compose.yml` 把 `RATE_LIMIT_*` 传给后端；`.env.example` 列出全部变量，默认是注释掉的。不能写成空值：空字符串不是合法的限额。
+- 前端：
+  - `ApiError.retryAfter` 从 `Retry-After` 头读出，`toApiError` 是普通请求、SSE、服务端请求的唯一出口。`useErrorMessage` 对 `rate_limited` 显示秒数，所以走 `useErrorMessage` / `useDescribeError` 的报错位置都自动生效。
+  - 通话页的 `refused.rate_limited` 带秒数，并显示“重试”按钮。
+  - 朗读：`/speech/tts` 返回 429 时，只有这一句改用浏览器的声音，下一句仍然请求服务端。以前任何错误都会把服务端朗读标成本页不可用。
+- E2E：后端把 `RATE_LIMIT_SIGNUP`、`RATE_LIMIT_LOGIN_IP` 调高，因为所有 spec 都从 127.0.0.1 注册和登录，本地重复跑时按 IP 的计数也会越积越多。`auth.spec.ts` 用默认的 `login` 档测试：连错 10 次后，输对密码也提示“操作太频繁，请 N 秒后再试”。
