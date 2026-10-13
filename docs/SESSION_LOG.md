@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-10-13 任务 72.1 完成（README 架构图）
+
+**做了什么**：
+- README 中英总体架构图补上限流（`ratelimit.py`）、桌宠、我的私教（`tutor/`）、主账号与额度（`org/`）、用量记录 → 用量看板（`usage/`），图下文字同步；目录清单加 `org/`、`tutor/`、`ratelimit.py`。
+- 新增“自适应闭环”小节：先用一段话讲“LLM 负责理解和生成，算法负责记账和调度”，再画闭环图，每个框标代码路径。连线都对过代码：证据来源以 `EVIDENCE_SOURCES` 为准（chat / placement / exercise / writing / reading / speaking）；诊断加成经 `exercise/inputs.py` 的 `load_boost` 进选题；学会的语法点按 FSRS `due` 回到选题；单词不进 `kc_evidence`，走自己的 FSRS。
+- 验证：临时装 mermaid 11.4.1 + jsdom，用 `mermaid.parse` 解析两份 README 的 4 个块全部通过，故意写坏的块会报错。
+
+**未完成**：72.2–72.5。
+
+**下一步**：72.2 截图可重跑（`frontend/e2e/screenshots.spec.ts`、`make screenshots`）。
+
+**踩坑**：
+- zsh 下 `grep --include=*.py` 会被当成通配符展开而报 “no matches found”，要加引号：`--include='*.py'`。
+- 在 Node 里用 jsdom 跑 `mermaid.parse`，除了 `window` / `document`，还要把 `Element`、`HTMLElement`、`Node`、`DOMParser` 挂到 `globalThis`，否则报 “Element is not defined”。脚本在 `/tmp/mmdcheck/check.mjs`，不入库。
+
+---
+
 ## 2026-10-13 任务 72 拆分（Q72c–g 已按推荐确认）；任务 71 暂缓
 
 **做了什么**：

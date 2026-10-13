@@ -148,10 +148,11 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs backend checks,
 
 ```mermaid
 flowchart LR
-    B[Browser] -->|:3000| F["Next.js<br/>(pages + /api proxy)"]
-    F -->|"HTTP / SSE / WebSocket"| A[FastAPI]
+    B[Browser] -->|:3000| F["Next.js<br/>(pages + /api proxy,<br/>desktop pet)"]
+    F -->|"HTTP / SSE / WebSocket"| A["FastAPI api/<br/>(login, rate limits)"]
     A --> W
     A --> G["LangGraph<br/>supervisor → coaches + tools ·<br/>practice · writing · reading ·<br/>speaking · diagnosis · placement test"]
+    T["My tutor (tutor/)<br/>name · chat model · voices"] -.-> G
     W["Real-time call relay<br/>(WebSocket)"] -->|"after the call"| R
     G -->|"after each reply"| R["Background reflection<br/>memory · grammar tags ·<br/>word collection"]
     R --> L["Learner model<br/>(BKT / Elo mastery,<br/>grammar graph)"]
@@ -160,11 +161,42 @@ flowchart LR
     G --> P["Provider layer<br/>(per-tenant connections,<br/>fallback chains)"]
     R --> P
     W --> P
+    P <-->|"member calls on a<br/>main account's models"| O["Main accounts and quotas<br/>(org/)"]
+    P -->|"every call"| U["Usage records → usage dashboard<br/>(usage/, prices you enter)"]
     P --> M[("Model APIs:<br/>LLM · vision · embeddings ·<br/>speech-to-text · read-aloud ·<br/>pronunciation · real-time voice")]
-    A --> D[("PostgreSQL + pgvector<br/>users · encrypted keys · conversations ·<br/>memories · mastery · cards · words")]
+    A --> D[("PostgreSQL + pgvector<br/>users · encrypted keys · conversations ·<br/>memories · mastery · cards · words · usage")]
 ```
 
-The browser only talks to Next.js; the login cookie is httpOnly and requests reach the API through the same-origin proxy. Every model call goes through the provider layer, which builds each tenant's models from their own connections; business code never creates a vendor SDK client or hardcodes a model name. Models understand and write; algorithms keep the books: mastery is updated from evidence by BKT and Elo, reviews are scheduled by FSRS, and the placement test is scored without a model.
+The browser only talks to Next.js; the login cookie is httpOnly and requests reach the API through the same-origin proxy. Login, sign-up and the model-calling endpoints are rate limited in process (`ratelimit.py`, [ADR 0035](docs/decisions/0035-rate-limiting.md)). Every model call goes through the provider layer, which builds each tenant's models from their own connections, or from a main account's connections for its members, within the quotas it gives them ([ADR 0031](docs/decisions/0031-org-accounts-and-quotas.md)); business code never creates a vendor SDK client or hardcodes a model name. Each call is recorded with its task, model, tokens and prompt versions, which feeds the usage dashboard ([ADR 0034](docs/decisions/0034-usage-dashboard-and-prices.md)). "My tutor" lets a learner pick a name, a chat model and voices from what they can actually use; it moves that model to the front of the chain and changes nothing else ([ADR 0032](docs/decisions/0032-learner-tutor-choice.md)).
+
+### The adaptive loop
+
+**Models understand and write; algorithms keep the books.** A model reads what the learner said or wrote and tags it with grammar points; it writes exercises, rewrites articles and explains mistakes. It never scores mastery and never decides when to review: mastery is updated from evidence by BKT and Elo, reviews are scheduled by FSRS, and the placement test is scored without a model.
+
+```mermaid
+flowchart LR
+    subgraph sources["Evidence sources"]
+        C["Chat and reflection<br/>(memory/reflection.py)"]
+        X["Practice answers<br/>(adaptive/exercise/)"]
+        WR["Writing feedback<br/>(writing/)"]
+        RD["Reading questions<br/>(services/reading/)"]
+        SP["Speaking and shadowing<br/>(speaking/, services/speech/)"]
+        PL["Placement test<br/>(adaptive/placement/)"]
+    end
+    sources --> E["Evidence rows<br/>(adaptive/evidence.py, kc_evidence)"]
+    E --> K["Mastery: BKT per grammar point,<br/>Elo per skill<br/>(adaptive/bkt.py, elo.py, mastery.py)"]
+    K --> DG["Diagnosis: patterns across points,<br/>grammar graph<br/>(adaptive/diagnosis/, graph.py)"]
+    K --> PR["Practice priority<br/>(adaptive/exercise/planner.py)"]
+    DG -->|"priority boost"| PR
+    PR --> GEN["Exercise writing + critic<br/>(agents/exercise_graph.py)"]
+    GEN --> X
+    K --> FL["Learned points → FSRS reviews<br/>(adaptive/learned.py)"]
+    FL --> PR
+    VB["Word reviews<br/>(services/vocab/, FSRS)"] --> DP
+    K --> DP["Daily plan<br/>(adaptive/daily_plan/)"]
+```
+
+Every number in the loop (BKT parameters, Elo K, priority weights, the diagnosis boost, plan sizes) comes from [`adaptive/rules.yaml`](backend/app/adaptive/rules.yaml), and `kc_mastery` can be rebuilt by replaying the evidence. Words follow their own FSRS schedule instead of BKT ([ADR 0010](docs/decisions/0010-learner-model.md), [ADR 0011](docs/decisions/0011-vocabulary-and-fsrs.md)); a model-written exercise reaches the learner only after the critic passes it ([ADR 0021](docs/decisions/0021-exercise-engine.md)).
 
 ```
 backend/app/     FastAPI app: api/ routes, agents/ LangGraph graphs (supervisor and coaches),
@@ -173,7 +205,8 @@ backend/app/     FastAPI app: api/ routes, agents/ LangGraph graphs (supervisor 
                  placement/, writing/, speaking/ speaking practice, realtime/ real-time calls,
                  services/ vocab (word books, FSRS), news (feeds), reading (rewrites,
                  questions) and speech (read-aloud cache, shadowing), scheduler/ background jobs, cards/ tutor tools,
-                 advice/, dashboard/, usage/, attachments/, prompts/,
+                 advice/, dashboard/, usage/ usage records and dashboard, org/ main accounts and
+                 quotas, tutor/ my tutor, ratelimit.py, attachments/, prompts/,
                  credentials/ key encryption, db/ models and migrations
 backend/evals/   evaluation sets with recorded model replies (make eval)
 backend/tests/   pytest (unit + integration against a real Postgres)

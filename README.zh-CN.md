@@ -148,10 +148,11 @@ CI（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）在每次推送到
 
 ```mermaid
 flowchart LR
-    B[浏览器] -->|:3000| F["Next.js<br/>（页面 + /api 代理）"]
-    F -->|"HTTP / SSE / WebSocket"| A[FastAPI]
+    B[浏览器] -->|:3000| F["Next.js<br/>（页面 + /api 代理、<br/>桌宠）"]
+    F -->|"HTTP / SSE / WebSocket"| A["FastAPI api/<br/>（登录、限流）"]
     A --> W
     A --> G["LangGraph<br/>supervisor → 各 coach + 工具 ·<br/>练习 · 写作 · 阅读 ·<br/>口语 · 诊断 · 入学测"]
+    T["我的私教（tutor/）<br/>名字 · 对话模型 · 音色"] -.-> G
     W["实时通话中继<br/>（WebSocket）"] -->|"挂断后"| R
     G -->|"每次回复后"| R["后台反思<br/>记忆 · 语法打标 ·<br/>收词"]
     R --> L["学习者模型<br/>（BKT / Elo 掌握度、<br/>语法图谱）"]
@@ -160,11 +161,42 @@ flowchart LR
     G --> P["provider 层<br/>（按租户的连接、<br/>fallback 链）"]
     R --> P
     W --> P
+    P <-->|"成员用主账号的模型"| O["主账号与额度<br/>（org/）"]
+    P -->|"每次调用"| U["用量记录 → 用量看板<br/>（usage/，单价自己填）"]
     P --> M[("模型 API：<br/>LLM · 看图 · embedding ·<br/>语音转写 · 朗读 ·<br/>发音评测 · 实时语音")]
-    A --> D[("PostgreSQL + pgvector<br/>用户 · 加密的 key · 会话 ·<br/>记忆 · 掌握度 · 卡片 · 词库")]
+    A --> D[("PostgreSQL + pgvector<br/>用户 · 加密的 key · 会话 ·<br/>记忆 · 掌握度 · 卡片 · 词库 · 用量")]
 ```
 
-浏览器只和 Next.js 通信；登录 cookie 是 httpOnly 的，请求经同源代理到达后端 API。所有模型调用都经过 provider 层，它根据每个租户自己的连接构建模型；业务代码里不直接创建厂商 SDK 客户端，也不写死模型名。模型负责理解和生成，算法负责记账和调度：掌握度由 BKT 和 Elo 根据证据更新，复习由 FSRS 安排，入学测的判分也不经过模型。
+浏览器只和 Next.js 通信；登录 cookie 是 httpOnly 的，请求经同源代理到达后端 API。登录、注册和会调用模型的接口在进程内限流（`ratelimit.py`，[ADR 0035](docs/decisions/0035-rate-limiting.md)）。所有模型调用都经过 provider 层，它根据每个租户自己的连接构建模型，成员则用主账号的连接、在主账号给的额度内调用（[ADR 0031](docs/decisions/0031-org-accounts-and-quotas.md)）；业务代码里不直接创建厂商 SDK 客户端，也不写死模型名。每次调用都记下任务、模型、token 数和提示词版本，用量看板就从这里算（[ADR 0034](docs/decisions/0034-usage-dashboard-and-prices.md)）。“我的私教”让学习者从自己实际能用的里面挑名字、对话模型和音色，只把所选模型挪到链首，别的不变（[ADR 0032](docs/decisions/0032-learner-tutor-choice.md)）。
+
+### 自适应闭环
+
+**LLM 负责理解和生成，算法负责记账和调度。** 模型读懂学习者说的、写的，标出涉及的语法点；出题、改写文章、讲解错误也由模型来做。但掌握度从不让模型打分，什么时候复习也不由模型决定：掌握度由 BKT 和 Elo 根据证据更新，复习由 FSRS 安排，入学测的判分也不经过模型。
+
+```mermaid
+flowchart LR
+    subgraph sources["证据来源"]
+        C["对话与反思<br/>（memory/reflection.py）"]
+        X["练习作答<br/>（adaptive/exercise/）"]
+        WR["写作批改<br/>（writing/）"]
+        RD["阅读理解题<br/>（services/reading/）"]
+        SP["口语与跟读<br/>（speaking/、services/speech/）"]
+        PL["入学测<br/>（adaptive/placement/）"]
+    end
+    sources --> E["证据<br/>（adaptive/evidence.py、kc_evidence）"]
+    E --> K["掌握度：每个语法点 BKT、<br/>每项技能 Elo<br/>（adaptive/bkt.py、elo.py、mastery.py）"]
+    K --> DG["诊断：跨语法点的规律、<br/>语法图谱<br/>（adaptive/diagnosis/、graph.py）"]
+    K --> PR["选题优先级<br/>（adaptive/exercise/planner.py）"]
+    DG -->|"提高优先级"| PR
+    PR --> GEN["出题 + critic<br/>（agents/exercise_graph.py）"]
+    GEN --> X
+    K --> FL["学会的语法点 → FSRS 复习<br/>（adaptive/learned.py）"]
+    FL --> PR
+    VB["单词复习<br/>（services/vocab/，FSRS）"] --> DP
+    K --> DP["每日计划<br/>（adaptive/daily_plan/）"]
+```
+
+闭环里的数字（BKT 参数、Elo 的 K、选题权重、诊断加成、计划量）都来自 [`adaptive/rules.yaml`](backend/app/adaptive/rules.yaml)，`kc_mastery` 可以通过重放证据重建。单词不走 BKT，按自己的 FSRS 排期（[ADR 0010](docs/decisions/0010-learner-model.md)、[ADR 0011](docs/decisions/0011-vocabulary-and-fsrs.md)）；模型出的题要先过 critic 才会给到学习者（[ADR 0021](docs/decisions/0021-exercise-engine.md)）。
 
 ```
 backend/app/     FastAPI 应用：api/ 路由，agents/ LangGraph 图（supervisor 和各 coach），
@@ -173,7 +205,8 @@ backend/app/     FastAPI 应用：api/ 路由，agents/ LangGraph 图（supervis
                  speaking/ 口语练习，realtime/ 实时通话，services/ 下的 vocab（词书与 FSRS）、
                  news（订阅源）、reading（改写和理解题）、speech（朗读缓存、跟读），
                  scheduler/ 定时任务，cards/ 私教工具，advice/，dashboard/，
-                 usage/，attachments/，prompts/，credentials/ key 加密，db/ 模型和迁移
+                 usage/ 用量记录与看板，org/ 主账号与额度，tutor/ 我的私教，ratelimit.py，
+                 attachments/，prompts/，credentials/ key 加密，db/ 模型和迁移
 backend/evals/   评估集和录好的模型回复（make eval）
 backend/tests/   pytest（单元测试 + 连真实 Postgres 的集成测试）
 frontend/        Next.js App Router、shadcn/ui、next-intl；e2e/ 是 Playwright 测试
