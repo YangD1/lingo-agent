@@ -9,9 +9,18 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from app.db.models import Conversation, LLMUsage, SpeakingSession, Tenant, TenantMember, User
+from app.db.models import (
+    Conversation,
+    LLMUsage,
+    OrgMembership,
+    SpeakingSession,
+    Tenant,
+    TenantMember,
+    User,
+)
 from app.db.session import create_sessionmaker
 from app.deps import require_tenant_manager
+from app.org.quotas import Limit, Quotas
 from app.usage.recorder import UsageRecord
 from app.usage.writer import UsageWriter
 
@@ -538,3 +547,196 @@ async def test_dashboard_is_for_managers_and_bounded(client: AsyncClient) -> Non
     for days in (0, 91):
         response = await client.get("/tenant/usage/dashboard", params={"days": days})
         assert response.status_code == 422
+
+
+# --- /tenant/prices -----------------------------------------------------------------------
+
+
+async def test_prices_start_empty_and_replace_as_a_whole(client: AsyncClient) -> None:
+    await register(client, "owner@example.com")
+    assert (await client.get("/tenant/prices")).json() == {"currency": "CNY", "prices": []}
+
+    body = {
+        "currency": "USD",
+        "prices": [
+            {"connection": "openai", "model": "gpt-5-mini", "input_per_mtok": 0.25},
+            # Nothing entered: dropped.
+            {"connection": "deepseek", "model": "deepseek-chat"},
+        ],
+    }
+    response = await client.put("/tenant/prices", json=body)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "currency": "USD",
+        "prices": [
+            {
+                "connection": "openai",
+                "model": "gpt-5-mini",
+                "input_per_mtok": 0.25,
+                "output_per_mtok": None,
+                "per_kchar": None,
+                "per_minute": None,
+            }
+        ],
+    }
+    response = await client.put("/tenant/prices", json={"currency": "USD", "prices": []})
+    assert response.json()["prices"] == []
+
+
+async def test_prices_are_validated(client: AsyncClient) -> None:
+    assert (await client.get("/tenant/prices")).status_code == 401
+    await register(client, "owner@example.com")
+    price = {"connection": "openai", "model": "m", "input_per_mtok": 1}
+    for body in (
+        {"currency": "EUR", "prices": []},
+        {"currency": "CNY", "prices": [{**price, "input_per_mtok": -1}]},
+        {"currency": "CNY", "prices": [price, price]},
+    ):
+        assert (await client.put("/tenant/prices", json=body)).status_code == 422
+
+
+async def test_dashboard_costs_use_the_entered_prices(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await register(client, "owner@example.com")
+    tenant_id = await tenant_of(db_session, "owner@example.com")
+    await add_usage(
+        db_session,
+        record(tenant_id, input_tokens=1_000_000, output_tokens=500_000),
+        record(tenant_id, connection_name="deepseek", model="deepseek-chat"),
+        at=datetime.now(UTC),
+    )
+    prices = [
+        {"connection": "openai", "model": "gpt-5-mini", "input_per_mtok": 2, "output_per_mtok": 8}
+    ]
+    await client.put("/tenant/prices", json={"currency": "USD", "prices": prices})
+
+    body = (await client.get("/tenant/usage/dashboard", params={"days": 1})).json()
+
+    assert body["priced"] and body["currency"] == "USD"
+    assert body["total"]["cost"] == pytest.approx(6)
+    assert body["total"]["cost_partial"]  # deepseek has no price
+    assert body["series"][-1]["cost"] == pytest.approx(6)
+    assert {m["model"]: m["cost"] for m in body["models"]} == {
+        "gpt-5-mini": pytest.approx(6),
+        "deepseek-chat": None,
+    }
+
+
+# --- /me/usage ----------------------------------------------------------------------------
+
+
+def by_capability(body: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {c["capability"]: c for c in body["capabilities"]}
+
+
+async def test_my_usage_this_month_without_a_main_account(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    assert (await client.get("/me/usage")).status_code == 401
+    await register(client, "me@example.com")
+    tenant_id = await tenant_of(db_session, "me@example.com")
+    me = await db_session.scalar(select(User).where(User.email == "me@example.com"))
+    assert me is not None
+    now = datetime.now(UTC)
+    await add_usage(
+        db_session,
+        record(tenant_id, user_id=me.id, section="llm", input_tokens=100, output_tokens=20),
+        # Before sections were recorded: text.
+        record(tenant_id, user_id=me.id, input_tokens=5, output_tokens=0),
+        record(
+            tenant_id,
+            user_id=me.id,
+            section="tts",
+            task="tts",
+            input_tokens=0,
+            output_tokens=0,
+            characters=300,
+        ),
+        record(
+            tenant_id,
+            user_id=me.id,
+            section="asr",
+            task="asr",
+            input_tokens=0,
+            output_tokens=0,
+            audio_seconds=90.0,
+        ),
+        # Background work with no learner, and another month: not mine.
+        record(tenant_id, section="llm"),
+        at=now,
+    )
+    await add_usage(
+        db_session,
+        record(tenant_id, user_id=me.id, section="llm"),
+        at=now.replace(day=1) - timedelta(days=1),
+    )
+    conversation = Conversation(tenant_id=tenant_id, user_id=me.id, purpose="realtime")
+    db_session.add(conversation)
+    await db_session.flush()
+    db_session.add(
+        SpeakingSession(
+            user_id=me.id,
+            conversation_id=conversation.id,
+            mode="realtime",
+            level="B1",
+            call_seconds=120,
+        )
+    )
+    await db_session.commit()
+
+    body = (await client.get("/me/usage")).json()
+
+    assert body["month_start"] == now.replace(day=1).date().isoformat()
+    assert body["sponsor_name"] is None
+    use = by_capability(body)
+    assert {c: (u["unit"], u["month"]) for c, u in use.items()} == {
+        "text": ("tokens", 125),
+        "tts": ("characters", 300),
+        "asr": ("minutes", 1.5),
+        "pronunciation": ("minutes", 0),
+        "realtime": ("minutes", 2),
+    }
+    assert all(u["quota"] is None for u in use.values())
+
+
+async def test_my_usage_shows_a_members_quota_left(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await register(client, "owner@example.com")
+    owner_tenant = await tenant_of(db_session, "owner@example.com")
+    await register(client, "me@example.com")  # logged in as me
+    tenant_id = await tenant_of(db_session, "me@example.com")
+    me = await db_session.scalar(select(User).where(User.email == "me@example.com"))
+    assert me is not None
+    db_session.add(
+        OrgMembership(
+            sponsor_tenant_id=owner_tenant,
+            member_user_id=me.id,
+            member_tenant_id=tenant_id,
+            quotas=Quotas(text=Limit(daily=1000, monthly=5000)).model_dump(),
+        )
+    )
+    await add_usage(
+        db_session,
+        record(
+            tenant_id,
+            user_id=me.id,
+            section="llm",
+            billed_tenant_id=owner_tenant,
+            input_tokens=300,
+            output_tokens=100,
+        ),
+        # On my own connection: mine, not the quota's.
+        record(tenant_id, user_id=me.id, section="llm", input_tokens=50, output_tokens=0),
+        at=datetime.now(UTC),
+    )
+
+    body = (await client.get("/me/usage")).json()
+
+    assert body["sponsor_name"] is not None
+    text = by_capability(body)["text"]
+    assert text["month"] == 450
+    assert text["quota"] == {"daily": 1000, "monthly": 5000, "day": 400, "month": 400, "left": 600}
+    assert by_capability(body)["tts"]["quota"]["left"] is None

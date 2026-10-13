@@ -48,6 +48,8 @@ PROVIDER_KINDS = (
 )
 ROUTE_SECTIONS = ("llm", "embedding", "asr", "tts", "pronunciation", "realtime")
 USAGE_STATUSES = ("ok", "error")
+# Only shown next to costs, never converted (ADR 0034 §3).
+PRICE_CURRENCIES = ("CNY", "USD")
 ATTACHMENT_KINDS = ("image", "audio", "document")
 ATTACHMENT_STATUSES = ("processing", "ready", "failed")
 MEMORY_KINDS = ("fact", "episode")
@@ -121,6 +123,7 @@ class Tenant(TimestampMixin, Base):
         CheckConstraint("background_daily_tokens >= 0", name="background_daily_tokens"),
         CheckConstraint("realtime_session_minutes >= 0", name="realtime_session_minutes"),
         CheckConstraint("realtime_daily_minutes >= 0", name="realtime_daily_minutes"),
+        CheckConstraint(_in("price_currency", PRICE_CURRENCIES), name="price_currency"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -141,6 +144,8 @@ class Tenant(TimestampMixin, Base):
         default=lambda: DEFAULT_QUOTAS.model_dump(),
         server_default=DEFAULT_QUOTAS.model_dump_json(),
     )
+    # The currency of this tenant's `model_prices` (ADR 0034 §3).
+    price_currency: Mapped[str] = mapped_column(String(3), default="CNY", server_default="CNY")
 
 
 class User(TimestampMixin, Base):
@@ -316,6 +321,30 @@ class TenantModelRoute(TimestampMixin, Base):
     params: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
     # Refs from `models` switched off: kept in the chain, never called (ADR 0026).
     disabled: Mapped[list[str]] = mapped_column(JSONB, default=list, server_default="[]")
+
+
+class ModelPrice(TimestampMixin, Base):
+    """What a tenant pays for one `connection:model`, entered by the tenant (ADR 0034 §3).
+
+    Keyed by connection name, like `llm_usage.connection_name`. NULL: not entered; that
+    part of the usage then has no cost. Today's price applies to the whole range.
+    """
+
+    __tablename__ = "model_prices"
+    __table_args__ = tuple(
+        CheckConstraint(f"{column} IS NULL OR {column} >= 0", name=column)
+        for column in ("input_per_mtok", "output_per_mtok", "per_kchar", "per_minute")
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True
+    )
+    connection_name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    model: Mapped[str] = mapped_column(String(128), primary_key=True)
+    input_per_mtok: Mapped[float | None] = mapped_column(Float)
+    output_per_mtok: Mapped[float | None] = mapped_column(Float)
+    per_kchar: Mapped[float | None] = mapped_column(Float)
+    per_minute: Mapped[float | None] = mapped_column(Float)
 
 
 class LLMUsage(Base):
