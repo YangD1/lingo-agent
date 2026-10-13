@@ -8,7 +8,7 @@
 
 **做了什么**：`frontend/e2e/tutor.spec.ts` 2 条：学习者在“我的私教”起名、换装扮、填音色 → 桌宠变样、拖动贴边（刷新后保留）、收起展开 → 朗读回复时桌宠在“说”、音色是所选的 → 聊天页点它聚焦输入框，别的页弹小窗接着同一对话 → 恢复默认 → 关掉桌宠；成员只能选主账号链里的模型（链外 422），所选的确实被用上。E2E 找出并修了两个真问题：`tutor-pet.tsx` 快速拖动时指针离开桌宠后收不到 `pointermove`（改成按下后在 `window` 上跟踪，在 effect 里挂监听）；`pet-chat.tsx` 打开时输入框还在加载历史、是禁用的，聚焦落空（`Composer` / `TutorPanel` 加 `autoFocus`，输入框可用时才聚焦）。README 中英、`agent-tools.md`、ADR 0032 落地记录、PLAN 已同步。`make ci` 全过（pytest 1756、Vitest 671、E2E 73）。
 
-**未完成**：无。Docker 重建见看板。
+**未完成**：无。已推送到 d7b34c7，CI run 38354541301 四个 job 全绿；Docker 已重建（迁移 head `fe7fd0a7941a`，`/healthz` 200）。
 
 **下一步**：P4 剩余各项先拆任务、和用户确认。
 
