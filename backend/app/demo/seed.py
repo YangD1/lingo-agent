@@ -275,7 +275,9 @@ async def _vocabulary(
     rng = random.Random(SEED)
     due: dict[int, datetime] = {}
     for days in range(REVIEW_DAYS, 0, -1):
-        start = _ago(now, days, 4)
+        # Exactly `days` before now, never earlier in the day: seeded just after
+        # midnight, an earlier hour would move "yesterday" back a date and break the streak.
+        start = _ago(now, days)
         fresh = words[:NEW_PER_DAY]
         words = words[NEW_PER_DAY:]
         soonest = [w for w, _ in sorted(due.items(), key=lambda kv: (kv[1], kv[0]))]

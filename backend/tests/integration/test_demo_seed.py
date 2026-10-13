@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from httpx import AsyncClient
@@ -11,8 +12,10 @@ from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
+from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.learner import mastery_state
 from app.adaptive.rules import get_rules
+from app.dashboard.service import dashboard
 from app.db.models import (
     Diagnosis,
     KCMastery,
@@ -151,3 +154,23 @@ async def test_the_demo_has_a_weak_point_a_consolidating_one_and_a_streak(
 async def test_only_demo_addresses_are_seeded(db_engine: AsyncEngine) -> None:
     with pytest.raises(NotDemoEmailError):
         await seed(create_sessionmaker(db_engine), InMemorySaver(), email="me@example.com")
+
+
+async def test_the_streak_holds_when_seeded_just_after_midnight(
+    db_engine: AsyncEngine, db_session: AsyncSession, words: None
+) -> None:
+    # Seeded at 00:13 (the screenshots run once was), "yesterday" must still be yesterday.
+    early = datetime(2026, 10, 14, 0, 13, tzinfo=UTC)
+    maker = create_sessionmaker(db_engine)
+    seeded = await seed(maker, InMemorySaver(), password="demo-pass", now=early)
+    async with maker() as session:
+        board = await dashboard(
+            session,
+            seeded.user_id,
+            rules=get_rules(),
+            catalog=get_grammar_catalog(),
+            tz=ZoneInfo("UTC"),
+            now=early,
+        )
+
+    assert board.summary.streak_days == REVIEW_DAYS

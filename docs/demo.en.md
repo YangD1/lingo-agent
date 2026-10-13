@@ -27,7 +27,7 @@ A 5–10 minute walk through Lingo Agent, using a demo account with about two we
 - **Say:** "This is two weeks in. The level and vocabulary size come from the placement test and keep updating as you learn."
 - **Click:** **Dashboard** in the sidebar.
 - **You should see:**
-  - [ ] CEFR level **B1**, about 3,500 words, and the number of words due today.
+  - [ ] CEFR level **B1**, about 3,500 words, a 10-day streak, and the number of words due today.
   - [ ] **Today's plan**: reviews, grammar practice, new words and more, each with a time estimate, about 20 minutes in all. Adjust or toggle the items, then click **Confirm plan**. After that, each item ticks itself off as it gets done.
   - [ ] Further down: the study calendar, grammar mastery and common mistakes.
 
