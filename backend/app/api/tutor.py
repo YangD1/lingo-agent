@@ -35,6 +35,7 @@ class TutorIn(BaseModel):
     avatar: Avatar | None = None
     color: Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")] | None = None
     animate: bool = True
+    pet: bool = True
     chat_model: Annotated[str, Field(max_length=300)] | None = None
     tts_model: Annotated[str, Field(max_length=300)] | None = None
     voices: dict[Language, Annotated[str, Field(max_length=service.MAX_VOICE_LENGTH)]] = {}
@@ -47,6 +48,7 @@ class TutorOut(BaseModel):
     avatar: Avatar | None = None
     color: str | None = None
     animate: bool = True
+    pet: bool = True
     chat_model: str | None = None
     tts_model: str | None = None
     voices: dict[Language, str] = {}
@@ -152,6 +154,7 @@ def _tutor_out(profile: TutorProfile, options: TutorOptions) -> TutorOut:
         avatar=profile.avatar,
         color=profile.color,
         animate=profile.animate,
+        pet=profile.pet,
         chat_model=profile.chat_model,
         tts_model=profile.tts_model,
         voices=profile.voices,

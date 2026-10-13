@@ -46,9 +46,10 @@ async def _client(app: FastAPI, name: str, *presets: str) -> AsyncClient:
 async def test_defaults_before_anything_is_saved(app: FastAPI) -> None:
     client = await _client(app, "ada")
     tutor = (await client.get("/tutor")).json()
-    assert (tutor["display_name"], tutor["display_avatar"], tutor["animate"]) == (
+    assert (tutor["display_name"], tutor["display_avatar"], tutor["animate"], tutor["pet"]) == (
         "Lingo",
         "cat",
+        True,
         True,
     )
     assert tutor["chat_model"] is None and tutor["unavailable"] == []
@@ -93,6 +94,7 @@ async def test_save_read_and_reset(app: FastAPI) -> None:
         "avatar": "sporty",
         "color": "#3A7BD5",
         "animate": False,
+        "pet": False,
         "chat_model": "openai:gpt-5-mini",
         "tts_model": "openai:gpt-4o-mini-tts",
         "voices": {"en-US": "sage", "zh-CN": ""},
@@ -103,7 +105,12 @@ async def test_save_read_and_reset(app: FastAPI) -> None:
     assert response.status_code == 200, response.text
     saved = response.json()
     assert saved["name"] == saved["display_name"] == "Max"
-    assert (saved["avatar"], saved["color"], saved["animate"]) == ("sporty", "#3a7bd5", False)
+    assert (saved["avatar"], saved["color"], saved["animate"], saved["pet"]) == (
+        "sporty",
+        "#3a7bd5",
+        False,
+        False,
+    )
     assert saved["voices"] == {"en-US": "sage"}  # empty ones dropped
     assert saved["unavailable"] == []
     assert (await client.get("/tutor")).json() == saved

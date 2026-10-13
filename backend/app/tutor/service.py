@@ -39,6 +39,7 @@ class TutorChoice:
     avatar: str | None = None
     color: str | None = None
     animate: bool = True
+    pet: bool = True
     chat_model: str | None = None
     tts_model: str | None = None
     voices: dict[str, str] | None = None
@@ -98,6 +99,7 @@ def validate(choice: TutorChoice, options: TutorOptions) -> dict[str, Any]:
         "avatar": choice.avatar,
         "color": color,
         "animate": choice.animate,
+        "pet": choice.pet,
         "chat_model": choice.chat_model,
         "tts_model": choice.tts_model if voices else None,
         "voices": voices,
@@ -123,19 +125,25 @@ def _voices(choice: TutorChoice, options: TutorOptions) -> dict[str, str]:
     picked = {lang: v.strip() for lang, v in (choice.voices or {}).items() if v and v.strip()}
     if not picked:
         return {}
-    model = options.tts_model
-    if model is None or choice.tts_model != ref(model):
-        raise InvalidChoiceError("tts_model", "voices are picked for the read-aloud model in use")
-    catalog = options.tts_voices()
     for lang, voice in picked.items():
-        if lang not in LANGUAGES:
-            raise InvalidChoiceError("voices", f"unknown language {lang!r}")
-        if len(voice) > MAX_VOICE_LENGTH:
-            raise InvalidChoiceError("voices", f"at most {MAX_VOICE_LENGTH} characters")
-        # A model with a catalog takes only its voices; others take what is typed (§2).
-        if catalog and not any(o.id == voice and lang in o.languages for o in catalog):
-            raise InvalidChoiceError("voices", f"{voice!r} is not a {lang} voice of this model")
+        check_voice(options, choice.tts_model, lang, voice)
     return picked
+
+
+def check_voice(options: TutorOptions, model: str | None, language: str, voice: str) -> None:
+    """`voice` may read `language` on `model`, the read-aloud model in use. Raises
+    InvalidChoiceError. Also checks a voice tried on the tutor page before it is saved."""
+    in_use = options.tts_model
+    if in_use is None or model != ref(in_use):
+        raise InvalidChoiceError("tts_model", "voices are picked for the read-aloud model in use")
+    if language not in LANGUAGES:
+        raise InvalidChoiceError("voices", f"unknown language {language!r}")
+    if len(voice) > MAX_VOICE_LENGTH:
+        raise InvalidChoiceError("voices", f"at most {MAX_VOICE_LENGTH} characters")
+    # A model with a catalog takes only its voices; others take what is typed (§2).
+    catalog = options.tts_voices()
+    if catalog and not any(o.id == voice and language in o.languages for o in catalog):
+        raise InvalidChoiceError("voices", f"{voice!r} is not a {language} voice of this model")
 
 
 def _realtime_voice(choice: TutorChoice, options: TutorOptions) -> str | None:

@@ -641,6 +641,8 @@ class TutorProfile(TimestampMixin, Base):
     color: Mapped[str | None] = mapped_column(String(7))
     # Off: the avatar is drawn still, like with the system's reduced motion.
     animate: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # The desk pet floating in the corner (ADR 0032 §4a); its spot stays on the device.
+    pet: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     chat_model: Mapped[str | None] = mapped_column(String(300))
     # The read-aloud model `voices` were picked from, and {language: voice}.
     tts_model: Mapped[str | None] = mapped_column(String(300))

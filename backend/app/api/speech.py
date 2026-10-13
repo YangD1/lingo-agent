@@ -32,11 +32,14 @@ from app.providers.tts import (
     SpeechSynthesisError,
     TextToSpeech,
     get_tts,
+    trying_voice,
     tts_task,
 )
 from app.realtime.limits import call_limit, quota_seconds_left
 from app.services.speech.read_aloud import clear_user_audio, read_aloud
 from app.services.speech.shadowing import ShadowingError, Source, shadow
+from app.tutor.options import ref, tutor_options
+from app.tutor.service import MAX_VOICE_LENGTH, InvalidChoiceError, check_voice
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +81,9 @@ class TtsIn(BaseModel):
     speed: Annotated[float, Field(ge=0.5, le=1.5)] = 1.0
     # A single word: its pronunciation made ahead of time is used when there is one (Q64s).
     word: bool = False
+    # A voice tried on the tutor page before it is saved (ADR 0032 §2): read by the
+    # read-aloud model in use, without fallback; it must be one the learner may pick.
+    voice: Annotated[str, Field(min_length=1, max_length=MAX_VOICE_LENGTH)] | None = None
 
     @field_validator("text")
     @classmethod
@@ -153,6 +159,9 @@ async def post_tts(
 ) -> Response:
     ctx = await load_provider_context(session, tenant.id)
     try:
+        tts = get_tts(ctx)
+        if body.voice is not None:
+            tts = _trying(ctx, tts, body.language, body.voice)
         audio = await read_aloud(
             session,
             ctx,
@@ -160,6 +169,7 @@ async def post_tts(
             language=body.language,
             speed=body.speed,
             user_id=user.id,
+            tts=tts,
             recorded=_words_route(ctx) if body.word else None,
         )
     except NoModelConfiguredError as exc:
@@ -188,6 +198,20 @@ async def post_tts(
             "Cache-Control": "private, max-age=86400",
         },
     )
+
+
+def _trying(
+    ctx: TenantProviderContext, tts: TextToSpeech, language: Language, voice: str
+) -> TextToSpeech:
+    options = tutor_options(get_providers_config(), ctx)
+    in_use = ref(options.tts_model) if options.tts_model else None
+    try:
+        check_voice(options, in_use, language, voice)
+    except InvalidChoiceError as exc:
+        raise api_error(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"invalid_{exc.field}", str(exc)
+        ) from exc
+    return trying_voice(tts, language, voice)
 
 
 class ClearedOut(BaseModel):

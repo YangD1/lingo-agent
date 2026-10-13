@@ -19,7 +19,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 from urllib.parse import urlsplit
 from xml.sax.saxutils import escape, quoteattr
@@ -479,6 +479,16 @@ def get_tts(ctx: TenantProviderContext, task: str = "default") -> TextToSpeech:
     if asked == "default":  # word audio keeps its route's voices (ADR 0032 §1)
         voices = _with_tutor_voices(ctx, resolved, voices)
     return TextToSpeech(ctx.tenant_id, tuple(resolved), voices)
+
+
+def trying_voice(tts: TextToSpeech, language: Language, voice: str) -> TextToSpeech:
+    """`tts` reduced to its first model reading `language` with `voice`: a voice tried on
+    the tutor page before it is saved (ADR 0032 §2). No fallback, so it is that voice."""
+    first = tts.models[:1]
+    if not first:
+        return tts
+    key = f"{first[0].connection}:{first[0].model}"
+    return replace(tts, models=first, voices={key: {language: voice}})
 
 
 def _with_tutor_voices(

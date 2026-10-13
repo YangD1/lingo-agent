@@ -775,6 +775,8 @@
     - [x] 形象照参考图重画（2026-10-13 用户确认；Vitest 629 全过，tsc / eslint 干净）：仍用 Canvas，`avatar-draw.ts` 按用户给的“小猫 · Canvas 形象”参考图重画（深棕粗描边、坐姿全身、奶油色肚子和口鼻、5 套装扮按图），`FUR_SWATCHES` 换成图里 8 种毛色（橘 / 金 / 米 / 灰 / 蓝 / 黑 / 白 / 粉）；之前未提交的眼睛 / 装扮调整已丢弃
   - **2026-10-13 用户调整 Q66i**：形象**不替换** Lingo 猫（logo、聊天头像、空状态、总结页等都不动），改成**桌宠**陪伴学习：全站浮在角落，朗读 / 通话时说话、录音时听、等回复时想、答对 / 打卡时开心、久不操作打盹；点它打开私教对话小窗；聊天、口语、通话页里不再另放大形象。下面 66.5–66.9 按此重拆（**待用户确认后开工**）
   - [~] 66.5 “我的私教”页（含后端补 `tutor_profiles.pet` 桌宠开关 + 迁移，Q66l）：选形象（装扮 + 毛色，实时预览）、名字、对话模型、每种语言的音色（按目录列，试听时形象跟着说，挂 `AiBadge`）、通话模型和音色、桌宠开关、恢复默认；成员看到“由 X 提供、扣 X 给的额度”；中英文案；Vitest
+    - [x] 后端（2026-10-13）：`tutor_profiles.pet`（默认开）+ 迁移 `fe7fd0a7941a`，`/tutor` 读写 `pet`；`POST /speech/tts` 加可选 `voice` 试听未保存的音色（`tutor.service.check_voice` 校验、`tts.trying_voice` 只用链首模型、不退后备）；`test_speech_api.py` 19 过，tutor / speech / migration 82 过，ruff / mypy 干净
+    - [ ] 前端页面
   - [ ] 66.6 桌宠外壳 `TutorPet`：挂在 `(app)/layout`，默认右下角，可拖动、松手贴边、可收起成小按钮（位置和收起状态存本机）；手机上缩小、避开底部导航；减少动态时只画静态；关掉桌宠时不渲染；Vitest
   - [ ] 66.7 桌宠反应：`lib/tutor-pet.ts` 事件总线（listen / think / happy），`avatar-state` 加 `sleeping`（打盹，闭眼 + zzz）；接入点：朗读 / 通话音量（已有 `voice-level`）、录音（聊天语音、跟读、口语）、等私教首个 token、练习答对 / 背词一轮完成 / 今日打卡；Vitest
   - [ ] 66.8 私教对话小窗：点桌宠在当前页弹出小聊天窗（复用 `use-chat-session`），可“在聊天页打开”；在聊天页点桌宠只聚焦输入框；`features.yaml` 登记入口、小窗挂 `AiBadge`；Vitest

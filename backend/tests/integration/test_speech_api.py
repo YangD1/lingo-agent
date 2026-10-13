@@ -203,7 +203,7 @@ async def test_cache_is_per_tenant(client: AsyncClient, vendor: Any) -> None:
         say("x" * 1001),
         say(language="fr-FR"),
         say(speed=3),
-        say(voice="anything"),  # the route picks voices, not the learner
+        say(voice=""),
     ],
 )
 async def test_invalid_requests(client: AsyncClient, vendor: Any, body: dict[str, Any]) -> None:
@@ -396,3 +396,33 @@ async def test_a_model_without_speed_control_is_cached_once_for_every_speed(
     # British English has no flash voice: the browser reads it.
     british = await client.post("/speech/tts", json=say(language="en-GB"))
     assert british.json()["detail"]["code"] == "no_tts_voice"
+
+
+async def test_a_voice_tried_on_the_tutor_page(client: AsyncClient, vendor: Any) -> None:
+    """ADR 0032 §2: read by the first model with that voice, and nothing else."""
+    await setup(client)
+
+    tried = await client.post("/speech/tts", json=say(voice="nova"))
+
+    assert tried.status_code == 200, tried.text
+    assert json.loads(vendor.seen[-1].content)["voice"] == "nova"
+    # No fallback: another model's voice would not be the one tried.
+    vendor.status["one.example.com"] = 503
+    failed = await client.post("/speech/tts", json=say("Again.", voice="nova"))
+    assert failed.status_code == 502
+    assert {r.url.host for r in vendor.seen} == {"one.example.com"}
+
+
+async def test_a_voice_the_model_does_not_have_cannot_be_tried(
+    client: AsyncClient, vendor: Any
+) -> None:
+    await setup(client)
+    # A model with a voice catalog takes only its own voices.
+    route = {"models": ["one:qwen3-tts-flash"]}
+    assert (await client.put("/tenant/routes/tts/default", json=route)).status_code == 200
+
+    response = await client.post("/speech/tts", json=say(voice="nobody"))
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "invalid_voices"
+    assert vendor.seen == []
