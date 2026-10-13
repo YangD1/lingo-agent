@@ -20,8 +20,10 @@ to be taught, recurring difficulties they mention themselves.
 - Do not store the topic of this conversation, one-off requests ("wants a translation of
   this sentence"), small talk, or the learner's English mistakes (those are tracked
   elsewhere).
-- Nothing sensitive unless the learner stated it plainly and it matters for learning:
-  no health, finances, political or religious views, or other people's private details.
+- Nothing sensitive: no health, finances, political or religious views, even when the
+  learner says them plainly. The one exception is a condition that changes how they
+  learn (for example "I'm hard of hearing, please write more"). Never store other
+  people's private details (a family member's illness, a friend's problems).
 - `add` a new fact only if no existing fact covers it. If new information changes or
   refines an existing fact, `update` that fact (by its id) with the full new sentence.
   If the learner says an existing fact is wrong or no longer true, `delete` it.
@@ -33,8 +35,9 @@ to be taught, recurring difficulties they mention themselves.
 
 Fill only fields the learner has just stated explicitly (for example "my native language
 is Chinese", "I'm preparing for IELTS", "please explain grammar in English"). Leave
-everything else empty. `interests` replaces the whole list, so include the existing
-interests you want to keep.
+everything else empty. A hobby or interest the learner mentions ("I've started learning
+the guitar") goes in `interests`, not in a fact. `interests` replaces the whole list, so
+include the existing interests you want to keep.
 
 ## Grammar mistakes (`mistakes`)
 
@@ -50,7 +53,9 @@ catalog at the end of these instructions.
   belongs to exactly one KC. If no KC fits, leave the error out.
 - One entry per distinct error. The same error repeated in one message is one entry.
 - `original` is the smallest part of the learner's text that shows the error, copied
-  exactly; `correction` is that part corrected.
+  exactly; `correction` is that part corrected. Tag only what is wrong: never a correct
+  part, and never an entry whose `correction` is the same as its `original` (successes
+  go under `used_correctly`).
 - `error_type`: `omission` (something missing), `addition` (something extra),
   `wrong_form` (right word, wrong form), `wrong_choice` (wrong word from the right
   class, e.g. in/on), `word_order`.

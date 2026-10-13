@@ -180,14 +180,17 @@ async def test_live_records_what_replay_then_reads(
         return FakeStructured({"one": "1", "two": "2"})
 
     monkeypatch.setattr(models, "get_structured_llm", fake_get_structured_llm)
+    monkeypatch.setattr(models, "first_model", lambda ctx, task: "m1")
     # A stale recording that no case makes any more.
     (tmp_path / "echo.json").write_text(json.dumps({"stale": {"output": {}}}), encoding="utf-8")
 
     ctx = object()
     record_to = Cassette(tmp_path / "echo.json")
-    live = await evaluate(Echo(), LiveModel(ctx, record_to), DATASET)  # type: ignore[arg-type]
+    model = LiveModel(ctx, record_to)  # type: ignore[arg-type]
+    live = await evaluate(Echo(), model, DATASET)
     record_to.save()
     assert live.met and calls == [(ctx, "toy"), (ctx, "toy")]
+    assert model.models == {"m1"}
 
     saved = json.loads((tmp_path / "echo.json").read_text(encoding="utf-8"))
     assert "stale" not in saved

@@ -14,6 +14,7 @@ from app.memory.reflection import (
 )
 
 IDS = {"u1": "msg-a", "u2": "msg-b"}
+TEXTS = {"msg-a": "She like music.", "msg-b": "I have car. I went home."}
 KC = "g.present_simple_third_person"
 
 
@@ -53,7 +54,7 @@ def test_valid_mistakes_and_successes_are_kept() -> None:
         mistakes=[mistake(), mistake("u2", "g.articles_basic", "I have car")],
         used_correctly=[UsedCorrectly(message="u2", kc_id="g.past_simple_irregular")],
     )
-    items = tagged_evidence(result, IDS, get_grammar_catalog())
+    items = tagged_evidence(result, IDS, get_grammar_catalog(), TEXTS)
     assert [(i.message_id, i.kc_id, i.correct) for i in items] == [
         ("msg-a", KC, False),
         ("msg-b", "g.articles_basic", False),
@@ -77,12 +78,26 @@ def test_unknown_ids_duplicates_and_empty_spans_are_dropped() -> None:
             UsedCorrectly(message="u1", kc_id="g.nope"),
         ],
     )
-    items = tagged_evidence(result, IDS, get_grammar_catalog())
+    items = tagged_evidence(result, IDS, get_grammar_catalog(), TEXTS)
     assert [(i.message_id, i.kc_id, i.correct) for i in items] == [("msg-a", KC, False)]
 
 
 def test_successes_are_capped_per_message() -> None:
     kcs = [kc.id for kc in get_grammar_catalog().kcs[: MAX_CORRECT_PER_MESSAGE + 2]]
     result = Reflection(used_correctly=[UsedCorrectly(message="u1", kc_id=k) for k in kcs])
-    items = tagged_evidence(result, IDS, get_grammar_catalog())
+    items = tagged_evidence(result, IDS, get_grammar_catalog(), TEXTS)
     assert len(items) == MAX_CORRECT_PER_MESSAGE
+
+
+def test_mistakes_must_quote_the_learner_and_change_something() -> None:
+    result = Reflection(
+        mistakes=[
+            mistake(original="She don't"),  # not what the learner wrote
+            mistake("u2", "g.articles_basic", "I have car"),  # quotes u2, tagged as u1 below
+            mistake("u1", "g.articles_basic", "I have car"),
+            TaggedMistake(message="u2", kc_id="g.past_simple_irregular", error_type="wrong_form",
+                          severity="medium", original="went", correction="Went"),  # no change
+        ]
+    )  # fmt: skip
+    items = tagged_evidence(result, IDS, get_grammar_catalog(), TEXTS)
+    assert [(i.message_id, i.kc_id) for i in items] == [("msg-b", "g.articles_basic")]

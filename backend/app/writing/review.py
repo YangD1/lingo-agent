@@ -103,8 +103,11 @@ class Checked:
     scores: dict[str, dict[str, object]]
     summary: str
     vocab: list[str]
-    # How many mistakes the model gave that code dropped, for the logs.
+    # How many mistakes the model gave that code dropped, for the logs: ones that do not
+    # quote their sentence or name a catalog KC (`dropped`), and ones whose correction
+    # changes nothing, a correct part listed as a mistake (`unchanged`).
     dropped: int
+    unchanged: int = 0
 
 
 def check(review: Review, parts: Sequence[Sentence], catalog: GrammarCatalog) -> Checked:
@@ -112,6 +115,7 @@ def check(review: Review, parts: Sequence[Sentence], catalog: GrammarCatalog) ->
     for reviewed in review.sentences:
         by_index.setdefault(reviewed.index, reviewed)  # the first wins when one repeats
     dropped = sum(len(r.mistakes) for i, r in by_index.items() if not 0 <= i < len(parts))
+    unchanged = 0
     corrections: list[dict[str, object]] = []
     for sentence in parts:
         item = by_index.get(sentence.index)
@@ -120,6 +124,9 @@ def check(review: Review, parts: Sequence[Sentence], catalog: GrammarCatalog) ->
         for m in item.mistakes if item else []:
             wrong = m.original.strip()
             key = (m.kc_id, wrong.casefold())
+            if wrong and wrong == m.correction.strip():
+                unchanged += 1
+                continue
             if m.kc_id not in catalog or not wrong or wrong not in sentence.text or key in seen:
                 dropped += 1
                 continue
@@ -148,6 +155,7 @@ def check(review: Review, parts: Sequence[Sentence], catalog: GrammarCatalog) ->
         summary=review.summary.strip(),
         vocab=vocab[:MAX_VOCAB],
         dropped=dropped,
+        unchanged=unchanged,
     )
 
 

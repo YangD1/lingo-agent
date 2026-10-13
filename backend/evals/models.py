@@ -34,6 +34,11 @@ class EvalModel(Protocol):
     ) -> T: ...
 
 
+def first_model(ctx: TenantProviderContext, task: str) -> str:
+    """The model a task's chain starts with."""
+    return resolve_route(get_providers_config(), ctx, "llm", task)[0].model
+
+
 def note_prompts(into: dict[str, str], messages: Sequence[BaseMessage]) -> None:
     into.update(prompt_versions("\n".join(m.text for m in messages)) or {})
 
@@ -114,8 +119,7 @@ class LiveModel:
         self, case_id: str, task: str, schema: type[T], messages: Sequence[BaseMessage]
     ) -> T:
         note_prompts(self.prompts, messages)
-        first = resolve_route(get_providers_config(), self.ctx, "llm", task)[0]
-        self.models.add(first.model)
+        self.models.add(first_model(self.ctx, task))
         output = await get_structured_llm(self.ctx, task, schema).ainvoke(list(messages))
         if self.record_to is not None:
             self.record_to.add(case_id, task, call_key(task, schema, messages), output)

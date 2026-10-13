@@ -1,0 +1,303 @@
+{
+ "09c34fcc63890077": {
+  "case": "library-cost-not-in-text",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": false,
+     "content_ok": true,
+     "needs_text": false,
+     "one_answer": true,
+     "own_answer": 0,
+     "position": 1,
+     "problems": [
+      "The text does not mention the cost of building the library at all."
+     ]
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "0b4cfd2988e40543": {
+  "case": "library-unclear",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": false,
+     "needs_text": false,
+     "one_answer": true,
+     "own_answer": 0,
+     "position": 1,
+     "problems": [
+      "The question uses extremely advanced vocabulary ('Notwithstanding', 'aforementioned', 'temporal parameters', 'principal motivation', 'predilection', 'edifice') far beyond A2 level; the options are simple, but the question stem is incomprehensible to an A2 learner."
+     ]
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "17014cc8ef18676e": {
+  "case": "bees-cities-problem",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 1,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "3d042bfe8d69c610": {
+  "case": "library-card-cost",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 1,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "4c1a67b39ee2f778": {
+  "case": "bees-hotel-meaning",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 0,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "504e4c72ef82e9df": {
+  "case": "bees-bristol-finding",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 2,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "68484caedcdcef7d": {
+  "case": "library-two-right",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 0,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "73e5e38075e740d9": {
+  "case": "bees-honey-not-in-text",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": false,
+     "content_ok": true,
+     "needs_text": false,
+     "one_answer": true,
+     "own_answer": -1,
+     "position": 1,
+     "problems": [
+      "The text does not mention honey production at all."
+     ]
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "868c457757c412fa": {
+  "case": "bees-why-farms-poor",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 1,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "90ea3009fb8a1e7a": {
+  "case": "bees-wrong-key-totals",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 1,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "b35b872d781cee2b": {
+  "case": "library-english-classes",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 2,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "c562b794096545f1": {
+  "case": "library-wrong-key",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 1,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "c607d02de9915f7f": {
+  "case": "bees-guessable-by-length",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 2,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "c6faac7c426d912d": {
+  "case": "bees-not-in-text-years",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": false,
+     "content_ok": true,
+     "needs_text": false,
+     "one_answer": true,
+     "own_answer": -1,
+     "position": 1,
+     "problems": [
+      "The text does not state or imply the start year of the Bristol study; the question cannot be answered from the text."
+     ]
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "e72718ea502a18a1": {
+  "case": "bees-two-right-reason",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": false,
+     "own_answer": 0,
+     "position": 1,
+     "problems": [
+      "Option 1 is also directly supported by the text ('flowers that bloom from early spring to late autumn'), so both options 0 and 1 are correct and defensible from the text."
+     ]
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "f0cb8394eb706cf8": {
+  "case": "library-location",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": true,
+     "one_answer": true,
+     "own_answer": 0,
+     "position": 1,
+     "problems": []
+    }
+   ]
+  },
+  "task": "reading_critic"
+ },
+ "fac3f44f22092102": {
+  "case": "library-guessable",
+  "output": {
+   "reviews": [
+    {
+     "answer_in_text": true,
+     "content_ok": true,
+     "needs_text": false,
+     "one_answer": true,
+     "own_answer": 0,
+     "position": 1,
+     "problems": [
+      "The question 'What can people do at a library?' is too general and does not require reading the text — 'borrow books' is common knowledge at A2 level, so it fails 'needs_text'."
+     ]
+    }
+   ]
+  },
+  "task": "reading_critic"
+ }
+}

@@ -46,6 +46,57 @@
    "exercise_grade": "eb70a371"
   }
  },
+ "reading_critic": {
+  "metrics": {
+   "bad_rejected": [8, 10],
+   "good_passed": [7, 7],
+   "rejects:guessable": [1, 2],
+   "rejects:not_in_text": [3, 3],
+   "rejects:two_right": [1, 2],
+   "rejects:unclear": [1, 1],
+   "rejects:wrong_key": [2, 2]
+  },
+  "models": [
+   "qwen-plus"
+  ],
+  "recorded": "2026-10-13",
+  "prompts": {
+   "reading_critic": "946f681b"
+  }
+ },
+ "reflect": {
+  "metrics": {
+   "facts_found": [4, 5],
+   "nothing_forbidden": [4, 5],
+   "outdated_fixed": [2, 2],
+   "profile_right": [4, 4],
+   "mistakes_found": [2, 2],
+   "no_false_mistakes": [12, 14],
+   "words_found": [3, 3],
+   "ids_valid": [18, 19],
+   "no_unchanged": [17, 19]
+  },
+  "models": [
+   "qwen-plus"
+  ],
+  "recorded": "2026-10-13",
+  "prompts": {
+   "reflect": "2ea50fae"
+  }
+ },
+ "route": {
+  "metrics": {
+   "writing_found": [8, 8],
+   "chat_kept": [9, 9]
+  },
+  "models": [
+   "qwen-plus"
+  ],
+  "recorded": "2026-10-13",
+  "prompts": {
+   "route": "81408b3a"
+  }
+ },
  "speaking_summary": {
   "metrics": {
    "real_mistakes_found": [5, 5],
@@ -58,6 +109,21 @@
   "prompts": {
    "speaking_summary": "bb2d4762",
    "speaking_summary_call": "7a0db634"
+  }
+ },
+ "writing_review": {
+  "metrics": {
+   "mistakes_found": [7, 9],
+   "correct_left_alone": [9, 10],
+   "quotes_hold": [9, 10],
+   "no_unchanged": [9, 10]
+  },
+  "models": [
+   "qwen-plus"
+  ],
+  "recorded": "2026-10-13",
+  "prompts": {
+   "writing_review": "dd4f001d"
   }
  }
 }

@@ -237,11 +237,11 @@ class ReflectionWorker:
         """Grammar evidence from the reflected messages, then the mastery it changes."""
         learner_ids = reflection.learner_message_ids(new)
         catalog, rules = get_grammar_catalog(), get_rules()
-        items = reflection.tagged_evidence(result, learner_ids, catalog)
+        texts = {m.id: m.text for m in new if isinstance(m, HumanMessage) and m.id}
+        items = reflection.tagged_evidence(result, learner_ids, catalog, texts)
         source = speaking_evidence.evidence_source(conversation.purpose)
         async with self._sessionmaker() as session:
             if source == "speaking":  # transcripts: less is kept (ADR 0029 §4)
-                texts = {m.id: m.text for m in new if isinstance(m, HumanMessage) and m.id}
                 items = await speaking_evidence.kept_evidence(
                     session, conversation.id, items, texts, rules
                 )

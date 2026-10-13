@@ -1,0 +1,116 @@
+# Writing review evaluation set (task 68.1): does `writing_review` find the real
+# grammar mistakes in a learner's text, leave correct sentences alone, and quote only
+# what the learner wrote? See evals/writing_review.py for the metrics.
+#
+#   prompt             the writing task, if any
+#   text               the learner's text; split into sentences as the app does,
+#                      counted from 0
+#   expect_mistakes    {sentence, kcs (acceptable KC ids), words (in the wrong part)}
+#   correct_sentences  sentences with nothing to fix
+#
+# Every text is made up.
+
+thresholds:
+  mistakes_found: 0.75
+  correct_left_alone: 0.75
+  quotes_hold: 0.9
+
+cases:
+  - id: holiday-past-tenses
+    level: A2
+    prompt: Write about your last holiday.
+    text: |
+      Last summer I go to Hangzhou with my family. We stayed in a small hotel near the West Lake. Every morning we walked around the lake. One day we buyed some green tea for my grandparents. The food was delicious and the people were friendly. I want to go back next year.
+    expect_mistakes:
+      - {sentence: 0, kcs: [g.past_simple_regular, g.past_simple_irregular, g.tense_consistency], words: go}
+      - {sentence: 3, kcs: [g.past_simple_irregular], words: buyed}
+    correct_sentences: [1, 2, 4, 5]
+
+  - id: third-person-routine
+    level: A2
+    prompt: Describe a family member's daily routine.
+    text: |
+      My father is a doctor. He get up at six o'clock every day. He usually has breakfast with my mother. After breakfast he drive to the hospital. He doesn't come home until eight in the evening. On Sundays he likes playing chess with me.
+    expect_mistakes:
+      - {sentence: 1, kcs: [g.present_simple_third_person, g.subject_verb_agreement], words: get}
+      - {sentence: 3, kcs: [g.present_simple_third_person, g.subject_verb_agreement], words: drive}
+    correct_sentences: [0, 2, 4, 5]
+
+  - id: articles-and-countables
+    level: B1
+    prompt: Write about a useful thing you bought recently.
+    text: |
+      Last month I bought electric bike. It is very useful because I can get to work in twenty minutes. Before that I had to take two buses. The bike was not cheap, but I think it was a good decision. I also bought a helmet and some new equipments for it.
+    expect_mistakes:
+      - {sentence: 0, kcs: [g.articles_basic], words: electric bike}
+      - {sentence: 4, kcs: [g.countable_uncountable], words: equipments}
+    correct_sentences: [1, 2, 3]
+
+  - id: present-perfect-email
+    level: B1
+    prompt: Write an email to a friend you haven't seen for a long time.
+    text: |
+      Dear Sam,
+
+      How are you? I didn't see you since we finished university. A lot of things have changed in my life. I have moved to Shenzhen two years ago and I work for a game company now. I have been really busy, but I'm happy.
+
+      Write back soon!
+    expect_mistakes:
+      - {sentence: 2, kcs: [g.present_perfect_vs_past_simple, g.present_perfect_for_since], words: "didn't see"}
+      - {sentence: 4, kcs: [g.present_perfect_vs_past_simple], words: have moved}
+    correct_sentences: [1, 3, 5]
+
+  - id: conditionals-opinion
+    level: B2
+    prompt: Should cities ban cars from the centre?
+    text: |
+      In my opinion, cities should ban cars from the centre. If there were fewer cars, the air would be much cleaner. If the government will build more bike lanes, more people will cycle to work. Some shop owners worry that they would lose customers. However, studies show that pedestrian streets often attract more visitors.
+    expect_mistakes:
+      - {sentence: 2, kcs: [g.first_conditional, g.future_time_clauses], words: will build}
+    correct_sentences: [0, 1, 3, 4]
+
+  - id: all-correct-b2
+    level: B2
+    prompt: Describe a challenge you have overcome.
+    text: |
+      Three years ago I was asked to give a presentation in English to our biggest client. I had never spoken in front of so many people before, and I was terrified. To prepare, I recorded myself every evening and asked a colleague to give me feedback. Although my voice was shaking at the beginning, the presentation went well. Since then, I have felt much more confident at work.
+    correct_sentences: [0, 1, 2, 3, 4]
+
+  - id: run-on-and-agreement
+    level: B1
+    prompt: What do you do in your free time?
+    text: |
+      In my free time I like reading, I usually read novels before I go to bed. My favourite writer is Liu Cixin. His books makes me think about the future. Sometimes I also go hiking with my friends. Hiking is good for both my body and my mind.
+    expect_mistakes:
+      - {sentence: 0, kcs: [g.sentence_boundaries], words: ","}
+      - {sentence: 2, kcs: [g.subject_verb_agreement, g.present_simple_third_person], words: makes}
+    correct_sentences: [1, 3, 4]
+
+  - id: gerund-and-comparatives
+    level: B1
+    prompt: Is it better to live in a city or in the countryside?
+    text: |
+      I prefer living in the countryside. Life there is more cheap than in the city. I enjoy to walk in the fields after dinner. Of course, the city has more jobs and better hospitals. But for me, fresh air is the most important thing.
+    expect_mistakes:
+      - {sentence: 1, kcs: [g.comparatives], words: more cheap}
+      - {sentence: 2, kcs: [g.gerund_infinitive, g.verb_patterns_basic], words: to walk}
+    correct_sentences: [0, 3, 4]
+
+  - id: english-explanations-passive
+    level: B2
+    explain_in: en
+    prompt: Describe how a product is made in your hometown.
+    text: |
+      My hometown is famous for silk. First, the silkworms are fed with mulberry leaves for about a month. Then the cocoons are collected and boiled in hot water. After that, the thread is pull out by machines. Finally, the silk is dyed and woven into cloth.
+    expect_mistakes:
+      - {sentence: 3, kcs: [g.passive_basic, g.past_participle_forms], words: pull}
+    correct_sentences: [0, 1, 2, 4]
+
+  - id: chinese-transfer-tense-and-plural
+    level: A2
+    text: |
+      I have two brother. They are both older than me. Last year my big brother marry a girl from Sichuan. Now they live in Chengdu and they have a cat.
+    expect_mistakes:
+      - {sentence: 0, kcs: [g.plural_nouns], words: brother}
+      - {sentence: 2, kcs: [g.past_simple_regular], words: marry}
+    correct_sentences: [1, 3]

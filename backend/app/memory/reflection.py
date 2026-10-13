@@ -291,6 +291,10 @@ async def apply_reflection(
     return Applied(tuple(added), tuple(updated), deleted, tuple(sorted(changes)))
 
 
+def _folded(text: str) -> str:
+    return " ".join(text.casefold().split())
+
+
 def _normalized(text: str) -> str:
     return " ".join(text.casefold().split()).rstrip(".")
 
@@ -317,10 +321,15 @@ def profile_changes(update: ProfileUpdate | None) -> dict[str, object]:
 
 
 def tagged_evidence(
-    reflection: Reflection, learner_ids: Mapping[str, str], catalog: GrammarCatalog
+    reflection: Reflection,
+    learner_ids: Mapping[str, str],
+    catalog: GrammarCatalog,
+    texts: Mapping[str, str],
 ) -> list[ChatEvidence]:
     """The grammar evidence worth storing: unknown messages and KC ids are dropped, as
-    are duplicates and anything past the per-message caps."""
+    are duplicates and anything past the per-message caps. A mistake must quote its
+    message (`texts`, by message id) and change something, so no evidence comes from
+    text the learner did not write."""
     items: list[ChatEvidence] = []
     seen: set[tuple[str, str, str]] = set()
     per_message: dict[tuple[str, bool], int] = {}
@@ -339,7 +348,13 @@ def tagged_evidence(
 
     for m in reflection.mistakes:
         original = m.original.strip()[:MAX_SPAN_CHARS]
-        if not original:
+        message_text = texts.get(learner_ids.get(m.message, ""), "")
+        if (
+            not original
+            or _folded(original) not in _folded(message_text)
+            or _folded(original) == _folded(m.correction)
+        ):
+            logger.info("reflection tagged %r, not a change to the learner's text", original)
             continue
         message_id = admit(m.message, m.kc_id, original.casefold(), False, MAX_MISTAKES_PER_MESSAGE)
         if message_id is None:

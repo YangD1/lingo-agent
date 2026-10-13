@@ -16,7 +16,7 @@ import logging
 from enum import StrEnum
 from typing import Literal
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field
 
@@ -73,20 +73,23 @@ def worth_classifying(text: str) -> bool:
     return word_count(text) >= MIN_WORDS_TO_CLASSIFY
 
 
+def route_messages(text: str, previous: str) -> list[BaseMessage]:
+    """What the `route` task sees: the message, after the end of the tutor's last one."""
+    prompt = f"## Learner's message\n{text}"
+    if previous:
+        prompt = f"## Tutor's previous message\n{previous[-PREVIOUS_CHARS:]}\n\n{prompt}"
+    return [SystemMessage(load_prompt(TASK)), HumanMessage(prompt)]
+
+
 async def classify(
     ctx: TenantProviderContext, text: str, previous: str, config: RunnableConfig
 ) -> Route:
     """The coach for one free-chat message. Never raises: a missing model, a failed or
     slow call all leave the turn with the tutor."""
-    prompt = f"## Learner's message\n{text}"
-    if previous:
-        prompt = f"## Tutor's previous message\n{previous[-PREVIOUS_CHARS:]}\n\n{prompt}"
     try:
         llm = get_structured_llm(ctx, TASK, RouteDecision)
         async with asyncio.timeout(TIMEOUT_SECONDS):
-            decision = await llm.ainvoke(
-                [SystemMessage(load_prompt(TASK)), HumanMessage(prompt)], config=config
-            )
+            decision = await llm.ainvoke(route_messages(text, previous), config=config)
         # Inside the try: a reply without the tool call parses to None.
         return Route(decision.route)
     except Exception:

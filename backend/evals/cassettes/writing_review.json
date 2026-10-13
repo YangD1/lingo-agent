@@ -1,0 +1,549 @@
+{
+ "03a20a9429406884": {
+  "case": "articles-and-countables",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "段落逻辑清晰，用时间顺序（Last month, Before that）和连接词（because, but）很好地组织了内容。",
+     "score": 4
+    },
+    "grammar": {
+     "reason": "整体语法准确，但有几处小错误，如冠词缺失、不可数名词误用和过去时态一致性问题。",
+     "score": 4
+    },
+    "task": {
+     "reason": "完全符合任务要求，描述了最近购买的有用物品（电动自行车）及其好处。",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "使用了恰当的词汇如 'electric bike', 'helmet', 'decision'，但 'equipments' 是错误用法。",
+     "score": 4
+    }
+   },
+   "sentences": [
+    {
+     "corrected": "Last month I bought an electric bike.",
+     "index": 0,
+     "mistakes": [
+      {
+       "correction": "an electric bike",
+       "error_type": "omission",
+       "explanation": "单数可数名词 'electric bike' 前面需要加不定冠词 'an'。",
+       "kc_id": "g.articles_basic",
+       "original": "electric bike",
+       "severity": "medium"
+      }
+     ]
+    },
+    {
+     "corrected": "Before that, I had to take two buses.",
+     "index": 2,
+     "mistakes": [
+      {
+       "correction": "Before that, I had to take two buses",
+       "error_type": "omission",
+       "explanation": "时间状语 'Before that' 后面需要加逗号。",
+       "kc_id": "g.punctuation",
+       "original": "Before that I had to take two buses",
+       "severity": "low"
+      }
+     ]
+    },
+    {
+     "corrected": "I also bought a helmet and some new equipment for it.",
+     "index": 4,
+     "mistakes": [
+      {
+       "correction": "equipment",
+       "error_type": "wrong_form",
+       "explanation": "'equipment' 是不可数名词，没有复数形式。",
+       "kc_id": "g.countable_uncountable",
+       "original": "equipments",
+       "severity": "medium"
+      }
+     ]
+    }
+   ],
+   "summary": "你的写作很清晰，成功描述了新买的电动自行车及其带来的便利。主要需要注意两点：一是单数可数名词前要加冠词（如 'an electric bike'）；二是不可数名词（如 'equipment'）不能加 -s。多加练习，你的写作会更准确！",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ },
+ "1a87b756a7c869dd": {
+  "case": "holiday-past-tenses",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "句子按时间顺序排列，逻辑清晰，但连接词较少。",
+     "score": 4
+    },
+    "grammar": {
+     "reason": "有几处动词过去式错误，但整体能传达意思。",
+     "score": 3
+    },
+    "task": {
+     "reason": "完全符合任务要求，描述了上一次假期。",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "使用了恰当的假期相关词汇，如 'West Lake', 'green tea'。",
+     "score": 4
+    }
+   },
+   "sentences": [
+    {
+     "corrected": "Last summer I went to Hangzhou with my family.",
+     "index": 0,
+     "mistakes": [
+      {
+       "correction": "went",
+       "error_type": "wrong_form",
+       "explanation": "描述过去发生的事，动词要用过去式。这里 'go' 的过去式是 'went'。",
+       "kc_id": "g.past_simple_regular",
+       "original": "go",
+       "severity": "medium"
+      },
+      {
+       "correction": "went",
+       "error_type": "wrong_form",
+       "explanation": "描述过去发生的事，动词要用过去式。这里 'go' 是不规则动词，过去式是 'went'。",
+       "kc_id": "g.past_simple_irregular",
+       "original": "go",
+       "severity": "medium"
+      }
+     ]
+    },
+    {
+     "corrected": "One day we bought some green tea for my grandparents.",
+     "index": 3,
+     "mistakes": [
+      {
+       "correction": "bought",
+       "error_type": "wrong_form",
+       "explanation": "'buy' 是不规则动词，过去式是 'bought'，不是 'buyed'。",
+       "kc_id": "g.past_simple_regular",
+       "original": "buyed",
+       "severity": "medium"
+      }
+     ]
+    }
+   ],
+   "summary": "你的作文很好地描述了假期，内容清晰、结构合理。主要需要改进的是动词过去式的拼写，特别是不规则动词。多练习常见不规则动词表会很有帮助。",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ },
+ "1ae72aa5df298cb4": {
+  "case": "english-explanations-passive",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "The steps are logically ordered with clear sequencing words (First, Then, After that, Finally).",
+     "score": 5
+    },
+    "grammar": {
+     "reason": "Most grammar is accurate; only one passive verb error needs correction.",
+     "score": 4
+    },
+    "task": {
+     "reason": "The text fully describes the silk-making process as asked.",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "Appropriate technical terms like 'silkworms', 'cocoons', 'dyed' and 'woven' are used accurately.",
+     "score": 4
+    }
+   },
+   "sentences": [
+    {
+     "corrected": "After that, the thread is pulled out by machines.",
+     "index": 3,
+     "mistakes": [
+      {
+       "correction": "pulled",
+       "error_type": "wrong_form",
+       "explanation": "In the passive voice, the past participle (pulled) is needed after 'is', not the base verb (pull).",
+       "kc_id": "g.passive_basic",
+       "original": "pull",
+       "severity": "medium"
+      }
+     ]
+    }
+   ],
+   "summary": "Your description of silk production is clear, well-organised and uses good vocabulary for the process. The main thing to work on is passive verb forms: remember that in the passive ('is pulled'), the verb must be in its past participle form, not the base form.",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ },
+ "3455da55a63865df": {
+  "case": "all-correct-b2",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "时间顺序清晰（三年前→准备→开始→之后），连接词（Although, Since then）使用恰当。",
+     "score": 5
+    },
+    "grammar": {
+     "reason": "所有时态（过去时、现在完成时）、从句和结构均正确无误。",
+     "score": 5
+    },
+    "task": {
+     "reason": "完全符合任务要求，描述了一个具体挑战及其克服过程。",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "用词准确且有变化（terrified, shaking, confident），但略缺更高级的表达。",
+     "score": 4
+    }
+   },
+   "sentences": [],
+   "summary": "这是一篇非常出色的B2级别写作：结构清晰、语言准确、逻辑连贯。你成功运用了多种语法结构（如过去完成时、although引导的让步状语从句、since then引导的现在完成时）。继续保持！",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ },
+ "79a93c6b44c89173": {
+  "case": "run-on-and-agreement",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "句子之间有逻辑联系，但第一句用了逗号连接两个独立分句，应改为句号或加连词。",
+     "score": 4
+    },
+    "grammar": {
+     "reason": "大部分语法正确，只有一处主谓一致错误。",
+     "score": 4
+    },
+    "task": {
+     "reason": "完全回答了问题，描述了空闲时间的活动。",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "使用了恰当的词汇如 'novels', 'hiking', 'body and mind'，范围适合B1水平。",
+     "score": 4
+    }
+   },
+   "sentences": [
+    {
+     "corrected": "In my free time, I like reading. I usually read novels before I go to bed.",
+     "index": 0,
+     "mistakes": [
+      {
+       "correction": ". I",
+       "error_type": "addition",
+       "explanation": "用逗号连接两个完整句子是错误的，应该用句号分开。",
+       "kc_id": "g.sentence_boundaries",
+       "original": ", I",
+       "severity": "medium"
+      }
+     ]
+    },
+    {
+     "corrected": "His books make me think about the future.",
+     "index": 2,
+     "mistakes": [
+      {
+       "correction": "make",
+       "error_type": "wrong_form",
+       "explanation": "books 是复数，动词要用原形 make，不能加 -s。",
+       "kc_id": "g.present_simple_third_person",
+       "original": "makes",
+       "severity": "medium"
+      }
+     ]
+    }
+   ],
+   "summary": "你的写作清楚地描述了空闲时间的活动，词汇和大部分语法都很好。主要需要注意两点：一是避免用逗号连接两个完整句子（逗号粘连），二是确保主语和动词在人称和数上保持一致。",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ },
+ "abda71fd4f215309": {
+  "case": "gerund-and-comparatives",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "观点清晰，用'Of course'和'But'有效连接，但段落略短。",
+     "score": 4
+    },
+    "grammar": {
+     "reason": "有几处B1级别常见错误：'more cheap'应为'cheaper'；'enjoy to walk'应为'enjoy walking'。",
+     "score": 3
+    },
+    "task": {
+     "reason": "完全回答了问题，明确表达了偏好并给出了理由。",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "使用了恰当的形容词（cheap, fresh）和比较级（more important），但'cheap'用于生活成本不够准确。",
+     "score": 4
+    }
+   },
+   "sentences": [
+    {
+     "corrected": "Life there is cheaper than in the city.",
+     "index": 1,
+     "mistakes": [
+      {
+       "correction": "cheaper",
+       "error_type": "wrong_form",
+       "explanation": "cheap是单音节形容词，比较级要加-er，不能用more。",
+       "kc_id": "g.comparatives",
+       "original": "more cheap",
+       "severity": "medium"
+      },
+      {
+       "correction": "cheaper",
+       "error_type": "wrong_form",
+       "explanation": "cheap是单音节形容词，比较级要加-er，不能用more。",
+       "kc_id": "g.adjective_position",
+       "original": "more cheap",
+       "severity": "medium"
+      }
+     ]
+    },
+    {
+     "corrected": "I enjoy walking in the fields after dinner.",
+     "index": 2,
+     "mistakes": [
+      {
+       "correction": "walking",
+       "error_type": "wrong_form",
+       "explanation": "enjoy后面必须跟动名词（-ing形式），不能跟to-infinitive。",
+       "kc_id": "g.verb_patterns_basic",
+       "original": "to walk",
+       "severity": "medium"
+      }
+     ]
+    }
+   ],
+   "summary": "你的文章结构很好，清楚地表达了你的观点并给出了对比理由。主要需要改进的是两个B1语法点：单音节形容词的比较级（如cheap → cheaper）和enjoy后接动名词（walk → walking）。多练习这些搭配会让你的表达更自然。",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ },
+ "bc784b694a5e2cd1": {
+  "case": "present-perfect-email",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "段落清晰，用连接词（but）和时间线索（since, two years ago, now）自然衔接，但可增加更多过渡词使行文更流畅。",
+     "score": 4
+    },
+    "grammar": {
+     "reason": "存在几处B1级别的时态和结构错误，如现在完成时与过去时间状语连用、动词搭配不当等，影响了准确性。",
+     "score": 3
+    },
+    "task": {
+     "reason": "完全符合任务要求：写一封给久未见面朋友的非正式邮件，有问候、近况分享和结束语。",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "使用了恰当的中等难度词汇（moved, game company, really busy），但略显简单，缺少一些生动或具体的表达。",
+     "score": 4
+    }
+   },
+   "sentences": [
+    {
+     "corrected": "I haven't seen you since we finished university.",
+     "index": 2,
+     "mistakes": [
+      {
+       "correction": "haven't seen",
+       "error_type": "wrong_form",
+       "explanation": "‘since’引导的时间状语必须搭配现在完成时，不能用一般过去时。",
+       "kc_id": "g.present_perfect_vs_past_simple",
+       "original": "didn't see",
+       "severity": "medium"
+      }
+     ]
+    },
+    {
+     "corrected": "I moved to Shenzhen two years ago and I work for a game company now.",
+     "index": 4,
+     "mistakes": [
+      {
+       "correction": "moved",
+       "error_type": "wrong_form",
+       "explanation": "‘two years ago’是明确的过去时间点，必须用一般过去时，不能用现在完成时。",
+       "kc_id": "g.present_perfect_vs_past_simple",
+       "original": "have moved",
+       "severity": "medium"
+      }
+     ]
+    }
+   ],
+   "summary": "这封邮件整体很友好、自然，很好地完成了任务：开头问候、分享生活变化、结尾期待回信。主要需要改进的是时态的准确使用——特别是现在完成时（强调与现在的关系）和一般过去时（强调过去的具体时间）的区别。多练习带‘since’和‘ago’的时间状语对应的正确时态，你的表达会更地道。",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ },
+ "c1c307cd163bba2f": {
+  "case": "third-person-routine",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "句子按时间顺序排列，逻辑清晰，衔接自然。",
+     "score": 5
+    },
+    "grammar": {
+     "reason": "存在几处A1/A2级别的动词第三人称单数和时态错误，但整体表达清晰。",
+     "score": 3
+    },
+    "task": {
+     "reason": "完全符合任务要求，描述了一位家庭成员（父亲）的日常作息。",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "使用了与日常作息相关的基础词汇（doctor, breakfast, hospital, chess），准确且恰当。",
+     "score": 4
+    }
+   },
+   "sentences": [
+    {
+     "corrected": "He gets up at six o'clock every day.",
+     "index": 1,
+     "mistakes": [
+      {
+       "correction": "gets",
+       "error_type": "wrong_form",
+       "explanation": "he后面动词要加-s，所以get要变成gets。",
+       "kc_id": "g.present_simple_third_person",
+       "original": "get",
+       "severity": "medium"
+      }
+     ]
+    },
+    {
+     "corrected": "After breakfast he drives to the hospital.",
+     "index": 3,
+     "mistakes": [
+      {
+       "correction": "drives",
+       "error_type": "wrong_form",
+       "explanation": "he后面动词要加-s，所以drive要变成drives。",
+       "kc_id": "g.present_simple_third_person",
+       "original": "drive",
+       "severity": "medium"
+      }
+     ]
+    }
+   ],
+   "summary": "你的写作很好！清楚地描述了爸爸一天的活动，句子连贯，词汇也用得很准。主要需要改进的是动词第三人称单数形式：he后面动词要加-s（如gets, drives）。多练习这个规则，你的语法会更准确。",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ },
+ "ca3797729f5556d9": {
+  "case": "conditionals-opinion",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "逻辑清晰，使用了If条件句、however和studies show等连接词，段落结构合理。",
+     "score": 5
+    },
+    "grammar": {
+     "reason": "整体语法准确，仅有一处未来时态在条件句中误用。",
+     "score": 4
+    },
+    "task": {
+     "reason": "完全回应了任务，明确表达了观点并提供了支持理由。",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "词汇准确且有变化（如ban, pedestrian streets, attract），但略缺更正式或更精确的表达。",
+     "score": 4
+    }
+   },
+   "sentences": [
+    {
+     "corrected": "If the government builds more bike lanes, more people will cycle to work.",
+     "index": 2,
+     "mistakes": [
+      {
+       "correction": "builds",
+       "error_type": "wrong_form",
+       "explanation": "在if引导的时间状语从句中，主句用将来时，从句要用一般现在时表示将来。",
+       "kc_id": "g.future_time_clauses",
+       "original": "will build",
+       "severity": "medium"
+      }
+     ]
+    }
+   ],
+   "summary": "你的文章观点清晰、结构良好，很好地完成了写作任务。最需要改进的是条件句中的时态规则：if从句中不能用will。其他句子语法正确，用词恰当，逻辑连贯。",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ },
+ "ddfd5a3a10b30d84": {
+  "case": "chinese-transfer-tense-and-plural",
+  "output": {
+   "scores": {
+    "coherence": {
+     "reason": "四句话逻辑连贯，按时间顺序（现在→去年→现在）讲述家庭情况。",
+     "score": 5
+    },
+    "grammar": {
+     "reason": "有三处A1/A2级别的语法错误：brother的复数、marry的过去式、have表示‘有’时的第三人称单数。",
+     "score": 3
+    },
+    "task": {
+     "reason": "没有指定任务，所以只要语法基本正确、意思清楚就算完成。",
+     "score": 5
+    },
+    "vocabulary": {
+     "reason": "用词简单但准确，如 'older than', 'marry', 'live in'，只有一处可更自然。",
+     "score": 4
+    }
+   },
+   "sentences": [
+    {
+     "corrected": "I have two brothers.",
+     "index": 0,
+     "mistakes": [
+      {
+       "correction": "brothers",
+       "error_type": "wrong_form",
+       "explanation": "可数名词‘brother’前面有数字‘two’，必须用复数形式‘brothers’。",
+       "kc_id": "g.plural_nouns",
+       "original": "brother",
+       "severity": "medium"
+      }
+     ]
+    },
+    {
+     "corrected": "Last year my big brother married a girl from Sichuan.",
+     "index": 2,
+     "mistakes": [
+      {
+       "correction": "married",
+       "error_type": "wrong_form",
+       "explanation": "‘marry’是不规则动词，过去式是‘married’，不是‘marry’。",
+       "kc_id": "g.past_simple_irregular",
+       "original": "marry",
+       "severity": "medium"
+      }
+     ]
+    },
+    {
+     "corrected": "Now they live in Chengdu and they have a cat.",
+     "index": 3,
+     "mistakes": [
+      {
+       "correction": "have",
+       "error_type": "wrong_choice",
+       "explanation": "主语‘they’是复数，动词‘have’不需要加-s；你写对了，但可能不确定，所以提醒一下：they have（不是has）。",
+       "kc_id": "g.present_simple_third_person",
+       "original": "have",
+       "severity": "low"
+      }
+     ]
+    }
+   ],
+   "summary": "整体很好！句子意思清楚，时间顺序合理。主要要练的是：1）可数名词复数（如brothers）；2）不规则动词过去式（如married）。这些是A2核心内容，多练几次就记住了。",
+   "vocab_candidates": []
+  },
+  "task": "writing_review"
+ }
+}

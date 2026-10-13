@@ -1,0 +1,121 @@
+{
+ "09e68b9a0d17cd96": {
+  "case": "plans-and-goals",
+  "output": {
+   "route": "tutor"
+  },
+  "task": "route"
+ },
+ "16e609b7adf27d6b": {
+  "case": "answer-to-tutors-request",
+  "output": {
+   "route": "writing_coach"
+  },
+  "task": "route"
+ },
+ "1caf2e1d530d2e9b": {
+  "case": "essay-with-request",
+  "output": {
+   "route": "writing_coach"
+  },
+  "task": "route"
+ },
+ "30395c7448901b06": {
+  "case": "quoted-colleague-email",
+  "output": {
+   "route": "tutor"
+  },
+  "task": "route"
+ },
+ "4e96583e3e968fd6": {
+  "case": "translate-request",
+  "output": {
+   "route": "tutor"
+  },
+  "task": "route"
+ },
+ "5b0505edb6a9c578": {
+  "case": "cover-letter-mixed-chinese",
+  "output": {
+   "route": "writing_coach"
+  },
+  "task": "route"
+ },
+ "757381a86116ee48": {
+  "case": "story-without-explicit-request",
+  "output": {
+   "route": "writing_coach"
+  },
+  "task": "route"
+ },
+ "9c3d0cc2e4950abd": {
+  "case": "email-to-improve",
+  "output": {
+   "route": "writing_coach"
+  },
+  "task": "route"
+ },
+ "aa9cf82e01fd3ca4": {
+  "case": "pasted-news-article",
+  "output": {
+   "route": "tutor"
+  },
+  "task": "route"
+ },
+ "af6508145439730d": {
+  "case": "ielts-task2-answer",
+  "output": {
+   "route": "writing_coach"
+  },
+  "task": "route"
+ },
+ "af70689b1e387a7a": {
+  "case": "writing-with-injection",
+  "output": {
+   "route": "writing_coach"
+  },
+  "task": "route"
+ },
+ "b34f5ad597528fc7": {
+  "case": "diary-please-correct",
+  "output": {
+   "route": "writing_coach"
+  },
+  "task": "route"
+ },
+ "b9ff6ecfc16941dc": {
+  "case": "chat-about-the-day",
+  "output": {
+   "route": "tutor"
+  },
+  "task": "route"
+ },
+ "c4e2cf91f64291f3": {
+  "case": "song-lyrics",
+  "output": {
+   "route": "tutor"
+  },
+  "task": "route"
+ },
+ "ca05bf17ea42315b": {
+  "case": "long-grammar-question",
+  "output": {
+   "route": "tutor"
+  },
+  "task": "route"
+ },
+ "dc1002d01435587e": {
+  "case": "long-message-after-writing-request",
+  "output": {
+   "route": "tutor"
+  },
+  "task": "route"
+ },
+ "e640f3eb54e3ac72": {
+  "case": "asks-for-example-essay",
+  "output": {
+   "route": "tutor"
+  },
+  "task": "route"
+ }
+}

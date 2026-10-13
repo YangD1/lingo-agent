@@ -70,6 +70,7 @@ def test_check_keeps_only_what_code_can_verify() -> None:
                         mistake("g.past_simple_irregular", "go"),  # same again: dropped
                         mistake("g.not_in_catalog", "summer"),  # unknown KC: dropped
                         mistake("g.articles_basic", "the family"),  # not in it: dropped
+                        mistake("g.articles_basic", "my family", correction="my family"),  # same
                     ],
                 },
                 {
@@ -104,7 +105,7 @@ def test_check_keeps_only_what_code_can_verify() -> None:
     }
     assert fourth["corrected"] is None
     assert len(checked.corrections) == len(parts)
-    assert checked.dropped == 4
+    assert checked.dropped == 4 and checked.unchanged == 1
     assert checked.summary == "Good start."
     assert set(checked.scores) == {"task", "coherence", "vocabulary", "grammar"}
     # One word each, once, at most five.

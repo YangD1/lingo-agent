@@ -18,7 +18,8 @@ Return a review only for the sentences that need a change, each with its number
   short sentence to the learner ("you").
 - Only grammar goes under `mistakes`. Spelling and word choice may be fixed in
   `corrected` but are not listed, unless the catalog has a KC for them. Leave out
-  errors no KC fits. One entry per distinct error.
+  errors no KC fits. One entry per distinct error. List only what is wrong: never a
+  correct part, and never an entry whose `correction` is the same as its `original`.
 
 ## Scores (`scores`)
 

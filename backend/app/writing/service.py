@@ -94,8 +94,13 @@ async def review(
         )
     reply = await call(messages, Review)
     checked = writing_review.check(cast(Review, reply.output), parts, catalog)
-    if checked.dropped:
-        logger.info("writing review %s: dropped %d mistakes", submission_id, checked.dropped)
+    if checked.dropped or checked.unchanged:
+        logger.info(
+            "writing review %s: dropped %d mistakes, %d unchanged",
+            submission_id,
+            checked.dropped,
+            checked.unchanged,
+        )
     async with maker() as session:
         row = await session.get(WritingSubmission, submission_id, with_for_update=True)
         if row is None or row.status != "pending":

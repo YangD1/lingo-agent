@@ -1,0 +1,219 @@
+# Reading critic evaluation set (task 68.1): does `reading_critic` turn down
+# comprehension questions a careful reader could get wrong, and pass good ones?
+#
+#   articles   texts at a level, rewritten as the app would show them
+#   cases      one question each: article, expect (pass | reject), flaw (reject only),
+#              question, options (fixed order), answer (index of the keyed option)
+#   flaw       not_in_text (needs outside knowledge or guessing), two_right (another
+#              option can be defended from the text), guessable (answerable without
+#              the text, from general knowledge or the options' wording), unclear
+#              (confusing or unnatural English, or above the level), wrong_key (the
+#              keyed option is not the right one)
+#
+# Every text is made up.
+
+thresholds:
+  bad_rejected: 0.8
+  good_passed: 0.85
+
+articles:
+  library:
+    level: A2
+    title: A New Library for Riverside
+    paragraphs:
+      - >-
+        The town of Riverside opened a new library last Saturday. The old library was
+        small and dark, and it closed at five o'clock every day. The new building is
+        next to the train station, and it is open until nine in the evening.
+      - >-
+        The library has more than 20,000 books and a big room for children. On the
+        second floor there are forty computers that everyone can use for free. People
+        need a library card to borrow books, but the card does not cost anything.
+      - >-
+        Maria Lopez, who works at the library, says many students come after school.
+        "They like the quiet rooms on the third floor," she says. "Some of them stay
+        until we close." Next month the library will start English classes for adults
+        on Tuesday evenings.
+
+  bees:
+    level: B1
+    title: Why Cities Are Good for Bees
+    paragraphs:
+      - >-
+        Most people think of bees as countryside insects, but a growing number of
+        studies suggest that cities can be surprisingly good places for them. In many
+        farming areas, fields are planted with a single crop, so bees only find food
+        for a few weeks a year. City parks and gardens, by contrast, are full of
+        different flowers that bloom from early spring to late autumn.
+      - >-
+        Researchers in Bristol counted bees in gardens, parks and farmland for two
+        years. They found more types of bees in the city gardens than on the farms,
+        although the farms still had more bees in total. The scientists believe that
+        the variety of plants in private gardens is the main reason.
+      - >-
+        Cities are not perfect, however. Bees struggle to find places to build nests
+        where streets and buildings cover the ground. Some towns now leave small areas
+        of grass uncut and encourage people to put "bee hotels" - small wooden boxes
+        with holes - on their balconies.
+
+cases:
+  # --- library: good ---------------------------------------------------------------
+
+  - id: library-location
+    article: library
+    expect: pass
+    question: Where is the new library?
+    options: [Next to the train station, Next to the old library, In the town park, Near the school]
+    answer: 0
+
+  - id: library-card-cost
+    article: library
+    expect: pass
+    question: How much does a library card cost?
+    options: [Five dollars, Nothing, Ten dollars a year, It depends on your age]
+    answer: 1
+
+  - id: library-english-classes
+    article: library
+    expect: pass
+    question: When will the English classes for adults take place?
+    options: [On Saturday mornings, After school every day, On Tuesday evenings, On Sunday afternoons]
+    answer: 2
+
+  # --- library: bad ----------------------------------------------------------------
+
+  - id: library-cost-not-in-text
+    article: library
+    expect: reject
+    flaw: not_in_text
+    question: How much did the new library cost to build?
+    options: [Two million dollars, Five million dollars, Ten million dollars, One million dollars]
+    answer: 1
+
+  - id: library-two-right
+    article: library
+    expect: reject
+    flaw: two_right
+    question: What is true about the new library?
+    options: [It is open until nine in the evening, It has a big room for children, It closes at five o'clock, It is small and dark]
+    answer: 0
+
+  - id: library-wrong-key
+    article: library
+    expect: reject
+    flaw: wrong_key
+    question: Which floor has the computers?
+    options: [The first floor, The second floor, The third floor, The ground floor]
+    answer: 2
+
+  - id: library-guessable
+    article: library
+    expect: reject
+    flaw: guessable
+    question: What can people do at a library?
+    options: [Borrow books, Buy a car, Fly a plane, Catch fish]
+    answer: 0
+
+  - id: library-unclear
+    article: library
+    expect: reject
+    flaw: unclear
+    question: Notwithstanding the aforementioned temporal parameters, what constitutes the principal motivation underlying the predilection of pupils for the edifice?
+    options: [The quiet rooms, The free computers, The children's room, The train station]
+    answer: 0
+
+  # --- bees: good ------------------------------------------------------------------
+
+  - id: bees-why-farms-poor
+    article: bees
+    expect: pass
+    question: Why do bees often find little food on farms?
+    options:
+      - Farmers use too many chemicals
+      - Fields often grow only one crop, so flowers last a few weeks
+      - It is too cold in the countryside
+      - There are too many other insects
+    answer: 1
+
+  - id: bees-bristol-finding
+    article: bees
+    expect: pass
+    question: What did the researchers in Bristol find?
+    options:
+      - Farms had more types of bees than city gardens
+      - City gardens had more bees in total than farms
+      - City gardens had more types of bees, but farms had more bees overall
+      - There was no difference between the city and the farms
+    answer: 2
+
+  - id: bees-cities-problem
+    article: bees
+    expect: pass
+    question: According to the text, what is one problem for bees in cities?
+    options:
+      - There are not enough flowers in spring
+      - It is hard to find places to build nests
+      - The air is too polluted
+      - People are afraid of bees
+    answer: 1
+
+  - id: bees-hotel-meaning
+    article: bees
+    expect: pass
+    question: What is a "bee hotel"?
+    options:
+      - A small wooden box with holes for bees
+      - A building where beekeepers live
+      - A park area where grass is not cut
+      - A shop that sells honey
+    answer: 0
+
+  # --- bees: bad -------------------------------------------------------------------
+
+  - id: bees-honey-not-in-text
+    article: bees
+    expect: reject
+    flaw: not_in_text
+    question: How much honey do city bees make compared with country bees?
+    options: [About the same, Twice as much, Half as much, Three times as much]
+    answer: 1
+
+  - id: bees-two-right-reason
+    article: bees
+    expect: reject
+    flaw: two_right
+    question: Why are city gardens good for bees?
+    options:
+      - They have many different flowers
+      - Flowers bloom there from spring to autumn
+      - They are cut very often
+      - They have no buildings
+    answer: 0
+
+  - id: bees-guessable-by-length
+    article: bees
+    expect: reject
+    flaw: guessable
+    question: What do some towns do to help bees?
+    options:
+      - Nothing
+      - Close the parks
+      - They leave small areas of grass uncut and encourage people to put bee hotels on their balconies
+      - Kill other insects
+    answer: 2
+
+  - id: bees-wrong-key-totals
+    article: bees
+    expect: reject
+    flaw: wrong_key
+    question: Where did the researchers count the most bees in total?
+    options: [In city gardens, On farmland, In parks, On balconies]
+    answer: 0
+
+  - id: bees-not-in-text-years
+    article: bees
+    expect: reject
+    flaw: not_in_text
+    question: In which year did the Bristol study start?
+    options: ["2015", "2018", "2020", "2012"]
+    answer: 1

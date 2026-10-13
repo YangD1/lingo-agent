@@ -1,0 +1,225 @@
+# Reflection evaluation set (task 68.1): after an exchange, does `reflect` remember
+# what is durable, leave out what is not, fix outdated facts, fill the profile only
+# from what was stated, tag real grammar mistakes (and not correct English), and pick
+# the words the learner asked about? See evals/reflect.py for the metrics.
+#
+#   language     the language facts are written in (default English)
+#   profile      UserProfile fields already known
+#   facts        remembered facts, shown to the model as m1, m2, ...
+#   earlier/new  turns, each {learner: ...} or {tutor: ...}; learner turns in `new`
+#                are u1, u2, ...
+#
+# Every person and message is made up.
+
+thresholds:
+  facts_found: 0.8
+  nothing_forbidden: 0.8
+  outdated_fixed: 0.75
+  profile_right: 0.8
+  mistakes_found: 0.75
+  no_false_mistakes: 0.8
+  words_found: 0.75
+  ids_valid: 0.9
+
+cases:
+  # --- facts -----------------------------------------------------------------------
+
+  - id: job-and-deadline
+    new:
+      - learner: |
+          Hi, I'm a backend developer at a logistics company. I have a job interview
+          with a Canadian company at the end of November, so I need to practise
+          talking about my projects in English.
+      - tutor: That's exciting! Let's practise. Tell me about a project you're proud of.
+    expect_facts:
+      - [backend, developer]
+      - [interview]
+    expect_profile:
+      occupation: developer
+    clean_messages: [u1]
+
+  - id: small-talk-only
+    new:
+      - learner: It's raining a lot today. I'm a bit tired, I think I'll just do a short lesson.
+      - tutor: No problem, a short lesson is better than none. Shall we review some words?
+      - learner: Yes, let's do that.
+    expect_no_facts: true
+    forbid_facts: [rain, tired]
+    clean_messages: [u1, u2]
+
+  - id: one-off-request-not-remembered
+    new:
+      - learner: Can you translate "I'm looking forward to hearing from you" into Chinese?
+      - tutor: 期待您的回复。It's a polite way to end a formal email.
+      - learner: Thanks, that's useful for the email I'm writing now.
+    expect_no_facts: true
+    forbid_facts: [translat]
+    clean_messages: [u1, u2]
+
+  - id: health-and-others-details-left-out
+    new:
+      - learner: |
+          Sorry I missed yesterday. My husband was in hospital because of his heart
+          problem and I was very worried. He's home now. My doctor also says I have
+          high blood pressure. Anyway, I still want to keep studying for my trip to
+          London in the summer.
+    expect_facts:
+      - [london, trip, travel]
+    forbid_facts: [heart, blood pressure, hospital]
+
+  - id: teaching-preference
+    new:
+      - learner: |
+          Please don't correct every small mistake when we chat, it makes me nervous.
+          Just tell me the important ones at the end.
+    expect_facts:
+      - [correct, mistake, correction]
+
+  - id: interests-kept-when-adding
+    profile:
+      interests: [football, cooking]
+    new:
+      - learner: I've recently started learning the guitar, it's my new hobby.
+    expect_profile:
+      interests: [football, cooking, guitar]
+    clean_messages: [u1]
+
+  - id: chinese-facts
+    language: Simplified Chinese
+    new:
+      - learner: 我在一家医院做护士，打算两年后去澳大利亚工作，所以要考 OET。
+    expect_facts:
+      - [护士]
+      - [澳大利亚, OET]
+
+  # --- outdated facts --------------------------------------------------------------
+
+  - id: changed-job
+    facts:
+      - Works as a sales manager at a car company.
+      - Has a daughter who is in primary school.
+    new:
+      - learner: |
+          Actually I left the car company last month. Now I work as a product manager
+          at a software startup, and I have to read a lot of English documents.
+    expect_outdated: [m1]
+    expect_facts:
+      - [product manager]
+    clean_messages: [u1]
+
+  - id: fact-is-wrong
+    facts:
+      - Is preparing for the IELTS exam.
+      - Likes watching science fiction films.
+    new:
+      - learner: |
+          By the way, I'm not preparing for IELTS any more. I decided not to study
+          abroad, so I just want to improve my everyday English.
+    expect_outdated: [m1]
+
+  # --- profile ---------------------------------------------------------------------
+
+  - id: exam-and-explanation-language
+    new:
+      - learner: |
+          I'm preparing for the TOEFL in March. And from now on please explain grammar
+          in English, not Chinese, I want more practice.
+    expect_profile:
+      target_exam: toefl
+      explanation_language: en
+    clean_messages: [u1]
+
+  - id: profile-not-guessed
+    new:
+      - learner: My company sells phones to customers in Europe, so I write emails in English every day.
+    expect_profile:
+      target_exam: null
+      native_language: null
+    clean_messages: [u1]
+
+  # --- grammar mistakes ------------------------------------------------------------
+
+  - id: past-and-third-person
+    profile:
+      native_language: Chinese
+    new:
+      - learner: Yesterday I goed to the cinema with my friends and we watch a comedy.
+      - tutor: Sounds fun! What was the film about?
+      - learner: It is about a man who work in a zoo. He talk to the animals every night.
+    expect_mistakes:
+      - message: u1
+        kcs: [g.past_simple_irregular]
+        words: goed
+      - message: u1
+        kcs: [g.past_simple_regular, g.tense_consistency]
+        words: watch
+      - message: u2
+        kcs: [g.present_simple_third_person, g.subject_verb_agreement]
+        words: work
+
+  - id: articles-and-plurals
+    profile:
+      native_language: Chinese
+    new:
+      - learner: I bought new laptop last week. It has three USB port and very good screen.
+      - tutor: Nice! Which brand did you choose?
+      - learner: I chose a Lenovo one because it was cheaper than the others.
+    expect_mistakes:
+      - message: u1
+        kcs: [g.articles_basic]
+        words: new laptop
+      - message: u1
+        kcs: [g.plural_nouns]
+        words: port
+    clean_messages: [u2]
+
+  - id: correct-advanced-english
+    new:
+      - learner: |
+          If I had known the meeting would be cancelled, I wouldn't have taken the
+          early train. I've been working on this report since Monday, and it still
+          isn't finished.
+    clean_messages: [u1]
+    expect_no_facts: true
+
+  - id: tutor-and-quotes-not-tagged
+    new:
+      - tutor: Here's a common mistake learners make - "She don't like coffee." Can you fix it?
+      - learner: 'The sign at my office says "No smoking aloud". Is that why it sounds strange? The correct one is "She doesn''t like coffee".'
+    clean_messages: [u1]
+
+  - id: informal-chat-not-tagged
+    new:
+      - learner: Thanks! See you tomorrow.
+      - tutor: See you! Have a good evening.
+      - learner: You too. Gonna watch the match now, can't wait.
+    clean_messages: [u1, u2]
+    expect_no_facts: true
+
+  # --- words -----------------------------------------------------------------------
+
+  - id: asked-word-meaning
+    new:
+      - learner: What does "reluctant" mean? My manager said I seemed reluctant in the meeting.
+      - tutor: '"Reluctant" means not wanting to do something. For example, "He was reluctant to leave."'
+    expect_words: [reluctant]
+    forbid_words: [manager, meeting]
+    clean_messages: [u1]
+
+  - id: asked-how-to-say
+    new:
+      - learner: “犹豫”用英文怎么说？
+      - tutor: You can say "hesitate", for example "Don't hesitate to ask."
+      - learner: I see. I always hesitate before I speak in meetings.
+    expect_words: [hesitate]
+    forbid_words: [meeting]
+    clean_messages: [u2]
+
+  - id: pasted-text-words-not-taken
+    new:
+      - learner: |
+          My son's homework says: "The ubiquitous smartphone has transformed how
+          adolescents communicate." Can you help me explain this sentence to him in
+          simple words?
+    forbid_words: [ubiquitous, adolescent, transform]
+    clean_messages: [u1]
