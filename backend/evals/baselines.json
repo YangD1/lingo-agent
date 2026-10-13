@@ -1,0 +1,63 @@
+{
+ "critic": {
+  "metrics": {
+   "bad_rejected": [24, 26],
+   "good_passed": [18, 18],
+   "rejects:factual": [3, 4],
+   "rejects:misrated": [3, 3],
+   "rejects:off_target": [4, 4],
+   "rejects:two_right": [4, 5],
+   "rejects:unnatural": [4, 4],
+   "rejects:wrong_key": [6, 6]
+  },
+  "models": [
+   "gpt-5.5"
+  ],
+  "recorded": "2026-10-02",
+  "prompts": {
+   "exercise_critic": "cf5f3b70"
+  }
+ },
+ "diagnosis": {
+  "metrics": {
+   "root_found": [7, 9],
+   "no_cause_without_pattern": [2, 3],
+   "citations_hold": [12, 12]
+  },
+  "models": [
+   "gpt-6.1-sol"
+  ],
+  "recorded": "2026-10-09",
+  "prompts": {
+   "diagnose": "bd3f7b84"
+  }
+ },
+ "grader": {
+  "metrics": {
+   "verdict_right": [31, 31],
+   "no_extra_mistakes": [11, 11],
+   "other_mistakes_found": [4, 4]
+  },
+  "models": [
+   "gpt-5.5"
+  ],
+  "recorded": "2026-10-02",
+  "prompts": {
+   "exercise_grade": "eb70a371"
+  }
+ },
+ "speaking_summary": {
+  "metrics": {
+   "real_mistakes_found": [5, 5],
+   "transcript_left_alone": [5, 5]
+  },
+  "models": [
+   "qwen-plus"
+  ],
+  "recorded": "2026-10-12",
+  "prompts": {
+   "speaking_summary": "bb2d4762",
+   "speaking_summary_call": "7a0db634"
+  }
+ }
+}

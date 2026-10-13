@@ -16,8 +16,9 @@ from typing import Any, Protocol
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel
 
-from app.providers.config import TenantProviderContext
-from app.providers.llm import get_structured_llm
+from app.prompts import prompt_versions
+from app.providers.config import TenantProviderContext, resolve_route
+from app.providers.llm import get_providers_config, get_structured_llm
 
 CASSETTES_DIR = Path(__file__).parent / "cassettes"
 
@@ -25,9 +26,16 @@ RERECORD_HINT = "make eval-live ARGS='--email <account> --record'"
 
 
 class EvalModel(Protocol):
+    # `{prompt name: version}` of the calls made so far (ADR 0033 §3).
+    prompts: dict[str, str]
+
     async def structured[T: BaseModel](
         self, case_id: str, task: str, schema: type[T], messages: Sequence[BaseMessage]
     ) -> T: ...
+
+
+def note_prompts(into: dict[str, str], messages: Sequence[BaseMessage]) -> None:
+    into.update(prompt_versions("\n".join(m.text for m in messages)) or {})
 
 
 def call_key(task: str, schema: type[BaseModel], messages: Sequence[BaseMessage]) -> str:
@@ -78,10 +86,12 @@ class Cassette:
 class ReplayModel:
     def __init__(self, cassette: Cassette) -> None:
         self.cassette = cassette
+        self.prompts: dict[str, str] = {}
 
     async def structured[T: BaseModel](
         self, case_id: str, task: str, schema: type[T], messages: Sequence[BaseMessage]
     ) -> T:
+        note_prompts(self.prompts, messages)
         entry = self.cassette.entries.get(call_key(task, schema, messages))
         if entry is None:
             raise CassetteMiss(self.cassette.dataset, case_id, task)
@@ -96,10 +106,16 @@ class LiveModel:
     def __init__(self, ctx: TenantProviderContext, record_to: Cassette | None = None) -> None:
         self.ctx = ctx
         self.record_to = record_to
+        self.prompts: dict[str, str] = {}
+        # Each task's first model in its chain; a fallback may have answered some calls.
+        self.models: set[str] = set()
 
     async def structured[T: BaseModel](
         self, case_id: str, task: str, schema: type[T], messages: Sequence[BaseMessage]
     ) -> T:
+        note_prompts(self.prompts, messages)
+        first = resolve_route(get_providers_config(), self.ctx, "llm", task)[0]
+        self.models.add(first.model)
         output = await get_structured_llm(self.ctx, task, schema).ainvoke(list(messages))
         if self.record_to is not None:
             self.record_to.add(case_id, task, call_key(task, schema, messages), output)

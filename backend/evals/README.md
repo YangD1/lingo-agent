@@ -16,6 +16,7 @@ P2 的最小评估集（计划 Q13、任务 36）：检查把关学习者所见�
 - **数据集**：`thresholds` 把指标名映射到要达到的准确率，写在数据里而不是代码里（Q36c）；每条用例有唯一 `id`，其余字段由评估器读，加载时校验（题目要能通过 `formats.py`，批改用例必须真的会走到模型）。
 - **录制**：`cassettes/<名字>.json`。键是“任务 + 消息 + 输出结构”的哈希，所以提示词、代码拼出的消息或结构一改，回放就对不上，直接失败并提示重录（Q36a），不会拿旧答案评新提示词。critic 用例里的生成器难度评分不进提示词，改它不用重录。
 - **评估器**：在 `registry.py` 的 `EVALUATORS` 登记，实现 `runner.Evaluator`（`name` + `run_case`）。
+- **分数基线**（ADR 0033 §3）：`baselines.json` 每个评估集一项：各指标的通过数 / 总数、录制所用模型（各任务链首的模型）、录制日期、录制时请求里用到的提示词版本（`make prompts` 可对照）。重录时报告先列出“基线 → 本次”的差值（下降标 `WORSE`），再写入新基线，所以重录的 PR 在 diff 里就能看到分数变化。回放是确定的，必须**等于**基线：不相等说明评估器或判分逻辑改了，要么重录，要么确认是有意的改动后 `make eval ARGS='--update-baseline'` 接受回放分数。CI 的 backend job 把分数表写进 job summary（`python -m evals --markdown`）。
 
 ## 运行
 
@@ -23,10 +24,11 @@ P2 的最小评估集（计划 Q13、任务 36）：检查把关学习者所见�
 make eval                                               # 回放，不需要 key 和数据库；pytest / CI 也会跑（evals/test_replay.py）
 make eval ARGS='critic'                                 # 只跑某几个
 make eval-live ARGS='--email you@example.com'           # 用开发库里这个账号所在租户的连接，走 provider 层（Q36b）
-make eval-live ARGS='--email you@example.com --record'  # 同上，并重写录制文件
+make eval-live ARGS='--email you@example.com --record'  # 同上，并重写录制文件和分数基线
+make eval ARGS='--update-baseline'                      # 改了评估器以后，接受回放出来的新分数
 ```
 
-退出码：0 门槛全达到；1 有门槛没达到或调用失败；2 录制过期，需要重录。重录时只要有一条调用失败就不写文件；写的时候整份替换，不再用到的录制会被删掉。没有录制文件的数据集回放时跳过。真实模型模式不记 `llm_usage`。
+退出码：0 门槛全达到且回放等于基线；1 有门槛没达到、调用失败或回放和基线不同；2 录制过期，需要重录。重录时只要有一条调用失败就不写文件；写的时候整份替换，不再用到的录制会被删掉。没有录制文件的数据集回放时跳过。真实模型模式不记 `llm_usage`。
 
 ## 什么时候要重录
 
