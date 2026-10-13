@@ -31,6 +31,7 @@ from app.providers.errors import NoModelConfiguredError
 from app.providers.realtime import RealtimeRoute, get_realtime
 from app.providers.realtime_session import RealtimeConnectError, RealtimeSession, open_session
 from app.providers.tenant import load_provider_context
+from app.ratelimit import RateLimitedError, RateLimiter
 from app.realtime import calls
 from app.realtime.after import AfterCall
 from app.realtime.calls import RealtimeCalls
@@ -130,10 +131,16 @@ async def realtime_call(websocket: WebSocket, scenario: str | None = None) -> No
     await websocket.accept()
     browser = _Browser(websocket)
 
-    async def refuse(code: str) -> None:
-        await browser.send_json({"type": "ended", "reason": "refused", "code": code})
+    async def refuse(code: str, **extra: object) -> None:
+        await browser.send_json({"type": "ended", "reason": "refused", "code": code, **extra})
         await browser.close()
 
+    limiter: RateLimiter = websocket.app.state.rate_limiter
+    try:
+        limiter.hit("chat", str(user.id))  # each call opens a vendor session (ADR 0035)
+    except RateLimitedError as exc:
+        await refuse("rate_limited", retry_after=exc.retry_after)
+        return
     try:
         route = get_realtime(ctx)
     except NoModelConfiguredError as exc:

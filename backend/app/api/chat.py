@@ -42,7 +42,7 @@ from app.chat.turn import (
 )
 from app.chat.writing import DatabaseWriting
 from app.db.models import Attachment, Conversation, SpeakingSession
-from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
+from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep, per_user
 from app.memory.context import DatabaseLearner
 from app.memory.embedding import memory_embedder
 from app.memory.reflection import LOCALE_COOKIE, memory_language
@@ -275,7 +275,7 @@ class TranslationOut(BaseModel):
     text: str
 
 
-@router.post("/{conversation_id}/messages/{message_id}/translate")
+@router.post("/{conversation_id}/messages/{message_id}/translate", dependencies=[per_user("chat")])
 async def translate_message(
     conversation_id: uuid.UUID,
     message_id: Annotated[str, Path(max_length=100)],
@@ -531,6 +531,7 @@ async def _message_attachments(
 
 @router.post(
     "/{conversation_id}/messages",
+    dependencies=[per_user("chat")],
     response_class=EventSourceResponse,
     responses={
         404: {"description": "conversation_not_found or attachment_not_found"},
@@ -556,6 +557,7 @@ async def send_message(
 
 @router.post(
     "/{conversation_id}/opening",
+    dependencies=[per_user("chat")],
     response_class=EventSourceResponse,
     responses={
         404: {"description": "conversation_not_found"},

@@ -16,7 +16,7 @@ from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.db.models import WritingSubmission
-from app.deps import CurrentTenant, CurrentUser, SessionDep
+from app.deps import CurrentTenant, CurrentUser, SessionDep, per_user
 from app.memory.service import get_profile
 from app.writing import service
 from app.writing.prompts import get_writing_prompts
@@ -129,7 +129,7 @@ def _not_found() -> Exception:
     return api_error(status.HTTP_404_NOT_FOUND, "writing_not_found", "writing not found")
 
 
-@router.post("", status_code=status.HTTP_202_ACCEPTED)
+@router.post("", status_code=status.HTTP_202_ACCEPTED, dependencies=[per_user("generate")])
 async def submit(
     body: SubmitIn,
     user: CurrentUser,

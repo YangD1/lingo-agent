@@ -23,6 +23,7 @@ from app.adaptive.rules import get_rules
 from app.agents.exercise_graph import ModelReply, StructuredCall
 from app.api import practice as practice_api
 from app.db.models import Attempt, Exercise, ExerciseSet, User
+from app.ratelimit import Limit, RateLimiter
 from tests.integration.test_chat_send import login
 from tests.integration.test_exercise_answer import ITEMS, KC
 from tests.integration.test_learner_api import switch_to
@@ -272,3 +273,38 @@ async def test_an_open_answer_graded_by_the_model(
     assert result["correct"] is False
     assert result["feedback"]["corrected"] == "She walks to work."
     assert result["feedback"]["model"] == "fake:grader"
+
+
+async def test_only_answers_graded_by_a_model_count_toward_the_limit(
+    client: AsyncClient, app: FastAPI, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    graded = Graded(correct=True, explanation="Fine.", corrected=None, other_mistakes=[])
+
+    def fake_call(ctx: object, config: dict[str, Any], task: str) -> StructuredCall:
+        async def call(messages: Sequence[BaseMessage], schema: type[BaseModel]) -> ModelReply:
+            return ModelReply(graded, "fake:grader")
+
+        return call
+
+    monkeypatch.setattr(practice_api, "structured_call", fake_call)
+    await login(client)
+    state = await ready_set(client, app, {"origin": "learner"})
+    keys = await bank_keys(db_session, state["id"])
+    limits = app.state.rate_limiter.limits | {"generate": Limit(1, 60)}
+    app.state.rate_limiter = RateLimiter(limits)
+    # Choices are graded by code (ADR 0035 §3): any number of them.
+    for item in state["items"]:
+        await post(client, f"/practice/exercises/{item['id']}/answer", right(item, keys))
+
+    first = await open_item(db_session, "learner@example.com")
+    await post(client, f"/practice/exercises/{first}/answer", {"text": "She walk to work."})
+    second = await open_item(db_session, "learner@example.com")
+    url = f"/practice/exercises/{second}/answer"
+    refused = await client.post(url, json={"text": "She walk to work."})
+    assert refused.status_code == 429
+    assert refused.json()["detail"]["code"] == "rate_limited"
+    assert int(refused.headers["Retry-After"]) >= 1
+    # Nothing was stored: once the limit lets up, the same answer is graded.
+    app.state.rate_limiter = RateLimiter(limits)
+    answered = await post(client, url, {"text": "She walk to work."})
+    assert answered["item"]["result"]["correct"] is True

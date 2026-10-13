@@ -6,10 +6,12 @@ by answering or by reporting its last open item, starts generating the next one 
 """
 
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, status
+from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -26,10 +28,19 @@ from app.adaptive.exercise.grading import InvalidResponseError
 from app.adaptive.exercise.worker import PracticeWorker, structured_call
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
+from app.agents.exercise_graph import ModelReply
 from app.api.errors import api_error
-from app.deps import CurrentTenant, CurrentUser, SessionDep
+from app.deps import (
+    CurrentTenant,
+    CurrentUser,
+    RateLimiterDep,
+    SessionDep,
+    per_user,
+    too_many_requests,
+)
 from app.providers.errors import NoModelConfiguredError
 from app.providers.tenant import load_provider_context
+from app.ratelimit import RateLimitedError
 
 router = APIRouter(prefix="/practice", tags=["practice"])
 
@@ -173,7 +184,7 @@ class StartIn(BaseModel):
     kc_id: str | None = Field(default=None, max_length=100)
 
 
-@router.post("/sets")
+@router.post("/sets", dependencies=[per_user("generate")])
 async def start(
     body: StartIn,
     user: CurrentUser,
@@ -255,6 +266,7 @@ async def answer(
     session: SessionDep,
     worker: WorkerDep,
     diagnosis: DiagnosisDep,
+    limiter: RateLimiterDep,
 ) -> AnsweredOut:
     """Grade the learner's first answer to an item; answering again returns the first
     result. On 503 nothing was stored and the learner can submit again."""
@@ -268,9 +280,15 @@ async def answer(
         ) from exc
     # llm_usage attributes the grading call to this learner.
     config: RunnableConfig = {"metadata": {"user_id": str(user_id)}, "tags": ["practice"]}
-    grade_call = structured_call(
+    model_call = structured_call(
         await load_provider_context(session, tenant_id), config, GRADE_TASK
     )
+
+    async def grade_call(messages: Sequence[BaseMessage], schema: type[BaseModel]) -> ModelReply:
+        # Only answers the code can't grade call a model, so only they count (ADR 0035).
+        limiter.hit("generate", str(user_id))
+        return await model_call(messages, schema)
+
     try:
         result = await answering.answer(
             session,
@@ -292,6 +310,8 @@ async def answer(
         ) from exc
     except answering.GradingFailedError as exc:
         cause = exc.__cause__
+        if isinstance(cause, RateLimitedError):
+            raise too_many_requests(cause) from exc
         code = "grading_failed"
         if isinstance(cause, NoModelConfiguredError):
             # A member's used-up quota says so (ADR 0031 §6); the rest is missing setup.

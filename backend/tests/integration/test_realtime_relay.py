@@ -37,6 +37,7 @@ from app.deps import AUTH_COOKIE
 from app.prompts import prompt_version
 from app.providers import realtime_session
 from app.providers.llm import get_providers_config
+from app.ratelimit import Limit, RateLimiter
 from app.realtime import calls, relay
 from app.realtime import tools as realtime_tools
 from app.realtime.limits import CallLimit, day_start
@@ -301,6 +302,19 @@ async def test_refusals_before_the_call(
         async with dial(server, token) as ws:
             assert (await next_json(ws))["code"] == "realtime_unavailable"
     assert await db_session.scalar(select(SpeakingSession)) is None
+
+
+async def test_each_call_counts_toward_the_chat_limit(
+    app: FastAPI, client: AsyncClient, server: str
+) -> None:
+    token = await sign_up(client)
+    app.state.rate_limiter = RateLimiter({"chat": Limit(1, 60)})
+    async with dial(server, token) as ws:
+        assert (await next_json(ws))["code"] == "no_realtime_model"
+    async with dial(server, token) as ws:
+        refused = await next_json(ws)
+    assert refused["code"] == "rate_limited"
+    assert 1 <= refused["retry_after"] <= 60
 
 
 async def test_browser_messages_are_white_listed_and_metered(

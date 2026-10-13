@@ -24,7 +24,7 @@ from app.chat import service as chat_service
 from app.chat.locks import ConversationLocks
 from app.chat.service import thread_config
 from app.db.models import Conversation, SpeakingSession
-from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep
+from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep, per_user
 from app.memory.reflection import LOCALE_COOKIE
 from app.memory.service import get_profile
 from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
@@ -126,6 +126,7 @@ async def list_scenarios(user: CurrentUser, session: SessionDep) -> ScenariosOut
 
 @router.post(
     "/sessions",
+    dependencies=[per_user("chat")],
     status_code=status.HTTP_201_CREATED,
     responses={404: {"description": "scenario_not_found"}},
 )
@@ -203,6 +204,7 @@ async def get_session(
 
 @router.post(
     "/sessions/{session_id}/end",
+    dependencies=[per_user("chat")],
     responses={
         404: {"description": "session_not_found"},
         409: {

@@ -19,10 +19,11 @@ from app.attachments.service import (
     FileTooLargeError,
     TooManyPendingError,
 )
-from app.attachments.sniff import UnsupportedFileType
+from app.attachments.sniff import UnsupportedFileType, detect
 from app.chat.service import ConversationNotFoundError, get_owned_conversation
-from app.db.models import Attachment
-from app.deps import CurrentUser, SessionDep
+from app.db.models import Attachment, User
+from app.deps import CurrentUser, RateLimiterDep, SessionDep, too_many_requests
+from app.ratelimit import RateLimitedError, RateLimiter
 
 router = APIRouter(tags=["attachments"])
 
@@ -96,6 +97,14 @@ async def _read_limited(file: UploadFile) -> bytes:
     return data
 
 
+def _limit(limiter: RateLimiter, user: User, kind: str) -> None:
+    """Audio counts as speech-to-text, the rest as chat (ADR 0035)."""
+    try:
+        limiter.hit("asr" if kind == "audio" else "chat", str(user.id))
+    except RateLimitedError as exc:
+        raise too_many_requests(exc) from exc
+
+
 @router.post(
     "/conversations/{conversation_id}/attachments",
     status_code=status.HTTP_201_CREATED,
@@ -112,6 +121,7 @@ async def upload_attachment(
     request: Request,
     user: CurrentUser,
     session: SessionDep,
+    limiter: RateLimiterDep,
 ) -> AttachmentOut:
     """Store the file and start producing its text; poll `GET /attachments/{id}`."""
     try:
@@ -121,6 +131,10 @@ async def upload_attachment(
             status.HTTP_404_NOT_FOUND, "conversation_not_found", "conversation not found"
         ) from exc
     data = await _read_limited(file)
+    try:
+        _limit(limiter, user, detect(data, service.clean_filename(file.filename)).kind)
+    except UnsupportedFileType:
+        pass  # refused below, without a model call
     try:
         attachment = await service.create_attachment(
             session, conversation, filename=file.filename, data=data
@@ -198,9 +212,14 @@ async def update_attachment_text(
 
 @router.post("/attachments/{attachment_id}/retry", responses={409: {"description": "state"}})
 async def retry_attachment(
-    attachment_id: uuid.UUID, request: Request, user: CurrentUser, session: SessionDep
+    attachment_id: uuid.UUID,
+    request: Request,
+    user: CurrentUser,
+    session: SessionDep,
+    limiter: RateLimiterDep,
 ) -> AttachmentOut:
     attachment = await _owned(session, user, attachment_id)
+    _limit(limiter, user, attachment.kind)
     try:
         attachment = await service.retry(session, attachment)
     except AttachmentStateError as exc:

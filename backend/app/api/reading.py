@@ -14,7 +14,7 @@ from sqlalchemy import select
 from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.db.models import Article, ArticleVersion, ReadingSession, TenantMember
-from app.deps import CurrentTenant, CurrentUser, SessionDep, SettingsDep
+from app.deps import CurrentTenant, CurrentUser, SessionDep, SettingsDep, per_user
 from app.services.news import feeds
 from app.services.news.feeds import ArticleView, FeedError, FeedView
 from app.services.reading import sessions, versions
@@ -379,7 +379,7 @@ async def _load_version(
     return version, view
 
 
-@router.post("/articles/{article_id}/version")
+@router.post("/articles/{article_id}/version", dependencies=[per_user("generate")])
 async def open_version(
     article_id: int,
     user: CurrentUser,
@@ -438,7 +438,7 @@ def _result_out(r: sessions.Result) -> ResultOut:
     return ResultOut(choice=r.choice, correct=r.correct, answer=r.answer, evidence=r.evidence)
 
 
-@router.post("/articles/{article_id}/session")
+@router.post("/articles/{article_id}/session", dependencies=[per_user("generate")])
 async def open_session(
     article_id: int,
     user: CurrentUser,

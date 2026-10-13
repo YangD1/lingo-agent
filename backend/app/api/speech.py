@@ -15,7 +15,7 @@ from sqlalchemy import CursorResult, delete, select
 from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.db.models import PronunciationAttempt
-from app.deps import CurrentTenant, CurrentUser, SessionDep
+from app.deps import CurrentTenant, CurrentUser, SessionDep, per_user
 from app.providers.asr import get_asr
 from app.providers.config import TenantProviderContext
 from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
@@ -147,6 +147,7 @@ def _words_route(ctx: TenantProviderContext) -> TextToSpeech | None:
 
 @router.post(
     "/tts",
+    dependencies=[per_user("tts")],
     response_class=Response,
     responses={
         200: {"content": {"audio/mpeg": {}}},
@@ -273,6 +274,7 @@ _SHADOWING_STATUS = {
 
 @router.post(
     "/shadowing",
+    dependencies=[per_user("asr")],
     status_code=status.HTTP_201_CREATED,
     responses={
         409: {"description": "not_configured: no pronunciation or speech-to-text model"},

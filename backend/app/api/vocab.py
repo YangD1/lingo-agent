@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.db.models import UserCard, Word, WordSentence
-from app.deps import CurrentTenant, CurrentUser, SessionDep
+from app.deps import CurrentTenant, CurrentUser, SessionDep, per_user
 from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.services.speech.shadowing import mispronounced_words
@@ -457,7 +457,7 @@ async def lookup_word(
     )
 
 
-@router.post("/words/{word_id}/examples")
+@router.post("/words/{word_id}/examples", dependencies=[per_user("generate")])
 async def post_examples(
     word_id: int, user: CurrentUser, tenant: CurrentTenant, session: SessionDep
 ) -> ExamplesOut:

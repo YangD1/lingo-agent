@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 from app.api.errors import api_error
 from app.db.models import Conversation, Memory, UserProfile
-from app.deps import CurrentTenant, CurrentUser, SessionDep
+from app.deps import CurrentTenant, CurrentUser, SessionDep, per_user
 from app.memory import service
 from app.memory.embedding import MemoryEmbedder, memory_embedder
 from app.memory.language import DEFAULT_CHAT_LANGUAGE, chat_language
@@ -133,7 +133,7 @@ async def list_memories(
     return await _memories_out(session, memories)
 
 
-@router.post("/memories", status_code=status.HTTP_201_CREATED)
+@router.post("/memories", status_code=status.HTTP_201_CREATED, dependencies=[per_user("generate")])
 async def add_fact(
     body: MemoryIn, user: CurrentUser, tenant: CurrentTenant, session: SessionDep
 ) -> MemoryOut:

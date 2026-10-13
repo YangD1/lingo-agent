@@ -1,9 +1,14 @@
 """Login, signup and invite-code limits over the API (ADR 0035)."""
 
+import uuid
+from typing import Any
+
+import pytest
 from fastapi import FastAPI
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 from app.ratelimit import Limit, RateLimiter
+from tests.integration.test_chat_api import login, new_conversation
 
 PASSWORD = "correct horse battery"
 
@@ -114,3 +119,61 @@ async def test_disabled_limiter_lets_everything_through(app: FastAPI, client: As
     app.state.rate_limiter = RateLimiter({b: Limit(1, 60) for b in buckets}, enabled=False)
     for _ in range(5):
         assert await _login(client, "a@example.com", "wrong password") == 401
+
+
+# Per-user limits on the endpoints that call models (ADR 0035 §3).
+
+
+async def _twice(client: AsyncClient, method: str, url: str, **kwargs: Any) -> int:
+    first = await client.request(method, url, **kwargs)
+    assert first.status_code != 429, first.text
+    second = await client.request(method, url, **kwargs)
+    return second.status_code
+
+
+@pytest.mark.parametrize(
+    ("bucket", "method", "url", "kwargs"),
+    [
+        (
+            "chat",
+            "POST",
+            f"/conversations/{uuid.UUID(int=1)}/messages/m1/translate",
+            {"json": {"target": "zh"}},
+        ),
+        ("generate", "POST", "/vocab/words/999999/examples", {}),
+        ("generate", "POST", "/memories", {"json": {"content": "I like tea."}}),
+        ("tts", "POST", "/speech/tts", {"json": {"text": "Hi.", "language": "en-US"}}),
+    ],
+)
+async def test_model_endpoints_are_limited_per_user(
+    app: FastAPI,
+    client: AsyncClient,
+    bucket: str,
+    method: str,
+    url: str,
+    kwargs: dict[str, Any],
+) -> None:
+    await login(client)
+    _limits(app, **{bucket: "1/1m"})
+    assert await _twice(client, method, url, **kwargs) == 429
+    # Someone else has their own count.
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as other:
+        await login(other, "other@example.com")
+        assert (await other.request(method, url, **kwargs)).status_code != 429
+
+
+async def test_audio_attachments_count_as_speech_to_text(app: FastAPI, client: AsyncClient) -> None:
+    await login(client)
+    conversation = await new_conversation(client)
+    url = f"/conversations/{conversation['id']}/attachments"
+    wav = b"RIFF\x24\x00\x00\x00WAVEfmt " + bytes(64)
+    _limits(app, asr="1/1m", chat="1/1m")
+    audio = {"files": {"file": ("a.wav", wav, "application/octet-stream")}}
+    assert await _twice(client, "POST", url, **audio) == 429
+    # A document is on the chat count, still free.
+    text_file = {"files": {"file": ("notes.txt", b"hello", "application/octet-stream")}}
+    assert (await client.post(url, **text_file)).status_code == 201
+    # A file that isn't accepted calls nothing and isn't counted.
+    junk = {"files": {"file": ("x.bin", b"\x00\x01", "application/octet-stream")}}
+    assert (await client.post(url, **junk)).status_code == 415
+    await app.state.attachment_processor.wait_idle()
