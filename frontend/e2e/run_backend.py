@@ -18,10 +18,13 @@ PORT = os.environ.get("E2E_BACKEND_PORT", "8100")
 ADMIN_URL = os.environ.get(
     "E2E_ADMIN_DB", "postgresql://lingo:lingo@localhost:5433/postgres"
 )
-DB_NAME = "lingo_e2e"
-# A small real slice of ECDICT: the Oxford 3000 book has 7 of its words.
-WORDS_CSV = (
-    Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "ecdict_sample.csv"
+# `make screenshots` uses its own database, so its full word list never reaches `make e2e`.
+DB_NAME = os.environ.get("E2E_DB", "lingo_e2e")
+# A small real slice of ECDICT: the Oxford 3000 book has 7 of its words. Screenshots
+# point E2E_WORDS_CSV at a full local ecdict.csv when there is one.
+WORDS_CSV = Path(
+    os.environ.get("E2E_WORDS_CSV")
+    or Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "ecdict_sample.csv"
 )
 # Two Tatoeba sentences for "go" (one by an inflected form, one in traditional Chinese
 # that the import simplifies), in the export layout import_tatoeba reads.

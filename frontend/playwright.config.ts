@@ -3,12 +3,16 @@ import { defineConfig, devices } from "@playwright/test";
 const port = Number(process.env.E2E_PORT ?? 3100);
 const backendPort = Number(process.env.E2E_BACKEND_PORT ?? 8100);
 const llmPort = Number(process.env.E2E_LLM_PORT ?? 8101);
+// `make screenshots` (task 72.2) runs only e2e/screenshots.spec.ts, on its own ports and
+// database (see the Makefile); `make e2e` never runs it.
+const screenshots = !!process.env.SCREENSHOTS;
 
 // Real backend on a throwaway database + a fake OpenAI-compatible model + a production
 // build of the frontend.
 // Needs the compose postgres running (docker compose up -d postgres).
 export default defineConfig({
   testDir: "./e2e",
+  ...(screenshots ? { testMatch: "screenshots.spec.ts" } : { testIgnore: "screenshots.spec.ts" }),
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
@@ -31,7 +35,8 @@ export default defineConfig({
       url: `http://127.0.0.1:${backendPort}/healthz`,
       env: { E2E_BACKEND_PORT: String(backendPort) },
       reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      // A full ecdict.csv (screenshots) takes a while to import.
+      timeout: screenshots ? 600_000 : 120_000,
     },
     {
       // Rewrites are baked in at build time, so build against the e2e backend.

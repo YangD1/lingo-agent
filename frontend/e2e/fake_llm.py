@@ -192,6 +192,22 @@ def remembered_facts(messages: list[dict[str, Any]]) -> list[str]:
 
 
 # reading_coach's article (backend/app/prompts/reading_coach.md).
+# The tutor's replies to the README chat screenshot's learner (e2e/screenshots.spec.ts),
+# on the demo account's weak point: present perfect vs past simple.
+DEMO_CHAT = {
+    "I have been to Hangzhou last month with my family.": (
+        "Sounds lovely! One fix: with a finished time like **last month**, use the past "
+        "simple: *I **went** to Hangzhou last month.* Keep *have been* for experiences "
+        "with no time given: *I've been to Hangzhou twice.*\n\nWhat did you do there?"
+    ),
+    "We walked around West Lake and I have tried the Longjing tea.": (
+        "West Lake in autumn is beautiful. Same point here: it was part of that trip, so "
+        "*I **tried** the Longjing tea.* Ask about life so far with the present perfect: "
+        "*Have you ever tried Longjing tea before?*"
+    ),
+}
+
+
 ARTICLE_TAG = re.compile(r'<article title="([^"]*)">')
 
 
@@ -225,6 +241,8 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
         return f"Your level is {level.group(1) if level else 'unknown'}. What is your goal?"
     if article := ARTICLE_TAG.search(system_text(messages)):  # reading_coach (Q43h)
         return f"About \"{article.group(1)}\": you asked {last}"
+    if demo := DEMO_CHAT.get(last):
+        return demo
     if "which language" in last.lower():
         if CHINESE_MODE in system_text(messages):
             return "我们主要用中文聊。"

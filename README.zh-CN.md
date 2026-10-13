@@ -12,12 +12,14 @@
 
 | | |
 |---|---|
-| ![对话：私教纠错，并列出它做了什么](docs/screenshots/chat-zh.png) | ![看板：CEFR 等级、词汇量、连续学习和今天的学习](docs/screenshots/dashboard-zh.png) |
-| ![语法练习：翻译题答错，给出改正和对应的语法点](docs/screenshots/practice-zh.png) | ![写作：逐句改正、点错误看讲解、四项评分](docs/screenshots/writing-zh.png) |
-| ![阅读：新闻按 A2 改写，超出等级的词标了下划线](docs/screenshots/reading-zh.png) | ![背单词：今天的 FSRS 队列和词书](docs/screenshots/vocab-zh.png) |
+| ![首页：私教能做什么，附一段对话示例](docs/screenshots/home-zh.png) | ![对话：私教纠正过去时的错误，并列出它做了什么](docs/screenshots/chat-zh.png) |
+| ![看板：CEFR 等级、词汇量、待复习单词和今天的学习](docs/screenshots/dashboard-zh.png) | ![学习者模型：私教对反复出错的诊断，和每个语法点的掌握度](docs/screenshots/learner-zh.png) |
+| ![语法练习：针对薄弱点开始一组练习，下面是最近的成绩](docs/screenshots/practice-zh.png) | ![写作：四项评分、错误记入学习者模型、逐句改正](docs/screenshots/writing-zh.png) |
+| ![阅读：新闻按 B1 改写，今天要复习的词高亮，超出等级的词标了下划线，附理解题](docs/screenshots/reading-zh.png) | ![背单词：今天的 FSRS 队列和词书](docs/screenshots/vocab-zh.png) |
 | ![口语练习：一个情景结束后的小结，有说错的和改法、更地道的说法、下次可以试的表达](docs/screenshots/speaking-zh.png) | ![实时通话：有字幕，私教查了一个词并加入生词本](docs/screenshots/call-zh.png) |
+| ![我的私教：名字、装扮、毛色、桌宠和它用的对话模型](docs/screenshots/tutor-zh.png) | |
 
-<sub>截图用的是演示账号，模型回复是预先写好的。</sub>
+<sub>截图用的是演示账号的学习记录（`make demo-seed`）；只有模型当场写的内容（对话回复、通话）是预先写好的。`make screenshots` 可以重拍。</sub>
 
 ## 现在能做什么
 

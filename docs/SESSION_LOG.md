@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-10-14 任务 72.2 完成（截图可重跑 `make screenshots`）
+
+**做了什么**：
+- `frontend/e2e/screenshots.spec.ts`：中英各两条用例。
+  - 未登录截首页。
+  - 用 `e2e/demo_seed.py` 灌演示账号后登录，依次截看板、学习者模型、背词、练习、写作、阅读、口语、我的私教、对话（两轮）、实时通话，共 11 页 × 中英 = 22 张，写到 `docs/screenshots/`。
+- `make screenshots`：用自己的端口 3200 / 8200 / 8201 和库 `lingo_screenshots`，导入完整的 `data/ecdict.csv`；不碰 `lingo_e2e` 和开发库 `lingo`。
+- `playwright.config.ts`：
+  - `SCREENSHOTS=1` 时只跑 screenshots.spec；平时忽略它。
+  - 截图模式下后端启动超时放宽到 10 分钟，因为要导入完整词库。
+- `fake_llm.py`：新增 `DEMO_CHAT`，提供对话截图的两轮回复；这个查表放在“long”慢回复判断之前。
+- README 中英截图表改为 11 页，图注按新图重写，说明也改了。
+- 验证：
+  - `make screenshots` 4 个用例 1.0 分钟全过，22 张图逐张看过；
+  - 平时 `--list` 共 74 个用例，不含 screenshots；
+  - eslint、tsc 干净。
+
+**未完成**：72.4（`docs/demo.md` + `docs/demo.en.md`）、72.5（PLAN 标 P4 完成、README 状态行仍写“P3 已完成”、`make ci`、推送 / Docker 需用户同意）。
+
+**下一步**：72.4 演示脚本，按 72.4 条目里的页面顺序写，截图可以直接引用 `docs/screenshots/*`。
+
+**踩坑**：
+- “Longjing” 含 “long”，会被 fake_llm 的慢回复判断截走，所以 DEMO_CHAT 要先查。
+- 阅读列表里 run_backend 的填充文章更新，所以按标题点演示文章。
+- 截图前 `mouse.move(0,0)`，免得悬停卡片残留。
+- 在 Bash 工具里，`pnpm` 会撞上 nvm 的 shell 函数，无限递归。改用 `$N/node node_modules/eslint/bin/eslint.js`、`node_modules/typescript/bin/tsc`、`node_modules/@playwright/test/cli.js` 直接跑。
+- `frontend/e2e/*.py` 落不到 backend 的 ruff 配置，PostToolUse 钩子按默认 88 列格式化它们，和 backend 的 100 列不一致；CI 不查这里。
+
+---
+
 ## 2026-10-13 任务 72.3 完成（演示数据 `make demo-seed`）
 
 **做了什么**：

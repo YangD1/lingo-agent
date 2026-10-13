@@ -144,6 +144,11 @@ prompts: ## Each prompt's version (hash of its text, ADR 0033) and length
 e2e: ## Playwright end-to-end tests (needs dev-db; starts its own backend, fake model and frontend)
 	cd frontend && $(PNPM) e2e
 
+.PHONY: screenshots
+screenshots: ## Retake docs/screenshots/ from the demo account (needs dev-db; own ports 3200/8200/8201, database lingo_screenshots, data/ecdict.csv if present)
+	cd frontend && SCREENSHOTS=1 E2E_PORT=3200 E2E_BACKEND_PORT=8200 E2E_LLM_PORT=8201 \
+		E2E_DB=lingo_screenshots E2E_WORDS_CSV=$(wildcard $(CURDIR)/data/ecdict.csv) $(PNPM) e2e
+
 .PHONY: ci
 ci: ## Run what CI runs, in the same order (needs dev-db; the docker job is `make build`)
 	cd backend && uv sync --locked && uv run ruff check . && uv run ruff format --check . \
