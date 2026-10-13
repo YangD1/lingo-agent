@@ -21,6 +21,9 @@ describe("useErrorMessage", () => {
     const message = describeWith("en", en);
     expect(message({ code: "email_taken", message: "x" })).toBe("This email is already registered.");
     expect(message({ code: "something_new", message: "Raw text" })).toBe("Raw text");
+    const zhMessage = describeWith("zh-CN", zh as typeof en);
+    expect(zhMessage({ code: "email_taken", message: "x" })).toBe("这个邮箱已经注册过了。");
+    expect(zhMessage({ code: "brand_new_code", message: "raw english" })).toBe("raw english");
   });
 
   it("says how many seconds to wait when rate limited", () => {
