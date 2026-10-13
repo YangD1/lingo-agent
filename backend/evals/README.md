@@ -36,7 +36,7 @@ make eval ARGS='--update-baseline'                      # 改了评估器以后�
 
 ## 什么时候要重录
 
-改了 `prompts/exercise_critic.md`、`prompts/exercise_grade.md`、语法目录、`rules.yaml` 的难度量表，或者改了 `messages.py` / `grader.py` 拼消息的方式，回放就会失败。用一个配好模型的账号跑 `make eval-live ARGS='--email … --record'`，先看报告：失败的用例逐条看原因，分清是用例本身有歧义（改用例）还是模型或提示词的问题（改提示词，或者作为已知弱点留着）。
+改了评估集用到的提示词（`exercise_critic.md`、`exercise_grade.md`、`diagnose.md`、`speaking_summary*.md`、`route.md`、`reflect.md`、`writing_review.md`、`reading_critic.md`）、语法目录、`rules.yaml` 的难度量表，或者改了代码拼消息的方式（`messages.py`、`grader.py`、`routing.route_messages`、`reflection.reflection_input`、`writing.review.review_messages` 等），回放就会失败。CI 不跑真模型（ADR 0033 Q68b），重录由改提示词的人手动做，录制文件和 `baselines.json` 的变化随 PR 提交。用一个配好模型的账号跑 `make eval-live ARGS='--email … --record'`，先看报告：失败的用例逐条看原因，分清是用例本身有歧义（改用例）还是模型或提示词的问题（改提示词，或者作为已知弱点留着）。
 
 ## 诊断评估集（任务 46.6）
 
