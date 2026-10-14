@@ -84,6 +84,8 @@ PROPOSED_BOOK = {"book_id": "oxford3000", "daily_new": 10}
 # "I only have 10 minutes today": a lighter plan (backend/app/cards/tools.py ProposeDailyPlan);
 # the backend lowers the counts to what is open today.
 SHORT_ON_TIME = re.compile(r"只有 ?\d+ ?分钟|only have \d+ min", re.IGNORECASE)
+# "Let's do flashcards": a link card to them (backend/app/cards/tools.py SuggestLink).
+FLASHCARDS = re.compile(r"背单词|flashcards", re.IGNORECASE)
 PROPOSED_PLAN = {
     "review": 0,
     "new_words": 3,
@@ -567,6 +569,8 @@ def tutor_tool_call(
     said = text_of(messages[-1]["content"])
     if "propose_daily_plan" in names and SHORT_ON_TIME.search(said):
         return "propose_daily_plan", PROPOSED_PLAN
+    if "suggest_link" in names and FLASHCARDS.search(said):
+        return "suggest_link", {"kind": "vocab_review"}
     if not WORD_BOOK.search(said):
         return None
     return "propose_word_book", PROPOSED_BOOK

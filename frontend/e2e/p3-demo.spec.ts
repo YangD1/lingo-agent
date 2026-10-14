@@ -180,7 +180,7 @@ test("P3 demo: read aloud and shadowed, today's speaking, a call, words by ear",
   await page.getByRole("radio", { name: "听音" }).click();
   const listen = page.getByTestId("review-listen");
   // New words are shown as words whatever the type: miss "the", know the rest.
-  const word = page.locator('h1[lang="en"]');
+  const word = page.locator('h2[lang="en"]');
   for (let n = 0; ; n++) {
     expect(n).toBeLessThan(12);
     await expect(word.or(listen)).toBeVisible();

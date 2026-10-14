@@ -75,12 +75,25 @@ test("today's plan: adjust and confirm, the tutor's lighter plan, progress and u
     "0/3",
   );
 
-  // Studying elsewhere ticks it off.
-  await learnNewWords(page, 2);
-  await page.reload();
+  // The item opens flashcards over the dashboard (ADR 0038); closing them ticks it off.
+  await plan.getByTestId("plan-item-new_words").getByRole("link", { name: "去学" }).click();
+  await expect(page).toHaveURL(/\/dashboard\?review=all$/);
+  const deck = page.getByTestId("review-deck");
+  for (let n = 1; n <= 2; n++) {
+    await expect(deck.getByRole("button", { name: "显示答案" })).toBeVisible();
+    await page.keyboard.press("Space");
+    await expect(deck.getByTestId("review-back")).toBeVisible();
+    await page.keyboard.press("3");
+    await expect(deck.getByTestId("review-progress")).toContainText(`已复习 ${n}`);
+  }
+  await deck.getByRole("button", { name: "关闭" }).click();
+  await expect(deck).toHaveCount(0);
+  await expect(page).toHaveURL(/\/dashboard$/);
   await expect(plan.getByTestId("plan-item-new_words").getByTestId("plan-progress")).toHaveText(
     "2/3",
   );
+
+  // Studying elsewhere ticks it off too.
   await learnNewWords(page, 1);
   await page.reload();
   await expect(plan.getByTestId("plan-item-new_words")).toHaveAttribute("data-complete", "true");

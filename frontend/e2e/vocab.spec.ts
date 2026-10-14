@@ -354,3 +354,33 @@ test("hover a word in a reply to look it up and add it to my list", async ({ pag
   await page.goto("/vocab/mine");
   await expect(page.getByTestId("mine-abandon")).toContainText("手动添加 · 未开始");
 });
+
+test("the tutor's flashcards card opens them over the conversation (ADR 0038)", async ({ page }) => {
+  await register(page, uniqueEmail());
+  const chosen = await page.request.put("/api/vocab/book", { data: { book_id: OXFORD } });
+  expect(chosen.status()).toBe(204);
+  await useFakeModel(page);
+  await page.goto("/chat");
+  await chat(page, "我们来背单词吧");
+  const card = page.locator("[data-testid=tutor-card][data-kind=link]");
+  await expect(card).toContainText("复习和学新词");
+  await expect(page).toHaveURL(/\/chat\?c=[0-9a-f-]{36}$/);
+  const conversation = page.url();
+
+  // Over the conversation, keeping it in the address; Back closes it.
+  await card.getByRole("link", { name: "去复习" }).click();
+  const deck = page.getByTestId("review-deck");
+  await expect(deck.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+  expect(page.url()).toBe(`${conversation}&review=all`);
+  await page.goBack();
+  await expect(deck).toHaveCount(0);
+  expect(page.url()).toBe(conversation);
+
+  // Esc closes it too, leaving the conversation as it was.
+  await card.getByRole("link", { name: "去复习" }).click();
+  await expect(deck).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(deck).toHaveCount(0);
+  expect(page.url()).toBe(conversation);
+  await expect(replies(page)).toHaveCount(1);
+});
