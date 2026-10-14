@@ -11,9 +11,9 @@
 - 77.2：`globals.css` 全站细滚动条（`--scrollbar` / `--scrollbar-hover`）+ `scroll-row` 工具类；小窗 `--pet-safe: 0px`、`data-chat-gutter` 收窄左右内边距；快捷动作行滚轮转横向。
 - 77.3：Vitest 741、E2E 79 全过，eslint / tsc 干净。
 
-**未完成**：无。没有推送，Docker 没有重建（只改了前端）。
+**未完成**：无。没有推送；Docker 只重建了前端（`/healthz` 200，空闲内存 frontend 65MiB）。
 
-**下一步**：用户看过后推送、看 CI，再重建 Docker 前端。
+**下一步**：用户在 Docker 版里看过样式后推送、看 CI。
 
 **踩坑**：
 - eslint 的 `react-hooks/refs` 不允许把装着 ref 的 hook 返回值整个当 props 传下去，要先解构，只传函数。
