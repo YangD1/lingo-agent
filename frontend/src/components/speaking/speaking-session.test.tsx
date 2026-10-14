@@ -183,7 +183,7 @@ beforeEach(() => {
 });
 
 describe("SpeakingSessionPage", () => {
-  it("shows the scenario, and the tutor speaks first, read aloud as it streams", async () => {
+  it("shows the scenario, and the assistant speaks first, read aloud as it streams", async () => {
     show();
     expect(await screen.findByRole("heading", { name: "Ordering coffee" })).toBeInTheDocument();
     expect(screen.getByText("Order a drink you like.")).toBeInTheDocument();
@@ -211,7 +211,7 @@ describe("SpeakingSessionPage", () => {
   it("reads nothing with reading aloud off, and hides the text when asked", async () => {
     show();
     await userEvent.click(await screen.findByRole("button", { name: "Read replies aloud" }));
-    await userEvent.click(screen.getByRole("button", { name: "Hide the tutor's text" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide the assistant's text" }));
     expect(await screen.findByText(bubble("Text hidden for listening practice."))).toBeInTheDocument();
     // The opening started before the switch; the next reply isn't read.
     streamChat.mockImplementation(() => reply("OK."));
@@ -220,7 +220,7 @@ describe("SpeakingSessionPage", () => {
     expect(readings).toHaveLength(1);
     // Preferences outlive the page (in this module): switch them back.
     await userEvent.click(screen.getByRole("button", { name: "Read replies aloud" }));
-    await userEvent.click(screen.getByRole("button", { name: "Hide the tutor's text" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide the assistant's text" }));
   });
 
   it("ends the practice and shows its summary", async () => {

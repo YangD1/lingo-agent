@@ -24,7 +24,7 @@ test("planning: placement result → the tutor opens in the page → proposes a 
   expect(await (await page.request.get("/api/conversations")).json()).toEqual([]);
 
   // The tutor opens the planning conversation with the result, right here.
-  await next.getByRole("button", { name: "和私教聊聊这次结果" }).click();
+  await next.getByRole("button", { name: "和助手聊聊这次结果" }).click();
   const replies = next.locator("li[data-role=assistant]");
   await expect(replies.first()).toContainText(`Your level is ${level}. What is your goal?`);
   await expect(page).toHaveURL(/\/placement$/);
@@ -37,7 +37,7 @@ test("planning: placement result → the tutor opens in the page → proposes a 
   await expect(card).toContainText("把词书换成 牛津 3000 核心词");
   await expect(card).toContainText("每天 10 个新词");
   await expect(replies.nth(1)).toContainText("I've put a suggestion on a card.");
-  await expect(next.getByRole("button", { name: /^私教做了什么：/ }).nth(1)).toContainText(
+  await expect(next.getByRole("button", { name: /^JOJO做了什么：/ }).nth(1)).toContainText(
     "展示了 1 张卡片",
   );
 

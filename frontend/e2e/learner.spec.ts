@@ -11,7 +11,7 @@ const input = (page: Page) => page.getByRole("textbox", { name: /输入消息/ }
 const replies = (page: Page) =>
   page.getByRole("list", { name: "消息" }).locator(':scope > li[data-role="assistant"]');
 const activityOf = (reply: ReturnType<Page["locator"]>) =>
-  reply.getByRole("button", { name: /^私教做了什么：/ });
+  reply.getByRole("button", { name: /^JOJO做了什么：/ });
 
 async function send(page: Page, text: string) {
   await input(page).fill(text);

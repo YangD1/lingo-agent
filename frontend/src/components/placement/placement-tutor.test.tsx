@@ -65,7 +65,7 @@ async function* events(...items: ChatEvent[]) {
 
 const NO_ACTIVITY = { activities: [], memories: {}, kcs: {}, words_on_list: [], pending: false };
 
-/** The backend by method and path; what the tutor did, and its cards, are empty. */
+/** The backend by method and path; what the assistant did, and its cards, are empty. */
 function backend(routes: Record<string, unknown>) {
   api.mockImplementation((path: string, init?: { method?: string }) => {
     const key = `${init?.method ?? "GET"} ${path.split("?")[0]}`;
@@ -117,7 +117,7 @@ describe("PlanStart", () => {
     wrap(<PlanStart advice={ready} error={null} busy={false} onTalk={onTalk} />);
     expect(screen.getByTestId("ai-badge-plan_start")).toBeInTheDocument();
     await userEvent.click(
-      screen.getByRole("button", { name: "Talk the result over with the tutor" }),
+      screen.getByRole("button", { name: "Talk the result over with the assistant" }),
     );
     expect(onTalk).toHaveBeenCalled();
   });
@@ -136,7 +136,7 @@ describe("PlanStart", () => {
 });
 
 describe("PlacementTutor", () => {
-  it("creates the planning conversation and has the tutor open it, in the page", async () => {
+  it("creates the planning conversation and has the assistant open it, in the page", async () => {
     const created = conversation({});
     backend({
       "GET /conversations": [],
@@ -152,7 +152,7 @@ describe("PlacementTutor", () => {
     );
     wrap(<PlacementTutor finishedAt={FINISHED} />);
 
-    const talk = await screen.findByRole("button", { name: "Talk the result over with the tutor" });
+    const talk = await screen.findByRole("button", { name: "Talk the result over with the assistant" });
     expect(posts()).toHaveLength(0); // nothing is created, and no model called, before this
     await userEvent.click(talk);
 
@@ -202,7 +202,7 @@ describe("PlacementTutor", () => {
     expect(streamOpening).not.toHaveBeenCalled();
   });
 
-  it("says why when the tutor can't open, and keeps the way in", async () => {
+  it("says why when the assistant can't open, and keeps the way in", async () => {
     backend({
       "GET /conversations": [conversation({})],
       "GET /advice": ready,
@@ -213,7 +213,7 @@ describe("PlacementTutor", () => {
     });
     wrap(<PlacementTutor finishedAt={FINISHED} />);
     // An empty conversation from before isn't opened by itself.
-    const talk = await screen.findByRole("button", { name: "Talk the result over with the tutor" });
+    const talk = await screen.findByRole("button", { name: "Talk the result over with the assistant" });
     expect(streamOpening).not.toHaveBeenCalled();
     await userEvent.click(talk);
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());

@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Activity } from "@/lib/activity";
+import { DEFAULT_TUTOR, resetTutorCache, setTutor } from "@/lib/tutor";
 
 import en from "../../../messages/en.json";
 import { TurnActivity } from "./turn-activity";
@@ -99,7 +100,7 @@ describe("TurnActivity", () => {
     });
 
     const toggle = screen.getByRole("button", {
-      name: "What the tutor did: read 2 memories · saved 1 · marked 1 grammar mistake",
+      name: "What JOJO did: read 2 memories · saved 1 · marked 1 grammar mistake",
     });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByText("Has a sister.")).toBeNull();
@@ -137,7 +138,7 @@ describe("TurnActivity", () => {
     expect(screen.getByRole("link", { name: "Go to Settings" })).toHaveAttribute("href", "/settings");
   });
 
-  it("says when the tutor followed a practice conversation's guidance", () => {
+  it("says when the assistant followed a practice conversation's guidance", () => {
     show({
       activities: [
         step("load_context", {
@@ -150,7 +151,7 @@ describe("TurnActivity", () => {
       kcs: { "g.third": { name_en: "Third person -s", name_zh: "第三人称单数", cefr: "A1" } },
     });
 
-    const line = screen.getByRole("button", { name: /^What the tutor did:/ });
+    const line = screen.getByRole("button", { name: /^What JOJO did:/ });
     expect(line).toHaveTextContent("followed the practice plan");
     fireEvent.click(line);
     expect(screen.getByText(/^Practice guidance: Third person -s \(A1\)/)).toBeVisible();
@@ -161,7 +162,7 @@ describe("TurnActivity", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("tells what the tutor did on a realtime call", () => {
+  it("tells what the assistant did on a realtime call", () => {
     const onRemoveWord = vi.fn().mockResolvedValue(undefined);
     show({
       activities: [
@@ -180,13 +181,13 @@ describe("TurnActivity", () => {
     });
     fireEvent.click(
       screen.getByRole("button", {
-        name: "What the tutor did: looked up 2 words · added 1 word to your word list · some steps didn't finish",
+        name: "What JOJO did: looked up 2 words · added 1 word to your word list · some steps didn't finish",
       }),
     );
     expect(screen.getByText("Looked up sustainable on the call")).toBeInTheDocument();
     expect(screen.getByText(/Looked up blorft on the call: not in the dictionary/)).toBeInTheDocument();
-    expect(screen.getByText("Looking up a word failed; the tutor was told and went on.")).toBeInTheDocument();
-    expect(screen.getByText("The tutor suggested hanging up")).toBeInTheDocument();
+    expect(screen.getByText("Looking up a word failed; the assistant was told and went on.")).toBeInTheDocument();
+    expect(screen.getByText("The assistant suggested hanging up")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Remove sustainable from your word list" }));
     expect(onRemoveWord).toHaveBeenCalledWith(5);
   });
@@ -207,7 +208,7 @@ describe("TurnActivity", () => {
       onRemoveWord,
     });
     const toggle = screen.getByRole("button", {
-      name: "What the tutor did: added 2 words to your word list",
+      name: "What JOJO did: added 2 words to your word list",
     });
     fireEvent.click(toggle);
 
@@ -237,5 +238,18 @@ describe("TurnActivity", () => {
       </NextIntlClientProvider>,
     );
     await waitFor(() => expect(screen.getByText("go")).toHaveClass("line-through"));
+  });
+
+  it("names the assistant, the name leading to where it is renamed (ADR 0040)", () => {
+    setTutor({ ...DEFAULT_TUTOR, name: "Mimi", display_name: "Mimi" });
+    show({
+      activities: [step("load_context", { facts: [], episodes: [], profile_items: 0 })],
+    });
+
+    const name = screen.getByRole("link", { name: "Change Mimi’s name and looks" });
+    expect(name).toHaveAttribute("href", "/tutor#looks");
+    expect(name).toHaveTextContent("Mimi");
+    expect(screen.getByRole("button", { name: /^What Mimi did:/ })).toHaveTextContent(/^did:/);
+    resetTutorCache();
   });
 });

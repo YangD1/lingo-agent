@@ -1,11 +1,11 @@
 {
   "metadata": {
     "title": "Lingo Agent",
-    "description": "An open-source AI English tutor that remembers you."
+    "description": "An open-source AI English assistant that remembers you."
   },
   "home": {
     "badge": "Open source · Self-hostable · Bring your own models",
-    "title": "Your AI English tutor",
+    "title": "Your AI English assistant",
     "subtitle": "It remembers what you know and what you keep getting wrong.",
     "cta": "Create an account",
     "login": "Log in",
@@ -15,7 +15,7 @@
       "label": "Example conversation",
       "topics": "Example topics",
       "stepContext": "Reading memories…",
-      "activity": "What the tutor did:",
+      "activity": "What JOJO did:",
       "scenes": {
         "weekend": {
           "topic": "My weekend",
@@ -121,7 +121,7 @@
     "closingTitle": "Start with one conversation.",
     "features": {
       "memory": {
-        "title": "A tutor that remembers you",
+        "title": "An assistant that remembers you",
         "body": "Your goals, interests and usual mistakes. Each chat picks up where you left off, so you never have to introduce yourself again."
       },
       "grammar": {
@@ -134,11 +134,11 @@
       },
       "placement": {
         "title": "Placement test",
-        "body": "About 10 minutes for a CEFR level and an estimated vocabulary size. The tutor pitches its explanations at your level."
+        "body": "About 10 minutes for a CEFR level and an estimated vocabulary size. The assistant pitches its explanations at your level."
       },
       "transparency": {
         "title": "See everything the AI does",
-        "body": "Every button that calls a model is marked AI; open it to see which model and roughly how many tokens. What the tutor read and saved unfolds under each reply."
+        "body": "Every button that calls a model is marked AI; open it to see which model and roughly how many tokens. What the assistant read and saved unfolds under each reply."
       },
       "models": {
         "title": "Your models, self-hosted",
@@ -147,8 +147,8 @@
     },
     "trust": {
       "eyebrow": "Transparency is the core of this product",
-      "title": "Everything the tutor remembers, you can see, edit and delete",
-      "body": "When the tutor wants to switch your word book or set a goal, it asks first. Nothing changes until you confirm, and you can undo it afterwards.",
+      "title": "Everything the assistant remembers, you can see, edit and delete",
+      "body": "When the assistant wants to switch your word book or set a goal, it asks first. Nothing changes until you confirm, and you can undo it afterwards.",
       "cardTitle": "Switch your word book to IELTS?",
       "cardBody": "You mentioned taking IELTS next year. Nothing changes until you confirm.",
       "confirm": "Confirm",
@@ -157,7 +157,7 @@
       "hint": "← Open the AI mark: which models it calls and roughly how many tokens"
     },
     "footer": {
-      "tagline": "Lingo Agent · Open-source English tutor",
+      "tagline": "Lingo Agent · Open-source English assistant",
       "github": "GitHub",
       "docs": "Deployment docs",
       "docsUrl": "https://github.com/YangD1/lingo-agent/blob/main/README.md#deploying"
@@ -199,7 +199,7 @@
     },
     "register": {
       "title": "Create an account",
-      "description": "Start practicing English with your AI tutor.",
+      "description": "Start practicing English with your AI assistant.",
       "submit": "Create account",
       "switchPrompt": "Already have an account?",
       "switchLink": "Log in"
@@ -228,7 +228,7 @@
     "writing": "Writing",
     "reading": "Reading",
     "speaking": "Speaking",
-    "tutor": "My tutor"
+    "tutor": "My assistant"
   },
   "chat": {
     "newChat": "New chat",
@@ -268,9 +268,9 @@
       "retry": "Retry {name}",
       "edit": "View or correct what was recognized in {name}",
       "remove": "Remove {name}",
-      "readingLabel": "What the tutor will see in {name}",
+      "readingLabel": "What the assistant will see in {name}",
       "transcriptLabel": "Transcript of {name}",
-      "editHint": "Fix anything that was misread. The tutor uses this text, now and later in the conversation.",
+      "editHint": "Fix anything that was misread. The assistant uses this text, now and later in the conversation.",
       "save": "Save",
       "cancel": "Cancel",
       "too_many_attachments": "A message can carry at most 5 attachments.",
@@ -284,7 +284,9 @@
       "download": "Download"
     },
     "activity": {
-      "line": "What the tutor did: {parts}",
+      "line": "did: {parts}",
+      "label": "What {name} did: {parts}",
+      "editName": "Change {name}’s name and looks",
       "nothing": "no memories read or saved this turn",
       "read": "read {n, plural, one {# memory} other {# memories}}",
       "saved": "saved {n}",
@@ -344,15 +346,15 @@
       "handedTo": "handed to the {coach}",
       "writingReviewed": "reviewed your writing",
       "planningRead": "Planning guidance: your latest placement result, the grammar points it found weak, and what the learning engine suggests",
-      "handoffRead": "This message looked like a piece of your writing, so the tutor handed it to the {coach} for feedback.",
+      "handoffRead": "This message looked like a piece of your writing, so the assistant handed it to the {coach} for feedback.",
       "writingReviewRead": "Reviewed your text sentence by sentence: {n, plural, one {# grammar mistake} other {# grammar mistakes}} found, and added to your learner model.",
       "writingReviewLink": "See the review",
       "readingReadVersion": "Read the article you asked about: the version for {level}, {words} words.",
       "readingReadOriginal": "Read the article you asked about: the original, {words} words.",
       "readArticle": "read the article",
       "cardShown": "Showed a card: {card}",
-      "toolFailed": "A card couldn't be shown ({step}); the tutor was told why.",
-      "toolsUnavailable": "The model doesn't support tools, so the tutor answered with links instead of cards.",
+      "toolFailed": "A card couldn't be shown ({step}); the assistant was told why.",
+      "toolsUnavailable": "The model doesn't support tools, so the assistant answered with links instead of cards.",
       "cardKinds": {
         "word_book": "switch word book",
         "learning_goal": "study goal",
@@ -365,9 +367,9 @@
       },
       "lookedUpCount": "looked up {n, plural, one {# word} other {# words}}",
       "lookedUp": "Looked up {word} on the call",
-      "notInDictionary": "Looked up {word} on the call: not in the dictionary, so the tutor explained it",
-      "endSuggested": "The tutor suggested hanging up",
-      "callToolFailed": "{step} failed; the tutor was told and went on."
+      "notInDictionary": "Looked up {word} on the call: not in the dictionary, so the assistant explained it",
+      "endSuggested": "The assistant suggested hanging up",
+      "callToolFailed": "{step} failed; the assistant was told and went on."
     },
     "practice": {
       "label": "Grammar practice: {kc}",
@@ -439,16 +441,16 @@
           "action": "Read"
         },
         "speaking_call": {
-          "title": "Talk live with your tutor",
+          "title": "Talk live with your assistant",
           "action": "Start a call"
         },
         "memory": {
-          "title": "What your tutor remembers",
+          "title": "What your assistant remembers",
           "action": "Open memory"
         },
         "tutor": {
-          "title": "Your tutor's name, looks and voice",
-          "action": "Edit tutor"
+          "title": "Your assistant's name, looks and voice",
+          "action": "Edit assistant"
         },
         "settings": {
           "title": "Models and other settings",
@@ -487,7 +489,7 @@
       "badge": "Today"
     },
     "language": {
-      "label": "Your tutor talks:",
+      "label": "Your assistant talks:",
       "zh": "Mostly Chinese",
       "en": "Mostly English",
       "hint": "From the next reply",
@@ -522,8 +524,8 @@
       "week": "This week",
       "earlier": "Earlier"
     },
-    "tutor": "Tutor",
-    "typing": "The tutor is replying",
+    "tutor": "Assistant",
+    "typing": "The assistant is replying",
     "reading": {
       "label": "About an article you are reading: ask about words, sentences or what it means.",
       "back": "Back to the article"
@@ -540,7 +542,7 @@
     "untitled": "untitled conversation",
     "profile": {
       "title": "Your profile",
-      "description": "The tutor uses this to pick topics and examples. It also fills it in from what you say in chat.",
+      "description": "The assistant uses this to pick topics and examples. It also fills it in from what you say in chat.",
       "cefr": "English level (CEFR):",
       "cefrUnknown": "not assessed yet",
       "notSet": "Not set",
@@ -552,7 +554,7 @@
         "interests": "Interests",
         "daily_minutes": "Minutes per day",
         "explanation_language": "Explain grammar in",
-        "chat_language": "Tutor talks in",
+        "chat_language": "Assistant talks in",
         "timezone": "Time zone"
       },
       "exams": {
@@ -571,7 +573,7 @@
       },
       "interestsHint": "Separate with commas, e.g. travel, films",
       "useBrowserZone": "Use this device's",
-      "manualHint": "Fields you save here are yours: the tutor won't change them from chat.",
+      "manualHint": "Fields you save here are yours: the assistant won't change them from chat.",
       "save": "Save profile",
       "discard": "Discard changes",
       "saved": "Profile saved.",
@@ -585,19 +587,19 @@
       "moreMinutes": "5 minutes more"
     },
     "fact": {
-      "title": "Things the tutor remembers",
+      "title": "Things the assistant remembers",
       "description": "Facts picked up from your conversations and used in every new one. Edit or delete anything that is wrong.",
-      "addLabel": "Tell the tutor something to remember",
+      "addLabel": "Tell the assistant something to remember",
       "addPlaceholder": "e.g. I have a job interview in late October.",
       "add": "Remember this",
-      "empty": "Nothing yet. The tutor remembers things you mention about yourself in chat.",
+      "empty": "Nothing yet. The assistant remembers things you mention about yourself in chat.",
       "clear": "Forget all facts",
       "confirmDelete": "Delete this memory? This can't be undone.",
       "confirmClear": "Delete every remembered fact? This can't be undone."
     },
     "episode": {
       "title": "Conversation summaries",
-      "description": "Short summaries of earlier conversations, so the tutor can pick up where you left off.",
+      "description": "Short summaries of earlier conversations, so the assistant can pick up where you left off.",
       "empty": "No summaries yet. They are written as conversations go on.",
       "clear": "Delete all summaries",
       "confirmDelete": "Delete this summary? This can't be undone.",
@@ -606,10 +608,10 @@
   },
   "learner": {
     "diagnosis": {
-      "title": "Tutor's diagnosis",
-      "never": "When you keep making mistakes on the same grammar point, your tutor looks for the cause: once a week, and after a practice set.",
+      "title": "Assistant's diagnosis",
+      "never": "When you keep making mistakes on the same grammar point, your assistant looks for the cause: once a week, and after a practice set.",
       "nothingYet": "Looked on {date}; no pattern found yet.",
-      "off": "Tutor's diagnosis is off. You can turn it on in <link>Settings</link>.",
+      "off": "Assistant's diagnosis is off. You can turn it on in <link>Settings</link>.",
       "offNow": "Diagnosis is off, so this won't be updated. You can turn it on in <link>Settings</link>.",
       "dated": "Diagnosed on {date}. Until {until}, practice favours these grammar points.",
       "datedOld": "Diagnosed on {date}; it no longer affects practice.",
@@ -644,7 +646,7 @@
     "grammar": {
       "title": "Grammar mastery",
       "description": "Worked out from your mistakes and correct uses in conversation: {mastered}% or more counts as mastered, below {weak}% as weak. Open one to see why; if a tag is wrong, delete it and the mastery is recomputed.",
-      "empty": "Nothing yet. Write a few sentences in English in a conversation and the tutor will note the grammar you get wrong and right here.",
+      "empty": "Nothing yet. Write a few sentences in English in a conversation and the assistant will note the grammar you get wrong and right here.",
       "coverage": "{level} met {seen}/{total}",
       "filterLevel": "Filter by level",
       "filterState": "Filter by state",
@@ -652,7 +654,7 @@
       "allStates": "All states",
       "noMatch": "No grammar points match.",
       "emptyTitle": "No grammar records yet",
-      "chat": "Chat with your tutor",
+      "chat": "Chat with your assistant",
       "filter": "Filter"
     },
     "kc": {
@@ -728,16 +730,16 @@
     },
     "clear": {
       "title": "Delete all learning records",
-      "description": "Deletes all grammar evidence, mastery and skill estimates, the grammar tags under “What the tutor did” in conversations, and the tutor's diagnoses with the memory they wrote. Other memories and conversations stay.",
+      "description": "Deletes all grammar evidence, mastery and skill estimates, the grammar tags in what the assistant did under replies, and the assistant's diagnoses with the memory they wrote. Other memories and conversations stay.",
       "button": "Delete all learning records",
       "confirm": "Delete all learning records? This cannot be undone."
     },
     "shadowing": {
       "title": "Shadowing",
       "description": "Sentences you read aloud and how they went, newest first. Recordings aren't kept. Deleting a reading doesn't undo what it already counted toward speaking or word pronunciation.",
-      "empty": "No readings yet. Tap the microphone by a tutor reply, a reading paragraph or a review example to start.",
+      "empty": "No readings yet. Tap the microphone by an assistant reply, a reading paragraph or a review example to start.",
       "sources": {
-        "chat": "Tutor chat",
+        "chat": "Assistant chat",
         "reading": "Reading",
         "vocab": "Vocabulary",
         "speaking": "Speaking"
@@ -881,7 +883,7 @@
     },
     "mine": {
       "title": "My words",
-      "description": "Words you add here, or the tutor picks up when you ask about them in conversation. They are learned before your word book's.",
+      "description": "Words you add here, or the assistant picks up when you ask about them in conversation. They are learned before your word book's.",
       "addLabel": "Add a word",
       "addPlaceholder": "Type an English word, e.g. reluctant",
       "add": "Add",
@@ -1024,8 +1026,8 @@
         },
         "reflect": {
           "title": "Background memory model",
-          "description": "Runs after each reply: decides what the tutor should remember about you and writes conversation summaries. A smaller, cheaper model is fine here.",
-          "none": "No model available: the tutor won't remember anything new until you add a chat model."
+          "description": "Runs after each reply: decides what the assistant should remember about you and writes conversation summaries. A smaller, cheaper model is fine here.",
+          "none": "No model available: the assistant won't remember anything new until you add a chat model."
         },
         "vision": {
           "title": "Image model (vision)",
@@ -1039,7 +1041,7 @@
         },
         "tts": {
           "title": "Read aloud",
-          "description": "Reads tutor replies, words and examples with a server voice (Azure Speech, or an OpenAI-compatible /audio/speech endpoint such as SiliconFlow, OpenAI or a local speaches). Sentences already read are cached.",
+          "description": "Reads assistant replies, words and examples with a server voice (Azure Speech, or an OpenAI-compatible /audio/speech endpoint such as SiliconFlow, OpenAI or a local speaches). Sentences already read are cached.",
           "none": "Not set up: learners' browsers read aloud."
         },
         "words": {
@@ -1054,7 +1056,7 @@
         },
         "realtime": {
           "title": "Realtime voice",
-          "description": "Learners talk to the tutor on a call: one model listens and speaks directly, and can be interrupted (realtime APIs of OpenAI, Qwen-Omni and StepFun). The next one in order is tried only when connecting; a call never switches midway. It costs much more than speaking practice; set its limits under “Realtime voice limits” below.",
+          "description": "Learners talk to the assistant on a call: one model listens and speaks directly, and can be interrupted (realtime APIs of OpenAI, Qwen-Omni and StepFun). The next one in order is tried only when connecting; a call never switches midway. It costs much more than speaking practice; set its limits under “Realtime voice limits” below.",
           "none": "Not set up: no realtime calls; speaking practice still uses transcription and read-aloud."
         }
       },
@@ -1135,7 +1137,7 @@
       "usedBy": "Used by: {features}",
       "separator": ", ",
       "feature": {
-        "chat_message": "Tutor chat",
+        "chat_message": "Assistant chat",
         "chat_image": "Images in chat",
         "chat_pdf": "PDFs in chat",
         "chat_audio": "Voice messages",
@@ -1182,7 +1184,7 @@
     "display": {
       "title": "Display",
       "description": "Applies to this browser only.",
-      "showActivity": "Show “What the tutor did” under replies",
+      "showActivity": "Show what the assistant did under its replies",
       "showActivityHint": "Memories read and saved, grammar mistakes marked. Hiding it changes the display only: everything is still recorded, and the Memory page still shows it all."
     },
     "toc": {
@@ -1200,7 +1202,7 @@
     },
     "background": {
       "title": "Background work",
-      "description": "The tutor prepares some things while you are away. Each can be switched off; it is then done when you need it, with a short wait.",
+      "description": "The assistant prepares some things while you are away. Each can be switched off; it is then done when you need it, with a short wait.",
       "refresh": "Refresh background work",
       "budgetExhausted": "Today's background budget is used up; it resets tomorrow (UTC). What you start yourself still works.",
       "budgetOff": "An admin switched off all background model calls. What you start yourself still works.",
@@ -1218,8 +1220,8 @@
           "hint": "For words you will review or learn in the next day that have no real example sentence, AI sentences are written in the background, so the card shows them when you turn it over."
         },
         "diagnosis": {
-          "name": "The tutor's diagnosis",
-          "hint": "For grammar points you keep getting wrong, the tutor looks for likely root causes in the background, across their prerequisites and the points they are often confused with, quoting your own sentences, and practice brings the related points up more often. Weekly, and after a practice set with many new mistakes."
+          "name": "The assistant's diagnosis",
+          "hint": "For grammar points you keep getting wrong, the assistant looks for likely root causes in the background, across their prerequisites and the points they are often confused with, quoting your own sentences, and practice brings the related points up more often. Weekly, and after a practice set with many new mistakes."
         }
       },
       "budgetTitle": "Daily background budget",
@@ -1247,7 +1249,7 @@
         "rss_fetch": "Fetch reading feeds (RSS)",
         "article_prerewrite": "Rewrite new articles for readers' levels",
         "word_examples_prefetch": "Write AI example sentences for the coming day's words",
-        "diagnosis": "The tutor's diagnosis (at most weekly per learner)",
+        "diagnosis": "The assistant's diagnosis (at most weekly per learner)",
         "tts_cache_cleanup": "Clear read-aloud audio unused for 30 days"
       }
     },
@@ -1308,7 +1310,7 @@
       "description": "Realtime calls are billed by the minute for the whole call, so they cost far more than the step-by-step speaking practice. Set how long one call may last and how many minutes each learner gets per day.",
       "sessionMinutes": "One call (minutes)",
       "dailyMinutes": "Per learner per day (minutes)",
-      "hint": "0 in either box turns realtime calls off. The day starts at 00:00 UTC. With under a minute left today, no call starts; the learner is warned a minute before the end, and at the end the tutor says goodbye and hangs up.",
+      "hint": "0 in either box turns realtime calls off. The day starts at 00:00 UTC. With under a minute left today, no call starts; the learner is warned a minute before the end, and at the end the assistant says goodbye and hangs up.",
       "save": "Save",
       "off": "Realtime calls are off for everyone in this workspace.",
       "usedToday": "You have used {used} of {limit} minutes today (UTC)."
@@ -1395,11 +1397,11 @@
         "cancel": "Cancel"
       }
     },
-    "tutorLink": "Only want to change your tutor’s name, looks, model or voice? Go to"
+    "tutorLink": "Only want to change your assistant’s name, looks, model or voice? Go to"
   },
   "placement": {
     "title": "Placement test",
-    "description": "About 10 minutes to find your level; your tutor adjusts explanations and practice to it.",
+    "description": "About 10 minutes to find your level; your assistant adjusts explanations and practice to it.",
     "intro": {
       "lead": "About 10 minutes, in two parts:",
       "vocabTitle": "Vocabulary",
@@ -1427,7 +1429,7 @@
     "result": {
       "title": "Your result",
       "finishedAt": "Finished {date}",
-      "levelNote": "Your overall level, set by the grammar part. It is saved to your profile, and your tutor adjusts explanations and practice to it.",
+      "levelNote": "Your overall level, set by the grammar part. It is saved to your profile, and your assistant adjusts explanations and practice to it.",
       "grammar": "Grammar",
       "grammarNote": "{answered} questions answered",
       "vocab": "Estimated vocabulary",
@@ -1436,10 +1438,10 @@
       "vocabNote": "For reference only; not used for your level",
       "unreliable": "You said you knew quite a few made-up words, so this vocabulary estimate isn't reliable and won't be used to mark words known. For a better estimate, take the test again and answer \"No\" to words you don't know.",
       "nextTitle": "What to do next",
-      "nextDescription": "Go through the result with your tutor. It goes by your learning data, and anything it proposes waits for your OK.",
+      "nextDescription": "Go through the result with your assistant. It goes by your learning data, and anything it proposes waits for your OK.",
       "nextLoading": "Loading…",
-      "planNote": "Not sure where to start? Your tutor goes through the result with you, asks about your goal and time, and suggests a word book, grammar practice and a daily goal. Nothing changes until you confirm it.",
-      "plan": "Talk the result over with the tutor",
+      "planNote": "Not sure where to start? Your assistant goes through the result with you, asks about your goal and time, and suggests a word book, grammar practice and a daily goal. Nothing changes until you confirm it.",
+      "plan": "Talk the result over with the assistant",
       "planTyping": "Or just type below.",
       "continueInChat": "Continue in chat",
       "knownTitle": "Skip common words you already know",
@@ -1537,7 +1539,7 @@
     "plan_not_found": "This plan wasn't found.",
     "plan_not_pending": "This plan was already answered.",
     "plan_not_applied": "Only a confirmed plan can be undone.",
-    "plan_from_card": "This plan came from the tutor's card; undo it on that card.",
+    "plan_from_card": "This plan came from the assistant's card; undo it on that card.",
     "plan_expired": "This plan was for another day.",
     "job_active": "A word pronunciation job is already running or paused.",
     "no_tts_model": "No read-aloud model is configured.",
@@ -1592,8 +1594,8 @@
       "weak": "Weak",
       "unseen": "Not met",
       "emptyTitle": "No grammar records yet",
-      "emptyHint": "Chat with your tutor or take the placement test to see mastery by level.",
-      "chat": "Chat with your tutor"
+      "emptyHint": "Chat with your assistant or take the placement test to see mastery by level.",
+      "chat": "Chat with your assistant"
     },
     "skills": {
       "title": "Skill estimates",
@@ -1610,7 +1612,7 @@
       "description": "Grammar points you got wrong most in chats over the last 30 days. Open one to see why.",
       "count": "{n, plural, one {# time} other {# times}}",
       "empty": "No grammar mistakes recorded in chats over the last 30 days.",
-      "chat": "Chat with your tutor",
+      "chat": "Chat with your assistant",
       "practice": "Questions",
       "emptyTitle": "No common mistakes yet",
       "practiceChat": "Chat"
@@ -1619,7 +1621,7 @@
       "title": "Study calendar",
       "description": "Word reviews and chat turns per day over the last 12 weeks.",
       "summary": "Studied {studied, plural, one {# day} other {# days}} in the last 12 weeks: {reviews} reviews, {turns} chat turns.",
-      "empty": "No study yet. Review words or chat with your tutor and each day shows up here.",
+      "empty": "No study yet. Review words or chat with your assistant and each day shows up here.",
       "cell": "{date}: {reviews} reviews, {turns} chat turns",
       "less": "Less",
       "more": "More"
@@ -1629,7 +1631,7 @@
       "kinds": {
         "placement": {
           "title": "Take the placement test",
-          "reason": "Find your level so the tutor can pitch explanations and practice right.",
+          "reason": "Find your level so the assistant can pitch explanations and practice right.",
           "action": "Start"
         },
         "retest": {
@@ -1639,7 +1641,7 @@
         },
         "retest_progress": {
           "title": "Retest to see if you've moved up",
-          "reason": "You've learned most of the grammar points at your level. Retest, and the tutor will adjust explanations and practice to your new level.",
+          "reason": "You've learned most of the grammar points at your level. Retest, and the assistant will adjust explanations and practice to your new level.",
           "action": "Start"
         },
         "resume": {
@@ -1669,7 +1671,7 @@
         },
         "grammar_practice": {
           "title": "Practise: {kc}",
-          "reason": "You've tripped over this point in recent conversations; practise it with your tutor.",
+          "reason": "You've tripped over this point in recent conversations; practise it with your assistant.",
           "action": "Start practising"
         }
       },
@@ -1685,7 +1687,7 @@
     },
     "today": {
       "title": "Today",
-      "description": "Talk over what to do today with your tutor. It goes by your learning data, and anything it proposes waits for your OK.",
+      "description": "Talk over what to do today with your assistant. It goes by your learning data, and anything it proposes waits for your OK.",
       "loading": "Loading…",
       "continueInChat": "Continue in chat",
       "greeting": {
@@ -1694,7 +1696,7 @@
         "vocab_learn": "You have {n} new words left today. What would you like to start with?",
         "vocab_screen": "Skipping the words you already know makes reviews quicker. What would you like to start with?",
         "choose_book": "You haven't chosen a word book yet. What would you like to start with?",
-        "placement": "You haven't taken the placement test yet; with your level, the tutor can pitch things right. What would you like to start with?",
+        "placement": "You haven't taken the placement test yet; with your level, the assistant can pitch things right. What would you like to start with?",
         "retest": "Your last placement test was {days} days ago. What would you like to start with?",
         "retest_progress": "You've learned {learned} of the {total} {level} grammar points. A retest could move you up a level. What would you like to start with?",
         "resume": "You left a placement test halfway. What would you like to start with?",
@@ -1744,12 +1746,12 @@
     "confirm": "Confirm plan",
     "decline": "No plan today",
     "pending": "Once confirmed, items tick off here as you do them.",
-    "declined": "No plan today. If you want one, tell the tutor below.",
+    "declined": "No plan today. If you want one, tell the assistant below.",
     "nothing": "Nothing to do today: no due words, no new words left and nothing to practise.",
     "emptyPlan": "This plan has nothing in it.",
     "doneCount": "{done}/{total} done",
     "allDone": "Today's plan is done!",
-    "fromTutor": "adjusted by the tutor",
+    "fromTutor": "adjusted by the assistant",
     "undo": "Undo",
     "progress": "{done}/{target}",
     "doneSr": " (done)",
@@ -1767,15 +1769,15 @@
   "aiBadge": {
     "label": "Uses AI: what it does and roughly how many tokens",
     "feature": {
-      "chat_message": "Your tutor's reply is written by an AI model. After it, the tutor reviews the turn in the background to update your memories, mistakes and words. A longer message (60+ English words) is first checked by an AI model to see whether it is your own writing; if so, the writing coach reviews it sentence by sentence.",
-      "chat_image": "An AI model reads each image first, so the tutor can talk about it. The reply to that message also comes from the image-reading model.",
+      "chat_message": "Your assistant's reply is written by an AI model. After it, the assistant reviews the turn in the background to update your memories, mistakes and words. A longer message (60+ English words) is first checked by an AI model to see whether it is your own writing; if so, the writing coach reviews it sentence by sentence.",
+      "chat_image": "An AI model reads each image first, so the assistant can talk about it. The reply to that message also comes from the image-reading model.",
       "chat_pdf": "PDFs with a text layer are read without AI. Scanned pages are read by an AI model, one call per page.",
       "chat_audio": "Your recording is turned into text by a speech-to-text model.",
-      "practice_start": "The tutor opens the practice with a first message written by an AI model.",
-      "plan_start": "The tutor opens the planning conversation with a first message written by an AI model, from your test result and learning data. After that, each reply is like any chat message.",
+      "practice_start": "The assistant opens the practice with a first message written by an AI model.",
+      "plan_start": "The assistant opens the planning conversation with a first message written by an AI model, from your test result and learning data. After that, each reply is like any chat message.",
       "practice_set": "An AI model writes a set of items on your weak grammar points; another model solves and reviews each one first, and items that fail are rewritten. Bank items fill any gaps. After you finish a set, the next one is written in the background.",
       "practice_grade": "Open answers (rewrites, translations, fixing your own sentence) and fixes not in an item's answer list are graded by an AI model: it judges the tested grammar point, explains, and points out other grammar mistakes in your answer. Multiple choice and fill-in answers are graded by code, without AI. Only your first answer to each item is graded.",
-      "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the tutor can find it later.",
+      "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the assistant can find it later.",
       "word_examples": "An AI model writes two example sentences for this word at your level. They are saved, so the next time anyone asks for this word at this level, no model is called.",
       "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls.",
       "writing_submit": "An AI model reviews your writing sentence by sentence: it finds and explains grammar mistakes, scores four aspects, writes overall feedback and puts unknown words on your word list. Mistakes go into your learner model; scores are only shown.",
@@ -1788,10 +1790,10 @@
       "word_audio_prefetch": "Started by hand in the settings for one word book: the first model in the read-aloud route reads each word in American and/or British English once and the audio is kept, so learners reading a word aloud play it with no model call. Billed by characters, estimated before it starts; not against the daily background budget.",
       "shadowing": "Your recording is scored by a pronunciation assessment model: overall, per word and per sound. The recording is discarded once scored; only the scores are kept. They update your speaking ability, and words you don't say right are marked in your reviews. If assessment fails, a transcript is compared instead.",
       "shadowing_rough": "Your recording is transcribed by a speech-to-text model and compared with the sentence word by word, marking words left out, heard as another word, or added. It's a rough result, not a pronunciation score, and isn't counted in your learning record. The recording is discarded once transcribed.",
-      "speaking_start": "When you start speaking practice, the tutor says the first line of the scene, written by an AI model.",
+      "speaking_start": "When you start speaking practice, the assistant says the first line of the scene, written by an AI model.",
       "speaking_turn": "What you say is transcribed by a speech-to-text model, then an AI model replies in the scene (briefly, read aloud to you). Afterwards, as in any chat, the turn is reviewed in the background to update your memory and grammar notes; very short spoken turns record no mistakes, so a transcription error isn't counted as yours.",
       "speaking_summary": "When you finish, an AI model reads the conversation and writes what went well, mistakes with corrections, more natural ways to say things and expressions to try next time, and rates how easy you were to understand. Items that don't quote your own words are dropped; the rating updates your speaking ability.",
-      "realtime_call": "A live call with the tutor: one model hears you and answers in speech, and you can interrupt it. Usage goes by call length: both voices are counted as audio tokens, and each answer reads the call so far again. Audio tokens cost far more than text, so a minute here costs several times a minute of speaking practice (transcription plus a text reply); that's why calls have per-call and per-day minute limits."
+      "realtime_call": "A live call with the assistant: one model hears you and answers in speech, and you can interrupt it. Usage goes by call length: both voices are counted as audio tokens, and each answer reads the call so far again. Audio tokens cost far more than text, so a minute here costs several times a minute of speaking practice (transcription plus a text reply); that's why calls have per-call and per-day minute limits."
     },
     "task": {
       "chat": "Reply",
@@ -2018,7 +2020,7 @@
     }
   },
   "placementReminder": {
-    "never": "Take the placement test first: about 10 minutes, and your tutor adjusts explanations and practice to your level.",
+    "never": "Take the placement test first: about 10 minutes, and your assistant adjusts explanations and practice to your level.",
     "resume": "You have a placement test left halfway; pick it up where you stopped.",
     "progress": "You've learned {learned} of the {total} {level} grammar points. Retake the test to see if you've moved up a level.",
     "age": "Your last placement test was {days} days ago. Retake it to see your progress.",
@@ -2077,8 +2079,8 @@
         "existing": "Already learning: <w>{words}</w>",
         "manage": "Manage your word list"
       },
-      "fromChat": "From a conversation with your tutor (open it)",
-      "fromDeletedChat": "From a conversation with your tutor (since deleted)",
+      "fromChat": "From a conversation with your assistant (open it)",
+      "fromDeletedChat": "From a conversation with your assistant (since deleted)",
       "pending": "Reviewing sentence by sentence…",
       "pendingNote": "A longer text can take a few dozen seconds. You can leave: the review finishes in the background.",
       "failed": {
@@ -2184,8 +2186,8 @@
       "dueCount": "{n, plural, one {# word} other {# words}} due for review today",
       "glossaryLegend": "underlined",
       "glossaryCount": "{n, plural, one {# word} other {# words}} above your level",
-      "ask": "Ask the tutor about this article",
-      "askHint": "Opens a conversation where the tutor has the article in front of it.",
+      "ask": "Ask the assistant about this article",
+      "askHint": "Opens a conversation where the assistant has the article in front of it.",
       "shadowingHint": "Tap the microphone after a paragraph to shadow it."
     },
     "quiz": {
@@ -2203,7 +2205,7 @@
   "speaking": {
     "list": {
       "title": "Speaking",
-      "description": "Talk with your tutor in English, by voice or typing. It keeps the conversation going and goes through your mistakes at the end.",
+      "description": "Talk with your assistant in English, by voice or typing. It keeps the conversation going and goes through your mistakes at the end.",
       "noAsr": "Voice messages need speech-to-text, which isn't set up: you can still type.",
       "noAsrAction": "Settings",
       "continue": "Continue where you left off",
@@ -2233,8 +2235,8 @@
       "more": "Load earlier",
       "loadingMore": "Loading…",
       "call": "Call",
-      "callMinutesLeft": "Or call your tutor: {minutes} min left today",
-      "callUnderAMinute": "Or call your tutor: less than a minute left today",
+      "callMinutesLeft": "Or call your assistant: {minutes} min left today",
+      "callUnderAMinute": "Or call your assistant: less than a minute left today",
       "called": "called {minutes} min",
       "callTag": "Call"
     },
@@ -2244,12 +2246,12 @@
       "freeTalk": "Free talk",
       "freeTalkGoal": "Chat about anything you like.",
       "autoRead": "Read replies aloud",
-      "hideText": "Hide the tutor's text",
+      "hideText": "Hide the assistant's text",
       "end": "End and sum up",
       "leave": "End",
       "ending": "Summing up…",
       "tryUsing": "Try using:",
-      "opening": "Your tutor is starting…",
+      "opening": "Your assistant is starting…",
       "goToSettings": "Go to Settings",
       "placeholder": "Type in English…",
       "send": "Send",
@@ -2288,7 +2290,7 @@
       "retry": "Try again",
       "retrying": "Summing up…",
       "nothingSaid": "You didn't say anything this time, so there's nothing to sum up.",
-      "aiNote": "Summed up by your tutor from what you said; your mistakes are already in your learner model.",
+      "aiNote": "Summed up by your assistant from what you said; your mistakes are already in your learner model.",
       "wentWell": "What went well",
       "mistakes": "Mistakes and fixes",
       "moreNatural": "More natural ways to say it",
@@ -2310,29 +2312,29 @@
       "freeTalk": "Free talk",
       "freeTalkGoal": "Talk about anything you like.",
       "tryUsing": "Try using:",
-      "hideText": "Hide the tutor's subtitles",
+      "hideText": "Hide the assistant's subtitles",
       "hiddenText": "(subtitles hidden)",
       "timeLeft": "Time left",
-      "connect": "Call your tutor",
+      "connect": "Call your assistant",
       "connecting": "Connecting…",
       "cancel": "Cancel",
-      "headphones": "Headphones work best: the tutor won't hear itself.",
+      "headphones": "Headphones work best: the assistant won't hear itself.",
       "howItWorks": "Just talk, like on the phone, and cut in whenever you like. After you hang up, the transcript and a summary are prepared.",
-      "opening": "Your tutor is about to speak…",
+      "opening": "Your assistant is about to speak…",
       "listening": "Listening…",
       "mute": "Mute",
       "unmute": "Unmute",
       "hangUp": "Hang up",
       "keepTalking": "Keep talking",
-      "endSuggested": "Your tutor thinks you could stop here. Hang up?",
+      "endSuggested": "Your assistant thinks you could stop here. Hang up?",
       "warning": "About a minute left.",
-      "wrappingUp": "Time's up: your tutor is saying goodbye.",
+      "wrappingUp": "Time's up: your assistant is saying goodbye.",
       "ended": "Call ended. Opening the transcript…",
       "retry": "Try again",
       "goToSettings": "Go to settings",
       "tool": {
         "lookedUp": "Looked up {word}",
-        "notFound": "{word} isn't in the dictionary: the tutor explains it",
+        "notFound": "{word} isn't in the dictionary: the assistant explains it",
         "lookupFailed": "The lookup failed",
         "added": "Added {word} to your word list",
         "existing": "{word} is already on your word list",
@@ -2369,7 +2371,7 @@
       "transcript": "Transcript",
       "noTranscript": "Nothing was transcribed on this call.",
       "interrupted": "cut short",
-      "transcriptNote": "The transcript is made separately by the realtime voice service and may differ a little from what the tutor heard.",
+      "transcriptNote": "The transcript is made separately by the realtime voice service and may differ a little from what the assistant heard.",
       "endReason": {
         "time_limit": "Time was up, so the call ended.",
         "vendor_closed": "The realtime voice service hung up, so the call ended early.",
@@ -2380,11 +2382,12 @@
     }
   },
   "tutor": {
-    "intro": "Your tutor's name and looks, and the model and voices that talk to you. Only what talks with you directly; exercises, grading and the rest follow the settings page.",
+    "intro": "Your assistant's name and looks, and the model and voices that talk to you. Only what talks with you directly; exercises, grading and the rest follow the settings page.",
+    "heading": "{name}: name, looks and voice",
     "save": "Save",
     "saved": "Saved.",
     "reset": "Reset to default",
-    "resetTitle": "Reset your tutor?",
+    "resetTitle": "Reset your assistant?",
     "resetDescription": "Name, looks, model and voices all go back to the defaults and follow the settings page.",
     "resetDone": "Back to the defaults.",
     "followSettings": "Follow settings (now: {current})",
@@ -2395,10 +2398,10 @@
     "droppedNone": "What you picked can't be used now (the connection was removed, turned off or no longer shared). Saving switches it to follow settings.",
     "looks": {
       "title": "Looks",
-      "description": "How the desk pet and the preview look. Only shown here; it doesn't change what the tutor says.",
+      "description": "How the desk pet and the preview look. Only shown here; it doesn't change what the assistant says.",
       "preview": "Preview of {name}",
       "name": "Name",
-      "nameHint": "Your tutor calls itself by this name. Only a name: it is still an AI tutor.",
+      "nameHint": "Your assistant calls itself by this name. Only a name: it is still an AI assistant.",
       "outfit": "Outfit",
       "outfits": {
         "cat": "No outfit",
@@ -2420,7 +2423,7 @@
       },
       "furCustom": "Custom",
       "pet": "Desk pet",
-      "petHint": "Keeps you company in a corner of the page; tap it to ask your tutor. The same on every device.",
+      "petHint": "Keeps you company in a corner of the page; tap it to ask your assistant. The same on every device.",
       "nudges": "Reminders",
       "nudgesHint": "The pet says in a bubble when words are due, what's left of today's plan, or that a model needs setting up. At most 3 a day; no model calls.",
       "animate": "Animation",
@@ -2428,14 +2431,14 @@
     },
     "chat": {
       "title": "Conversation model",
-      "description": "The model your tutor uses for chat, speaking practice, reading help and practice openings.",
+      "description": "The model your assistant uses for chat, speaking practice, reading help and practice openings.",
       "model": "Model",
       "none": "No conversation model is available yet.",
       "hint": "The one you pick goes first; the others follow in the settings page's order as fallbacks. If it can't be used, settings are followed."
     },
     "voices": {
       "title": "Read-aloud voices",
-      "description": "The voices your tutor reads replies, articles and shadowing examples with. Word pronunciations don't change.",
+      "description": "The voices your assistant reads replies, articles and shadowing examples with. Word pronunciations don't change.",
       "none": "No server read-aloud is set up; this device's own voices read aloud.",
       "model": "Read-aloud model: {model}",
       "lang": {
@@ -2455,7 +2458,7 @@
     },
     "call": {
       "title": "Realtime calls",
-      "description": "The model and voice for calls with your tutor.",
+      "description": "The model and voice for calls with your assistant.",
       "model": "Call model",
       "voice": "Voice",
       "vendorDefault": "Vendor default",
@@ -2463,7 +2466,7 @@
     }
   },
   "tutorPet": {
-    "label": "{name}, your tutor",
+    "label": "{name}, your assistant",
     "collapse": "Collapse the desk pet",
     "expand": "Show {name}, your desk pet",
     "open": "Chat with {name}",
@@ -2530,7 +2533,7 @@
         "ask": "See today's plan?"
       },
       "tutor": {
-        "label": "Your tutor",
+        "label": "Your assistant",
         "ask": "Change my looks or voice?"
       },
       "setup_models": {

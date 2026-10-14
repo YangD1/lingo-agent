@@ -92,7 +92,7 @@ describe("UsageSection", () => {
     const uses = screen.getByRole("table", { name: "By use" });
     expect(within(uses).getByRole("row", { name: /^Reply/ })).toBeInTheDocument();
     const reflect = within(uses).getByRole("cell", { name: /Background/ });
-    expect(reflect).toHaveAttribute("title", "Used by: Tutor chat, Speaking practice");
+    expect(reflect).toHaveAttribute("title", "Used by: Assistant chat, Speaking practice");
     // Only one account: no member grouping.
     expect(screen.queryByRole("radio", { name: "By member" })).not.toBeInTheDocument();
   });

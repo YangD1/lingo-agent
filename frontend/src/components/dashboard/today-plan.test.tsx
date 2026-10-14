@@ -117,9 +117,9 @@ describe("TodayPlan", () => {
     expect(within(speaking).getByRole("link", { name: "去说" })).toHaveAttribute("href", "/speaking");
   });
 
-  it("undoes a plan from the tutor's card on that card", async () => {
+  it("undoes a plan from the assistant's card on that card", async () => {
     const { onReload } = show({ ...PLAN, status: "applied", card_id: "k9" });
-    expect(screen.getByText(/私教按你说的改过/)).toBeInTheDocument();
+    expect(screen.getByText(/助手按你说的改过/)).toBeInTheDocument();
     api.mockResolvedValueOnce({});
     await userEvent.click(screen.getByRole("button", { name: "撤销" }));
     expect(api).toHaveBeenCalledWith("/cards/k9/undo", { method: "POST" });

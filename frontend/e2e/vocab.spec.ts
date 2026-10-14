@@ -319,7 +319,7 @@ test("words asked about in chat are collected, and can be taken off again", asyn
   // The fake model's reflection collects the word in 'what does "X" mean'.
   await chat(page, 'What does "went" mean?');
   const reply = replies(page).first();
-  const line = reply.getByRole("button", { name: /^私教做了什么：/ });
+  const line = reply.getByRole("button", { name: /^JOJO做了什么：/ });
   await expect(line).toContainText("收进生词本 1 个词", { timeout: 15_000 });
   await line.click();
   await expect(reply.getByRole("link", { name: "查看生词本" })).toHaveAttribute(
@@ -331,7 +331,7 @@ test("words asked about in chat are collected, and can be taken off again", asyn
   await expect(page.getByTestId("mine-go")).toContainText("对话中收集 · 未开始");
 
   await page.goBack();
-  await replies(page).first().getByRole("button", { name: /^私教做了什么：/ }).click();
+  await replies(page).first().getByRole("button", { name: /^JOJO做了什么：/ }).click();
   await replies(page).first().getByRole("button", { name: "把 go 移出生词本" }).click();
   await expect(replies(page).first().getByText("已移出")).toBeVisible();
   await page.goto("/vocab/mine");

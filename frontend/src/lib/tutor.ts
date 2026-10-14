@@ -42,7 +42,7 @@ export const DEFAULT_TUTOR: Tutor = {
   voices: {},
   realtime_model: null,
   realtime_voice: null,
-  display_name: "Lingo",
+  display_name: "JOJO",
   display_avatar: "cat",
   unavailable: [],
 };

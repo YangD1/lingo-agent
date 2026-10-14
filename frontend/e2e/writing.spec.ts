@@ -80,7 +80,7 @@ test("chat: a long piece of writing goes to the writing coach → card → the r
 
   const card = page.getByTestId("tutor-card");
   await expect(card).toContainText("作文批改", { timeout: 30_000 });
-  await expect(page.getByRole("button", { name: /^私教做了什么：/ }).first()).toContainText(
+  await expect(page.getByRole("button", { name: /^JOJO做了什么：/ }).first()).toContainText(
     "写作教练",
   );
   await card.getByRole("link", { name: "查看逐句批改" }).click();
@@ -89,7 +89,7 @@ test("chat: a long piece of writing goes to the writing coach → card → the r
   await expect(page.getByTestId("writing-summary")).toBeVisible({ timeout: 30_000 });
   // The sentence with a mistake appears twice in the message: both are corrected.
   await expect(page.getByTestId("writing-corrected")).toHaveCount(2);
-  await page.getByRole("link", { name: "来自和私教的对话（打开对话）" }).click();
+  await page.getByRole("link", { name: "来自和助手的对话（打开对话）" }).click();
   await expect(page).toHaveURL(/\/chat\?c=/);
   await expect(page.getByTestId("tutor-card")).toContainText("作文批改");
 });

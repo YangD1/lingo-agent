@@ -315,7 +315,7 @@ describe("LearnerApp", () => {
     serve({ "GET /learner": TWO, "GET /learner/diagnosis": { ...NO_DIAGNOSIS, enabled: false } });
     show();
     const off = await screen.findByTestId("learner-diagnosis");
-    await waitFor(() => expect(off).toHaveTextContent("Tutor's diagnosis is off"));
+    await waitFor(() => expect(off).toHaveTextContent("Assistant's diagnosis is off"));
     expect(within(off).getByRole("link", { name: "Settings" })).toHaveAttribute(
       "href",
       "/settings#background",

@@ -83,7 +83,7 @@ describe("AiBadge", () => {
     await userEvent.click(screen.getByRole("button", { name: /Uses AI/ }));
 
     const details = await screen.findByTestId("ai-badge-details");
-    expect(details).toHaveTextContent("Your tutor's reply is written by an AI model");
+    expect(details).toHaveTextContent("Your assistant's reply is written by an AI model");
     expect(await screen.findByText("Reply")).toBeInTheDocument();
     expect(details).toHaveTextContent("≈ 2,310 input + 300 output tokens");
     expect(details).toHaveTextContent("model deepseek:deepseek-chat");

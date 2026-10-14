@@ -10,7 +10,7 @@ const FACT = "My cat is called Mochi.";
 
 const input = (page: Page) => page.getByRole("textbox", { name: /输入消息/ });
 const messages = (page: Page) => page.getByRole("list", { name: "消息" }).locator(':scope > li > [data-slot="message"]');
-const facts = (page: Page) => page.getByRole("list", { name: "私教记住的事" }).locator("li");
+const facts = (page: Page) => page.getByRole("list", { name: "助手记住的事" }).locator("li");
 
 /**
  * Send and wait until the turn is over: `reply` must match the complete reply, and the send
@@ -90,7 +90,7 @@ test("the learner edits, adds and clears what the tutor remembers", async ({ pag
   await expect(profile.getByLabel("兴趣")).toHaveValue("旅行, 电影, travel");
 
   // Facts: add two, edit one, then forget them all.
-  const add = page.getByRole("textbox", { name: "告诉私教一件要记住的事" });
+  const add = page.getByRole("textbox", { name: "告诉助手一件要记住的事" });
   await add.fill("I have a job interview in late October.");
   await page.getByRole("button", { name: "记住这条" }).click();
   await expect(facts(page)).toHaveCount(1);

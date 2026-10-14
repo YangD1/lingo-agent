@@ -10,7 +10,7 @@ const input = (page: Page) => page.getByRole("textbox", { name: /输入消息/ }
 const replies = (page: Page) =>
   page.getByRole("list", { name: "消息" }).locator(':scope > li[data-role="assistant"]');
 const activityOf = (reply: ReturnType<Page["locator"]>) =>
-  reply.getByRole("button", { name: /^私教做了什么：/ });
+  reply.getByRole("button", { name: /^JOJO做了什么：/ });
 
 async function send(page: Page, text: string) {
   await input(page).fill(text);
@@ -25,7 +25,7 @@ test("each reply shows what the tutor did, and the learner can hide it", async (
   await send(page, "She like music, and please remember that I have a sister.");
   // Background results arrive by polling after the reply.
   const first = activityOf(replies(page).first());
-  await expect(first).toHaveText("私教做了什么：记下 1 条 · 标记 1 个语法错误", {
+  await expect(first).toHaveAccessibleName("JOJO做了什么：记下 1 条 · 标记 1 个语法错误", {
     timeout: 15_000,
   });
 
@@ -42,24 +42,46 @@ test("each reply shows what the tutor did, and the learner can hide it", async (
 
   // Reopening the conversation shows it again, from the server.
   await page.reload();
-  await expect(activityOf(replies(page).first())).toHaveText(
-    "私教做了什么：记下 1 条 · 标记 1 个语法错误",
+  await expect(activityOf(replies(page).first())).toHaveAccessibleName(
+    "JOJO做了什么：记下 1 条 · 标记 1 个语法错误",
   );
   const conversationUrl = page.url();
 
   // Hidden: display only.
   await page.goto("/settings");
-  const toggle = page.getByRole("checkbox", { name: /在私教回复下显示/ });
+  const toggle = page.getByRole("checkbox", { name: /在助手回复下显示/ });
   await expect(toggle).toBeChecked();
   await toggle.uncheck();
   await page.goto(conversationUrl);
   await expect(replies(page)).toHaveCount(2);
-  await expect(page.getByRole("button", { name: /^私教做了什么：/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^JOJO做了什么：/ })).toHaveCount(0);
   await page.goto("/memory");
-  await expect(page.getByRole("list", { name: "私教记住的事" })).toContainText("I have a sister.");
+  await expect(page.getByRole("list", { name: "助手记住的事" })).toContainText("I have a sister.");
 
   await page.goto("/settings");
-  await page.getByRole("checkbox", { name: /在私教回复下显示/ }).check();
+  await page.getByRole("checkbox", { name: /在助手回复下显示/ }).check();
   await page.goto(conversationUrl);
   await expect(activityOf(replies(page).first())).toBeVisible();
+});
+
+test("the assistant's name under a reply leads to renaming it (ADR 0040)", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await send(page, "Hello there!");
+  await expect(activityOf(replies(page).first())).toBeVisible({ timeout: 15_000 });
+  const conversationUrl = page.url();
+
+  await replies(page).first().getByRole("link", { name: "改 JOJO 的名字和形象" }).click();
+  await expect(page).toHaveURL(/\/tutor#looks$/);
+  await expect(page.getByRole("heading", { name: "JOJO：名字、形象和声音" })).toBeAttached();
+  const name = page.getByRole("textbox", { name: "名字" });
+  await expect(name).toBeFocused();
+  await name.fill("Mimi");
+  await page.getByTestId("tutor-save").click();
+  await expect(page.getByText("已保存。")).toBeVisible();
+
+  await page.goto(conversationUrl);
+  const reply = replies(page).first();
+  await expect(reply.getByRole("link", { name: "改 Mimi 的名字和形象" })).toHaveText("Mimi");
+  await expect(reply.getByRole("button", { name: /^Mimi做了什么：/ })).toBeVisible();
 });

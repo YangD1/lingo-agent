@@ -4,8 +4,8 @@ import { pickOption, register, uniqueEmail, useFakeModel } from "./helpers";
 
 // Matched as a heading: Next's route announcer repeats the page title as plain text.
 const TAGLINE = {
-  en: "Your AI English tutor",
-  zh: "你的 AI 英语私教",
+  en: "Your AI English assistant",
+  zh: "你的 AI 英语助手",
 };
 
 test.describe("with a Chinese browser", () => {

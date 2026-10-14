@@ -13,7 +13,7 @@ async function say(page: Page, text: string) {
   const input = page.getByRole("textbox", { name: /输入消息/ });
   await input.fill(text);
   await input.press("Enter");
-  await expect(page.getByRole("button", { name: /^私教做了什么：/ }).last()).toContainText(
+  await expect(page.getByRole("button", { name: /^JOJO做了什么：/ }).last()).toContainText(
     "标记 1 个语法错误",
     { timeout: 15_000 },
   );
@@ -39,7 +39,7 @@ test("practice: from a grammar point into a conversation the tutor opens", async
   await expect(messages(page).first()).toContainText(
     "Let's practise: Present simple third-person -s.",
   );
-  await expect(page.getByRole("button", { name: /^私教做了什么：/ })).toContainText(
+  await expect(page.getByRole("button", { name: /^JOJO做了什么：/ })).toContainText(
     "按练习要求回复",
   );
   const listed = conversations(page).filter({ hasText: "练习：一般现在时第三人称单数 -s" });

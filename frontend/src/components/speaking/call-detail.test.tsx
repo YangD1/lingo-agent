@@ -126,7 +126,7 @@ afterEach(() => {
 });
 
 describe("a realtime call's page", () => {
-  it("shows the summary, the transcript with cut-short replies, and what the tutor did", async () => {
+  it("shows the summary, the transcript with cut-short replies, and what the assistant did", async () => {
     show();
     expect(await screen.findByText("Clear greetings")).toBeInTheDocument();
     expect(screen.getByText("called 3 min")).toBeInTheDocument();
@@ -136,10 +136,10 @@ describe("a realtime call's page", () => {
     expect(lines[1]).toHaveTextContent("We have");
     expect(lines[1]).toHaveTextContent("cut short");
     expect(lines[0]).not.toHaveTextContent("cut short");
-    expect(screen.getByText(/may differ a little from what the tutor heard/)).toBeInTheDocument();
+    expect(screen.getByText(/may differ a little from what the assistant heard/)).toBeInTheDocument();
 
     await userEvent.click(
-      await screen.findByRole("button", { name: "What the tutor did: added 1 word to your word list" }),
+      await screen.findByRole("button", { name: "What JOJO did: added 1 word to your word list" }),
     );
     await userEvent.click(screen.getByRole("button", { name: "Remove latte from your word list" }));
     expect(api).toHaveBeenCalledWith("/vocab/mine/7", expect.objectContaining({ method: "DELETE" }));
@@ -176,7 +176,7 @@ describe("a realtime call's page", () => {
     await act(() => vi.advanceTimersByTimeAsync(CALL_POLL_MS));
     expect(await screen.findByText("Clear greetings")).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", { name: "What the tutor did: added 1 word to your word list" }),
+      await screen.findByRole("button", { name: "What JOJO did: added 1 word to your word list" }),
     ).toBeInTheDocument();
     const asked = api.mock.calls.length;
     await act(() => vi.advanceTimersByTimeAsync(CALL_POLL_MS * 3));

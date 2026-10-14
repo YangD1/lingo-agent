@@ -109,7 +109,7 @@ afterEach(() => {
 });
 
 describe("TutorPet", () => {
-  it("is not there when the learner turned it off, or before the tutor is known", () => {
+  it("is not there when the learner turned it off, or before the assistant is known", () => {
     tutor.current = null;
     const { container, rerender } = show();
     expect(container).toBeEmptyDOMElement();
@@ -129,7 +129,7 @@ describe("TutorPet", () => {
     expect(pet).toHaveAttribute("data-side", "right");
     expect(pet.style.right).toBe("12px");
     expect(pet.style.bottom).toContain(`${DEFAULT_PET_PLACE.bottom}px`);
-    expect(screen.getByRole("img", { name: "Max, your tutor" })).toHaveAttribute("data-animate", "false");
+    expect(screen.getByRole("img", { name: "Max, your assistant" })).toHaveAttribute("data-animate", "false");
   });
 
   it("tells the pages to leave room for it while it shows (task 73.6)", async () => {
@@ -170,7 +170,7 @@ describe("TutorPet", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Show Max, your desk pet" }));
     expect(stored().collapsed).toBe(false);
-    expect(screen.getByRole("img", { name: "Max, your tutor" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Max, your assistant" })).toBeInTheDocument();
   });
 
   it("is dragged to the nearer edge, at the height it was dropped", () => {
@@ -254,7 +254,7 @@ describe("TutorPet reacting", () => {
       const bus = await import("@/lib/tutor-pet");
       bus.resetPet();
       show();
-      const avatar = () => screen.getByRole("img", { name: "Max, your tutor" });
+      const avatar = () => screen.getByRole("img", { name: "Max, your assistant" });
       let stop = () => {};
       act(() => {
         stop = bus.petHold("listening");
@@ -301,7 +301,7 @@ describe("TutorPet chat", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("asks about a command in a bubble, and opens the window again to ask the tutor", async () => {
+  it("asks about a command in a bubble, and opens the window again to ask the assistant", async () => {
     show();
     await userEvent.click(screen.getByRole("button", { name: "Chat with Max" }));
     await userEvent.click(screen.getByRole("button", { name: "say flashcards" }));

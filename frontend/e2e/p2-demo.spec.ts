@@ -26,7 +26,7 @@ async function say(page: Page, text: string, n: number): Promise<void> {
   const input = page.getByRole("textbox", { name: /输入消息/ });
   await input.fill(text);
   await input.press("Enter");
-  await expect(page.getByRole("button", { name: /^私教做了什么：/ }).nth(n)).toContainText(
+  await expect(page.getByRole("button", { name: /^JOJO做了什么：/ }).nth(n)).toContainText(
     "标记 1 个语法错误",
     { timeout: 15_000 },
   );

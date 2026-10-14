@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
+import { useHashFlash } from "@/lib/hash-flash";
 import { stopSpeaking, tryServerVoice, useSpeaking } from "@/lib/speech";
 import {
   DEFAULT_TUTOR,
@@ -71,9 +72,19 @@ export function TutorApp() {
     return () => stopSpeaking();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once
   }, []);
+  useHashFlash();
+  const loaded = form !== null;
+  useEffect(() => {
+    // Came from a name under a reply: ready to rename (the flash does the scrolling).
+    if (loaded && window.location.hash === "#looks") {
+      document.getElementById("tutor-name")?.focus({ preventScroll: true });
+    }
+  }, [loaded]);
 
   const header = (
-    <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">{tNav("tutor")}</h1>
+    <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">
+      {saved ? t("heading", { name: saved.display_name }) : tNav("tutor")}
+    </h1>
   );
   if (!saved || !options || !form) {
     return (
@@ -205,7 +216,8 @@ function LooksCard({
   const fur = form.color || DEFAULT_FUR;
   const custom = !(FUR_SWATCHES as readonly string[]).includes(fur);
   return (
-    <Card data-testid="tutor-looks">
+    // `/tutor#looks`: the name under each reply leads here (ADR 0040 §3).
+    <Card id="looks" data-testid="tutor-looks" className="scroll-mt-14 lg:scroll-mt-4">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>

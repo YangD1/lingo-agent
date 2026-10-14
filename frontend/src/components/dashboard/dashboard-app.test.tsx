@@ -81,7 +81,7 @@ describe("DashboardApp", () => {
       "/vocab",
     );
     const grammar = screen.getByTestId("dashboard-grammar");
-    expect(within(grammar).getByRole("link", { name: "Chat with your tutor" })).toBeInTheDocument();
+    expect(within(grammar).getByRole("link", { name: "Chat with your assistant" })).toBeInTheDocument();
     expect(within(grammar).queryByTestId("grammar-chart")).not.toBeInTheDocument();
     const skills = screen.getByTestId("dashboard-skills");
     expect(skills).toHaveTextContent("No skill estimates yet");

@@ -70,7 +70,7 @@ test("today's plan: adjust and confirm, the tutor's lighter plan, progress and u
 
   await expect(plan.getByTestId("plan-item-new_words")).toContainText("学 3 个新词");
   await expect(plan.getByTestId("plan-item-practice")).toHaveCount(0);
-  await expect(plan).toContainText("私教按你说的改过");
+  await expect(plan).toContainText("助手按你说的改过");
   await expect(plan.getByTestId("plan-item-new_words").getByTestId("plan-progress")).toHaveText(
     "0/3",
   );
@@ -105,7 +105,7 @@ test("today's plan: adjust and confirm, the tutor's lighter plan, progress and u
   await expect(plan.getByTestId("plan-item-reading")).toBeVisible();
   await expect(plan.getByTestId("plan-item-writing")).toBeVisible();
   await expect(plan.getByTestId("plan-item-new_words")).toHaveCount(0);
-  await expect(plan).not.toContainText("私教按你说的改过");
+  await expect(plan).not.toContainText("助手按你说的改过");
 });
 
 test("today's plan: no plan today", async ({ page }) => {

@@ -133,21 +133,21 @@ describe("RealtimeCallPage", () => {
     expect(call.hangUp).toHaveBeenCalled();
   });
 
-  it("hides the tutor's subtitles for listening practice and remembers it", async () => {
+  it("hides the assistant's subtitles for listening practice and remembers it", async () => {
     show({
       lines: [
         { kind: "subtitle", role: "tutor", item_id: "t1", text: "Secret words", final: true },
         { kind: "subtitle", role: "learner", item_id: "l1", text: "My words", final: true },
       ],
     });
-    await userEvent.click(screen.getByRole("button", { name: "Hide the tutor's subtitles" }));
+    await userEvent.click(screen.getByRole("button", { name: "Hide the assistant's subtitles" }));
     expect(screen.queryByText("Secret words")).not.toBeInTheDocument();
     expect(screen.getByText("(subtitles hidden)")).toBeInTheDocument();
     expect(screen.getByText("My words")).toBeInTheDocument();
     expect(window.localStorage.length).toBeGreaterThan(0);
   });
 
-  it("shows what the tutor did, and a word just added can be taken off", async () => {
+  it("shows what the assistant did, and a word just added can be taken off", async () => {
     show({
       lines: [
         tool("lookup_word", { word: "sustainable", word_id: 7 }),
@@ -174,7 +174,7 @@ describe("RealtimeCallPage", () => {
     expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
   });
 
-  it("offers hanging up when the tutor suggests it; the learner decides", async () => {
+  it("offers hanging up when the assistant suggests it; the learner decides", async () => {
     show({ end_suggested: true });
     expect(screen.getByTestId("call-end-suggested")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Keep talking" }));
@@ -191,7 +191,7 @@ describe("RealtimeCallPage", () => {
     expect(screen.getByTestId("call-time-left")).toHaveClass("text-destructive");
     unmount();
     show({ phase: "wrapping", elapsed: 900 });
-    expect(screen.getByText(/Time's up: your tutor is saying goodbye/)).toBeInTheDocument();
+    expect(screen.getByText(/Time's up: your assistant is saying goodbye/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mute" })).toBeDisabled();
   });
 

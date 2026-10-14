@@ -92,7 +92,7 @@ describe("TutorAvatar", () => {
   });
 
   it("keeps drawing a frame per refresh while animated", () => {
-    render(<TutorAvatar label="Lingo" />);
+    render(<TutorAvatar label="JOJO" />);
     expect(frames).toHaveLength(1);
     tick(0);
     tick(16);
@@ -101,28 +101,28 @@ describe("TutorAvatar", () => {
   });
 
   it("draws once and stays still with animation off", () => {
-    render(<TutorAvatar animate={false} label="Lingo" />);
+    render(<TutorAvatar animate={false} label="JOJO" />);
     expect(frames).toHaveLength(0);
     expect(calls).toContain("ellipse");
   });
 
   it("draws once and stays still when the system asks for less motion", () => {
     reduced = true;
-    render(<TutorAvatar label="Lingo" />);
+    render(<TutorAvatar label="JOJO" />);
     expect(frames).toHaveLength(0);
     expect(document.querySelector("canvas")!.dataset.animated).toBeUndefined();
   });
 
   it("marks a still tutor that is talking with the speaker sign", () => {
-    const { rerender } = render(<TutorAvatar animate={false} label="Lingo" />);
+    const { rerender } = render(<TutorAvatar animate={false} label="JOJO" />);
     const arcs = calls.filter((c) => c === "arc").length;
     calls.length = 0;
-    rerender(<TutorAvatar animate={false} state="speaking" label="Lingo" />);
+    rerender(<TutorAvatar animate={false} state="speaking" label="JOJO" />);
     expect(calls.filter((c) => c === "arc").length).toBeGreaterThan(arcs);
   });
 
   it("stops drawing while the page is hidden and picks up when it is back", () => {
-    render(<TutorAvatar label="Lingo" />);
+    render(<TutorAvatar label="JOJO" />);
     setHidden(true);
     expect(frames).toHaveLength(0);
     setHidden(false);
@@ -132,11 +132,11 @@ describe("TutorAvatar", () => {
   it("follows the voice level while speaking, and asks for it only while animated", () => {
     const level = vi.fn(() => 0.8);
     const stop = setLevelSource(level);
-    const { rerender, unmount } = render(<TutorAvatar state="idle" label="Lingo" />);
+    const { rerender, unmount } = render(<TutorAvatar state="idle" label="JOJO" />);
     expect(levelWatched()).toBe(true);
     tick(0);
     expect(level).not.toHaveBeenCalled();
-    rerender(<TutorAvatar state="speaking" label="Lingo" />);
+    rerender(<TutorAvatar state="speaking" label="JOJO" />);
     tick(16);
     expect(level).toHaveBeenCalled();
     unmount();

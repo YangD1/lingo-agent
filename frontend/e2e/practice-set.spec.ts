@@ -74,7 +74,7 @@ test("practice set: one grammar point from the learner model, with its progress"
   const input = page.getByRole("textbox", { name: /输入消息/ });
   await input.fill("She like music.");
   await input.press("Enter");
-  await expect(page.getByRole("button", { name: /^私教做了什么：/ }).last()).toContainText(
+  await expect(page.getByRole("button", { name: /^JOJO做了什么：/ }).last()).toContainText(
     "标记 1 个语法错误",
     { timeout: 15_000 },
   );

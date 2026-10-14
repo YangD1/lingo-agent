@@ -125,8 +125,8 @@ export const PET_ACTIONS: readonly PetAction[] = [
     ["今日计划", "今天计划", "今天的计划", "学习计划", "看板"],
     ["today's plan", "daily plan", "plan for today", "dashboard"]),
   action("tutor", "page", "/tutor", CatIcon,
-    ["换装", "换衣服", "换形象", "换声音", "换音色", "私教设置", "改名字"],
-    ["outfit", "change voice", "change your voice", "tutor settings", "rename you"]),
+    ["换装", "换衣服", "换形象", "换声音", "换音色", "私教设置", "助手设置", "改名字"],
+    ["outfit", "change voice", "change your voice", "tutor settings", "assistant settings", "rename you"]),
   // Settings (setup).
   action("setup_models", "setup", "/settings#connections", PlugIcon,
     ["配置模型", "设置模型", "模型设置", "配模型", "接入模型", "连接模型", "模型连接", "apikey", "填key", "密钥"],

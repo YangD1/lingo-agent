@@ -72,7 +72,7 @@ function serve(options: TutorOptions = OPTIONS) {
     calls.push({ method, json: init?.json });
     if (method === "PUT") {
       const body = init!.json as Partial<Tutor>;
-      stored = { ...stored, ...body, display_name: body.name ?? "Lingo", unavailable: [] };
+      stored = { ...stored, ...body, display_name: body.name ?? "JOJO", unavailable: [] };
     } else if (method === "DELETE") {
       stored = DEFAULT_TUTOR;
       return undefined;
@@ -139,6 +139,18 @@ describe("TutorApp", () => {
     expect(save).toBeDisabled();
   });
 
+  it("arriving from a name under a reply, is ready to rename (ADR 0040)", async () => {
+    window.history.replaceState(null, "", "/tutor#looks");
+    serve();
+    show();
+    expect(
+      await screen.findByRole("heading", { name: "JOJO: name, looks and voice" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("tutor-looks")).toHaveAttribute("id", "looks");
+    await waitFor(() => expect(screen.getByLabelText("Name")).toHaveFocus());
+    window.history.replaceState(null, "", "/");
+  });
+
   it("tells a member whose models they use", async () => {
     serve();
     show();
@@ -156,7 +168,7 @@ describe("TutorApp", () => {
     await userEvent.click(screen.getByTestId("tutor-try-zh-CN"));
     expect(speech.tryServerVoice).toHaveBeenCalledWith(
       "tutor-voice-try",
-      "你好，我是Lingo。我们一起练英语吧！",
+      "你好，我是JOJO。我们一起练英语吧！",
       "zh-CN",
       "Ethan",
     );
@@ -164,7 +176,7 @@ describe("TutorApp", () => {
     await userEvent.click(screen.getByTestId("tutor-try-en-US"));
     expect(speech.tryServerVoice).toHaveBeenLastCalledWith(
       "tutor-voice-try",
-      expect.stringContaining("Hi, I'm Lingo"),
+      expect.stringContaining("Hi, I'm JOJO"),
       "en-US",
       "Cherry",
     );
@@ -206,6 +218,6 @@ describe("TutorApp", () => {
     api.mockRejectedValue(new ApiError(0, "network_error", "network request failed"));
     show();
     expect(await screen.findByRole("alert")).toHaveTextContent("Can't reach the server");
-    expect(screen.getByRole("heading", { name: "My tutor" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "My assistant" })).toBeInTheDocument();
   });
 });

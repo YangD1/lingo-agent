@@ -11,7 +11,7 @@ async function say(page: Page, text: string, n: number) {
   const input = page.getByRole("textbox", { name: /输入消息/ });
   await input.fill(text);
   await input.press("Enter");
-  await expect(page.getByRole("button", { name: /^私教做了什么：/ }).nth(n)).toContainText(
+  await expect(page.getByRole("button", { name: /^JOJO做了什么：/ }).nth(n)).toContainText(
     "标记 1 个语法错误",
     { timeout: 15_000 },
   );
@@ -72,7 +72,7 @@ test("tutor's diagnosis: after a practice set, shown on the learner model, delet
 
   // The diagnosis left a memory the learner can see.
   await page.goto("/memory");
-  await expect(page.getByText(/私教的诊断：主语是第三人称单数时/)).toBeVisible();
+  await expect(page.getByText(/助手的诊断：主语是第三人称单数时/)).toBeVisible();
 
   // "This diagnosis is wrong": gone, with its memory.
   await page.goto("/learner");
@@ -80,5 +80,5 @@ test("tutor's diagnosis: after a practice set, shown on the learner model, delet
   await page.getByRole("alertdialog").getByRole("button", { name: "删除" }).click();
   await expect(card).toContainText("每周看一次，做完一组练习后也会看");
   await page.goto("/memory");
-  await expect(page.getByText(/私教的诊断/)).toHaveCount(0);
+  await expect(page.getByText(/助手的诊断/)).toHaveCount(0);
 });

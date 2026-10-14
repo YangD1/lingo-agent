@@ -95,7 +95,7 @@ describe("ShadowingHistory", () => {
     show();
     const items = await screen.findAllByTestId("shadowing-item");
     expect(items[0]).toHaveTextContent("82");
-    expect(items[0]).toHaveTextContent("Tutor chat · off: think");
+    expect(items[0]).toHaveTextContent("Assistant chat · off: think");
     expect(items[1]).toHaveTextContent("1/2");
     expect(items[1]).toHaveTextContent("rough");
     expect(items[1]).toHaveTextContent("Reading");

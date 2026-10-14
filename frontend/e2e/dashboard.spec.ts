@@ -68,7 +68,7 @@ test("dashboard: guides a new learner, then charts what they did", async ({ page
   await input.fill("She like music.");
   await input.press("Enter");
   await expect(
-    page.getByRole("button", { name: /^私教做了什么：/ }).first(),
+    page.getByRole("button", { name: /^JOJO做了什么：/ }).first(),
   ).toContainText("标记 1 个语法错误", { timeout: 15_000 });
 
   await page.getByRole("link", { name: "看板", exact: true }).click();

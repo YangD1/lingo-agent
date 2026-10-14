@@ -23,6 +23,7 @@ import {
   type WordsCollected,
 } from "@/lib/activity";
 import { learnerHref } from "@/lib/learner";
+import { DEFAULT_TUTOR, useTutor } from "@/lib/tutor";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -54,7 +55,10 @@ const STEP_NAMES = [
 type StepName = (typeof STEP_NAMES)[number];
 const isStep = (name: string): name is StepName => (STEP_NAMES as readonly string[]).includes(name);
 
-/** "What the tutor did" under a reply: one line, expandable (ADR 0013 §3). */
+/**
+ * "What {name} did" under a reply: one line, expandable (ADR 0013 §3). The name leads to
+ * where the learner renames the assistant and changes its looks (ADR 0040 §3).
+ */
 const LIST = "flex list-disc flex-col gap-0.5 pl-4 marker:text-muted-foreground/60";
 const FOOT_LINK = "font-medium text-primary underline-offset-2 hover:underline";
 
@@ -62,6 +66,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
   const t = useTranslations("chat.activity");
   const [open, setOpen] = useState(false);
   const detailsId = useId();
+  const name = useTutor()?.display_name ?? DEFAULT_TUTOR.display_name;
   if (activities.length === 0 && !waiting) return null;
 
   const d = digest(activities);
@@ -89,20 +94,35 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
     waiting && t("waiting"),
   ].filter((p): p is string => typeof p === "string");
 
+  const summary = parts.length ? parts.join(" · ") : t("nothing");
   return (
     <div className="mt-2 text-[12.5px] text-muted-foreground">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={detailsId}
-        onClick={() => setOpen(!open)}
-        // A pill rather than bare grey text (Q73): the row is how the learner sees what the
-        // tutor did (ADR 0013), so it should read as something to open.
-        className="flex w-fit items-center gap-1 rounded-full border border-border/70 bg-card/70 py-1 pr-2.5 pl-1.5 text-left text-foreground/75 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-      >
-        <ChevronRight className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")} />
-        <span>{t("line", { parts: parts.length ? parts.join(" · ") : t("nothing") })}</span>
-      </button>
+      {/* A pill rather than bare grey text (Q73): the row is how the learner sees what the
+          assistant did (ADR 0013), so it should read as something to open. The name is a
+          link of its own beside the button: a link can't sit inside a button. */}
+      <div className="flex w-fit items-center rounded-full border border-border/70 bg-card/70 text-foreground/75">
+        <Link
+          href="/tutor#looks"
+          aria-label={t("editName", { name })}
+          title={t("editName", { name })}
+          className="max-w-[10rem] truncate rounded-full py-1 pr-0.5 pl-2.5 font-semibold text-primary underline decoration-primary/40 decoration-dashed underline-offset-[3px] outline-none hover:text-primary/80 hover:decoration-solid focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          {name}
+        </Link>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={detailsId}
+          aria-label={t("label", { name, parts: summary })}
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-1 rounded-full py-1 pr-2.5 pl-0.5 text-left transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <span>{t("line", { parts: summary })}</span>
+          <ChevronRight
+            className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
+          />
+        </button>
+      </div>
       {open && (
         <div
           id={detailsId}

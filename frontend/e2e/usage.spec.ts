@@ -13,7 +13,7 @@ test("AI badges explain token use, from defaults and then from the tenant's own 
   const send = page.getByTestId("ai-badge-chat_message-chat_image-chat_pdf-chat_audio");
   await send.hover();
   const details = page.getByTestId("ai-badge-details");
-  await expect(details).toContainText("私教的回复由 AI 模型生成");
+  await expect(details).toContainText("助手的回复由 AI 模型生成");
   // Each call: task name with its timing, the estimate, the model, then where it came from.
   await expect(details).toContainText("回复立即");
   await expect(details).toContainText("复盘这一轮回复后在后台");

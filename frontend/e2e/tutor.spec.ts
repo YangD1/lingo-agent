@@ -55,7 +55,7 @@ test("pick the tutor's looks and voice; the pet shows it, moves, talks while rea
 
   // The pet is there from the start, as the default tutor.
   await page.goto("/dashboard");
-  await expect(pet(page).getByRole("button", { name: "和 Lingo 聊天" })).toBeVisible();
+  await expect(pet(page).getByRole("button", { name: "和 JOJO 聊天" })).toBeVisible();
 
   // Name, outfit and voices; the preview follows before saving.
   await page.goto("/tutor");
@@ -135,13 +135,13 @@ test("pick the tutor's looks and voice; the pet shows it, moves, talks while rea
   await expect(page.getByTestId("pet-chat")).toBeHidden();
   await expect(page.locator('li[data-role="assistant"]').last()).toContainText("I goed home");
 
-  // Back to the defaults: the pet is Lingo again.
+  // Back to the defaults: the pet is JOJO again.
   await page.goto("/tutor");
   await page.getByTestId("tutor-reset").click();
   await page.getByRole("alertdialog").getByRole("button", { name: "恢复默认" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已恢复默认。" })).toBeVisible();
   await expect(page.getByLabel("名字")).toHaveValue("");
-  await expect(pet(page).getByRole("button", { name: "和 Lingo 聊天" })).toBeVisible();
+  await expect(pet(page).getByRole("button", { name: "和 JOJO 聊天" })).toBeVisible();
   await expect(petAvatar(page)).toHaveAttribute("data-outfit", "cat");
 
   // Turned off, the pet is gone from every page.
