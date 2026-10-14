@@ -764,7 +764,6 @@
     },
     "review": {
       "progress": "已复习 <b>{reviewed}</b> · 还剩 <b>{remaining}</b>",
-      "back": "回到背单词",
       "loading": "加载中…",
       "done": "这一轮完成：复习了 {reviewed} 张。刚学的词今天晚些时候还会再出现。",
       "nothing": "现在没有要复习的词。",
@@ -834,7 +833,9 @@
       },
       "keysListen": "<k>1</k>–<k>4</k> 选择 · <k>R</k> 再听一遍",
       "keysSpell": "<k>Enter</k> 检查",
-      "keysSuggested": "<k>Enter</k> 按建议评分 · <k>1</k>–<k>4</k> 改评分"
+      "keysSuggested": "<k>Enter</k> 按建议评分 · <k>1</k>–<k>4</k> 改评分",
+      "close": "关闭",
+      "title": "背单词"
     },
     "mine": {
       "title": "我的生词本",

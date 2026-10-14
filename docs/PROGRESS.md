@@ -964,8 +964,8 @@
     - Q74c 鼠标波纹和动效强度：（**保留现在的强度（速度 1.6 + 鼠标波纹），用户反馈后再调**）/ 调慢一些更安静
 - [~] 任务 75：背单词改为遮罩弹层卡片（2026-10-14 用户提出：首页“FSRS 背单词”那张叠卡样式很好看，加上动效就能代替现在的复习页。点开后弹出模糊遮罩，卡片在正中间，直接开始背）
   - 现状：`/vocab/review`（`review-app.tsx` 396 行 + `review-fronts.tsx`）有三种题型（认词 / 听音选义 / 拼写），还有题型切换、键盘快捷键、建议评分、评分间隔、朗读、读不准标记、加入生词本、AI 例句、跟读、一轮结束页和桌宠庆祝。会话逻辑在 `use-review-session.ts`，可以直接复用。
-  - [x] 75.1 ADR 0038 + PLAN 同步：复习从独立页面改为弹层；入口、深链接和保留哪些功能，按 Q75a–e 的结论写（Q75a–e 2026-10-14 全部按推荐确认；弹层由 URL 参数 `?review=all|new` 驱动，挂在 `(app)/layout.tsx`，`/vocab/review` 改为跳转到 `/vocab?review=…`）
-  - [ ] 75.2 `ReviewDeck` 弹层组件：模糊遮罩，叠卡样式同首页 `VocabStill`（后面两张斜放的卡）。复用 `useReviewSession` 和三种题型，Esc / 关闭按钮退出，焦点锁在弹层内
+  - [x] 75.1 ADR 0038 + PLAN 同步：复习从独立页面改为弹层；入口、深链接和保留哪些功能，按 Q75a–e 的结论写（Q75a–e 2026-10-14 全部按推荐确认；弹层由 URL 参数 `?review=all|new` 驱动，挂在 `(app)/layout.tsx`；入口 href 不变，宿主拦截 `/vocab/review` 链接点击后用 pushState 追加参数；直接访问 `/vocab/review` 跳转到 `/vocab?review=…`）
+  - [x] 75.2 `ReviewDeck` 弹层组件：模糊遮罩，叠卡样式同首页 `VocabStill`（后面两张斜放的卡）。复用 `useReviewSession` 和三种题型，Esc / 关闭按钮退出，焦点锁在弹层内（2026-10-14：`review-app.tsx` 改名为 `review-deck.tsx`，用 base-ui Dialog 做弹层（焦点锁定、Esc、关闭后焦点回到入口，初始焦点给卡片，空格不会误触关闭按钮）；`review-deck-host.tsx` 在 `(app)/layout.tsx` 里，拦截 `/vocab/review` 链接，用 pushState 追加 `?review=`，后退键关闭；`/vocab/review` 改为跳转；删了 `isFocusRoute`。补了一个原计划没有的点：弹层关闭时如果评过分，发 `lingo:vocab-reviewed` 事件，背单词首页和看板重新取数（`useOnReviewed`），否则下面的计数是旧的。Vitest 698 中 697 过，失败的 `use-attachments` 单独跑通过，是负载下超时；`vocab.spec.ts` 7 条 E2E 全过；桌面和手机截图已人工看过）
   - [ ] 75.3 卡片动效：翻面（3D 翻转）、评分后当前卡飞出、下一张从牌堆里升上来补位、一轮结束的收尾动画。手机上支持左右滑动评分（按 Q75c）。减少动态效果时只淡入淡出
   - [ ] 75.4 入口改接：看板、背单词首页、建议卡片、私教 `suggest_link`、每日计划都改为打开弹层；`/vocab/review` 深链接按 Q75b 处理
   - [ ] 75.5 测试：迁移 `review-app` / `review-formats` 单测；改 `vocab.spec.ts`、`dashboard.spec.ts`、`plan.spec.ts`、`p3-demo.spec.ts` 等 E2E；重拍复习截图；tsc / eslint / Vitest / E2E 全过

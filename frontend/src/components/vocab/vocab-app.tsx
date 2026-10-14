@@ -20,6 +20,7 @@ import {
   chooseBook,
   DAILY_NEW_MAX,
   fetchVocab,
+  useOnReviewed,
   type VocabOverview,
 } from "@/lib/vocab";
 
@@ -45,6 +46,7 @@ export function VocabApp() {
   useEffect(() => {
     void load();
   }, [load]);
+  useOnReviewed(load);
 
   async function save(bookId: string, dailyNew: number | null) {
     setBusy(true);

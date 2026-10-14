@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 import { api } from "@/lib/api";
 
 /** A dictionary entry (backend/app/api/vocab.py WordOut). */
@@ -96,6 +98,24 @@ function withTz(path: string, params: Record<string, string> = {}): string {
   const tz = browserTimeZone();
   const query = new URLSearchParams({ ...params, ...(tz ? { tz } : {}) }).toString();
   return query ? `${path}?${query}` : path;
+}
+
+/**
+ * Fired when the flashcards overlay closes after rating cards (ADR 0038): the page under it
+ * stayed mounted, so whatever counts it shows (due, learned today, plan items) are stale.
+ */
+const REVIEWED_EVENT = "lingo:vocab-reviewed";
+
+export function announceReviewed(): void {
+  window.dispatchEvent(new Event(REVIEWED_EVENT));
+}
+
+/** Runs `reload` after a flashcards round over this page. */
+export function useOnReviewed(reload: () => void): void {
+  useEffect(() => {
+    window.addEventListener(REVIEWED_EVENT, reload);
+    return () => window.removeEventListener(REVIEWED_EVENT, reload);
+  }, [reload]);
 }
 
 export const fetchVocab = () => api<VocabOverview>(withTz("/vocab"));

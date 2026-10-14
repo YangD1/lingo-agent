@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { MobileTabBar, MobileTopBar } from "@/components/shell/mobile-nav";
 import { TutorPet } from "@/components/tutor/tutor-pet";
+import { ReviewDeckHost } from "@/components/vocab/review-deck-host";
 import { ApiError } from "@/lib/api";
 import { serverApi } from "@/lib/server-api";
 import type { Me } from "@/lib/types";
@@ -31,6 +33,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <MobileTabBar user={user} />
       </div>
       <TutorPet />
+      {/* Flashcards open over any page (ADR 0038); it reads the URL, so it sits in Suspense. */}
+      <Suspense>
+        <ReviewDeckHost />
+      </Suspense>
     </div>
   );
 }

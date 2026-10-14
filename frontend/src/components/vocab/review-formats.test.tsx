@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Card, Queue } from "@/lib/vocab";
 
 import en from "../../../messages/en.json";
-import { ReviewApp } from "./review-app";
+import { ReviewDeck } from "./review-deck";
 
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -51,7 +51,7 @@ const empty = queue([]);
 function show() {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <ReviewApp mode="all" />
+      <ReviewDeck mode="all" onClose={() => {}} onReviewAll={() => {}} />
     </NextIntlClientProvider>,
   );
 }
@@ -68,7 +68,7 @@ beforeEach(() => {
   window.localStorage.clear();
 });
 
-describe("ReviewApp card types (task 63)", () => {
+describe("ReviewDeck card types (task 63)", () => {
   it("reads the word, takes a picked meaning and suggests a rating", async () => {
     window.localStorage.setItem("lingo.vocab.reviewFormat", "listen");
     api.mockResolvedValueOnce(queue([card(1, "apple")])).mockResolvedValue(card(1, "apple"));

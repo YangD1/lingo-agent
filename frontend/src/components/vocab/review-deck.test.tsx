@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Card, Queue } from "@/lib/vocab";
 
 import en from "../../../messages/en.json";
-import { ReviewApp } from "./review-app";
+import { ReviewDeck } from "./review-deck";
 import { useReviewSession } from "./use-review-session";
 
 const api = vi.hoisted(() => vi.fn());
@@ -63,15 +63,22 @@ const rated = (spelling: string) =>
       (init as { json: { word_id: number } }).json.word_id === ids[spelling],
   );
 
+const onClose = vi.fn();
+const onReviewAll = vi.fn();
+
 function show(mode: "all" | "new" = "all") {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <ReviewApp mode={mode} />
+      <ReviewDeck mode={mode} onClose={onClose} onReviewAll={onReviewAll} />
     </NextIntlClientProvider>,
   );
 }
 
-beforeEach(() => api.mockReset());
+beforeEach(() => {
+  api.mockReset();
+  onClose.mockReset();
+  onReviewAll.mockReset();
+});
 
 describe("useReviewSession", () => {
   it("goes through reviews then new words, and asks again when it runs out", async () => {
@@ -124,7 +131,7 @@ describe("useReviewSession", () => {
   });
 });
 
-describe("ReviewApp", () => {
+describe("ReviewDeck", () => {
   it("flips with Space and rates with the number keys", async () => {
     api
       .mockResolvedValueOnce(queue([card(1, "apple")], [card(3, "cheese", { status: null })]))
@@ -244,9 +251,16 @@ describe("ReviewApp", () => {
     expect(api.mock.calls[0]![0]).toMatch(/mode=new/);
     expect(done).toHaveTextContent("Nothing to review right now.");
     expect(done).toHaveTextContent("7 reviews are also due.");
-    expect(screen.getByRole("link", { name: "Review now" })).toHaveAttribute(
-      "href",
-      "/vocab/review",
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Review now" }));
+    expect(onReviewAll).toHaveBeenCalledOnce();
+  });
+
+  it("closes from the close button, after the closing transition", async () => {
+    api.mockResolvedValueOnce(queue([], [], 0));
+    show();
+    await screen.findByTestId("review-done");
+    expect(screen.getByRole("dialog", { name: "Vocabulary review" })).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("review-close"));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
 });

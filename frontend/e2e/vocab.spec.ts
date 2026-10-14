@@ -35,6 +35,8 @@ test("choose a book, screen known words, review, and see the progress", async ({
 
   await expect(page.getByText(/建议先做熟词筛选/)).toHaveCount(0);
   await page.getByRole("link", { name: "开始" }).click();
+  // Flashcards open over the page (ADR 0038).
+  await expect(page).toHaveURL(/\/vocab\?review=all$/);
   // Known words are skipped; the rest come most frequent first. Easy graduates a new
   // card for days, so none comes back today.
   for (const word of ["us", "run", "abandon", "hello", "colour"]) {
@@ -46,7 +48,10 @@ test("choose a book, screen known words, review, and see the progress", async ({
   const done = page.getByTestId("review-done");
   await expect(done).toContainText("复习了 5 张");
 
-  await done.getByRole("link", { name: "回到背单词" }).click();
+  // Closing leaves vocabulary under it, which reloads its counts.
+  await done.getByRole("button", { name: "关闭" }).click();
+  await expect(page.getByTestId("review-deck")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/vocab$/);
   await expect(page.getByTestId("today-counts")).toHaveText(
     "待复习 0 个 · 新词还剩 0 个（今天已开始 5 / 15）",
   );

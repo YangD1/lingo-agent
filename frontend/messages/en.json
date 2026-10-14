@@ -764,7 +764,6 @@
     },
     "review": {
       "progress": "Reviewed <b>{reviewed}</b> · <b>{remaining}</b> to go",
-      "back": "Back to vocabulary",
       "loading": "Loading…",
       "done": "Done for now: {reviewed} cards reviewed. Cards you just learned come back later today.",
       "nothing": "Nothing to review right now.",
@@ -834,7 +833,9 @@
       },
       "keysListen": "<k>1</k>–<k>4</k> pick · <k>R</k> play again",
       "keysSpell": "<k>Enter</k> check",
-      "keysSuggested": "<k>Enter</k> rate as suggested · <k>1</k>–<k>4</k> rate differently"
+      "keysSuggested": "<k>Enter</k> rate as suggested · <k>1</k>–<k>4</k> rate differently",
+      "close": "Close",
+      "title": "Vocabulary review"
     },
     "mine": {
       "title": "My words",

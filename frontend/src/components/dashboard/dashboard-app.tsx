@@ -37,6 +37,7 @@ import type { TutorCard } from "@/lib/cards";
 import { CEFR_LEVELS, kcName, learnerHref, practiceHref } from "@/lib/learner";
 import { fetchPlan, type Plan } from "@/lib/plan";
 import { practiceSetHref } from "@/lib/practice";
+import { useOnReviewed } from "@/lib/vocab";
 import { cn } from "@/lib/utils";
 
 import { ActivityHeatmap } from "./activity-heatmap";
@@ -66,7 +67,11 @@ export function DashboardApp() {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
 
-  const load = () => fetchDashboard().then(setBoard, (e: unknown) => setError(describe(e)));
+  const load = useCallback(
+    () => fetchDashboard().then(setBoard, (e: unknown) => setError(describe(e))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- describe is stable enough
+    [],
+  );
   const loadPlan = useCallback(
     () =>
       fetchPlan().then(
@@ -82,8 +87,13 @@ export function DashboardApp() {
   useEffect(() => {
     void load();
     void loadPlan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- describe is stable enough
-  }, []);
+  }, [load, loadPlan]);
+  // A flashcards round over the page: the due count and the plan's vocabulary item moved.
+  const reloadAll = useCallback(() => {
+    void load();
+    void loadPlan();
+  }, [load, loadPlan]);
+  useOnReviewed(reloadAll);
   // The tutor's daily plan card replaces (or, undone, restores) the plan shown above it.
   const onCardDecided = useCallback(
     (card: TutorCard) => {
