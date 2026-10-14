@@ -128,8 +128,9 @@ export function TodayStart({
   if (!advice.model_ready) return <RulesStart advice={advice} className="p-3 md:p-4" />;
 
   const replies = [t("quick.whatToday"), ...advice.items.slice(0, QUICK_FROM).map(quick)];
+  // Starts at the top like a chat with one message, not pushed to the bottom (task 73.3).
   return (
-    <div className="flex min-h-0 flex-1 flex-col justify-end gap-3 overflow-y-auto p-3 md:p-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 md:p-5">
       <div className="flex max-w-[85%] items-start gap-3 self-start">
         <span
           aria-hidden
