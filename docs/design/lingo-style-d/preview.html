@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lingo 视觉方案</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 顶部说明 + 方案切换，下面是同一个"看板"模拟界面，换方案只换表面材质（卡片 / 浮层 / 按钮 / 输入框）。 */
+:root {
+  --bg: #FCFAF8; --fg: #1C1B22; --muted: #68616D; --card: #FFFFFF; --border: #E8E1DB; --input: #DCD3CC;
+  --sunken: #F3EEEA; --accent: #F1EBE6;
+  --primary: #C8441F; --primary-fg: #FFFFFF; --brand: #F25C3B; --brand-soft: #FDEBE4; --brand-soft-fg: #9A3216;
+  --ai: #5753C9; --ai-soft: #ECEBFA; --good: #2F7D52;
+  --glass: rgba(255,255,255,.55); --glass-strong: rgba(255,255,255,.72); --glass-edge: rgba(255,255,255,.8);
+  --gloss: rgba(255,255,255,.45); --raised-top: #FFFFFF; --raised-bot: #F7F2EE;
+  --shadow-c: 70 40 25; --sa1: .06; --sa2: .14; --sa3: .22;
+  --blob1: #F9B39D; --blob2: #B9B6F5; --blob3: #F8DB9C;
+  --cefr-1: #7BB88F; --cefr-2: #4E9C6E; --cefr-3: #D9A33A; --cefr-4: #D97A2B; --cefr-5: #C8441F; --cefr-6: #8E2C4E;
+  --font: "Figtree", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15121A; --fg: #F1ECE8; --muted: #A49BA6; --card: #1F1B23; --border: #302A33; --input: #3C3540;
+  --sunken: #120F16; --accent: #29232C;
+  --primary: #E65A35; --primary-fg: #FFFFFF; --brand: #F25C3B; --brand-soft: #3A221C; --brand-soft-fg: #F7A68E;
+  --ai: #8F8BF5; --ai-soft: #2A2846; --good: #62C48E;
+  --glass: rgba(38,32,42,.55); --glass-strong: rgba(38,32,42,.72); --glass-edge: rgba(255,255,255,.10);
+  --gloss: rgba(255,255,255,.14); --raised-top: #262029; --raised-bot: #1C181F;
+  --shadow-c: 0 0 0; --sa1: .25; --sa2: .45; --sa3: .6;
+  --blob1: #7A2F1E; --blob2: #34307E; --blob3: #5E4618;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #15121A; --fg: #F1ECE8; --muted: #A49BA6; --card: #1F1B23; --border: #302A33; --input: #3C3540;
+  --sunken: #120F16; --accent: #29232C;
+  --primary: #E65A35; --primary-fg: #FFFFFF; --brand: #F25C3B; --brand-soft: #3A221C; --brand-soft-fg: #F7A68E;
+  --ai: #8F8BF5; --ai-soft: #2A2846; --good: #62C48E;
+  --glass: rgba(38,32,42,.55); --glass-strong: rgba(38,32,42,.72); --glass-edge: rgba(255,255,255,.10);
+  --gloss: rgba(255,255,255,.14); --raised-top: #262029; --raised-bot: #1C181F;
+  --shadow-c: 0 0 0; --sa1: .25; --sa2: .45; --sa3: .6;
+  --blob1: #7A2F1E; --blob2: #34307E; --blob3: #5E4618;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 15px; line-height: 1.55; }
+.page { max-width: 1180px; margin: 0 auto; padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 20px; }
+h1 { font-size: 26px; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+.lede { color: var(--muted); margin: 6px 0 0; max-width: 68ch; }
+.bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 12px; background: var(--sunken); border: 1px solid var(--border); }
+.tabs button { font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--muted); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--card); color: var(--fg); font-weight: 600; box-shadow: 0 1px 3px rgb(var(--shadow-c) / var(--sa2)); }
+.tabs button:focus-visible, button:focus-visible, .field:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.note { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.note h2 { font-size: 16px; margin: 0 0 4px; }
+.note p, .note ul { margin: 0; color: var(--muted); font-size: 14px; }
+.note ul { padding-left: 18px; }
+.note .lab { font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--fg); margin-bottom: 4px; }
+.rec { display: inline-block; font-size: 12px; font-weight: 600; color: var(--brand-soft-fg); background: var(--brand-soft); padding: 1px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 2px; }
+
+/* ---------- 方案材质 ---------- */
+.app { --radius: 14px; --pill: 10px;
+  --app-bg: var(--bg); --deco: none;
+  --card-bg: var(--card); --card-border: 1px solid var(--border); --card-shadow: none; --card-blur: none;
+  --chrome-bg: var(--card); --chrome-border: 1px solid var(--border); --chrome-shadow: none; --chrome-blur: none;
+  --field-bg: var(--card); --field-border: 1px solid var(--input); --field-shadow: none;
+  --btn-bg: var(--primary); --btn-shadow: none; --btn2-bg: var(--card); --btn2-border: 1px solid var(--input); --btn2-shadow: none;
+  --bubble-shadow: none; --user-bg: var(--primary);
+  --knob-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa2));
+}
+.app[data-scheme="a"] {
+  --card-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa1)), 0 8px 24px -12px rgb(var(--shadow-c) / var(--sa2));
+  --chrome-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa1)), 0 12px 32px -12px rgb(var(--shadow-c) / var(--sa3));
+  --card-border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  --btn-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa2)), inset 0 1px 0 var(--gloss);
+  --btn2-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa1));
+  --field-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa1));
+  --bubble-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa1));
+}
+.app[data-scheme="b"] { --radius: 22px; --pill: 999px;
+  --deco: radial-gradient(38% 46% at 12% 18%, var(--blob1), transparent 70%), radial-gradient(40% 50% at 88% 30%, var(--blob2), transparent 70%), radial-gradient(45% 50% at 55% 100%, var(--blob3), transparent 70%);
+  --card-bg: var(--glass); --card-border: 1px solid var(--glass-edge); --card-blur: blur(22px) saturate(170%);
+  --card-shadow: inset 0 1px 0 var(--gloss), 0 10px 36px -12px rgb(var(--shadow-c) / var(--sa3));
+  --chrome-bg: var(--glass-strong); --chrome-border: 1px solid var(--glass-edge); --chrome-blur: blur(28px) saturate(180%);
+  --chrome-shadow: inset 0 1px 0 var(--gloss), 0 18px 48px -16px rgb(var(--shadow-c) / var(--sa3));
+  --field-bg: var(--glass); --field-border: 1px solid var(--glass-edge); --field-shadow: inset 0 1px 0 var(--gloss);
+  --btn-bg: linear-gradient(180deg, color-mix(in oklab, var(--primary) 78%, white), var(--primary));
+  --btn-shadow: inset 0 1px 0 var(--gloss), 0 6px 16px -6px color-mix(in oklab, var(--primary) 70%, transparent);
+  --btn2-bg: var(--glass); --btn2-border: 1px solid var(--glass-edge); --btn2-shadow: inset 0 1px 0 var(--gloss);
+  --user-bg: linear-gradient(180deg, color-mix(in oklab, var(--primary) 82%, white), var(--primary));
+  --bubble-shadow: inset 0 1px 0 var(--gloss), 0 4px 14px -8px rgb(var(--shadow-c) / var(--sa2));
+}
+.app[data-scheme="c"] { --radius: 16px;
+  --app-bg: var(--sunken);
+  --card-bg: linear-gradient(180deg, var(--raised-top), var(--raised-bot));
+  --card-shadow: inset 0 1px 0 var(--gloss), 0 1px 1px rgb(var(--shadow-c) / var(--sa1)), 0 3px 6px rgb(var(--shadow-c) / var(--sa1)), 0 14px 28px -14px rgb(var(--shadow-c) / var(--sa3));
+  --chrome-bg: linear-gradient(180deg, var(--raised-top), var(--raised-bot));
+  --chrome-shadow: inset 0 1px 0 var(--gloss), 0 2px 4px rgb(var(--shadow-c) / var(--sa1)), 0 20px 40px -16px rgb(var(--shadow-c) / var(--sa3));
+  --field-bg: var(--sunken); --field-border: 1px solid var(--border);
+  --field-shadow: inset 0 2px 4px rgb(var(--shadow-c) / var(--sa2));
+  --btn-bg: linear-gradient(180deg, color-mix(in oklab, var(--primary) 85%, white), color-mix(in oklab, var(--primary) 90%, black));
+  --btn-shadow: inset 0 1px 0 var(--gloss), inset 0 -2px 0 rgb(0 0 0 / .16), 0 2px 5px rgb(var(--shadow-c) / var(--sa2));
+  --btn2-bg: linear-gradient(180deg, var(--raised-top), var(--raised-bot));
+  --btn2-border: 1px solid var(--border);
+  --btn2-shadow: inset 0 1px 0 var(--gloss), 0 1px 3px rgb(var(--shadow-c) / var(--sa2));
+  --user-bg: linear-gradient(180deg, color-mix(in oklab, var(--primary) 88%, white), var(--primary));
+  --bubble-shadow: inset 0 1px 0 var(--gloss), 0 2px 6px rgb(var(--shadow-c) / var(--sa1));
+  --knob-shadow: inset 0 1px 0 var(--gloss), 0 2px 4px rgb(var(--shadow-c) / var(--sa3));
+}
+.app[data-scheme="d"] { --radius: 16px; --pill: 12px;
+  --deco: radial-gradient(34% 40% at 6% 10%, color-mix(in oklab, var(--blob1) 55%, transparent), transparent 70%), radial-gradient(36% 40% at 96% 90%, color-mix(in oklab, var(--blob2) 45%, transparent), transparent 70%);
+  --card-border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  --card-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa1)), 0 8px 24px -12px rgb(var(--shadow-c) / var(--sa2));
+  --chrome-bg: var(--glass-strong); --chrome-border: 1px solid var(--glass-edge); --chrome-blur: blur(26px) saturate(170%);
+  --chrome-shadow: inset 0 1px 0 var(--gloss), 0 16px 40px -16px rgb(var(--shadow-c) / var(--sa3));
+  --field-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa1));
+  --btn-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa2)), inset 0 1px 0 var(--gloss);
+  --btn2-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa1));
+  --bubble-shadow: 0 1px 2px rgb(var(--shadow-c) / var(--sa1));
+}
+
+.app { position: relative; display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 16px; padding: 16px; border-radius: 26px; border: 1px solid var(--border); background: var(--deco), var(--app-bg); background-color: var(--app-bg); transition: background .3s; }
+.card, .chrome { border-radius: var(--radius); }
+.card { background: var(--card-bg); border: var(--card-border); box-shadow: var(--card-shadow); -webkit-backdrop-filter: var(--card-blur); backdrop-filter: var(--card-blur); }
+.chrome { background: var(--chrome-bg); border: var(--chrome-border); box-shadow: var(--chrome-shadow); -webkit-backdrop-filter: var(--chrome-blur); backdrop-filter: var(--chrome-blur); }
+@media (prefers-reduced-transparency: reduce) { .app { --card-blur: none; --chrome-blur: none; --glass: var(--card); --glass-strong: var(--card); } }
+
+/* 侧栏 */
+.side { display: flex; flex-direction: column; gap: 4px; padding: 14px 10px; min-width: 0; }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; padding: 2px 8px 12px; }
+.logo i { width: 26px; height: 26px; border-radius: 9px; background: var(--brand); display: grid; place-items: center; color: #fff; font-style: normal; font-size: 14px; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: calc(var(--radius) - 4px); color: var(--muted); text-decoration: none; font-size: 14px; }
+.nav a svg { width: 17px; height: 17px; flex: none; }
+.nav a[aria-current] { background: var(--brand-soft); color: var(--brand-soft-fg); font-weight: 600; }
+.side .grow { flex: 1; min-height: 12px; }
+.side .lab { font-size: 12px; color: var(--muted); padding: 0 6px 4px; }
+
+/* 主区 */
+.main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.stat { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.stat .k { font-size: 13px; color: var(--muted); }
+.stat .v { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.stat .v small { font-size: 14px; font-weight: 500; color: var(--muted); }
+.meter { height: 6px; border-radius: 999px; background: color-mix(in oklab, var(--fg) 8%, transparent); overflow: hidden; }
+.meter b { display: block; height: 100%; width: 63%; border-radius: inherit; background: var(--primary); }
+.cefr { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+.cefr span { height: 6px; border-radius: 3px; opacity: .25; }
+.cefr span.on { opacity: 1; }
+.cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.panel-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 14px 16px 0; }
+.panel-h h3 { margin: 0; font-size: 15px; }
+.panel-h p { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* 聊天 */
+.chat { display: flex; flex-direction: column; height: 470px; min-width: 0; }
+.msgs { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.row { display: flex; gap: 10px; align-items: flex-start; max-width: 92%; }
+.av { width: 28px; height: 28px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); flex: none; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.bub { padding: 10px 14px; border-radius: 6px 18px 18px 18px; background: var(--card); border: 1px solid var(--border); box-shadow: var(--bubble-shadow); font-size: 14.5px; min-width: 0; }
+.app[data-scheme="b"] .bub { background: var(--glass-strong); border-color: var(--glass-edge); }
+.app[data-scheme="c"] .bub { background: linear-gradient(180deg, var(--raised-top), var(--raised-bot)); }
+.bub mark { background: var(--brand-soft); color: var(--brand-soft-fg); border-radius: 4px; padding: 0 3px; }
+.me { align-self: flex-end; padding: 10px 14px; border-radius: 18px 18px 6px 18px; background: var(--user-bg); color: var(--primary-fg); box-shadow: var(--bubble-shadow); font-size: 14.5px; max-width: 80%; }
+.did { margin: 6px 0 0 38px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12.5px; }
+.did span { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; background: color-mix(in oklab, var(--fg) 6%, transparent); color: var(--fg); }
+.did span em { font-style: normal; color: var(--muted); }
+.quick { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.flag { align-self: flex-start; font-size: 12px; color: var(--good); border: 1px dashed currentColor; border-radius: 999px; padding: 1px 9px; }
+.composer { margin: 0 12px 12px; padding: 8px; display: flex; align-items: flex-end; gap: 6px; }
+.composer textarea { flex: 1; min-width: 0; resize: none; border: 0; background: transparent; color: var(--fg); font: inherit; font-size: 14.5px; padding: 7px 6px; height: 38px; outline: none; }
+.composer textarea::placeholder { color: var(--muted); }
+.ib { width: 34px; height: 34px; border-radius: var(--pill); border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; flex: none; }
+.ib:hover { background: var(--accent); }
+.ib svg { width: 18px; height: 18px; }
+.send { background: var(--btn-bg); box-shadow: var(--btn-shadow); color: var(--primary-fg); }
+.send:hover { background: var(--btn-bg); filter: brightness(1.06); }
+.ai { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600; color: var(--ai); background: var(--ai-soft); padding: 2px 7px; border-radius: 999px; white-space: nowrap; flex: none; align-self: center; font-variant-numeric: tabular-nums; }
+
+/* 右栏 */
+.stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.plan { list-style: none; margin: 0; padding: 10px 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.plan li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px; border-radius: calc(var(--radius) - 6px); font-size: 14px; }
+.plan li:hover { background: var(--accent); }
+.plan .ck { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--input); display: grid; place-items: center; }
+.plan .done .ck { background: var(--good); border-color: var(--good); color: #fff; }
+.plan .done .t { color: var(--muted); text-decoration: line-through; }
+.plan .m { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ctrls { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+.fl { display: flex; flex-direction: column; gap: 6px; }
+.fl > label, .fl > .l { font-size: 13px; color: var(--muted); }
+.field { font: inherit; font-size: 14px; color: var(--fg); background: var(--field-bg); border: var(--field-border); box-shadow: var(--field-shadow); border-radius: calc(var(--radius) - 4px); padding: 8px 12px; width: 100%; }
+.app[data-scheme="b"] .field { border-radius: 12px; }
+
+/* 自定义下拉 */
+.sel { position: relative; }
+.sel-btn { display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: left; }
+.sel-btn .v { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.sel-btn svg { width: 16px; height: 16px; color: var(--muted); transition: transform .2s; }
+.sel[data-open] .sel-btn svg { transform: rotate(180deg); }
+.sel-btn[aria-expanded="true"] { border-color: var(--primary); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.sel-menu { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 5px; list-style: none; display: none; max-height: 260px; overflow: auto; border-radius: calc(var(--radius) - 2px); }
+.sel[data-open] .sel-menu { display: block; animation: pop .16s ease-out; }
+.sel.up .sel-menu { top: auto; bottom: calc(100% + 6px); }
+@keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.sel-menu li { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: calc(var(--radius) - 7px); font-size: 14px; cursor: pointer; }
+.sel-menu li .ex { margin-left: auto; font-size: 12px; color: var(--muted); }
+.sel-menu li:hover, .sel-menu li.hl { background: var(--accent); }
+.sel-menu li[aria-selected="true"] { color: var(--brand-soft-fg); font-weight: 600; }
+.sel-menu li .tick { width: 14px; visibility: hidden; color: var(--primary); }
+.sel-menu li[aria-selected="true"] .tick { visibility: visible; }
+
+.seg { display: flex; padding: 3px; gap: 2px; border-radius: calc(var(--radius) - 3px); background: var(--field-bg); border: var(--field-border); box-shadow: var(--field-shadow); }
+.app[data-scheme="a"] .seg, .app[data-scheme="d"] .seg { background: var(--sunken); border-color: transparent; box-shadow: none; }
+.seg button { flex: 1; font: inherit; font-size: 13.5px; border: 0; background: transparent; color: var(--muted); padding: 6px 8px; border-radius: calc(var(--radius) - 6px); cursor: pointer; }
+.seg button[aria-pressed="true"] { color: var(--fg); font-weight: 600; background: var(--btn2-bg); box-shadow: var(--btn2-shadow), 0 1px 3px rgb(var(--shadow-c) / var(--sa1)); }
+.app[data-scheme="b"] .seg { border-radius: 999px; }
+.app[data-scheme="b"] .seg button { border-radius: 999px; }
+.app[data-scheme="b"] .seg button[aria-pressed="true"] { background: var(--glass-strong); }
+
+.sw-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.sw { width: 44px; height: 26px; border-radius: 999px; border: 0; padding: 3px; cursor: pointer; background: color-mix(in oklab, var(--fg) 16%, transparent); box-shadow: inset 0 1px 2px rgb(var(--shadow-c) / var(--sa1)); transition: background .2s; flex: none; }
+.sw i { display: block; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: var(--knob-shadow); transition: transform .2s; }
+.sw[aria-checked="true"] { background: var(--primary); }
+.sw[aria-checked="true"] i { transform: translateX(18px); }
+.app[data-scheme="b"] .sw i { width: 26px; border-radius: 999px; }
+.app[data-scheme="b"] .sw[aria-checked="true"] i { transform: translateX(12px); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: inherit; font-size: 14px; font-weight: 600; padding: 8px 14px; border-radius: var(--pill); cursor: pointer; border: 0; display: inline-flex; align-items: center; gap: 6px; }
+.btn.p { background: var(--btn-bg); box-shadow: var(--btn-shadow); color: var(--primary-fg); }
+.btn.s { background: var(--btn2-bg); border: var(--btn2-border); box-shadow: var(--btn2-shadow); color: var(--fg); }
+.btn.g { background: transparent; color: var(--fg); }
+.btn.g:hover { background: var(--accent); }
+.btn:active { transform: translateY(1px); }
+.quick .btn { font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 999px; }
+
+.todo { border: 1px solid var(--border); border-radius: 14px; padding: 14px 18px; background: var(--card); }
+.todo h2 { font-size: 15px; margin: 0 0 6px; }
+.todo ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; display: grid; gap: 3px; }
+.todo b { color: var(--fg); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .cols { grid-template-columns: minmax(0, 1fr); }
+  .note { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .app { grid-template-columns: minmax(0, 1fr); padding: 10px; gap: 12px; border-radius: 20px; }
+  .side { flex-direction: row; align-items: center; padding: 8px; overflow-x: auto; }
+  .logo { padding: 0 6px; } .logo span, .side .grow, .side .lab, .side .sel { display: none; }
+  .nav { flex-direction: row; }
+  .nav a { padding: 7px 9px; white-space: nowrap; }
+  .stats { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="page">
+  <header>
+    <h1>Lingo 视觉方案预览</h1>
+    <p class="lede">同一个看板，四种表面处理。切换下面的方案和深浅色对比。下拉、分段、开关、按钮都能点。聊天区已经按问题 3 改成贴顶，输入框只留一个 ✦。</p>
+  </header>
+
+  <div class="bar">
+    <div class="tabs" id="schemes" role="group" aria-label="方案">
+      <button data-s="a" aria-pressed="false">A 温暖扁平 + 柔和阴影</button>
+      <button data-s="b" aria-pressed="false">B 液态玻璃</button>
+      <button data-s="c" aria-pressed="false">C 柔和拟物</button>
+      <button data-s="d" aria-pressed="true">D 混合（推荐）</button>
+    </div>
+    <div class="tabs" id="themes" role="group" aria-label="深浅色">
+      <button data-t="system" aria-pressed="true">跟随系统</button>
+      <button data-t="light" aria-pressed="false">浅色</button>
+      <button data-t="dark" aria-pressed="false">深色</button>
+    </div>
+  </div>
+
+  <section class="note" aria-live="polite">
+    <div><h2 id="n-name"></h2><p id="n-idea"></p></div>
+    <div><div class="lab">好处</div><ul id="n-pro"></ul></div>
+    <div><div class="lab">代价</div><ul id="n-con"></ul></div>
+  </section>
+
+  <div class="app" id="app" data-scheme="d">
+    <aside class="side chrome">
+      <div class="logo"><i>L</i><span>Lingo</span></div>
+      <nav class="nav">
+        <a href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>今天</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>对话</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/></svg>背单词</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/></svg>阅读</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"/></svg>练习</a>
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>学习者模型</a>
+      </nav>
+      <div class="grow"></div>
+      <div class="lab">界面语言</div>
+      <div class="sel up" data-sel>
+        <button class="field sel-btn" id="sel-locale" aria-haspopup="listbox" aria-expanded="false"><span class="v">简体中文</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+        <ul class="sel-menu chrome" role="listbox" aria-labelledby="sel-locale">
+          <li role="option" aria-selected="true"><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg><span class="v">简体中文</span></li>
+          <li role="option" aria-selected="false"><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg><span class="v">English</span></li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="stats">
+        <div class="card stat"><span class="k">连续学习</span><span class="v">12 <small>天</small></span><span class="k">本周 5 / 7 天</span></div>
+        <div class="card stat"><span class="k">今日复习</span><span class="v">38 <small>/ 60 词</small></span><div class="meter"><b></b></div></div>
+        <div class="card stat"><span class="k">CEFR 估计</span><span class="v">B1 <small>→ B2 还差 14 个语法点</small></span><div class="cefr"><span class="on" style="background:var(--cefr-1)"></span><span class="on" style="background:var(--cefr-2)"></span><span class="on" style="background:var(--cefr-3)"></span><span style="background:var(--cefr-4)"></span><span style="background:var(--cefr-5)"></span><span style="background:var(--cefr-6)"></span></div></div>
+      </div>
+
+      <div class="cols">
+        <section class="card chat">
+          <div class="panel-h"><h3>今天的私教</h3><p>每天一个对话</p></div>
+          <div class="msgs">
+            <span class="flag">↑ 只有一条时贴顶，不再沉到底部</span>
+            <div class="row"><span class="av">L</span><div class="bub">早！昨天的现在完成时错了 3 次，今天先用它聊聊你上周末做了什么？</div></div>
+            <div class="me">I have went to the museum last Sunday.</div>
+            <div>
+              <div class="row"><span class="av">L</span><div class="bub">差一点！说具体的过去时间要用一般过去时：<mark>I went to the museum last Sunday.</mark> “have been to” 用在不说时间的时候。你在博物馆看到了什么？</div></div>
+              <div class="did"><span><em>私教做了什么</em></span><span>记录错误 · 现在完成时 vs 一般过去时</span><span>加入生词本 · exhibit</span></div>
+            </div>
+            <div class="quick">
+              <button class="btn s">再给我一个例子</button>
+              <button class="btn s">换个话题</button>
+            </div>
+          </div>
+          <div class="composer chrome">
+            <button class="ib" aria-label="添加图片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12l-8.5 8.5a5 5 0 0 1-7-7L14 5a3.3 3.3 0 0 1 4.7 4.7L10.2 18a1.7 1.7 0 0 1-2.4-2.4L15 8.5"/></svg></button>
+            <textarea id="composer" placeholder="用英语或中文回复…" aria-label="回复"></textarea>
+            <button class="ib" aria-label="语音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+            <span class="ai" title="每条消息约 1,200 token；附件和语音转写另算">✦ ~1.2k</span>
+            <button class="ib send" aria-label="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+          </div>
+        </section>
+
+        <div class="stack">
+          <section class="card">
+            <div class="panel-h"><h3>今日计划</h3><p>2 / 4 完成</p></div>
+            <ul class="plan">
+              <li class="done"><span class="ck"><svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l5 5 9-10"/></svg></span><span class="t">复习到期单词</span><span class="m">60 词</span></li>
+              <li class="done"><span class="ck"><svg width="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><path d="M5 12l5 5 9-10"/></svg></span><span class="t">和私教聊 10 分钟</span><span class="m">10 分</span></li>
+              <li><span class="ck"></span><span class="t">练习：现在完成时 vs 一般过去时</span><span class="m">8 题</span></li>
+              <li><span class="ck"></span><span class="t">读一篇 B1 新闻</span><span class="m">~6 分</span></li>
+            </ul>
+          </section>
+
+          <section class="card ctrls">
+            <div class="fl">
+              <span class="l" id="lvl-l">语法点等级</span>
+              <div class="sel" data-sel data-open>
+                <button class="field sel-btn" id="sel-level" aria-haspopup="listbox" aria-expanded="true" aria-labelledby="lvl-l sel-level"><span class="v"><span class="dot" style="background:var(--cefr-3)"></span>B1</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+                <ul class="sel-menu chrome" role="listbox" aria-labelledby="lvl-l">
+                  <li role="option" aria-selected="false"><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg><span class="v">全部等级</span><span class="ex">143</span></li>
+                  <li role="option" aria-selected="false"><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg><span class="v"><span class="dot" style="background:var(--cefr-1)"></span> A1</span><span class="ex">22</span></li>
+                  <li role="option" aria-selected="false"><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg><span class="v"><span class="dot" style="background:var(--cefr-2)"></span> A2</span><span class="ex">29</span></li>
+                  <li role="option" aria-selected="true"><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg><span class="v"><span class="dot" style="background:var(--cefr-3)"></span> B1</span><span class="ex">33</span></li>
+                  <li role="option" aria-selected="false"><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg><span class="v"><span class="dot" style="background:var(--cefr-4)"></span> B2</span><span class="ex">31</span></li>
+                  <li role="option" aria-selected="false"><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg><span class="v"><span class="dot" style="background:var(--cefr-5)"></span> C1</span><span class="ex">18</span></li>
+                  <li role="option" aria-selected="false"><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg><span class="v"><span class="dot" style="background:var(--cefr-6)"></span> C2</span><span class="ex">10</span></li>
+                </ul>
+              </div>
+            </div>
+            <div class="fl">
+              <span class="l">背词题型</span>
+              <div class="seg" data-seg><button aria-pressed="true">看词选义</button><button aria-pressed="false">听音辨词</button><button aria-pressed="false">拼写</button></div>
+            </div>
+            <div class="sw-row"><span>私教回复自动朗读</span><button class="sw" role="switch" aria-checked="true" aria-label="私教回复自动朗读"><i></i></button></div>
+            <div class="fl"><label for="goal">每日新词</label><input class="field" id="goal" value="20"></div>
+            <div class="btns"><button class="btn p">开始练习</button><button class="btn s">稍后</button><button class="btn g">查看记录</button></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <section class="todo">
+    <h2>不管选哪套都会一起改的</h2>
+    <ul>
+      <li><b>贴顶</b>：看板聊天开场白和快捷回复从顶部开始排（上面聊天区已是新效果）。</li>
+      <li><b>下拉</b>：全站原生 select 换成上面这种自定义下拉，带等级色点、数量、勾选，键盘和读屏可用。</li>
+      <li><b>✦ 合并</b>：输入框里只留一个 AI 用量标记，附件、语音的用量写进它的说明。</li>
+      <li><b>桌宠让位</b>：右下角的猫不再挡卡片和按钮。</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const NOTES = {
+  a: { name: "A 温暖扁平 + 柔和阴影", idea: "保留现在的暖米白和珊瑚色，卡片换成浅描边 + 两层柔和阴影，按钮带一点高光。最接近现状，最稳。",
+       pro: ["改动小，只动 token 和几个通用组件", "文字对比度最好，长时间阅读舒服", "低配机器零性能负担"],
+       con: ["“现代感”提升有限，和现在差别不算大", "没有玻璃或拟物那种辨识度"] },
+  b: { name: "B 液态玻璃", idea: "背景铺柔和的珊瑚 / 靛蓝色块，卡片、侧栏、浮层都是半透明毛玻璃，按钮和开关做成胶囊形，接近苹果的液态玻璃。",
+       pro: ["辨识度最高，第一眼最“新”", "浮层（下拉、单词气泡）叠在内容上很好看"],
+       con: ["正文卡片透明会降低可读性，阅读、写作页不太合适", "到处 backdrop-filter，低端手机滚动会卡", "深色模式下层次需要额外调"] },
+  c: { name: "C 柔和拟物", idea: "背景压暗一档，卡片像凸起的纸片（顶部高光 + 底部投影），输入框和分段是凹进去的槽，按钮有实体感。",
+       pro: ["触感强，按钮、开关一看就能按", "适合背词卡片、练习这种“动手”的页面"],
+       con: ["阴影层数多，信息密的页面（学习者模型、设置）会显得重", "风格偏怀旧，和 shadcn 默认差异最大，改动量最大"] },
+  d: { name: "D 混合（推荐）", idea: "正文卡片用 A 的不透明 + 柔和阴影，固定层（侧栏、输入框、下拉菜单、弹出层）用 B 的毛玻璃，背景只在角落留淡淡的色块。",
+       pro: ["读的地方清楚，浮着的地方有玻璃质感", "毛玻璃只用在少数固定层，性能可控", "改动量接近 A"],
+       con: ["玻璃感比 B 克制，冲击力弱一些", "需要定好哪些组件算“固定层”"] },
+};
+const app = document.getElementById("app");
+function setScheme(s) {
+  app.dataset.scheme = s;
+  document.querySelectorAll("#schemes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.s === s)));
+  const n = NOTES[s];
+  document.getElementById("n-name").innerHTML = n.name.replace("（推荐）", '<span class="rec">推荐</span>');
+  document.getElementById("n-idea").textContent = n.idea;
+  document.getElementById("n-pro").innerHTML = n.pro.map(x => `<li>${x}</li>`).join("");
+  document.getElementById("n-con").innerHTML = n.con.map(x => `<li>${x}</li>`).join("");
+  try { localStorage.setItem("lingo-scheme", s); } catch (e) {}
+}
+function setTheme(t) {
+  if (t === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+  document.querySelectorAll("#themes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === t)));
+}
+document.querySelectorAll("#schemes button").forEach(b => b.addEventListener("click", () => setScheme(b.dataset.s)));
+document.querySelectorAll("#themes button").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.t)));
+let saved = "d"; try { saved = localStorage.getItem("lingo-scheme") || "d"; } catch (e) {}
+setScheme(NOTES[saved] ? saved : "d");
+
+// 自定义下拉
+document.querySelectorAll("[data-sel]").forEach(sel => {
+  const btn = sel.querySelector(".sel-btn"), opts = [...sel.querySelectorAll("[role=option]")];
+  let hl = -1;
+  const open = (v) => { sel.toggleAttribute("data-open", v); btn.setAttribute("aria-expanded", String(v)); if (v) { hl = opts.findIndex(o => o.getAttribute("aria-selected") === "true"); mark(); } };
+  const mark = () => opts.forEach((o, i) => o.classList.toggle("hl", i === hl));
+  const pick = (o) => { opts.forEach(x => x.setAttribute("aria-selected", String(x === o))); btn.querySelector(".v").innerHTML = o.querySelector(".v").innerHTML; open(false); btn.focus(); };
+  btn.addEventListener("click", (e) => { e.stopPropagation(); open(!sel.hasAttribute("data-open")); });
+  opts.forEach(o => o.addEventListener("click", (e) => { e.stopPropagation(); pick(o); }));
+  btn.addEventListener("keydown", (e) => {
+    const isOpen = sel.hasAttribute("data-open");
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); if (!isOpen) return open(true); hl = (hl + (e.key === "ArrowDown" ? 1 : -1) + opts.length) % opts.length; mark(); }
+    else if ((e.key === "Enter" || e.key === " ") && isOpen && hl >= 0) { e.preventDefault(); pick(opts[hl]); }
+    else if (e.key === "Escape") open(false);
+  });
+});
+document.addEventListener("click", () => document.querySelectorAll("[data-sel][data-open]").forEach(s => { s.removeAttribute("data-open"); s.querySelector(".sel-btn").setAttribute("aria-expanded", "false"); }));
+
+document.querySelectorAll("[data-seg]").forEach(seg => seg.querySelectorAll("button").forEach(b => b.addEventListener("click", () => seg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b))))));
+document.querySelectorAll(".sw").forEach(s => s.addEventListener("click", () => s.setAttribute("aria-checked", String(s.getAttribute("aria-checked") !== "true"))));
+document.querySelectorAll(".nav a, .btn, .ib").forEach(a => a.addEventListener("click", e => e.preventDefault()));
+</script>

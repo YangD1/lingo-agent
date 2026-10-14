@@ -33,7 +33,7 @@
 ## 二、总体架构
 
 ```
-Next.js (App Router, TS, Tailwind, shadcn/ui；视觉系统与深色主题见 ADR 0019)
+Next.js (App Router, TS, Tailwind, shadcn/ui；视觉系统与深色主题见 ADR 0019，视觉风格 D（不透明卡片 + 固定层毛玻璃）见 ADR 0036)
    │  REST + SSE（流式对话）+ WebSocket（语音）
 FastAPI (Python 3.12, uv)
    ├── LangGraph 主图（Supervisor 多 Agent；P1 先是 load_context → tutor，路由在 P2b 加入，见 ADR 0009、0023）
