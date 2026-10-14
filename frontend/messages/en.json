@@ -2468,6 +2468,116 @@
     "focusInput": "{name}: type in the message box",
     "chatTitle": "Chat with {name}",
     "openInChat": "Open in chat",
-    "close": "Close"
+    "close": "Close",
+    "actions": {
+      "vocab_review": {
+        "label": "Flashcards",
+        "ask": "Start your flashcards?"
+      },
+      "vocab_learn": {
+        "label": "New words",
+        "ask": "Learn a few new words?"
+      },
+      "practice": {
+        "label": "Grammar",
+        "ask": "Practise some grammar?"
+      },
+      "speaking": {
+        "label": "Speaking",
+        "ask": "Go practise speaking?"
+      },
+      "speaking_call": {
+        "label": "Call",
+        "ask": "Give me a call?"
+      },
+      "writing": {
+        "label": "Writing",
+        "ask": "Write something for me to check?"
+      },
+      "reading": {
+        "label": "Reading",
+        "ask": "Read a graded news story?"
+      },
+      "placement": {
+        "label": "Level test",
+        "ask": "Take a level test?"
+      },
+      "word_books": {
+        "label": "Word books",
+        "ask": "Choose a word book?"
+      },
+      "vocab_screen": {
+        "label": "Screen words",
+        "ask": "Mark the words you already know?"
+      },
+      "vocab_mine": {
+        "label": "My words",
+        "ask": "Open your word list?"
+      },
+      "learner": {
+        "label": "My level",
+        "ask": "See where you are now?"
+      },
+      "memory": {
+        "label": "Memory",
+        "ask": "See what I remember about you?"
+      },
+      "plan": {
+        "label": "Today's plan",
+        "ask": "See today's plan?"
+      },
+      "tutor": {
+        "label": "Your tutor",
+        "ask": "Change my looks or voice?"
+      },
+      "setup_models": {
+        "label": "Set up models",
+        "ask": "Set up a model connection?"
+      },
+      "setup_routes": {
+        "label": "Model order",
+        "ask": "Choose which model does what?"
+      },
+      "setup_read_aloud": {
+        "label": "Read aloud",
+        "ask": "Set up the read-aloud voice?"
+      },
+      "setup_word_audio": {
+        "label": "Word audio",
+        "ask": "Generate word pronunciations?"
+      },
+      "setup_realtime": {
+        "label": "Call settings",
+        "ask": "Set up live voice?"
+      },
+      "setup_background": {
+        "label": "Background jobs",
+        "ask": "See the background jobs?"
+      },
+      "setup_members": {
+        "label": "Members",
+        "ask": "Invite members?"
+      },
+      "setup_membership": {
+        "label": "Main account",
+        "ask": "Join a main account?"
+      },
+      "setup_usage": {
+        "label": "Usage",
+        "ask": "See your AI usage and quotas?"
+      }
+    },
+    "bubble": {
+      "start": "Start",
+      "go": "Go",
+      "setup": "Open settings",
+      "no": "No thanks",
+      "later": "Later",
+      "askTutor": "Ask {name} instead",
+      "close": "Dismiss",
+      "quick": "I can open these for you:",
+      "noModel": "No chat model is set up yet, so I can't chat. You can still use these:",
+      "newDot": "{name} has something to say"
+    }
   }
 }

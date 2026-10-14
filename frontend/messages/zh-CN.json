@@ -2468,6 +2468,116 @@
     "focusInput": "{name}：在输入框里打字",
     "chatTitle": "和 {name} 聊天",
     "openInChat": "在聊天页打开",
-    "close": "关闭"
+    "close": "关闭",
+    "actions": {
+      "vocab_review": {
+        "label": "背单词",
+        "ask": "要开始背单词吗？"
+      },
+      "vocab_learn": {
+        "label": "学新词",
+        "ask": "要学几个新词吗？"
+      },
+      "practice": {
+        "label": "练语法",
+        "ask": "去练练语法？"
+      },
+      "speaking": {
+        "label": "练口语",
+        "ask": "去练口语吗？"
+      },
+      "speaking_call": {
+        "label": "通话",
+        "ask": "要和我通个电话吗？"
+      },
+      "writing": {
+        "label": "写作",
+        "ask": "写一篇让我批改？"
+      },
+      "reading": {
+        "label": "阅读",
+        "ask": "去读篇分级新闻？"
+      },
+      "placement": {
+        "label": "水平测试",
+        "ask": "要做一次水平测试吗？"
+      },
+      "word_books": {
+        "label": "选词书",
+        "ask": "去选一本词书？"
+      },
+      "vocab_screen": {
+        "label": "筛词",
+        "ask": "去标出你已经认识的词？"
+      },
+      "vocab_mine": {
+        "label": "生词本",
+        "ask": "打开你的生词本？"
+      },
+      "learner": {
+        "label": "我的水平",
+        "ask": "看看你现在的水平？"
+      },
+      "memory": {
+        "label": "我的记忆",
+        "ask": "看看我记住了你什么？"
+      },
+      "plan": {
+        "label": "今日计划",
+        "ask": "看看今天的计划？"
+      },
+      "tutor": {
+        "label": "私教形象",
+        "ask": "去给我换个样子或声音？"
+      },
+      "setup_models": {
+        "label": "配置模型",
+        "ask": "带你去配置模型连接？"
+      },
+      "setup_routes": {
+        "label": "模型顺序",
+        "ask": "去调整各任务用哪个模型？"
+      },
+      "setup_read_aloud": {
+        "label": "朗读设置",
+        "ask": "去设置朗读声音？"
+      },
+      "setup_word_audio": {
+        "label": "单词发音",
+        "ask": "去生成单词发音？"
+      },
+      "setup_realtime": {
+        "label": "通话设置",
+        "ask": "去设置实时语音？"
+      },
+      "setup_background": {
+        "label": "后台任务",
+        "ask": "去看看后台任务？"
+      },
+      "setup_members": {
+        "label": "成员",
+        "ask": "去邀请成员？"
+      },
+      "setup_membership": {
+        "label": "主账号",
+        "ask": "去加入主账号？"
+      },
+      "setup_usage": {
+        "label": "用量",
+        "ask": "看看 AI 用量和额度？"
+      }
+    },
+    "bubble": {
+      "start": "开始",
+      "go": "去看看",
+      "setup": "去设置",
+      "no": "不用",
+      "later": "稍后",
+      "askTutor": "还是问{name}",
+      "close": "关闭提醒",
+      "quick": "可以直接让我打开：",
+      "noModel": "还没配好对话模型，我暂时不能聊天。下面这些可以直接用：",
+      "newDot": "{name}有话想说"
+    }
   }
 }

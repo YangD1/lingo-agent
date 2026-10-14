@@ -20,6 +20,7 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 
 import { Callout } from "@/components/ui/callout";
 import { api } from "@/lib/api";
+import { useHashFlash } from "@/lib/hash-flash";
 import type { Connection, Presets } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,8 @@ export function SettingsApp() {
   const [presets, setPresets] = useState<Presets | null>(null);
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  // The desk pet links to a card by its anchor (ADR 0039 §1).
+  useHashFlash();
 
   useEffect(() => {
     api<Presets>("/provider-presets").then(setPresets, () => {});

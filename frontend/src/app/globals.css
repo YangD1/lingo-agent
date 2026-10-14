@@ -323,3 +323,26 @@
     }
   }
 }
+/* The settings card the desk pet led to (ADR 0039 §1): a brief ring around it. */
+@keyframes section-flash {
+  0%,
+  100% {
+    outline-color: transparent;
+  }
+  15%,
+  70% {
+    outline-color: color-mix(in oklab, var(--brand) 70%, transparent);
+  }
+}
+[data-flash] {
+  border-radius: var(--radius-xl);
+  outline: 3px solid transparent;
+  outline-offset: 3px;
+  animation: section-flash 1.8s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-flash] {
+    animation: none;
+    outline-color: color-mix(in oklab, var(--brand) 70%, transparent);
+  }
+}
