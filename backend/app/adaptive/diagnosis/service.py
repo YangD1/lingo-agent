@@ -33,8 +33,8 @@ type CallFactory = Callable[[TenantProviderContext, RunnableConfig, str], Struct
 
 # Starts the memory a diagnosis leaves (Q46d), so the learner can tell it apart.
 MEMORY_PREFIX: dict[Language, str] = {
-    "zh": "私教的诊断：",  # noqa: RUF001 (Chinese punctuation)
-    "en": "Tutor's diagnosis: ",
+    "zh": "助手的诊断：",  # noqa: RUF001 (Chinese punctuation)
+    "en": "Assistant's diagnosis: ",
 }
 
 

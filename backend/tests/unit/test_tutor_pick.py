@@ -116,4 +116,4 @@ def test_call_voice_and_model(config: Any) -> None:
 
 def test_the_name_goes_into_the_prompt() -> None:
     assert "Your name is Max" in system_prompt("", name="Max")
-    assert "Your name is" not in system_prompt("")
+    assert "Your name is JOJO" in system_prompt("")

@@ -47,7 +47,7 @@ async def test_defaults_before_anything_is_saved(app: FastAPI) -> None:
     client = await _client(app, "ada")
     tutor = (await client.get("/tutor")).json()
     assert (tutor["display_name"], tutor["display_avatar"], tutor["animate"], tutor["pet"]) == (
-        "Lingo",
+        "JOJO",
         "cat",
         True,
         True,
@@ -119,7 +119,7 @@ async def test_save_read_and_reset(app: FastAPI) -> None:
     assert (await client.get("/tutor")).json() == saved
 
     assert (await client.delete("/tutor")).status_code == 204
-    assert (await client.get("/tutor")).json()["display_name"] == "Lingo"
+    assert (await client.get("/tutor")).json()["display_name"] == "JOJO"
     assert (await client.delete("/tutor")).status_code == 204  # idempotent
 
 

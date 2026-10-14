@@ -132,7 +132,7 @@ async def test_a_diagnosis_is_stored_with_its_memory(
     assert [c["hypothesis"] for c in row.root_causes] == ["Cause 1."]
     assert len(row.root_causes[0]["evidence_ids"]) == 3
     assert row.memory_id is not None
-    assert await _facts(db_session, user_id) == ["私教的诊断：Cause 1."]  # noqa: RUF001
+    assert await _facts(db_session, user_id) == ["助手的诊断：Cause 1."]  # noqa: RUF001
 
 
 async def test_the_memory_is_updated_in_place_and_written_again_once_deleted(
@@ -148,14 +148,14 @@ async def test_the_memory_is_updated_in_place_and_written_again_once_deleted(
     first, second = await _diagnoses(db_session, user_id)
     memory_id = second.memory_id
     assert memory_id is not None and first.memory_id == memory_id
-    assert await _facts(db_session, user_id) == ["Tutor's diagnosis: Cause 2."]
+    assert await _facts(db_session, user_id) == ["Assistant's diagnosis: Cause 2."]
 
     await delete_memory(db_session, user_id, memory_id)
     await _run(app, user_id, tenant_id, calls, hours=2)
     rows = await _diagnoses(db_session, user_id)
     assert [r.memory_id for r in rows[:2]] == [None, None]
     assert rows[2].memory_id is not None
-    assert await _facts(db_session, user_id) == ["Tutor's diagnosis: Cause 3."]
+    assert await _facts(db_session, user_id) == ["Assistant's diagnosis: Cause 3."]
 
 
 async def test_without_a_cause_that_holds_the_memory_is_left_alone(
@@ -176,7 +176,7 @@ async def test_without_a_cause_that_holds_the_memory_is_left_alone(
     rows = await _diagnoses(db_session, user_id)
     assert outcome.diagnosis_id == rows[1].id
     assert (rows[1].root_causes, rows[1].memory_id) == ([], None)
-    assert await _facts(db_session, user_id) == ["私教的诊断：Cause 1."]  # noqa: RUF001
+    assert await _facts(db_session, user_id) == ["助手的诊断：Cause 1."]  # noqa: RUF001
 
 
 async def test_skipped_without_a_call(

@@ -17,7 +17,7 @@ from app.providers.realtime_voices import realtime_voice_options
 from app.providers.tts import LANGUAGES
 from app.tutor.options import TutorOptions, ref
 
-DEFAULT_NAME = "Lingo"
+DEFAULT_NAME = "JOJO"
 DEFAULT_AVATAR = "cat"
 MAX_NAME_LENGTH = 40
 MAX_VOICE_LENGTH = 200
