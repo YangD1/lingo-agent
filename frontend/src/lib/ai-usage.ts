@@ -8,6 +8,7 @@ export type AiFeature =
   | "chat_audio"
   | "practice_start"
   | "plan_start"
+  | "pet_daily_opening"
   | "practice_set"
   | "practice_grade"
   | "memory_edit"
@@ -38,6 +39,7 @@ const AI_TASKS = [
   "asr",
   "practice_opening",
   "plan_opening",
+  "daily_opening",
   "exercise_generate",
   "exercise_critic",
   "exercise_grade",

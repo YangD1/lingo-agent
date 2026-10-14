@@ -305,6 +305,16 @@ features:
         timing: now
         default: {input_tokens: 3500, output_tokens: 200}
 
+  # The desk pet opened for the first time in the day (ADR 0041): the tutor opens
+  # today's conversation with a look back at the last 7 days and one or two
+  # suggestions. Marked by the pet's AI hair clip; later turns are chat_message.
+  pet_daily_opening:
+    calls:
+      - task: daily_opening
+        route: chat
+        timing: now
+        default: {input_tokens: 4000, output_tokens: 250}
+
   # "AI examples" in the word popup (ADR 0017 §3) and on the back of a review card
   # (ADR 0020): two sentences at the learner's level, once per tenant, word and
   # level; a cached word makes no call.
