@@ -10,7 +10,7 @@ test("AI badges explain token use, from defaults and then from the tenant's own 
   await register(page, uniqueEmail());
 
   // No model and no history yet: default estimates.
-  const send = page.getByTestId("ai-badge-chat_message");
+  const send = page.getByTestId("ai-badge-chat_message-chat_image-chat_pdf-chat_audio");
   await send.hover();
   const details = page.getByTestId("ai-badge-details");
   await expect(details).toContainText("私教的回复由 AI 模型生成");
@@ -21,12 +21,14 @@ test("AI badges explain token use, from defaults and then from the tenant's own 
   await expect(details).toContainText("只显示 token 数");
   await page.screenshot({ path: test.info().outputPath("chat-badge-default.png") });
 
-  // The attach button covers images and scanned PDFs; tapping works like hovering.
-  await page.mouse.move(0, 0);
-  await expect(details).toBeHidden();
-  await page.getByTestId("ai-badge-chat_image-chat_pdf").click();
+  // The one mark on the input box also covers attaching images and scanned PDFs and
+  // recording; tapping works like hovering.
   await expect(details).toContainText("每张图");
   await expect(details).toContainText("每页");
+  await page.mouse.move(0, 0);
+  await expect(details).toBeHidden();
+  await send.click();
+  await expect(details).toBeVisible();
   await page.keyboard.press("Escape");
 
   // One reply from the fake model (it reports 42 input tokens) becomes the estimate.
@@ -38,7 +40,7 @@ test("AI badges explain token use, from defaults and then from the tenant's own 
 
   await expect(async () => {
     await page.reload(); // estimates are cached per page load
-    await page.getByTestId("ai-badge-chat_message").hover();
+    await page.getByTestId("ai-badge-chat_message-chat_image-chat_pdf-chat_audio").hover();
     await expect(page.getByTestId("ai-badge-details")).toContainText(
       "约 42 输入 + 7 输出 token",
       { timeout: 2_000 },

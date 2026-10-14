@@ -34,7 +34,7 @@ test("invite, join, use the main account's model until the quota runs out, then 
 
   // Chat runs on the main account's model, and the badge says whose quota it uses.
   await member.goto("/chat");
-  await member.getByTestId("ai-badge-chat_message").hover();
+  await member.getByTestId("ai-badge-chat_message-chat_image-chat_pdf-chat_audio").hover();
   await expect(member.getByTestId("ai-badge-details")).toContainText("由 Ada 提供：扣对方分给你的额度。");
   const input = member.getByRole("textbox", { name: /输入消息/ });
   await input.fill("I goed home");
@@ -76,7 +76,7 @@ test("invite, join, use the main account's model until the quota runs out, then 
     "自动：按添加连接的先后，使用各连接的默认模型。",
   );
   await member.goto("/chat");
-  await member.getByTestId("ai-badge-chat_message").hover();
+  await member.getByTestId("ai-badge-chat_message-chat_image-chat_pdf-chat_audio").hover();
   await expect(member.getByTestId("ai-badge-details")).not.toContainText("由 Ada 提供");
   await input.fill("I has a dog");
   await input.press("Enter");

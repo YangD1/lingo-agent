@@ -80,10 +80,12 @@ export function MessageList({
   }
 
   return (
-    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+    // The side padding sits outside the max width, as in the composer, so the avatar and
+    // the bubbles line up with the input box's edges.
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 md:px-8">
       <ol
         ref={listRef}
-        className="mx-auto flex max-w-3xl flex-col gap-[22px] px-3 py-5 md:px-8"
+        className="mx-auto flex max-w-3xl flex-col gap-[22px] py-5"
         aria-label={t("messages")}
       >
         {messages.map((m, i) =>
@@ -98,7 +100,7 @@ export function MessageList({
               <div
                 data-slot="message"
                 className={cn(
-                  "rounded-[18px_18px_6px_18px] bg-primary px-[15px] py-2.5 text-[15.5px] leading-[1.6] whitespace-pre-wrap text-primary-foreground",
+                  "rounded-[18px_18px_6px_18px] bg-primary px-[15px] shadow-(--shadow-card) py-2.5 text-[15.5px] leading-[1.6] whitespace-pre-wrap text-primary-foreground",
                   struck?.(m) && "line-through opacity-60",
                 )}
               >
@@ -140,7 +142,7 @@ export function MessageList({
               {!waiting(m) && (
                 <div
                   data-slot="message"
-                  className="self-start rounded-[6px_18px_18px_18px] border bg-card px-3.5 py-3 text-[15.5px] leading-[1.75] text-card-foreground md:px-[18px] md:py-3.5 md:text-base"
+                  className="self-start rounded-[6px_18px_18px_18px] border border-border/70 bg-card px-3.5 shadow-(--shadow-card) py-3 text-[15.5px] leading-[1.75] text-card-foreground md:px-[18px] md:py-3.5 md:text-base"
                 >
                   {m.attachments && m.attachments.length > 0 && (
                     <MessageAttachments attachments={m.attachments} />

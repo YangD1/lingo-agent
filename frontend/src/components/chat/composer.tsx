@@ -105,7 +105,7 @@ export function Composer({
     <form onSubmit={submit} className="w-full px-2.5 pt-1.5 pb-3 md:px-8 md:pt-2 md:pb-5">
       <div className="mx-auto flex max-w-3xl flex-col gap-2">
         {toolbar}
-        <div className="flex flex-col rounded-[18px] border border-input bg-card shadow-(--shadow-lift) transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
+        <div className="glass-pop flex flex-col rounded-[18px] border transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
           <div className="px-2.5 pt-2.5 empty:hidden">
             <AttachmentTrayView tray={tray} />
           </div>
@@ -123,21 +123,18 @@ export function Composer({
               }}
             />
             <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-0.5">
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  className="text-muted-foreground hover:text-foreground"
-                  aria-label={t("attachments.attach")}
-                  title={t("attachments.attach")}
-                  disabled={disabled || recorder.recording}
-                  onClick={() => fileInput.current?.click()}
-                >
-                  <Paperclip />
-                </Button>
-                <AiBadge feature={["chat_image", "chat_pdf"]} />
-              </div>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground"
+                aria-label={t("attachments.attach")}
+                title={t("attachments.attach")}
+                disabled={disabled || recorder.recording}
+                onClick={() => fileInput.current?.click()}
+              >
+                <Paperclip />
+              </Button>
               {recorder.recording ? (
                 <Button
                   type="button"
@@ -151,21 +148,18 @@ export function Composer({
                   <Square className="fill-current" />
                 </Button>
               ) : (
-                <div className="flex items-center gap-0.5">
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    className="text-muted-foreground hover:text-foreground"
-                    aria-label={t("attachments.record")}
-                    title={t("attachments.record")}
-                    disabled={disabled}
-                    onClick={() => void recorder.start()}
-                  >
-                    <Mic />
-                  </Button>
-                  <AiBadge feature="chat_audio" />
-                </div>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={t("attachments.record")}
+                  title={t("attachments.record")}
+                  disabled={disabled}
+                  onClick={() => void recorder.start()}
+                >
+                  <Mic />
+                </Button>
               )}
             </div>
             {recorder.recording ? (
@@ -205,20 +199,22 @@ export function Composer({
                 className="max-h-48 min-h-16 flex-1 resize-none rounded-none border-0 bg-transparent px-1.5 py-1.5 text-[15px] shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
               />
             )}
-            {streaming ? (
-              <Button type="button" variant="outline" onClick={onStop}>
-                <Square className="size-3 fill-current" />
-                {t("stop")}
-              </Button>
-            ) : (
-              <div className="relative">
+            {/* One mark for the whole box (Q73: it used to be three, one poking out of the
+                corner): sending, attaching and recording are all listed in its details. */}
+            <div className="flex items-center gap-1.5">
+              <AiBadge feature={[sendFeature, "chat_image", "chat_pdf", "chat_audio"]} />
+              {streaming ? (
+                <Button type="button" variant="outline" onClick={onStop}>
+                  <Square className="size-3 fill-current" />
+                  {t("stop")}
+                </Button>
+              ) : (
                 <Button type="submit" disabled={empty || blocked}>
                   <ArrowUp />
                   {t("send")}
                 </Button>
-                <AiBadge feature={sendFeature} corner />
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
         {recorder.error && (

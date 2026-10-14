@@ -96,7 +96,9 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
         aria-expanded={open}
         aria-controls={detailsId}
         onClick={() => setOpen(!open)}
-        className="-ml-1 flex items-center gap-1 rounded-full px-1.5 py-1 text-left transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        // A pill rather than bare grey text (Q73): the row is how the learner sees what the
+        // tutor did (ADR 0013), so it should read as something to open.
+        className="flex w-fit items-center gap-1 rounded-full border border-border/70 bg-card/70 py-1 pr-2.5 pl-1.5 text-left text-foreground/75 transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
         <ChevronRight className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")} />
         <span>{t("line", { parts: parts.length ? parts.join(" · ") : t("nothing") })}</span>
