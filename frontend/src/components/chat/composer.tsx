@@ -39,6 +39,8 @@ type Props = {
   sendFeature?: AiFeature;
   /** Put the cursor in the input box once it can be typed in. */
   autoFocus?: boolean;
+  /** What the input box starts with. */
+  initialText?: string;
 };
 
 const clock = (seconds: number) =>
@@ -53,9 +55,10 @@ export function Composer({
   toolbar,
   sendFeature = "chat_message",
   autoFocus = false,
+  initialText = "",
 }: Props) {
   const t = useTranslations("chat");
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const fileInput = useRef<HTMLInputElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const recorder = useRecorder((file) => tray.add([file]));

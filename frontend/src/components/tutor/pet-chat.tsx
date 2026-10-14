@@ -1,13 +1,15 @@
 "use client";
 
-import { ExternalLinkIcon, XIcon } from "lucide-react";
+import { ExternalLinkIcon, PlugIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { TutorPanel } from "@/components/chat/tutor-panel";
 import { buttonVariants } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import { api } from "@/lib/api";
+import { matchAction, type PetAction, petAction, QUICK_ACTIONS } from "@/lib/pet-actions";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -40,18 +42,34 @@ export async function latestConversation(): Promise<Conversation | null> {
  * The desk pet's chat window (ADR 0032 §4a): the tutor in a small window over the page,
  * going on with the latest conversation, the same as on the chat page. It doesn't see the
  * page it is over (Q66n). Escape or the close button closes it.
+ *
+ * A row of shortcuts sits on top, and a short command ("背单词") goes to the pet instead of
+ * the tutor (ADR 0039 §2): `onCommand` gets it, and nothing is sent. Without a chat model
+ * the window says so first, so the shortcuts and the way to set one up are what it offers.
  */
 export function PetChat({
   name,
   side,
   onClose,
+  onCommand,
+  modelReady = true,
+  draft,
 }: {
   name: string;
   /** The pet's edge: the window opens on that side. */
   side: "left" | "right";
   onClose: () => void;
+  /** A message that asked for one of the pet's actions, and what was said. */
+  onCommand?: (action: PetAction, said: string) => void;
+  /** Whether a chat model is set up; false shows the way to set one up. */
+  modelReady?: boolean;
+  /** What the input box starts with: a command the learner chose to ask the tutor after
+   * all, so it is sent as it is, not taken as a command again. */
+  draft?: string;
 }) {
   const t = useTranslations("tutorPet");
+  const tActions = useTranslations("tutorPet.actions");
+  const tBubble = useTranslations("tutorPet.bubble");
   // undefined: still finding the conversation to go on with.
   const [conversation, setConversation] = useState<Conversation | null | undefined>(kept ?? undefined);
 
@@ -80,6 +98,7 @@ export function PetChat({
   }, [onClose]);
 
   const chatHref = conversation ? `/chat?c=${conversation.id}` : "/chat";
+  const setup = petAction("setup_models");
   return (
     <div
       role="dialog"
@@ -121,6 +140,42 @@ export function PetChat({
           <XIcon aria-hidden />
         </button>
       </header>
+      <nav
+        aria-label={tBubble("quick")}
+        className="flex shrink-0 flex-col gap-2 border-b px-3 py-2"
+        data-testid="pet-chat-shortcuts"
+      >
+        {!modelReady && (
+          <Callout
+            tone="warning"
+            icon={<PlugIcon aria-hidden />}
+            data-testid="pet-chat-no-model"
+            action={
+              <Link href={setup.href} className={buttonVariants({ size: "sm" })}>
+                {tActions("setup_models.label")}
+              </Link>
+            }
+          >
+            {tBubble("noModel")}
+          </Callout>
+        )}
+        <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3">
+          {QUICK_ACTIONS.map((id) => {
+            const quick = petAction(id);
+            const Icon = quick.icon;
+            return (
+              <Link
+                key={id}
+                href={quick.href}
+                className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-3.5"
+              >
+                <Icon aria-hidden />
+                {tActions(`${id}.label`)}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
       {conversation !== undefined && (
         <TutorPanel
           className="min-h-0 flex-1"
@@ -138,6 +193,14 @@ export function PetChat({
           sendFeature={conversation?.article_id ? "reading_coach" : undefined}
           // Open to typing.
           autoFocus
+          initialText={draft}
+          beforeSend={(text, attachments) => {
+            if (!onCommand || attachments.length > 0 || text === draft) return false;
+            const found = matchAction(text);
+            if (!found) return false;
+            onCommand(found, text);
+            return true;
+          }}
         />
       )}
     </div>

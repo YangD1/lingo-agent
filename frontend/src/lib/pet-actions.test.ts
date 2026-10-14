@@ -57,6 +57,8 @@ describe("PET_ACTIONS", () => {
       if (a.opens === "setup") expect(a.href).toMatch(/^\/settings#/);
       if (a.opens === "overlay") expect(a.href).toMatch(/^\/vocab\/review/);
     }
-    for (const quick of QUICK_ACTIONS) expect(petAction(quick), quick).toBeDefined();
+    for (const quick of QUICK_ACTIONS) expect(petAction(quick).id).toBe(quick);
+    // Every id in the type is in the list (the list is the source of the wording check).
+    expect(ids).toHaveLength(24);
   });
 });

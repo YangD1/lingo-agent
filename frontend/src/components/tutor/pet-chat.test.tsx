@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Link from "next/link";
 import { NextIntlClientProvider } from "next-intl";
@@ -10,6 +10,8 @@ import en from "../../../messages/en.json";
 import { PetChat, resetPetChat } from "./pet-chat";
 
 const api = vi.hoisted(() => vi.fn());
+// Where each message went: the pet took it, or it went to the tutor.
+const sent = vi.hoisted(() => [] as string[]);
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   api,
@@ -22,11 +24,15 @@ vi.mock("@/components/chat/tutor-panel", () => ({
     sendFeature,
     onConversationCreated,
     autoFocus,
+    initialText,
+    beforeSend,
   }: {
     conversationId: string | null;
     sendFeature?: string;
     onConversationCreated: (c: Conversation) => void;
     autoFocus?: boolean;
+    initialText?: string;
+    beforeSend?: (text: string, attachments: unknown[]) => boolean;
   }) => (
     <div
       data-testid="panel"
@@ -34,7 +40,15 @@ vi.mock("@/components/chat/tutor-panel", () => ({
       data-feature={sendFeature ?? ""}
       data-autofocus={autoFocus || undefined}
     >
-      <textarea aria-label="Message" />
+      <textarea aria-label="Message" defaultValue={initialText} />
+      <button
+        onClick={(e) => {
+          const box = e.currentTarget.parentElement!.querySelector("textarea")!;
+          sent.push(beforeSend?.(box.value, []) ? `pet:${box.value}` : `tutor:${box.value}`);
+        }}
+      >
+        send
+      </button>
       <button onClick={() => onConversationCreated(conversation("c9", "Fresh"))}>create</button>
       <Link href="/writing" onClick={(e) => e.preventDefault()}>
         card link
@@ -57,16 +71,17 @@ const conversation = (id: string, title = "", extra: Partial<Conversation> = {})
   ...extra,
 });
 
-function show(onClose = vi.fn()) {
+function show(onClose = vi.fn(), extra: Partial<Parameters<typeof PetChat>[0]> = {}) {
   render(
     <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
-      <PetChat name="Max" side="right" onClose={onClose} />
+      <PetChat name="Max" side="right" onClose={onClose} {...extra} />
     </NextIntlClientProvider>,
   );
   return onClose;
 }
 
 beforeEach(() => {
+  sent.length = 0;
   api.mockReset();
   resetPetChat();
 });
@@ -117,6 +132,47 @@ describe("PetChat", () => {
     expect(onClose).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("link", { name: "card link" }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers shortcuts, and the way to set up a model when there is none (ADR 0039)", async () => {
+    api.mockResolvedValue([]);
+    show(vi.fn(), { modelReady: false });
+    await screen.findByTestId("panel");
+    const shortcuts = screen.getByRole("navigation", { name: "I can open these for you:" });
+    expect(within(shortcuts).getByRole("link", { name: "Flashcards" })).toHaveAttribute(
+      "href",
+      "/vocab/review",
+    );
+    expect(screen.getByTestId("pet-chat-no-model")).toHaveTextContent("No chat model is set up");
+    expect(screen.getByRole("link", { name: "Set up models" })).toHaveAttribute(
+      "href",
+      "/settings#connections",
+    );
+  });
+
+  it("hands a short command to the pet, not the tutor", async () => {
+    api.mockResolvedValue([]);
+    const onCommand = vi.fn();
+    show(vi.fn(), { onCommand });
+    await screen.findByTestId("panel");
+    expect(screen.queryByTestId("pet-chat-no-model")).toBeNull();
+    const box = screen.getByRole("textbox", { name: "Message" });
+    await userEvent.type(box, "flashcards");
+    await userEvent.click(screen.getByRole("button", { name: "send" }));
+    await userEvent.clear(box);
+    await userEvent.type(box, "how should I review words?");
+    await userEvent.click(screen.getByRole("button", { name: "send" }));
+    expect(sent).toEqual(["pet:flashcards", "tutor:how should I review words?"]);
+    expect(onCommand).toHaveBeenCalledWith(expect.objectContaining({ id: "vocab_review" }), "flashcards");
+  });
+
+  it("sends a command it was asked to ask the tutor as it is", async () => {
+    api.mockResolvedValue([]);
+    show(vi.fn(), { onCommand: vi.fn(), draft: "flashcards" });
+    await screen.findByTestId("panel");
+    expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("flashcards");
+    await userEvent.click(screen.getByRole("button", { name: "send" }));
+    expect(sent).toEqual(["tutor:flashcards"]);
   });
 
   it("without the list, starts a new chat", async () => {

@@ -56,6 +56,11 @@ type Props = {
   sendFeature?: AiFeature;
   /** Put the cursor in the input box once it can be typed in. */
   autoFocus?: boolean;
+  /** What the input box starts with. */
+  initialText?: string;
+  /** Sees a message before it is sent; true when it took care of it (the desk pet's
+   * commands, ADR 0039 §2): nothing is sent and the input box is cleared. */
+  beforeSend?: (text: string, attachments: Attachment[]) => boolean;
   className?: string;
 };
 
@@ -77,6 +82,8 @@ export function TutorPanel({
   error: outerError = null,
   sendFeature,
   autoFocus,
+  initialText,
+  beforeSend,
   className,
 }: Props) {
   const t = useTranslations("chat");
@@ -169,11 +176,14 @@ export function TutorPanel({
         streaming={session.streaming}
         disabled={session.loading}
         tray={tray}
-        onSend={session.send}
+        onSend={(text, attachments) =>
+          beforeSend?.(text, attachments) ? Promise.resolve(true) : session.send(text, attachments)
+        }
         onStop={session.stop}
         toolbar={<LanguageSwitch />}
         sendFeature={sendFeature}
         autoFocus={autoFocus}
+        initialText={initialText}
       />
     </section>
   );

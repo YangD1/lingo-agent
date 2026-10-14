@@ -32,9 +32,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <main className="relative flex min-h-0 flex-1 overflow-hidden">{children}</main>
         <MobileTabBar user={user} />
       </div>
-      <TutorPet />
-      {/* Flashcards open over any page (ADR 0038); it reads the URL, so it sits in Suspense. */}
+      {/* Both read the URL (the pet makes way for flashcards), so they sit in Suspense.
+          Flashcards open over any page (ADR 0038). */}
       <Suspense>
+        <TutorPet />
         <ReviewDeckHost />
       </Suspense>
     </div>

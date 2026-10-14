@@ -15,16 +15,42 @@ vi.mock("@/lib/tutor", async (importOriginal) => ({
   useTutor: () => tutor.current,
 }));
 
-const nav = vi.hoisted(() => ({ pathname: "/dashboard" }));
-vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }));
+const nav = vi.hoisted(() => ({ pathname: "/dashboard", search: "" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(nav.search),
+}));
 
-// The window has its own tests.
-vi.mock("./pet-chat", () => ({
-  PetChat: ({ side, onClose }: { side: string; onClose: () => void }) => (
-    <div role="dialog" data-side={side}>
-      <button onClick={onClose}>close window</button>
-    </div>
-  ),
+// The window has its own tests: here, a command said in it, and what it opens with.
+vi.mock("./pet-chat", async () => {
+  const { petAction } = await import("@/lib/pet-actions");
+  return {
+    PetChat: ({
+      side,
+      onClose,
+      onCommand,
+      draft,
+      modelReady,
+    }: {
+      side: string;
+      onClose: () => void;
+      onCommand: (action: unknown, said: string) => void;
+      draft?: string;
+      modelReady: boolean;
+    }) => (
+      <div role="dialog" data-side={side} data-draft={draft} data-model-ready={modelReady}>
+        <button onClick={onClose}>close window</button>
+        <button onClick={() => onCommand(petAction("vocab_review"), "flashcards")}>
+          say flashcards
+        </button>
+      </div>
+    ),
+  };
+});
+
+const advice = vi.hoisted(() => ({ current: null as { model_ready: boolean } | null }));
+vi.mock("@/lib/pet-nudges", () => ({
+  usePetAdvice: () => ({ advice: advice.current, reload: () => {} }),
 }));
 
 // jsdom has no 2D canvas; the avatar has its own tests.
@@ -63,6 +89,8 @@ function show() {
 
 beforeEach(() => {
   nav.pathname = "/dashboard";
+  nav.search = "";
+  advice.current = null;
   tutor.current = { ...DEFAULT_TUTOR, name: "Max", display_name: "Max" };
   vi.stubGlobal("innerWidth", 1000);
   vi.stubGlobal("innerHeight", 800);
@@ -266,6 +294,55 @@ describe("TutorPet chat", () => {
     fireEvent.pointerUp(button, { pointerId: 1, clientX: 600, clientY: 640 });
     fireEvent.click(button);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("asks about a command in a bubble, and opens the window again to ask the tutor", async () => {
+    show();
+    await userEvent.click(screen.getByRole("button", { name: "Chat with Max" }));
+    await userEvent.click(screen.getByRole("button", { name: "say flashcards" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const bubble = screen.getByTestId("pet-bubble");
+    expect(bubble).toHaveAttribute("data-key", "ask:vocab_review");
+    expect(screen.getByRole("status")).toHaveTextContent("Start your flashcards?");
+    expect(screen.getByRole("link", { name: "Start" })).toHaveAttribute("href", "/vocab/review");
+
+    await userEvent.click(screen.getByRole("button", { name: "Ask Max instead" }));
+    expect(screen.queryByTestId("pet-bubble")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-draft", "flashcards");
+    // Closed and opened again: an empty input box.
+    await userEvent.click(screen.getByRole("button", { name: "close window" }));
+    await userEvent.click(screen.getByRole("button", { name: "Chat with Max" }));
+    expect(screen.getByRole("dialog")).not.toHaveAttribute("data-draft");
+  });
+
+  it("tells the window whether a chat model is set up", async () => {
+    advice.current = { model_ready: false };
+    show();
+    await userEvent.click(screen.getByRole("button", { name: "Chat with Max" }));
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-model-ready", "false");
+  });
+
+  it("makes way when flashcards open or the page changes", async () => {
+    const view = show();
+    const rerender = () =>
+      view.rerender(
+        <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+          <TutorPet />
+        </NextIntlClientProvider>,
+      );
+    await userEvent.click(screen.getByRole("button", { name: "Chat with Max" }));
+    nav.search = "review=all";
+    rerender();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    nav.search = "";
+    rerender();
+    await userEvent.click(screen.getByRole("button", { name: "Chat with Max" }));
+    await userEvent.click(screen.getByRole("button", { name: "say flashcards" }));
+    expect(screen.getByTestId("pet-bubble")).toBeInTheDocument();
+    nav.pathname = "/learner";
+    rerender();
+    expect(screen.queryByTestId("pet-bubble")).not.toBeInTheDocument();
   });
 
   it("on the chat page only puts the cursor in the message box", async () => {

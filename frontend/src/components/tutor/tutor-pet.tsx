@@ -1,15 +1,18 @@
 "use client";
 
 import { ChevronDownIcon } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import type { PetAction } from "@/lib/pet-actions";
+import { usePetAdvice } from "@/lib/pet-nudges";
 import { type PetPlace, usePetPlace } from "@/lib/preferences";
 import { useTutor } from "@/lib/tutor";
 import { usePetState } from "@/lib/tutor-pet";
 import { cn } from "@/lib/utils";
 
+import { type BubbleContent, PetBubble } from "./pet-bubble";
 import { PetChat } from "./pet-chat";
 import { TutorAvatar } from "./tutor-avatar";
 
@@ -22,6 +25,8 @@ const PET_SIZE = { wide: 88, narrow: 64 };
 const COLLAPSED_SIZE = 40;
 
 const WIDE = "(min-width: 768px)";
+/** How long a bubble asking about a command stays untouched (ADR 0039 §3). */
+export const ASK_LINGER_MS = 20_000;
 /** Once asleep this long, the pet is drawn still: no frames while it dozes (Q66o). */
 export const DOZE_SETTLE_MS = 2000;
 
@@ -117,6 +122,9 @@ type Drag = {
  * draggable to either edge, collapsible to a small button. Where it sits is kept on this
  * device; whether it shows is the learner's tutor setting. Smaller on phones, and above
  * the tab bar there. It reacts to what the pages report (`lib/tutor-pet.ts`).
+ *
+ * It talks in a bubble over its head (ADR 0039): asking about a command said in its chat
+ * window. The bubble and the window give way when the page changes or flashcards open.
  */
 export function TutorPet() {
   const tutor = useTutor();
@@ -125,6 +133,8 @@ export function TutorPet() {
   const state = usePetState();
   const dozing = useHeld(state === "sleeping", DOZE_SETTLE_MS);
   const t = useTranslations("tutorPet");
+  const tActions = useTranslations("tutorPet.actions");
+  const tBubble = useTranslations("tutorPet.bubble");
   const box = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   // A drag ends with a click on what was pressed: that click is not a tap.
@@ -132,13 +142,63 @@ export function TutorPet() {
   const pathname = usePathname() ?? "";
   const onChatPage = pathname === "/chat" || pathname.startsWith("/chat/");
   const [chatOpen, setChatOpen] = useState(false);
-  const closeChat = useCallback(() => setChatOpen(false), []);
+  // A command the learner chose to ask the tutor about after all: the window opens with it.
+  const [draft, setDraft] = useState<string | undefined>();
+  const closeChat = useCallback(() => {
+    setChatOpen(false);
+    setDraft(undefined);
+  }, []);
+  const [bubble, setBubble] = useState<BubbleContent | null>(null);
+  const endBubble = useCallback(() => setBubble(null), []);
+  const { advice } = usePetAdvice(!!tutor?.pet);
   // The chat page is the conversation itself: arriving there closes the window.
   const [wasOnChatPage, setWasOnChatPage] = useState(onChatPage);
   if (onChatPage !== wasOnChatPage) {
     setWasOnChatPage(onChatPage);
     if (onChatPage) setChatOpen(false);
   }
+  // Another page: what the bubble said was about the last one.
+  const [lastPath, setLastPath] = useState(pathname);
+  if (pathname !== lastPath) {
+    setLastPath(pathname);
+    setBubble(null);
+  }
+  // Flashcards opened over the page (ADR 0038), maybe from the window or the bubble: both
+  // make way. The overlay's host takes the link's click before they could hear of it.
+  const reviewing = useSearchParams()?.has("review") ?? false;
+  const [wasReviewing, setWasReviewing] = useState(reviewing);
+  if (reviewing !== wasReviewing) {
+    setWasReviewing(reviewing);
+    if (reviewing) {
+      setChatOpen(false);
+      setBubble(null);
+    }
+  }
+
+  const onCommand = useCallback(
+    (action: PetAction, said: string) => {
+      const name = tutor?.display_name ?? "";
+      setChatOpen(false);
+      setBubble({
+        key: `ask:${action.id}`,
+        text: tActions(`${action.id}.ask`),
+        action: {
+          href: action.href,
+          label: tBubble(action.opens === "overlay" ? "start" : action.opens === "page" ? "go" : "setup"),
+        },
+        dismiss: tBubble("no"),
+        aside: {
+          label: tBubble("askTutor", { name }),
+          onClick: () => {
+            setDraft(said);
+            setChatOpen(true);
+          },
+        },
+        lingerMs: ASK_LINGER_MS,
+      });
+    },
+    [tutor?.display_name, tActions, tBubble],
+  );
 
   // Followed on the window while pressed: a quick drag leaves the pet's box before it
   // counts as one, and the box would hear no more of it.
@@ -214,7 +274,11 @@ export function TutorPet() {
   };
   // A tap opens the chat window; on the chat page it only puts the cursor in the input box.
   const onTap = () => {
-    if (!onChatPage) return setChatOpen((open) => !open);
+    setBubble(null);
+    if (!onChatPage) {
+      if (chatOpen) return closeChat();
+      return setChatOpen(true);
+    }
     document.querySelector<HTMLTextAreaElement>("[data-chat-input]")?.focus();
   };
   const notAfterDrag = (e: React.MouseEvent) => {
@@ -236,7 +300,16 @@ export function TutorPet() {
 
   return (
     <>
-    {chatOpen && <PetChat name={name} side={place.side} onClose={closeChat} />}
+    {chatOpen && (
+      <PetChat
+        name={name}
+        side={place.side}
+        onClose={closeChat}
+        onCommand={onCommand}
+        modelReady={advice?.model_ready ?? true}
+        draft={draft}
+      />
+    )}
     <div
       ref={box}
       data-testid="tutor-pet"
@@ -274,6 +347,9 @@ export function TutorPet() {
         </button>
       ) : (
         <>
+          {bubble && !chatOpen && !moving && (
+            <PetBubble content={bubble} side={place.side} onEnd={endBubble} />
+          )}
           <button
             type="button"
             aria-label={onChatPage ? t("focusInput", { name }) : t("open", { name })}

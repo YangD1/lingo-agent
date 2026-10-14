@@ -33,8 +33,34 @@ import {
  */
 export type PetActionOpens = "overlay" | "page" | "setup";
 
+export type PetActionId =
+  | "vocab_review"
+  | "vocab_learn"
+  | "practice"
+  | "speaking"
+  | "speaking_call"
+  | "writing"
+  | "reading"
+  | "placement"
+  | "word_books"
+  | "vocab_screen"
+  | "vocab_mine"
+  | "learner"
+  | "memory"
+  | "plan"
+  | "tutor"
+  | "setup_models"
+  | "setup_routes"
+  | "setup_read_aloud"
+  | "setup_word_audio"
+  | "setup_realtime"
+  | "setup_background"
+  | "setup_members"
+  | "setup_membership"
+  | "setup_usage";
+
 export type PetAction = {
-  id: string;
+  id: PetActionId;
   opens: PetActionOpens;
   href: string;
   icon: LucideIcon;
@@ -43,7 +69,7 @@ export type PetAction = {
 };
 
 function action(
-  id: string,
+  id: PetActionId,
   opens: PetActionOpens,
   href: string,
   icon: LucideIcon,
@@ -133,12 +159,21 @@ export const PET_ACTIONS: readonly PetAction[] = [
 
 const BY_ID = new Map(PET_ACTIONS.map((a) => [a.id, a]));
 
-export function petAction(id: string): PetAction | undefined {
-  return BY_ID.get(id);
+export function petAction(id: PetActionId): PetAction {
+  const found = BY_ID.get(id);
+  if (!found) throw new Error(`no pet action ${id}`);
+  return found;
 }
 
-/** The shortcuts the chat window shows before anything is said. */
-export const QUICK_ACTIONS = ["vocab_review", "vocab_learn", "practice", "speaking", "reading", "writing"];
+/** The shortcuts on top of the chat window. */
+export const QUICK_ACTIONS: readonly PetActionId[] = [
+  "vocab_review",
+  "vocab_learn",
+  "practice",
+  "speaking",
+  "reading",
+  "writing",
+];
 
 /** Longer than this is a sentence for the tutor, not a command for the pet (Q76a). */
 export const MAX_COMMAND_CHARS = 16;
