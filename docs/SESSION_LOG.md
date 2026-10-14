@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-10-14 任务 74.8：首页对话示例改为三个话题轮播
+
+**做了什么**：
+- 用户反馈：面试话题偏离学语言本身，而且希望多个话题轮播。
+- `landing-chat-demo.tsx` 改为多话题：
+  - `useClock` 记录当前话题和进度，一个话题播完自动换下一个；话题标签可以点击跳转，`aria-pressed` 表示当前话题。
+  - `schedule()` 新增参数 `afterSteps`，后台步骤的数量随话题变化。
+- 文案放在 `home.demo.scenes.{weekend,word,goal}`，`after` 也用对象，这样 `messages.test.ts` 的 key 对齐检查仍然有效。`landing.tsx` 用 `getMessages()` 读取后转成数组（`t.raw` 的类型只接受叶子 key）。
+- `landing-stills.tsx` 的 `MemoryStill` 改用新的 `home.memoryStill`（原来借用 demo 文案，也写着面试）。
+
+**踩坑**：
+- 删掉旧的 demo key 后，tsc 没有报错，但 dev 控制台出现了 `MISSING_MESSAGE`（`MemoryStill` 还在用这些 key）。删除文案后要打开页面看一眼控制台。
+- 话题切换的过渡还没结束时截图，会拍到几个话题的文字叠在一起（看起来像一块红色色块）。截图前要多等一会儿。
+
+**下一步**：等用户看效果，确认后推送并重建 Docker。
+
 ## 2026-10-14 任务 74.7：首页对话卡片模拟流式输出和工具调用
 
 **做了什么**：

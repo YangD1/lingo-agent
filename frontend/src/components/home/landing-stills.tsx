@@ -41,7 +41,7 @@ function heat(pct: number): string {
 }
 
 export async function MemoryStill() {
-  const t = await getTranslations("home.demo");
+  const t = await getTranslations("home.memoryStill");
   return (
     <ul aria-hidden className="flex flex-col gap-2 text-sm">
       <li className="flex items-center gap-2.5 rounded-xl border bg-background/70 px-3 py-2.5">
@@ -57,7 +57,7 @@ export async function MemoryStill() {
       </li>
       <li className="flex items-center gap-2.5 rounded-xl border border-dashed px-3 py-2.5 text-muted-foreground">
         <SparklesIcon className="size-4 shrink-0 text-ai" />
-        <span className="truncate">{t("activityRead")}</span>
+        <span className="truncate">{t("activity")}</span>
       </li>
     </ul>
   );

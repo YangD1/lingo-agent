@@ -13,27 +13,109 @@
     "note": "Works from A1 to C2. Explanations can lean on Chinese or stay all in English.",
     "demo": {
       "label": "Example conversation",
-      "user": "Yesterday I go to a job interview and I was very nervous.",
-      "reply": "Good luck with the job hunt! One small fix: <b>I went</b> to a job interview — “yesterday” needs the past tense.",
-      "replyNote": "You wrote go in the present tense last time too. I've noted it and we'll practise it again next week.",
+      "topics": "Example topics",
+      "stepContext": "Reading memories…",
       "activity": "What the tutor did:",
-      "activityRead": "read 3 memories",
-      "activityRest": "· saved 1 · flagged 1 grammar error",
-      "memory": "Read: you're preparing for an interview at the end of October",
+      "scenes": {
+        "weekend": {
+          "topic": "My weekend",
+          "user": "Last weekend I go hiking with my sister and it was amazing.",
+          "contextDone": "Read 2 memories",
+          "memory": "Read: you enjoy the outdoors",
+          "reply": "Sounds like a great weekend! One small fix: <b>I went</b> hiking — “last weekend” needs the past tense.",
+          "tool": {
+            "name": "suggest_practice",
+            "running": "Setting up practice…",
+            "done": "Suggested a practice set",
+            "card": "Past simple · 5 questions",
+            "action": "Start",
+            "icon": "practice"
+          },
+          "note": "You often use the present tense for past events, so this week's practice has a few more of these.",
+          "after": {
+            "grammar": {
+              "name": "grammar_tagging",
+              "running": "Tagging grammar…",
+              "done": "Flagged 1 grammar error",
+              "fix": {
+                "wrong": "I go",
+                "right": "I went",
+                "rule": "Past simple"
+              }
+            },
+            "memory": {
+              "name": "reflect_memory",
+              "running": "Updating memory…",
+              "done": "Saved 1 memory",
+              "detail": "Saved: often goes hiking with their sister at weekends"
+            }
+          },
+          "summary": "<b>read 2 memories</b> · saved 1 · flagged 1 grammar error"
+        },
+        "word": {
+          "topic": "A new word",
+          "user": "What does “reluctant” mean? I saw it in a news article about remote work.",
+          "contextDone": "Read 1 memory",
+          "memory": "Read: you're studying CET-4 vocabulary",
+          "reply": "<b>Reluctant</b> means not wanting to do something: “Many workers are reluctant to go back to the office.”",
+          "tool": {
+            "name": "suggest_link",
+            "running": "Checking your reviews…",
+            "done": "Linked your reviews",
+            "card": "12 words due today",
+            "action": "Review",
+            "icon": "review"
+          },
+          "note": "It's on your word list now, so you'll see it again in a review in a few days.",
+          "after": {
+            "vocab": {
+              "name": "vocab_collect",
+              "running": "Collecting words…",
+              "done": "Added 1 word to your list",
+              "detail": "reluctant · adj. unwilling"
+            },
+            "grammar": {
+              "name": "grammar_tagging",
+              "running": "Tagging grammar…",
+              "done": "No grammar errors",
+              "detail": "Used right: past simple (I saw)"
+            }
+          },
+          "summary": "<b>read 1 memory</b> · added 1 word · no grammar errors"
+        },
+        "goal": {
+          "topic": "Setting a goal",
+          "user": "I want to take the IELTS next year, but my vocabulary is too small.",
+          "contextDone": "Read 3 memories",
+          "memory": "Read: you're around B1 and have 20 minutes a day",
+          "reply": "A year is plenty of time. Let's grow your vocabulary steadily — I'd suggest the <b>IELTS word book</b> with 15 new words a day.",
+          "tool": {
+            "name": "propose_word_book",
+            "running": "Drafting a word book…",
+            "done": "Waiting for you to confirm",
+            "card": "Switch to IELTS · 15 new words a day",
+            "action": "Confirm",
+            "icon": "book"
+          },
+          "note": "Nothing changes until you confirm, and you can undo it afterwards.",
+          "after": {
+            "memory": {
+              "name": "reflect_memory",
+              "running": "Updating memory…",
+              "done": "Updated 1 memory",
+              "detail": "Saved: aims to take the IELTS next year"
+            }
+          },
+          "summary": "<b>read 3 memories</b> · updated 1 · proposed a word book"
+        }
+      }
+    },
+    "memoryStill": {
+      "memory": "You enjoy the outdoors and often hike at weekends",
       "wrong": "I go",
       "right": "I went",
       "rule": "Past simple",
-      "stepContext": "Reading memories…",
-      "stepContextDone": "Read 3 memories",
-      "stepTool": "Setting up practice…",
-      "stepToolDone": "Suggested a practice set",
-      "practiceCard": "Past simple · 5 questions",
-      "practiceStart": "Start",
-      "stepGrammar": "Tagging grammar…",
-      "stepGrammarDone": "Flagged 1 grammar error",
-      "stepMemory": "Updating memory…",
-      "stepMemoryDone": "Saved 1 memory",
-      "memorySaved": "Saved: often uses the present tense for past events"
+      "activity": "Read 2 memories"
     },
     "featuresTitle": "Not just another chatbot",
     "closingTitle": "Start with one conversation.",

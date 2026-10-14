@@ -13,27 +13,109 @@
     "note": "从 A1 到 C2 都能用。讲解可以多说中文，也可以全英文。",
     "demo": {
       "label": "对话示例",
-      "user": "Yesterday I go to a job interview and I was very nervous.",
-      "reply": "Good luck with the job hunt! One small fix: <b>I went</b> to a job interview — “yesterday” needs the past tense.",
-      "replyNote": "上次你也把 go 写成了现在时，我记下来了，下周帮你再练一次。",
+      "topics": "示例话题",
+      "stepContext": "正在读取记忆…",
       "activity": "私教做了什么：",
-      "activityRead": "读取 3 条记忆",
-      "activityRest": "· 记下 1 条 · 标记 1 个语法错误",
-      "memory": "读取：你在准备十月底的面试",
+      "scenes": {
+        "weekend": {
+          "topic": "周末见闻",
+          "user": "Last weekend I go hiking with my sister and it was amazing.",
+          "contextDone": "读取了 2 条记忆",
+          "memory": "读取：你喜欢户外运动",
+          "reply": "Sounds like a great weekend! One small fix: <b>I went</b> hiking — “last weekend” needs the past tense.",
+          "tool": {
+            "name": "suggest_practice",
+            "running": "正在准备练习…",
+            "done": "建议了一组练习",
+            "card": "一般过去时 · 5 道题",
+            "action": "开始",
+            "icon": "practice"
+          },
+          "note": "说过去的事你常用现在时，这周的练习里给你多放几道。",
+          "after": {
+            "grammar": {
+              "name": "grammar_tagging",
+              "running": "正在标注语法…",
+              "done": "标记了 1 个语法错误",
+              "fix": {
+                "wrong": "I go",
+                "right": "I went",
+                "rule": "一般过去时"
+              }
+            },
+            "memory": {
+              "name": "reflect_memory",
+              "running": "正在整理记忆…",
+              "done": "记下 1 条记忆",
+              "detail": "记下：周末常和姐姐去徒步"
+            }
+          },
+          "summary": "<b>读取 2 条记忆</b> · 记下 1 条 · 标记 1 个语法错误"
+        },
+        "word": {
+          "topic": "查一个词",
+          "user": "What does “reluctant” mean? I saw it in a news article about remote work.",
+          "contextDone": "读取了 1 条记忆",
+          "memory": "读取：你在背四级词汇",
+          "reply": "<b>Reluctant</b> means not wanting to do something: “Many workers are reluctant to go back to the office.”",
+          "tool": {
+            "name": "suggest_link",
+            "running": "正在查看复习进度…",
+            "done": "附上了复习入口",
+            "card": "今天待复习 12 个词",
+            "action": "去复习",
+            "icon": "review"
+          },
+          "note": "这个词已经收进你的生词本，过几天复习时会再见到它。",
+          "after": {
+            "vocab": {
+              "name": "vocab_collect",
+              "running": "正在收词…",
+              "done": "收进生词本 1 个词",
+              "detail": "reluctant · adj. 不情愿的"
+            },
+            "grammar": {
+              "name": "grammar_tagging",
+              "running": "正在标注语法…",
+              "done": "没有语法错误",
+              "detail": "用对了：一般过去时（I saw）"
+            }
+          },
+          "summary": "<b>读取 1 条记忆</b> · 收进 1 个生词 · 没有语法错误"
+        },
+        "goal": {
+          "topic": "定个目标",
+          "user": "I want to take the IELTS next year, but my vocabulary is too small.",
+          "contextDone": "读取了 3 条记忆",
+          "memory": "读取：你大约 B1，每天能学 20 分钟",
+          "reply": "A year is plenty of time. Let's grow your vocabulary steadily — I'd suggest the <b>IELTS word book</b> with 15 new words a day.",
+          "tool": {
+            "name": "propose_word_book",
+            "running": "正在拟定词书…",
+            "done": "等你确认",
+            "card": "换成“雅思”词书 · 每天 15 个新词",
+            "action": "确认",
+            "icon": "book"
+          },
+          "note": "你确认之前不会有任何改动，换了之后也能撤销。",
+          "after": {
+            "memory": {
+              "name": "reflect_memory",
+              "running": "正在整理记忆…",
+              "done": "更新 1 条记忆",
+              "detail": "记下：目标是明年考雅思"
+            }
+          },
+          "summary": "<b>读取 3 条记忆</b> · 更新 1 条 · 提议换词书"
+        }
+      }
+    },
+    "memoryStill": {
+      "memory": "你喜欢户外运动，周末常去徒步",
       "wrong": "I go",
       "right": "I went",
       "rule": "一般过去时",
-      "stepContext": "正在读取记忆…",
-      "stepContextDone": "读取了 3 条记忆",
-      "stepTool": "正在准备练习…",
-      "stepToolDone": "建议了一组练习",
-      "practiceCard": "一般过去时 · 5 道题",
-      "practiceStart": "开始",
-      "stepGrammar": "正在标注语法…",
-      "stepGrammarDone": "标记了 1 个语法错误",
-      "stepMemory": "正在整理记忆…",
-      "stepMemoryDone": "记下 1 条记忆",
-      "memorySaved": "记下：说过去的事常用现在时"
+      "activity": "读取 2 条记忆"
     },
     "featuresTitle": "它和一般的聊天机器人不一样",
     "closingTitle": "从一次对话开始。",

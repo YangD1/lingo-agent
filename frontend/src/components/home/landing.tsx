@@ -10,7 +10,7 @@ import {
   ServerIcon,
   SparklesIcon,
 } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -18,7 +18,7 @@ import { aiMark, aiMarkCorner } from "@/components/ai-pill";
 import { LingoCat } from "@/components/brand/lingo-cat";
 import { Logo, LogoMark } from "@/components/brand/logo";
 import { LandingBackdrop } from "@/components/home/landing-backdrop";
-import { ChatDemo as AnimatedChatDemo, type ChatDemoCopy } from "@/components/home/landing-chat-demo";
+import { ChatDemo as AnimatedChatDemo, type ChatDemoCopy, type ChatDemoScene } from "@/components/home/landing-chat-demo";
 import {
   AiStill,
   FIXES,
@@ -330,12 +330,18 @@ async function TrustStill() {
 /** Copy for the animated example (landing-chat-demo.tsx), translated on the server. */
 async function ChatDemo({ className }: { className?: string }) {
   const t = await getTranslations("home.demo");
-  const keys = [
-    "label", "user", "replyNote", "stepContext", "stepContextDone", "memory", "stepTool",
-    "stepToolDone", "practiceCard", "practiceStart", "stepGrammar", "stepGrammarDone",
-    "stepMemory", "stepMemoryDone", "memorySaved", "wrong", "right", "rule", "activity",
-    "activityRead", "activityRest",
-  ] as const;
-  const copy = Object.fromEntries(keys.map((k) => [k, t(k)])) as Omit<ChatDemoCopy, "reply">;
-  return <AnimatedChatDemo copy={{ ...copy, reply: t.raw("reply") as string }} className={className} />;
+  const { scenes } = (await getMessages()).home.demo;
+  const copy: ChatDemoCopy = {
+    label: t("label"),
+    topics: t("topics"),
+    stepContext: t("stepContext"),
+    activity: t("activity"),
+    // Keyed by name in the catalogs so both languages keep the same keys; played in order.
+    scenes: Object.values(scenes).map((scene) => ({
+      ...scene,
+      tool: { ...scene.tool, icon: scene.tool.icon as ChatDemoScene["tool"]["icon"] },
+      after: Object.values(scene.after),
+    })),
+  };
+  return <AnimatedChatDemo copy={copy} className={className} />;
 }
