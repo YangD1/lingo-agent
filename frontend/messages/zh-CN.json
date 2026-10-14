@@ -2471,6 +2471,7 @@
     "chatTitle": "和 {name} 聊天",
     "openInChat": "在聊天页打开",
     "close": "关闭",
+    "resize": "调整窗口大小：拖动，或用方向键；双击恢复默认大小",
     "actions": {
       "vocab_review": {
         "label": "背单词",

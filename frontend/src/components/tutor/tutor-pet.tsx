@@ -346,6 +346,7 @@ export function TutorPet() {
         onCommand={onCommand}
         modelReady={advice?.model_ready ?? true}
         draft={draft}
+        wide={wide}
       />
     )}
     <div

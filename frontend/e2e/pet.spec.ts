@@ -85,3 +85,39 @@ test("“我要背单词” in the pet's window asks, then opens flashcards in p
   await expect(window.locator('li[data-role="user"]').last()).toContainText("背单词有什么技巧");
   await expect(bubble(page)).toHaveCount(0);
 });
+
+test("the pet's window is resized by its free corner, and keeps the size", async ({ page }) => {
+  await register(page, uniqueEmail("pet-resize"));
+  await useFakeModel(page);
+  await page.goto("/learner");
+
+  await pet(page).getByTestId("tutor-pet-button").click();
+  const window = page.getByTestId("pet-chat");
+  await expect(window).toBeVisible();
+  // 28rem wide, as tall as fits (720 − 2rem).
+  const before = (await window.boundingBox())!;
+  expect(Math.round(before.width)).toBe(448);
+  expect(Math.round(before.height)).toBe(688);
+
+  // The pet is on the right: the grip is the top-left corner. Smaller, down and to the right.
+  const grip = (await window.getByTestId("pet-chat-resize").boundingBox())!;
+  await page.mouse.move(grip.x + 4, grip.y + 4);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + 64, grip.y + 104, { steps: 5 });
+  await page.mouse.up();
+  const after = (await window.boundingBox())!;
+  expect(Math.round(after.width)).toBe(388);
+  expect(Math.round(after.height)).toBe(588);
+  // The side by the pet and the bottom stayed put.
+  expect(Math.round(after.x + after.width)).toBe(Math.round(before.x + before.width));
+  expect(Math.round(after.y + after.height)).toBe(Math.round(before.y + before.height));
+  await page.screenshot({ path: test.info().outputPath("pet-resized.png") });
+
+  // Kept for next time; a double-click goes back to the default.
+  await page.keyboard.press("Escape");
+  await expect(window).toBeHidden();
+  await pet(page).getByTestId("tutor-pet-button").click();
+  await expect.poll(async () => Math.round((await window.boundingBox())!.width)).toBe(388);
+  await window.getByTestId("pet-chat-resize").dblclick();
+  await expect.poll(async () => Math.round((await window.boundingBox())!.width)).toBe(448);
+});

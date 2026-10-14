@@ -161,6 +161,7 @@ export function TutorPanel({
       {error && (
         <div
           role="alert"
+          data-chat-gutter
           className="mx-auto flex w-full max-w-3xl items-center gap-3 px-3 text-sm text-destructive md:px-8"
         >
           <LingoCat mood="oops" size={20} label="" />

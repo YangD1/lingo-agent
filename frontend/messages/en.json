@@ -2471,6 +2471,7 @@
     "chatTitle": "Chat with {name}",
     "openInChat": "Open in chat",
     "close": "Close",
+    "resize": "Resize the window: drag, or use the arrow keys; double-click for the default size",
     "actions": {
       "vocab_review": {
         "label": "Flashcards",

@@ -82,7 +82,7 @@ export function MessageList({
   return (
     // The side padding sits outside the max width, as in the composer, so the avatar and
     // the bubbles line up with the input box's edges.
-    <div ref={scrollRef} className="pet-safe min-h-0 flex-1 overflow-y-auto px-3 md:px-8">
+    <div ref={scrollRef} data-chat-gutter className="pet-safe min-h-0 flex-1 overflow-y-auto px-3 md:px-8">
       <ol
         ref={listRef}
         className="mx-auto flex max-w-3xl flex-col gap-[22px] py-5"

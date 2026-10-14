@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-10-14 任务 77：桌宠聊天小窗可调大小、默认更大、全站细滚动条
+
+**做了什么**：
+- 77.1：`lib/pet-chat-size.ts`（夹取、本机记录）；`pet-chat.tsx` 新增 `useResize` / `ResizeGrips`，离猫远的竖边、上边和夹角可以拖，夹角也接受方向键，双击恢复默认；默认 28rem × 44rem；`TutorPet` 传入 `wide`。ADR 0032 §4a 补一句。
+- 77.2：`globals.css` 全站细滚动条（`--scrollbar` / `--scrollbar-hover`）+ `scroll-row` 工具类；小窗 `--pet-safe: 0px`、`data-chat-gutter` 收窄左右内边距；快捷动作行滚轮转横向。
+- 77.3：Vitest 741、E2E 79 全过，eslint / tsc 干净。
+
+**未完成**：无。没有推送，Docker 没有重建（只改了前端）。
+
+**下一步**：用户看过后推送、看 CI，再重建 Docker 前端。
+
+**踩坑**：
+- eslint 的 `react-hooks/refs` 不允许把装着 ref 的 hook 返回值整个当 props 传下去，要先解构，只传函数。
+- 无头 Chromium 默认隐藏滚动条，截图里看不到滚动条样式，只能查构建出来的 CSS。
+- 全量 E2E 时 `p3-demo` 偶发失败，单独重跑通过。
+
+---
+
 ## 2026-10-14 任务 76 推送、CI 与 Docker 重建
 
 **做了什么**：推送到 3a27e00；CI run 38588101394 四个 job（backend / frontend / e2e / docker）全绿；Docker 先重建后端（启动时迁移到 `e1f12efce78f`）再重建前端，`/healthz` 200、前端 200，空闲内存 backend 232MiB / frontend 72MiB / postgres 186MiB。

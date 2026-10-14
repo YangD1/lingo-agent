@@ -3,13 +3,21 @@
 import { ExternalLinkIcon, PlugIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { TutorPanel } from "@/components/chat/tutor-panel";
 import { buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import { api } from "@/lib/api";
 import { matchAction, type PetAction, petAction, QUICK_ACTIONS } from "@/lib/pet-actions";
+import {
+  type ChatSize,
+  DEFAULT_CHAT_SIZE,
+  fitChatSize,
+  keepChatSize,
+  readChatSize,
+  type Viewport,
+} from "@/lib/pet-chat-size";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +30,98 @@ function leadsAway(e: React.MouseEvent): boolean {
   const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
   if (!(link instanceof HTMLAnchorElement) || (link.target && link.target !== "_self")) return false;
   return new URL(link.href, window.location.href).origin === window.location.origin;
+}
+
+/** The window's size in CSS pixels, followed as it changes. */
+function useViewport(): Viewport {
+  const at = useSyncExternalStore(
+    (listener) => {
+      window.addEventListener("resize", listener);
+      return () => window.removeEventListener("resize", listener);
+    },
+    () => `${window.innerWidth}x${window.innerHeight}`,
+    () => "1280x800",
+  );
+  const [width, height] = at.split("x").map(Number);
+  return { width, height };
+}
+
+/** Where the window is resized from: its top edge, its far side, or the corner between. */
+type Grip = "top" | "side" | "corner";
+
+/** One press of an arrow key on the corner grip. */
+const KEY_STEP = 32;
+
+/**
+ * Resizing the window by its free edges (task 77, Q77a/b): the side by the pet and the
+ * bottom stay put. Null size: the default, from the classes.
+ */
+function useResize(side: "left" | "right") {
+  const viewport = useViewport();
+  const [chosen, setChosen] = useState<ChatSize | null>(readChatSize);
+  const [resizing, setResizing] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const start = useRef<{ x: number; y: number; size: ChatSize; grip: Grip } | null>(null);
+  const latest = useRef<ChatSize | null>(null);
+
+  const current = (): ChatSize => {
+    const rect = box.current?.getBoundingClientRect();
+    return rect ? { width: rect.width, height: rect.height } : fitChatSize(chosen ?? DEFAULT_CHAT_SIZE, viewport);
+  };
+  const choose = (size: ChatSize | null) => {
+    const fitted = size && fitChatSize(size, viewport);
+    latest.current = fitted;
+    setChosen(fitted);
+    return fitted;
+  };
+  // Toward the far side is wider: left on the right edge, right on the left.
+  const wider = (dx: number) => (side === "right" ? -dx : dx);
+
+  const grip = (which: Grip) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      start.current = { x: e.clientX, y: e.clientY, size: current(), grip: which };
+      setResizing(true);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      const from = start.current;
+      if (!from) return;
+      choose({
+        width: from.grip === "top" ? from.size.width : from.size.width + wider(e.clientX - from.x),
+        height: from.grip === "side" ? from.size.height : from.size.height - (e.clientY - from.y),
+      });
+    },
+    onPointerUp: () => {
+      if (!start.current) return;
+      start.current = null;
+      setResizing(false);
+      if (latest.current) keepChatSize(latest.current);
+    },
+    onPointerCancel: () => {
+      start.current = null;
+      setResizing(false);
+    },
+    onDoubleClick: () => {
+      choose(null);
+      keepChatSize(null);
+    },
+  });
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const step = { ArrowLeft: [-KEY_STEP, 0], ArrowRight: [KEY_STEP, 0], ArrowUp: [0, KEY_STEP], ArrowDown: [0, -KEY_STEP] }[
+      e.key
+    ];
+    if (!step) return;
+    e.preventDefault();
+    const size = current();
+    const fitted = choose({ width: size.width + wider(step[0]), height: size.height + step[1] });
+    if (fitted) keepChatSize(fitted);
+  };
+
+  const style = chosen ? fitChatSize(chosen, viewport) : undefined;
+  return { box, style, resizing, grip, onKeyDown };
 }
 
 /** Forgets the kept conversation (tests). */
@@ -54,6 +154,7 @@ export function PetChat({
   onCommand,
   modelReady = true,
   draft,
+  wide = false,
 }: {
   name: string;
   /** The pet's edge: the window opens on that side. */
@@ -66,12 +167,17 @@ export function PetChat({
   /** What the input box starts with: a command the learner chose to ask the tutor after
    * all, so it is sent as it is, not taken as a command again. */
   draft?: string;
+  /** A wide screen: the window sits by the pet and can be resized; on phones it fills most
+   * of the screen. */
+  wide?: boolean;
 }) {
   const t = useTranslations("tutorPet");
   const tActions = useTranslations("tutorPet.actions");
   const tBubble = useTranslations("tutorPet.bubble");
   // undefined: still finding the conversation to go on with.
   const [conversation, setConversation] = useState<Conversation | null | undefined>(kept ?? undefined);
+  const { box, style, resizing, grip, onKeyDown } = useResize(side);
+  const shortcuts = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let live = true;
@@ -97,10 +203,24 @@ export function PetChat({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // The wheel scrolls the shortcuts sideways, instead of the page behind the window.
+  useEffect(() => {
+    const row = shortcuts.current;
+    if (!row) return;
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY) || row.scrollWidth <= row.clientWidth) return;
+      e.preventDefault();
+      row.scrollLeft += e.deltaY;
+    };
+    row.addEventListener("wheel", onWheel, { passive: false });
+    return () => row.removeEventListener("wheel", onWheel);
+  }, []);
+
   const chatHref = conversation ? `/chat?c=${conversation.id}` : "/chat";
   const setup = petAction("setup_models");
   return (
     <div
+      ref={box}
       role="dialog"
       aria-label={t("chatTitle", { name })}
       data-testid="pet-chat"
@@ -110,14 +230,21 @@ export function PetChat({
       onClickCapture={(e) => {
         if (leadsAway(e)) onClose();
       }}
+      style={wide ? style : undefined}
       className={cn(
         "fixed z-50 flex flex-col overflow-hidden rounded-xl border bg-background shadow-(--shadow-pop)",
-        // Phones: most of the screen, above the tab bar; wider screens: a window by the pet.
+        // Phones: most of the screen, above the tab bar; wider screens: a window by the pet,
+        // 28rem × 44rem unless resized (DEFAULT_CHAT_SIZE).
         "inset-x-2 top-16 bottom-[calc(4rem+env(safe-area-inset-bottom)+8px)]",
-        "md:inset-x-auto md:top-auto md:bottom-4 md:h-[min(36rem,calc(100dvh-2rem))] md:w-[24rem]",
+        "md:inset-x-auto md:top-auto md:bottom-4 md:h-[min(44rem,calc(100dvh-2rem))] md:w-[min(28rem,calc(100vw-8rem))]",
         side === "right" ? "md:right-28" : "md:left-28",
+        // Not over the page: no room kept for the pet below the last message, and the chat
+        // page's wide side padding is too much for a window.
+        "[--pet-safe:0px] md:[&_[data-chat-gutter]]:px-4",
+        resizing && "select-none",
       )}
     >
+      {wide && <ResizeGrips side={side} label={t("resize")} grip={grip} onKeyDown={onKeyDown} />}
       <header className="flex h-11 shrink-0 items-center gap-1 border-b pr-1 pl-3">
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
           {conversation?.title || t("chatTitle", { name })}
@@ -159,7 +286,7 @@ export function PetChat({
             {tBubble("noModel")}
           </Callout>
         )}
-        <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3">
+        <div ref={shortcuts} className="scroll-row -mx-3 flex gap-1.5 px-3">
           {QUICK_ACTIONS.map((id) => {
             const quick = petAction(id);
             const Icon = quick.icon;
@@ -204,5 +331,42 @@ export function PetChat({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * The free edges of the window (Q77a): the top, the side away from the pet, and the corner
+ * between them, which also takes the arrow keys. Double-clicking any goes back to the
+ * default size.
+ */
+function ResizeGrips({
+  side,
+  label,
+  grip,
+  onKeyDown,
+}: {
+  side: "left" | "right";
+  label: string;
+  grip: ReturnType<typeof useResize>["grip"];
+  onKeyDown: (e: React.KeyboardEvent) => void;
+}) {
+  const far = side === "right" ? "left-0" : "right-0";
+  return (
+    <>
+      <div aria-hidden className="absolute inset-x-4 top-0 z-20 h-1.5 cursor-ns-resize" {...grip("top")} />
+      <div aria-hidden className={cn("absolute inset-y-4 z-20 w-1.5 cursor-ew-resize", far)} {...grip("side")} />
+      <button
+        type="button"
+        aria-label={label}
+        title={label}
+        data-testid="pet-chat-resize"
+        onKeyDown={onKeyDown}
+        className={cn(
+          "absolute top-0 z-20 size-4 touch-none outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          side === "right" ? "left-0 cursor-nwse-resize rounded-tl-xl" : "right-0 cursor-nesw-resize rounded-tr-xl",
+        )}
+        {...grip("corner")}
+      />
+    </>
   );
 }

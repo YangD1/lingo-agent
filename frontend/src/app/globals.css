@@ -238,6 +238,16 @@
     --pet-safe: 80px;
   }
 }
+/* A row that scrolls sideways with no bar showing, its ends fading out (task 77): the pet
+   window's shortcuts. */
+@utility scroll-row {
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(90deg, transparent, #000 0.75rem, #000 calc(100% - 0.75rem), transparent);
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 @utility pet-safe {
   &::after {
     content: "";
@@ -263,6 +273,37 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+  /* Thin scrollbars everywhere (task 77, Q77c): a soft thumb on no track, firmer while the
+     pointer is over the scroll area. Chrome 121+ and Firefox use the standard properties;
+     Safari, which lacks them, gets the same look from the WebKit ones. */
+  :root {
+    --scrollbar: color-mix(in oklch, var(--muted-foreground) 32%, transparent);
+    --scrollbar-hover: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar) transparent;
+  }
+  *:hover {
+    scrollbar-color: var(--scrollbar-hover) transparent;
+  }
+  @supports not (scrollbar-color: auto) {
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: 9999px;
+      background: var(--scrollbar) padding-box;
+    }
+    :hover::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-hover);
+    }
   }
   body {
     @apply bg-background text-foreground;
