@@ -4,6 +4,27 @@
 
 ---
 
+## 2026-10-14 任务 76：桌宠做功能入口和主动提醒（76.1–76.7）
+
+**做了什么**：
+- 76.1：ADR 0039；PLAN 私教一节补一段；`docs/agent-tools.md` 新增“桌宠的快捷动作与主动提醒”一节。
+- 76.4（先做后端）：`suggest_link` 扩到 16 种；`tutor_profiles.nudges`（迁移 `e1f12efce78f`，已在 dev 库 `make migrate`）；小窗点站内链接自动收起。
+- 76.2：`lib/pet-actions.ts`（24 个动作 + `matchAction`）；`lib/hash-flash.ts` 设置页锚点高亮。
+- 76.3：`pet-bubble.tsx`；`TutorPanel.beforeSend` / `initialText`；小窗顶部快捷动作和没配模型的警告；命中指令 → 询问气泡；`TutorPet` 放进 `Suspense`，背单词弹层打开时收起小窗和气泡。
+- 76.5 / 76.6：`lib/pet-nudges.ts`（选哪条、频率、本机记录、`usePetAdvice` 同时取计划）+ `components/tutor/use-pet-nudges.ts`（进页面 5 秒、背完一轮、打盹醒来、计划完成）；收起时显示小红点；“我的私教”页“主动提醒”开关。
+- 76.7：`e2e/pet.spec.ts` 两条（没配模型 → 提醒气泡 → 设置页连接卡片高亮；小窗说“我要背单词” → 询问气泡 → 当前页弹出叠卡，消息没进对话；问句照常发给私教）。
+
+**未完成**：无。76.7 完成：E2E 78、Vitest 734、pytest 1845 全过，lint 干净；只重拍了私教页截图。
+
+**下一步**：推送、看 CI；Docker 这次前后端都要重建（有迁移）。
+
+**踩坑**：
+- 背单词弹层的宿主在 document 捕获阶段拦截链接并 `stopPropagation`，React 的 onClick（挂在根节点）收不到，所以气泡和小窗不能靠点击回调收起，改为 `TutorPet` 读 `?review` 参数。
+- `lib/tutor-pet.ts` 的睡着 / 开心是模块级状态，前一个用例让桌宠睡着后会影响后面的用例，提醒相关用例要先 `resetPet()`。
+- 提醒会在任何页面 5 秒后弹出，可能挡住别的 E2E 用例的点击：`playwright.config.ts` 用 `storageState` 预先填满当天记录（含 `plan_done`），`pet.spec.ts` 里再清掉。
+
+---
+
 ## 2026-10-14 任务 75：背单词改为遮罩弹层叠卡（75.1–75.5）
 
 **做了什么**：
