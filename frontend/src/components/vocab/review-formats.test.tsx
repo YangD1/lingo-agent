@@ -78,7 +78,8 @@ describe("ReviewApp card types (task 63)", () => {
     const options = within(await screen.findByRole("group", { name: "Pick the meaning" }));
     // The word stays hidden; it is read aloud as the card shows.
     expect(screen.queryByRole("heading", { name: "apple" })).toBeNull();
-    expect(speech.speakWord).toHaveBeenCalledWith("apple");
+    // Read from an effect, which can run just after the options appear.
+    await waitFor(() => expect(speech.speakWord).toHaveBeenCalledWith("apple"));
     await user.click(screen.getByRole("button", { name: "Play again" }));
     expect(speech.speakWord).toHaveBeenCalledTimes(2);
     expect(options.getAllByRole("button")).toHaveLength(4);

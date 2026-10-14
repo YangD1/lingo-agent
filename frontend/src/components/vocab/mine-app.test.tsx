@@ -62,11 +62,17 @@ describe("MineApp", () => {
   });
 
   it("adds a word, saying when it was turned into its base form", async () => {
-    api
-      .mockResolvedValueOnce({ words: [], total: 0 })
-      .mockResolvedValueOnce({ card: GO, matched: "lemma", added: true })
-      .mockResolvedValueOnce({ words: [GO], total: 1 })
-      .mockRejectedValueOnce(new ApiError(404, "word_not_found", "no such word"));
+    // Suggestions fire whenever typing pauses (a slow run), so they get their own answer
+    // instead of taking a queued one.
+    const replies = [
+      () => Promise.resolve({ words: [], total: 0 }),
+      () => Promise.resolve({ card: GO, matched: "lemma", added: true }),
+      () => Promise.resolve({ words: [GO], total: 1 }),
+      () => Promise.reject(new ApiError(404, "word_not_found", "no such word")),
+    ];
+    api.mockImplementation((path?: string) =>
+      path?.startsWith("/vocab/words") ? Promise.resolve([]) : replies.shift()?.(),
+    );
     show();
     expect(await screen.findByText("Your word list is empty")).toBeInTheDocument();
 
