@@ -55,6 +55,9 @@ test("“我要背单词” in the pet's window asks, then opens flashcards in p
   const window = page.getByTestId("pet-chat");
   await expect(window).toBeVisible();
   await expect(window.getByTestId("pet-chat-no-model")).toHaveCount(0);
+  // The first open of the day: the assistant speaks first (ADR 0041); then it's our turn.
+  await expect(window.locator('li[data-role="assistant"]')).toContainText("of the last 7 days");
+  await expect(window.locator('li[data-status="streaming"]')).toHaveCount(0);
   const input = window.getByRole("textbox", { name: /输入消息/ });
   await input.fill("我要背单词");
   await input.press("Enter");
@@ -121,4 +124,75 @@ test("the pet's window is resized by its free corner, and keeps the size", async
   await expect.poll(async () => Math.round((await window.boundingBox())!.width)).toBe(388);
   await window.getByTestId("pet-chat-resize").dblclick();
   await expect.poll(async () => Math.round((await window.boundingBox())!.width)).toBe(448);
+});
+
+test("the first open of the day: the pet wears its AI clip, the assistant looks back once (ADR 0041)", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail("pet-opening"));
+  await useFakeModel(page);
+  await page.goto("/learner");
+
+  // Opening it now would call a model: the clip says so before the tap.
+  const button = pet(page).getByTestId("tutor-pet-button");
+  await expect(pet(page).locator("canvas[data-clip]")).toHaveCount(1);
+  await expect(button).toHaveAttribute("title", /今天第一次打开：JOJO 会先用 AI 总结最近 7 天的学习/);
+  await page.screenshot({ path: test.info().outputPath("pet-clip.png") });
+
+  await button.click();
+  const window = page.getByTestId("pet-chat");
+  const tutorSaid = window.locator('li[data-role="assistant"]');
+  await expect(tutorSaid).toHaveCount(1);
+  await expect(tutorSaid).toContainText("You studied on 0 of the last 7 days.");
+  await expect(window.getByRole("heading")).toContainText("今天的学习");
+  // Begun: the clip comes off, and the name says nothing about AI any more.
+  await expect(pet(page).locator("canvas[data-clip]")).toHaveCount(0);
+  await expect(button).toHaveAttribute("title", "和 JOJO 聊天");
+  await page.screenshot({ path: test.info().outputPath("pet-opening.png") });
+
+  // Again today: the same conversation, no second opening.
+  await page.keyboard.press("Escape");
+  await button.click();
+  await expect(tutorSaid).toHaveCount(1);
+  await page.keyboard.press("Escape");
+
+  // The dashboard's today is the same conversation.
+  await page.goto("/dashboard");
+  await expect(page.getByTestId("today").locator('li[data-role="assistant"]')).toContainText(
+    "You studied on 0 of the last 7 days.",
+  );
+  await expect(pet(page).locator("canvas[data-clip]")).toHaveCount(0);
+
+  // A new chat from the window, gone on with until the page is reloaded.
+  await button.click();
+  await window.getByRole("button", { name: "新对话" }).click();
+  await expect(tutorSaid).toHaveCount(0);
+  const input = window.getByRole("textbox", { name: /输入消息/ });
+  await input.fill("hello there");
+  await input.press("Enter");
+  await expect(tutorSaid).toContainText("You said: hello there");
+  await page.keyboard.press("Escape");
+  await button.click();
+  await expect(tutorSaid).toContainText("You said: hello there");
+  await page.keyboard.press("Escape");
+  await page.reload();
+  await button.click();
+  await expect(tutorSaid).toContainText("You studied on 0 of the last 7 days.");
+});
+
+test("with the daily opening switched off, the pet wears no clip and waits", async ({ page }) => {
+  await register(page, uniqueEmail("pet-no-opening"));
+  await useFakeModel(page);
+  // Left out: the defaults (the pet on).
+  expect((await page.request.put("/api/tutor", { data: { daily_opening: false } })).ok()).toBe(true);
+  await page.goto("/learner");
+
+  await expect(pet(page).getByTestId("tutor-pet-button")).toHaveAttribute("title", "和 JOJO 聊天");
+  await expect(pet(page).locator("canvas[data-clip]")).toHaveCount(0);
+  await pet(page).getByTestId("tutor-pet-button").click();
+  const window = page.getByTestId("pet-chat");
+  // The dashboard's greeting and quick replies, no model call.
+  await expect(window.getByTestId("today-greeting")).toBeVisible();
+  await expect(window.locator('li[data-role="assistant"]')).toHaveCount(0);
+  expect(await (await page.request.get("/api/conversations")).json()).toEqual([]);
 });

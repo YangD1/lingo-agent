@@ -94,6 +94,8 @@ export type DrawOptions = {
   small: boolean;
   /** Mark it as talking with a still speaker sign (when nothing may move). */
   speakerMark: boolean;
+  /** The AI hair clip: opening the pet now has the tutor speak first (ADR 0041 §4). */
+  clip?: boolean;
 };
 
 type Ctx = CanvasRenderingContext2D;
@@ -105,6 +107,8 @@ const EYE_Y = 41;
 const LINE = 2.6;
 const BLUSH = "#e2756b";
 const GOLD = "#e7b95c";
+/** The AI marks' indigo (`--ai`, light theme): the same on light and dark pages. */
+const AI_INDIGO = "#5753c9";
 
 const SPARK = "M0 -7Q0 0 7 0Q0 0 0 7Q0 0 -7 0Q0 0 0 -7Z";
 
@@ -129,6 +133,7 @@ export function drawAvatar(ctx: Ctx, pose: Pose, options: DrawOptions) {
   ctx.translate(-NECK.x, -NECK.y);
   drawHead(ctx, pose, p, outfit, small);
   drawHeadwear(ctx, pose, outfit, small);
+  if (options.clip) drawClip(ctx);
   ctx.restore();
 
   drawNeckwear(ctx, pose, outfit);
@@ -463,6 +468,22 @@ function drawHeadwear(ctx: Ctx, pose: Pose, outfit: Outfit, small: boolean) {
     case "cat":
       return;
   }
+}
+
+/**
+ * A hair clip in front of the right ear's root, tilted with the head: an indigo bar with a
+ * white ✦. Clear of every outfit's headwear (the beret sits left, the pencil behind the
+ * ear, the headphone band over the top); on the sporty headband it clips the band.
+ */
+function drawClip(ctx: Ctx) {
+  ctx.save();
+  ctx.translate(66, 24);
+  ctx.rotate(0.55);
+  paint(ctx, AI_INDIGO, () => ctx.roundRect(-8, -4, 16, 8, 4), 1.6);
+  ctx.fillStyle = "#ffffff";
+  ctx.scale(0.42, 0.42);
+  ctx.fill(new Path2D(SPARK));
+  ctx.restore();
 }
 
 function drawNeckwear(ctx: Ctx, pose: Pose, outfit: Outfit) {

@@ -19,12 +19,11 @@ import {
 } from "@/components/ui/card";
 import { Callout } from "@/components/ui/callout";
 import { type Advice, type AdviceItem, templateKey } from "@/lib/advice";
-import { api } from "@/lib/api";
 import type { TutorCard } from "@/lib/cards";
 import { kcName } from "@/lib/learner";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { browserTimeZone } from "@/lib/vocab";
+import { createToday, fetchToday, noteTodayStarted } from "@/lib/today";
 import { CatLoading } from "@/components/brand/lingo-cat";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -34,13 +33,6 @@ const linkClass = "underline underline-offset-2";
 
 /** Quick replies from the top candidates, after the fixed "what should I study today?". */
 const QUICK_FROM = 3;
-
-function timeZoneQuery(): string {
-  const tz = browserTimeZone();
-  return tz ? `?${new URLSearchParams({ tz })}` : "";
-}
-
-export const fetchToday = () => api<Conversation | null>(`/conversations/today${timeZoneQuery()}`);
 
 /**
  * Today's conversation with the tutor on the dashboard (ADR 0016 §1–3). Before the first
@@ -91,15 +83,13 @@ export function TodayTutor({
           <TutorPanel
             className="h-[28rem] rounded-lg border bg-background md:h-[32rem]"
             conversationId={conversation?.id ?? null}
-            onConversationCreated={setConversation}
+            onConversationCreated={(c) => {
+              setConversation(c);
+              noteTodayStarted(c); // with the learner's first message: the pet's clip comes off
+            }}
             onTurnFinished={onTurnFinished}
             onCardDecided={onCardDecided}
-            createConversation={() =>
-              api<Conversation>("/conversations", {
-                method: "POST",
-                json: { purpose: "daily", locale, tz: browserTimeZone() },
-              })
-            }
+            createConversation={() => createToday(locale)}
             discardRefused={false}
             empty={(actions) => <TodayStart advice={advice} error={error} actions={actions} />}
           />

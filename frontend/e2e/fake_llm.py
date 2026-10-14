@@ -15,7 +15,8 @@ like" is a third-person -s mistake, "he/she/it likes" a correct use of the same 
 Word list (ADR 0011): 'what does "X" mean' makes X a word to learn. Tutor tools
 (ADR 0015): with tools bound, a learner message about a word book ("词书" or "word book")
 gets a streamed `propose_word_book` call, and the turn goes on with a short reply once the
-tool result is back. A planning opening names the placement level.
+tool result is back. A planning opening names the placement level; the desk pet's daily
+opening (ADR 0041) says how many of the last 7 days were studied, from the brief.
 Language mix (ADR 0017): "which language" gets back the language the system prompt asks
 for; AI example sentences use the word asked for; a translation into Chinese is "译文 "
 plus the message, one into English "(English) " plus it.
@@ -77,6 +78,8 @@ OPENING_CUE = "(This is not from the learner.)"
 PRACTICE_POINT = re.compile(r"^- Grammar point: (.+) \(CEFR [A-C][12]\)$", re.MULTILINE)
 ASKED_WORD = re.compile(r"what does \"?([A-Za-z]+)\"? mean", re.IGNORECASE)
 FACTS_HEADING = "### Things they have told you\n"
+# The last days in today's brief (backend/app/chat/recent.py render_recent).
+DAYS_STUDIED = re.compile(r"^- Days studied: (\d+) of 7", re.MULTILINE)
 # The planning brief (backend/app/chat/planning.py render_planning).
 PLAN_LEVEL = re.compile(r"^- Overall level \(CEFR\): ([A-C][12])", re.MULTILINE)
 WORD_BOOK = re.compile(r"词书|word book", re.IGNORECASE)
@@ -238,6 +241,12 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
         return f"Let's practise: {point}."
     if last.startswith(OPENING_CUE) and SPEAKING_OPENING in last:
         return SPEAKING_GREETING
+    if last.startswith(OPENING_CUE) and "desk pet" in last:
+        days = DAYS_STUDIED.search(system_text(messages))
+        return (
+            f"Good morning! You studied on {days.group(1) if days else '?'} of the last 7 days."
+            " Let's review your due words today."
+        )
     if last.startswith(OPENING_CUE) and "planning conversation" in last:
         level = PLAN_LEVEL.search(system_text(messages))
         return f"Your level is {level.group(1) if level else 'unknown'}. What is your goal?"

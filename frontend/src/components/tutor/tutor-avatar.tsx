@@ -21,6 +21,7 @@ export function TutorAvatar({
   state = "idle",
   size = 96,
   animate = true,
+  clip = false,
   label,
   className,
 }: {
@@ -33,6 +34,8 @@ export function TutorAvatar({
   size?: number;
   /** The learner's animation switch. */
   animate?: boolean;
+  /** Wear the AI hair clip (ADR 0041 §4). */
+  clip?: boolean;
   /** Accessible name; "" hides it from assistive tech. */
   label: string;
   className?: string;
@@ -45,6 +48,7 @@ export function TutorAvatar({
     outfit: (OUTFITS as readonly string[]).includes(outfit ?? "") ? (outfit as Outfit) : "cat",
     palette: paletteFor(fur),
     small: size < 48,
+    clip,
   };
   // The loop reads the latest props without restarting.
   const latest = useRef({ look, state });
@@ -64,9 +68,10 @@ export function TutorAvatar({
       small,
       ink: inkOf(canvas.current!),
       speakerMark: state === "speaking",
+      clip,
     });
     // `palette` is rebuilt each render; its fur is what matters.
-  }, [moving, size, shownOutfit, palette.fur, small, state]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [moving, size, shownOutfit, palette.fur, small, state, clip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Moving: a frame each display refresh while the page is visible.
   useEffect(() => {
@@ -109,6 +114,7 @@ export function TutorAvatar({
       aria-hidden={label ? undefined : true}
       data-state={state}
       data-outfit={look.outfit}
+      data-clip={clip ? "" : undefined}
       data-animated={moving ? "" : undefined}
       className={cn("shrink-0", className)}
     />

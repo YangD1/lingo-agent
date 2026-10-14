@@ -128,6 +128,7 @@ describe("TutorApp", () => {
       animate: true,
       pet: false,
       nudges: false,
+      daily_opening: true,
       chat_model: "main:qwen-plus",
       tts_model: "main:qwen3-tts-flash",
       voices: { "en-US": "Ethan" },

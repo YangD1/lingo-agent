@@ -2429,6 +2429,8 @@
       "petHint": "Keeps you company in a corner of the page; tap it to ask your assistant. The same on every device.",
       "nudges": "Reminders",
       "nudgesHint": "The pet says in a bubble when words are due, what's left of today's plan, or that a model needs setting up. At most 3 a day; no model calls.",
+      "dailyOpening": "Sum up on the first open of the day",
+      "dailyOpeningHint": "The first time you open the desk pet each day, the assistant uses AI to look back at your last 7 days and suggest one or two things for today (a few tokens). The cat wears a ✦ hair clip until then.",
       "animate": "Animation",
       "animateHint": "Off: a still picture. Also still when your system asks for reduced motion."
     },
@@ -2473,9 +2475,12 @@
     "collapse": "Collapse the desk pet",
     "expand": "Show {name}, your desk pet",
     "open": "Chat with {name}",
+    "openWithClip": "Chat with {name}. First time today: {name} will use AI to look back at your last 7 days and suggest what to do today (about {tokens} tokens, once a day)",
+    "openWithClipNoEstimate": "Chat with {name}. First time today: {name} will use AI to look back at your last 7 days and suggest what to do today (once a day)",
     "focusInput": "{name}: type in the message box",
     "chatTitle": "Chat with {name}",
     "openInChat": "Open in chat",
+    "newChat": "New chat",
     "close": "Close",
     "resize": "Resize the window: drag, or use the arrow keys; double-click for the default size",
     "actions": {

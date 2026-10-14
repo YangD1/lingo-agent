@@ -52,6 +52,24 @@ vi.mock("./pet-chat", async () => {
   };
 });
 
+// Today's conversation as the pet's store has it (ADR 0041); undefined: not known yet.
+const today = vi.hoisted(() => ({ current: undefined as import("@/lib/today").Today | undefined }));
+vi.mock("@/lib/today", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/today")>()),
+  useToday: (on: boolean) => (on ? today.current : undefined),
+}));
+vi.mock("@/lib/ai-usage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ai-usage")>()),
+  loadEstimates: async () => ({
+    features: [
+      {
+        feature: "pet_daily_opening",
+        calls: [{ task: "daily_opening", input_tokens: 4000, output_tokens: 250 }],
+      },
+    ],
+  }),
+}));
+
 const advice = vi.hoisted(() => ({ current: null as Advice | null }));
 vi.mock("@/lib/pet-nudges", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/pet-nudges")>()),
@@ -65,18 +83,22 @@ vi.mock("./tutor-avatar", () => ({
     size,
     animate,
     state,
+    clip,
   }: {
     label: string;
     size: number;
     animate: boolean;
     state?: string;
+    clip?: boolean;
   }) => (
     <span
       role={label ? "img" : undefined}
       aria-label={label || undefined}
+      data-testid={label ? undefined : "small-avatar"}
       data-size={size}
       data-animate={String(animate)}
       data-state={state}
+      data-clip={clip || undefined}
     />
   ),
 }));
@@ -96,6 +118,7 @@ beforeEach(() => {
   nav.pathname = "/dashboard";
   nav.search = "";
   advice.current = null;
+  today.current = undefined;
   tutor.current = { ...DEFAULT_TUTOR, name: "Max", display_name: "Max" };
   vi.stubGlobal("innerWidth", 1000);
   vi.stubGlobal("innerHeight", 800);
@@ -106,6 +129,40 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   window.localStorage.clear();
+});
+
+describe("TutorPet's AI hair clip (ADR 0041)", () => {
+  const ready = { items: [], model_ready: true, reminder: null } as unknown as Advice;
+  const avatar = () => screen.getByRole("img", { name: "Max, your assistant" });
+
+  it("is worn while opening would have the tutor speak first, and says what it costs", async () => {
+    advice.current = ready;
+    today.current = { conversation: null, started: false };
+    show();
+    expect(avatar()).toHaveAttribute("data-clip", "true");
+    const button = screen.getByTestId("tutor-pet-button");
+    expect(await screen.findByTitle(/about 4,250 tokens, once a day/)).toBe(button);
+    expect(button).toHaveAccessibleName(/First time today: Max will use AI/);
+
+    // Collapsed: the small one wears it too.
+    await userEvent.click(screen.getByRole("button", { name: "Collapse the desk pet" }));
+    expect(screen.getByTestId("small-avatar")).toHaveAttribute("data-clip", "true");
+  });
+
+  it.each([
+    ["today's conversation has begun", () => (today.current = { conversation: null, started: true })],
+    ["there is no chat model", () => (advice.current = { ...ready, model_ready: false })],
+    ["the learner switched it off", () => (tutor.current = { ...tutor.current!, daily_opening: false })],
+    ["on the chat page, where a tap opens nothing", () => (nav.pathname = "/chat")],
+    ["while not known yet", () => (today.current = undefined)],
+  ])("is not worn when %s", (_, arrange) => {
+    advice.current = ready;
+    today.current = { conversation: null, started: false };
+    arrange();
+    show();
+    expect(screen.getByRole("img", { name: "Max, your assistant" })).not.toHaveAttribute("data-clip");
+    expect(screen.getByTestId("tutor-pet-button")).not.toHaveAccessibleName(/First time today/);
+  });
 });
 
 describe("TutorPet", () => {

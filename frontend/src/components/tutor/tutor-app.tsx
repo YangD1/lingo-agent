@@ -325,6 +325,16 @@ function LooksCard({
               onChange={(nudges) => onChange({ nudges })}
             />
           )}
+          {form.pet && (
+            <SwitchRow
+              id="tutor-daily-opening"
+              label={t("dailyOpening")}
+              badge={<AiBadge feature="pet_daily_opening" />}
+              hint={t("dailyOpeningHint")}
+              checked={form.daily_opening}
+              onChange={(daily_opening) => onChange({ daily_opening })}
+            />
+          )}
           <SwitchRow
             id="tutor-animate"
             label={t("animate")}
@@ -342,21 +352,27 @@ function SwitchRow({
   id,
   label,
   hint,
+  badge,
   checked,
   onChange,
 }: {
   id: string;
   label: string;
   hint: string;
+  /** An AI badge by the label, outside it: pressing it must not flip the switch. */
+  badge?: React.ReactNode;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <label htmlFor={id} className="flex flex-col gap-1">
-        <span className="text-sm font-medium">{label}</span>
-        <span className="text-xs text-muted-foreground">{hint}</span>
-      </label>
+      <div className="flex items-start gap-1.5">
+        <label htmlFor={id} className="flex flex-col gap-1">
+          <span className="text-sm font-medium">{label}</span>
+          <span className="text-xs text-muted-foreground">{hint}</span>
+        </label>
+        {badge}
+      </div>
       <Switch id={id} checked={checked} onCheckedChange={(on) => onChange(on)} />
     </div>
   );

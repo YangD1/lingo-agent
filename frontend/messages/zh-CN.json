@@ -2429,6 +2429,8 @@
       "petHint": "在页面角落陪你学习，点它可以随手问助手。换设备也一样。",
       "nudges": "主动提醒",
       "nudgesHint": "桌宠会在头顶冒气泡，提醒你该复习了、计划还差什么、模型还没配好。每天最多 3 条，不调用模型。",
+      "dailyOpening": "每天第一次点开时总结",
+      "dailyOpeningHint": "每天第一次点开桌宠时，助手先用 AI 回顾你最近 7 天的学习，再给今天一两条建议（会花少量 token）。这时小猫戴着 ✦ 发卡，总结完就摘下。",
       "animate": "动画",
       "animateHint": "关掉后只显示静态图。系统开了“减少动态效果”时也只显示静态图。"
     },
@@ -2473,9 +2475,12 @@
     "collapse": "收起桌宠",
     "expand": "展开桌宠 {name}",
     "open": "和 {name} 聊天",
+    "openWithClip": "和 {name} 聊天。今天第一次打开：{name} 会先用 AI 总结最近 7 天的学习，再给今天的建议（约 {tokens} token，一天一次）",
+    "openWithClipNoEstimate": "和 {name} 聊天。今天第一次打开：{name} 会先用 AI 总结最近 7 天的学习，再给今天的建议（一天一次）",
     "focusInput": "{name}：在输入框里打字",
     "chatTitle": "和 {name} 聊天",
     "openInChat": "在聊天页打开",
+    "newChat": "新对话",
     "close": "关闭",
     "resize": "调整窗口大小：拖动，或用方向键；双击恢复默认大小",
     "actions": {

@@ -121,6 +121,22 @@ describe("TutorAvatar", () => {
     expect(calls.filter((c) => c === "arc").length).toBeGreaterThan(arcs);
   });
 
+  it("wears the AI hair clip when asked, still or moving (ADR 0041)", () => {
+    const count = () => calls.filter((c) => c === "roundRect").length;
+    const { rerender } = render(<TutorAvatar animate={false} label="JOJO" />);
+    const without = count();
+    calls.length = 0;
+    rerender(<TutorAvatar animate={false} clip label="JOJO" />);
+    expect(count()).toBe(without + 1);
+    expect(document.querySelector("canvas")!.dataset.clip).toBe("");
+
+    cleanup();
+    calls.length = 0;
+    render(<TutorAvatar clip label="JOJO" />);
+    tick(0);
+    expect(count()).toBe(without + 1);
+  });
+
   it("stops drawing while the page is hidden and picks up when it is back", () => {
     render(<TutorAvatar label="JOJO" />);
     setHidden(true);

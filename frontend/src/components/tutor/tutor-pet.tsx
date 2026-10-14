@@ -2,12 +2,14 @@
 
 import { ChevronDownIcon } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { callsOf, loadEstimates } from "@/lib/ai-usage";
 import type { PetAction } from "@/lib/pet-actions";
 import { type Nudge, usePetAdvice } from "@/lib/pet-nudges";
 import { type PetPlace, usePetPlace } from "@/lib/preferences";
+import { openingDue, useToday } from "@/lib/today";
 import { useTutor } from "@/lib/tutor";
 import { usePetState } from "@/lib/tutor-pet";
 import { cn } from "@/lib/utils";
@@ -45,6 +47,27 @@ function useHeld(on: boolean, ms: number): boolean {
     };
   }, [on, ms]);
   return on && held;
+}
+
+/** Tokens the daily opening takes, input and output together, once known (ADR 0041 §4). */
+function useOpeningTokens(on: boolean): number | null {
+  const [tokens, setTokens] = useState<number | null>(null);
+  useEffect(() => {
+    if (!on) return;
+    let live = true;
+    loadEstimates().then(
+      (data) => {
+        if (!live) return;
+        const calls = callsOf(data, "pet_daily_opening");
+        setTokens(calls.length ? calls.reduce((n, c) => n + c.input_tokens + c.output_tokens, 0) : null);
+      },
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [on]);
+  return on ? tokens : null;
 }
 
 function useWide(): boolean {
@@ -130,6 +153,10 @@ type Drag = {
  * window, and reminding of what the learning engine suggests (`use-pet-nudges.ts`). The
  * bubble and the window give way when the page changes or flashcards open. Collapsed, it
  * keeps a reminder for when it is opened, with a dot on the button.
+ *
+ * While opening it would have the tutor speak first today (ADR 0041), it wears an AI hair
+ * clip, and its name says so, with the tokens it takes; the clip comes off once today's
+ * conversation has begun.
  */
 export function TutorPet() {
   const tutor = useTutor();
@@ -157,6 +184,12 @@ export function TutorPet() {
   const [bubble, setBubble] = useState<BubbleContent | null>(null);
   const endBubble = useCallback(() => setBubble(null), []);
   const { advice, plan } = usePetAdvice(!!tutor?.pet);
+  const format = useFormatter();
+  const today = useToday(!!tutor?.pet && tutor.daily_opening !== false);
+  // Not on the chat page: a tap there only puts the cursor in its input box.
+  const clip =
+    !!tutor?.pet && !onChatPage && openingDue(tutor.daily_opening, advice?.model_ready, today);
+  const openingTokens = useOpeningTokens(clip);
   // The chat page is the conversation itself: arriving there closes the window.
   const [wasOnChatPage, setWasOnChatPage] = useState(onChatPage);
   if (onChatPage !== wasOnChatPage) {
@@ -297,6 +330,13 @@ export function TutorPet() {
 
   if (!tutor?.pet) return null;
   const name = tutor.display_name;
+  const tapLabel = onChatPage
+    ? t("focusInput", { name })
+    : !clip
+      ? t("open", { name })
+      : openingTokens === null
+        ? t("openWithClipNoEstimate", { name })
+        : t("openWithClip", { name, tokens: format.number(openingTokens) });
   const size = place.collapsed ? COLLAPSED_SIZE : wide ? PET_SIZE.wide : PET_SIZE.narrow;
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -347,6 +387,8 @@ export function TutorPet() {
         modelReady={advice?.model_ready ?? true}
         draft={draft}
         wide={wide}
+        dailyOpening={tutor.daily_opening !== false}
+        advice={advice}
       />
     )}
     <div
@@ -381,6 +423,7 @@ export function TutorPet() {
             fur={tutor.color}
             animate={false}
             size={size - 8}
+            clip={clip}
             label=""
           />
           {/* Something to say once opened (ADR 0039 §3). */}
@@ -401,8 +444,8 @@ export function TutorPet() {
           )}
           <button
             type="button"
-            aria-label={onChatPage ? t("focusInput", { name }) : t("open", { name })}
-            title={onChatPage ? t("focusInput", { name }) : t("open", { name })}
+            aria-label={tapLabel}
+            title={tapLabel}
             aria-expanded={onChatPage ? undefined : chatOpen}
             aria-haspopup={onChatPage ? undefined : "dialog"}
             onClick={onTap}
@@ -415,6 +458,7 @@ export function TutorPet() {
               animate={tutor.animate && !dozing}
               state={state}
               size={size}
+              clip={clip}
               label={t("label", { name })}
               className="drop-shadow-md"
             />

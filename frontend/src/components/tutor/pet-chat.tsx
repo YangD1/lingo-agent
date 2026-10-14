@@ -1,13 +1,15 @@
 "use client";
 
-import { ExternalLinkIcon, PlugIcon, XIcon } from "lucide-react";
+import { ExternalLinkIcon, PlugIcon, SquarePenIcon, XIcon } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { TutorPanel } from "@/components/chat/tutor-panel";
+import { TodayStart } from "@/components/dashboard/today-tutor";
 import { buttonVariants } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
+import type { Advice } from "@/lib/advice";
 import { api } from "@/lib/api";
 import { matchAction, type PetAction, petAction, QUICK_ACTIONS } from "@/lib/pet-actions";
 import {
@@ -18,11 +20,27 @@ import {
   readChatSize,
   type Viewport,
 } from "@/lib/pet-chat-size";
+import { checkToday, createToday, fetchToday } from "@/lib/today";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-// The conversation the window is on, kept while the app is open: reopening goes on with it.
-let kept: Conversation | null = null;
+/**
+ * The conversation the window is on, kept while the app is open: reopening goes on with it.
+ * Today's (ADR 0041 §2) unless a new chat was started in the window; another day drops it.
+ */
+let kept: { day: string; fresh: boolean; conversation: Conversation | null } | null = null;
+
+function localDay(now = new Date()): string {
+  return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+}
+
+function keptToday() {
+  return kept && kept.day === localDay() ? kept : null;
+}
+
+function keep(fresh: boolean, conversation: Conversation | null) {
+  kept = { day: localDay(), fresh, conversation };
+}
 
 /** A plain click on a link within the app, which goes somewhere else in it. */
 function leadsAway(e: React.MouseEvent): boolean {
@@ -129,18 +147,18 @@ export function resetPetChat() {
   kept = null;
 }
 
-/**
- * The conversation to go on with (Q66m): the most recent one in the chat page's list (a
- * message moves a conversation to the top); null for a new chat.
- */
-export async function latestConversation(): Promise<Conversation | null> {
+/** `id` as the chat page's list has it now (the backend may have retitled it). */
+async function listed(id: string): Promise<Conversation | null> {
   const list = await api<Conversation[]>("/conversations");
-  return list[0] ?? null;
+  return list.find((c) => c.id === id) ?? null;
 }
 
 /**
- * The desk pet's chat window (ADR 0032 §4a): the tutor in a small window over the page,
- * going on with the latest conversation, the same as on the chat page. It doesn't see the
+ * The desk pet's chat window (ADR 0032 §4a): the tutor in a small window over the page. It
+ * opens on today's conversation, the dashboard's (ADR 0041): the first time in a day, with
+ * `dailyOpening` and a chat model, the tutor opens it with a look back at the last days;
+ * otherwise it starts with the dashboard's greeting and quick replies. "New chat" starts a
+ * plain one, which reopening goes on with until the page is reloaded. It doesn't see the
  * page it is over (Q66n). Escape or the close button closes it.
  *
  * A row of shortcuts sits on top, and a short command ("背单词") goes to the pet instead of
@@ -155,6 +173,8 @@ export function PetChat({
   modelReady = true,
   draft,
   wide = false,
+  dailyOpening = true,
+  advice = null,
 }: {
   name: string;
   /** The pet's edge: the window opens on that side. */
@@ -170,30 +190,55 @@ export function PetChat({
   /** A wide screen: the window sits by the pet and can be resized; on phones it fills most
    * of the screen. */
   wide?: boolean;
+  /** The learner's switch for the tutor's opening of the day (ADR 0041 §5). */
+  dailyOpening?: boolean;
+  /** The learning engine's suggestions, for the greeting before today's first message. */
+  advice?: Advice | null;
 }) {
   const t = useTranslations("tutorPet");
+  const locale = useLocale();
   const tActions = useTranslations("tutorPet.actions");
   const tBubble = useTranslations("tutorPet.bubble");
-  // undefined: still finding the conversation to go on with.
-  const [conversation, setConversation] = useState<Conversation | null | undefined>(kept ?? undefined);
+  const start = keptToday();
+  // undefined: still finding today's conversation.
+  const [conversation, setConversation] = useState<Conversation | null | undefined>(
+    start ? start.conversation : undefined,
+  );
+  // A new chat started here, not today's; `round` remounts the panel for each.
+  const [fresh, setFresh] = useState(start?.fresh ?? false);
+  const [round, setRound] = useState(0);
+  const opening = dailyOpening && modelReady;
   const { box, style, resizing, grip, onKeyDown } = useResize(side);
   const shortcuts = useRef<HTMLDivElement>(null);
 
+  // Today's conversation, created now when the tutor is to open it (it opens once the
+  // panel has loaded it, and only while empty); otherwise with the first message.
   useEffect(() => {
+    if (keptToday()) return;
     let live = true;
-    latestConversation().then(
-      (latest) => {
-        if (!live) return;
-        kept = latest;
-        setConversation(latest);
-      },
-      // The list can't be had: a new chat, created with the first message.
-      () => live && setConversation((c) => c ?? null),
-    );
+    fetchToday()
+      .then((today) => (today || !opening ? today : createToday(locale)))
+      .then(
+        (today) => {
+          if (!live) return;
+          keep(false, today);
+          setConversation(today);
+        },
+        () => live && setConversation((c) => c ?? null),
+      );
     return () => {
       live = false;
     };
+    // Once, as the window opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const newChat = () => {
+    keep(true, null);
+    setFresh(true);
+    setConversation(null);
+    setRound((n) => n + 1);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -251,6 +296,17 @@ export function PetChat({
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
           {conversation?.title || t("chatTitle", { name })}
         </h2>
+        <button
+          type="button"
+          aria-label={t("newChat")}
+          title={t("newChat")}
+          onClick={newChat}
+          disabled={fresh && conversation === null}
+          data-testid="pet-chat-new"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-background/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4"
+        >
+          <SquarePenIcon aria-hidden />
+        </button>
         <Link
           href={chatHref}
           className={cn(buttonVariants({ size: "sm", variant: "ghost" }), "hover:bg-background/70")}
@@ -307,19 +363,35 @@ export function PetChat({
       </nav>
       {conversation !== undefined && (
         <TutorPanel
+          key={`${fresh ? "new" : "today"}-${round}`}
           className="min-h-0 flex-1"
           conversationId={conversation?.id ?? null}
           onConversationCreated={(c) => {
-            kept = c;
+            keep(fresh, c);
             setConversation(c);
           }}
+          createConversation={fresh ? undefined : () => createToday(locale)}
+          // Today's may already exist (another tab, the dashboard): it is the one to use.
+          discardRefused={fresh}
+          autoOpen={!fresh && opening}
+          empty={
+            !fresh && modelReady
+              ? (actions) => <TodayStart advice={advice} error={null} actions={actions} />
+              : undefined
+          }
           onTurnFinished={() => {
+            // Begun now, or not (an opening that failed): the pet's AI clip follows.
+            if (!fresh) void checkToday();
+            const id = conversation?.id ?? keptToday()?.conversation?.id;
+            if (!id) return;
             // The backend may have retitled it.
-            latestConversation().then((latest) => {
-              if (latest && latest.id === kept?.id) setConversation((kept = latest));
+            listed(id).then((found) => {
+              if (found && found.id === keptToday()?.conversation?.id) {
+                keep(fresh, found);
+                setConversation(found);
+              }
             }, () => {});
           }}
-          sendFeature={conversation?.article_id ? "reading_coach" : undefined}
           // Open to typing.
           autoFocus
           initialText={draft}
