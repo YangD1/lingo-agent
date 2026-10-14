@@ -112,15 +112,16 @@ test("pick the tutor's looks and voice; the pet shows it, moves, talks while rea
   expect(await audio.text()).toBe("mp3:fable:You said: apples");
 
   // On the chat page, a tap puts the cursor in the input box; elsewhere it opens a window
-  // going on with the same conversation.
+  // on today's conversation, which the tutor opens the first time (ADR 0041).
   await input.blur();
   await pet(page).getByRole("button", { name: "Milo：在输入框里打字" }).click();
   await expect(input).toBeFocused();
   await page.goto("/vocab");
   await button.click();
-  const window = page.getByRole("dialog", { name: /Milo|apples/ });
-  await expect(page.getByTestId("pet-chat")).toBeVisible();
-  await expect(window).toContainText("You said: apples");
+  const window = page.getByTestId("pet-chat");
+  await expect(window).toBeVisible();
+  await expect(window).toContainText("of the last 7 days");
+  await expect(window.locator('li[data-status="streaming"]')).toHaveCount(0);
   const small = window.getByRole("textbox", { name: /输入消息/ });
   await expect(small).toBeFocused();
   await small.fill("I goed home");
