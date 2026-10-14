@@ -25,9 +25,9 @@
   - README 背单词截图改为弹层（只换了 `vocab-*.png`，其余截图已还原）。
   - Vitest 702、E2E 76 全过。
 
-**未完成**：
-- 推送（本地领先 origin：75.1–75.5 的提交）。
-- Docker 前端重建：任务 74、75 都还没重建，重建前先确认 Windows 可用提交内存。
+**推送与重建**（同日补记）：推送到 705359e，CI run 38576383064 四个 job 全绿。Docker 只重建了前端（`docker compose up -d --build --no-deps frontend`；任务 74、75 没有改后端），构建前 Windows 可用提交内存约 8GB，构建过程中没有低于 3GB。`/` 200、`/healthz` 200，空闲内存 frontend 58MiB / backend 82MiB / postgres 128MiB。
+
+**未完成**：无。
 
 **下一步**：推送，看 CI；内存够时 `make up` 重建（只改了前端）。任务 71 仍等用户通知。
 
