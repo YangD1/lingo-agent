@@ -14,13 +14,16 @@
 - 79.4：`turn-activity.tsx` 胶囊拆成名字链接（`/tutor#looks`）+ 展开按钮；`tutor-app.tsx` 标题“{名字}：名字、形象和声音”、形象卡片 `id="looks"` + `useHashFlash`，到达时聚焦名字框。
 - 79.5：README 中英、`docs/agent-tools.md`、`docs/demo.md` 替换；Vitest 加 2 条、E2E `activity.spec` 加 1 条。
 
-**未完成**：见看板 79.5（全量测试、Docker 重建）；没有推送。
+**测试**：pytest 1845、Vitest 743、E2E 80 全过，ruff / mypy / eslint / tsc 干净。Docker 先后端再前端重建，`/healthz` 200，空闲内存 backend 237MiB / frontend 58MiB / postgres 141MiB。
 
-**下一步**：全量 pytest / E2E 过后标 79.5 完成，重建 Docker（后端 + 前端都改了），等用户看效果再推送（任务 77、78、79 都在本地）。
+**未完成**：没有推送（任务 77、78、79 都在本地）。
+
+**下一步**：用户在 Docker 版里看过效果后推送、看 CI。
 
 **踩坑**：
 - 英文 README 里直接替换 tutor 会改坏截图路径（`tutor-en.png`）、ADR 文件名和 `tutor/` 目录名；要用前后不是 `/ - _ . \`` 的正则，句末的 “tutor.” 再单独处理。
 - 活动行的名字不能做成按钮里的链接（按钮里不能套交互元素），只能做成相邻两个元素；E2E 原来用 `toHaveText` 断言按钮整句，现在按钮文字只剩“做了什么：…”，改用 `toHaveAccessibleName`。
+- 后台跑 E2E 时 `node` 被 nvm 的 shell 函数遮住（无限递归），要用 node 的绝对路径；别用 `pkill -f` 收拾等待循环，会把自己的 shell 一起杀掉。
 
 ---
 
