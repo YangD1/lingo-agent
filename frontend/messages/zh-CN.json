@@ -417,6 +417,46 @@
         "speaking": {
           "title": "口语练习",
           "action": "去练口语"
+        },
+        "vocab_learn": {
+          "title": "学新词",
+          "action": "去学新词"
+        },
+        "vocab_mine": {
+          "title": "看看生词本",
+          "action": "去生词本"
+        },
+        "practice": {
+          "title": "练练语法",
+          "action": "去练习"
+        },
+        "writing": {
+          "title": "写一篇让私教批改",
+          "action": "去写作"
+        },
+        "reading": {
+          "title": "读一篇分级新闻",
+          "action": "去阅读"
+        },
+        "speaking_call": {
+          "title": "和私教实时通话",
+          "action": "去通话"
+        },
+        "memory": {
+          "title": "看看私教记住了什么",
+          "action": "去看记忆"
+        },
+        "tutor": {
+          "title": "换私教的名字、形象和声音",
+          "action": "去设置私教"
+        },
+        "settings": {
+          "title": "模型和其他设置",
+          "action": "去设置"
+        },
+        "usage": {
+          "title": "查看 AI 用量和额度",
+          "action": "去看用量"
         }
       },
       "live": {
@@ -426,7 +466,8 @@
         "inProgress": "有一次测试没做完",
         "never": "还没测过",
         "lastTest": "上次是 {n} 天前",
-        "weak": "{n} 个语法点需要加强"
+        "weak": "{n} 个语法点需要加强",
+        "newLeft": "还有 {left} 个新词可学"
       },
       "writing": {
         "title": "作文批改",

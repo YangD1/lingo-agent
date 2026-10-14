@@ -293,6 +293,9 @@ function LiveNumbers({ kind, live }: { kind: LinkKind; live?: Record<string, unk
     case "learner":
       text = t("weak", { n: n("weak_kcs") });
       break;
+    case "vocab_learn":
+      text = t("newLeft", { left: n("new_left") });
+      break;
   }
   return text ? (
     <p className="text-xs text-muted-foreground" data-testid="card-live">

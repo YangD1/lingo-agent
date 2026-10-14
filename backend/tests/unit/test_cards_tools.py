@@ -3,7 +3,14 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
 from app.agents.chat_graph import tool_rounds
-from app.cards.tools import TOOL_NAMES, TOOL_SCHEMAS, CardScope, ToolCallError, draft_card
+from app.cards.tools import (
+    LINK_KINDS,
+    TOOL_NAMES,
+    TOOL_SCHEMAS,
+    CardScope,
+    ToolCallError,
+    draft_card,
+)
 from app.chat.service import to_chat_messages
 
 KC = "g.word_order_svo"
@@ -21,6 +28,10 @@ def test_tool_schemas_carry_no_ids_and_list_the_books() -> None:
         )
     book = schemas["propose_word_book"]["parameters"]["properties"]["book_id"]
     assert {"cet4", "ielts", "oxford3000"} <= set(book["enum"])
+    # Every page a link card can lead to is in the enum the model sees (ADR 0039 §2).
+    link = schemas["suggest_link"]["parameters"]["properties"]["kind"]
+    assert link["enum"] == list(LINK_KINDS)
+    assert {"vocab_learn", "writing", "reading", "speaking_call", "settings"} <= set(LINK_KINDS)
 
 
 def test_word_book_proposals() -> None:
@@ -50,6 +61,10 @@ def test_goal_proposals_keep_only_what_was_given() -> None:
 def test_suggestions_and_their_scope() -> None:
     assert draft_card("suggest_practice", {"kc_id": KC}).params == {"kc_id": KC}
     assert not draft_card("suggest_link", {"kind": "placement"}).has_effect
+    for kind in LINK_KINDS:
+        assert draft_card("suggest_link", {"kind": kind}).params == {"kind": kind}
+    with pytest.raises(ToolCallError, match="invalid arguments"):
+        draft_card("suggest_link", {"kind": "admin_panel"})
     with pytest.raises(ToolCallError, match="unknown kc_id"):
         draft_card("suggest_practice", {"kc_id": "g.made_up"})
     scope = CardScope(kc_ids={"g.other"}, links={"vocab_review"})

@@ -5,19 +5,39 @@ import { browserTimeZone } from "./vocab";
 /** Pages a link card can lead to (backend/app/cards/tools.py LinkKind). */
 export type LinkKind =
   | "vocab_review"
+  | "vocab_learn"
   | "vocab_screen"
+  | "vocab_mine"
   | "placement"
   | "learner"
   | "word_books"
-  | "speaking";
+  | "practice"
+  | "writing"
+  | "reading"
+  | "speaking"
+  | "speaking_call"
+  | "memory"
+  | "tutor"
+  | "settings"
+  | "usage";
 
 export const LINK_HREFS: Record<LinkKind, string> = {
   vocab_review: "/vocab/review",
+  vocab_learn: "/vocab/review?mode=new",
   vocab_screen: "/vocab/screen",
+  vocab_mine: "/vocab/mine",
   placement: "/placement",
   learner: "/learner",
   word_books: "/vocab",
+  practice: "/practice",
+  writing: "/writing",
+  reading: "/reading",
   speaking: "/speaking",
+  speaking_call: "/speaking/call",
+  memory: "/memory",
+  tutor: "/tutor",
+  settings: "/settings",
+  usage: "/settings#usage",
 };
 
 /** proposed → applied | declined, applied → undone; cards without an effect are `info`. */

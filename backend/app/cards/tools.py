@@ -8,7 +8,7 @@ or the turn are never arguments - the code running the tools already knows them.
 
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, get_args
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 
@@ -21,15 +21,25 @@ from app.services.vocab.books import BOOKS, get_book
 
 # "writing" is put by writing_coach, not by a tool (task 38.5).
 CardKind = Literal["word_book", "learning_goal", "practice", "link", "writing", "daily_plan"]
-LinkKind = Literal["vocab_review", "vocab_screen", "placement", "learner", "word_books", "speaking"]
-LINK_KINDS: tuple[LinkKind, ...] = (
+LinkKind = Literal[
     "vocab_review",
+    "vocab_learn",
     "vocab_screen",
+    "vocab_mine",
     "placement",
     "learner",
     "word_books",
+    "practice",
+    "writing",
+    "reading",
     "speaking",
-)
+    "speaking_call",
+    "memory",
+    "tutor",
+    "settings",
+    "usage",
+]
+LINK_KINDS: tuple[LinkKind, ...] = get_args(LinkKind)
 # Mirrors the vocab API and the profile's check constraint.
 MAX_DAILY_NEW = 200
 MAX_DAILY_MINUTES = 600
@@ -116,8 +126,12 @@ class SuggestPractice(_Args):
 
 class SuggestLink(_Args):
     """Show a card linking to a page of the app: vocab_review (due words and new
-    words), vocab_screen (mark words already known), placement (level test), learner
-    (grammar mastery), word_books (choose a book), speaking (speaking practice)."""
+    words), vocab_learn (only new words), vocab_screen (mark words already known),
+    vocab_mine (the learner's own word list), placement (level test), learner (grammar
+    mastery), word_books (choose a book), practice (grammar practice), writing (essay
+    feedback), reading (graded news), speaking (speaking practice), speaking_call (live
+    voice call), memory (what the tutor remembers), tutor (the tutor's name, looks and
+    voice), settings (models and other settings), usage (AI usage and quotas)."""
 
     model_config = ConfigDict(title="suggest_link")
 

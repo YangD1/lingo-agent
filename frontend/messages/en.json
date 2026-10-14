@@ -417,6 +417,46 @@
         "speaking": {
           "title": "Speaking practice",
           "action": "Open speaking"
+        },
+        "vocab_learn": {
+          "title": "Learn new words",
+          "action": "Learn new words"
+        },
+        "vocab_mine": {
+          "title": "Your word list",
+          "action": "Open word list"
+        },
+        "practice": {
+          "title": "Practise grammar",
+          "action": "Practise"
+        },
+        "writing": {
+          "title": "Write something for feedback",
+          "action": "Start writing"
+        },
+        "reading": {
+          "title": "Read a graded news story",
+          "action": "Read"
+        },
+        "speaking_call": {
+          "title": "Talk live with your tutor",
+          "action": "Start a call"
+        },
+        "memory": {
+          "title": "What your tutor remembers",
+          "action": "Open memory"
+        },
+        "tutor": {
+          "title": "Your tutor's name, looks and voice",
+          "action": "Edit tutor"
+        },
+        "settings": {
+          "title": "Models and other settings",
+          "action": "Open settings"
+        },
+        "usage": {
+          "title": "AI usage and quotas",
+          "action": "See usage"
         }
       },
       "live": {
@@ -426,7 +466,8 @@
         "inProgress": "One test left unfinished",
         "never": "Never taken",
         "lastTest": "Last taken {n} days ago",
-        "weak": "{n, plural, one {# grammar point} other {# grammar points}} to work on"
+        "weak": "{n, plural, one {# grammar point} other {# grammar points}} to work on",
+        "newLeft": "{left} new words left"
       },
       "writing": {
         "title": "Writing review",

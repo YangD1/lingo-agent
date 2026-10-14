@@ -40,6 +40,8 @@ class TutorChoice:
     color: str | None = None
     animate: bool = True
     pet: bool = True
+    # The pet's own reminders in a bubble (ADR 0039 §4).
+    nudges: bool = True
     chat_model: str | None = None
     tts_model: str | None = None
     voices: dict[str, str] | None = None
@@ -100,6 +102,7 @@ def validate(choice: TutorChoice, options: TutorOptions) -> dict[str, Any]:
         "color": color,
         "animate": choice.animate,
         "pet": choice.pet,
+        "nudges": choice.nudges,
         "chat_model": choice.chat_model,
         "tts_model": choice.tts_model if voices else None,
         "voices": voices,

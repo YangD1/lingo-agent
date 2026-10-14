@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import Link from "next/link";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,6 +36,12 @@ vi.mock("@/components/chat/tutor-panel", () => ({
     >
       <textarea aria-label="Message" />
       <button onClick={() => onConversationCreated(conversation("c9", "Fresh"))}>create</button>
+      <Link href="/writing" onClick={(e) => e.preventDefault()}>
+        card link
+      </Link>
+      <a href="https://example.com/" onClick={(e) => e.preventDefault()}>
+        outside link
+      </a>
     </div>
   ),
 }));
@@ -100,6 +107,16 @@ describe("PetChat", () => {
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     await userEvent.click(screen.getByTestId("pet-chat-open-in-chat"));
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(3));
+  });
+
+  it("makes way when a card's link leads elsewhere in the app (ADR 0039)", async () => {
+    api.mockResolvedValue([conversation("c2")]);
+    const onClose = show();
+    await screen.findByTestId("panel");
+    await userEvent.click(screen.getByRole("link", { name: "outside link" }));
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("link", { name: "card link" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("without the list, starts a new chat", async () => {

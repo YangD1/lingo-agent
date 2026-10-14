@@ -409,13 +409,19 @@ async def test_decline_and_ownership(client: AsyncClient, script: Script) -> Non
 async def test_link_cards_carry_live_numbers(client: AsyncClient, script: Script) -> None:
     conversation = await ready(client)
     script.replies = [
-        [tool_call("suggest_link", kind="placement"), tool_call("suggest_practice", kc_id=KC)],
-        "Two ideas.",
+        [
+            tool_call("suggest_link", kind="placement"),
+            tool_call("suggest_practice", kc_id=KC),
+            tool_call("suggest_link", kind="writing"),
+        ],
+        "Three ideas.",
     ]
     await send(client, conversation)
 
-    link, practice = await cards(client, conversation)
+    link, practice, writing = await cards(client, conversation)
 
     assert (link["status"], link["live"]) == ("info", {"days_since": None, "in_progress": False})
     assert practice["live"] is None
+    # Pages with no numbers of their own (ADR 0039 §2).
+    assert (writing["params"], writing["live"]) == ({"kind": "writing"}, {})
     assert practice["display"]["kc"]["id"] == KC

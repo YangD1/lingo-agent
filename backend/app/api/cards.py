@@ -54,8 +54,12 @@ def _live(kind: str, found: Signals) -> dict[str, Any]:
             }
         case "learner":
             return {"weak_kcs": len(found.weak_kcs)}
-        case _:
+        case "vocab_learn":
+            return {"new_left": found.new_left}
+        case "word_books" | "speaking":
             return {"book_id": found.book.id if found.book else None}
+        case _:
+            return {}
 
 
 def _not_found() -> Exception:

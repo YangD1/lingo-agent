@@ -14,6 +14,14 @@ import { cn } from "@/lib/utils";
 // The conversation the window is on, kept while the app is open: reopening goes on with it.
 let kept: Conversation | null = null;
 
+/** A plain click on a link within the app, which goes somewhere else in it. */
+function leadsAway(e: React.MouseEvent): boolean {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
+  const link = e.target instanceof Element ? e.target.closest("a[href]") : null;
+  if (!(link instanceof HTMLAnchorElement) || (link.target && link.target !== "_self")) return false;
+  return new URL(link.href, window.location.href).origin === window.location.origin;
+}
+
 /** Forgets the kept conversation (tests). */
 export function resetPetChat() {
   kept = null;
@@ -77,6 +85,12 @@ export function PetChat({
       role="dialog"
       aria-label={t("chatTitle", { name })}
       data-testid="pet-chat"
+      // A card's link leads away from the chat (ADR 0039 §2): the window makes way. Links to
+      // flashcards never get here (the overlay's host takes them first); the pet closes the
+      // window when the overlay opens.
+      onClickCapture={(e) => {
+        if (leadsAway(e)) onClose();
+      }}
       className={cn(
         "fixed z-50 flex flex-col overflow-hidden rounded-xl border bg-background shadow-(--shadow-pop)",
         // Phones: most of the screen, above the tab bar; wider screens: a window by the pet.
@@ -91,7 +105,6 @@ export function PetChat({
         </h2>
         <Link
           href={chatHref}
-          onClick={onClose}
           className={buttonVariants({ size: "sm", variant: "ghost" })}
           data-testid="pet-chat-open-in-chat"
         >
