@@ -21,9 +21,9 @@
   - 深色模式临时拍图抽查，没有问题。
   - 只重建了前端镜像，`/healthz` 200。
 
-**未完成**：没有。本地领先 origin，还没推送。
+**未完成**：没有。已推送到 926cf98，CI run 38541467308 四个 job 全绿。
 
-**下一步**：推送并确认 CI 全绿；任务 71（低配部署）等用户通知。
+**下一步**：任务 71（低配部署）等用户通知。
 
 **踩坑**：
 - 想看深色截图时，可以临时在 `e2e/screenshots.spec.ts` 的 `test.use` 里加 `colorScheme: "dark"`，并把 `OUT` 改到 /tmp，跑 `SCREENSHOTS=1 … pnpm e2e -g zh`，拍完用 `git checkout` 还原。
