@@ -4,6 +4,29 @@
 
 ---
 
+## 2026-10-15 任务 80：桌宠每天第一次点开由助手开场总结、AI 发卡、小窗新对话
+
+**做了什么**：
+- 用户提出：点猫弹出的会话像是随便找的一段，没法开新会话；希望当天第一次点开时由猫猫先开口，总结最近的学习并给建议（花少量 token，一天一次）；这次要花 token 时猫头上戴 AI 发卡，之后摘掉。Q80a–e 按推荐确认。
+- 80.1：ADR 0041；PLAN、`docs/agent-tools.md`、`features.yaml` 的 `pet_daily_opening`（task `daily_opening`），前端 `AiFeature` 和文案。
+- 80.2：`chat/recent.py`（`load_recent` / `render_recent`，最近 7 天由代码统计）接进 `chat/planning.py`，daily 对话依据里加“The last 7 days”；`dashboard/service.py` 的 `local_day` / `chat_turns` 改成公开、供它复用；`/opening` 允许 daily；`chat_graph.py` 的 daily 用 `daily_opening.md` 开场提示；`turn.py` 用量记 `daily_opening`；`TutorProfile.daily_opening`，迁移 `0e400aeda096`。
+- 80.3：`lib/today.ts`（今天对话的共享状态、`checkToday`、`openingDue`），看板 `today-tutor.tsx` 改用它；`pet-chat.tsx` 默认打开今天对话（没有就建并 `autoOpen`），标题栏“新对话”（本次打开期间保留，刷新回到今天）。
+- 80.4：`avatar-draw.ts` 的 `drawClip`（紫色发卡带 ✦，右耳）；`tutor-avatar.tsx` 加 `clip`；`tutor-pet.tsx` 按 `openingDue` 戴上，提示里写约多少 token。
+- 80.5：“我的助手”页的开关和 `AiBadge`（`SwitchRow` 加 `badge`，放在 label 外，点它不会切开关）。
+
+**测试**：pytest 1848、Vitest 760、E2E 82 全过，ruff / mypy / eslint / tsc 干净。Docker 先后端再前端重建，迁移 head `0e400aeda096`，`/healthz` 200，空闲内存 backend 234MiB / frontend 69MiB / postgres 188MiB。
+
+**未完成**：没有推送（任务 77–80 都在本地）。
+
+**下一步**：用户在 Docker 版里看过效果后推送，再看 CI。
+
+**踩坑**：
+- 第一次全量 pytest 时 `test_realtime_relay.py::test_tools_run_for_the_learner_and_show_what_they_did` 失败（`on_word_list` 为 True）：同一轮里 `lookup_word` 和 `add_to_vocab` 并行跑，谁先完成不一定；和本任务无关，单独跑 3 次和第二次全量都过。以后它再挂，该修这个竞态。
+- 开场流式输出时按回车会被拦，所以 E2E 要先等 `li[data-status="streaming"]` 消失再发消息（`pet.spec`、`tutor.spec`）。
+- 后端全量要 12–15 分钟，等待命令超过 600 秒会被转到后台，要多轮等待。
+
+---
+
 ## 2026-10-15 任务 79：默认名 JOJO、“私教”改称“助手”、点名字进编辑页
 
 **做了什么**：
