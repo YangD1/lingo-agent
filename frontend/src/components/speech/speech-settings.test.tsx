@@ -8,6 +8,7 @@ import type { VoiceLike } from "@/lib/voices";
 
 import en from "../../../messages/en.json";
 import { SpeechSettings } from "./speech-settings";
+import { chooseOption } from "@/test/select";
 
 const v = (name: string, lang: string, local = false): VoiceLike => ({
   name,
@@ -96,12 +97,12 @@ describe("SpeechSettings", () => {
   it("shows what “automatic” picks, and follows the accent", async () => {
     wrap();
     const english = screen.getByLabelText("English voice");
-    expect(english).toHaveDisplayValue(`Automatic (now: ${AVA.name})`);
-    expect(screen.getByLabelText("Chinese voice")).toHaveDisplayValue(`Automatic (now: ${AVA.name})`);
+    expect(english).toHaveTextContent(`Automatic (now: ${AVA.name})`);
+    expect(screen.getByLabelText("Chinese voice")).toHaveTextContent(`Automatic (now: ${AVA.name})`);
 
     await userEvent.click(screen.getByLabelText("British"));
-    expect(english).toHaveDisplayValue(`Automatic (now: ${SONIA.name})`);
-    expect(screen.getByLabelText("Chinese voice")).toHaveDisplayValue(
+    expect(english).toHaveTextContent(`Automatic (now: ${SONIA.name})`);
+    expect(screen.getByLabelText("Chinese voice")).toHaveTextContent(
       `Automatic (now: ${XIAOXIAO.name})`,
     );
     expect(JSON.parse(window.localStorage.getItem("lingo.speech")!)).toMatchObject({
@@ -111,7 +112,7 @@ describe("SpeechSettings", () => {
 
   it("saves a chosen voice and speed, which every read-aloud then uses", async () => {
     wrap();
-    await userEvent.selectOptions(screen.getByLabelText("English voice"), ZIRA.name);
+    await chooseOption(userEvent, screen.getByLabelText("English voice"), ZIRA.name);
     fireEvent.change(screen.getByLabelText(/English speed/), { target: { value: "1.2" } });
     expect(screen.getByText("1.2×")).toBeInTheDocument();
 
@@ -141,7 +142,7 @@ describe("SpeechSettings", () => {
 
     listVoices([ZIRA, XIAOXIAO]);
     expect(screen.getByLabelText("English voice")).toBeEnabled();
-    expect(screen.getByLabelText("English voice")).toHaveDisplayValue(
+    expect(screen.getByLabelText("English voice")).toHaveTextContent(
       `Automatic (now: ${ZIRA.name})`,
     );
   });

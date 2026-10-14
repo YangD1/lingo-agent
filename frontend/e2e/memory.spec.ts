@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { register, uniqueEmail, useFakeModel } from "./helpers";
+import { pickOption, register, uniqueEmail, useFakeModel } from "./helpers";
 
 test.use({ locale: "zh-CN" });
 
@@ -79,14 +79,14 @@ test("the learner edits, adds and clears what the tutor remembers", async ({ pag
   const profile = page.getByTestId("profile");
   await expect(profile.getByTestId("profile-cefr")).toContainText("尚未评估");
   await profile.getByLabel("职业").fill("护士");
-  await profile.getByLabel("目标考试").selectOption("ielts");
+  await pickOption(profile.getByLabel("目标考试"), "雅思");
   await profile.getByLabel("兴趣").fill("旅行，电影、travel");
   await profile.getByRole("button", { name: "保存画像" }).click();
   await expect(profile.getByRole("status")).toHaveText("画像已保存。");
   await expect(profile.getByRole("button", { name: "保存画像" })).toBeDisabled();
   await page.reload();
   await expect(profile.getByLabel("职业")).toHaveValue("护士");
-  await expect(profile.getByLabel("目标考试")).toHaveValue("ielts");
+  await expect(profile.getByLabel("目标考试")).toHaveText("雅思");
   await expect(profile.getByLabel("兴趣")).toHaveValue("旅行, 电影, travel");
 
   // Facts: add two, edit one, then forget them all.

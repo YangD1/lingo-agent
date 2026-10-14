@@ -102,7 +102,7 @@ describe("MembersSection", () => {
     backend({ invites: [] });
     show();
 
-    await userEvent.selectOptions(await screen.findByLabelText("Valid for"), "30");
+    await userEvent.click(await screen.findByRole("radio", { name: "30 days" }));
     await userEvent.clear(screen.getByLabelText("Uses"));
     await userEvent.click(screen.getByRole("button", { name: "Create invite link" }));
 

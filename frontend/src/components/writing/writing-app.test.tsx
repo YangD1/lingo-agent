@@ -8,6 +8,7 @@ import { countWords, lengthProblem, type Submission, type SubmissionBrief } from
 
 import en from "../../../messages/en.json";
 import { WritingApp } from "./writing-app";
+import { chooseOption } from "@/test/select";
 
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -129,7 +130,7 @@ describe("WritingApp", () => {
     expect(await screen.findByRole("textbox", { name: "Your task" })).toHaveValue("Describe my city");
     expect(screen.getByRole("button", { name: "My own task" })).toHaveAttribute("aria-pressed", "true");
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Task level" }), "B1");
+    await chooseOption(user, screen.getByRole("combobox", { name: "Task level" }), "B1");
     expect(await screen.findByRole("button", { name: /Review a film/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "No task" }));

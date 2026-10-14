@@ -8,6 +8,7 @@ import { DEFAULT_TUTOR, type Tutor, type TutorOptions, resetTutorCache } from "@
 
 import en from "../../../messages/en.json";
 import { TutorApp } from "./tutor-app";
+import { chooseOption } from "@/test/select";
 
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -111,9 +112,9 @@ describe("TutorApp", () => {
     expect(preview).toHaveAttribute("data-outfit", "sporty");
     expect(preview).toHaveAttribute("data-fur", "#829cb8");
 
-    await userEvent.selectOptions(screen.getByLabelText("Model"), "main:qwen-plus");
-    await userEvent.selectOptions(screen.getByLabelText("American"), "Ethan");
-    await userEvent.selectOptions(screen.getByLabelText("Voice"), "cedar");
+    await chooseOption(userEvent, screen.getByLabelText("Model"), "qwen-plus · main");
+    await chooseOption(userEvent, screen.getByLabelText("American"), /^Ethan/);
+    await chooseOption(userEvent, screen.getByLabelText("Voice"), /^cedar/i);
     await userEvent.click(save);
 
     await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
@@ -139,13 +140,15 @@ describe("TutorApp", () => {
     show();
     const chat = await screen.findByTestId("tutor-chat");
     expect(within(chat).getByTestId("tutor-provided-by")).toHaveTextContent("Provided by Ada");
-    expect(within(chat).getByRole("option", { name: "Follow settings (now: gpt-5-mini · main)" })).toBeInTheDocument();
+    expect(within(chat).getByRole("combobox", { name: "Model" })).toHaveTextContent(
+      "Follow settings (now: gpt-5-mini · main)",
+    );
   });
 
   it("tries a voice before it is saved", async () => {
     serve();
     show();
-    await userEvent.selectOptions(await screen.findByLabelText("Chinese"), "Ethan");
+    await chooseOption(userEvent, await screen.findByLabelText("Chinese"), /^Ethan/);
     await userEvent.click(screen.getByTestId("tutor-try-zh-CN"));
     expect(speech.tryServerVoice).toHaveBeenCalledWith(
       "tutor-voice-try",

@@ -183,12 +183,13 @@ test("a member picks the chat model from the main account's chain, and nothing e
     "由 Ada 提供：用的是对方的连接，扣对方分给你的额度。",
   );
   const select = card.getByLabel("模型");
-  await expect(select.locator("option")).toHaveText([
+  await select.click();
+  await expect(member.getByRole("option")).toHaveText([
     "跟随设置页（现在：fake-tutor · fake）",
     "fake-tutor · fake",
     "fake-alt · fake",
   ]);
-  await select.selectOption("fake:fake-alt");
+  await member.getByRole("option", { name: "fake-alt · fake", exact: true }).click();
   await member.getByTestId("tutor-save").click();
   await expect(member.getByRole("status").filter({ hasText: "已保存。" })).toBeVisible();
   await member.screenshot({ path: test.info().outputPath("member-tutor.png"), fullPage: true });
@@ -207,7 +208,8 @@ test("a member picks the chat model from the main account's chain, and nothing e
   await expect(async () => {
     await page.reload();
     await page.getByText("明细（按天和模型）").click({ timeout: 2_000 });
-    await page.getByRole("combobox", { name: "谁的用量" }).selectOption("Bo", { timeout: 2_000 });
+    await page.getByRole("combobox", { name: "谁的用量" }).click({ timeout: 2_000 });
+    await page.getByRole("option", { name: "Bo", exact: true }).click({ timeout: 2_000 });
     await expect(page.getByRole("table", { name: "明细（按天和模型）" })).toContainText("fake:fake-alt", {
       timeout: 2_000,
     });

@@ -11,10 +11,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { NativeSelect } from "@/components/ui/native-select";
 import { ProgressBar } from "@/components/ui/progress";
-import { CefrTag } from "@/components/ui/tag";
+import { Select } from "@/components/ui/select";
+import { CefrDot, CefrTag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
+import { cn } from "@/lib/utils";
 import {
   CEFR_LEVELS,
   deleteDiagnosis,
@@ -183,34 +184,32 @@ export function LearnerApp({ focusKc }: { focusKc: string | null }) {
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">{t("grammar.filter")}</span>
-                  <NativeSelect
+                  <Select<KCFilter["level"]>
                     aria-label={t("grammar.filterLevel")}
+                    className="w-auto"
                     value={filter.level}
-                    onChange={(e) =>
-                      setFilter({ ...filter, level: e.target.value as KCFilter["level"] })
-                    }
-                  >
-                    <option value="all">{t("grammar.allLevels")}</option>
-                    {CEFR_LEVELS.map((l) => (
-                      <option key={l} value={l}>
-                        {l}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                  <NativeSelect
+                    onValueChange={(level) => setFilter({ ...filter, level })}
+                    options={[
+                      { value: "all", label: t("grammar.allLevels") },
+                      ...CEFR_LEVELS.map((l) => ({ value: l, label: l, marker: <CefrDot level={l} /> })),
+                    ]}
+                  />
+                  <Select<KCFilter["state"]>
                     aria-label={t("grammar.filterState")}
+                    className="w-auto"
                     value={filter.state}
-                    onChange={(e) =>
-                      setFilter({ ...filter, state: e.target.value as KCFilter["state"] })
-                    }
-                  >
-                    <option value="all">{t("grammar.allStates")}</option>
-                    {MASTERY_STATES.map((s) => (
-                      <option key={s} value={s}>
-                        {t(`kc.states.${s}`)}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                    onValueChange={(state) => setFilter({ ...filter, state })}
+                    options={[
+                      { value: "all", label: t("grammar.allStates") },
+                      ...MASTERY_STATES.map((s) => ({
+                        value: s,
+                        label: t(`kc.states.${s}`),
+                        marker: (
+                          <span aria-hidden className={cn("size-2 shrink-0 rounded-[3px]", STATE_BAR[s])} />
+                        ),
+                      })),
+                    ]}
+                  />
                   <ChartLegend
                     className="ml-auto"
                     items={MASTERY_STATES.map((state) => ({

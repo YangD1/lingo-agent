@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { AutocompleteInput } from "@/components/ui/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
@@ -392,25 +392,22 @@ export function RouteSection({
                     <span className="w-4 shrink-0 text-right font-mono text-xs text-muted-foreground">
                       {i + 1}.
                     </span>
-                    <NativeSelect
+                    <Select
                       aria-label={t("connection", { n: i + 1 })}
                       value={r.connection}
-                      onChange={(e) => {
-                        const c = connections.find((x) => x.name === e.target.value);
-                        update(r.key, { connection: e.target.value, model: firstModel(task, c) });
+                      onValueChange={(name) => {
+                        const c = connections.find((x) => x.name === name);
+                        update(r.key, { connection: name, model: firstModel(task, c) });
                       }}
                       className="w-36"
-                    >
-                      {/* A route may name a connection that was since deleted. */}
-                      {!connections.some((c) => c.name === r.connection) && (
-                        <option value={r.connection}>{r.connection}</option>
-                      )}
-                      {connections.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </NativeSelect>
+                      options={[
+                        // A route may name a connection that was since deleted.
+                        ...(connections.some((c) => c.name === r.connection)
+                          ? []
+                          : [{ value: r.connection, label: r.connection }]),
+                        ...connections.map((c) => ({ value: c.name, label: c.name })),
+                      ]}
+                    />
                     <div className={cn("max-w-full min-w-40 flex-1", !compact && "md:max-w-80")}>
                       <AutocompleteInput
                         aria-label={t("model", { n: i + 1 })}

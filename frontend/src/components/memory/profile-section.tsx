@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
 import { Segmented } from "@/components/ui/segmented";
+import { Select } from "@/components/ui/select";
 import { CefrTag, isCefrLevel } from "@/components/ui/tag";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorText } from "@/components/ui/error-text";
@@ -122,31 +122,32 @@ export function ProfileSection() {
             )}
             {field(
               "target_exam",
-              <NativeSelect
+              <Select
                 id="profile-target_exam"
                 value={form.target_exam}
-                onChange={set("target_exam")}
-              >
-                <option value="">{t("notSet")}</option>
-                {EXAMS.map((exam) => (
-                  <option key={exam} value={exam}>
-                    {t(`exams.${exam}`)}
-                  </option>
-                ))}
-              </NativeSelect>,
+                onValueChange={(value) => set("target_exam")({ target: { value } })}
+                options={[
+                  { value: "", label: t("notSet") },
+                  ...EXAMS.map((exam) => ({ value: exam, label: t(`exams.${exam}`) })),
+                ]}
+              />,
             )}
-            {field(
-              "explanation_language",
-              <NativeSelect
-                id="profile-explanation_language"
+            <div className="flex flex-col gap-2">
+              <span className="text-sm leading-none font-medium">
+                {t("fields.explanation_language")}
+              </span>
+              <Segmented
+                label={t("fields.explanation_language")}
                 value={form.explanation_language}
-                onChange={set("explanation_language")}
-              >
-                <option value="">{t("notSet")}</option>
-                <option value="zh">{t("languages.zh")}</option>
-                <option value="en">{t("languages.en")}</option>
-              </NativeSelect>,
-            )}
+                onChange={(value) => set("explanation_language")({ target: { value } })}
+                options={[
+                  { value: "", label: t("notSet") },
+                  { value: "zh", label: t("languages.zh") },
+                  { value: "en", label: t("languages.en") },
+                ]}
+                className="flex h-9 [&>button]:h-full"
+              />
+            </div>
             <div className="flex flex-col gap-2">
               <span id="profile-chat_language" className="text-sm leading-none font-medium">
                 {t("fields.chat_language")}

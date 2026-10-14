@@ -7,6 +7,7 @@ import type { Usage, UsageRow } from "@/lib/types";
 
 import en from "../../../messages/en.json";
 import { UsageDetails } from "./usage-details";
+import { chooseOption } from "@/test/select";
 
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -57,7 +58,7 @@ describe("UsageDetails", () => {
 
     const table = await screen.findByRole("table", { name: "Details (per day and model)" });
     expect(within(table).getByRole("row", { name: /Total/ })).toHaveTextContent("10");
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Whose use" }), "Alex");
+    await chooseOption(userEvent, screen.getByRole("combobox", { name: "Whose use" }), "Alex");
 
     expect(within(table).getByRole("row", { name: /Total/ })).toHaveTextContent("700");
     expect(within(table).getAllByRole("row")).toHaveLength(3); // head, Alex's row, total

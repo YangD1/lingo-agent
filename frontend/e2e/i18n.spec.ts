@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { register, uniqueEmail, useFakeModel } from "./helpers";
+import { pickOption, register, uniqueEmail, useFakeModel } from "./helpers";
 
 // Matched as a heading: Next's route announcer repeats the page title as plain text.
 const TAGLINE = {
@@ -16,7 +16,7 @@ test.describe("with a Chinese browser", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
     await expect(page.getByRole("heading", { name: TAGLINE.zh })).toBeVisible();
 
-    await page.getByLabel("语言").filter({ visible: true }).selectOption("en");
+    await pickOption(page.getByLabel("语言").filter({ visible: true }), "English");
     await expect(page.getByRole("heading", { name: TAGLINE.en })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
@@ -52,7 +52,7 @@ test.describe("inside the app", () => {
     const url = page.url();
 
     await page.getByRole("button", { name: "Account" }).click();
-    await page.getByLabel("Language").selectOption("zh-CN");
+    await pickOption(page.getByLabel("Language").filter({ visible: true }), "简体中文");
 
     await expect(page.getByRole("link", { name: "设置" })).toBeVisible(); // server layout
     await expect(page.getByRole("button", { name: "新对话" })).toBeVisible(); // client component

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ErrorText } from "@/components/ui/error-text";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Segmented } from "@/components/ui/segmented";
 import { api } from "@/lib/api";
 import { type ModelPrice, PRICE_CURRENCIES, type PriceCurrency, type Prices } from "@/lib/types";
 
@@ -102,20 +102,16 @@ export function UsagePrices({
           {saved && keys.length === 0 && <p className="text-sm text-muted-foreground">{t("noModels")}</p>}
           {saved && keys.length > 0 && (
             <>
-              <label className="flex w-fit items-center gap-2 text-sm">
+              <div className="flex w-fit items-center gap-2 text-sm">
                 {t("currency")}
-                <NativeSelect
+                <Segmented
+                  label={t("currency")}
+                  size="sm"
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value as PriceCurrency)}
-                  className="h-8 md:h-8"
-                >
-                  {PRICE_CURRENCIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </label>
+                  onChange={setCurrency}
+                  options={PRICE_CURRENCIES.map((c) => ({ value: c, label: c }))}
+                />
+              </div>
               <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-[13px] whitespace-nowrap" aria-label={t("title")}>
                   <thead className="bg-muted/60 text-left text-xs text-muted-foreground">

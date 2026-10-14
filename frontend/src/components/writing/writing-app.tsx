@@ -14,8 +14,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorText } from "@/components/ui/error-text";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
-import { Tag } from "@/components/ui/tag";
+import { Select } from "@/components/ui/select";
+import { CefrDot, Tag } from "@/components/ui/tag";
 import { Textarea } from "@/components/ui/textarea";
 import { CEFR_LEVELS, type CefrLevel } from "@/lib/learner";
 import { cn } from "@/lib/utils";
@@ -118,18 +118,17 @@ export function WritingApp({ again }: { again: number | null }) {
                   {t("task.heading")}
                 </h2>
                 {prompts && (
-                  <NativeSelect
+                  <Select
                     aria-label={t("task.level")}
                     value={prompts.level}
-                    onChange={(e) => changeLevel(e.target.value as CefrLevel)}
+                    onValueChange={changeLevel}
                     className="w-24"
-                  >
-                    {CEFR_LEVELS.map((level) => (
-                      <option key={level} value={level}>
-                        {level}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                    options={CEFR_LEVELS.map((level) => ({
+                      value: level,
+                      label: level,
+                      marker: <CefrDot level={level} />,
+                    }))}
+                  />
                 )}
               </div>
               {!prompts && !error && <CatLoading size={40} label={t("task.loading")} />}

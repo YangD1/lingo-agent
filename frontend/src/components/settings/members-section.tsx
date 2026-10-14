@@ -10,7 +10,7 @@ import { ErrorText } from "@/components/ui/error-text";
 import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Segmented } from "@/components/ui/segmented";
 import { Tag } from "@/components/ui/tag";
 import { ApiError, api } from "@/lib/api";
 import { type CreatedInvite, type Invite, type Member, type Quotas, joinLink } from "@/lib/org";
@@ -138,14 +138,14 @@ function InviteForm({ onCreated }: { onCreated: () => void }) {
         }}
       >
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="invite-days">{t("days")}</Label>
-          <NativeSelect id="invite-days" value={days} onChange={(e) => setDays(Number(e.target.value))}>
-            {INVITE_DAYS.map((d) => (
-              <option key={d} value={d}>
-                {t("daysOption", { days: d })}
-              </option>
-            ))}
-          </NativeSelect>
+          <span className="text-sm leading-none font-medium">{t("days")}</span>
+          <Segmented
+            label={t("days")}
+            className="flex h-10 md:h-9 [&>button]:h-full"
+            value={String(days)}
+            onChange={(d) => setDays(Number(d))}
+            options={INVITE_DAYS.map((d) => ({ value: String(d), label: t("daysOption", { days: d }) }))}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="invite-uses">{t("uses")}</Label>

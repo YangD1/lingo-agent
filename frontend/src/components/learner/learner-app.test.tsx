@@ -7,6 +7,7 @@ import type { DiagnosisPage, Evidence, KCStatus, LearnerModel } from "@/lib/lear
 
 import en from "../../../messages/en.json";
 import { LearnerApp } from "./learner-app";
+import { chooseOption } from "@/test/select";
 
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -212,9 +213,9 @@ describe("LearnerApp", () => {
     expect(within(list).getAllByRole("meter")[1]).toHaveAttribute("aria-valuenow", "60");
     expect(screen.getByTestId("level-coverage")).toHaveTextContent("A1 met 1/22 · A2 met 1/27");
 
-    await userEvent.selectOptions(screen.getByLabelText("Filter by level"), "A2");
+    await chooseOption(userEvent, screen.getByLabelText("Filter by level"), "A2");
     expect(within(list).getAllByRole("listitem")).toHaveLength(1);
-    await userEvent.selectOptions(screen.getByLabelText("Filter by state"), "weak");
+    await chooseOption(userEvent, screen.getByLabelText("Filter by state"), "Weak");
     expect(screen.getByText("No grammar points match.")).toBeInTheDocument();
   });
 

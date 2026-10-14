@@ -70,3 +70,14 @@ export function CefrTag({ level, className }: { level: CefrLevel; className?: st
 export function isCefrLevel(value: string): value is CefrLevel {
   return (CEFR_LEVELS as readonly string[]).includes(value);
 }
+
+/** A small dot in a CEFR level's colour, for lists where the level is already written out. */
+export function CefrDot({ level }: { level: CefrLevel }) {
+  return (
+    <span
+      aria-hidden
+      className="size-2 shrink-0 rounded-full"
+      style={{ background: `var(--cefr-${CEFR_LEVELS.indexOf(level) + 1})` }}
+    />
+  );
+}

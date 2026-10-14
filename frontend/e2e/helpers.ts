@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 export const FAKE_LLM_URL = `http://127.0.0.1:${process.env.E2E_LLM_PORT ?? 8101}/v1`;
 
@@ -107,4 +107,10 @@ export async function answerPractice(page: Page, wrongTranslation: boolean): Pro
   }
   await expect(page.getByTestId("practice-verdict")).toBeVisible();
   return format;
+}
+
+/** Picks an option from a `Select` (base-ui, not a native select): open it, click the option. */
+export async function pickOption(trigger: Locator, option: string | RegExp): Promise<void> {
+  await trigger.click();
+  await trigger.page().getByRole("option", { name: option, exact: typeof option === "string" }).click();
 }

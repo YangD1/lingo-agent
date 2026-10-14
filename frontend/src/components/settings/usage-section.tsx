@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorText } from "@/components/ui/error-text";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { Segmented } from "@/components/ui/segmented";
 import { Tag } from "@/components/ui/tag";
 import { isAiTask, loadEstimates } from "@/lib/ai-usage";
@@ -117,18 +117,14 @@ export function UsageSection() {
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
         <CardAction className="flex items-center gap-1.5">
-          <NativeSelect
+          <Select
             aria-label={t("range")}
             value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="h-8 md:h-8"
-          >
-            {[7, 30, 90].map((d) => (
-              <option key={d} value={d}>
-                {t("lastDays", { days: d })}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={setDays}
+            size="sm"
+            className="w-auto"
+            options={[7, 30, 90].map((d) => ({ value: d, label: t("lastDays", { days: d }) }))}
+          />
           <Button
             size="icon-sm"
             variant="ghost"

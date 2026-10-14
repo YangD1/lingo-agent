@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
@@ -344,18 +344,17 @@ function ConnectionItem({
           <Button variant="outline" onClick={test} disabled={busy || !model.trim()}>
             {t("test")}
           </Button>
-          <NativeSelect
+          <Select
             aria-label={t("testAs")}
             title={t("testAs")}
+            className="w-auto"
             value={testAs}
-            onChange={(e) => setTestAs(e.target.value as keyof typeof TEST_AS)}
-          >
-            {Object.entries(TEST_AS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {t(label)}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={setTestAs}
+            options={(Object.keys(TEST_AS) as (keyof typeof TEST_AS)[]).map((value) => ({
+              value,
+              label: t(TEST_AS[value]),
+            }))}
+          />
         </div>
         <p className="text-xs text-muted-foreground">
           {t(
@@ -447,13 +446,12 @@ function EditConnectionForm({
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor={id("kind")}>{t("kind")}</Label>
-          <NativeSelect id={id("kind")} value={kind} onChange={(e) => setKind(e.target.value)}>
-            {PROVIDER_KINDS.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </NativeSelect>
+          <Select
+            id={id("kind")}
+            value={kind}
+            onValueChange={setKind}
+            options={PROVIDER_KINDS.map((k) => ({ value: k, label: k }))}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor={id("base-url")}>{t("baseUrl")}</Label>
@@ -594,14 +592,15 @@ function AddConnectionForm({
       <div className="grid gap-3 md:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="provider">{t("provider")}</Label>
-          <NativeSelect id="provider" value={choice} onChange={(e) => setChoice(e.target.value)}>
-            {available.map((p) => (
-              <option key={p.name} value={p.name}>
-                {p.label ?? p.name}
-              </option>
-            ))}
-            <option value={CUSTOM}>{t("custom")}</option>
-          </NativeSelect>
+          <Select
+            id="provider"
+            value={choice}
+            onValueChange={setChoice}
+            options={[
+              ...available.map((p) => ({ value: p.name, label: p.label ?? p.name })),
+              { value: CUSTOM, label: t("custom") },
+            ]}
+          />
           {preset && (
             <p className="truncate font-mono text-xs text-muted-foreground">
               {azure ? azureBaseUrl(region.trim() || azure[1], china) : preset.base_url}
@@ -647,13 +646,12 @@ function AddConnectionForm({
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="conn-kind">{t("kind")}</Label>
-              <NativeSelect id="conn-kind" name="kind" defaultValue="openai_compatible">
-                {PROVIDER_KINDS.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </NativeSelect>
+              <Select<string>
+                id="conn-kind"
+                name="kind"
+                defaultValue="openai_compatible"
+                options={PROVIDER_KINDS.map((k) => ({ value: k, label: k }))}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="conn-base-url">{t("baseUrl")}</Label>

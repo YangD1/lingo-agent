@@ -225,7 +225,7 @@ describe("RouteSection", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Edit order" }));
     // The first row starts on the Azure connection, with its one assessment model.
-    expect(screen.getByRole("combobox", { name: "Connection 1" })).toHaveValue("azure");
+    expect(screen.getByRole("combobox", { name: "Connection 1" })).toHaveTextContent("azure");
     expect(screen.getByRole("combobox", { name: "Model 1" })).toHaveValue("pronunciation");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 

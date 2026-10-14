@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { useState } from "react";
@@ -8,6 +8,7 @@ import type { Connection, Presets } from "@/lib/types";
 
 import en from "../../../messages/en.json";
 import { ConnectionsSection } from "./connections-section";
+import { chooseOption } from "@/test/select";
 
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -165,7 +166,8 @@ describe("ConnectionsSection", () => {
       json: { model: "pronunciation" },
     });
     await waitFor(() => expect(item).toHaveTextContent("Pronunciation assessment works (120 ms)"));
-    expect(screen.getByRole("option", { name: "Pronunciation" })).toBeInTheDocument();
+    await userEvent.click(within(item).getByRole("combobox", { name: "Test as" }));
+    expect(await screen.findByRole("option", { name: "Pronunciation" })).toBeInTheDocument();
   });
 
   it("tests a model as realtime voice when asked to", async () => {
@@ -180,7 +182,7 @@ describe("ConnectionsSection", () => {
     await userEvent.clear(model);
     await userEvent.type(model, "gpt-realtime-2.1");
     await userEvent.keyboard("{Escape}");
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Test as" }), "realtime");
+    await chooseOption(userEvent, screen.getByRole("combobox", { name: "Test as" }), "Realtime voice");
 
     await userEvent.click(screen.getByRole("button", { name: "Test" }));
 

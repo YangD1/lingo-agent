@@ -4,7 +4,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { ErrorText } from "@/components/ui/error-text";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api";
 import type { Usage, UsageRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -53,19 +53,17 @@ export function UsageDetails({ days, reload }: { days: number; reload: number })
     <div className="flex flex-col gap-2">
       {error && <ErrorText>{error}</ErrorText>}
       {members.length > 0 && (
-        <NativeSelect
+        <Select
           aria-label={t("whose")}
           value={shownWhose ?? ""}
-          onChange={(e) => setWhose(e.target.value || null)}
-          className="h-8 w-fit md:h-8"
-        >
-          <option value="">{t("mine")}</option>
-          {members.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </NativeSelect>
+          onValueChange={(v) => setWhose(v || null)}
+          size="sm"
+          className="w-fit"
+          options={[
+            { value: "", label: t("mine") },
+            ...members.map((m) => ({ value: m, label: m })),
+          ]}
+        />
       )}
       {usage && rows.length === 0 && <p className="text-sm text-muted-foreground">{t("empty")}</p>}
       {rows.length > 0 && (

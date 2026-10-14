@@ -6,7 +6,7 @@ import { useId, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
 import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { InlineConfirm } from "@/components/ui/inline-confirm";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
@@ -108,20 +108,20 @@ export function SpeechSettings() {
           )}
         </label>
         <div className="flex items-center gap-1">
-          <NativeSelect
+          <Select
             id={`${id}-en`}
             className="min-w-0 flex-1"
             value={settings.enVoice ?? ""}
             disabled={voices.length === 0}
-            onChange={(e) => update({ enVoice: e.target.value || null })}
-          >
-            <option value="">{auto(autoEn?.name)}</option>
-            {english.map((voice) => (
-              <option key={voice.voiceURI} value={voice.voiceURI}>
-                {label(voice.name, voice.voiceURI)}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(v) => update({ enVoice: v || null })}
+            options={[
+              { value: "", label: auto(autoEn?.name) },
+              ...english.map((voice) => ({
+                value: voice.voiceURI,
+                label: label(voice.name, voice.voiceURI),
+              })),
+            ]}
+          />
           <Button size="sm" variant="outline" onClick={() => speakSample("en-US")}>
             <Play />
             {t("try")}
@@ -137,20 +137,20 @@ export function SpeechSettings() {
           )}
         </label>
         <div className="flex items-center gap-1">
-          <NativeSelect
+          <Select
             id={`${id}-zh`}
             className="min-w-0 flex-1"
             value={settings.zhVoice ?? ""}
             disabled={chinese.length === 0}
-            onChange={(e) => update({ zhVoice: e.target.value || null })}
-          >
-            <option value="">{auto(autoZh?.name)}</option>
-            {chinese.map((voice) => (
-              <option key={voice.voiceURI} value={voice.voiceURI}>
-                {label(voice.name, voice.voiceURI)}
-              </option>
-            ))}
-          </NativeSelect>
+            onValueChange={(v) => update({ zhVoice: v || null })}
+            options={[
+              { value: "", label: auto(autoZh?.name) },
+              ...chinese.map((voice) => ({
+                value: voice.voiceURI,
+                label: label(voice.name, voice.voiceURI),
+              })),
+            ]}
+          />
           <Button
             size="sm"
             variant="outline"

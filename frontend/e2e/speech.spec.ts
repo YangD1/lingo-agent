@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { FAKE_LLM_URL, register, uniqueEmail, useFakeModel } from "./helpers";
+import { FAKE_LLM_URL, pickOption, register, uniqueEmail, useFakeModel } from "./helpers";
 
 test.use({ locale: "zh-CN" });
 
@@ -112,12 +112,11 @@ test("voice, accent and speed are kept in this browser and used for reading", as
 
   const card = page.locator("#read-aloud");
   const english = card.getByLabel("英文声音");
-  await expect(english).toHaveValue("");
-  await expect(english.locator("option:checked")).toHaveText(`自动（当前：${ARIA.name}）`);
+  await expect(english).toHaveText(`自动（当前：${ARIA.name}）`);
 
   await card.getByLabel("英音").check();
-  await expect(english.locator("option:checked")).toHaveText(`自动（当前：${SONIA.name}）`);
-  await card.getByLabel("中文声音").selectOption(XIAOXIAO.name);
+  await expect(english).toHaveText(`自动（当前：${SONIA.name}）`);
+  await pickOption(card.getByLabel("中文声音"), XIAOXIAO.name);
   const rate = card.getByLabel(/英文语速/);
   await rate.focus();
   await page.keyboard.press("ArrowRight");
@@ -130,7 +129,7 @@ test("voice, accent and speed are kept in this browser and used for reading", as
   // Still there after a reload.
   await page.reload();
   await expect(card.getByLabel("英音")).toBeChecked();
-  await expect(card.getByLabel("中文声音")).toHaveValue(XIAOXIAO.name);
+  await expect(card.getByLabel("中文声音")).toHaveText(XIAOXIAO.name);
   await expect(card.getByText("1.1×")).toBeVisible();
 });
 
@@ -157,8 +156,9 @@ test("online voices that make no sound give way to the device's own", async ({ p
   // The settings say so, until the page is reloaded.
   await reply.getByRole("button", { name: "朗读设置" }).click();
   const english = page.getByTestId("speech-settings").getByLabel("英文声音");
-  await expect(english.locator("option:checked")).toHaveText(`自动（当前：${ZIRA.name}）`);
-  await expect(english.locator("option", { hasText: "播不出声" })).toHaveText(
+  await expect(english).toHaveText(`自动（当前：${ZIRA.name}）`);
+  await english.click();
+  await expect(page.getByRole("option", { name: /播不出声/ })).toHaveText(
     `${ARIA.name}（这台设备上播不出声）`,
   );
 });

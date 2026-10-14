@@ -14,7 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ErrorText } from "@/components/ui/error-text";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/native-select";
+import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/api";
 import { stopSpeaking, tryServerVoice, useSpeaking } from "@/lib/speech";
@@ -403,20 +403,18 @@ function ChatCard({
         ) : (
           <>
             <Label htmlFor="tutor-chat-model">{t("model")}</Label>
-            <NativeSelect
+            <Select
               id="tutor-chat-model"
               value={value}
-              onChange={(e) => onChange(e.target.value)}
-            >
-              <option value="">
-                {tTutor("followSettings", { current: modelLabel(chain.models[0]) })}
-              </option>
-              {chain.models.map((ref) => (
-                <option key={ref} value={ref}>
-                  {modelLabel(ref)}
-                </option>
-              ))}
-            </NativeSelect>
+              onValueChange={onChange}
+              options={[
+                {
+                  value: "",
+                  label: tTutor("followSettings", { current: modelLabel(chain.models[0]) }),
+                },
+                ...chain.models.map((ref) => ({ value: ref, label: modelLabel(ref) })),
+              ]}
+            />
             <p className="text-xs text-muted-foreground">{t("hint")}</p>
           </>
         )}
@@ -513,19 +511,16 @@ function VoicesCard({
                   <Label htmlFor={id}>{t(`lang.${lang}`)}</Label>
                   <div className="flex gap-2">
                     {options.voice_options.length > 0 ? (
-                      <NativeSelect
+                      <Select
                         id={id}
                         value={voices[lang]}
-                        onChange={(e) => set(e.target.value)}
+                        onValueChange={set}
                         className="min-w-0 flex-1"
-                      >
-                        <option value="">{followLabel}</option>
-                        {offered.map((o) => (
-                          <option key={o.id} value={o.id}>
-                            {voiceLabel(o)}
-                          </option>
-                        ))}
-                      </NativeSelect>
+                        options={[
+                          { value: "", label: followLabel },
+                          ...offered.map((o) => ({ value: o.id, label: voiceLabel(o) })),
+                        ]}
+                      />
                     ) : (
                       <Input
                         id={id}
@@ -604,40 +599,38 @@ function CallCard({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="tutor-call-model">{t("model")}</Label>
-              <NativeSelect
+              <Select
                 id="tutor-call-model"
                 value={model}
                 // Voices are the model's own: another model starts from its default.
-                onChange={(e) => onChange(e.target.value, "")}
-              >
-                <option value="">
-                  {tTutor("followSettings", { current: modelLabel(options.models[0]) })}
-                </option>
-                {options.models.map((ref) => (
-                  <option key={ref} value={ref}>
-                    {modelLabel(ref)}
-                  </option>
-                ))}
-              </NativeSelect>
+                onValueChange={(next) => onChange(next, "")}
+                options={[
+                  {
+                    value: "",
+                    label: tTutor("followSettings", { current: modelLabel(options.models[0]) }),
+                  },
+                  ...options.models.map((ref) => ({ value: ref, label: modelLabel(ref) })),
+                ]}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="tutor-call-voice">{t("voice")}</Label>
               {offered.length > 0 ? (
-                <NativeSelect
+                <Select
                   id="tutor-call-voice"
                   value={voice}
                   // A voice belongs to a model: following the settings page pins the one in use.
-                  onChange={(e) => onChange(model || used, e.target.value)}
-                >
-                  <option value="">
-                    {builtIn ? tTutor("followSettings", { current: builtIn }) : t("vendorDefault")}
-                  </option>
-                  {offered.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {voiceLabel(o)}
-                    </option>
-                  ))}
-                </NativeSelect>
+                  onValueChange={(next) => onChange(model || used, next)}
+                  options={[
+                    {
+                      value: "",
+                      label: builtIn
+                        ? tTutor("followSettings", { current: builtIn })
+                        : t("vendorDefault"),
+                    },
+                    ...offered.map((o) => ({ value: o.id, label: voiceLabel(o) })),
+                  ]}
+                />
               ) : (
                 <p className="text-sm text-muted-foreground">{t("noVoices")}</p>
               )}

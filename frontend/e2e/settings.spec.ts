@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { FAKE_LLM_URL, register, uniqueEmail, useFakeModel } from "./helpers";
+import { FAKE_LLM_URL, pickOption, register, uniqueEmail, useFakeModel } from "./helpers";
 
 test.use({ locale: "zh-CN" });
 
@@ -10,7 +10,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await expect(page.getByText("还没有连接")).toBeVisible();
 
   // Add a custom OpenAI-compatible connection pointing at the fake model.
-  await page.getByLabel("服务商").selectOption({ label: "自定义（OpenAI 兼容等）" });
+  await pickOption(page.getByLabel("服务商"), "自定义（OpenAI 兼容等）");
   await page.getByLabel("名称").fill("fake");
   await page.getByLabel("Base URL").fill(FAKE_LLM_URL);
   await page.locator("#api_key").fill("sk-fake-1234");
@@ -46,7 +46,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   await expect(connection.getByRole("status")).toContainText("连接成功");
   await expect(connection).toContainText("可用 · ");
   // Tested as vision on request: the built-in image goes to the model.
-  await connection.getByLabel("测试方式").selectOption("看图");
+  await pickOption(connection.getByLabel("测试方式"), "看图");
   await connection.getByRole("button", { name: "测试" }).click();
   await expect(connection.getByRole("status")).toContainText("看图可用");
 
@@ -90,7 +90,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
 
   // Prices are the tenant's own: entered, they turn into an estimated cost.
   await page.getByText("单价", { exact: true }).click();
-  await page.getByLabel("币种").selectOption("USD");
+  await page.getByRole("radio", { name: "USD" }).click();
   await page.getByLabel("fake:fake-tutor · 输入 / 百万 token").fill("1000");
   await page.getByRole("button", { name: "保存单价" }).click();
   await expect(totals).toContainText("估算费用US$0.17"); // 168 tokens at 1000 per million
@@ -109,7 +109,7 @@ test("configure a model entirely in the UI, chat, and see the usage", async ({ p
   // (prefilled with the connection's default model), then move it to the top.
   await page.getByTestId("route-chat").getByRole("button", { name: "调整顺序" }).click();
   const model1 = page.getByLabel("模型 1");
-  await expect(page.getByLabel("连接 1")).toHaveValue("fake");
+  await expect(page.getByLabel("连接 1")).toHaveText("fake");
   await expect(model1).toHaveValue("fake-tutor");
   await model1.fill("mini");
   await page.getByRole("option", { name: "fake-tutor-mini" }).click();
@@ -141,7 +141,7 @@ test("when the model list can't be fetched, the reason is shown and a name can b
   await page.goto("/settings");
 
   // The fake server has no /v1/nope/models: the vendor's 404 is what the user sees.
-  await page.getByLabel("服务商").selectOption({ label: "自定义（OpenAI 兼容等）" });
+  await pickOption(page.getByLabel("服务商"), "自定义（OpenAI 兼容等）");
   await page.getByLabel("名称").fill("relay");
   await page.getByLabel("Base URL").fill(`${FAKE_LLM_URL}/nope`);
   await page.locator("#api_key").fill("sk-fake-5678");
@@ -163,7 +163,7 @@ test("adding a preset only needs a key, and bad input is explained", async ({ pa
   await register(page, uniqueEmail());
   await page.goto("/settings");
 
-  await page.getByLabel("服务商").selectOption({ label: "DeepSeek" });
+  await pickOption(page.getByLabel("服务商"), "DeepSeek");
   await page.locator("#api_key").fill("sk-not-a-real-key-9876");
   await page.getByRole("button", { name: "添加连接" }).click();
   await expect(page.getByTestId("connection-deepseek")).toContainText("密钥…9876");
@@ -173,9 +173,9 @@ test("adding a preset only needs a key, and bad input is explained", async ({ pa
   ).toHaveText("deepseek:deepseek-chat");
 
   // A key-requiring kind without a key is rejected by the backend, with its reason.
-  await page.getByLabel("服务商").selectOption({ label: "自定义（OpenAI 兼容等）" });
+  await pickOption(page.getByLabel("服务商"), "自定义（OpenAI 兼容等）");
   await page.getByLabel("名称").fill("mine");
-  await page.getByLabel("API 类型").selectOption("openai");
+  await pickOption(page.getByLabel("API 类型"), "openai");
   await page.getByLabel("Base URL").fill("https://api.openai.com/v1");
   await page.getByRole("button", { name: "添加连接" }).click();
   await expect(page.getByRole("form", { name: "添加连接" }).getByRole("alert")).toContainText(
@@ -220,7 +220,7 @@ test("every field of a connection can be edited; renaming keeps custom routes wo
   const connection = page.getByTestId("connection-fake");
   await connection.getByRole("button", { name: "编辑" }).click();
   const form = connection.getByRole("form", { name: "编辑 fake" });
-  await expect(form.getByLabel("API 类型")).toHaveValue("openai_compatible");
+  await expect(form.getByLabel("API 类型")).toHaveText("openai_compatible");
   await form.getByLabel("名称").fill("my-relay");
   await form.getByRole("button", { name: "保存修改" }).click();
 
@@ -240,7 +240,7 @@ test("every field of a connection can be edited; renaming keeps custom routes wo
 
   // A preset connection warns before a rename: the default routes find it by name.
   await page.getByRole("link", { name: "设置" }).click();
-  await page.getByLabel("服务商").selectOption({ label: "DeepSeek" });
+  await pickOption(page.getByLabel("服务商"), "DeepSeek");
   await page.locator("#api_key").fill("sk-not-a-real-key-9876");
   await page.getByRole("button", { name: "添加连接" }).click();
   const deepseek = page.getByTestId("connection-deepseek");
