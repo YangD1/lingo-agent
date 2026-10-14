@@ -8,7 +8,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 
 **Stack:** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **Status: P3 complete.** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. It runs practice sets checked by a critic, reviews your writing, rewrites news for your level, diagnoses the root causes of your recurring grammar mistakes and drafts a daily study plan. By voice, it reads aloud with a server voice, scores your shadowing, practises speaking in scenarios, takes real-time calls and quizzes words by ear and by spelling. Enterprise polish (P4) is under way: sharing models with members and choosing your own tutor are done. See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
+> **Status: P4 complete (except small-server deployment).** The tutor chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. It runs practice sets checked by a critic, reviews your writing, rewrites news for your level, diagnoses the root causes of your recurring grammar mistakes and drafts a daily study plan. By voice, it reads aloud with a server voice, scores your shadowing, practises speaking in scenarios, takes real-time calls and quizzes words by ear and by spelling. Enterprise polish (P4) is done too: sharing models and quotas with members, choosing your own tutor, a usage and cost dashboard, rate limits, versioned prompts with eval regression, and a seedable demo account with a [demo script](docs/demo.en.md). See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
 
 | | |
 |---|---|

@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-10-14 任务 72.5 进行中（收尾：PLAN、README、make ci）
+
+**做了什么**：
+- `docs/PLAN.md`：P4 标题标“✅ 2026-10-14 完成，任务 71 低配服务器部署除外，等用户通知再做”；低配部署一项标 ⏸，README 架构图与演示一项标完成。
+- README 中英：状态行改为“P4 已完成（低配服务器部署除外）”，列出 P4 已做的各项，并链到 `docs/demo.md` / `docs/demo.en.md`。
+- `make ci` 分段跑：ruff / mypy 干净；pytest 1845 全过（14 分 47 秒）；eslint、tsc 干净；Vitest 684 全过；build 通过；E2E 74 条，73 条直接通过，`p2-demo.spec.ts` 一次失败后重试通过。失败原因是阅读改写在负载下超过 30 秒，标题仍是原文 “Engineers test a new rover”，属于已知的偶发问题。
+
+**未完成**：推送到 origin、等 CI 全绿、重建 Docker。这三步都要先征得用户同意。全部完成后把 72.5、任务 72 标 `[x]`，“当前阶段”改为“P4 完成（71 除外）”。
+
+**下一步**：用户同意后执行 `git push`，用 `gh run watch` 看 CI；之后重建 Docker（`make up`，先后端再前端，一次一个），检查 `/healthz` 和空闲内存。
+
+**踩坑**：
+- 第一次整体跑 `make ci` 时 WSL 整个重启了（内核版本变了，`/tmp` 被清空，日志丢失）。原因可能是 Docker 全栈加 pytest 再加 E2E 栈，内存不够。改为先停掉 Docker 的 backend 和 frontend，后端、前端分两段跑，日志写到 `.claude/state/`（gitignored，重启后还在）。
+- WSL 重启后，Docker 的 backend 因为 postgres 还在启动，会重启几次，等一会儿就自己好了。
+- 背景 Bash 里的 `pnpm` 仍是 nvm 懒加载函数，会无限递归，要用 `~/.nvm/versions/node/v24.14.0/bin/pnpm` 绝对路径（`make ci` 里的 `$(PNPM)` 也一样，可以传 `PNPM=` 进去）。
+
+---
+
 ## 2026-10-14 任务 72.4 完成（演示脚本 `docs/demo.md`）
 
 **做了什么**：
