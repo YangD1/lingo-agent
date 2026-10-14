@@ -4,6 +4,39 @@
 
 ---
 
+## 2026-10-14 任务 75：背单词改为遮罩弹层叠卡（75.1–75.5）
+
+**做了什么**：
+- 75.1：ADR 0038，PLAN 单词本一节补“复习界面”。
+- 75.2：
+  - `review-app.tsx` 改名为 `review-deck.tsx`（`ReviewDeck`），用 base-ui Dialog 实现全屏遮罩加叠卡，顶部细栏放进度、题型和关闭。
+  - `review-deck-host.tsx` 挂在 `(app)/layout.tsx`：地址带 `?review=all|new` 时显示弹层；在文档捕获阶段拦截指向 `/vocab/review` 的普通左键点击，用 `pushState` 追加参数，保留页面原有参数（比如对话的 `?c=`）。关闭时，如果是应用内打开的就 `history.back()`，否则 `replaceState` 去掉参数。
+  - `/vocab/review` 直接访问时 redirect 到 `/vocab?review=…`；`isFocusRoute` 已删除。
+  - 弹层卸载时发出 `lingo:vocab-reviewed` 事件（`lib/vocab.ts` 里的 `announceReviewed` / `useOnReviewed`），背单词页和看板收到后重新加载数据。
+- 75.3：
+  - `deck-motion.ts` 用 Web Animations 实现动画，提供 turnAway/turnBack/flyOff/rise/settle/comeBack；减少动态效果时只做淡入淡出。
+  - 翻面动画进行中按下的评分会排队（`turning`/`queued`），翻完再提交。
+  - 手机上触摸滑动评分：左滑“忘了”、右滑“记得”。
+  - `use-review-session.ts` 的 `rate` 改为返回 boolean。
+- 75.4：入口代码不用改（都是普通链接）。假模型听到“背单词”时调用 `suggest_link`，用来覆盖私教卡片入口；`plan.spec.ts` 改为从计划打开弹层评分。
+- 75.5：
+  - 新增 `deck-motion.test.ts`。
+  - `p3-demo` 选择器从 h1 改为 h2。
+  - README 背单词截图改为弹层（只换了 `vocab-*.png`，其余截图已还原）。
+  - Vitest 702、E2E 76 全过。
+
+**未完成**：
+- 推送（本地领先 origin：75.1–75.5 的提交）。
+- Docker 前端重建：任务 74、75 都还没重建，重建前先确认 Windows 可用提交内存。
+
+**下一步**：推送，看 CI；内存够时 `make up` 重建（只改了前端）。任务 71 仍等用户通知。
+
+**踩坑**：
+- 卡背内容区是 `overflow-y-auto` 滚动容器，浏览器只看最近那层滚动容器的 touch-action，所以内容区也要加 `touch-pan-y`，否则横滑会被 `pointercancel`。用 CDP `Input.dispatchTouchEvent` 才能在 E2E 里复现。
+- E2E 里弹层刚打开就按空格会被忽略（卡片还在加载），要先等“显示答案”出现。滑动前也要等翻面动画结束（`getAnimations().length === 0`），否则手指会落在后面那张牌堆卡上。
+- zsh 里的 `node` 是 nvm 的懒加载函数，改 PATH 也没用，必须写 `$HOME/.nvm/versions/node/v24.14.0/bin/node` 的绝对路径；Playwright 的 webServer 还需要 PATH 里有 uv。
+- 全量 E2E 时 `p2-demo` 的入学测轮询在负载下偶发超时，单独跑能通过。
+
 ## 2026-10-14 任务 74.8：首页对话示例改为三个话题轮播
 
 **做了什么**：

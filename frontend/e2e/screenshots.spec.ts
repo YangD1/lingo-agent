@@ -97,7 +97,12 @@ for (const { lang, locale } of LOCALES) {
       await page.goto("/learner");
       await shoot(page, "learner", lang);
 
-      await page.goto("/vocab");
+      // Flashcards over the vocabulary page (ADR 0038), a card turned over.
+      await page.goto("/vocab?review=all");
+      const deck = page.getByTestId("review-deck");
+      await deck.locator('h2[lang="en"]').waitFor();
+      await page.keyboard.press("Space");
+      await deck.getByTestId("review-back").waitFor();
       await shoot(page, "vocab", lang);
 
       await page.goto("/practice");

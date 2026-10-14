@@ -15,7 +15,7 @@
 | ![首页：私教能做什么，附一段对话示例](docs/screenshots/home-zh.png) | ![对话：私教纠正过去时的错误，并列出它做了什么](docs/screenshots/chat-zh.png) |
 | ![看板：CEFR 等级、词汇量、待复习单词和今天的学习](docs/screenshots/dashboard-zh.png) | ![学习者模型：私教对反复出错的诊断，和每个语法点的掌握度](docs/screenshots/learner-zh.png) |
 | ![语法练习：针对薄弱点开始一组练习，下面是最近的成绩](docs/screenshots/practice-zh.png) | ![写作：四项评分、错误记入学习者模型、逐句改正](docs/screenshots/writing-zh.png) |
-| ![阅读：新闻按 B1 改写，今天要复习的词高亮，超出等级的词标了下划线，附理解题](docs/screenshots/reading-zh.png) | ![背单词：今天的 FSRS 队列和词书](docs/screenshots/vocab-zh.png) |
+| ![阅读：新闻按 B1 改写，今天要复习的词高亮，超出等级的词标了下划线，附理解题](docs/screenshots/reading-zh.png) | ![背单词：在任何页面上打开的叠卡复习，FSRS 安排今天的词](docs/screenshots/vocab-zh.png) |
 | ![口语练习：一个情景结束后的小结，有说错的和改法、更地道的说法、下次可以试的表达](docs/screenshots/speaking-zh.png) | ![实时通话：有字幕，私教查了一个词并加入生词本](docs/screenshots/call-zh.png) |
 | ![我的私教：名字、装扮、毛色、桌宠和它用的对话模型](docs/screenshots/tutor-zh.png) | |
 

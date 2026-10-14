@@ -15,7 +15,7 @@ An open-source AI English tutor agent. The goal: a tutor that remembers you, ada
 | ![Home page: what the tutor does, with a sample chat](docs/screenshots/home-en.png) | ![Chat: the tutor corrects a past-tense mistake and shows what it did](docs/screenshots/chat-en.png) |
 | ![Dashboard: CEFR level, vocabulary size, words due and today's plan](docs/screenshots/dashboard-en.png) | ![Learner model: the tutor's diagnosis of a recurring mistake, and mastery of each grammar point](docs/screenshots/learner-en.png) |
 | ![Grammar practice: start a set on your weak points, with recent results](docs/screenshots/practice-en.png) | ![Writing: four scores, mistakes added to the learner model, each sentence corrected](docs/screenshots/writing-en.png) |
-| ![Reading: a news article rewritten for B1, due words highlighted, words above the level underlined, comprehension questions](docs/screenshots/reading-en.png) | ![Vocabulary: today's FSRS queue and word books](docs/screenshots/vocab-en.png) |
+| ![Reading: a news article rewritten for B1, due words highlighted, words above the level underlined, comprehension questions](docs/screenshots/reading-en.png) | ![Vocabulary: flashcards over any page, today's words scheduled by FSRS](docs/screenshots/vocab-en.png) |
 | ![Speaking practice: the summary after a scenario, with mistakes, more natural ways to say things and expressions to try](docs/screenshots/speaking-en.png) | ![A real-time call: subtitles, and the tutor looking up a word and adding it to the word list](docs/screenshots/call-en.png) |
 | ![My tutor: name, outfit, fur colour, the desk pet and the model it talks with](docs/screenshots/tutor-en.png) | |
 
