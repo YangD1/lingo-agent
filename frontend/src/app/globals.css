@@ -131,6 +131,10 @@
   --shadow-lift: 0 1px 2px oklch(0.2 0.02 40 / 0.05), 0 2px 8px -2px oklch(0.2 0.02 40 / 0.08);
   --shadow-pop: 0 1px 2px oklch(0.2 0.02 40 / 0.06), 0 8px 24px -6px oklch(0.2 0.02 40 / 0.14);
   --shadow-card: 0 1px 2px oklch(0.2 0.02 40 / 0.05), 0 8px 24px -12px oklch(0.2 0.02 40 / 0.12); /* 卡片：一层贴边 + 一层柔和投影 */
+  /* 桌宠小窗（任务 78）：底色和页面分开，白气泡浮在上面；品牌色细描边 + 更重的投影 */
+  --pet-surface: oklch(0.955 0.009 58); /* #F4EFEA */
+  --pet-edge: color-mix(in oklch, var(--brand) 38%, transparent);
+  --shadow-pet: 0 2px 6px oklch(0.2 0.02 40 / 0.08), 0 28px 64px -16px oklch(0.2 0.02 40 / 0.32);
   --shadow-field: 0 1px 2px oklch(0.2 0.02 40 / 0.04); /* 输入框、下拉触发器、描边按钮 */
   --shadow-button: 0 1px 2px oklch(0.2 0.02 40 / 0.16), inset 0 1px 0 oklch(1 0 0 / 0.22); /* 实心按钮：投影 + 顶部高光 */
   --glass: oklch(0.995 0.002 67.8 / 0.72); /* 毛玻璃底：侧栏、标签栏、输入框、弹出层 */
@@ -196,6 +200,9 @@
   --shadow-lift: 0 1px 2px oklch(0 0 0 / 0.3), 0 2px 8px -2px oklch(0 0 0 / 0.4);
   --shadow-pop: 0 1px 2px oklch(0 0 0 / 0.4), 0 10px 28px -6px oklch(0 0 0 / 0.55);
   --shadow-card: 0 1px 2px oklch(0 0 0 / 0.3), 0 10px 28px -14px oklch(0 0 0 / 0.5);
+  --pet-surface: oklch(0.172 0.010 295); /* #111015：比页面再深一档，卡片色的气泡浮在上面 */
+  --pet-edge: color-mix(in oklch, var(--brand) 45%, transparent);
+  --shadow-pet: 0 2px 8px oklch(0 0 0 / 0.5), 0 28px 72px -12px oklch(0 0 0 / 0.75);
   --shadow-field: 0 1px 2px oklch(0 0 0 / 0.25);
   --shadow-button: 0 1px 2px oklch(0 0 0 / 0.4), inset 0 1px 0 oklch(1 0 0 / 0.18);
   --glass: oklch(0.240 0.014 298.4 / 0.7);

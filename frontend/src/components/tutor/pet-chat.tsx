@@ -232,12 +232,14 @@ export function PetChat({
       }}
       style={wide ? style : undefined}
       className={cn(
-        "fixed z-50 flex flex-col overflow-hidden rounded-xl border bg-background shadow-(--shadow-pop)",
+        // Apart from the page (task 78): its own ground under the bubbles, a brand edge and a
+        // deeper shadow; the corner by the pet is tighter, a speech bubble pointing at it.
+        "fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-(--pet-edge) bg-(--pet-surface) shadow-(--shadow-pet)",
         // Phones: most of the screen, above the tab bar; wider screens: a window by the pet,
         // 28rem × 44rem unless resized (DEFAULT_CHAT_SIZE).
         "inset-x-2 top-16 bottom-[calc(4rem+env(safe-area-inset-bottom)+8px)]",
         "md:inset-x-auto md:top-auto md:bottom-4 md:h-[min(44rem,calc(100dvh-2rem))] md:w-[min(28rem,calc(100vw-8rem))]",
-        side === "right" ? "md:right-28" : "md:left-28",
+        side === "right" ? "md:right-28 md:rounded-br-sm" : "md:left-28 md:rounded-bl-sm",
         // Not over the page: no room kept for the pet below the last message, and the chat
         // page's wide side padding is too much for a window.
         "[--pet-safe:0px] md:[&_[data-chat-gutter]]:px-4",
@@ -245,13 +247,13 @@ export function PetChat({
       )}
     >
       {wide && <ResizeGrips side={side} label={t("resize")} grip={grip} onKeyDown={onKeyDown} />}
-      <header className="flex h-11 shrink-0 items-center gap-1 border-b pr-1 pl-3">
+      <header className="flex h-11 shrink-0 items-center gap-1 bg-brand-soft pr-1 pl-3.5">
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
           {conversation?.title || t("chatTitle", { name })}
         </h2>
         <Link
           href={chatHref}
-          className={buttonVariants({ size: "sm", variant: "ghost" })}
+          className={cn(buttonVariants({ size: "sm", variant: "ghost" }), "hover:bg-background/70")}
           data-testid="pet-chat-open-in-chat"
         >
           <ExternalLinkIcon aria-hidden />
@@ -262,14 +264,14 @@ export function PetChat({
           aria-label={t("close")}
           title={t("close")}
           onClick={onClose}
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-4"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-background/70 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-4"
         >
           <XIcon aria-hidden />
         </button>
       </header>
       <nav
         aria-label={tBubble("quick")}
-        className="flex shrink-0 flex-col gap-2 border-b px-3 py-2"
+        className="flex shrink-0 flex-col gap-2 border-b border-(--pet-edge) bg-brand-soft px-3 pt-0.5 pb-2.5"
         data-testid="pet-chat-shortcuts"
       >
         {!modelReady && (
@@ -294,7 +296,7 @@ export function PetChat({
               <Link
                 key={id}
                 href={quick.href}
-                className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium whitespace-nowrap text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-3.5"
+                className="flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-background/75 px-2.5 text-xs font-medium whitespace-nowrap text-foreground/80 shadow-xs transition-colors hover:bg-background hover:text-foreground [&_svg]:size-3.5 [&_svg]:text-brand-soft-foreground"
               >
                 <Icon aria-hidden />
                 {tActions(`${id}.label`)}
@@ -362,8 +364,8 @@ function ResizeGrips({
         data-testid="pet-chat-resize"
         onKeyDown={onKeyDown}
         className={cn(
-          "absolute top-0 z-20 size-4 touch-none outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-          side === "right" ? "left-0 cursor-nwse-resize rounded-tl-xl" : "right-0 cursor-nesw-resize rounded-tr-xl",
+          "absolute top-0 z-20 size-5 touch-none outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          side === "right" ? "left-0 cursor-nwse-resize rounded-tl-2xl" : "right-0 cursor-nesw-resize rounded-tr-2xl",
         )}
         {...grip("corner")}
       />

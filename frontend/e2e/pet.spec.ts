@@ -100,10 +100,11 @@ test("the pet's window is resized by its free corner, and keeps the size", async
   expect(Math.round(before.height)).toBe(688);
 
   // The pet is on the right: the grip is the top-left corner. Smaller, down and to the right.
+  // Held 8px in: the rounded corner clips its very tip.
   const grip = (await window.getByTestId("pet-chat-resize").boundingBox())!;
-  await page.mouse.move(grip.x + 4, grip.y + 4);
+  await page.mouse.move(grip.x + 8, grip.y + 8);
   await page.mouse.down();
-  await page.mouse.move(grip.x + 64, grip.y + 104, { steps: 5 });
+  await page.mouse.move(grip.x + 68, grip.y + 108, { steps: 5 });
   await page.mouse.up();
   const after = (await window.boundingBox())!;
   expect(Math.round(after.width)).toBe(388);
