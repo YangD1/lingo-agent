@@ -24,6 +24,8 @@
   - 结尾 CTA 原来和 h1 同名，导致 i18n E2E 的严格模式匹配到两个元素；改用新文案 `home.closingTitle`（“从一次对话开始。”）。
   - 顺带修了两条负载下偶发失败的测试：`review-formats.test.tsx` 改用 `waitFor`，`mine-app.test.tsx` 的 mock 改成按路径应答。
 
+- 74.6（用户反馈）：首屏改为至少一屏高、内容垂直居中，解决中文标题一行时首屏偏矮；标题加 `break-keep`，避免手机上把“英语”拆开；重拍首页截图。
+
 **未完成**：未推送，Docker 未重建。shader 的实际动效需要用户在支持 WebGPU 的真实浏览器里确认。
 
 **下一步**：等用户看效果、确认后推送；任务 71 继续等用户通知。
@@ -33,7 +35,7 @@
 - hydration 不一致：`resolvedTheme` 在服务端是 undefined。改成挂载后（`useSyncExternalStore`）再渲染 shader。
 - jsdom 没有 `matchMedia`，测试里用 `vi.stubGlobal` 补。
 - Vitest 全量并发时，`mine-app.test.tsx` 偶发失败一次，单独跑 3 次都过，重跑全量也全过。
-- E2E 默认端口是 3100，`reuseExistingServer` 会直接复用开着的开发服务器，而它的 `/api` 代理到 :8000，结果 69 条全挂。跑 E2E 前先 `fuser -k 3100/tcp`。
+- E2E 默认端口是 3100，`reuseExistingServer` 会直接复用开着的开发服务器，而它的 `/api` 代理到 :8000，结果 69 条全挂。跑 E2E 前先 `fuser -k 3100/tcp`，或者用 `E2E_PORT=3300 E2E_BACKEND_PORT=8300 E2E_LLM_PORT=8301` 换一组端口。
 - Next 16 的 `next build` 不再打印每个路由的体积。要量就去 `.next/server/app/page/react-loadable-manifest.json` 和 `page_client-reference-manifest.js` 找对应的 chunk。
 
 ---

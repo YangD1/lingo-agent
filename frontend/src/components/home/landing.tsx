@@ -73,11 +73,13 @@ export async function Landing() {
   return (
     <div className="flex min-h-svh flex-col">
       <div className="p-2 md:p-3">
-        <section className="relative isolate overflow-hidden rounded-[28px] md:rounded-[40px]">
+        {/* At least one screen tall whatever the title's length (one line in Chinese, two in
+            English); the chat card below rises into its bottom edge. */}
+        <section className="relative isolate flex min-h-[calc(100svh-1rem)] flex-col overflow-hidden rounded-[28px] md:min-h-[calc(100svh-1.5rem)] md:rounded-[40px]">
           <LandingBackdrop scene="silk" className="absolute inset-0 -z-20" />
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(56%_52%_at_50%_40%,rgb(252_250_248/0.78),rgb(252_250_248/0.2)_70%,transparent)] dark:bg-[radial-gradient(56%_52%_at_50%_40%,rgb(23_22_27/0.8),rgb(23_22_27/0.3)_70%,transparent)]" />
           <Header />
-          <div className="mx-auto flex max-w-[980px] flex-col items-center px-4 pt-16 pb-44 text-center md:pt-28 md:pb-64">
+          <div className="mx-auto flex max-w-[980px] flex-1 flex-col items-center justify-center px-4 pt-12 pb-44 text-center md:pt-16 md:pb-64">
             <span className="glass inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium text-foreground/80">
               <span className="relative flex size-2">
                 <span className="absolute inset-0 animate-ping rounded-full bg-brand/60 motion-reduce:animate-none" />
@@ -85,7 +87,7 @@ export async function Landing() {
               </span>
               {t("badge")}
             </span>
-            <h1 className="mt-7 text-[52px] leading-[0.98] font-extrabold tracking-[-0.05em] text-balance md:text-[112px]">
+            <h1 className="mt-7 text-[52px] leading-[0.98] font-extrabold tracking-[-0.05em] text-balance break-keep md:text-[112px]">
               {t("title")}
             </h1>
             <p className="mt-6 max-w-[560px] text-lg text-foreground/75 md:text-[22px] md:leading-snug">
