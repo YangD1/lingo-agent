@@ -25,7 +25,8 @@ const SCENES = { silk: SilkShader, ink: InkShader } as const;
 
 const QUERY = "(prefers-reduced-motion: reduce)";
 
-function useReducedMotion(): boolean {
+/** Whether the system asks for less motion. False on the server, so the first paint moves. */
+export function useReducedMotion(): boolean {
   return useSyncExternalStore(
     (onChange) => {
       const media = window.matchMedia(QUERY);

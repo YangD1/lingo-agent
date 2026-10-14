@@ -75,6 +75,8 @@ for (const { lang, locale } of LOCALES) {
 
     test(`home (${lang})`, async ({ page }) => {
       // Signed out: a signed-in visit to / goes on to the dashboard.
+      // Reduced motion shows the chat demo's finished turn instead of a random frame.
+      await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto("/");
       await shoot(page, "home", lang);
     });

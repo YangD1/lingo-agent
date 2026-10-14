@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-10-14 任务 74.7：首页对话卡片模拟流式输出和工具调用
+
+**做了什么**：
+- 新增 `frontend/src/components/home/landing-chat-demo.tsx`（client）。`landing.tsx` 里的 `ChatDemo` 改成服务端包装，负责翻译 `home.demo` 文案；中英文都新增了 `step*` / `step*Done`、`practiceCard`、`practiceStart`、`memorySaved`。
+- 时间线由 `schedule()` 计算：`load_context` → 回复逐词流式输出（`tokenize()`：中文逐字，`<b>` 加粗）→ `suggest_practice` 加练习卡 → 后半句 → `grammar_tagging` / `reflect_memory` → 摘要 → 停 4.5 秒，淡出后循环。
+- `useLoopClock`：只有在视口内且标签页可见时才计时。减少动态效果时直接返回最终状态。
+- 首页截图（`e2e/screenshots.spec.ts`）改用 `emulateMedia({ reducedMotion: "reduce" })`，拍到的是确定的最终状态。
+- 新增单测 `landing-chat-demo.test.tsx`；Vitest 692、E2E 74（3300/8300/8301 端口）全过，tsc / eslint 干净。
+
+**踩坑**：
+- 卡片高度不能随流式输出变化（否则下面整页跳动）。做法是未输出的 token 用 `text-transparent` 占位，各个步骤用 opacity 控制显隐。
+- 手机 390 宽下练习卡标题被截断，改为允许换行。
+
+**下一步**：等用户看效果，确认后推送并重建 Docker。
+
 ## 2026-10-14 任务 74：首页 A2 流光正式落地（任务 74 完成）
 
 **做了什么**：

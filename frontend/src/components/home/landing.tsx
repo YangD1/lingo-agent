@@ -2,7 +2,6 @@ import {
   ArrowRightIcon,
   BookOpenIcon,
   BrainIcon,
-  ChevronDownIcon,
   ClipboardCheckIcon,
   EyeIcon,
   ListChecksIcon,
@@ -19,6 +18,7 @@ import { aiMark, aiMarkCorner } from "@/components/ai-pill";
 import { LingoCat } from "@/components/brand/lingo-cat";
 import { Logo, LogoMark } from "@/components/brand/logo";
 import { LandingBackdrop } from "@/components/home/landing-backdrop";
+import { ChatDemo as AnimatedChatDemo, type ChatDemoCopy } from "@/components/home/landing-chat-demo";
 import {
   AiStill,
   FIXES,
@@ -327,47 +327,15 @@ async function TrustStill() {
 }
 
 /** A still of one chat turn: user bubble, tutor reply, and "what the tutor did" unfolded. */
+/** Copy for the animated example (landing-chat-demo.tsx), translated on the server. */
 async function ChatDemo({ className }: { className?: string }) {
   const t = await getTranslations("home.demo");
-  return (
-    <figure
-      aria-label={t("label")}
-      className={cn(
-        "flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-[var(--shadow-lift)] md:p-5",
-        className,
-      )}
-    >
-      <p className="max-w-[86%] self-end rounded-[18px_18px_6px_18px] bg-primary px-[15px] py-2.5 text-[15px] leading-[1.6] text-primary-foreground">
-        {t("user")}
-      </p>
-      <div className="relative flex flex-col gap-2 md:pl-[42px]">
-        <span
-          aria-hidden
-          className="absolute top-0 left-0 hidden size-[30px] items-center justify-center rounded-full bg-brand-soft md:flex"
-        >
-          <LogoMark className="size-5" />
-        </span>
-        <div className="flex flex-col gap-2 rounded-[6px_18px_18px_18px] border px-3.5 py-3 text-[14.5px] leading-[1.7]">
-          <p>{t.rich("reply", { b: (chunks) => <strong>{chunks}</strong> })}</p>
-          <p>{t("replyNote")}</p>
-        </div>
-        <p className="flex items-start gap-1 text-xs text-muted-foreground">
-          <ChevronDownIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span>
-            {t("activity")} <strong className="text-foreground">{t("activityRead")}</strong>{" "}
-            {t("activityRest")}
-          </span>
-        </p>
-        <ul className="flex flex-col gap-1.5 rounded-lg bg-muted px-3.5 py-2.5 text-[13px]">
-          <li className="before:mr-2 before:content-['•']">{t("memory")}</li>
-          <li className="flex flex-wrap items-center gap-x-2 before:content-['•']">
-            <s className="text-muted-foreground">{t("wrong")}</s>
-            <span aria-hidden>→</span>
-            <span className="text-success">{t("right")}</span>
-            <span className="text-primary">· {t("rule")}</span>
-          </li>
-        </ul>
-      </div>
-    </figure>
-  );
+  const keys = [
+    "label", "user", "replyNote", "stepContext", "stepContextDone", "memory", "stepTool",
+    "stepToolDone", "practiceCard", "practiceStart", "stepGrammar", "stepGrammarDone",
+    "stepMemory", "stepMemoryDone", "memorySaved", "wrong", "right", "rule", "activity",
+    "activityRead", "activityRest",
+  ] as const;
+  const copy = Object.fromEntries(keys.map((k) => [k, t(k)])) as Omit<ChatDemoCopy, "reply">;
+  return <AnimatedChatDemo copy={{ ...copy, reply: t.raw("reply") as string }} className={className} />;
 }
