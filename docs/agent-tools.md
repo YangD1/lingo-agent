@@ -1,30 +1,30 @@
 # Agent 工具与后台步骤清单
 
-私教 agent 用到的每个工具、MCP 服务和后台步骤都登记在这里（ADR 0013）。**新增或修改时必须同步更新本文件。**
+助手 agent 用到的每个工具、MCP 服务和后台步骤都登记在这里（ADR 0013）。**新增或修改时必须同步更新本文件。**
 
 所有模型调用都经过 provider 层，按“模型任务”路由（ADR 0002、0004）；每次调用记录在 `llm_usage`（不含 prompt 和输出内容，只记用到的提示词模板名字和版本，ADR 0033）。
 
 ## AI 用量标记（学习者点之前看到的）
 
-事后看“私教做了什么”（下一节），事前看 AI 标记（ADR 0014）：每个会调用模型的入口旁都有一个小“AI”标，悬停、聚焦或点按显示这个入口触发哪些调用、立即还是在后台、每次约多少 token（按本租户最近 20 次的平均，没有记录时用默认估计）、当前会用的模型。清单在 `backend/app/usage/features.yaml`，接口是 `GET /usage/estimates`。**新增会调用模型的功能时，同步登记到那份清单并挂上标记。**
+事后看“JOJO做了什么”（下一节），事前看 AI 标记（ADR 0014）：每个会调用模型的入口旁都有一个小“AI”标，悬停、聚焦或点按显示这个入口触发哪些调用、立即还是在后台、每次约多少 token（按本租户最近 20 次的平均，没有记录时用默认估计）、当前会用的模型。清单在 `backend/app/usage/features.yaml`，接口是 `GET /usage/estimates`。**新增会调用模型的功能时，同步登记到那份清单并挂上标记。**
 
 | 功能（清单里的 key） | 入口 | 触发的调用（task） |
 |---|---|---|
-| `chat_message` | 聊天输入框“发送”；看板和入学测结果页对话框的输入框、看板的快捷回复（ADR 0016）；桌宠对话小窗的输入框（ADR 0032 §4a，接着最近一次对话，同聊天页） | `chat`（立即）；私教调用了工具时再加 `chat_tools`（拿到工具结果后的回复，走 `chat` 路由）；`reflect`、`memory` 向量化（回复后在后台） |
+| `chat_message` | 聊天输入框“发送”；看板和入学测结果页对话框的输入框、看板的快捷回复（ADR 0016）；桌宠对话小窗的输入框（ADR 0032 §4a，接着最近一次对话，同聊天页） | `chat`（立即）；助手调用了工具时再加 `chat_tools`（拿到工具结果后的回复，走 `chat` 路由）；`reflect`、`memory` 向量化（回复后在后台） |
 | `chat_image` | 聊天输入框“附件” | `vision`（每张图；带图的那一轮回复也走 `vision`） |
 | `chat_pdf` | 同上 | `vision`（只有扫描页，每页一次） |
 | `chat_audio` | 聊天输入框“录音” | `asr`（按音频秒数） |
-| `read_aloud` | 私教气泡、单词气泡、背单词页的朗读按钮；“我的私教”页的“试听”（读一句示范，ADR 0032）（只在租户配了朗读路由时显示标记；没配时浏览器朗读，不调用模型，ADR 0018、0028） | `tts`（按字符；一次一句；同租户同一句、同声音和语速只合成一次，之后读缓存） |
-| `shadowing` / `shadowing_rough` | 私教回复工具栏、阅读段落末尾、复习卡片例句末尾的“跟读”（任务 57；按 `GET /speech/capabilities` 的 `shadowing` 挂其中一个，两种都没配时不显示入口，ADR 0028 §5） | `shadowing`：`pronunciation`（按音频秒数，每次一句，最长 30 秒）；评测失败且配了转写时再加一次 `shadowing_asr`。`shadowing_rough`：`shadowing_asr`（走 `asr` 路由，按音频秒数） |
-| `practice_start` | 看板常错语法点的“对话练”、`/learner` 语法点详情和私教练习卡片的“对话练习” | `practice_opening`（走 `chat` 路由） |
-| `plan_start` | 入学测结果页对话框里的“和私教聊聊这次结果” | `plan_opening`（走 `chat` 路由）；之后每轮同 `chat_message` |
+| `read_aloud` | 助手气泡、单词气泡、背单词页的朗读按钮；“我的助手”页的“试听”（读一句示范，ADR 0032）（只在租户配了朗读路由时显示标记；没配时浏览器朗读，不调用模型，ADR 0018、0028） | `tts`（按字符；一次一句；同租户同一句、同声音和语速只合成一次，之后读缓存） |
+| `shadowing` / `shadowing_rough` | 助手回复工具栏、阅读段落末尾、复习卡片例句末尾的“跟读”（任务 57；按 `GET /speech/capabilities` 的 `shadowing` 挂其中一个，两种都没配时不显示入口，ADR 0028 §5） | `shadowing`：`pronunciation`（按音频秒数，每次一句，最长 30 秒）；评测失败且配了转写时再加一次 `shadowing_asr`。`shadowing_rough`：`shadowing_asr`（走 `asr` 路由，按音频秒数） |
+| `practice_start` | 看板常错语法点的“对话练”、`/learner` 语法点详情和助手练习卡片的“对话练习” | `practice_opening`（走 `chat` 路由） |
+| `plan_start` | 入学测结果页对话框里的“和助手聊聊这次结果” | `plan_opening`（走 `chat` 路由）；之后每轮同 `chat_message` |
 | `memory_edit` | `/memory` 记忆列表（添加、修改） | `memory` 向量化 |
-| `word_examples` | 私教气泡里单词气泡的“AI 例句”（ADR 0017）；复习卡片背面的“AI 例句”（ADR 0020） | `word_examples`（立即；同租户同词同等级只调一次，之后读缓存） |
-| `message_translate` | 私教气泡下的“看中文 / 看英文”（ADR 0017） | `translate`（立即；每条消息每种语言只调一次，之后读缓存） |
-| `practice_set` | `/practice` 落地页“开始一组 / 继续上次的练习”、总结页“再来一组”；学习者模型每个语法点、私教练习卡片、看板建议里的“做一组题”；设置“后台任务”里的“预先出好下一组练习” | `exercise_generate` + `exercise_critic`（立即；被拒的题最多再重写审两轮）；做完一组后在后台为下一组再各调一次（学习者可关，计入后台每日额度） |
+| `word_examples` | 助手气泡里单词气泡的“AI 例句”（ADR 0017）；复习卡片背面的“AI 例句”（ADR 0020） | `word_examples`（立即；同租户同词同等级只调一次，之后读缓存） |
+| `message_translate` | 助手气泡下的“看中文 / 看英文”（ADR 0017） | `translate`（立即；每条消息每种语言只调一次，之后读缓存） |
+| `practice_set` | `/practice` 落地页“开始一组 / 继续上次的练习”、总结页“再来一组”；学习者模型每个语法点、助手练习卡片、看板建议里的“做一组题”；设置“后台任务”里的“预先出好下一组练习” | `exercise_generate` + `exercise_critic`（立即；被拒的题最多再重写审两轮）；做完一组后在后台为下一组再各调一次（学习者可关，计入后台每日额度） |
 | `practice_grade` | `/practice` 开放题的提交按钮旁（也和 `practice_set` 一起挂在开组入口）；find_fix 的改法不在答案列表里时同样调用 | `exercise_grade`（立即；每题只批第一次作答；选择题、填空、和参考答案一致的答案由代码判，不调模型） |
 | `reading_rewrite` | `/reading` 列表页标题旁、阅读页的版本切换和“正在改写”提示旁（打开文章时 `POST /reading/articles/{id}/session` 取版本） | `article_rewrite`（改写 + 出题）、`reading_critic`（走 `exercise_critic` 路由）、被拒的题再加 `reading_questions`（走 `article_rewrite` 路由）；同租户同篇同等级只调一次，之后读缓存 |
-| `reading_coach` | 阅读页的“就这篇文章问私教”；阅读会话的输入框“发送” | `reading_coach`（立即，走 `chat` 路由，每轮带上文章，所以比普通一轮读得多）；`reflect`、`memory` 向量化（回复后在后台） |
+| `reading_coach` | 阅读页的“就这篇文章问助手”；阅读会话的输入框“发送” | `reading_coach`（立即，走 `chat` 路由，每轮带上文章，所以比普通一轮读得多）；`reflect`、`memory` 向量化（回复后在后台） |
 | `speaking_start` / `speaking_turn` / `speaking_summary` | `/speaking` 页：情景卡片的“开始”、口语会话的说话按钮和输入框、“结束并生成小结” | `speaking_start`：`speaking_opening`（走 `chat` 路由）。`speaking_turn`：语音时先 `asr`，再 `speaking`（走 `chat` 路由，回复很短）；`reflect`、`memory` 向量化（回复后在后台）。回复的朗读是 `read_aloud`。`speaking_summary`：`speaking_summary`（立即，一次结构化调用） |
 | `realtime_call` | 设置页“实时语音限额”标题旁（任务 60）；`/speaking` 情景区的剩余分钟旁和通话页的接通按钮（任务 62） | `realtime`（走 `realtime` 路由，**按每分钟**估：厂商每次回答报一次用量，双方声音都按音频 token 计，按通话时长折成每分钟；有历史时取最近 20 通超过 30 秒、已挂断的通话）；选了情景时，接通前再加一次 `memory` 向量化（检索相关记忆）。挂断后在后台：`reflect`、`memory` 向量化，学习者说过话、通话满 30 秒时再加一次 `speaking_summary`（任务 61.3）。音频 token 比文字贵得多，同样一分钟比 `speaking_turn` 贵好几倍 |
 | `reading_prerewrite` | 设置“后台任务”的“预先改写新文章”开关旁 | 同 `reading_rewrite`，全部 `background` |
@@ -41,13 +41,15 @@
 | AI 例句 | `services/vocab/examples.py` → `POST /vocab/words/{id}/examples` | 词条（单词、中文释义）、学习者等级（没有时按 A2） | `word_examples`（租户 + 词 + 等级；每句经代码校验含该词或其变形，都不合格时不写） | 单词气泡和复习卡片背面显示；不含个人信息，无需撤销 |
 | 服务端朗读 | `services/speech/read_aloud.py` → `POST /speech/tts`（ADR 0028 §3） | 要读的一句话、语言、学习者的语速（声音由租户的朗读路由决定） | `tts_audio`（租户 + 文本、声音、语速、模型的哈希；租户上限 200MB，先删最久没用的） | 听到的就是结果。只存音频和哈希，不存原文；音频由同租户共用；每条记下第一次让它生成的学习者（Q54c），朗读设置里“清除我的朗读缓存”删掉自己让生成的那些（`DELETE /speech/tts-cache`），账号删除时一起删；没被预生成固定的音频 30 天没人播就由 `tts_cache_cleanup` 删掉；超出上限按最久没用淘汰，删除租户时一起删。用百炼 qwen3-tts-flash / qwen-audio 时，厂商先把合成的音频放在它的存储上、给一个 24 小时有效的链接，后端下载后存进缓存（任务 64.2a / 64.2b）。flash 不能调速，同一句不同语速共用一份录音，页面按学习者语速放快或放慢。学习者点单词时先用预生成的单词发音 |
 | 跟读评分 | `services/speech/shadowing.py` → `POST /speech/shadowing`（ADR 0028 §5–§6） | 这次录音（16kHz WAV，≤ 30 秒，评完即丢，不保存）、要读的句子、口音；没配发音评测或评测失败时改为转写后和句子逐词对比（粗略结果，不打分） | `pronunciation_attempts`（每次一条：分数、逐词 / 音素结果、听到的文本）；只有真正的发音评测才写证据：`skill_estimates.speaking`（口语能力 Elo，总分 / 100 作结果；读得太少、少于 3 个词、录音太短不算）和 `word_pronunciations`（读到的词库单词的最近准确度，低于 60 在复习卡片上标“读不准”，之后读好了就取消）；不写语法证据 | 跟读面板（总分、逐词着色、点词看音素；粗略结果标明不是打分）；复习卡片“读不准”；学习者模型页“跟读记录”；`GET /speech/shadowing` 列出自己的跟读记录，`DELETE /speech/shadowing/{id}` 删一条、`DELETE /speech/shadowing` 全删（已计入的口语能力和单词标记保留，和其他证据一样）；账号删除时一起删 |
-| 气泡翻译 | `chat/translate.py` → `POST /conversations/{id}/messages/{message_id}/translate` | 这条私教消息的文本 | `message_translations`（会话 + 消息 + 目标语言，删除会话时一起删） | 私教气泡原位切换显示；随会话删除 |
+| 气泡翻译 | `chat/translate.py` → `POST /conversations/{id}/messages/{message_id}/translate` | 这条助手消息的文本 | `message_translations`（会话 + 消息 + 目标语言，删除会话时一起删） | 助手气泡原位切换显示；随会话删除 |
 
 查词（`GET /vocab/lookup`）和浏览器朗读（`speechSynthesis`）不调用模型。
 
-## 活动记录（学习者看到的“私教做了什么”）
+## 活动记录（学习者看到的“JOJO做了什么”）
 
-下面每个步骤跑完都在 `agent_activities` 记一行（`app/activity/service.py` 的 `STEPS` 登记了步骤名、类型和可公示的摘要字段），在每条私教回复下显示：默认收起成一行，点开看明细；设置 →“显示”可以在本浏览器隐藏（只影响显示）。
+这一行以助手的名字开头（默认 JOJO，ADR 0040）；名字是链接，点它去“我的助手”页改名字和形象。
+
+下面每个步骤跑完都在 `agent_activities` 记一行（`app/activity/service.py` 的 `STEPS` 登记了步骤名、类型和可公示的摘要字段），在每条助手回复下显示：默认收起成一行，点开看明细；设置 →“显示”可以在本浏览器隐藏（只影响显示）。
 
 - **一轮**以学习者那条消息的 id 为键；练习会话的开场没有学习者消息，固定用 `opening`。对话中的步骤通过 SSE `activity` 事件实时推送；回复后的后台步骤由前端在 60 秒内轮询 `GET /conversations/{id}/activity?turn=…`。
 - **摘要只含白名单字段**：数量、记忆 id、语法点 id、错误类型和严重度、学习者自己的原话和改正。不含 prompt、模型原始输出、错误原文；失败只记 `failed`，没配模型记 `skipped`。
@@ -62,7 +64,7 @@
 | `summarize` | background | `episode_id` |
 | `propose_word_book`、`propose_learning_goal`、`propose_daily_plan`、`suggest_practice`、`suggest_link` | tool | `card_id`、`card_kind`（出了卡片时；调用被拒记 `failed`、摘要为空）；`call_id` = 模型的 tool call id。卡片本身显示当前状态 |
 | `tools` | step | 无；只在厂商拒绝工具调用、这一轮改为不带工具重答时记一行 `skipped` |
-| `lookup_word`、`add_to_vocab`、`end_session` | tool | 实时通话的工具（见“实时语音通话”）：`lookup_word` 记 `word`、`word_id`（查到的词条；没查到只有 `word`）；`add_to_vocab` 同 `vocab_collect` 的 `added` / `existing`；`end_session` 无字段。`call_id` = 厂商的 call id；挂在学习者最近一句话上（私教开口前就调用时挂在私教第一句上） |
+| `lookup_word`、`add_to_vocab`、`end_session` | tool | 实时通话的工具（见“实时语音通话”）：`lookup_word` 记 `word`、`word_id`（查到的词条；没查到只有 `word`）；`add_to_vocab` 同 `vocab_collect` 的 `added` / `existing`；`end_session` 无字段。`call_id` = 厂商的 call id；挂在学习者最近一句话上（助手开口前就调用时挂在助手第一句上） |
 | `handoff` | step | `coach`：自由对话分类后转给的 coach |
 | `writing_review` | step | `submission_id`、`mistakes`（错误数） |
 | `reading_context` | step | `article_id`、`level`（送的是哪个等级的改写版；原文为空）、`words`（送了多少词）；看不到文章时只记 `failed` |
@@ -73,11 +75,11 @@
 
 | 操作 | 代码 | 写 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|
-| 在私教回复的单词气泡里加入生词本（ADR 0017） | 前端 `components/chat/word-popup.tsx` → `POST /vocab/mine`（加的是查到的词条，比如 went 加的是 go） | `user_cards`（`source=manual`，规则同生词本页：精确 → 忽略大小写 → 还原原形；已标“认识”的词变回待学） | 单词气泡里提示结果；`/vocab/mine` 可删除 |
+| 在助手回复的单词气泡里加入生词本（ADR 0017） | 前端 `components/chat/word-popup.tsx` → `POST /vocab/mine`（加的是查到的词条，比如 went 加的是 go） | `user_cards`（`source=manual`，规则同生词本页：精确 → 忽略大小写 → 还原原形；已标“认识”的词变回待学） | 单词气泡里提示结果；`/vocab/mine` 可删除 |
 
 ## LLM 工具调用（模型决定是否调用）
 
-私教的工具（ADR 0015）。**工具只出卡片，不直接改任何设置**：有副作用的提议要学习者在卡片上点确认才执行，执行后可撤销；没有副作用的卡片只是链接。
+助手的工具（ADR 0015）。**工具只出卡片，不直接改任何设置**：有副作用的提议要学习者在卡片上点确认才执行，执行后可撤销；没有副作用的卡片只是链接。
 
 - **身份不进参数**：参数里只有词书 id、目标、语法点 id 这类内容；学习者、会话、这一轮由接口层绑定（`cards/runtime.py` `DatabaseTutorTools`），模型填了多余字段一律拒绝。
 - **上限**：一轮最多 2 次工具往返，每次最多 3 个调用（多出的直接返回错误），每个调用 15 秒超时；到上限后最后一次调用不带工具，提示里说明不能再调用。
@@ -99,13 +101,13 @@
 
 卡片存在 `tutor_cards`（`cards/service.py`；状态 `proposed → applied | declined`、`applied → undone`，链接卡片是 `info`；提议不过期），删除会话时一起删除。接口：`GET /conversations/{id}/cards`、`POST /cards/{id}/apply|decline|undo`（只能操作自己的卡片）。回复中的卡片通过 SSE `card` 事件实时推送。
 
-**学习者在哪里看到**：卡片显示在那一轮私教回复的下方（`frontend/src/components/chat/tutor-cards.tsx`），和回复一起属于对话，不受“显示私教做了什么”开关影响。提议卡片上有“确认 / 不用了”，确认后可“撤销”；撤销被拒绝（之后又改过设置）时卡片上说明原因。每次调用在“私教做了什么”里记一行（展示了什么卡片，或没能展示）；厂商不支持工具时也有一行说明。
+**学习者在哪里看到**：卡片显示在那一轮助手回复的下方（`frontend/src/components/chat/tutor-cards.tsx`），和回复一起属于对话，不受“显示JOJO做了什么”开关影响。提议卡片上有“确认 / 不用了”，确认后可“撤销”；撤销被拒绝（之后又改过设置）时卡片上说明原因。每次调用在“JOJO做了什么”里记一行（展示了什么卡片，或没能展示）；厂商不支持工具时也有一行说明。
 
 ## 桌宠的快捷动作与主动提醒（不经过模型，ADR 0039）
 
-- **本地意图匹配**（`frontend/src/lib/pet-actions.ts`）：学习者在桌宠小窗里发的短消息（去掉空白和标点后中文 ≤ 16 字、英文 ≤ 6 个词，不是问句）先按动作清单的触发词匹配；命中后**不发给模型**，小窗收起，小猫头顶弹出询问气泡（开始 / 不用 / 还是问私教）。动作只是打开弹层、跳转页面或设置页锚点，没有副作用；会改设置的操作仍走私教的确认卡片。
-- **主动提醒**（`frontend/src/lib/pet-nudges.ts`）：只读 `/advice`（含 `model_ready`）和 `/plan`，模板文字，不调模型。优先级：没配对话模型 → `/advice` 第一条（不在当前页的）→ 今天的计划没做完；事件：一轮复习背完问要不要学新词、打盹醒来欢迎回来、计划完成祝贺。每天最多 3 条，同类每天一次，两条之间至少 10 分钟，专注时（弹层、录音、私教说话 / 思考、小窗、输入中、通话页）不打扰；频率记录只存本机。
-- **学习者在哪里看到 / 关掉**：气泡就在小猫头顶，可随手关掉；“我的私教”页的“主动提醒”开关（`tutor_profiles.nudges`，默认开）关掉后不再主动提醒，自己说的指令仍会弹询问气泡。
+- **本地意图匹配**（`frontend/src/lib/pet-actions.ts`）：学习者在桌宠小窗里发的短消息（去掉空白和标点后中文 ≤ 16 字、英文 ≤ 6 个词，不是问句）先按动作清单的触发词匹配；命中后**不发给模型**，小窗收起，小猫头顶弹出询问气泡（开始 / 不用 / 还是问助手）。动作只是打开弹层、跳转页面或设置页锚点，没有副作用；会改设置的操作仍走助手的确认卡片。
+- **主动提醒**（`frontend/src/lib/pet-nudges.ts`）：只读 `/advice`（含 `model_ready`）和 `/plan`，模板文字，不调模型。优先级：没配对话模型 → `/advice` 第一条（不在当前页的）→ 今天的计划没做完；事件：一轮复习背完问要不要学新词、打盹醒来欢迎回来、计划完成祝贺。每天最多 3 条，同类每天一次，两条之间至少 10 分钟，专注时（弹层、录音、助手说话 / 思考、小窗、输入中、通话页）不打扰；频率记录只存本机。
+- **学习者在哪里看到 / 关掉**：气泡就在小猫头顶，可随手关掉；“我的助手”页的“主动提醒”开关（`tutor_profiles.nudges`，默认开）关掉后不再主动提醒，自己说的指令仍会弹询问气泡。
 
 ## MCP 服务
 
@@ -115,26 +117,26 @@
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
-| 读取学习者上下文 | `agents/chat_graph.py` `load_context` | 画像、事实记忆、相关的会话摘要 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` | `embedding/memory`（有配置时用于检索摘要） | 回复下“私教做了什么”；`/memory` 页面查看、修改、删除 |
+| 读取学习者上下文 | `agents/chat_graph.py` `load_context` | 画像、事实记忆、相关的会话摘要 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` | `embedding/memory`（有配置时用于检索摘要） | 回复下“JOJO做了什么”；`/memory` 页面查看、修改、删除 |
 | 读取练习指引（只在练习会话） | `chat/practice.py` `DatabasePractice`，在 `load_context` 里 | 会话的 `focus_kc_id`；该语法点的目录信息、掌握度档位（不给模型数字）、最近 2 条对话错误原句 → 改正 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `practice_kc` | 无 | 对话顶部“语法练习：…”和“查看依据”；`/learner` 删除证据后下一轮就不再使用 |
 | 选择由谁回复（supervisor） | `agents/chat_graph.py` `supervisor`；会话层面的路由在开跑前由 `agents/routing.py` `route_for` 定 | 会话是不是口语会话（`purpose = speaking`，ADR 0029 §2）、有没有练习语法点（`focus_kc_id`）、有没有文章（`article_id`，Q43h） | 无 | 无（ADR 0023 §3） | 不单独显示：口语会话由 speaking_coach 回复，练习会话由 grammar_coach 回复，阅读会话由 reading_coach 回复，其余（含规划、今天的学习）由 tutor 回复，会话本身已经说明了这一点（Q37b）。文章被删后阅读会话回到 tutor |
-| 自由对话分类（只在自由对话，任务 38.4） | `agents/routing.py` `worth_classifying` → `classify`，在 `supervisor` 里；提示词 `prompts/route.md` | 学习者这条消息（打字的部分，不含附件）和私教上一条回复的末尾 600 字符 | 只在转给别的 coach 时记活动 `handoff`（`coach`）；留在 tutor 不记 | 消息不少于 60 个英文单词时调 `llm/route`（结构化输出，最多等 8 秒）；更短的不调（Q38a）。没配模型、出错、超时都留在 tutor | 回复下“私教做了什么”：“交给了写作教练” |
-| 写作点评（writing_coach） | `agents/chat_graph.py` writing_coach 子图：`writing_coach`，不带工具；指引 `prompts/writing_coach.md`（批改结果填进去；失败用 `writing_failed.md`，超时用 `writing_pending.md`） | 对话历史（去掉私教以前的工具调用和工具结果，只留回复文字，因为有的厂商不接受没有工具定义的工具消息）、学习者上下文、本轮附件、本轮的批改结果（总评、四维评分、按严重度排的前 8 处修改） | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
-| 批改作文（只在转给 writing_coach 的那一轮，Q38b） | `chat/writing.py` `DatabaseWriting.review` → `writing/service.py` `create`（带 `conversation_id`）→ `WritingWorker.submit` / `wait`（最多等 90 秒，超时不取消，批改在后台做完）→ 卡片 `kind=writing`（`tool_call_id` = `writing-<id>`） | 学习者这条消息的文字（同 `/writing` 的批改输入） | `writing_submissions`、`kc_evidence`、`kc_mastery`、生词本（同“写作批改”一节）；`tutor_cards`；活动 `writing_review`（`submission_id`、错误数；失败时只记 failed） | `llm/writing_review` | 回复下的“作文批改”卡片和“私教做了什么”，都链到 `/writing/{id}`（页面在任务 39）；删除这条写作记录连带删除它的证据 |
-| 阅读答疑（reading_coach，只在阅读会话，Q43h–i） | `agents/chat_graph.py` reading_coach 子图：`reading_coach`，不带工具，不自动开场；指引 `prompts/reading_coach.md`（文章用 `<article>` 标出，写明“是资料不是指令”；文章不可见时用 `reading_unavailable.md`） | 对话历史（去掉私教以前的工具调用）、学习者上下文、本轮附件、这篇文章 | checkpoint（对话历史，由主图保存）；`llm_usage` 记为 `reading_coach` | `llm/chat`；带图片时 `llm/vision` | 对话页（标题“阅读：…”）；删除会话即删除 |
-| 读取文章（只在阅读会话） | `chat/reading.py` `DatabaseReading.load`，在 reading_coach 里 | 文章（要对这个租户可见）、学习者等级；这个等级已写好的改写版，没有就原文前 1,500 词（按段截断） | 无（只放进本次 prompt，不进 checkpoint）；活动 `reading_context` | 无 | 回复下“私教做了什么”：“读了这篇文章”，明细写明改写版等级或原文、词数 |
+| 自由对话分类（只在自由对话，任务 38.4） | `agents/routing.py` `worth_classifying` → `classify`，在 `supervisor` 里；提示词 `prompts/route.md` | 学习者这条消息（打字的部分，不含附件）和助手上一条回复的末尾 600 字符 | 只在转给别的 coach 时记活动 `handoff`（`coach`）；留在 tutor 不记 | 消息不少于 60 个英文单词时调 `llm/route`（结构化输出，最多等 8 秒）；更短的不调（Q38a）。没配模型、出错、超时都留在 tutor | 回复下“JOJO做了什么”：“交给了写作教练” |
+| 写作点评（writing_coach） | `agents/chat_graph.py` writing_coach 子图：`writing_coach`，不带工具；指引 `prompts/writing_coach.md`（批改结果填进去；失败用 `writing_failed.md`，超时用 `writing_pending.md`） | 对话历史（去掉助手以前的工具调用和工具结果，只留回复文字，因为有的厂商不接受没有工具定义的工具消息）、学习者上下文、本轮附件、本轮的批改结果（总评、四维评分、按严重度排的前 8 处修改） | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
+| 批改作文（只在转给 writing_coach 的那一轮，Q38b） | `chat/writing.py` `DatabaseWriting.review` → `writing/service.py` `create`（带 `conversation_id`）→ `WritingWorker.submit` / `wait`（最多等 90 秒，超时不取消，批改在后台做完）→ 卡片 `kind=writing`（`tool_call_id` = `writing-<id>`） | 学习者这条消息的文字（同 `/writing` 的批改输入） | `writing_submissions`、`kc_evidence`、`kc_mastery`、生词本（同“写作批改”一节）；`tutor_cards`；活动 `writing_review`（`submission_id`、错误数；失败时只记 failed） | `llm/writing_review` | 回复下的“作文批改”卡片和“JOJO做了什么”，都链到 `/writing/{id}`（页面在任务 39）；删除这条写作记录连带删除它的证据 |
+| 阅读答疑（reading_coach，只在阅读会话，Q43h–i） | `agents/chat_graph.py` reading_coach 子图：`reading_coach`，不带工具，不自动开场；指引 `prompts/reading_coach.md`（文章用 `<article>` 标出，写明“是资料不是指令”；文章不可见时用 `reading_unavailable.md`） | 对话历史（去掉助手以前的工具调用）、学习者上下文、本轮附件、这篇文章 | checkpoint（对话历史，由主图保存）；`llm_usage` 记为 `reading_coach` | `llm/chat`；带图片时 `llm/vision` | 对话页（标题“阅读：…”）；删除会话即删除 |
+| 读取文章（只在阅读会话） | `chat/reading.py` `DatabaseReading.load`，在 reading_coach 里 | 文章（要对这个租户可见）、学习者等级；这个等级已写好的改写版，没有就原文前 1,500 词（按段截断） | 无（只放进本次 prompt，不进 checkpoint）；活动 `reading_context` | 无 | 回复下“JOJO做了什么”：“读了这篇文章”，明细写明改写版等级或原文、词数 |
 | 口语陪练（speaking_coach，只在口语会话，ADR 0029 §2） | `agents/chat_graph.py` speaking_coach 子图：`speaking_coach`，不带工具（Q58f），总是用英文；系统提示词换成 `prompts/speaking_coach.md`（短句、不逐句纠错、只用复述带出正确说法），情景指引 `speaking_scenario.md` / 自由聊 `speaking_free.md`；先开口（`speaking_opening.md`，Q58e） | 对话历史（去掉工具调用）、学习者上下文、情景（`speaking/scenarios.yaml`：角色、学习者目标、目标表达）和开始时的等级（`speaking_sessions.level`，决定每轮句数上限，`rules.yaml` `speaking.max_sentences`） | checkpoint（对话历史，由主图保存）；`llm_usage` 记为 `speaking`，开场记为 `speaking_opening` | `llm/chat` | `/speaking` 页（任务 59）；口语会话不出现在聊天列表（Q58g）；删除口语记录即删除会话 |
-| 私教回复（tutor） | `agents/chat_graph.py` tutor 子图：`tutor`（⇄ `tools`，见上一节） | 对话历史、学习者上下文、规划简报、本轮附件、本会话最近的卡片 | checkpoint（对话历史，含工具调用和结果，由主图保存；子图自己不存 checkpoint）；`tutor_cards` | `llm/chat`；带图片时 `llm/vision`；工具之后的回复记为 `chat_tools` | 对话页；删除会话即删除 |
+| 助手回复（tutor） | `agents/chat_graph.py` tutor 子图：`tutor`（⇄ `tools`，见上一节） | 对话历史、学习者上下文、规划简报、本轮附件、本会话最近的卡片 | checkpoint（对话历史，含工具调用和结果，由主图保存；子图自己不存 checkpoint）；`tutor_cards` | `llm/chat`；带图片时 `llm/vision`；工具之后的回复记为 `chat_tools` | 对话页；删除会话即删除 |
 | 练习会话回复（grammar_coach） | `agents/chat_graph.py` grammar_coach 子图：`grammar_coach`，不带工具 | 对话历史、学习者上下文、练习指引、本轮附件 | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
 
 ### 规划对话（嵌在入学测结果页，ADR 0015 §6、0016 §4）
 
-`POST /conversations` 带 `purpose: "planning"` 创建（还没有任何消息的规划对话直接复用），`POST /conversations/{id}/opening` 让私教先开口，之后和普通对话一样每轮带工具。
+`POST /conversations` 带 `purpose: "planning"` 创建（还没有任何消息的规划对话直接复用），`POST /conversations/{id}/opening` 让助手先开口，之后和普通对话一样每轮带工具。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
-| 读取规划依据（每轮） | `chat/planning.py` `DatabasePlanning`，在 `load_context` 里 | 最近一次完成的入学测结果（等级、语法、词汇量）；该次答错且还没掌握的语法点（最多 5 个，含掌握度）；看板建议的候选（同“看板学习建议”，含最近对话里的错误原句） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `planning`；同时决定本轮卡片范围 | 无 | 回复下“私教做了什么”；入学测结果页；`/learner` 删除证据后下一轮就不再使用 |
-| 私教开场 | `api/chat.py` `open_practice`（同一接口）；tutor 在本次调用末尾加开场提示（`prompts/plan_opening.md`，不进 checkpoint） | 同上 + 学习者上下文 | checkpoint（只有私教的开场白）；活动 `load_context`（turn `opening`）；不安排反思 | `llm/chat`，`llm_usage` 记为 `plan_opening` | 对话页第一条消息；删除会话即删除 |
+| 读取规划依据（每轮） | `chat/planning.py` `DatabasePlanning`，在 `load_context` 里 | 最近一次完成的入学测结果（等级、语法、词汇量）；该次答错且还没掌握的语法点（最多 5 个，含掌握度）；看板建议的候选（同“看板学习建议”，含最近对话里的错误原句） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `planning`；同时决定本轮卡片范围 | 无 | 回复下“JOJO做了什么”；入学测结果页；`/learner` 删除证据后下一轮就不再使用 |
+| 助手开场 | `api/chat.py` `open_practice`（同一接口）；tutor 在本次调用末尾加开场提示（`prompts/plan_opening.md`，不进 checkpoint） | 同上 + 学习者上下文 | checkpoint（只有助手的开场白）；活动 `load_context`（turn `opening`）；不安排反思 | `llm/chat`，`llm_usage` 记为 `plan_opening` | 对话页第一条消息；删除会话即删除 |
 
 ### 练习会话的开场（学习者打开练习会话时执行一次）
 
@@ -142,7 +144,7 @@
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
-| 私教开场 | `api/chat.py` `open_practice` → 同一张图；grammar_coach 在本次调用末尾加一条开场提示（`prompts/practice_opening.md`，不进 checkpoint，也不以学习者名义保存） | 同上两行（学习者上下文、练习指引） | checkpoint（只有私教的开场白）；活动 `load_context`（turn `opening`）；不安排反思 | `llm/chat`，`llm_usage` 记为 `practice_opening`（不计入看板的对话轮数和打卡） | 对话页第一条消息；删除会话即删除 |
+| 助手开场 | `api/chat.py` `open_practice` → 同一张图；grammar_coach 在本次调用末尾加一条开场提示（`prompts/practice_opening.md`，不进 checkpoint，也不以学习者名义保存） | 同上两行（学习者上下文、练习指引） | checkpoint（只有助手的开场白）；活动 `load_context`（turn `opening`）；不安排反思 | `llm/chat`，`llm_usage` 记为 `practice_opening`（不计入看板的对话轮数和打卡） | 对话页第一条消息；删除会话即删除 |
 
 ## 附件处理（上传后执行）
 
@@ -156,15 +158,15 @@
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
-| 反思：记忆与画像 | `memory/reflection.py`、`memory/worker.py` | 本轮及之前几条消息、画像、事实记忆 | `memories`（增删改事实）、`user_profiles`（学习者没手改过的字段）；活动 `reflect_memory` | `llm/reflect`；向量化用 `embedding/memory` | 回复下“私教做了什么”；`/memory` 页面 |
-| 反思：会话摘要 | 同上 | 新消息、旧摘要 | `memories`（episode）；活动 `summarize` | `llm/reflect` | 回复下“私教做了什么”；`/memory` 页面 |
-| 反思：自动收词（与记忆同一次调用） | 同上 + `services/vocab/mine.py` `collect` | 反思给出的候选词（带消息短 id）、`words` | `user_cards`（只为还没有卡片的词建 `source=auto` 的卡，已有卡片一律不动，所以移出就是精确撤销；每次反思最多 5 个，查不到的词丢弃；本会话里通话工具 `add_to_vocab` 已经处理过的词跳过，所以通话中撤销的词不会被加回）；活动 `vocab_collect` | `llm/reflect` | 回复下“私教做了什么”：每个词可“移出”；`/vocab/mine`：来源显示“对话中收集”，可删除 |
-| 反思：语法打标（与记忆同一次调用） | 同上 + `adaptive/evidence.py`、`adaptive/mastery.py` | 本轮学习者消息（短 id u1、u2）、语法 KC 清单（system prompt 固定前缀） | `kc_evidence`（同一条消息的证据先删后写）；由证据重放更新 `kc_mastery`；活动 `grammar_tagging` | `llm/reflect` | 回复下“私教做了什么”（语法点链到 `/learner?kc=`）；`/learner` 页面：每条证据可查看、可删除 |
+| 反思：记忆与画像 | `memory/reflection.py`、`memory/worker.py` | 本轮及之前几条消息、画像、事实记忆 | `memories`（增删改事实）、`user_profiles`（学习者没手改过的字段）；活动 `reflect_memory` | `llm/reflect`；向量化用 `embedding/memory` | 回复下“JOJO做了什么”；`/memory` 页面 |
+| 反思：会话摘要 | 同上 | 新消息、旧摘要 | `memories`（episode）；活动 `summarize` | `llm/reflect` | 回复下“JOJO做了什么”；`/memory` 页面 |
+| 反思：自动收词（与记忆同一次调用） | 同上 + `services/vocab/mine.py` `collect` | 反思给出的候选词（带消息短 id）、`words` | `user_cards`（只为还没有卡片的词建 `source=auto` 的卡，已有卡片一律不动，所以移出就是精确撤销；每次反思最多 5 个，查不到的词丢弃；本会话里通话工具 `add_to_vocab` 已经处理过的词跳过，所以通话中撤销的词不会被加回）；活动 `vocab_collect` | `llm/reflect` | 回复下“JOJO做了什么”：每个词可“移出”；`/vocab/mine`：来源显示“对话中收集”，可删除 |
+| 反思：语法打标（与记忆同一次调用） | 同上 + `adaptive/evidence.py`、`adaptive/mastery.py` | 本轮学习者消息（短 id u1、u2）、语法 KC 清单（system prompt 固定前缀） | `kc_evidence`（同一条消息的证据先删后写）；由证据重放更新 `kc_mastery`；活动 `grammar_tagging` | `llm/reflect` | 回复下“JOJO做了什么”（语法点链到 `/learner?kc=`）；`/learner` 页面：每条证据可查看、可删除 |
 | 口语会话的证据过滤（只在口语会话，ADR 0029 §4） | `speaking/evidence.py` `kept_evidence`，在语法打标里 | 打标结果、哪些消息是录音（`attachments.kind = audio`）、会话的 `corrected_message_ids` | `kc_evidence` 记为 `source = speaking`；少于 3 个词的语音消息不记错误（Q58a，打字的不过滤）；学习者改过转写的消息一条也不记（Q58b） | 无 | 同上 |
 
 ## 口语练习（ADR 0029，任务 58–59）
 
-接口在 `api/speaking.py`：`GET /speaking/scenarios`、`POST /speaking/sessions`（建口语会话，之后用 `POST /conversations/{id}/opening` 让私教开场、`.../messages` 说话）、`GET /speaking/sessions`、`GET /speaking/sessions/{id}`、`POST /speaking/sessions/{id}/end`、`POST /speaking/sessions/{id}/corrections`、`DELETE /speaking/sessions/{id}`。
+接口在 `api/speaking.py`：`GET /speaking/scenarios`、`POST /speaking/sessions`（建口语会话，之后用 `POST /conversations/{id}/opening` 让助手开场、`.../messages` 说话）、`GET /speaking/sessions`、`GET /speaking/sessions/{id}`、`POST /speaking/sessions/{id}/end`、`POST /speaking/sessions/{id}/corrections`、`DELETE /speaking/sessions/{id}`。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
@@ -175,27 +177,27 @@
 
 ## 实时语音通话（ADR 0030，任务 60、61）
 
-学习者和私教“打电话”：浏览器 ↔ 后端 `WS /speech/realtime` ↔ 厂商（OpenAI Realtime 协议：OpenAI、通义千问 Omni、阶跃 StepFun；Gemini Live 协议：Gemini）。后端只转发音频，不解码。后端部分（接通、上下文、工具、转写、挂断后的反思和小结）都已执行；通话界面（任务 62）：`/speaking` 每张情景卡片下的“打电话”进 `/speaking/call`，挂断后到 `/speaking/{id}` 看转写、小结和私教做了什么。
+学习者和助手“打电话”：浏览器 ↔ 后端 `WS /speech/realtime` ↔ 厂商（OpenAI Realtime 协议：OpenAI、通义千问 Omni、阶跃 StepFun；Gemini Live 协议：Gemini）。后端只转发音频，不解码。后端部分（接通、上下文、工具、转写、挂断后的反思和小结）都已执行；通话界面（任务 62）：`/speaking` 每张情景卡片下的“打电话”进 `/speaking/call`，挂断后到 `/speaking/{id}` 看转写、小结和JOJO做了什么。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
 | 接通前检查 | `api/realtime.py` `realtime_call`、`realtime/limits.py` `call_limit` | 登录 cookie 和 Origin（防跨站）；租户的单次分钟数和每人每天分钟数、今天已经打过的分钟；有没有正在打的另一通 | 无（不通过时回一条 `ended`，带 `realtime_off` / `realtime_used_up` / `realtime_busy` / `no_realtime_model` / `realtime_unavailable`） | 无 | `/speech/capabilities` 的 `realtime`、`realtime_minutes_left`（通话页接不通时说明原因） |
-| 开场上下文（只注入一次，通话中不再检索） | `realtime/context.py` `call_instructions`；提示词 `prompts/realtime_tutor.md` | 通话规则（说英语、短句、可被打断、只用 recast 纠错）；情景（标题、私教角色、学习者目标、目标表达）或自由聊；学习者等级和每轮句数上限；画像、记忆里的事实；选了情景时再按情景英文标题和学习者目标检索相关的往期对话摘要（Q60e），自由聊不带往期摘要 | 无 | 选了情景时 `embedding/memory`（检索用的一次向量化） | 记忆在 `/memory` 可查看、编辑、删除，删了下一通就不会再带 |
+| 开场上下文（只注入一次，通话中不再检索） | `realtime/context.py` `call_instructions`；提示词 `prompts/realtime_tutor.md` | 通话规则（说英语、短句、可被打断、只用 recast 纠错）；情景（标题、助手角色、学习者目标、目标表达）或自由聊；学习者等级和每轮句数上限；画像、记忆里的事实；选了情景时再按情景英文标题和学习者目标检索相关的往期对话摘要（Q60e），自由聊不带往期摘要 | 无 | 选了情景时 `embedding/memory`（检索用的一次向量化） | 记忆在 `/memory` 可查看、编辑、删除，删了下一通就不会再带 |
 | 接通 | `providers/realtime_session.py` `open_session`（按写法选 `openai_realtime` 或 `gemini_live` 适配器）、`providers/realtime.py` `get_realtime` | 租户的 `realtime` 路由，按顺序试，只有接通失败才换下一家，通话中不换 | `speaking_sessions`（`mode = realtime`）和一次会话（`purpose = realtime`） | — | `/speaking` 的练过列表 |
 | 通话中 | `realtime/relay.py` `RealtimeCall` | 浏览器只能发音频、`interrupt`、`end`，其他消息丢弃；学习者音频超过实际时长的部分丢弃 | 每 15 秒写一次 `speaking_sessions.call_seconds`（重启也不丢已用分钟）；厂商每次回答记一条 `llm_usage`（task `realtime`，音频 token 计入 input / output，另记学习者音频秒数） | `realtime/realtime` | 字幕和剩余时间（通话页，任务 62）；设置页“用量” |
-| 通话转写（Q61e、Q61f） | `realtime/transcript.py` `Transcript`、`realtime/calls.py` `save_lines` | 厂商给的双方定稿字幕（学习者的字幕是厂商另一个转写模型做的，可能和私教听到的不一样）；学习者一句话的位置按厂商提交这段语音的时刻排 | 每次回答结束就把定稿的几句追加进通话的会话（LangGraph 状态，`additional_kwargs` 标 `voice_call`，被打断的私教回复只存已收到的部分、标 `interrupted`），挂断时存剩下的；后端重启最多丢正在说的一轮 | 无 | 通话详情（`/speaking/{id}` 的“通话转写”，被打断的标出来）；删除这次练习连同对话一起删 |
-| 通话工具（ADR 0030 §4，Q61a–d） | `realtime/tools.py` `CallTools`、`realtime/relay.py` `_run_tools`；规则写在 `prompts/realtime_tutor.md` | `lookup_word`：ECDICT 词条（拼写、音标、前 3 行中文释义）和是否已在生词本；`add_to_vocab`：同上查词 | `add_to_vocab`：同反思收词（`mine.collect`，source `auto`），已有卡片的词不动、回 `existing`，所以重复调用不会多加，移除本通加的词也不会动别的；每次调用记 `agent_activities`（见上表）；`end_session` 不写库，推 `end_suggested` 让前端问学习者要不要挂断（Q61c），私教不能自己挂断 | `realtime`（工具结果交回后私教接着说，算在下一次回答的用量里） | 通话中推 `tool` 事件（字段同对话的活动记录）；挂断后在通话的活动记录里；加进生词本的词在生词本里可移除（通话页的工具标签可以当场撤销，通话详情页的活动记录里也可移除） |
-| 限时 | 同上 `_clock_loop` | 本次上限 = min(单次分钟, 今天剩余) | 结束前 1 分钟推 `time_warning`；到点推 `wrapping_up`，让私教说再见，期间学习者说话不打断；说完或最多 10 秒后挂断 | 同上（道别那一次回答） | 通话界面（任务 62） |
+| 通话转写（Q61e、Q61f） | `realtime/transcript.py` `Transcript`、`realtime/calls.py` `save_lines` | 厂商给的双方定稿字幕（学习者的字幕是厂商另一个转写模型做的，可能和助手听到的不一样）；学习者一句话的位置按厂商提交这段语音的时刻排 | 每次回答结束就把定稿的几句追加进通话的会话（LangGraph 状态，`additional_kwargs` 标 `voice_call`，被打断的助手回复只存已收到的部分、标 `interrupted`），挂断时存剩下的；后端重启最多丢正在说的一轮 | 无 | 通话详情（`/speaking/{id}` 的“通话转写”，被打断的标出来）；删除这次练习连同对话一起删 |
+| 通话工具（ADR 0030 §4，Q61a–d） | `realtime/tools.py` `CallTools`、`realtime/relay.py` `_run_tools`；规则写在 `prompts/realtime_tutor.md` | `lookup_word`：ECDICT 词条（拼写、音标、前 3 行中文释义）和是否已在生词本；`add_to_vocab`：同上查词 | `add_to_vocab`：同反思收词（`mine.collect`，source `auto`），已有卡片的词不动、回 `existing`，所以重复调用不会多加，移除本通加的词也不会动别的；每次调用记 `agent_activities`（见上表）；`end_session` 不写库，推 `end_suggested` 让前端问学习者要不要挂断（Q61c），助手不能自己挂断 | `realtime`（工具结果交回后助手接着说，算在下一次回答的用量里） | 通话中推 `tool` 事件（字段同对话的活动记录）；挂断后在通话的活动记录里；加进生词本的词在生词本里可移除（通话页的工具标签可以当场撤销，通话详情页的活动记录里也可移除） |
+| 限时 | 同上 `_clock_loop` | 本次上限 = min(单次分钟, 今天剩余) | 结束前 1 分钟推 `time_warning`；到点推 `wrapping_up`，让助手说再见，期间学习者说话不打断；说完或最多 10 秒后挂断 | 同上（道别那一次回答） | 通话界面（任务 62） |
 | 挂断 | `realtime/calls.py` `finish`；后端启动时 `close_orphaned` 给上次重启断掉的通话补上结束时间 | — | `speaking_sessions.ended_at`、最终 `call_seconds`；`spoken_seconds` 跟着 `call_seconds`（整通时长都算口语时间，每日计划的“口语”按它算，Q61h）；状态留在 `active`，等下一步做完 | 无 | `/speaking` 的练过列表（通话也在里面，`mode = realtime`） |
-| 挂断后（ADR 0030 §6，Q61g、Q61i） | `realtime/after.py` `AfterCall`（挂断后立刻在后台跑；后端启动时 `recover` 接着做重启前没做完的）；小结复用 `speaking/sessions.py` `summarize` | 通话的会话（上面存的双方转写） | 反思：同普通对话（记忆、语法打标、自动收词），证据 source `speaking`，通话里学习者每句都算“说的”，不到 3 个词的不记错误；小结：学习者说过话、通话 ≥ 30 秒才生成，同级联口语的 `speaking_summary` 和口语能力 Elo，状态改 `done`；不满足就直接 `done`、不调模型；没配聊天模型或调用失败记 `failed`，`POST /speaking/sessions/{id}/end` 重试（通话还没挂断时这个接口回 409 `realtime_call`） | `reflect`、`memory` 向量化、`speaking_summary`（都在后台） | 通话详情 `GET /speaking/sessions/{id}`（小结）、`GET /conversations/{id}/messages`（转写，通话里每句单独一条、被打断的私教回复带 `interrupted`）、`GET /conversations/{id}/activity`（工具和反思记录，`words_on_list` 标出本通加的词还在不在生词本）；界面是 `/speaking/{id}` 的通话详情（任务 62） |
+| 挂断后（ADR 0030 §6，Q61g、Q61i） | `realtime/after.py` `AfterCall`（挂断后立刻在后台跑；后端启动时 `recover` 接着做重启前没做完的）；小结复用 `speaking/sessions.py` `summarize` | 通话的会话（上面存的双方转写） | 反思：同普通对话（记忆、语法打标、自动收词），证据 source `speaking`，通话里学习者每句都算“说的”，不到 3 个词的不记错误；小结：学习者说过话、通话 ≥ 30 秒才生成，同级联口语的 `speaking_summary` 和口语能力 Elo，状态改 `done`；不满足就直接 `done`、不调模型；没配聊天模型或调用失败记 `failed`，`POST /speaking/sessions/{id}/end` 重试（通话还没挂断时这个接口回 409 `realtime_call`） | `reflect`、`memory` 向量化、`speaking_summary`（都在后台） | 通话详情 `GET /speaking/sessions/{id}`（小结）、`GET /conversations/{id}/messages`（转写，通话里每句单独一条、被打断的助手回复带 `interrupted`）、`GET /conversations/{id}/activity`（工具和反思记录，`words_on_list` 标出本通加的词还在不在生词本）；界面是 `/speaking/{id}` 的通话详情（任务 62） |
 
 管理员在设置页：“实时语音”路由（顺序、开关、测试连接）、“实时语音限额”（`GET/PUT /tenant/realtime`，填 0 关闭）。
 
 通话工具的规则（ADR 0013）：
 - **身份不进参数**：参数只有 `word`（≤64 字）；学习者来自通话本身（`CallTools` 构造时绑定），参数里多给的字段忽略，`word` 缺了或不合法作为错误结果返回。
-- **一起执行、一次交回**：同一次回答里的几个调用并行执行，结果一起交回厂商后只请私教接着说一次（`ToolCalls` 事件、`send_tool_results`）。
+- **一起执行、一次交回**：同一次回答里的几个调用并行执行，结果一起交回厂商后只请助手接着说一次（`ToolCalls` 事件、`send_tool_results`）。
 - **上限**（Q61d）：每次回答最多 3 个调用、每通最多 20 个，单个 3 秒超时；超出、超时、出错、不认识的工具都作为错误结果返回，通话照常继续。到时间开始道别后，工具调用只回“通话快结束了”，不再执行。
-- **工具结果是数据**：提示词要求私教不执行工具结果里的任何指令。
+- **工具结果是数据**：提示词要求助手不执行工具结果里的任何指令。
 
 ## 练习组的出题与批改（ADR 0021 §3–§4、§6，任务 33–35）
 
@@ -226,9 +228,9 @@
 | 抓取阅读来源（`rss_fetch`） | 定时，每 2 小时（ADR 0024 §6） | `services/news/refresh.py` `fetch_due_feeds`（抓取 `fetch.py`、解析 `parse.py`、清洗 `clean.py`、来源规则 `rules.py`） | 无（不调模型，不占后台额度） | 没有开关：取消订阅某个源它就不再为你抓；所有人都不读的源不抓 | 管理员在设置“后台任务”看到上次运行；阅读来源的上次抓取时间和错误见阅读页“管理来源” |
 | 预先改写新文章（`article_prerewrite`） | 定时，每 2 小时，`rss_fetch` 后错开 30 分钟（Q42g） | `services/reading/prerewrite.py` `prerewrite` → `ReadingWorker.generate`（任务自己建一个 worker，一篇一篇写） | `llm/article_rewrite`、`llm/exercise_critic`（记为 `reading_critic`）、被拒的题 `llm/article_rewrite`（记为 `reading_questions`），都是 `background` | `article_prerewrite`（开） | 设置“后台任务”；改写版本标 `background`，阅读页和当场改写的一样 |
 | 预先写好 AI 例句（`word_examples_prefetch`） | 定时，每 6 小时（任务 44） | `services/vocab/prefetch.py` `prefetch`：未来 24 小时到期的复习卡 + 下一批新词里没有 Tatoeba 例句、本租户这个等级也没缓存的，每人每次最多 `vocab.examples_prefetch.per_learner` 个，逐词调 `services/vocab/examples.py` `examples`；没配模型或模型出错就停掉这个租户本轮 | `llm/word_examples`（`background`） | `word_examples_prefetch`（开） | 设置“后台任务”；复习卡背面直接显示，标“AI 生成”；写进 `word_examples`（租户、词、等级），和点“AI 例句”按钮共用 |
-| 私教的诊断（`diagnosis`，任务 46） | 定时，每天 UTC 03:45，挑上次诊断满 7 天、之后又有算数错误的学习者（从没诊断过的要有语法点在 30 天内错满 3 次）；以及做完一组练习（或最后一题被举报）后，距上次诊断满 20 小时、之后新错误合计 ≥ 3 条（事件，`DiagnosisWorker.after_set`，同一学习者同时只跑一个）（Q46b） | `adaptive/diagnosis/`：`triggers.py` 判是否到时候 → `service.py` `run_diagnosis` → `context.py` 挑最多 3 个没学会、30 天内算数错误 ≥ 3 次的语法点，用 `graph.neighborhood` 取它们的前置链、易混语法点、掌握度和最近 3 条错句（带证据编号）→ `checks.py` 调模型并校验：只能引用给它看过的语法点和错句，证据要落在假设的语法点上或同一个邻域里，有效证据少于 2 条的假设丢掉，最多留 3 条（Q46c）；错句是学习者写的，提示词按资料处理 | `llm/diagnose`（`background`；一次调用覆盖全部目标语法点；没有够格的语法点不调） | `diagnosis`（开） | 写 `diagnoses`（目标语法点、校验后的假设、讲解语言、用到的证据截止编号、模型、规则版本）；有假设时写 / 原地更新一条事实记忆“私教的诊断：…”（`/memory` 可改可删，删了下次诊断再写新的；不想再诊断请关开关）；诊断点名、没学会的语法点 14 天内选题优先级 ×1.5（Q46e，系数在 `rules.yaml`，不用模型给的把握程度）。学习者模型页顶部“私教的诊断”区块显示最近一次有结论的诊断：结论、指向的语法点、把握程度、建议、引用的错句（点开显示原句、改正和来源）；“这次诊断不对”可整条删除，加成随之取消，它写的记忆一并删除；“删除所有学习记录”也删诊断（任务 47） |
+| 助手的诊断（`diagnosis`，任务 46） | 定时，每天 UTC 03:45，挑上次诊断满 7 天、之后又有算数错误的学习者（从没诊断过的要有语法点在 30 天内错满 3 次）；以及做完一组练习（或最后一题被举报）后，距上次诊断满 20 小时、之后新错误合计 ≥ 3 条（事件，`DiagnosisWorker.after_set`，同一学习者同时只跑一个）（Q46b） | `adaptive/diagnosis/`：`triggers.py` 判是否到时候 → `service.py` `run_diagnosis` → `context.py` 挑最多 3 个没学会、30 天内算数错误 ≥ 3 次的语法点，用 `graph.neighborhood` 取它们的前置链、易混语法点、掌握度和最近 3 条错句（带证据编号）→ `checks.py` 调模型并校验：只能引用给它看过的语法点和错句，证据要落在假设的语法点上或同一个邻域里，有效证据少于 2 条的假设丢掉，最多留 3 条（Q46c）；错句是学习者写的，提示词按资料处理 | `llm/diagnose`（`background`；一次调用覆盖全部目标语法点；没有够格的语法点不调） | `diagnosis`（开） | 写 `diagnoses`（目标语法点、校验后的假设、讲解语言、用到的证据截止编号、模型、规则版本）；有假设时写 / 原地更新一条事实记忆“助手的诊断：…”（`/memory` 可改可删，删了下次诊断再写新的；不想再诊断请关开关）；诊断点名、没学会的语法点 14 天内选题优先级 ×1.5（Q46e，系数在 `rules.yaml`，不用模型给的把握程度）。学习者模型页顶部“助手的诊断”区块显示最近一次有结论的诊断：结论、指向的语法点、把握程度、建议、引用的错句（点开显示原句、改正和来源）；“这次诊断不对”可整条删除，加成随之取消，它写的记忆一并删除；“删除所有学习记录”也删诊断（任务 47） |
 | 单词发音预生成（任务 55，ADR 0028 §4） | 部署方（owner / admin）在设置“单词发音”里对一本词书手动发起，确认词数、字符数、预计占用和费用后开始；后端重启后接着跑 | `services/speech/word_audio.py`（估算、按词 id 分批、限速、429 退避；用百炼 qwen-audio 时不管填多少都封顶每分钟 120 次，任务 64.2a）+ `services/speech/worker.py` `WordAudioWorker` | `tts/word_audio`（`background`，按字符；走 `tts` 的 `words` 路由，没有可用模型时走 `default`，Q64s；只用开工时路由里第一个能读该口音的模型，Q55c）。**不占每日后台额度**（Q7：部署方单独确认了这笔费用） | 不为某个学习者做，没有学习者开关；部署方可暂停 / 继续 / 取消 | 只读公开词库里的单词，不读学习者数据；写 `tts_audio`（`pinned`、`word_id`，不参与淘汰和 30 天清理）和 `word_audio_jobs`（进度、失败数、字符数、开工时的声音）；学习者读单词时直接命中，听到的就是结果；部署方可按词书删除 |
-| 清理朗读缓存（`tts_cache_cleanup`，任务 54.5） | 定时，每天 UTC 04:20 | `services/speech/read_aloud.py` `drop_unused` | 无（不调模型，不占后台额度） | 没有开关；想立刻删自己的，用朗读设置里的“清除我的朗读缓存” | 删除所有租户里 30 天没人播过、不是预生成固定的朗读音频（Q54c：私教回复读出来的音频可能含个人信息）；设置“后台任务”看到上次运行 |
+| 清理朗读缓存（`tts_cache_cleanup`，任务 54.5） | 定时，每天 UTC 04:20 | `services/speech/read_aloud.py` `drop_unused` | 无（不调模型，不占后台额度） | 没有开关；想立刻删自己的，用朗读设置里的“清除我的朗读缓存” | 删除所有租户里 30 天没人播过、不是预生成固定的朗读音频（Q54c：助手回复读出来的音频可能含个人信息）；设置“后台任务”看到上次运行 |
 
 `rss_fetch` 读写的是公开的 RSS，不读任何学习者数据：只抓有人订阅的 feed（内置源默认订阅），写 `articles`（正文转成纯文本段落，图片和图片说明不存）和 feed 上的条件请求信息、失败次数、错误码；连续失败 3 次后间隔翻倍，最长 24 小时；超过 90 天的文章删除。经 `net_guard` 直连，设了 `FEED_HTTP_PROXY` 时走代理（每一跳先查地址）。
 
@@ -270,13 +272,13 @@
 
 ## 看板的“今天”对话（ADR 0016）
 
-看板上嵌着一个私教对话框，每天一段（按学习者时区）。**打开看板不调模型**：先显示一句规则问候和几条快捷回复，学习者点快捷回复或自己发消息，才开始这一天的对话（懒创建，`POST /conversations` 带 `purpose: "daily"`，当天已有就返回那一段）。之后和普通对话一样：带工具、有后台反思、进对话列表。没有开场白。
+看板上嵌着一个助手对话框，每天一段（按学习者时区）。**打开看板不调模型**：先显示一句规则问候和几条快捷回复，学习者点快捷回复或自己发消息，才开始这一天的对话（懒创建，`POST /conversations` 带 `purpose: "daily"`，当天已有就返回那一段）。之后和普通对话一样：带工具、有后台反思、进对话列表。没有开场白。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
 | 生成候选（不调模型） | `advice/candidates.py` → `GET /advice` | 今日待复习 / 剩余新词、当前词书与筛选进度、入学测提醒（`advice/reminder.py`：原因、上次测试的等级和该级语法点学会几个、学习者是否点过“以后再说”）、最近 14 天对话里计入的语法错误（KC、掌握度、最多 2 条原句 → 改正）；chat 路由能否解析出模型（`model_ready`） | 无 | 无 | 看板对话框的问候和快捷回复（带实时数字）；没配模型时显示为直达链接 |
 | 快捷回复 | 前端按候选和界面语言用模板生成；点了就作为学习者的消息发送 | 候选 | 同普通对话的一轮（学习者消息、回复、活动、卡片、反思） | 同 `chat_message` | 对话框和对话页的历史里；删除会话即删除 |
-| 读取今天的依据（每轮） | `chat/planning.py` `DatabasePlanning`（`purpose="daily"`，提示词 `prompts/daily.md`），在 `load_context` 里 | 今天的计划（状态、每项进度，以及这一轮现读的今天总量，`propose_daily_plan` 按它收紧，ADR 0027）；同规划对话：最近一次入学测结果、该次答错且还没掌握的语法点、候选（入学测提醒带原因；没被搁置时私教第一条回复提一次，点过“以后再说”的只在被问到时给卡片，页面上不显示） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `planning`；同时决定本轮卡片范围（与规划对话相同） | 无 | 回复下“私教做了什么”；`/learner` 删除证据后下一轮就不再使用 |
+| 读取今天的依据（每轮） | `chat/planning.py` `DatabasePlanning`（`purpose="daily"`，提示词 `prompts/daily.md`），在 `load_context` 里 | 今天的计划（状态、每项进度，以及这一轮现读的今天总量，`propose_daily_plan` 按它收紧，ADR 0027）；同规划对话：最近一次入学测结果、该次答错且还没掌握的语法点、候选（入学测提醒带原因；没被搁置时助手第一条回复提一次，点过“以后再说”的只在被问到时给卡片，页面上不显示） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `planning`；同时决定本轮卡片范围（与规划对话相同） | 无 | 回复下“JOJO做了什么”；`/learner` 删除证据后下一轮就不再使用 |
 
 ## 看板的“今天的计划”（ADR 0027）
 
@@ -285,5 +287,5 @@
 | 步骤 | 代码 | 读 | 写 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|
 | 生成今天的计划 | `adaptive/daily_plan/service.py` `today` | 每天分钟数、今天复习和新词的总量、练习选题第一个语法点、订阅里最新没读过的文章、上次写作时间 | `daily_plans`（`choice` 数量和开关、`limits` 上限、状态 `proposed`） | 看板“今天的计划”：可调数量、确认 / 今天不要 |
-| 确认 / 不要 / 撤销 | `POST /plan/{id}/confirm`（可带调整）、`/decline`、`/undo` | 计划 | `daily_plans` 的 `choice` 和状态；撤销回到待确认 | 同上；私教卡确认的计划只能在卡上撤销 |
-| 进度 | `service.view`，每次读时现算 | 本地当天的复习记录、开始学的新词、完成的练习组、读完的文章、提交的写作、当天开始的口语会话的说话秒数（满 `speaking_target_minutes` 分钟算完成；草案不放口语，学习者在看板或私教卡上打开） | 无 | 看板清单的勾和进度 |
+| 确认 / 不要 / 撤销 | `POST /plan/{id}/confirm`（可带调整）、`/decline`、`/undo` | 计划 | `daily_plans` 的 `choice` 和状态；撤销回到待确认 | 同上；助手卡确认的计划只能在卡上撤销 |
+| 进度 | `service.view`，每次读时现算 | 本地当天的复习记录、开始学的新词、完成的练习组、读完的文章、提交的写作、当天开始的口语会话的说话秒数（满 `speaking_target_minutes` 分钟算完成；草案不放口语，学习者在看板或助手卡上打开） | 无 | 看板清单的勾和进度 |

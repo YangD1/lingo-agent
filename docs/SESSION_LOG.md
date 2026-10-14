@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-10-15 任务 79：默认名 JOJO、“私教”改称“助手”、点名字进编辑页
+
+**做了什么**：
+- 用户提出：猫猫默认叫 JOJO，可以改名；“私教”统一改成“助手”；“私教做了什么”改成“JOJO做了什么”，JOJO 高亮可点，点了进编辑页（形象和名字）。Q79a–d 全部按推荐（英文 tutor → assistant；界面 + 公开文档替换，ADR / PLAN 历史不动；名字单独做链接；侧栏固定“我的助手”、页面标题显示名字）。
+- 79.1：ADR 0040；PLAN P4 私教一段补一句。
+- 79.2：`tutor/service.py` `DEFAULT_NAME = "JOJO"`；`tutor/prompt.py` 名字为空时也写“Your name is JOJO”（以前默认私教的提示词里没有名字）；诊断记忆前缀改“助手的诊断：”/“Assistant's diagnosis: ”。
+- 79.3：`messages/*.json` 按值替换（zh 113 处，en tutor → assistant）；`lib/tutor.ts` 默认名；`pet-actions` 加“助手设置”/“assistant settings”触发词。
+- 79.4：`turn-activity.tsx` 胶囊拆成名字链接（`/tutor#looks`）+ 展开按钮；`tutor-app.tsx` 标题“{名字}：名字、形象和声音”、形象卡片 `id="looks"` + `useHashFlash`，到达时聚焦名字框。
+- 79.5：README 中英、`docs/agent-tools.md`、`docs/demo.md` 替换；Vitest 加 2 条、E2E `activity.spec` 加 1 条。
+
+**未完成**：见看板 79.5（全量测试、Docker 重建）；没有推送。
+
+**下一步**：全量 pytest / E2E 过后标 79.5 完成，重建 Docker（后端 + 前端都改了），等用户看效果再推送（任务 77、78、79 都在本地）。
+
+**踩坑**：
+- 英文 README 里直接替换 tutor 会改坏截图路径（`tutor-en.png`）、ADR 文件名和 `tutor/` 目录名；要用前后不是 `/ - _ . \`` 的正则，句末的 “tutor.” 再单独处理。
+- 活动行的名字不能做成按钮里的链接（按钮里不能套交互元素），只能做成相邻两个元素；E2E 原来用 `toHaveText` 断言按钮整句，现在按钮文字只剩“做了什么：…”，改用 `toHaveAccessibleName`。
+
+---
+
 ## 2026-10-15 任务 78：桌宠聊天小窗独立浮层样式
 
 **做了什么**：
