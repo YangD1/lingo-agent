@@ -93,13 +93,19 @@
 | `propose_learning_goal` | `goal`（≤200 字）、`target_exam`（考试标签）、`daily_minutes`（1–600），至少一项 | 提议，`proposed` | `user_profiles` 对应字段，并记为学习者手动设置（`manual_fields`，反思不会覆盖）；卡片记下原值 | 恢复原值和原来的 `manual_fields`；之后又改过则 409 `setting_changed` |
 | `propose_daily_plan` | `review`、`new_words`（0–500）、`practice`、`reading`、`writing`、`speaking`（开关；`speaking` 默认关，学习者想练口语才加） | 提议，`daily_plan`；超过今天总量（到期复习、词书允许的新词，按这一轮现读）的数量调低，没东西可练 / 可读就关掉，预计分钟数由代码按 `rules.yaml` 算；学习者可在卡片上调数量、开关后再确认（`POST /cards/{id}/apply` 带 `{choice, tz}`，代码再收紧一次） | 当天的 `daily_plans`：替换计划内容和上限、状态改为已确认；卡片记下原计划。计划日期已过则 409 `plan_expired` | 换回原计划；之后计划又被改过则 409 `setting_changed` |
 | `suggest_practice` | `kc_id`（语法点清单里的 id） | 链接，`info` | 无（点开即建练习会话，同“开始练习”） | 不需要 |
-| `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_screen`、`placement`、`learner`、`speaking` 之一 | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
+| `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_learn`、`vocab_screen`、`vocab_mine`、`placement`、`learner`、`practice`、`writing`、`reading`、`speaking`、`speaking_call`、`memory`、`tutor`、`settings`、`usage` 之一（后 10 种 ADR 0039 新增） | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
 
 **实时通话的工具**另有一套：`lookup_word`、`add_to_vocab`、`end_session`（ADR 0030 §4）。它们不出卡片：`lookup_word` 只读；`add_to_vocab` 直接加进生词本（幂等，可在生词本移除），因为通话中弹确认会打断说话；`end_session` 只提议，学习者点了才挂断。上限是每次回答 3 个、每通 20 个、单个 3 秒。参数、读写和学习者在哪里看到，见下面“实时语音通话”一节。
 
 卡片存在 `tutor_cards`（`cards/service.py`；状态 `proposed → applied | declined`、`applied → undone`，链接卡片是 `info`；提议不过期），删除会话时一起删除。接口：`GET /conversations/{id}/cards`、`POST /cards/{id}/apply|decline|undo`（只能操作自己的卡片）。回复中的卡片通过 SSE `card` 事件实时推送。
 
 **学习者在哪里看到**：卡片显示在那一轮私教回复的下方（`frontend/src/components/chat/tutor-cards.tsx`），和回复一起属于对话，不受“显示私教做了什么”开关影响。提议卡片上有“确认 / 不用了”，确认后可“撤销”；撤销被拒绝（之后又改过设置）时卡片上说明原因。每次调用在“私教做了什么”里记一行（展示了什么卡片，或没能展示）；厂商不支持工具时也有一行说明。
+
+## 桌宠的快捷动作与主动提醒（不经过模型，ADR 0039）
+
+- **本地意图匹配**（`frontend/src/lib/pet-actions.ts`）：学习者在桌宠小窗里发的短消息（去掉空白和标点后中文 ≤ 16 字、英文 ≤ 6 个词，不是问句）先按动作清单的触发词匹配；命中后**不发给模型**，小窗收起，小猫头顶弹出询问气泡（开始 / 不用 / 还是问私教）。动作只是打开弹层、跳转页面或设置页锚点，没有副作用；会改设置的操作仍走私教的确认卡片。
+- **主动提醒**（`frontend/src/lib/pet-nudges.ts`）：只读 `/advice`（含 `model_ready`）和 `/plan`，模板文字，不调模型。优先级：没配对话模型 → `/advice` 第一条（不在当前页的）→ 今天的计划没做完；事件：一轮复习背完问要不要学新词、打盹醒来欢迎回来、计划完成祝贺。每天最多 3 条，同类每天一次，两条之间至少 10 分钟，专注时（弹层、录音、私教说话 / 思考、小窗、输入中、通话页）不打扰；频率记录只存本机。
+- **学习者在哪里看到 / 关掉**：气泡就在小猫头顶，可随手关掉；“我的私教”页的“主动提醒”开关（`tutor_profiles.nudges`，默认开）关掉后不再主动提醒，自己说的指令仍会弹询问气泡。
 
 ## MCP 服务
 
