@@ -835,7 +835,8 @@
       "keysSpell": "<k>Enter</k> 检查",
       "keysSuggested": "<k>Enter</k> 按建议评分 · <k>1</k>–<k>4</k> 改评分",
       "close": "关闭",
-      "title": "背单词"
+      "title": "背单词",
+      "swipe": "左滑 {again} · 右滑 {good}"
     },
     "mine": {
       "title": "我的生词本",

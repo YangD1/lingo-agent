@@ -3,7 +3,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { Bookmark, Volume2, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type PointerEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { ReadAloudBadge } from "@/components/speech/read-aloud-badge";
@@ -29,6 +29,7 @@ import {
 } from "@/lib/vocab";
 import { CatLoading, LingoCat } from "@/components/brand/lingo-cat";
 
+import { canAnimate, comeBack, flyOff, rise, settle, turnAway, turnBack } from "./deck-motion";
 import { type Answer, AnswerResult, ListenFront, SPELL_FORM, SpellFront } from "./review-fronts";
 import { type ReviewMode, useReviewSession } from "./use-review-session";
 import { WordMeanings } from "./word-meanings";
@@ -69,8 +70,12 @@ export function ReviewDeck({
   onReviewAll: () => void;
 }) {
   const [open, setOpen] = useState(true);
-  // Focus goes to the card, not the close button, so Space flips instead of closing.
-  const cardRef = useRef<HTMLDivElement>(null);
+  // Focus goes to the card's body, not the close button, so Space flips instead of closing.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // The card that turns, flies off and rises (deck-motion.ts).
+  const faceRef = useRef<HTMLDivElement>(null);
+  // A turn or a rating under way: input waits for it.
+  const moving = useRef(false);
   const t = useTranslations("vocab.review");
   const describe = useDescribeError();
   const session = useReviewSession(mode);
@@ -94,6 +99,10 @@ export function ReviewDeck({
   useEffect(() => {
     if (roundDone) petHappy();
   }, [roundDone]);
+  // ...and the pile gathers up under the last card, which settles with a pop.
+  useLayoutEffect(() => {
+    if (roundDone && canAnimate(faceRef.current)) settle(faceRef.current);
+  }, [roundDone]);
 
   // A card is one sitting's turn: the same word can come back after a miss.
   const turn = current ? `${current.word.id}:${session.reviewed}` : "";
@@ -114,36 +123,151 @@ export function ReviewDeck({
     if (heard) speakWord(heard);
   }, [heard, turn]);
 
+  // Turning over: the face goes edge-on, the back is put in, and the layout effect below
+  // brings it round once it is on the page.
+  const turning = useRef(false);
+  const turned = useRef(false);
+  // A rating keyed while the card turns (Space, then 3 at once) is kept for when it is round.
+  const queued = useRef<Rating | "suggested" | null>(null);
+  const turnOver = (show: () => void) => {
+    const face = faceRef.current;
+    if (moving.current) return;
+    if (!canAnimate(face)) return show();
+    moving.current = true;
+    turning.current = true;
+    void turnAway(face).then(() => {
+      turned.current = true;
+      show();
+    });
+  };
+
+  // Rating: the card flies off while the rating saves, then the next one rises in its place.
+  const flying = useRef(false);
+  const rateCard = async (rating: Rating) => {
+    const face = faceRef.current;
+    if (turning.current) {
+      queued.current = rating;
+      return;
+    }
+    if (!flipped || session.busy || moving.current) return;
+    if (!canAnimate(face)) {
+      await rate(rating, format);
+      return;
+    }
+    moving.current = true;
+    flying.current = true;
+    flyOff(face, rating === 1 ? -1 : 1);
+    const saved = await rate(rating, format);
+    if (!saved && flying.current) {
+      // Not saved: the same card is still up, so it comes back to be rated again.
+      flying.current = false;
+      moving.current = false;
+      comeBack(face);
+    }
+  };
+  // The turned card is up: bring it round, then take a rating keyed meanwhile.
+  useLayoutEffect(() => {
+    if (!turned.current) return;
+    turned.current = false;
+    turning.current = false;
+    moving.current = false;
+    if (faceRef.current) turnBack(faceRef.current);
+    const wanted = queued.current === "suggested" ? suggested : queued.current;
+    queued.current = null;
+    if (wanted !== null) void rateCard(wanted);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once the turned card is up
+  }, [flipped]);
+  const done = !session.loading && !current && session.error == null;
+  useLayoutEffect(() => {
+    if (!flying.current) return;
+    flying.current = false;
+    moving.current = false;
+    if (faceRef.current) rise(faceRef.current);
+  }, [turn, done]);
+
   const pick = (option: string | null) => {
-    if (!current) return;
+    if (!current || moving.current) return;
     const right = option === current.gloss;
     setAnswered({ turn, answer: { format: "listen", picked: option, right } });
-    answer(right ? 3 : 1);
+    turnOver(() => answer(right ? 3 : 1));
   };
   const check = () => {
-    if (!current) return;
+    if (!current || moving.current) return;
     const text = typed.trim() ? typed : null;
     const judged = text === null ? "wrong" : judgeSpelling(text, current.word.word);
     setAnswered({ turn, answer: { format: "spell", typed: text, result: judged } });
-    answer(SUGGESTED_RATING[judged]);
+    turnOver(() => answer(SUGGESTED_RATING[judged]));
+  };
+
+  // Phones (Q75c): on the back, swipe left for Again, right for Good. Touch and pen only,
+  // and only sideways; up and down still scrolls the card.
+  const drag = useRef<{ id: number; x: number; y: number; dx: number; on: boolean } | null>(null);
+  const againHint = useRef<HTMLSpanElement>(null);
+  const goodHint = useRef<HTMLSpanElement>(null);
+  const swipeDistance = () => Math.min(120, (faceRef.current?.offsetWidth ?? 400) * 0.3);
+  const showHints = (dx: number) => {
+    const reach = Math.min(1, Math.abs(dx) / swipeDistance());
+    if (againHint.current) againHint.current.style.opacity = String(dx < 0 ? reach : 0);
+    if (goodHint.current) goodHint.current.style.opacity = String(dx > 0 ? reach : 0);
+  };
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" || !flipped || session.busy || moving.current) return;
+    if ((event.target as Element).closest("button, a, input, textarea, summary, [role=button]")) return;
+    drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, dx: 0, on: false };
+  };
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    const face = faceRef.current;
+    if (!d || event.pointerId !== d.id || !face) return;
+    const dx = event.clientX - d.x;
+    if (!d.on) {
+      if (Math.abs(dx) < 10) return;
+      if (Math.abs(event.clientY - d.y) > Math.abs(dx)) {
+        drag.current = null;
+        return;
+      }
+      d.on = true;
+      face.setPointerCapture(event.pointerId);
+    }
+    d.dx = dx;
+    face.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+    showHints(dx);
+  };
+  const onPointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || event.pointerId !== d.id) return;
+    drag.current = null;
+    showHints(0);
+    const face = faceRef.current;
+    if (!d.on || !face) return;
+    if (event.type === "pointerup" && Math.abs(d.dx) >= swipeDistance()) void rateCard(d.dx < 0 ? 1 : 3);
+    else comeBack(face);
   };
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (!isShortcut(event)) return;
       const digit = ["1", "2", "3", "4"].indexOf(event.key);
-      if (flipped) {
+      if (turning.current) {
         if (digit >= 0) {
           event.preventDefault();
-          void rate((digit + 1) as Rating, format);
+          queued.current = (digit + 1) as Rating;
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          queued.current = "suggested";
+        }
+      } else if (flipped) {
+        if (digit >= 0) {
+          event.preventDefault();
+          void rateCard((digit + 1) as Rating);
         } else if ((event.key === "Enter" || event.key === " ") && suggested !== null) {
           event.preventDefault();
-          void rate(suggested, format);
+          void rateCard(suggested);
         }
       } else if (format === "recognize") {
         if (event.key === " ") {
           event.preventDefault();
-          flip();
+          turnOver(flip);
         }
       } else if (event.key.toLowerCase() === "r" && heard) {
         event.preventDefault();
@@ -175,7 +299,6 @@ export function ReviewDeck({
   const mine = current?.source === "auto" || current?.source === "manual";
 
   const total = session.reviewed + session.remaining;
-  const done = !session.loading && !current && session.error == null;
   // Cards fanned out behind the current one: fewer as the round runs out.
   const behind = Math.min(2, Math.max(0, session.remaining - 1));
 
@@ -190,7 +313,7 @@ export function ReviewDeck({
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/25 backdrop-blur-md transition-opacity duration-200 data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <Dialog.Popup
-          initialFocus={cardRef}
+          initialFocus={bodyRef}
           className="fixed inset-0 z-50 flex flex-col items-center px-4 pt-[max(12px,env(safe-area-inset-top))] pb-[max(16px,env(safe-area-inset-bottom))] outline-none transition-[opacity,scale] duration-200 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0"
           data-testid="review-deck"
         >
@@ -241,26 +364,57 @@ export function ReviewDeck({
           {/* The stack. The card has a fixed height inside the viewport; a long back scrolls
               inside it, and the answer / rating bar stays at its bottom (Q75a). */}
           <div className="relative my-4 flex min-h-0 w-full max-w-[520px] flex-1 md:max-h-[640px]">
-            {behind >= 2 && (
-              <div
-                aria-hidden
-                className="absolute inset-x-6 inset-y-0 rotate-[-4deg] rounded-2xl border bg-muted/80"
-              />
-            )}
-            {behind >= 1 && (
-              <div
-                aria-hidden
-                className="absolute inset-x-3 inset-y-0 rotate-[2.5deg] rounded-2xl border bg-brand-soft"
-              />
-            )}
+            {/* The pile: as the round runs out its cards straighten and slip under. */}
             <div
-              className="relative flex min-h-0 w-full flex-col overflow-hidden rounded-2xl border bg-card shadow-(--shadow-pop)"
+              aria-hidden
+              className={cn(
+                "absolute inset-x-6 inset-y-0 rounded-2xl border bg-muted/80 transition-[rotate,opacity,scale] duration-500 motion-reduce:transition-none",
+                behind >= 2 ? "rotate-[-4deg]" : "scale-95 rotate-0 opacity-0",
+              )}
+            />
+            <div
+              aria-hidden
+              className={cn(
+                "absolute inset-x-3 inset-y-0 rounded-2xl border bg-brand-soft transition-[rotate,opacity,scale] duration-500 motion-reduce:transition-none",
+                behind >= 1 ? "rotate-[2.5deg]" : "scale-95 rotate-0 opacity-0",
+              )}
+            />
+            <div
+              ref={faceRef}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerEnd}
+              onPointerCancel={onPointerEnd}
+              className={cn(
+                "relative flex min-h-0 w-full flex-col overflow-hidden rounded-2xl border bg-card shadow-(--shadow-pop) will-change-transform",
+                flipped && "touch-pan-y touch-pinch-zoom",
+              )}
               data-testid={current ? "review-card" : undefined}
             >
+              {/* What letting go of a swipe would rate. */}
+              <span
+                ref={againHint}
+                aria-hidden
+                className="pointer-events-none absolute top-4 right-4 z-10 rotate-6 rounded-lg border-2 border-destructive px-2 py-0.5 text-sm font-bold text-destructive opacity-0"
+              >
+                {t("ratings.1")}
+              </span>
+              <span
+                ref={goodHint}
+                aria-hidden
+                className="pointer-events-none absolute top-4 left-4 z-10 -rotate-6 rounded-lg border-2 border-success px-2 py-0.5 text-sm font-bold text-success opacity-0"
+              >
+                {t("ratings.3")}
+              </span>
               <div
-                ref={cardRef}
+                ref={bodyRef}
                 tabIndex={-1}
-                className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4 outline-none md:px-6"
+                // A scroller sets its own touch-action for touches inside it, so the swipe
+                // needs it here too, not only on the card.
+                className={cn(
+                  "flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-4 outline-none md:px-6",
+                  flipped && "touch-pan-y touch-pinch-zoom",
+                )}
               >
                 {session.error != null && <ErrorText>{describe(session.error)}</ErrorText>}
                 {session.loading && (
@@ -391,7 +545,7 @@ export function ReviewDeck({
                           key={r}
                           type="button"
                           disabled={session.busy}
-                          onClick={() => void rate(r, format)}
+                          onClick={() => void rateCard(r)}
                           data-suggested={r === suggested || undefined}
                           className="relative flex flex-col items-center gap-1 py-3 text-[15px] font-medium transition-colors outline-none hover:bg-muted data-suggested:bg-accent focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:bg-accent disabled:opacity-50"
                         >
@@ -432,7 +586,7 @@ export function ReviewDeck({
                       {typed.trim() ? t("spell.check") : t("spell.dontKnow")}
                     </Button>
                   ) : (
-                    <Button size="lg" className="w-full" onClick={flip}>
+                    <Button size="lg" className="w-full" onClick={() => turnOver(flip)}>
                       {t("flip")}
                     </Button>
                   )}
@@ -441,6 +595,11 @@ export function ReviewDeck({
             </div>
           </div>
 
+          {current && flipped && (
+            <p className="shrink-0 text-center text-xs text-muted-foreground md:hidden" data-testid="review-swipe-hint">
+              {t("swipe", { again: t("ratings.1"), good: t("ratings.3") })}
+            </p>
+          )}
           {current && (
             <p className="shrink-0 text-center text-xs text-muted-foreground max-md:hidden">
               {t.rich(

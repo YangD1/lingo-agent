@@ -835,7 +835,8 @@
       "keysSpell": "<k>Enter</k> check",
       "keysSuggested": "<k>Enter</k> rate as suggested · <k>1</k>–<k>4</k> rate differently",
       "close": "Close",
-      "title": "Vocabulary review"
+      "title": "Vocabulary review",
+      "swipe": "Swipe left: {again} · right: {good}"
     },
     "mine": {
       "title": "My words",

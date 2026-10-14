@@ -111,6 +111,68 @@ test("reviewed words come back to be heard and picked, or spelled (task 63)", as
   await expect(page.getByRole("radio", { name: "拼写" })).toHaveAttribute("aria-checked", "true");
 });
 
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  /** The card has stopped turning. */
+  async function waitForStill(page: Page) {
+    await expect
+      .poll(() => page.getByTestId("review-card").evaluate((el) => el.getAnimations().length))
+      .toBe(0);
+  }
+
+  /** A finger drag across the card, through Chromium's touch input. */
+  async function swipe(page: Page, dx: number) {
+    const box = (await page.getByTestId("review-card").boundingBox())!;
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 3;
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+    for (let i = 1; i <= 8; i++) {
+      await cdp.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x: x + (dx * i) / 8, y }],
+      });
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await cdp.detach();
+  }
+
+  test("swipe the back of a card left for Again, right for Good (ADR 0038)", async ({ page }) => {
+    await register(page, uniqueEmail());
+    const chosen = await page.request.put("/api/vocab/book", { data: { book_id: OXFORD } });
+    expect(chosen.status()).toBe(204);
+    await page.goto("/vocab/review");
+    const progress = page.getByTestId("review-progress");
+
+    await expect(page.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "显示答案" }).click();
+    await expect(page.getByTestId("review-swipe-hint")).toBeVisible();
+    await waitForStill(page);
+    // Not far enough: it springs back unrated.
+    await swipe(page, -30);
+    await expect(progress).toContainText("已复习 0");
+    await swipe(page, -180);
+    await expect(progress).toContainText("已复习 1");
+
+    await expect(page.getByRole("heading", { name: "go", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "显示答案" }).click();
+    await waitForStill(page);
+    await swipe(page, 180);
+    await expect(progress).toContainText("已复习 2");
+    await expect(page.getByRole("heading", { name: "us", exact: true })).toBeVisible();
+
+    // The rest by keys; then "the", swiped to Again, comes round again in this sitting.
+    for (const word of ["us", "run", "abandon", "hello", "colour"]) {
+      await expect(page.getByRole("heading", { name: word, exact: true })).toBeVisible();
+      await page.keyboard.press("Space");
+      await page.keyboard.press("4");
+    }
+    await expect(progress).toContainText("已复习 7");
+    await expect(page.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+  });
+});
+
 test("the back of a card shows real example sentences, and AI ones when asked", async ({
   page,
 }) => {

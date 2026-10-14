@@ -35,7 +35,8 @@ export type ReviewSession = {
   flip: () => void;
   /** Turns the card over after an answer, suggesting a rating. */
   answer: (suggested: Rating) => void;
-  rate: (rating: Rating, format?: ReviewFormat) => Promise<void>;
+  /** Resolves true once the rating is saved and the next card is up. */
+  rate: (rating: Rating, format?: ReviewFormat) => Promise<boolean>;
 };
 
 type Batch = { cards: Card[]; beyond: number; reviewsDue: number };
@@ -98,7 +99,7 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
 
   const rate = useCallback(
     async (rating: Rating, format: ReviewFormat = "recognize") => {
-      if (!current || !flipped || busy) return;
+      if (!current || !flipped || busy) return false;
       setBusy(true);
       setError(null);
       try {
@@ -120,9 +121,11 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
           setLoading(true);
           apply(await nextBatch(mode));
         }
+        return true;
       } catch (e) {
         setError(e);
         setLoading(false);
+        return false;
       } finally {
         setBusy(false);
       }
