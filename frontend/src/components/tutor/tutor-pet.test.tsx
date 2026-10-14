@@ -99,6 +99,35 @@ describe("TutorPet", () => {
     expect(screen.getByRole("img", { name: "Max, your tutor" })).toHaveAttribute("data-animate", "false");
   });
 
+  it("tells the pages to leave room for it while it shows (task 73.6)", async () => {
+    const { unmount } = show();
+    expect(document.documentElement.dataset.pet).toBe("full");
+    await userEvent.click(screen.getByRole("button", { name: "Collapse the desk pet" }));
+    expect(document.documentElement.dataset.pet).toBe("collapsed");
+    unmount();
+    expect(document.documentElement.dataset.pet).toBeUndefined();
+  });
+
+  it("keeps above the chat input box on the chat page (task 73.6)", () => {
+    nav.pathname = "/chat";
+    const composer = document.createElement("div");
+    composer.setAttribute("data-chat-composer", "");
+    composer.getBoundingClientRect = () => ({ top: 700 }) as DOMRect;
+    document.body.append(composer);
+    try {
+      show();
+      // 800 high window, box top at 700: 100 below it, plus an 8px gap.
+      expect(screen.getByTestId("tutor-pet").style.bottom).toContain("108px");
+    } finally {
+      composer.remove();
+    }
+  });
+
+  it("does not move for the input box on other pages", () => {
+    show();
+    expect(screen.getByTestId("tutor-pet").style.bottom).toContain(", 0px,");
+  });
+
   it("collapses to a small button and comes back, remembered on this device", async () => {
     show();
     await userEvent.click(screen.getByRole("button", { name: "Collapse the desk pet" }));

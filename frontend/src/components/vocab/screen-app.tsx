@@ -87,7 +87,7 @@ export function ScreenApp() {
   );
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-5xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         <div className="flex flex-col gap-1">
           <h1 className="flex flex-wrap items-baseline gap-x-3 text-[26px] font-bold tracking-tight">

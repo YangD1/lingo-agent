@@ -51,6 +51,44 @@ function useWide(): boolean {
   );
 }
 
+/**
+ * How far above the window's bottom the top of the chat input box is, plus a gap, while
+ * on the chat page (task 73.6): the pet keeps above it instead of covering the send
+ * button. 0 elsewhere. Followed as the box grows with the text and as the window resizes.
+ */
+function useComposerClearance(on: boolean): number {
+  const [clearance, setClearance] = useState(0);
+  useEffect(() => {
+    if (!on) return;
+    let observer: ResizeObserver | undefined;
+    let watched: Element | null = null;
+    const measure = () => {
+      const composer = document.querySelector("[data-chat-composer]");
+      if (composer !== watched) {
+        observer?.disconnect();
+        watched = composer;
+        if (composer && typeof ResizeObserver !== "undefined") {
+          observer = new ResizeObserver(measure);
+          observer.observe(composer);
+        }
+      }
+      const top = composer?.getBoundingClientRect().top;
+      setClearance(top === undefined ? 0 : Math.max(0, Math.round(window.innerHeight - top + 8)));
+    };
+    measure();
+    // The page may render its input box after the pet: look again once it has.
+    const later = setTimeout(measure, 300);
+    window.addEventListener("resize", measure);
+    return () => {
+      clearTimeout(later);
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+      setClearance(0);
+    };
+  }, [on]);
+  return on ? clearance : 0;
+}
+
 /** Where a pet dropped with its box at `rect` settles: the nearer edge, at that height. */
 export function placeAfterDrop(
   rect: { left: number; top: number; width: number; height: number },
@@ -148,6 +186,17 @@ export function TutorPet() {
     };
   }, [drag, collapsed, setPlace]);
 
+  const clearance = useComposerClearance(onChatPage && !!tutor?.pet);
+  const shown = tutor?.pet ? (place.collapsed ? "collapsed" : "full") : null;
+  // Pages leave room for the pet at the end of their scroll area (`pet-safe` in globals.css).
+  useEffect(() => {
+    if (!shown) return;
+    document.documentElement.dataset.pet = shown;
+    return () => {
+      delete document.documentElement.dataset.pet;
+    };
+  }, [shown]);
+
   if (!tutor?.pet) return null;
   const name = tutor.display_name;
   const size = place.collapsed ? COLLAPSED_SIZE : wide ? PET_SIZE.wide : PET_SIZE.narrow;
@@ -176,12 +225,13 @@ export function TutorPet() {
   };
 
   const moving = drag?.at ?? null;
-  // Kept on screen whatever the window's size: above the phone's tab bar, below the top.
+  // Kept on screen whatever the window's size: above the phone's tab bar (and the chat
+  // input box), below the top.
   const style: React.CSSProperties = moving
     ? { left: moving.left, top: moving.top }
     : {
         [place.side]: place.collapsed ? 0 : EDGE_PX,
-        bottom: `min(max(${place.bottom}px, var(--pet-min-bottom)), calc(100dvh - ${size + EDGE_PX}px))`,
+        bottom: `min(max(${place.bottom}px, ${clearance}px, var(--pet-min-bottom)), calc(100dvh - ${size + EDGE_PX}px))`,
       };
 
   return (
@@ -198,7 +248,8 @@ export function TutorPet() {
       className={cn(
         "group fixed z-40 touch-none select-none",
         "[--pet-min-bottom:16px] max-md:[--pet-min-bottom:calc(4rem+env(safe-area-inset-bottom)+8px)]",
-        moving ? "cursor-grabbing" : "cursor-grab",
+        // Glides up when it makes way for the chat input box; never while dragged.
+        moving ? "cursor-grabbing" : "cursor-grab motion-safe:transition-[bottom] motion-safe:duration-200",
       )}
     >
       {place.collapsed ? (

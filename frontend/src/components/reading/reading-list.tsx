@@ -98,7 +98,7 @@ export function ReadingList() {
   const followed = feeds?.filter((f) => f.subscribed) ?? [];
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-2xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">

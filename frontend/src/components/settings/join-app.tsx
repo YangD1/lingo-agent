@@ -12,7 +12,7 @@ export function JoinApp({ code }: { code: string }) {
   const t = useTranslations("settings.org.join");
   const router = useRouter();
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4 md:px-10 md:py-8">
         <Card>
           <CardHeader>

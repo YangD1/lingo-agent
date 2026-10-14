@@ -82,8 +82,9 @@ export function useReviewChoice(): [ReviewChoice, (choice: ReviewChoice) => void
  */
 export type PetPlace = { side: "left" | "right"; bottom: number; collapsed: boolean };
 
-// High enough to keep clear of the chat box and the send button below it.
-export const DEFAULT_PET_PLACE: PetPlace = { side: "right", bottom: 160, collapsed: false };
+// The corner (task 73.6): pages leave room for it at the end of their scroll area, and on
+// the chat page it rises above the input box by itself.
+export const DEFAULT_PET_PLACE: PetPlace = { side: "right", bottom: 16, collapsed: false };
 
 /** What is stored, or the default for anything missing or malformed. */
 export function parsePetPlace(raw: string | null): PetPlace {

@@ -105,7 +105,7 @@ export function Composer({
     <form onSubmit={submit} className="w-full px-2.5 pt-1.5 pb-3 md:px-8 md:pt-2 md:pb-5">
       <div className="mx-auto flex max-w-3xl flex-col gap-2">
         {toolbar}
-        <div className="glass-pop flex flex-col rounded-[18px] border transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
+        <div data-chat-composer className="glass-pop flex flex-col rounded-[18px] border transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
           <div className="px-2.5 pt-2.5 empty:hidden">
             <AttachmentTrayView tray={tray} />
           </div>

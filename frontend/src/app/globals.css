@@ -224,6 +224,28 @@
   backdrop-filter: blur(24px) saturate(170%);
 }
 
+/* Room at the end of a page's scroll area for the desk pet (task 73.6, Q73d), so the last
+   card can scroll out from under it. `--pet-safe` is set while the pet shows: its size plus
+   the gap below it (88 + 16 on wide screens, 64 + 16 on phones, 40 + 16 collapsed). */
+:root[data-pet="full"] {
+  --pet-safe: 104px;
+}
+:root[data-pet="collapsed"] {
+  --pet-safe: 56px;
+}
+@media (max-width: 767px) {
+  :root[data-pet="full"] {
+    --pet-safe: 80px;
+  }
+}
+@utility pet-safe {
+  &::after {
+    content: "";
+    display: block;
+    height: var(--pet-safe, 0px);
+  }
+}
+
 /* Readers who ask for less transparency, or browsers without backdrop-filter, get solid layers. */
 @media (prefers-reduced-transparency: reduce) {
   :root,

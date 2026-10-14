@@ -67,7 +67,7 @@ export function SettingsApp() {
   }, []);
 
   return (
-    <div ref={scroller} className="flex-1 overflow-y-auto">
+    <div ref={scroller} className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-5xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">{tNav("settings")}</h1>
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_10rem] lg:gap-8">

@@ -117,7 +117,7 @@ export function MineApp() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-3xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         <div className="flex items-center gap-2">
           <Link

@@ -100,7 +100,7 @@ export function SpeakingList() {
   const others = scenarios?.scenarios.filter((s) => !s.suits) ?? [];
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-2xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         <header className="flex min-w-0 flex-col gap-1">
           <h1 className="text-xl font-semibold">{t("title")}</h1>
