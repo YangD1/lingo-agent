@@ -103,7 +103,7 @@ export function SpeakingList() {
     <div className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-2xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         <header className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-xl font-semibold">{t("title")}</h1>
+          <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">{t("title")}</h1>
           <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
             {t("description")}
             <AiBadge feature={["speaking_start", "speaking_turn"]} />
@@ -272,7 +272,7 @@ function ScenarioCard({
       disabled={disabled}
       aria-busy={busy}
       data-testid={`speaking-scenario-${scenario?.id ?? "free"}`}
-      className="flex h-full w-full flex-col items-start gap-1.5 rounded-xl border bg-card px-4 py-3 text-left outline-none transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60"
+      className="flex h-full w-full flex-col items-start gap-1.5 rounded-xl border border-border/70 bg-card px-4 py-3 text-left shadow-(--shadow-card) outline-none transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60"
     >
       <span className="flex w-full items-center gap-2">
         {icon && <MessagesSquareIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
@@ -298,7 +298,7 @@ function ScenarioCard({
   if (!call) return card;
   const href = scenario ? `/speaking/call?${new URLSearchParams({ scenario: scenario.id })}` : "/speaking/call";
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-(--shadow-card)">
       <div className="flex-1 [&>button]:rounded-none [&>button]:border-0">{card}</div>
       <Link
         href={href}
@@ -327,7 +327,7 @@ function HistoryRow({
   return (
     <div
       data-testid="speaking-session"
-      className="flex items-center gap-2 rounded-xl border bg-card py-2 pr-2 pl-4"
+      className="flex items-center gap-2 rounded-xl border border-border/70 bg-card py-2 pr-2 pl-4 shadow-(--shadow-card)"
     >
       <Link
         href={`/speaking/${s.id}`}

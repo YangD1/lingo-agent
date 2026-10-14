@@ -51,7 +51,7 @@ export async function Landing() {
     <div className="flex min-h-svh flex-col">
       <header className="mx-auto flex h-16 w-full max-w-[1100px] items-center gap-2 px-4 md:h-[72px] md:px-6">
         <Logo className="mr-auto text-[15px]" markClassName="size-7" />
-        <LocaleSwitcher className="hidden w-[120px] md:block" />
+        <LocaleSwitcher className="hidden w-[120px] md:flex" />
         <Link href="/login" className={buttonVariants({ variant: "ghost" })}>
           {t("login")}
         </Link>

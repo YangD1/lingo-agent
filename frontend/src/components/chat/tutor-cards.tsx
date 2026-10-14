@@ -43,7 +43,7 @@ function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
   if (!Icon) return null; // from a newer backend
   return (
     <div
-      className="flex gap-3 rounded-lg border bg-card px-3.5 py-3 text-[13px]"
+      className="flex gap-3 rounded-lg border border-border/70 bg-card px-3.5 py-3 text-[13px] shadow-(--shadow-card)"
       data-testid="tutor-card"
       data-kind={card.kind}
       data-status={card.status}

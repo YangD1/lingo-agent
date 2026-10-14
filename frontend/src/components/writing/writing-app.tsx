@@ -104,10 +104,11 @@ export function WritingApp({ again }: { again: number | null }) {
   return (
     <div className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-2xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
+        <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">{t("title")}</h1>
         <Card data-testid="writing-form">
           <CardHeader>
             <CardTitle>
-              <h1>{t("title")}</h1>
+              <h2>{t("heading")}</h2>
             </CardTitle>
             <CardDescription>{t("description")}</CardDescription>
           </CardHeader>

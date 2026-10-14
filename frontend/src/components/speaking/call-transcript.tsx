@@ -87,8 +87,10 @@ export function CallTranscript({ conversationId }: { conversationId: string }) {
               data-role={line.role}
               lang="en"
               className={cn(
-                "flex max-w-[85%] flex-col gap-1 rounded-2xl px-3.5 py-2 text-sm",
-                line.role === "user" ? "self-end bg-brand-soft text-brand-soft-foreground" : "self-start bg-muted",
+                "flex max-w-[85%] flex-col gap-1 px-3.5 py-2 text-sm shadow-(--shadow-card)",
+                line.role === "user"
+                  ? "self-end rounded-[18px_18px_6px_18px] bg-brand-soft text-brand-soft-foreground"
+                  : "self-start rounded-[6px_18px_18px_18px] border border-border/70 bg-card",
               )}
             >
               <span>{line.content}</span>

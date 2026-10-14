@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeftIcon, MessageCircle, RotateCcw, Trash2 } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -91,7 +91,11 @@ export function WritingReview({ id }: { id: number }) {
   return (
     <div className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-2xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
-        <Link href="/writing" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/writing"
+          className="inline-flex items-center gap-1 self-start text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeftIcon aria-hidden className="size-4" />
           {t("back")}
         </Link>
         {missing && (

@@ -283,8 +283,10 @@ function SubtitleBubble({ line, hidden }: { line: SubtitleLine; hidden: boolean 
       data-role={learner ? "user" : "assistant"}
       data-final={line.final}
       className={cn(
-        "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm",
-        learner ? "self-end bg-brand-soft text-brand-soft-foreground" : "self-start bg-muted",
+        "max-w-[85%] px-3.5 py-2 text-sm shadow-(--shadow-card)",
+        learner
+          ? "self-end rounded-[18px_18px_6px_18px] bg-brand-soft text-brand-soft-foreground"
+          : "self-start rounded-[6px_18px_18px_18px] border border-border/70 bg-card",
         !line.final && "opacity-70",
       )}
       lang="en"

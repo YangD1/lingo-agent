@@ -1807,6 +1807,7 @@
     },
     "landing": {
       "title": "Grammar practice",
+      "heading": "A new set",
       "description": "About 10 questions on your weak grammar points, mixed with some you already know.",
       "how": "The question types rotate: multiple choice, fill in the blank, find and fix the error, transform, translate, and rewrite your own sentences. You see an explanation after each answer, and every question is checked by another model first, so faulty ones don't reach you.",
       "start": "Start a set",
@@ -1895,6 +1896,7 @@
   },
   "writing": {
     "title": "Writing",
+    "heading": "Write something",
     "description": "Write something in English and an AI model reviews it sentence by sentence: it marks and explains grammar mistakes and scores four aspects. Mistakes go into your learner model; scores are only shown.",
     "task": {
       "heading": "Task",
@@ -1928,7 +1930,7 @@
       "mistakes": "{n, plural, one {# grammar mistake} other {# grammar mistakes}}"
     },
     "review": {
-      "back": "← Writing",
+      "back": "Writing",
       "missing": "This piece of writing wasn't found; it may have been deleted.",
       "toWriting": "Back to Writing",
       "untitled": "No task",

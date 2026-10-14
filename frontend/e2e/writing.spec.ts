@@ -53,7 +53,7 @@ test("writing page: submit → reviewed sentence by sentence → history → del
   await expectReview(page);
 
   // Listed on the writing page, and the draft was cleared.
-  await page.getByRole("link", { name: "← 写作" }).click();
+  await page.getByRole("main").getByRole("link", { name: "写作", exact: true }).click();
   await expect(page.getByTestId("writing-text")).toHaveValue("");
   const history = page.getByTestId("writing-history");
   await expect(history).toHaveCount(1);

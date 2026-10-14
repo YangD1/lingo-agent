@@ -196,7 +196,7 @@ function SummaryBody({ summary: s, sessionId }: { summary: SpeakingSummary; sess
       {s.mistakes.length > 0 && (
         <Section title={t("mistakes")} testId="summary-mistakes">
           {s.mistakes.map((m, i) => (
-            <li key={`${m.quote}-${i}`} className="flex flex-col gap-1 rounded-lg border bg-card px-3.5 py-3">
+            <li key={`${m.quote}-${i}`} className="flex flex-col gap-1 rounded-lg border border-border/70 bg-card px-3.5 py-3 shadow-(--shadow-card)">
               <span lang="en" className="text-muted-foreground line-through">
                 {m.quote}
               </span>
@@ -221,7 +221,7 @@ function SummaryBody({ summary: s, sessionId }: { summary: SpeakingSummary; sess
       {s.more_natural.length > 0 && (
         <Section title={t("moreNatural")} testId="summary-more-natural">
           {s.more_natural.map((n, i) => (
-            <li key={`${n.quote}-${i}`} className="flex flex-col gap-1 rounded-lg border bg-card px-3.5 py-3">
+            <li key={`${n.quote}-${i}`} className="flex flex-col gap-1 rounded-lg border border-border/70 bg-card px-3.5 py-3 shadow-(--shadow-card)">
               <span lang="en" className="text-muted-foreground">
                 {t("youSaid", { quote: n.quote })}
               </span>
@@ -246,7 +246,7 @@ function SummaryBody({ summary: s, sessionId }: { summary: SpeakingSummary; sess
       {s.next_expressions.length > 0 && (
         <Section title={t("nextTime")} testId="summary-next">
           {s.next_expressions.map((e, i) => (
-            <li key={`${e.expression}-${i}`} className="flex flex-col gap-1 rounded-lg border bg-card px-3.5 py-3">
+            <li key={`${e.expression}-${i}`} className="flex flex-col gap-1 rounded-lg border border-border/70 bg-card px-3.5 py-3 shadow-(--shadow-card)">
               <span className="flex flex-wrap items-center gap-1.5">
                 <span lang="en" className="font-[550]">
                   {e.expression}

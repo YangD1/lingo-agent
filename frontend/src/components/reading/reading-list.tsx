@@ -102,7 +102,7 @@ export function ReadingList() {
       <div className="mx-auto flex max-w-2xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="text-xl font-semibold">{t("title")}</h1>
+            <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">{t("title")}</h1>
             <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
               {t("description")}
               <AiBadge feature="reading_rewrite" />
@@ -173,7 +173,7 @@ function ArticleRow({ article: a }: { article: ArticleItem }) {
     <Link
       href={`/reading/${a.id}`}
       data-testid="reading-article"
-      className="flex flex-col gap-1.5 rounded-xl border bg-card px-4 py-3 outline-none transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring"
+      className="flex flex-col gap-1.5 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-(--shadow-card) outline-none transition-colors hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring"
     >
       <span lang="en" className={cn("font-[550] leading-snug", a.read && "text-muted-foreground")}>
         {a.title}

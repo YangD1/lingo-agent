@@ -15,6 +15,7 @@ import { ErrorText } from "@/components/ui/error-text";
 import { ApiError } from "@/lib/api";
 import { kcName } from "@/lib/learner";
 import { petHappy } from "@/lib/tutor-pet";
+import { cn } from "@/lib/utils";
 import {
   answerItem,
   fetchRecentSets,
@@ -56,6 +57,7 @@ function firstOpen(set: PracticeSet): number {
 export function PracticeApp({ from, kc }: { from: Origin | null; kc: string | null }) {
   const t = useTranslations("practice");
   const tCat = useTranslations("cat");
+  const tNav = useTranslations("nav");
   const describe = useDescribeError();
   const [view, setView] = useState<View>({ kind: "loading" });
   const [error, setError] = useState<string | null>(null);
@@ -165,7 +167,14 @@ export function PracticeApp({ from, kc }: { from: Origin | null; kc: string | nu
 
   return (
     <div className="pet-safe flex-1 overflow-y-auto">
-      <div className="mx-auto flex max-w-2xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
+      <div
+        className={cn(
+          "mx-auto flex flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8",
+          // The landing spreads into two columns on wide screens; a set stays a narrow reading column.
+          view.kind === "landing" ? "max-w-5xl" : "max-w-2xl",
+        )}
+      >
+        <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">{tNav("practice")}</h1>
         {error &&
           (view.kind !== "loading" ? (
             <ErrorText>{error}</ErrorText>
@@ -267,13 +276,13 @@ function Landing({
   const locale = useLocale();
   const unfinished = recent.find((s) => isUnfinished(s.status));
   return (
-    <>
+    <div className="grid items-start gap-3.5 md:gap-4 lg:grid-cols-2">
       {/* Before a first set: the test makes the questions fit (Q50b); practising first is fine. */}
-      <PlacementReminder reasons={["never", "resume"]} where="practice" />
+      <PlacementReminder reasons={["never", "resume"]} where="practice" className="lg:col-span-2" />
       <Card data-testid="practice-landing">
         <CardHeader>
           <CardTitle>
-            <h1>{t("title")}</h1>
+            <h2>{t("heading")}</h2>
           </CardTitle>
           <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
@@ -289,7 +298,9 @@ function Landing({
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>{t("recent")}</CardTitle>
+          <CardTitle>
+            <h2>{t("recent")}</h2>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {recent.length === 0 ? (
@@ -324,6 +335,6 @@ function Landing({
           )}
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }
