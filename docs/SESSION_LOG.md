@@ -15,6 +15,8 @@
 
 **下一步**：用户同意后执行 `git push`，用 `gh run watch` 看 CI；之后重建 Docker（`make up`，先后端再前端，一次一个），检查 `/healthz` 和空闲内存。
 
+**后续（同日）**：用户同意后推送到 62858c3，CI run 38514833014 四个 job 全绿；后端镜像已重建。前端镜像因 corepack 在 build 阶段重新下载 pnpm 超时失败，`frontend/Dockerfile` 改为在 base 阶段 `corepack prepare`（用户选的推荐方案，不用代理参数）。`corepack prepare` 只缓存 JS 包，pnpm 12 首次运行时还要下载原生二进制 `pnpm-native`，所以同一行再加 `pnpm --version`；重建后只在 base 阶段下载一次。前端已重建，`/` 和 `/api/healthz` 都是 200。剩下：推送这个改动，等 CI 全绿后把 72.5 和任务 72 标 `[x]`。
+
 **踩坑**：
 - 第一次整体跑 `make ci` 时 WSL 整个重启了（内核版本变了，`/tmp` 被清空，日志丢失）。原因可能是 Docker 全栈加 pytest 再加 E2E 栈，内存不够。改为先停掉 Docker 的 backend 和 frontend，后端、前端分两段跑，日志写到 `.claude/state/`（gitignored，重启后还在）。
 - WSL 重启后，Docker 的 backend 因为 postgres 还在启动，会重启几次，等一会儿就自己好了。

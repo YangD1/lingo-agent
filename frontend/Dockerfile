@@ -9,7 +9,10 @@ ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH \
     NEXT_TELEMETRY_DISABLED=1 \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-RUN corepack enable
+# Fetch pnpm (packageManager in package.json) once here, so deps and build share
+# this cached layer instead of each downloading it again. pnpm 12 downloads its
+# native binary on first run, hence `pnpm --version`.
+RUN corepack enable && corepack prepare pnpm@12.4.1 --activate && pnpm --version
 WORKDIR /app
 
 # --- deps: install from the lockfile only, cached across source changes ---
