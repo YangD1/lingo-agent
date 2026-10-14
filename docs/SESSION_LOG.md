@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-14 任务 76 推送、CI 与 Docker 重建
+
+**做了什么**：推送到 3a27e00；CI run 38588101394 四个 job（backend / frontend / e2e / docker）全绿；Docker 先重建后端（启动时迁移到 `e1f12efce78f`）再重建前端，`/healthz` 200、前端 200，空闲内存 backend 232MiB / frontend 72MiB / postgres 186MiB。
+
+**未完成**：无。
+
+**下一步**：任务 71（低配服务器部署）等用户通知；或用户提新需求。
+
+**踩坑**：后端启动后日志里有 14 条 `reflection call failed` + `OpenAIConnectionError`，来源是 `ReflectionWorker.recover()` 回看最近对话，碰到 E2E 留在开发库里的租户（连接 `fake` → `127.0.0.1:8101`，假模型只在 E2E 时运行）。不影响真实账号，按 keep-dev-db 约定没有清理这些租户。
+
+---
+
 ## 2026-10-14 任务 76：桌宠做功能入口和主动提醒（76.1–76.7）
 
 **做了什么**：
