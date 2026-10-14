@@ -4,6 +4,89 @@
 
 ---
 
+## 2026-10-14 任务 74：首页 A2 流光正式落地（任务 74 完成）
+
+**做了什么**：
+- 用户选 A2，Q74a–c 全部按推荐。
+- `components/home/` 重写：
+  - `landing-backdrop.tsx`（client）：CSS 兜底层，加上主题、减少动态、`navigator.gpu` 判断，再用 `next/dynamic` 懒加载 shader。
+  - `landing-shaders.tsx`：`SilkShader`（深 / 浅两套色）和 `InkShader`，都设了 `disableTelemetry`。
+  - `landing-stills.tsx`：bento 示意卡。
+  - `landing.tsx`：A2 版式。
+  - `landing-backdrop.test.tsx` 2 条。
+- `globals.css` 加了 `.landing-silk`（含 `.dark` 版）和 `.landing-ink` 兜底底色。
+- ADR 0037 记了体积、遥测、退路。
+- 删掉 `app/preview/`、`landing-drafts*.tsx`、`landing-scenes.tsx`。
+
+- 74.5 验收：
+  - Vitest 690 全过；E2E 74 全过（分批跑）；tsc / eslint 干净。
+  - 重拍了 `docs/screenshots/home-{zh,en}.png`。
+  - 结尾 CTA 原来和 h1 同名，导致 i18n E2E 的严格模式匹配到两个元素；改用新文案 `home.closingTitle`（“从一次对话开始。”）。
+  - 顺带修了两条负载下偶发失败的测试：`review-formats.test.tsx` 改用 `waitFor`，`mine-app.test.tsx` 的 mock 改成按路径应答。
+
+**未完成**：未推送，Docker 未重建。shader 的实际动效需要用户在支持 WebGPU 的真实浏览器里确认。
+
+**下一步**：等用户看效果、确认后推送；任务 71 继续等用户通知。
+
+**踩坑**：
+- `shaders` 没有按组件拆的 React 入口：每个组件都引入 `core/index.js`，它又引入 200 多个着色器。所以懒加载 chunk 有 2.5MB（gzip 后约 730KB），摇树也省不掉。为此加了 `navigator.gpu` 判断，不支持 WebGPU 就不下载。
+- hydration 不一致：`resolvedTheme` 在服务端是 undefined。改成挂载后（`useSyncExternalStore`）再渲染 shader。
+- jsdom 没有 `matchMedia`，测试里用 `vi.stubGlobal` 补。
+- Vitest 全量并发时，`mine-app.test.tsx` 偶发失败一次，单独跑 3 次都过，重跑全量也全过。
+- E2E 默认端口是 3100，`reuseExistingServer` 会直接复用开着的开发服务器，而它的 `/api` 代理到 :8000，结果 69 条全挂。跑 E2E 前先 `fuser -k 3100/tcp`。
+- Next 16 的 `next build` 不再打印每个路由的体积。要量就去 `.next/server/app/page/react-loadable-manifest.json` 和 `page_client-reference-manifest.js` 找对应的 chunk。
+
+---
+
+## 2026-10-14 首页 shader 改版第二轮：A2 流光 / C2 声波（探索，未提交）
+
+**做了什么**：用户反馈“A 没有动态，C 还可以优化”，按 A、C 做了优化版。
+- `landing-scenes.tsx` 新增五个场景：
+  - `FlutedSilkScene`：棱纹玻璃 + 鼠标波纹 + 高对比网格渐变，speed 1.6。
+  - `InkSilkScene`：深色流动渐变，用作结尾 CTA。
+  - `RibbonScene`：光带。
+  - `LiveLineScene`：通话里的实时声线。
+  - `LevelWaveScene`：A1–C2 的镜像声波条。
+- 新文件 `landing-drafts-v2.tsx`：
+  - `LandingFlow`（A2）：圆角 hero 面板、超大标题、浮在 hero 下沿的对话卡、改错跑马灯、bento 功能格（含深色模型卡）、透明度区、深色 CTA。
+  - `LandingWave`（C2）：左标题 + 右侧倾斜的“LIVE 通话卡”、A1–C2 声波带、左侧 sticky 标题 + 右侧 01–06 功能行（每行配小示意卡）、深色 CTA。
+- 新增路由 `/preview/landing/a2`、`/preview/landing/c2`；`globals.css` 加了 `animate-marquee`。
+- `landing-drafts.tsx` 导出了 `Header`、`Footer`、`TrustStill`。
+
+**未完成**：等用户在 A2 / C2 里选定。选定后的待办同下一条。
+
+**踩坑**：
+- 移动端横向溢出：没写 `grid-cols-*` 的 grid，隐式列是 `auto`，会被子元素的 min-content（例如 `truncate` 文本）撑宽。加 `grid-cols-1`（即 `minmax(0,1fr)`）可修复。
+- 无头环境下 A2 的 shader 虽然建出了 canvas，但 swiftshader 画出来是白的。动效只能在真实浏览器里确认。
+
+---
+
+## 2026-10-14 首页 shader 改版：三版草稿（探索，未提交）
+
+**做了什么**：
+- 加了依赖 `shaders` 4.0.4（MIT，只支持 WebGPU）。
+- `components/home/landing-scenes.tsx`：五个场景 Morning / Night / Dots / Wave / Ember。
+  - `Backdrop` 先画 CSS 兜底背景，shader 的 `onReady` 触发后淡入；`onUnavailable` 时只留兜底。
+  - 关了 shaders.com 遥测（`disableTelemetry`），减少动态效果时动画停住。
+- `components/home/landing-drafts.tsx`：三版草稿 A 晨光、B 夜读、C 声波。
+- `app/preview/landing/{,a,b,c}/page.tsx`：草稿预览路由。
+- `landing.tsx` 导出了 `REPO_URL`、`FEATURES`、`IconChip`，`ChatDemo` 支持传 `className`。
+- 修了 A 的功能卡第三行孤卡（最后一张 `md:col-span-6`），C 的声波带补了条形 CSS 兜底。
+
+**未完成**：等用户选版本。选定后要做：
+- 替换 `Landing`。
+- 删掉 `/preview` 和没选中的场景。
+- 写 ADR，记录新依赖，评估体积和内存。
+- 跑 Vitest 和 E2E，重拍首页截图。
+
+**下一步**：用户选版本后拆任务。
+
+**踩坑**：
+- 无头 Chromium（swiftshader）里 `navigator.gpu` 能拿到 adapter，但 shader 仍然会走 `onUnavailable`，截图里只能看到 CSS 兜底，真实效果要在 Windows 浏览器里看。
+- 读全尺寸整页截图会把请求撑爆（超过 32MB）。先用 `ffmpeg -vf scale=720:-1` 缩小或裁剪，再读。
+
+---
+
 ## 2026-10-14 任务 73：73.7、73.8 完成，任务 73 完成
 
 **做了什么**：
