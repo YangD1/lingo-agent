@@ -38,7 +38,7 @@ export function AppSidebar({ user }: { user: ShellUser }) {
       data-testid="app-sidebar"
       data-collapsed={collapsed}
       className={cn(
-        "hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex",
+        "glass hidden shrink-0 flex-col border-r text-sidebar-foreground md:flex",
         collapsed ? "w-16" : "w-62",
       )}
     >

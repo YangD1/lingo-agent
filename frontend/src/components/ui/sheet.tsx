@@ -36,7 +36,7 @@ export function Sheet({
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-foreground/32 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <Dialog.Popup
           className={cn(
-            "fixed z-50 flex flex-col bg-popover text-popover-foreground shadow-(--shadow-pop) outline-none transition-transform duration-200",
+            "glass-pop fixed z-50 flex flex-col text-popover-foreground outline-none transition-transform duration-200",
             side === "bottom"
               ? "inset-x-0 bottom-0 max-h-[85dvh] rounded-t-2xl border-t px-4 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] data-ending-style:translate-y-full data-starting-style:translate-y-full"
               : "inset-y-0 left-0 w-[300px] max-w-[85vw] border-r data-ending-style:-translate-x-full data-starting-style:-translate-x-full",

@@ -25,7 +25,7 @@ export function MobileTopBar() {
   // Chat has its own top bar, with the conversation list drawer and the conversation's title.
   if (isActive(pathname, "/chat") || isFocusRoute(pathname)) return null;
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2.5 border-b px-4 md:hidden">
+    <header className="glass flex h-14 shrink-0 items-center gap-2.5 border-b px-4 md:hidden">
       <Link href="/dashboard" aria-label="Lingo Agent">
         <LogoMark />
       </Link>
@@ -54,7 +54,7 @@ export function MobileTabBar({ user }: { user: ShellUser }) {
     <nav
       aria-label={t("main")}
       data-testid="mobile-tab-bar"
-      className="flex h-16 shrink-0 border-t bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden"
+      className="glass flex h-16 shrink-0 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {tabs.map(({ key, href, icon: Icon }) => {
         const active = isActive(pathname, href);

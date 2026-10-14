@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-10-14 任务 73 视觉优化：73.2、73.3、73.1 完成，73.4 进行中
+
+**做了什么**：
+- 审查 22 张截图，列出问题，拆成 73.1–73.8，写进 PROGRESS（Q73a–h）。预览页给了 A–D 四套方案，用户选了 D 混合，Q73a–h 全部按推荐确认。预览页存档在 `docs/design/lingo-style-d/preview.html`。
+- 73.2：新增 `ui/select.tsx`，基于 base-ui Select，替换全部原生 `<select>`，删掉了 `native-select.tsx`；三项以内的选择改用 `Segmented`。测试辅助在 `src/test/select.ts`（`chooseOption`）和 `e2e/helpers.ts`（`pickOption`）。
+- 73.3：`today-tutor.tsx` 的 `TodayStart` 去掉 `justify-end`，只有一条消息时也从顶部开始。
+- 73.1：`globals.css` 加了阴影、毛玻璃、页面底色 token，以及 `glass` / `glass-pop` 工具类，深色模式同步。写了 ADR 0036，ADR 0019 和 PLAN 已同步。
+- 73.4（未提交）：button、input、textarea、card 加了阴影；popover、autocomplete、sheet 改用 `glass-pop`；侧栏和手机导航改用 `glass`。Vitest 684 全过，`make screenshots` 已重新生成。
+
+**未完成**：73.4 还要看截图、跑 E2E、提交。之后依次做 73.5（聊天区和 composer 的 ✦ 合并）、73.6（桌宠安全区）、73.7（逐页打磨）、73.8（验收）。
+
+**下一步**：提交 73.4，再开始 73.5。
+
+**踩坑**：
+- Vitest 里原生 select 的 `selectOptions` / `toHaveDisplayValue` 用不了了，要先点开触发器，再按 role option 点选项。选项没打开时不渲染，所以断言要看触发器上的文字。
+- 发布 Artifact 被拒（这个会话用的是 AUTH_TOKEN 认证），改用 `explorer.exe` 打开本地文件。
+
+---
+
 ## 2026-10-14 任务 72.5 完成（收尾：PLAN、README、make ci、推送、Docker）；任务 72、P4（71 除外）完成
 
 **做了什么**：

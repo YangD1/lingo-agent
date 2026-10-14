@@ -4,16 +4,18 @@ import { cn } from "cn"
 
 // Sizes and states follow docs/design/lingo-agent-design/component-spec.md §1: solid buttons
 // darken by mixing in the foreground (12% hover, 22% pressed); outline / ghost use accent.
+// Style D (ADR 0036): solid buttons carry --shadow-button, outline ones --shadow-field, and
+// every button sinks 1px while pressed.
 // Below md the default and icon sizes grow to 40px for touch.
 const variants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent bg-clip-padding text-sm font-[550] whitespace-nowrap transition-colors outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md border border-transparent bg-clip-padding text-sm font-[550] whitespace-nowrap transition-[color,background-color,border-color,box-shadow,transform] outline-none select-none active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:bg-[color-mix(in_oklab,var(--primary)_88%,var(--foreground))] active:bg-[color-mix(in_oklab,var(--primary)_78%,var(--foreground))]",
+          "bg-primary text-primary-foreground shadow-(--shadow-button) hover:bg-[color-mix(in_oklab,var(--primary)_88%,var(--foreground))] active:bg-[color-mix(in_oklab,var(--primary)_78%,var(--foreground))]",
         outline:
-          "border-input bg-card text-foreground hover:bg-accent active:bg-[color-mix(in_oklab,var(--accent)_80%,var(--foreground))] aria-expanded:bg-accent",
+          "border-input bg-card text-foreground shadow-(--shadow-field) hover:bg-accent active:bg-[color-mix(in_oklab,var(--accent)_80%,var(--foreground))] aria-expanded:bg-accent",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklab,var(--secondary)_92%,var(--foreground))] active:bg-[color-mix(in_oklab,var(--secondary)_84%,var(--foreground))] aria-expanded:bg-secondary",
         ghost:
@@ -22,7 +24,7 @@ const variants = cva(
           "bg-destructive/10 text-destructive hover:bg-destructive/17 active:bg-destructive/24",
         // Only for the final confirmation inside a dialog (component-spec §15).
         danger:
-          "bg-destructive text-destructive-foreground hover:bg-[color-mix(in_oklab,var(--destructive)_88%,var(--foreground))] active:bg-[color-mix(in_oklab,var(--destructive)_78%,var(--foreground))]",
+          "bg-destructive text-destructive-foreground shadow-(--shadow-button) hover:bg-[color-mix(in_oklab,var(--destructive)_88%,var(--foreground))] active:bg-[color-mix(in_oklab,var(--destructive)_78%,var(--foreground))]",
         link: "h-auto px-0.5 text-primary underline-offset-3 hover:underline",
       },
       size: {

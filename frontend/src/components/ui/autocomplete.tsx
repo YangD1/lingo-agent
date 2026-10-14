@@ -60,7 +60,7 @@ export function AutocompleteInput({
       />
       <Autocomplete.Portal>
         <Autocomplete.Positioner sideOffset={4} align="start" className="z-50 outline-none">
-          <Autocomplete.Popup className="max-h-72 w-(--anchor-width) min-w-48 overflow-y-auto rounded-lg border bg-popover p-1 text-sm text-popover-foreground shadow-(--shadow-pop)">
+          <Autocomplete.Popup className="max-h-72 w-(--anchor-width) min-w-48 overflow-y-auto glass-pop rounded-lg border p-1 text-sm text-popover-foreground">
             {empty && (
               <Autocomplete.Empty className="px-2 py-1.5 text-muted-foreground empty:hidden">
                 {empty}
