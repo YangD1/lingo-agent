@@ -107,7 +107,10 @@ describe("TutorApp", () => {
     await userEvent.type(screen.getByLabelText("Name"), "Max");
     await userEvent.click(screen.getByTestId("tutor-outfit-sporty"));
     await userEvent.click(screen.getByRole("button", { name: "Blue grey" }));
+    // Reminders are the pet's: off with it, the switch goes (ADR 0039 §4).
+    await userEvent.click(screen.getByRole("switch", { name: /Reminders/ }));
     await userEvent.click(screen.getByRole("switch", { name: /Desk pet/ }));
+    expect(screen.queryByRole("switch", { name: /Reminders/ })).toBeNull();
     const preview = screen.getByRole("img", { name: "Preview of Max" });
     expect(preview).toHaveAttribute("data-outfit", "sporty");
     expect(preview).toHaveAttribute("data-fur", "#829cb8");
@@ -124,6 +127,7 @@ describe("TutorApp", () => {
       color: "#829cb8",
       animate: true,
       pet: false,
+      nudges: false,
       chat_model: "main:qwen-plus",
       tts_model: "main:qwen3-tts-flash",
       voices: { "en-US": "Ethan" },

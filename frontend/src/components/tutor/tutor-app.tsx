@@ -304,6 +304,15 @@ function LooksCard({
             checked={form.pet}
             onChange={(pet) => onChange({ pet })}
           />
+          {form.pet && (
+            <SwitchRow
+              id="tutor-nudges"
+              label={t("nudges")}
+              hint={t("nudgesHint")}
+              checked={form.nudges}
+              onChange={(nudges) => onChange({ nudges })}
+            />
+          )}
           <SwitchRow
             id="tutor-animate"
             label={t("animate")}

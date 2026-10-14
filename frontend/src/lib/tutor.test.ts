@@ -55,6 +55,7 @@ describe("tutor form", () => {
       color: null,
       animate: true,
       pet: true,
+      nudges: true,
       chat_model: "qwen:qwen-plus",
       tts_model: "qwen:qwen3-tts-flash",
       voices: { "en-US": "Ethan" },
@@ -63,6 +64,7 @@ describe("tutor form", () => {
     });
     expect(formChanged(SAVED, form, OPTIONS)).toBe(false);
     expect(formChanged(SAVED, { ...form, pet: false }, OPTIONS)).toBe(true);
+    expect(formChanged(SAVED, { ...form, nudges: false }, OPTIONS)).toBe(true);
     // Only spaces in the name: the default name.
     expect(formChanged(SAVED, { ...form, name: " Max  " }, OPTIONS)).toBe(false);
   });

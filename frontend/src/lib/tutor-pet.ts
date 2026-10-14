@@ -71,6 +71,7 @@ export function petHappy() {
 }
 
 const CHEERED_KEY = "lingo.tutorPet.cheeredDay";
+const PLAN_DONE_EVENT = "lingo:pet-plan-done";
 
 /**
  * Today's plan is done (Q66p): a hop the first time this device sees it on `day`, not on
@@ -84,6 +85,15 @@ export function petPlanDone(day: string) {
     // Not remembered: it may hop again on the next visit, which is harmless.
   }
   petHappy();
+  window.dispatchEvent(new Event(PLAN_DONE_EVENT));
+}
+
+/** Runs `then` when today's plan is first seen done (the pet's cheer, ADR 0039 §4). */
+export function useOnPlanDone(then: () => void) {
+  useEffect(() => {
+    window.addEventListener(PLAN_DONE_EVENT, then);
+    return () => window.removeEventListener(PLAN_DONE_EVENT, then);
+  }, [then]);
 }
 
 /** The learner did something: an asleep pet wakes, and dozing waits from now. */

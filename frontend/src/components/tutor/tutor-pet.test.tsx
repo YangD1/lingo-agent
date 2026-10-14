@@ -3,8 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { Advice } from "@/lib/advice";
+import { SETTLE_MS } from "@/lib/pet-nudges";
 import { DEFAULT_PET_PLACE, parsePetPlace } from "@/lib/preferences";
 import { DEFAULT_TUTOR, type Tutor } from "@/lib/tutor";
+import { checkSleep, petActivity, petPlanDone, resetPet, SLEEP_AFTER_MS } from "@/lib/tutor-pet";
+import { announceReviewed } from "@/lib/vocab";
 
 import en from "../../../messages/en.json";
 import { DOZE_SETTLE_MS, placeAfterDrop, TutorPet } from "./tutor-pet";
@@ -48,9 +52,10 @@ vi.mock("./pet-chat", async () => {
   };
 });
 
-const advice = vi.hoisted(() => ({ current: null as { model_ready: boolean } | null }));
-vi.mock("@/lib/pet-nudges", () => ({
-  usePetAdvice: () => ({ advice: advice.current, reload: () => {} }),
+const advice = vi.hoisted(() => ({ current: null as Advice | null }));
+vi.mock("@/lib/pet-nudges", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/pet-nudges")>()),
+  usePetAdvice: () => ({ advice: advice.current, plan: null, reload: () => {} }),
 }));
 
 // jsdom has no 2D canvas; the avatar has its own tests.
@@ -316,7 +321,7 @@ describe("TutorPet chat", () => {
   });
 
   it("tells the window whether a chat model is set up", async () => {
-    advice.current = { model_ready: false };
+    advice.current = { model_ready: false, items: [] };
     show();
     await userEvent.click(screen.getByRole("button", { name: "Chat with Max" }));
     expect(screen.getByRole("dialog")).toHaveAttribute("data-model-ready", "false");
@@ -358,5 +363,114 @@ describe("TutorPet chat", () => {
     } finally {
       input.remove();
     }
+  });
+});
+
+describe("TutorPet reminders", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resetPet(); // awake: an earlier test left it dozing
+  });
+  afterEach(() => vi.useRealTimers());
+  const settle = () => act(() => vi.advanceTimersByTime(SETTLE_MS));
+
+  it("says in a bubble what to do first, once settled on a page", () => {
+    advice.current = { model_ready: false, items: [] };
+    show();
+    expect(screen.queryByTestId("pet-bubble")).toBeNull();
+    settle();
+    expect(screen.getByTestId("pet-bubble")).toHaveAttribute("data-key", "nudge:setup_model");
+    expect(screen.getByRole("status")).toHaveTextContent("I don't have a chat model");
+    expect(screen.getByRole("link", { name: "Open settings" })).toHaveAttribute(
+      "href",
+      "/settings#connections",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Later" }));
+    expect(screen.queryByTestId("pet-bubble")).toBeNull();
+    // Said today: not again, here or after a while.
+    act(() => vi.advanceTimersByTime(60 * 60_000));
+    expect(screen.queryByTestId("pet-bubble")).toBeNull();
+  });
+
+  it("says nothing when the learner turned reminders off, or while the window is open", () => {
+    advice.current = { model_ready: false, items: [] };
+    tutor.current = { ...tutor.current!, nudges: false };
+    const view = show();
+    settle();
+    expect(screen.queryByTestId("pet-bubble")).toBeNull();
+
+    tutor.current = { ...tutor.current, nudges: true };
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <TutorPet />
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Chat with Max" }));
+    settle();
+    expect(screen.queryByTestId("pet-bubble")).toBeNull();
+  });
+
+  it("collapsed, keeps it for when it is opened, with a dot", () => {
+    advice.current = { model_ready: false, items: [] };
+    show();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse the desk pet" }));
+    settle();
+    expect(screen.queryByTestId("pet-bubble")).toBeNull();
+    expect(screen.getByTestId("tutor-pet-dot")).toHaveTextContent("Max has something to say");
+    fireEvent.click(screen.getByRole("button", { name: "Show Max, your desk pet" }));
+    expect(screen.getByTestId("pet-bubble")).toHaveAttribute("data-key", "nudge:setup_model");
+  });
+
+  it("welcomes the learner back from a doze", () => {
+    advice.current = { model_ready: false, items: [] };
+    show();
+    act(() => checkSleep(Date.now() + SLEEP_AFTER_MS));
+    settle();
+    expect(screen.queryByTestId("pet-bubble")).toBeNull(); // not while it dozes
+    act(() => petActivity());
+    expect(screen.getByRole("status")).toHaveTextContent(/^Welcome back! I don't have a chat model/);
+  });
+
+  it("after a round of flashcards, offers the new words", () => {
+    advice.current = { model_ready: true, items: [] };
+    const view = show();
+    act(() => announceReviewed());
+    advice.current = {
+      model_ready: true,
+      items: [
+        {
+          candidate_id: "l",
+          kind: "vocab_learn",
+          count: 7,
+          days_since: null,
+          in_progress: false,
+          reason: null,
+          level: null,
+          learned: null,
+          total: null,
+          kc: null,
+          p_mastery: null,
+          book: null,
+        },
+      ],
+    };
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <TutorPet />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("All reviewed! 7 new words left");
+    expect(screen.getByRole("link", { name: "Start" })).toHaveAttribute(
+      "href",
+      "/vocab/review?mode=new",
+    );
+  });
+
+  it("cheers when today's plan is done", () => {
+    advice.current = { model_ready: true, items: [] };
+    show();
+    act(() => petPlanDone("2026-10-14"));
+    expect(screen.getByRole("status")).toHaveTextContent("Today's plan is all done");
+    expect(screen.queryByTestId("pet-bubble-action")).toBeNull();
   });
 });

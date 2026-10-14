@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { PetAction } from "@/lib/pet-actions";
-import { usePetAdvice } from "@/lib/pet-nudges";
+import { type Nudge, usePetAdvice } from "@/lib/pet-nudges";
 import { type PetPlace, usePetPlace } from "@/lib/preferences";
 import { useTutor } from "@/lib/tutor";
 import { usePetState } from "@/lib/tutor-pet";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 import { type BubbleContent, PetBubble } from "./pet-bubble";
 import { PetChat } from "./pet-chat";
+import { usePetNudges } from "./use-pet-nudges";
 import { TutorAvatar } from "./tutor-avatar";
 
 /** A press that moves less than this is a tap, not a drag. */
@@ -27,6 +28,8 @@ const COLLAPSED_SIZE = 40;
 const WIDE = "(min-width: 768px)";
 /** How long a bubble asking about a command stays untouched (ADR 0039 §3). */
 export const ASK_LINGER_MS = 20_000;
+/** How long a reminder stays untouched. */
+export const NUDGE_LINGER_MS = 12_000;
 /** Once asleep this long, the pet is drawn still: no frames while it dozes (Q66o). */
 export const DOZE_SETTLE_MS = 2000;
 
@@ -124,7 +127,9 @@ type Drag = {
  * the tab bar there. It reacts to what the pages report (`lib/tutor-pet.ts`).
  *
  * It talks in a bubble over its head (ADR 0039): asking about a command said in its chat
- * window. The bubble and the window give way when the page changes or flashcards open.
+ * window, and reminding of what the learning engine suggests (`use-pet-nudges.ts`). The
+ * bubble and the window give way when the page changes or flashcards open. Collapsed, it
+ * keeps a reminder for when it is opened, with a dot on the button.
  */
 export function TutorPet() {
   const tutor = useTutor();
@@ -135,6 +140,7 @@ export function TutorPet() {
   const t = useTranslations("tutorPet");
   const tActions = useTranslations("tutorPet.actions");
   const tBubble = useTranslations("tutorPet.bubble");
+  const tNudge = useTranslations("tutorPet.nudge");
   const box = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   // A drag ends with a click on what was pressed: that click is not a tap.
@@ -150,7 +156,7 @@ export function TutorPet() {
   }, []);
   const [bubble, setBubble] = useState<BubbleContent | null>(null);
   const endBubble = useCallback(() => setBubble(null), []);
-  const { advice } = usePetAdvice(!!tutor?.pet);
+  const { advice, plan } = usePetAdvice(!!tutor?.pet);
   // The chat page is the conversation itself: arriving there closes the window.
   const [wasOnChatPage, setWasOnChatPage] = useState(onChatPage);
   if (onChatPage !== wasOnChatPage) {
@@ -175,6 +181,41 @@ export function TutorPet() {
     }
   }
 
+  const opensLabel = useCallback(
+    (opens: PetAction["opens"]) =>
+      tBubble(opens === "overlay" ? "start" : opens === "page" ? "go" : "setup"),
+    [tBubble],
+  );
+
+  const showNudge = useCallback(
+    (nudge: Nudge) => {
+      const text = tNudge(nudge.key, nudge.values);
+      setBubble({
+        key: `nudge:${nudge.id}`,
+        text: nudge.welcome ? `${tNudge("welcome")} ${text}` : text,
+        action: nudge.href
+          ? { href: nudge.href, label: opensLabel(nudge.opens ?? "page") }
+          : undefined,
+        dismiss: nudge.href ? tBubble("later") : undefined,
+        lingerMs: NUDGE_LINGER_MS,
+      });
+    },
+    [tNudge, tBubble, opensLabel],
+  );
+  usePetNudges({
+    on: !!tutor?.pet && tutor.nudges !== false,
+    advice,
+    plan,
+    pathname,
+    quiet:
+      reviewing ||
+      chatOpen ||
+      bubble !== null ||
+      (state !== "idle" && state !== "happy") ||
+      pathname.startsWith("/speaking/call"),
+    show: showNudge,
+  });
+
   const onCommand = useCallback(
     (action: PetAction, said: string) => {
       const name = tutor?.display_name ?? "";
@@ -182,10 +223,7 @@ export function TutorPet() {
       setBubble({
         key: `ask:${action.id}`,
         text: tActions(`${action.id}.ask`),
-        action: {
-          href: action.href,
-          label: tBubble(action.opens === "overlay" ? "start" : action.opens === "page" ? "go" : "setup"),
-        },
+        action: { href: action.href, label: opensLabel(action.opens) },
         dismiss: tBubble("no"),
         aside: {
           label: tBubble("askTutor", { name }),
@@ -197,7 +235,7 @@ export function TutorPet() {
         lingerMs: ASK_LINGER_MS,
       });
     },
-    [tutor?.display_name, tActions, tBubble],
+    [tutor?.display_name, tActions, tBubble, opensLabel],
   );
 
   // Followed on the window while pressed: a quick drag leaves the pet's box before it
@@ -332,7 +370,7 @@ export function TutorPet() {
           title={t("expand", { name })}
           onClick={() => setPlace({ ...place, collapsed: false })}
           className={cn(
-            "flex items-center justify-center border bg-card shadow-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+            "relative flex items-center justify-center border bg-card shadow-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
             place.side === "right" ? "rounded-l-full border-r-0" : "rounded-r-full border-l-0",
           )}
           style={{ width: size, height: size }}
@@ -344,6 +382,16 @@ export function TutorPet() {
             size={size - 8}
             label=""
           />
+          {/* Something to say once opened (ADR 0039 §3). */}
+          {bubble && (
+            <span
+              data-testid="tutor-pet-dot"
+              className="absolute top-0.5 size-2.5 rounded-full bg-brand ring-2 ring-card"
+              style={{ [place.side === "right" ? "left" : "right"]: 4 }}
+            >
+              <span className="sr-only">{tBubble("newDot", { name })}</span>
+            </span>
+          )}
         </button>
       ) : (
         <>

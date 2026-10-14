@@ -2421,6 +2421,8 @@
       "furCustom": "Custom",
       "pet": "Desk pet",
       "petHint": "Keeps you company in a corner of the page; tap it to ask your tutor. The same on every device.",
+      "nudges": "Reminders",
+      "nudgesHint": "The pet says in a bubble when words are due, what's left of today's plan, or that a model needs setting up. At most 3 a day; no model calls.",
       "animate": "Animation",
       "animateHint": "Off: a still picture. Also still when your system asks for reduced motion."
     },
@@ -2578,6 +2580,23 @@
       "quick": "I can open these for you:",
       "noModel": "No chat model is set up yet, so I can't chat. You can still use these:",
       "newDot": "{name} has something to say"
+    },
+    "nudge": {
+      "welcome": "Welcome back!",
+      "setupModel": "I don't have a chat model to use yet. Set one up?",
+      "vocab_review": "{n} words are due. Review them now?",
+      "vocab_learn": "{n} new words left today. Learn a few?",
+      "vocab_screen": "Mark the words you already know first? Saves time later.",
+      "choose_book": "No word book yet. Pick one?",
+      "placement": "No level test yet. Take one so I can pitch things right?",
+      "retest": "Your last level test was {days} days ago. Take another?",
+      "retest_progress": "You've learned {learned}/{total} {level} grammar points. Retest to move up?",
+      "resume": "Your level test is half done. Finish it?",
+      "grammar_practice": "{kc} has been tripping you up. Practise it?",
+      "planPending": "Today's plan isn't set yet. Take a look?",
+      "planLeft": "{n} things left on today's plan. Keep going!",
+      "afterReview": "All reviewed! {n} new words left. Keep going?",
+      "planDone": "Today's plan is all done. Brilliant!"
     }
   }
 }

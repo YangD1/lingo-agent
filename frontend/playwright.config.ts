@@ -7,6 +7,27 @@ const llmPort = Number(process.env.E2E_LLM_PORT ?? 8101);
 // database (see the Makefile); `make e2e` never runs it.
 const screenshots = !!process.env.SCREENSHOTS;
 
+// The desk pet's reminders (ADR 0039 §4) would pop up a few seconds into any test and could
+// cover what it clicks: every test starts with today's reminders used up. `pet.spec.ts`
+// clears this to test them.
+const pad = (n: number) => String(n).padStart(2, "0");
+const now = new Date();
+const day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+const quietPet = {
+  cookies: [],
+  origins: [
+    {
+      origin: `http://localhost:${port}`,
+      localStorage: [
+        {
+          name: "lingo.tutorPet.nudges",
+          value: JSON.stringify({ day, said: ["e2e", "e2e", "e2e", "plan_done"], last: now.getTime() }),
+        },
+      ],
+    },
+  ],
+};
+
 // Real backend on a throwaway database + a fake OpenAI-compatible model + a production
 // build of the frontend.
 // Needs the compose postgres running (docker compose up -d postgres).
@@ -21,6 +42,7 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${port}`,
     trace: "retain-on-failure",
+    storageState: quietPet,
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [

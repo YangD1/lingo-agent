@@ -16,6 +16,8 @@ export type Tutor = {
   animate: boolean;
   /** The desk pet in the corner (ADR 0032 §4a). */
   pet: boolean;
+  /** The pet's own reminders in a bubble (ADR 0039 §4). */
+  nudges: boolean;
   /** `<connection>:<model>`. */
   chat_model: string | null;
   /** The read-aloud model `voices` were picked for. */
@@ -34,6 +36,7 @@ export const DEFAULT_TUTOR: Tutor = {
   color: null,
   animate: true,
   pet: true,
+  nudges: true,
   chat_model: null,
   tts_model: null,
   voices: {},
@@ -75,6 +78,7 @@ export type TutorForm = {
   color: string;
   animate: boolean;
   pet: boolean;
+  nudges: boolean;
   chat_model: string;
   voices: Record<VoiceLanguage, string>;
   realtime_model: string;
@@ -97,6 +101,7 @@ export function toForm(tutor: Tutor, options: TutorOptions): TutorForm {
     color: tutor.color ?? "",
     animate: tutor.animate,
     pet: tutor.pet,
+    nudges: tutor.nudges,
     chat_model: off.has("chat_model") ? "" : (tutor.chat_model ?? ""),
     voices: Object.fromEntries(
       VOICE_LANGUAGES.map((lang) => [lang, voicesHold ? (tutor.voices[lang] ?? "") : ""]),
@@ -121,6 +126,7 @@ export function toBody(form: TutorForm, options: TutorOptions): TutorBody {
     color: form.color || null,
     animate: form.animate,
     pet: form.pet,
+    nudges: form.nudges,
     chat_model: form.chat_model || null,
     tts_model: picked ? options.read_aloud.voice_model : null,
     voices,
