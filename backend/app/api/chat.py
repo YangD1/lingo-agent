@@ -436,17 +436,16 @@ async def start_opening(
     session: SessionDep,
     graph: ChatGraphDep,
 ) -> AsyncIterator[Turn]:
-    """Like start_turn, for the coach's first message in a practice, planning or
-    speaking conversation."""
+    """Like start_turn, for the coach's first message in a practice, planning, daily
+    (from the desk pet, ADR 0041) or speaking conversation."""
     response.headers["Cache-Control"] = "no-transform"
     conversation = await _owned(session, user, conversation_id)
-    # A daily conversation has no opening: the tutor answers the learner's first message.
-    planning = conversation.purpose == "planning"
+    planning = _purpose(conversation)
     speaking = conversation.purpose == "speaking"
-    if conversation.focus_kc_id is None and not planning and not speaking:
+    if conversation.focus_kc_id is None and planning is None and not speaking:
         raise _conflict(
             "not_practice",
-            "Only a practice, planning or speaking conversation opens by itself.",
+            "Only a practice, planning, daily or speaking conversation opens by itself.",
         )
     providers = await _providers_for(session, tenant.id, "chat")
     locks: ConversationLocks = request.app.state.conversation_locks
@@ -465,7 +464,7 @@ async def start_opening(
             None,
             OPENING_TURN_ID,
             conversation.focus_kc_id,
-            "planning" if planning else None,
+            planning,
             speaking=speaking,
             scenario_id=conversation.scenario_id,
         )
@@ -574,9 +573,9 @@ async def open_practice(
     user: CurrentUser,
     graph: ChatGraphDep,
 ) -> AsyncIterator[ServerSentEvent]:
-    """The tutor's first message in a new practice (Q19a) or planning (ADR 0015 §6)
-    conversation, streamed like a reply; `done.turn_id` is "opening". Nothing is added
-    on the learner's behalf."""
+    """The tutor's first message in a new practice (Q19a), planning (ADR 0015 §6) or
+    daily (from the desk pet, ADR 0041) conversation, streamed like a reply;
+    `done.turn_id` is "opening". Nothing is added on the learner's behalf."""
     async for event in _reply(turn, request, user, graph):
         yield event
 

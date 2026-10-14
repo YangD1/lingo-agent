@@ -677,6 +677,8 @@ class TutorProfile(TimestampMixin, Base):
     pet: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     # The pet's reminders in a bubble (ADR 0039 §4); what was shown today stays on the device.
     nudges: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # The tutor speaks first the first time the pet is opened in a day (ADR 0041 §5).
+    daily_opening: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     chat_model: Mapped[str | None] = mapped_column(String(300))
     # The read-aloud model `voices` were picked from, and {language: voice}.
     tts_model: Mapped[str | None] = mapped_column(String(300))

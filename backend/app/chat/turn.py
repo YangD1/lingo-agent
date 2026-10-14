@@ -92,6 +92,8 @@ OPENING_USAGE_TASK = "practice_opening"
 PLAN_OPENING_USAGE_TASK = "plan_opening"
 # And for a speaking conversation's (ADR 0029 §7).
 SPEAKING_OPENING_USAGE_TASK = "speaking_opening"
+# And for today's conversation, opened from the desk pet (ADR 0041).
+DAILY_OPENING_USAGE_TASK = "daily_opening"
 
 
 def title_from(text: str) -> str:
@@ -167,7 +169,7 @@ async def stream_reply(
     LangGraph only checkpoints finished nodes, so after a disconnect the learner's
     message is kept but no half-written reply is.
 
-    `text` None is an opening (of a practice, planning or speaking conversation): the tutor
+    `text` None is an opening (of a practice, planning, daily or speaking conversation): the tutor
     speaks first, no learner message is added, and `message_id` is OPENING_TURN_ID.
     """
     queue: asyncio.Queue[TurnEvent | None] = asyncio.Queue()  # None marks the end
@@ -235,7 +237,9 @@ async def _run_graph(
     text_id: str | None = None  # the tutor message whose text is streaming
     usage = {"input_tokens": 0, "output_tokens": 0}
     opening = (
-        PLAN_OPENING_USAGE_TASK
+        DAILY_OPENING_USAGE_TASK
+        if planning is not None and planning.purpose == "daily"
+        else PLAN_OPENING_USAGE_TASK
         if planning is not None
         else SPEAKING_OPENING_USAGE_TASK
         if speaking is not None

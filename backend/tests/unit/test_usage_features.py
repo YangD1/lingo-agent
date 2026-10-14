@@ -25,9 +25,8 @@ def call(**overrides: object) -> FeatureCall:
 
 def test_shipped_catalog_loads() -> None:
     catalog = get_features()
-    assert {"chat_message", "chat_image", "chat_audio", "practice_start", "plan_start", "pet_daily_opening"} <= set(
-        catalog.features
-    )
+    shipped = {"chat_message", "chat_image", "chat_audio", "practice_start", "plan_start"}
+    assert shipped | {"pet_daily_opening"} <= set(catalog.features)
     chat = catalog.features["chat_message"].calls
     assert [(c.task, c.timing) for c in chat] == [
         ("chat", "now"),

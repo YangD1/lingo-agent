@@ -37,6 +37,7 @@ class TutorIn(BaseModel):
     animate: bool = True
     pet: bool = True
     nudges: bool = True
+    daily_opening: bool = True
     chat_model: Annotated[str, Field(max_length=300)] | None = None
     tts_model: Annotated[str, Field(max_length=300)] | None = None
     voices: dict[Language, Annotated[str, Field(max_length=service.MAX_VOICE_LENGTH)]] = {}
@@ -51,6 +52,7 @@ class TutorOut(BaseModel):
     animate: bool = True
     pet: bool = True
     nudges: bool = True
+    daily_opening: bool = True
     chat_model: str | None = None
     tts_model: str | None = None
     voices: dict[Language, str] = {}
@@ -158,6 +160,7 @@ def _tutor_out(profile: TutorProfile, options: TutorOptions) -> TutorOut:
         animate=profile.animate,
         pet=profile.pet,
         nudges=profile.nudges,
+        daily_opening=profile.daily_opening,
         chat_model=profile.chat_model,
         tts_model=profile.tts_model,
         voices=profile.voices,

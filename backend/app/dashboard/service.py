@@ -112,11 +112,11 @@ class Dashboard:
     days: list[Day]
 
 
-def _local_day(column: Any, tz: ZoneInfo) -> ColumnElement[date]:
+def local_day(column: Any, tz: ZoneInfo) -> ColumnElement[date]:
     return cast(func.timezone(tz.key, column), Date)
 
 
-def _chat_turns(user_id: uuid.UUID) -> tuple[ColumnElement[bool], ...]:
+def chat_turns(user_id: uuid.UUID) -> tuple[ColumnElement[bool], ...]:
     return (
         LLMUsage.user_id == user_id,
         LLMUsage.task.in_(CHAT_TASKS),
@@ -127,16 +127,16 @@ def _chat_turns(user_id: uuid.UUID) -> tuple[ColumnElement[bool], ...]:
 async def _per_day(
     session: AsyncSession, user_id: uuid.UUID, tz: ZoneInfo, since: datetime
 ) -> tuple[Counter[date], Counter[date]]:
-    review_day = _local_day(ReviewLog.reviewed_at, tz)
+    review_day = local_day(ReviewLog.reviewed_at, tz)
     reviews = await session.execute(
         select(review_day, func.count())
         .where(ReviewLog.user_id == user_id, ReviewLog.reviewed_at >= since)
         .group_by(review_day)
     )
-    turn_day = _local_day(LLMUsage.created_at, tz)
+    turn_day = local_day(LLMUsage.created_at, tz)
     turns = await session.execute(
         select(turn_day, func.count())
-        .where(*_chat_turns(user_id), LLMUsage.created_at >= since)
+        .where(*chat_turns(user_id), LLMUsage.created_at >= since)
         .group_by(turn_day)
     )
     return Counter(dict(reviews.all())), Counter(dict(turns.all()))
@@ -145,10 +145,10 @@ async def _per_day(
 async def _studied_days(session: AsyncSession, user_id: uuid.UUID, tz: ZoneInfo) -> list[date]:
     """Every day studied, most recent first; one row per day, so small."""
     days = union(
-        select(_local_day(ReviewLog.reviewed_at, tz).label("day")).where(
+        select(local_day(ReviewLog.reviewed_at, tz).label("day")).where(
             ReviewLog.user_id == user_id
         ),
-        select(_local_day(LLMUsage.created_at, tz).label("day")).where(*_chat_turns(user_id)),
+        select(local_day(LLMUsage.created_at, tz).label("day")).where(*chat_turns(user_id)),
     ).subquery()
     return list((await session.scalars(select(days.c.day).order_by(days.c.day.desc()))).all())
 

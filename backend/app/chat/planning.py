@@ -1,11 +1,13 @@
 """What the tutor is told in a study-planning or daily conversation (ADR 0015 §6, 0016).
 
 A planning conversation starts from the placement result page, a daily one from the
-dashboard. Each turn the tutor gets the latest placement result, the grammar points the
-test found weak, and the advice candidates (`advice/candidates.py`); the two differ only
-in how they are told to use them. The algorithm still decides what can be
-done: the practice and link cards the tutor may show are limited to these (the card
-scope); proposals to change the word book or goal are for the learner to confirm.
+dashboard or the desk pet, whose first opening in a day has the tutor speak first (ADR
+0041). Each turn the tutor gets the latest placement result, the grammar points the test
+found weak, and the advice candidates (`advice/candidates.py`), and in a daily one the
+last days of study too (`chat/recent.py`); the two differ only in how they are told to
+use them. The algorithm still decides what can be done: the practice and link cards the
+tutor may show are limited to these (the card scope); proposals to change the word book
+or goal are for the learner to confirm.
 
 Like the practice guidance, it goes into that call's system prompt only and is
 rebuilt every turn, so the numbers are current.
@@ -30,6 +32,7 @@ from app.adaptive.rules import get_rules
 from app.advice.candidates import Candidate, Kind, candidates
 from app.advice.describe import describe
 from app.cards.tools import CardScope, LinkKind
+from app.chat.recent import RecentStudy, load_recent, render_recent
 from app.db.models import KCEvidence, KCMastery, PlacementSession
 from app.prompts import load_prompt
 from app.services.vocab.scheduler import learner_zone
@@ -69,6 +72,8 @@ class PlanningBrief:
     # this turn: a new proposal is bounded by this, not by when the plan was drafted.
     plan: PlanView | None = None
     open_today: PlanInputs | None = None
+    # The last days of study (daily conversations only, ADR 0041 §3).
+    recent: RecentStudy | None = None
 
     def scope(self) -> CardScope:
         """The practice and link cards the tutor may show, and the plan it may replace."""
@@ -86,6 +91,10 @@ class PlanningBrief:
 
 
 class PlanningSource(Protocol):
+    # Which prompt goes around the brief, and how the tutor opens the conversation.
+    @property
+    def purpose(self) -> PlanningPurpose: ...
+
     async def load(self) -> PlanningBrief: ...
 
 
@@ -104,6 +113,10 @@ class DatabasePlanning:
         self._purpose: PlanningPurpose = purpose
         self._tenant_id = tenant_id
         self._brief: PlanningBrief | None = None
+
+    @property
+    def purpose(self) -> PlanningPurpose:
+        return self._purpose
 
     async def load(self) -> PlanningBrief:
         if self._brief is None:
@@ -140,7 +153,9 @@ async def load_brief(
     )
     zone = await learner_zone(session, user_id)
     found = await candidates(session, user_id, rules=rules, catalog=catalog, tz=zone)
-    plan = open_today = None
+    plan = open_today = recent = None
+    if purpose == "daily":
+        recent = await load_recent(session, user_id, tz=zone, catalog=catalog)
     if purpose == "daily" and tenant_id is not None:
         today = await daily_plan.current(session, user_id, tenant_id, rules=rules)
         plan = await daily_plan.view(session, today, rules=rules, tz=zone)
@@ -154,6 +169,7 @@ async def load_brief(
         purpose=purpose,
         plan=plan,
         open_today=open_today,
+        recent=recent,
     )
 
 
@@ -253,6 +269,9 @@ def render_planning(brief: PlanningBrief) -> str:
         lines.append(f"- {what}")
     if not brief.candidates:
         lines.append("- Nothing pressing.")
+    if brief.recent is not None:
+        lines.append("")
+        lines.extend(render_recent(brief.recent))
     if brief.plan is not None:
         lines.append("")
         lines.extend(_render_plan(brief.plan, brief.open_today))

@@ -53,6 +53,7 @@ async def test_defaults_before_anything_is_saved(app: FastAPI) -> None:
         True,
     )
     assert tutor["nudges"] is True
+    assert tutor["daily_opening"] is True
     assert tutor["chat_model"] is None and tutor["unavailable"] == []
     # Nothing configured: nothing to pick.
     options = (await client.get("/tutor/options")).json()
@@ -97,6 +98,7 @@ async def test_save_read_and_reset(app: FastAPI) -> None:
         "animate": False,
         "pet": False,
         "nudges": False,
+        "daily_opening": False,
         "chat_model": "openai:gpt-5-mini",
         "tts_model": "openai:gpt-4o-mini-tts",
         "voices": {"en-US": "sage", "zh-CN": ""},
@@ -114,6 +116,7 @@ async def test_save_read_and_reset(app: FastAPI) -> None:
         False,
     )
     assert saved["nudges"] is False
+    assert saved["daily_opening"] is False
     assert saved["voices"] == {"en-US": "sage"}  # empty ones dropped
     assert saved["unavailable"] == []
     assert (await client.get("/tutor")).json() == saved

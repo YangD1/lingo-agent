@@ -1,4 +1,5 @@
-"""The dashboard's daily conversation (ADR 0016 §1): one a day, started by the learner."""
+"""The dashboard's daily conversation (ADR 0016 §1): one a day, started by the learner,
+or opened by the tutor from the desk pet (ADR 0041)."""
 
 from datetime import timedelta
 from typing import Any
@@ -10,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Conversation
 from app.usage.recorder import UsageRecord
-from tests.integration.test_chat_send import connect, login, send
+from tests.integration.test_chat_send import connect, login, parse_sse, send
 from tests.integration.test_chat_tools import (  # noqa: F401 (fixtures)
     Script,
     _clear_caches,
@@ -140,14 +141,38 @@ async def test_after_not_now_the_tutor_offers_the_test_only_when_asked(
     assert shown == [("link", {"kind": "placement"})]
 
 
-async def test_a_daily_conversation_has_no_opening(client: AsyncClient) -> None:
+async def test_the_desk_pet_has_the_tutor_open_today_once(
+    client: AsyncClient,
+    script: Script,  # noqa: F811
+    usage_records: list[UsageRecord],  # noqa: F811
+) -> None:
     await login(client)
     await connect(client, "openai")
     conversation = (await daily(client))["id"]
+    script.replies = [
+        [tool_call("suggest_link", kind="placement")],
+        "Morning! Nothing studied this week yet; start with the placement test.",
+    ]
 
     response = await client.post(f"/conversations/{conversation}/opening")
 
-    assert (response.status_code, response.json()["detail"]["code"]) == (409, "not_practice")
+    assert response.status_code == 200, response.text
+    events = parse_sse(response.text)
+    assert kinds(events, "done")[0]["turn_id"] == "opening"
+    prompt = system_text(script.calls[0][1])
+    assert "### The last 7 days" in prompt
+    assert "Nothing studied in these days." in prompt
+    assert "What the learning engine suggests now" in prompt
+    cue = script.calls[0][1][-1]
+    assert isinstance(cue, HumanMessage) and "desk pet" in cue.text
+    assert [(c["kind"], c["params"]) for c in await cards(client, conversation)] == [
+        ("link", {"kind": "placement"})
+    ]
+    # Recorded apart from the learner's turns, so it doesn't count toward the streak.
+    assert [r.task for r in usage_records] == ["daily_opening", "chat_tools"]
+    # Opened once: the dashboard or another tab can't open it again.
+    again = await client.post(f"/conversations/{conversation}/opening")
+    assert (again.status_code, again.json()["detail"]["code"]) == (409, "conversation_started")
 
 
 async def test_daily_is_not_practice(client: AsyncClient) -> None:

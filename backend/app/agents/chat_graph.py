@@ -101,9 +101,11 @@ TOOLS_USAGE_TASK = "chat_tools"
 READING_USAGE_TASK = "reading_coach"
 # speaking_coach's replies, likewise (ADR 0029 §7).
 SPEAKING_USAGE_TASK = "speaking"
-# What a coach is told when it speaks first: only planning conversations (the tutor's)
-# and practice conversations (grammar_coach's) open by themselves.
+# What a coach is told when it speaks first: only planning and daily conversations (the
+# tutor's; a daily one from the desk pet, ADR 0041) and practice conversations
+# (grammar_coach's) open by themselves.
 PLAN_CUE = "plan_opening"
+DAILY_CUE = "daily_opening"
 PRACTICE_CUE = "practice_opening"
 # Vendors answer a request with tools they can't take with one of these.
 _REFUSED_STATUSES = frozenset({400, 404, 422})
@@ -254,19 +256,17 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
             **config,
             "metadata": {**config.get("metadata", {}), "usage_task": TOOLS_USAGE_TASK},
         }
+    planning = runtime.context.planning
+    cue = load_prompt(DAILY_CUE if planning and planning.purpose == "daily" else PLAN_CUE)
     try:
-        reply = await _call(
-            runtime, task, state, history, has_tools, bind, config, load_prompt(PLAN_CUE)
-        )
+        reply = await _call(runtime, task, state, history, has_tools, bind, config, cue)
     except Exception as exc:
         if not (bind and getattr(exc, "status_code", None) in _REFUSED_STATUSES):
             raise
         # Some OpenAI-compatible servers reject tools; answer this turn without them.
         logger.warning("tool calling refused (%s); replying without tools", type(exc).__name__)
         await report(runtime, Step("tools", "skipped"))
-        reply = await _call(
-            runtime, task, state, history, has_tools, False, config, load_prompt(PLAN_CUE)
-        )
+        reply = await _call(runtime, task, state, history, has_tools, False, config, cue)
     return {"messages": [reply]}
 
 
