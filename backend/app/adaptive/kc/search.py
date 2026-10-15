@@ -38,7 +38,8 @@ def _stem(word: str) -> str:
 
 
 def _words(text: str) -> set[str]:
-    return {_stem(w) for w in _WORD.findall(text.lower()) if w not in _STOPWORDS}
+    # Single letters ("S + V + O", "'s") would match half the catalog.
+    return {_stem(w) for w in _WORD.findall(text.lower()) if len(w) > 1 and w not in _STOPWORDS}
 
 
 def _bigrams(text: str) -> set[str]:
@@ -53,12 +54,13 @@ def find_kcs(
 ) -> list[KCMatch]:
     """KCs matching `topic`, best first; only those in `within` when it is given."""
     query = topic.strip().lower()
+    slug = re.sub(r"\s+", "_", query)
     words, grams = _words(query), _bigrams(query)
     matches: list[KCMatch] = []
     for kc in catalog.kcs:
         if within is not None and kc.id not in within:
             continue
-        if query in (kc.id, kc.id.removeprefix("g."), kc.name_en.lower(), kc.name_zh):
+        if slug in (kc.id, kc.id.removeprefix("g.")) or query in (kc.name_en.lower(), kc.name_zh):
             return [KCMatch(kc, float("inf"))]
         named = _words(kc.id.replace("_", " ") + " " + kc.name_en)
         described = _words(kc.description)

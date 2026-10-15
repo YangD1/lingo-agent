@@ -15,7 +15,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
 from langchain_core.messages import BaseMessage
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableLambda
 from pydantic import BaseModel
 
 from app.providers.cache import TTLCache
@@ -152,6 +152,10 @@ def _with_tools(
         return model
 
 
+class StructuredOutputMissingError(Exception):
+    """A structured call got no output of its schema."""
+
+
 def get_structured_llm[T: BaseModel](
     ctx: TenantProviderContext, task: str, schema: type[T]
 ) -> Runnable[LanguageModelInput, T]:
@@ -160,17 +164,26 @@ def get_structured_llm[T: BaseModel](
     Binds the schema to *each* model before chaining; relying on
     `RunnableWithFallbacks.__getattr__` forwarding is fragile (ADR 0002).
     """
-    # langchain-core annotates the result as `dict | BaseModel` regardless of schema;
-    # with a Pydantic schema (and include_raw=False) it is always an instance of `schema`.
-    bound = [
+
+    # langchain-core annotates the result as `dict | BaseModel` regardless of schema; with
+    # a Pydantic schema it is an instance of `schema`, or None when the model answered in
+    # text instead of calling the schema's tool (seen with qwen-plus as exercise critic).
+    # None raises, so the next model in the chain answers, or the caller's error path runs.
+    def require(output: Any) -> T:
+        if not isinstance(output, schema):
+            raise StructuredOutputMissingError(f"the model returned no {schema.__name__}")
+        return output
+
+    bound: list[Runnable[LanguageModelInput, T]] = [
         cast(
-            Runnable[LanguageModelInput, T],
+            Runnable[LanguageModelInput, Any],
             # ChatOpenAI defaults to OpenAI's `json_schema` response format, which most
             # OpenAI-compatible servers and relays reject; tool calling is near-universal.
             model.with_structured_output(schema, method="function_calling")
             if "kind:openai_compatible" in (model.tags or [])
             else model.with_structured_output(schema),
         )
+        | RunnableLambda(require)
         for model in get_chat_models(ctx, task)
     ]
     return chain_with_fallbacks(bound)

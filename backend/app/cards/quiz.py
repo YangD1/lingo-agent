@@ -156,26 +156,26 @@ class QuizTools:
 def _grammar_point(parsed: GiveQuiz, within: Collection[str] | None) -> GrammarKC:
     """The call's KC, by id or by name (ADR 0046 §1). Raises ToolCallError."""
     catalog = get_grammar_catalog()
-    if parsed.kc_id:
-        kc = catalog.get(parsed.kc_id)
-        if kc is None:
-            raise ToolCallError(f"unknown kc_id {parsed.kc_id!r}")
+    kc = catalog.get(parsed.kc_id) if parsed.kc_id else None
+    if kc is not None:
         if within is not None and kc.id not in within:
             raise ToolCallError(f"kc_id {kc.id!r} is not a grammar point of this conversation")
         return kc
-    assert parsed.topic is not None
-    matches = find_kcs(catalog, parsed.topic, within)
+    # Models write a name into kc_id, or an id without its prefix: search for it.
+    topic = parsed.topic or (parsed.kc_id or "").removeprefix("g.").replace("_", " ")
+    matches = find_kcs(catalog, topic, within)
     if is_clear(matches):
         return matches[0].kc
     if not matches:
         raise ToolCallError(
-            f"no grammar point matches {parsed.topic!r}; try another name in English, or "
+            f"no grammar point matches {topic!r}; try another name in English, or "
             "ask the questions in your reply if the test is not on one grammar point"
         )
     listed = "; ".join(f"{m.kc.id} ({m.kc.name_en})" for m in matches[:_CANDIDATES])
     raise ToolCallError(
-        f"{parsed.topic!r} matches several grammar points: {listed}. "
-        "Call give_quiz again with the kc_id of the one meant."
+        f"{topic!r} matches several grammar points: {listed}. "
+        "Call give_quiz again now with the kc_id of the one closest to what you were "
+        "teaching; do not write the questions yourself."
     )
 
 

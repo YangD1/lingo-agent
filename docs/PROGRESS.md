@@ -1173,5 +1173,10 @@
   - [x] 88.2 `give_quiz` 加 `topic`（`kc_id` 改可选，二选一）：目录 `find_kcs(topic)` 按 id / 中英文名 / 说明打分；唯一明确命中就出卡，模糊时把最多 5 个候选（id + 名称）作为工具错误返回、让助手选一个再调。测试：pytest（命中、中文名命中、模糊给候选、找不到、`kc_id` 优先）
   - [x] 88.3 偏好 `tutor_profiles.quiz_proactive`（默认开，迁移）+ 设置接口；主动出题限制：`give_quiz` 加 `asked`（学习者这一轮要了题或同意了你提的测验）；`asked = false` 只能 `check`、偏好关掉时拒绝、同一对话同一语法点只主动出一次、同一对话两次主动出题至少隔 `course.proactive_quiz_gap_minutes`（10）分钟；拒绝都作为工具错误，让助手改口头问。卡片 `params` 记 `proactive`。测试：pytest（迁移、接口、四条规则、`asked = true` 不受限）
   - [x] 88.4 助手设置页开关“允许助手主动出题”；`tutor_tools.md` 测验一节重写（要题 / “测测我” → `give_quiz`，默认 `quiz`、刚讲完想确认 → `check`；不在回复里写题；跨多个语法点或词汇题可以口头出），`{quiz_rule}` 按偏好换成主动 / 只在要求时。测试：pytest（装配）；Vitest（设置页开关）
-  - [ ] 88.5 E2E（假模型）：普通对话说“出点题测我” → 假模型用 `topic` 调 `give_quiz` → 测验卡出现并能作答。理由：普通对话出卡片是跨前后端主流程。另用真实模型（百炼 qwen-plus，临时账号）试几次“出点题给我测试吧”，确认会调工具
-  - [ ] 88.6 收尾：受影响层全量测试、lint、Docker 重建（先后端再前端）
+  - [x] 88.5 E2E（假模型）：普通对话说“出点题测我” → 假模型用 `topic` 调 `give_quiz` → 测验卡出现并能作答。理由：普通对话出卡片是跨前后端主流程。另用真实模型（百炼 qwen-plus，临时账号）试几次“出点题给我测试吧”，确认会调工具
+    - 完成：`e2e/quiz-chat.spec.ts`（假模型按 `topic` 调 `give_quiz`，卡片 5 题全对通过），连同 `course.spec.ts` 3 条全过。百炼 qwen-plus 实测（临时库 `lingo_smoke`，测完删库）：
+      - 第一版提示词下，3 次要题只有 1 次出卡片，另外 2 次在回复里写题；模型还把名字或不带 `g.` 的 id 填进 `kc_id`。改了三处：`kc_id` 不是已有 id 时按名字再找；单个字母不参与匹配；测验一节先讲“为什么题要放卡片里”，“测试”明确用 `quiz`；候选错误要求立刻选一个再调、不要自己写题
+      - 改完后 4 次要题 4 次正确（3 张 `quiz` 卡片 + 1 次被当天同一语法点 2 组的限额拒绝，符合规则），回复里不再写题；讲完 for / since 后说“懂了”，3 次都主动出了 `check`（`proactive: true`）
+      - 顺带发现并修复：qwen-plus 当审题模型时偶尔用文字回答、不调结构化工具，`with_structured_output` 返回 None，`reviews_in` 崩溃导致整组失败。`get_structured_llm` 现在对 None 抛 `StructuredOutputMissingError`，交给备用模型或调用方原有的错误处理（单测 `test_a_structured_call_without_its_output_raises`）
+      - 被拒的工具调用现在打 `logger.info`（`cards/runtime.py`）
+  - [~] 88.6 收尾：受影响层全量测试、lint、Docker 重建（先后端再前端）

@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import Any
+from typing import Any, cast
 
 import httpx2
 import pytest
@@ -306,3 +306,21 @@ async def test_transcribe_raises_when_every_model_fails(
         await stt("a").transcribe(b"x", filename="r.webm", mime_type="audio/webm")
 
     assert getattr(info.value.__cause__, "status_code", None) == 500
+
+
+def test_a_structured_call_without_its_output_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Seen with qwen-plus: a text answer instead of the schema's tool call gave None,
+    which the exercise critic took for a report."""
+    from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+    from langchain_core.messages import AIMessage
+
+    class TextOnly(FakeMessagesListChatModel):
+        def bind_tools(self, tools: Any, **kwargs: Any) -> Any:
+            return self
+
+    monkeypatch.setattr(
+        llm, "get_chat_models", lambda ctx, task: [TextOnly(responses=[AIMessage("Looks fine.")])]
+    )
+
+    with pytest.raises(llm.StructuredOutputMissingError, match="no Answer"):
+        llm.get_structured_llm(cast(Any, None), "chat", Answer).invoke("review")

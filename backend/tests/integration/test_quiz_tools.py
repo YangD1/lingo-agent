@@ -86,7 +86,7 @@ async def test_refused_calls_show_no_card(
     script.replies = [
         [
             tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True),
-            tool_call("give_quiz", kc_id="g.no_such_kc", purpose="check", asked=True),
+            tool_call("give_quiz", kc_id="g.photosynthesis", purpose="check", asked=True),
         ],
         "Let's practise here instead.",
     ]
@@ -96,7 +96,7 @@ async def test_refused_calls_show_no_card(
     assert kinds(events, "card") == []
     limit, unknown = (m.text for m in results(script, call=-1)[-2:])
     assert "already taken today's pass quizzes" in limit
-    assert unknown.startswith("Error: unknown kc_id"), unknown
+    assert unknown.startswith("Error: no grammar point matches"), unknown
     assert len(await quiz_sets(db_session)) == get_rules().course.generated_quizzes_per_day
 
 
@@ -301,3 +301,17 @@ def test_a_lesson_tests_whatever_the_setting() -> None:
     off = TutorPick(quiz_proactive=False)
     assert quiz_rule(off, lesson=True) == load_prompt("tutor_quiz_proactive")
     assert quiz_rule(off, lesson=False) == load_prompt("tutor_quiz_on_request")
+
+
+async def test_a_name_in_kc_id_is_searched_too(
+    client: AsyncClient, db_session: AsyncSession, script: Script
+) -> None:
+    """Seen with Qwen: the id without its prefix, written into kc_id."""
+    conversation = await ready(client)
+    script.replies = [
+        [tool_call("give_quiz", kc_id="present_simple_third_person", purpose="quiz", asked=True)],
+        "Try the card.",
+    ]
+    _, events, _ = await send(client, conversation, "Quiz me on -s.")
+    (card,) = kinds(events, "card")
+    assert card["params"]["kc_id"] == KC

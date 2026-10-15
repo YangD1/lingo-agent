@@ -6,6 +6,7 @@ and link cards (a planning conversation's candidates, ADR 0015 §6).
 """
 
 import asyncio
+import logging
 import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
@@ -24,6 +25,8 @@ from app.cards.tools import (
     draft_card,
 )
 from app.workspace.tools import WorkspaceTools
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseTutorTools:
@@ -56,6 +59,8 @@ class DatabaseTutorTools:
         try:
             draft = draft_card(name, args, await self._scope() if self._scope else None)
         except ToolCallError as exc:
+            # The activity row says only "failed"; why goes to the log.
+            logger.info("tool call %s refused: %s", name, exc)
             return ToolOutcome(f"Error: {exc}. No card was shown.", ok=False)
         return await self._put(draft, call_id)
 
@@ -66,6 +71,7 @@ class DatabaseTutorTools:
         try:
             result = await self._workspace.run(name, args, call_id)
         except ToolCallError as exc:
+            logger.info("tool call %s refused: %s", name, exc)
             return ToolOutcome(f"Error: {exc}.", ok=False)
         outcome = await self._put(result.draft, call_id)
         card = outcome.card
@@ -86,6 +92,7 @@ class DatabaseTutorTools:
                 args, call_id, await self._scope() if self._scope else None
             )
         except ToolCallError as exc:
+            logger.info("tool call give_quiz refused: %s", exc)
             return ToolOutcome(f"Error: {exc}. No card was shown.", ok=False)
         outcome = await self._put(result.draft, call_id)
         return ToolOutcome(result.content, ok=True, card=outcome.card)

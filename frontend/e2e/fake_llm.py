@@ -101,6 +101,8 @@ FLASHCARDS = re.compile(r"背单词|flashcards", re.IGNORECASE)
 # Asks for the pass quiz in a lesson (ADR 0044 §4); the lesson's point is in the prompt.
 QUIZ_ME = re.compile(r"测验|quiz me", re.IGNORECASE)
 LESSON_POINT = re.compile(r"grammar point id ([\w.]+)\)")
+# Free chat asking for questions: no id in the context, so the point goes by name (ADR 0046).
+TEST_ME = re.compile(r"出点题")
 PROPOSED_PLAN = {
     "review": 0,
     "new_words": 3,
@@ -621,6 +623,8 @@ def tutor_tool_call(
         and (point := LESSON_POINT.search(system_text(messages)))
     ):
         return "give_quiz", {"kc_id": point.group(1), "purpose": "quiz", "asked": True}
+    if "give_quiz" in names and TEST_ME.search(said):
+        return "give_quiz", {"topic": "subject + verb word order", "purpose": "quiz", "asked": True}
     if "suggest_link" in names and FLASHCARDS.search(said):
         return "suggest_link", {"kind": "vocab_review"}
     if not WORD_BOOK.search(said):
