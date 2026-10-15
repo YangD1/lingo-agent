@@ -16,7 +16,7 @@ async function letThePetRemind(page: Page) {
   await page.evaluate(() => window.localStorage.removeItem("lingo.tutorPet.nudges"));
 }
 
-test("with no model, the pet leads to the settings card for one", async ({ page }) => {
+test("with no model, the pet leads to the setup guide's model step", async ({ page }) => {
   await register(page, uniqueEmail("pet-setup"));
   await letThePetRemind(page);
   await page.goto("/vocab");
@@ -27,8 +27,8 @@ test("with no model, the pet leads to the settings card for one", async ({ page 
   await expect(bubble(page)).toContainText("还没有能用的对话模型");
   await page.screenshot({ path: test.info().outputPath("pet-nudge.png") });
   await bubble(page).getByRole("link", { name: "去设置" }).click();
-  await expect(page).toHaveURL(/\/settings#connections$/);
-  await expect(page.locator("#connections")).toHaveAttribute("data-flash", "");
+  await expect(page).toHaveURL(/\/setup\?step=model$/);
+  await expect(page.getByRole("heading", { name: "接入一个对话模型" })).toBeVisible();
   await expect(bubble(page)).toBeHidden();
 
   // Said today: not again on the next page.

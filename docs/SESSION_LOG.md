@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-10-15 任务 82：配置引导（新账号先走 `/setup`，五步可跳过，可重复进入）
+
+**做了什么**：
+- 用户提出新账号第一次登录自动弹出配置引导、可跳过部分项、可重复进入；Q82a–e 全按推荐。
+- 82.1 ADR 0042 + PLAN；82.2 后端 `users.setup_completed_at`（迁移 `62a4936d6c45` 回填老账号）、`GET /me/setup`（每步现状由真实数据算）、`POST /me/setup/complete`、`PATCH /auth/me`；82.3–82.5 前端 `app/(setup)/` 全屏布局、`/setup` 五步（称呼和语言 / 接入模型 / 学习目标 / 助手 / 水平测试）+ 小结，`(app)/layout.tsx` 没走完就跳 `/setup`，`/join` 移进 `(setup)`；设置页 callout、侧栏和手机“更多”、桌宠“配置引导”命令都能再进；桌宠没模型提醒和小窗提示改指 `/setup?step=model`。
+- 82.6 E2E `setup.spec.ts` 两条；`helpers.register()` 注册后直接调 `/api/me/setup/complete`，新增 `registerNew()` 停在引导；`pet.spec` 跟着改；README 中英、demo.md 更新；全量 pytest 1856、Vitest 773、E2E 84，lint 干净；Docker 已重建。
+
+**未完成**：无。任务 77–82 都没推送，等用户说再推。
+
+**下一步**：等用户看引导效果（新注册一个账号即可看到；老账号从设置页顶部“配置引导”进入）。
+
+**踩坑**：
+- 引导里任何离开的链接都必须先标记走完（`LeaveLink` / `nav.leave`），否则 layout 会把人弹回来。
+- JoinPanel 自带 form，不能嵌在步骤 form 里：`StepFrame` 加了 `extra` 插槽，提交按钮用 `form=` 属性。
+- e2e 里在具名 helper 函数中调 `useFakeModel` 会触发 react-hooks lint，`setup.spec.ts` 用别名导入。
+- E2E 假模型不是预设，所以模型步的“粘贴 key”路径只由 Vitest 覆盖，E2E 走邀请码路径。
+- Playwright 直接用 node 跑时 PATH 要带上 uv 所在目录（webServer 要起后端）。
+
+---
+
 ## 2026-10-15 任务 81：测试提速（修竞态测试、pytest 并行、清表改 DELETE）
 
 **做了什么**：

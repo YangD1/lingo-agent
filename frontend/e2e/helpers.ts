@@ -11,14 +11,23 @@ export function uniqueEmail(prefix = "learner"): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
 }
 
-/** Registers and lands on the dashboard (the home page), then opens chat, where most specs start. */
-export async function register(page: Page, email: string, name = "Lee"): Promise<void> {
+/** Registers a new account, which lands on the setup guide (ADR 0042). */
+export async function registerNew(page: Page, email: string, name = "Lee"): Promise<void> {
   await page.goto("/register");
   await page.locator("#email").fill(email);
   await page.locator("#display_name").fill(name);
   await page.locator("#password").fill(PASSWORD);
   await page.locator("form button[type=submit]").click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/setup$/);
+}
+
+/**
+ * Registers, finishes the setup guide through the API (the guide is tested in setup.spec), then
+ * opens chat, where most specs start.
+ */
+export async function register(page: Page, email: string, name = "Lee"): Promise<void> {
+  await registerNew(page, email, name);
+  expect((await page.request.post("/api/me/setup/complete")).status()).toBe(200);
   await page.goto("/chat");
 }
 

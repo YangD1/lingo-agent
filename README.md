@@ -80,9 +80,8 @@ Example sentences on the flashcards come from [Tatoeba](https://tatoeba.org) ([C
 Then:
 
 1. Open <http://localhost:3000> and create an account.
-2. Go to **Settings → Model connections**, add a connection (for example DeepSeek), paste your API key, and save its default model.
-3. Take the **Placement test** (about 10 minutes). On its result page you can talk the result over with the assistant, right there.
-4. Go to **Chat** and start talking, or to **Vocabulary** to pick a word book. With a single connection you don't need to set any model order: its default model is used automatically.
+2. A new account starts with the **setup guide**, five steps you can each skip: what to call you and the explanation language, one chat model (pick a provider and paste an API key; it's checked by listing the models, which costs no tokens; with an invite code you can use someone else's models instead), your goals, a name for the assistant, and whether to take the **Placement test** now (about 10 minutes; you can talk the result over with the assistant on its result page). The guide can be opened again from settings or the user menu.
+3. Go to **Chat** and start talking, or to **Vocabulary** to pick a word book. With a single connection you don't need to set any model order: its default model is used automatically. Speech-to-text, read-aloud and realtime voice are set up separately in **Settings**.
 
 `make ps` shows service status, `make logs` follows the logs, `make down` stops the stack (your data is kept in Docker volumes). `make help` lists every command.
 
