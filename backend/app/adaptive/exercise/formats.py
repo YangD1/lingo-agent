@@ -17,8 +17,20 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 from app.adaptive.placement.items import BLANK
 from app.adaptive.rules import Evidence
 
-Format = Literal["choice4", "cloze", "find_fix", "transform", "translate", "rewrite_own"]
+Format = Literal[
+    "choice4",
+    "cloze",
+    "find_fix",
+    "transform",
+    "translate",
+    "rewrite_own",
+    "concept_choice",
+    "explain",
+]
 FORMATS: tuple[Format, ...] = get_args(Format)
+# Understanding checks of a lesson (ADR 0044 §3): they ask about the rule, not for its
+# use, so an answer is feedback only and writes no evidence. Never in practice sets.
+CHECK_FORMATS: tuple[Format, ...] = ("concept_choice", "explain")
 
 # code: compared with the answer key. model: judged by `exercise_grade`.
 # code_then_model: the key first, the model only for answers the key does not list.
@@ -210,8 +222,49 @@ class RewriteOwn(_Strict):
         return self
 
 
+# --- understanding checks (ADR 0044 §3): about the rule itself, no evidence ---
+
+
+class ConceptChoiceContent(_Strict):
+    # A question about the rule, e.g. "Why 'has lived' and not 'lived' here?"; no gap.
+    question: Text
+    options: tuple[Text, Text, Text, Text]
+
+
+class ConceptChoice(_Strict):
+    format: Literal["concept_choice"] = "concept_choice"
+    content: ConceptChoiceContent
+    answer: Choice4Answer
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if not _distinct(self.content.options):
+            raise ValueError("options must be distinct")
+        if self.answer.correct not in self.content.options:
+            raise ValueError("the correct answer must be one of the options")
+        return self
+
+
+class ExplainContent(_Strict):
+    # E.g. "In your own words: when do you use 'since' and when 'for'?"
+    question: Text
+
+
+class ExplainAnswer(_Strict):
+    # What a good answer covers; the grader checks the learner's words against them.
+    key_points: Annotated[tuple[Text, ...], Field(min_length=1, max_length=4)]
+    # A model answer, shown after the learner answers.
+    explanation: Explanation
+
+
+class Explain(_Strict):
+    format: Literal["explain"] = "explain"
+    content: ExplainContent
+    answer: ExplainAnswer
+
+
 ExerciseBody = Annotated[
-    Choice4 | Cloze | FindFix | Transform | Translate | RewriteOwn,
+    Choice4 | Cloze | FindFix | Transform | Translate | RewriteOwn | ConceptChoice | Explain,
     Field(discriminator="format"),
 ]
 _BODY: TypeAdapter[ExerciseBody] = TypeAdapter(ExerciseBody)
@@ -247,7 +300,7 @@ class FormatSpec:
     response: type[Response]
     grading: Grading
     # The observations one answer yields, in order. find_fix gives two: spotting the
-    # error is recognition, writing the fix is production.
+    # error is recognition, writing the fix is production. CHECK_FORMATS give none.
     evidence: tuple[Evidence, ...]
 
 
@@ -260,6 +313,8 @@ SPECS: dict[Format, FormatSpec] = {
     "transform": FormatSpec(Transform, TextResponse, "model", ("production",)),
     "translate": FormatSpec(Translate, TextResponse, "model", ("production",)),
     "rewrite_own": FormatSpec(RewriteOwn, TextResponse, "model", ("production",)),
+    "concept_choice": FormatSpec(ConceptChoice, ChoiceResponse, "code", ()),
+    "explain": FormatSpec(Explain, TextResponse, "model", ()),
 }
 
 

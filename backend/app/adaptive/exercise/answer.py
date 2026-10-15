@@ -9,7 +9,9 @@ Each counted answer also moves the learner's grammar ability by Elo against the 
 difficulty (Q34c); item difficulties stay as they are (generated items are not
 calibrated, bank items do not feed the shared placement statistics). When the first
 item of a set is answered or reported, the mastery of the set's KCs is kept on the set
-(`mastery_before`, Q35c) so its summary can show what changed.
+(`mastery_before`, Q35c) so its summary can show what changed. Understanding checks
+(`CHECK_FORMATS`, ADR 0044 §3) are graded and stored the same way but write no
+evidence and move no ability; `explain` gets feedback from its own prompt.
 
 `answer` and `report` are each one unit of work and commit. No transaction stays open
 across the model call: the item is read again, locked, before anything is written.
@@ -26,15 +28,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.elo import guess_for, update_ability
 from app.adaptive.exercise.formats import (
+    SPECS,
     Choice4,
     ChoiceResponse,
+    ConceptChoice,
     ExerciseBody,
+    Explain,
     FindFix,
     FindFixResponse,
     Response,
+    TextResponse,
     parse_body,
 )
-from app.adaptive.exercise.grader import Graded, Verdict, grade_messages, learner_answer, verdict
+from app.adaptive.exercise.grader import (
+    Explained,
+    Graded,
+    Verdict,
+    explain_messages,
+    grade_messages,
+    learner_answer,
+    verdict,
+)
 from app.adaptive.exercise.grading import Mark, grade, with_fix
 from app.adaptive.exercise.inputs import ExplainIn
 from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog
@@ -76,6 +90,8 @@ class Answered:
     repeated: bool
     # This answer finished the set: time to generate the next one ahead.
     set_done: bool
+    # The set is a quiz card's (ADR 0044 §4): nothing is generated ahead for it.
+    quiz: bool = False
 
 
 async def _item(
@@ -124,8 +140,10 @@ def _given(body: ExerciseBody, response: Response) -> str:
 
 
 def _expected(body: ExerciseBody) -> str:
-    if isinstance(body, Choice4):
+    if isinstance(body, Choice4 | ConceptChoice):
         return body.answer.correct
+    if isinstance(body, Explain):
+        return body.answer.explanation
     if isinstance(body, FindFix):
         fix = FindFixResponse(segment=body.answer.wrong_segment, fix=body.answer.accepted[0])
         return with_fix(body.content, fix)
@@ -152,6 +170,28 @@ async def _model_verdict(
     except Exception as exc:
         raise GradingFailedError(type(exc).__name__) from exc
     return verdict(cast(Graded, reply.output), kc, catalog), reply.model
+
+
+async def _explained(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    item: Exercise,
+    body: Explain,
+    response: Response,
+    grade_call: StructuredCall | None,
+    catalog: GrammarCatalog,
+) -> tuple[Explained, str | None]:
+    kc = catalog.get(item.kc_id)
+    if grade_call is None or kc is None:
+        raise GradingFailedError("no grading model" if kc else f"unknown KC {item.kc_id}")
+    assert isinstance(response, TextResponse)  # grading.grade checked the shape
+    messages = explain_messages(body, kc, response, await _explain_in(session, user_id))
+    await session.rollback()
+    try:
+        reply = await grade_call(messages, Explained)
+    except Exception as exc:
+        raise GradingFailedError(type(exc).__name__) from exc
+    return cast(Explained, reply.output), reply.model
 
 
 async def _finish_if_done(session: AsyncSession, exercise_set: ExerciseSet, now: datetime) -> bool:
@@ -258,8 +298,13 @@ async def answer(
     body = parse_body(item.format, item.content, item.answer)
     code = grade(body, response)
     model_verdict: Verdict | None = None
+    explained: Explained | None = None
     model: str | None = None
-    if code.needs_model:
+    if isinstance(body, Explain):
+        explained, model = await _explained(
+            session, user_id, item, body, response, grade_call, catalog
+        )
+    elif code.needs_model:
         model_verdict, model = await _model_verdict(
             session, user_id, item, body, response, grade_call, catalog
         )
@@ -280,6 +325,13 @@ async def answer(
         "other_mistakes": [m.model_dump(mode="json") for m in others],
         "model": model,
     }
+    if explained is not None:
+        correct = explained.verdict == "right"
+        feedback |= {
+            "explanation": explained.feedback.strip(),
+            "verdict": explained.verdict,
+            "missing": [m.strip() for m in explained.missing if m.strip()],
+        }
     attempt = Attempt(
         user_id=user_id,
         exercise_id=item.id,
@@ -292,6 +344,10 @@ async def answer(
     session.add(attempt)
     await session.flush()
 
+    # Understanding checks write no evidence (ADR 0044 §3).
+    counted = bool(SPECS[body.format].evidence)
+    if not counted:
+        marks = ()
     given = _given(body, response)
     expected = (model_verdict.corrected if model_verdict else None) or _expected(body)
     for mark in marks:
@@ -317,15 +373,28 @@ async def answer(
                 mistake=(other.error_type, other.severity, other.original, other.correction),
             )
         )
-    await _update_ability(session, user_id, item, correct, rules)
+    if counted:
+        await _update_ability(session, user_id, item, correct, rules)
     await _start(session, exercise_set, now)
     set_done = await _finish_if_done(session, exercise_set, now)
     await session.flush()
-    await refresh(
-        session, user_id, {item.kc_id, *(o.kc_id for o in others)}, rules=rules, catalog=catalog
-    )
+    if counted:
+        await refresh(
+            session,
+            user_id,
+            {item.kc_id, *(o.kc_id for o in others)},
+            rules=rules,
+            catalog=catalog,
+        )
     await session.commit()
-    return Answered(attempt.id, correct, feedback, repeated=False, set_done=set_done)
+    return Answered(
+        attempt.id,
+        correct,
+        feedback,
+        repeated=False,
+        set_done=set_done,
+        quiz=exercise_set.origin == "quiz",
+    )
 
 
 def _evidence(

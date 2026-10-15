@@ -24,6 +24,7 @@ from app.adaptive.elo import prior_difficulty
 from app.adaptive.exercise.formats import (
     Choice4,
     Cloze,
+    ConceptChoice,
     ExerciseBody,
     FindFix,
     Format,
@@ -88,9 +89,17 @@ class Draft(_Model):
         None, description="choice4, cloze: the sentence with exactly one ___ for the gap"
     )
     options: list[str] | None = Field(
-        None, description="choice4: the four options, the correct one included"
+        None, description="choice4, concept_choice: the four options, the correct one included"
     )
-    correct: str | None = Field(None, description="choice4: the correct option, as written")
+    correct: str | None = Field(
+        None, description="choice4, concept_choice: the correct option, as written"
+    )
+    question: str | None = Field(
+        None, description="concept_choice, explain: the question about the rule"
+    )
+    key_points: list[str] | None = Field(
+        None, description="explain: 1-4 points a good answer covers, as short phrases"
+    )
     hint: str | None = Field(None, description="cloze: e.g. the base form of the verb, or null")
     segments: list[str] | None = Field(
         None,
@@ -168,6 +177,14 @@ def to_body(draft: Draft, brief: ItemBrief, rng: random.Random) -> ExerciseBody:
         case "translate":
             content = {"source": draft.source, "instruction": draft.instruction or None}
             answer["accepted"] = draft.accepted
+        case "concept_choice":
+            options = list(draft.options or [])
+            rng.shuffle(options)
+            content = {"question": draft.question, "options": options}
+            answer["correct"] = draft.correct
+        case "explain":
+            content = {"question": draft.question}
+            answer["key_points"] = draft.key_points
         case "rewrite_own":
             own = brief.own_sentence
             assert own is not None  # briefs() sets it for rewrite_own
@@ -242,7 +259,7 @@ class Verdict:
 def _solved(body: ExerciseBody, review: Review) -> str | None:
     """Why the critic's own answer shows a problem with a closed item, if it does."""
     match body:
-        case Choice4():
+        case Choice4() | ConceptChoice():
             if normalize(review.own_answer) != normalize(body.answer.correct):
                 return f"critic chose {review.own_answer!r}, key says {body.answer.correct!r}"
         case Cloze():

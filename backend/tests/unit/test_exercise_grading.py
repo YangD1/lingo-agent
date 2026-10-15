@@ -35,6 +35,14 @@ BODIES = {
         {"source": "她走路上班。"},
         {"accepted": ["She walks to work."], "explanation": "e"},
     ),
+    "concept_choice": (
+        {"question": "Why 'lives'?", "options": ["he", "plural", "past", "polite"]},
+        {"correct": "he", "explanation": "e"},
+    ),
+    "explain": (
+        {"question": "When does a verb take -s?"},
+        {"key_points": ["he, she, it"], "explanation": "e"},
+    ),
 }
 
 
@@ -65,6 +73,10 @@ R, P = "recognition", "production"
         # Q34a: a reference answer needs no model.
         ("translate", TextResponse(text="she walks to work"), CodeGrade((Mark(P, True),))),
         ("translate", TextResponse(text="She goes to work on foot."), CodeGrade((), True)),
+        # Understanding checks (ADR 0044 §3): the choice by code, the explanation by model.
+        ("concept_choice", ChoiceResponse(choice="he"), CodeGrade((Mark(R, True),))),
+        ("concept_choice", ChoiceResponse(choice="past"), CodeGrade((Mark(R, False),))),
+        ("explain", TextResponse(text="With he, she or it."), CodeGrade((), True)),
     ],
 )
 def test_grade(fmt: Format, response: Response, expected: CodeGrade) -> None:

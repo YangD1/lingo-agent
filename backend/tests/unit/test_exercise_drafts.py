@@ -62,6 +62,15 @@ DRAFTS: dict[Format, dict[str, Any]] = {
         "instruction": "Correct your sentence.",
         "accepted": ["She likes tea."],
     },
+    "concept_choice": {
+        "question": "为什么是 'works' 而不是 'work'",
+        "options": ["主语是第三人称单数", "因为是过去时", "因为句子是疑问句", "两个都对"],
+        "correct": "主语是第三人称单数",
+    },
+    "explain": {
+        "question": "用你自己的话说说, 什么时候动词要加 -s",
+        "key_points": ["主语是 he / she / it 或单数名词", "一般现在时"],
+    },
 }
 
 
@@ -277,3 +286,43 @@ def test_critic_sees_no_closed_key_but_open_references() -> None:
     assert "She likes tea." in body  # rewrite_own's reference answer
     assert "evidence_id" not in body and "42" not in body
     assert "Mochi" not in body and "nurse" not in body  # the critic gets no personal context
+
+
+# --- understanding checks (ADR 0044 §3) ---
+
+
+def test_check_drafts_make_items() -> None:
+    choice = drafts.to_body(draft("concept_choice"), brief("concept_choice"), random.Random(0))
+    assert choice.format == "concept_choice"
+    assert sorted(choice.content.options) == sorted(DRAFTS["concept_choice"]["options"])
+    explain = drafts.to_body(draft("explain"), brief("explain"), random.Random(0))
+    assert explain.format == "explain"
+    assert explain.answer.key_points == tuple(DRAFTS["explain"]["key_points"])  # type: ignore[union-attr]
+    with pytest.raises(drafts.DraftError):
+        drafts.to_body(draft("explain", key_points=[]), brief("explain"), random.Random(0))
+
+
+def test_the_critic_solves_a_concept_question_without_its_key() -> None:
+    body = drafts.to_body(draft("concept_choice"), brief("concept_choice"), random.Random(0))
+    agreed = drafts.judge(body, KC, -2.5, review(own_answer="主语是第三人称单数"), RULES)
+    assert agreed.ok
+    other = drafts.judge(body, KC, -2.5, review(own_answer="因为是过去时"), RULES)
+    assert not other.ok
+
+
+def test_check_instructions_only_reach_sets_that_have_checks() -> None:
+    plain, _ = messages.generate_messages([brief("choice4")], LEARNER, RULES)
+    assert "Understanding checks" not in text(plain)
+    checked, _ = messages.generate_messages(
+        [brief("concept_choice", 0), brief("explain", 1)], LEARNER, RULES
+    )
+    assert "Understanding checks" in text(checked)
+    items = [
+        (brief(fmt, i), drafts.to_body(draft(fmt, i), brief(fmt, i), random.Random(0)))
+        for i, fmt in enumerate(["concept_choice", "explain"])
+    ]
+    system, human = messages.critic_messages(items, LEARNER, RULES)
+    assert "Understanding checks" in text(system)
+    body = text(human)
+    assert "主语是 he / she / it" in body  # explain's key points: the critic checks them
+    assert "correct" not in body  # the concept question's key stays hidden

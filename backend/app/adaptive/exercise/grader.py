@@ -9,11 +9,19 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import cache
+from typing import Literal
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
-from app.adaptive.exercise.formats import ExerciseBody, FindFix, FindFixResponse, Response
+from app.adaptive.exercise.formats import (
+    ExerciseBody,
+    Explain,
+    FindFix,
+    FindFixResponse,
+    Response,
+    TextResponse,
+)
 from app.adaptive.exercise.grading import with_fix
 from app.adaptive.exercise.inputs import ExplainIn
 from app.adaptive.exercise.messages import shown
@@ -106,11 +114,41 @@ def verdict(graded: Graded, kc: GrammarKC, catalog: GrammarCatalog) -> Verdict:
     return Verdict(graded.correct, graded.explanation.strip(), corrected, tuple(kept))
 
 
+# --- explain: feedback on the learner's account of the rule (ADR 0044 §3) ---
+
+EXPLAIN_PROMPT = "explain_feedback"
+type ExplainVerdict = Literal["right", "partly", "wrong"]
+
+
+class Explained(BaseModel):
+    verdict: ExplainVerdict = Field(description="right, partly or wrong")
+    missing: list[str] = Field(
+        default_factory=list, description="Key points missed or wrong, as short phrases"
+    )
+    feedback: str = Field(description="Two or three sentences to the learner")
+
+
+def explain_messages(
+    body: Explain, kc: GrammarKC, response: TextResponse, explain_in: ExplainIn
+) -> list[BaseMessage]:
+    parts = [
+        f"Write the feedback in: {_LANGUAGES[explain_in]}",
+        f"Grammar point: {kc.name_en} ({kc.cefr}): {kc.description}",
+        f"Question: {body.content.question}",
+        "Key points:\n" + "\n".join(f"- {p}" for p in body.answer.key_points),
+        f"Learner's answer:\n{response.text}",
+    ]
+    return [SystemMessage(load_prompt(EXPLAIN_PROMPT)), HumanMessage("\n\n".join(parts))]
+
+
 __all__: Sequence[str] = (
+    "EXPLAIN_PROMPT",
     "TASK",
+    "Explained",
     "Graded",
     "OtherMistake",
     "Verdict",
+    "explain_messages",
     "grade_messages",
     "learner_answer",
     "verdict",

@@ -25,6 +25,7 @@ from app.api.vocab import TimeZone
 from app.attachments import service as attachment_service
 from app.attachments.context import DatabaseAttachments
 from app.attachments.service import AttachmentNotFoundError, AttachmentStateError
+from app.cards.quiz import QuizTools
 from app.cards.runtime import DatabaseTutorTools
 from app.chat import service, translate
 from app.chat.locks import ConversationLocks
@@ -640,6 +641,13 @@ async def _reply(
                     tenant_id=turn.providers.tenant_id,
                     conversation_id=turn.conversation_id,
                     learner_texts=partial(_learner_texts, graph, turn),
+                ),
+                quiz=QuizTools(
+                    sessionmaker,
+                    user_id=user.id,
+                    tenant_id=turn.providers.tenant_id,
+                    conversation_id=turn.conversation_id,
+                    start=request.app.state.practice_worker.start_quiz,
                 ),
             )
             if turn.free_chat:  # the supervisor may hand it to writing_coach

@@ -68,6 +68,12 @@ DRAFTS: dict[Format, dict[str, Any]] = {
     },
     "translate": {"source": "她走路上班。", "accepted": ["She walks to work."]},
     "rewrite_own": {"instruction": "Correct it.", "accepted": ["She likes tea."]},
+    "concept_choice": {
+        "question": "Why 'works'?",
+        "options": ["one person", "past", "a question", "both"],
+        "correct": "one person",
+    },
+    "explain": {"question": "When does a verb take -s?", "key_points": ["he, she, it"]},
 }
 KEYS: dict[Format, tuple[str, int | None]] = {
     "choice4": ("works", None),
@@ -76,6 +82,8 @@ KEYS: dict[Format, tuple[str, int | None]] = {
     "transform": ("My sister plays tennis.", None),
     "translate": ("She walks to work.", None),
     "rewrite_own": ("She likes tea.", None),
+    "concept_choice": ("one person", None),
+    "explain": ("", None),
 }
 
 

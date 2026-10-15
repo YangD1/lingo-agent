@@ -110,6 +110,10 @@ class ExerciseContext:
     wider_kcs: Sequence[str] = ()
     # Seconds the learner waits at most, roughly; None: generated ahead, no budget.
     wait_budget: float | None = None
+    # A quiz card's set (ADR 0044 §4): its own smallest size instead of
+    # practice.min_items, and no bank for understanding checks (the bank is choice4).
+    min_items: int | None = None
+    use_bank: bool = True
     clock: Callable[[], float] = time.monotonic
 
 
@@ -309,7 +313,7 @@ async def fill(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[
     ctx = runtime.context
     accepted = dict(state["accepted"])
     by_position = {b.position: b for b in ctx.briefs}
-    if state["open"]:
+    if state["open"] and ctx.use_bank:
         await _report(ctx, "filling")
         picks = bank.fill(
             [bank.Slot(p, by_position[p].kc.id) for p in state["open"]],
@@ -338,7 +342,8 @@ async def fill(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[
             )
     items = [accepted[p] for p in sorted(accepted)]
     from_bank = sum(1 for item in items if item.bank_item_id is not None)
-    failed = len(items) < ctx.rules.practice.min_items
+    least = ctx.rules.practice.min_items if ctx.min_items is None else ctx.min_items
+    failed = len(items) < least
     error = (state["model_error"] or "generation_failed") if failed else None
     return {"result": SetResult(items, state["rejected"], error, from_bank)}
 

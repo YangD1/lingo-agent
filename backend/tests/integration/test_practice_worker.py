@@ -11,7 +11,9 @@ from langchain_core.runnables import RunnableConfig
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.adaptive.exercise.worker import PracticeWorker
+from app.adaptive.exercise.formats import CHECK_FORMATS
+from app.adaptive.exercise.planner import PRODUCTION, RECOGNITION
+from app.adaptive.exercise.worker import PracticeWorker, QuizLimitError
 from app.adaptive.rules import get_rules
 from app.agents.exercise_graph import ExerciseContext, StructuredCall, build_exercise_graph
 from app.auth.service import register_user
@@ -20,7 +22,7 @@ from app.db.session import create_sessionmaker
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
 from app.scheduler import prefs
-from tests.unit.test_exercise_graph import FakeModels
+from tests.unit.test_exercise_graph import KCS, FakeModels
 
 RULES = get_rules()
 
@@ -362,3 +364,69 @@ async def test_a_set_for_one_kc(maker: async_sessionmaker[AsyncSession]) -> None
 
     with pytest.raises(ValueError):
         await practice.start(user_id, tenant_id, "learner", focus_kc="g.no_such_kc")
+
+
+async def test_an_understanding_check_is_written_fresh(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """ADR 0044 §4: checks have no bank items, and a quiz set is no practice set."""
+    user_id, tenant_id = await learner(maker)
+    models = FakeModels()
+    practice = worker(maker, models)
+
+    set_id = await practice.start_quiz(user_id, tenant_id, KCS[0], "check")
+    await practice.wait_idle()
+
+    row = await get_set(maker, set_id)
+    assert (row.status, row.origin, row.quiz_purpose, row.focus_kc_id) == (
+        "ready",
+        "quiz",
+        "check",
+        KCS[0],
+    )
+    made = await items(maker, set_id)
+    assert made and {i.format for i in made} <= set(CHECK_FORMATS)
+    assert all(i.kc_id == KCS[0] and i.bank_item_id is None for i in made)
+    # A free start does not hand out the quiz set.
+    assert await practice.start(user_id, tenant_id, "dashboard") != set_id
+    await practice.wait_idle()
+
+
+async def test_a_pass_quiz_mixes_recognition_and_production(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    user_id, tenant_id = await learner(maker)
+    practice = worker(maker, FakeModels())
+
+    set_id = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+    await practice.wait_idle()
+
+    formats = [i.format for i in sorted(await items(maker, set_id), key=lambda i: i.position)]
+    course = RULES.course
+    assert len(formats) == course.quiz_items
+    assert sum(f in RECOGNITION for f in formats) == course.quiz_items - course.quiz_production
+    assert sum(f in PRODUCTION for f in formats) == course.quiz_production
+
+
+async def test_pass_quizzes_written_per_day_are_capped(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    user_id, tenant_id = await learner(maker)
+    clock = Clock()
+    practice = worker(maker, FakeModels(), clock=clock)
+    limit = RULES.course.generated_quizzes_per_day
+
+    made = [await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz") for _ in range(limit)]
+    await practice.wait_idle()
+    with pytest.raises(QuizLimitError):
+        await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+    # Checks, other KCs and failed sets do not count.
+    await practice.start_quiz(user_id, tenant_id, KCS[0], "check")
+    await practice.start_quiz(user_id, tenant_id, KCS[1], "quiz")
+    async with maker() as session:
+        await session.execute(
+            update(ExerciseSet).where(ExerciseSet.id == made[0]).values(status="failed")
+        )
+        await session.commit()
+    await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+    await practice.wait_idle()

@@ -20,7 +20,8 @@ from app.memory.reflection import EXAM_TAGS
 from app.services.vocab.books import BOOKS, get_book
 
 # "writing" is put by writing_coach, not by a tool (task 38.5); "workspace" and
-# "workspace_edit" by the workspace tools (app/workspace/tools.py, ADR 0043 §6).
+# "workspace_edit" by the workspace tools (app/workspace/tools.py, ADR 0043 §6);
+# "quiz" by give_quiz after its set is created (app/cards/quiz.py, ADR 0044 §4).
 CardKind = Literal[
     "word_book",
     "learning_goal",
@@ -30,6 +31,7 @@ CardKind = Literal[
     "daily_plan",
     "workspace",
     "workspace_edit",
+    "quiz",
 ]
 LinkKind = Literal[
     "vocab_review",
@@ -148,6 +150,21 @@ class SuggestLink(_Args):
     kind: LinkKind
 
 
+class GiveQuiz(_Args):
+    """Give the learner a quiz card on one grammar point, answered right in the chat.
+    check: two questions on whether they understood the rule you just explained (no
+    effect on their mastery). quiz: the pass quiz of the point (five questions; the app
+    picks the formats and decides from the answers whether it is passed). The questions
+    are written and checked in the background and appear in the card: never ask them
+    or give their answers in your reply. Use check after explaining, quiz when the
+    learner says they are ready."""
+
+    model_config = ConfigDict(title="give_quiz")
+
+    kc_id: str = Field(description="Grammar point id, as given in your context.")
+    purpose: Literal["check", "quiz"]
+
+
 class OpenWorkspace(_Args):
     """Open a document in the workspace beside the chat, where the learner can work on
     it while you talk. reading: close reading of a long English text (paragraph
@@ -195,11 +212,14 @@ TOOL_SCHEMAS: tuple[type[_Args], ...] = (
     ProposeDailyPlan,
     SuggestPractice,
     SuggestLink,
+    GiveQuiz,
     OpenWorkspace,
     ProposeEdit,
 )
 # Run by app/workspace/tools.py: they read and write documents, not only cards.
 WORKSPACE_TOOL_NAMES = frozenset({"open_workspace", "propose_edit"})
+# Run by app/cards/quiz.py: it starts generating a set, then shows its card.
+QUIZ_TOOL_NAMES = frozenset({"give_quiz"})
 TOOL_NAMES: frozenset[str] = frozenset(str(t.model_config.get("title")) for t in TOOL_SCHEMAS)
 _BY_NAME: dict[str, type[_Args]] = {str(t.model_config.get("title")): t for t in TOOL_SCHEMAS}
 

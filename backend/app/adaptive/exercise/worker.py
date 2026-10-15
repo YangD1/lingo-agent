@@ -8,7 +8,9 @@ never takes one generated ahead of time, which is planned freely. `prefetch`, ca
 when a set is done, writes the next one in the background; each learner has at most
 one such set waiting. A set generated ahead of time is used only while younger than
 `practice.prefetch_max_hours` and planned under the current rules; otherwise it is
-marked failed (`expired`) and a new one is generated.
+marked failed (`expired`) and a new one is generated. `start_quiz` writes a quiz card's
+set on one KC (ADR 0044 §4): planned by `plan_quiz`, never resumed or taken by the
+practice page, and limited to `course.generated_quizzes_per_day` pass quizzes per KC.
 
 Like the reflection worker, a single backend process runs this: there is no queue, and
 a set still `generating` at startup was cut off by a restart and is marked failed.
@@ -19,19 +21,21 @@ import logging
 import secrets
 import uuid
 from collections.abc import Callable, Sequence
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import LLMResult
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.adaptive.bkt import prior
 from app.adaptive.exercise import bank, inputs, service
+from app.adaptive.exercise.planner import KCState, QuizPurpose, plan_quiz
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.agents.exercise_graph import (
@@ -116,6 +120,10 @@ def model_calls(
     return structured_call(ctx, config, GENERATE_TASK), structured_call(ctx, config, CRITIC_TASK)
 
 
+class QuizLimitError(Exception):
+    """The learner has had the day's generated pass quizzes on this KC."""
+
+
 class PracticeWorker:
     def __init__(
         self,
@@ -164,6 +172,37 @@ class PracticeWorker:
                 await session.commit()
                 return waiting.id
             set_id = await self._create(session, user_id, origin, started=True, focus_kc=focus_kc)
+        self._spawn(set_id, user_id, tenant_id)
+        return set_id
+
+    async def start_quiz(
+        self, user_id: uuid.UUID, tenant_id: uuid.UUID, kc_id: str, purpose: QuizPurpose
+    ) -> uuid.UUID:
+        """A new quiz card set on `kc_id`, generated in the background. Raises
+        `ValueError` for a KC not in the catalog and `QuizLimitError` past the day's
+        pass quizzes on it."""
+        if kc_id not in get_grammar_catalog():
+            raise ValueError(f"unknown KC {kc_id}")
+        async with self._lock(user_id), self._sessionmaker() as session:
+            if purpose == "quiz":
+                since = self._clock() - timedelta(days=1)
+                made = await session.scalar(
+                    select(func.count())
+                    .select_from(ExerciseSet)
+                    .where(
+                        ExerciseSet.user_id == user_id,
+                        ExerciseSet.origin == "quiz",
+                        ExerciseSet.quiz_purpose == "quiz",
+                        ExerciseSet.focus_kc_id == kc_id,
+                        ExerciseSet.status != "failed",
+                        ExerciseSet.created_at >= since,
+                    )
+                )
+                if (made or 0) >= get_rules().course.generated_quizzes_per_day:
+                    raise QuizLimitError(kc_id)
+            set_id = await self._create(
+                session, user_id, "quiz", started=True, focus_kc=kc_id, quiz=purpose
+            )
         self._spawn(set_id, user_id, tenant_id)
         return set_id
 
@@ -239,6 +278,7 @@ class PracticeWorker:
         included); with `focus_kc`, only one for that KC."""
         query = select(ExerciseSet).where(
             ExerciseSet.user_id == user_id,
+            ExerciseSet.origin != "quiz",
             ExerciseSet.started_at.is_not(None),
             ExerciseSet.status.in_(("generating", "ready", "in_progress")),
         )
@@ -258,6 +298,7 @@ class PracticeWorker:
             select(ExerciseSet)
             .where(
                 ExerciseSet.user_id == user_id,
+                ExerciseSet.origin != "quiz",
                 or_(unstarted, ExerciseSet.status == "generating") if generating else unstarted,
             )
             .order_by(ExerciseSet.created_at.desc())
@@ -272,12 +313,14 @@ class PracticeWorker:
         *,
         started: bool,
         focus_kc: str | None = None,
+        quiz: QuizPurpose | None = None,
     ) -> uuid.UUID:
         row = ExerciseSet(
             user_id=user_id,
             origin=origin,
             status="generating",
             focus_kc_id=focus_kc,
+            quiz_purpose=quiz,
             kc_plan=[],
             rules_version=get_rules().version,
             started_at=self._clock() if started else None,
@@ -331,15 +374,34 @@ class PracticeWorker:
         now = self._clock()
         seed = secrets.randbits(31)
         async with self._sessionmaker() as session:
-            focus = await session.scalar(
-                select(ExerciseSet.focus_kc_id).where(ExerciseSet.id == set_id)
-            )
+            focus, quiz = (
+                await session.execute(
+                    select(ExerciseSet.focus_kc_id, ExerciseSet.quiz_purpose).where(
+                        ExerciseSet.id == set_id
+                    )
+                )
+            ).one()
             learner = await inputs.load(session, user_id, rules=rules, catalog=catalog, now=now)
-            planned = inputs.plan_set(
-                learner, catalog=catalog, rules=rules, now=now, seed=seed, focus=focus
-            )
+            if quiz is not None:
+                kc = catalog.get(focus or "")
+                assert kc is not None  # checked by start_quiz
+                state = learner.states.get(kc.id) or KCState(prior(kc.cefr, learner.level, rules))
+                state = replace(state, has_own_sentence=kc.id in learner.own_sentences)
+                planned = plan_quiz(
+                    kc.id,
+                    state,
+                    purpose=cast(QuizPurpose, quiz),
+                    ability=learner.ability,
+                    rules=rules,
+                    seed=seed,
+                )
+                wider: Sequence[str] = ()
+            else:
+                planned = inputs.plan_set(
+                    learner, catalog=catalog, rules=rules, now=now, seed=seed, focus=focus
+                )
+                wider = inputs.wider_kcs(learner, catalog=catalog, rules=rules, now=now)
             briefs = inputs.briefs(planned, learner, catalog)
-            wider = inputs.wider_kcs(learner, catalog=catalog, rules=rules, now=now)
             item_bank = await bank.load_bank(session, rules)
             seen = await bank.seen_items(session, user_id)
             provider_ctx = await load_provider_context(session, tenant_id)
@@ -353,7 +415,7 @@ class PracticeWorker:
         # against the background budget, even if the learner opens it mid-generation.
         config: RunnableConfig = {
             "metadata": {"user_id": str(user_id), "background": background},
-            "tags": ["practice"],
+            "tags": ["practice", "quiz"] if quiz else ["practice"],
         }
         generate, critique = self._calls(provider_ctx, config)
 
@@ -380,5 +442,13 @@ class PracticeWorker:
             report=report,
             wider_kcs=wider,
             wait_budget=None if background else rules.practice.wait_budget_seconds,
+            min_items=(
+                None
+                if quiz is None
+                else rules.course.quiz_min_items
+                if quiz == "quiz"
+                else rules.course.check_min_items
+            ),
+            use_bank=quiz != "check",
         )
         await self._graph.ainvoke(start_state(briefs, rules), context=ctx)

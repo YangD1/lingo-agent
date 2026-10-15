@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-15.1"
+version: "2026-10-15.2"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -70,6 +70,9 @@ elo:
     transform: 0.0
     translate: 0.0
     rewrite_own: 0.0
+    # Understanding checks (ADR 0044 §3) move no ability; these only aim their difficulty.
+    concept_choice: 0.25
+    explain: 0.0
 
 # Prior difficulty of a test or practice item (ADR 0012 §3). The model picks one
 # level per dimension; difficulty = cefr_anchor[target KC level] + sum of offsets.

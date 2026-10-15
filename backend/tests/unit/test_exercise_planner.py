@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from app.adaptive.elo import expected, guess_for
-from app.adaptive.exercise.formats import FORMATS
+from app.adaptive.exercise.formats import CHECK_FORMATS, FORMATS
 from app.adaptive.exercise.planner import (
     PRODUCTION,
     RECOGNITION,
@@ -14,6 +14,7 @@ from app.adaptive.exercise.planner import (
     PlannedItem,
     candidates,
     plan,
+    plan_quiz,
     target_difficulty,
 )
 from app.adaptive.kc.catalog import GrammarCatalog, get_grammar_catalog
@@ -50,8 +51,9 @@ def run(states: dict[str, KCState] | None = None, seed: int = 1, **kw: Any) -> l
 
 
 def test_formats_split_into_recognition_and_production() -> None:
-    assert set(RECOGNITION) | set(PRODUCTION) == set(FORMATS)
+    assert set(RECOGNITION) | set(PRODUCTION) | set(CHECK_FORMATS) == set(FORMATS)
     assert not set(RECOGNITION) & set(PRODUCTION)
+    assert not (set(RECOGNITION) | set(PRODUCTION)) & set(CHECK_FORMATS)
 
 
 def test_full_set_mostly_weak_with_some_review() -> None:
@@ -230,3 +232,40 @@ def test_consolidating_kcs_are_reviewed_once_ready() -> None:
     items = run(states)
     assert {i.kc_id for i in items if i.role == "review"} == {A1[0], A1[2]}
     assert A1[1] not in {i.kc_id for i in items}
+
+
+# --- quiz cards (ADR 0044 §4) ---
+
+
+def test_an_understanding_check_asks_about_the_rule() -> None:
+    items = plan_quiz(A1[0], KCState(0.3), purpose="check", ability=0.0, rules=RULES, seed=1)
+    assert [i.format for i in items] == list(CHECK_FORMATS)
+    assert {i.kc_id for i in items} == {A1[0]}
+
+
+def test_a_pass_quiz_is_recognition_then_production() -> None:
+    course = RULES.course
+    for seed in range(20):
+        items = plan_quiz(A1[0], KCState(0.3), purpose="quiz", ability=0.0, rules=RULES, seed=seed)
+        formats = [i.format for i in items]
+        assert len(formats) == course.quiz_items
+        recognition = formats[: course.quiz_items - course.quiz_production]
+        production = formats[course.quiz_items - course.quiz_production :]
+        assert sorted(recognition) == sorted(RECOGNITION)
+        assert set(production) == {"transform", "translate"}
+        assert all(i.target_difficulty == target_difficulty(0.0, i.format, RULES) for i in items)
+
+
+def test_a_pass_quiz_rewrites_the_learners_own_sentence_and_prefers_new_formats() -> None:
+    state = KCState(0.5, formats_passed=frozenset({"translate"}), has_own_sentence=True)
+    items = plan_quiz(A1[0], state, purpose="quiz", ability=0.0, rules=RULES, seed=3)
+    assert [i.format for i in items][-2:] == ["rewrite_own", "transform"]
+    plain = plan_quiz(
+        A1[0],
+        KCState(0.5, formats_passed=frozenset({"translate"})),
+        purpose="quiz",
+        ability=0.0,
+        rules=RULES,
+        seed=3,
+    )
+    assert [i.format for i in plain][-2:] == ["transform", "translate"]

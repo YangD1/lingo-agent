@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.adaptive.exercise.formats import (
+    CHECK_FORMATS,
     FORMATS,
     SPECS,
     Choice4,
@@ -48,6 +49,22 @@ VALID: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {
         },
         {"accepted": ["I saw him yesterday."], "explanation": EXPLAIN},
     ),
+    "concept_choice": (
+        {
+            "question": "Why 'saw' and not 'have seen' here?",
+            "options": [
+                "'Yesterday' is a finished time",
+                "'Saw' is more polite",
+                "'Have seen' is only for plurals",
+                "Both are right",
+            ],
+        },
+        {"correct": "'Yesterday' is a finished time", "explanation": EXPLAIN},
+    ),
+    "explain": (
+        {"question": "When do you use the past simple instead of the present perfect?"},
+        {"key_points": ["a finished time", "no link to now"], "explanation": EXPLAIN},
+    ),
 }
 
 
@@ -74,7 +91,10 @@ def test_evidence_and_grading_by_format() -> None:
         "transform",
         "translate",
         "rewrite_own",
+        "explain",
     }
+    # Understanding checks are feedback only (ADR 0044 §3).
+    assert {f for f in FORMATS if not SPECS[f].evidence} == set(CHECK_FORMATS)
 
 
 def bad(
@@ -162,3 +182,9 @@ def test_normalize_ignores_case_spacing_quotes_and_final_stop(a: str, b: str) ->
 def test_normalize_keeps_real_differences() -> None:
     assert normalize("I saw him") != normalize("I seen him")
     assert normalize("an apple") != normalize("apple")
+
+
+def test_a_concept_question_keeps_its_key_among_distinct_options() -> None:
+    bad("concept_choice", answer={"correct": "Something else"})
+    bad("concept_choice", content={"options": ["a", "a", "b", "c"]})
+    bad("explain", answer={"key_points": []})

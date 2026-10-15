@@ -3,7 +3,7 @@ the learner (ADR 0015 §4)."""
 
 import dataclasses
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -17,6 +17,7 @@ from app.adaptive.daily_plan.card import PlanTarget, card_params, describe_param
 from app.adaptive.daily_plan.service import local_day
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
+from app.cards.quiz import QuizState, quiz_states
 from app.cards.tools import CardDraft
 from app.db.models import DailyPlan, TutorCard, UserProfile, UserWordBook
 from app.services.vocab.books import get_book
@@ -347,7 +348,7 @@ def card_json(card: TutorCard) -> dict[str, Any]:
     display: dict[str, Any] = {}
     if card.kind == "word_book" and (book := get_book(card.params["book_id"])):
         display["book"] = {"id": book.id, "name_en": book.name_en, "name_zh": book.name_zh}
-    kc_id = card.params.get("kc_id") if card.kind == "practice" else None
+    kc_id = card.params.get("kc_id") if card.kind in ("practice", "quiz") else None
     if card.kind == "daily_plan":
         kc_id = next((i["ref"] for i in card.params["items"] if i["kind"] == "practice"), None)
     if kc_id is not None and (kc := get_grammar_catalog().get(kc_id)):
@@ -374,8 +375,9 @@ _STATUS_TEXT = {
 }
 
 
-def describe(card: TutorCard) -> str:
-    """One line about a card, for the model (tool results and the next turns' context)."""
+def describe(card: TutorCard, quiz: "QuizState | None" = None) -> str:
+    """One line about a card, for the model (tool results and the next turns' context);
+    a quiz card says how its set stands, given as `quiz`."""
     p = card.params
     match card.kind:
         case "word_book":
@@ -398,10 +400,35 @@ def describe(card: TutorCard) -> str:
             )
         case "workspace_edit":
             what = f"propose {p['count']} edit(s) to {p['title']!r} in the workspace"
+        case "quiz":
+            kc = get_grammar_catalog().get(p["kc_id"])
+            kind = "understanding check" if p["purpose"] == "check" else "pass quiz"
+            stands = (
+                quiz.describe(p["purpose"], get_rules().course.pass_score)
+                if quiz
+                else "questions being written"
+            )
+            what = f"{kind} on {kc.name_en if kc else p['kc_id']}: {stands}"
         case _:
             what = f"open the {p['kind']} page"
     return f"{what} ({_STATUS_TEXT.get(card.status, card.status)})"
 
 
-def render_context(cards: Sequence[TutorCard]) -> str:
-    return "\n".join(f"- {describe(c)}" for c in cards)
+def render_context(
+    cards: Sequence[TutorCard], quizzes: Mapping[uuid.UUID, QuizState] | None = None
+) -> str:
+    quizzes = quizzes or {}
+    return "\n".join(
+        f"- {describe(c, quizzes.get(s) if (s := _quiz_set(c)) else None)}" for c in cards
+    )
+
+
+def _quiz_set(card: TutorCard) -> uuid.UUID | None:
+    return uuid.UUID(card.params["set_id"]) if card.kind == "quiz" else None
+
+
+async def quiz_context(
+    session: AsyncSession, cards: Sequence[TutorCard]
+) -> dict[uuid.UUID, QuizState]:
+    """How the quiz sets of `cards` stand, for `render_context`."""
+    return await quiz_states(session, [i for c in cards if (i := _quiz_set(c)) is not None])

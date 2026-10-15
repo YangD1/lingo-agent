@@ -234,6 +234,23 @@ features:
         timing: now
         default: {input_tokens: 11900, output_tokens: 150}
 
+  # A quiz card in the chat (ADR 0044 §4): the tutor's give_quiz writes a set on one
+  # grammar point the way practice does, a pass quiz of course.quiz_items items or an
+  # understanding check of a few; nothing is generated ahead after it. Open answers
+  # and explanations are graded on exercise_grade (once per item). The chat call that
+  # chose the tool is chat_message's.
+  quiz_card:
+    calls:
+      - task: exercise_generate
+        timing: now
+        default: {input_tokens: 5000, output_tokens: 1000}
+      - task: exercise_critic
+        timing: now
+        default: {input_tokens: 4500, output_tokens: 700}
+      - task: exercise_grade
+        timing: now
+        default: {input_tokens: 11900, output_tokens: 150}
+
   # Opening an article on /reading (ADR 0024 §5, Q42f): when no version at the
   # learner's level is cached for the tenant, one call rewrites it and writes the
   # comprehension questions, one reviews the questions (on the exercise_critic route);

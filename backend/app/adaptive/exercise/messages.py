@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
-from app.adaptive.exercise.formats import SPECS, ExerciseBody, OpenAnswer
+from app.adaptive.exercise.formats import CHECK_FORMATS, SPECS, ExerciseBody, Explain, OpenAnswer
 from app.adaptive.exercise.inputs import ItemBrief, LearnerInputs
 from app.adaptive.rules import Rules
 from app.prompts import load_prompt
@@ -80,6 +80,15 @@ def _brief(brief: ItemBrief, rules: Rules) -> dict[str, object]:
     return out
 
 
+def _system(name: str, formats: Sequence[str]) -> SystemMessage:
+    """The prompt, plus its part on understanding checks when the set has any
+    (ADR 0044 §3), so practice sets keep the prompt they always had."""
+    text = load_prompt(name)
+    if any(f in CHECK_FORMATS for f in formats):
+        text += "\n\n" + load_prompt(f"{name}_check")
+    return SystemMessage(text)
+
+
 def generate_messages(
     briefs: Sequence[ItemBrief],
     learner: LearnerInputs,
@@ -110,7 +119,8 @@ def generate_messages(
                 ]
             )
         )
-    return [SystemMessage(load_prompt("exercise_generate")), HumanMessage("\n\n".join(parts))]
+    system = _system("exercise_generate", [b.item.format for b in briefs])
+    return [system, HumanMessage("\n\n".join(parts))]
 
 
 def shown(body: ExerciseBody) -> dict[str, object]:
@@ -121,6 +131,8 @@ def shown(body: ExerciseBody) -> dict[str, object]:
     out: dict[str, object] = {"format": body.format, "content": content}
     if SPECS[body.format].grading == "model" and isinstance(body.answer, OpenAnswer):
         out["reference_answers"] = list(body.answer.accepted)
+    if isinstance(body, Explain):
+        out["key_points"] = list(body.answer.key_points)
     return out
 
 
@@ -144,4 +156,5 @@ def critic_messages(
         "Difficulty rubric:\n" + rubric(rules),
         "Items to review:\n" + _json(reviewed),
     ]
-    return [SystemMessage(load_prompt("exercise_critic")), HumanMessage("\n\n".join(parts))]
+    system = _system("exercise_critic", [b.item.format for b, _ in items])
+    return [system, HumanMessage("\n\n".join(parts))]

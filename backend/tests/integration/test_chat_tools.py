@@ -177,6 +177,7 @@ async def test_a_proposal_shows_a_card_and_the_reply_goes_on(
         "propose_daily_plan",
         "suggest_practice",
         "suggest_link",
+        "give_quiz",
         "open_workspace",
         "propose_edit",
     ]

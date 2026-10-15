@@ -21,7 +21,7 @@ from typing import Literal
 
 from app.adaptive.bkt import prior
 from app.adaptive.elo import guess_for
-from app.adaptive.exercise.formats import Format
+from app.adaptive.exercise.formats import CHECK_FORMATS, Format
 from app.adaptive.kc.catalog import CEFR_LEVELS, CefrLevel, GrammarCatalog
 from app.adaptive.rules import Rules
 
@@ -305,3 +305,44 @@ def plan(
         for fmt in p.formats
     ]
     return _interleave(items, practice.max_same_format_run, rng)
+
+
+QuizPurpose = Literal["check", "quiz"]
+
+
+def plan_quiz(
+    kc_id: str,
+    state: KCState,
+    *,
+    purpose: QuizPurpose,
+    ability: float,
+    rules: Rules,
+    seed: int,
+) -> list[PlannedItem]:
+    """A quiz card's items on one KC (ADR 0044 §4). An understanding check asks about
+    the rule (CHECK_FORMATS); a pass quiz has `course.quiz_items` items, recognition
+    first, then `course.quiz_production` production ones (rewrite_own first when the
+    learner has a sentence of their own). Within each part, formats not yet passed
+    come first and none repeats while another is left."""
+    rng = random.Random(seed)
+    if purpose == "check":
+        formats: list[Format] = list(CHECK_FORMATS)
+    else:
+        course = rules.course
+
+        def take(group: tuple[Format, ...], count: int, first: list[Format]) -> list[Format]:
+            fresh = [f for f in group if f not in state.formats_passed and f not in first]
+            passed = [f for f in group if f in state.formats_passed and f not in first]
+            rng.shuffle(fresh)
+            rng.shuffle(passed)
+            order = [*first, *fresh, *passed]
+            return [order[i % len(order)] for i in range(count)]
+
+        own: list[Format] = ["rewrite_own"] if state.has_own_sentence else []
+        formats = [
+            *take(RECOGNITION, course.quiz_items - course.quiz_production, []),
+            *take(tuple(f for f in PRODUCTION if f != "rewrite_own"), course.quiz_production, own),
+        ]
+    return [
+        PlannedItem(kc_id, fmt, target_difficulty(ability, fmt, rules), "weak") for fmt in formats
+    ]

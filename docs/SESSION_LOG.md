@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-10-15 任务 86（进行中）：体系化课程 + 对话内测验卡片
+
+**做了什么**：86.1 ADR 0044（1ffe166）；86.2 `app/adaptive/course.py` + `GET /course`（89404a7）；86.3 后端代码写完未提交：新题型 `concept_choice`/`explain`（`formats.py` `CHECK_FORMATS`，不计证据）、`grader.explain_messages`、`planner.plan_quiz`、`worker.start_quiz`（`QuizLimitError`）、`cards/quiz.py`（`QuizTools`、`quiz_states`）、`give_quiz` 工具、迁移 `1dae8661b914`。
+
+**未完成**：86.4–86.8 未开始（86.3 已提交，pytest 1941 全过，lint 干净）。
+
+**下一步**：86.4 前端测验卡片（复用 `components/practice/practice-item.tsx`、`lib/practice.ts`；`cards.ts` 加 kind `quiz`；`ai-usage.ts` 加 `quiz_card`）。
+
+**踩坑**：评估回放（evals/test_replay.py）依赖提示词逐字一致，理解检查的提示只在题组含检查题型时追加；`Review.own_answer` 描述不能改。
+
+---
+
 ## 2026-10-15 任务 85：粘贴时理解 HTML 和 Markdown
 
 **做了什么**：

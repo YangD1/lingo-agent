@@ -93,6 +93,7 @@ TUTOR_CARD_KINDS = (
     "daily_plan",
     "workspace",
     "workspace_edit",
+    "quiz",
 )
 # The chat workspace (ADR 0043): what a document is, where its text came from, who
 # wrote a version.

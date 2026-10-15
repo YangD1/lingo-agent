@@ -8,7 +8,7 @@ import pytest
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel
 
-from app.adaptive.exercise.formats import FORMATS, Choice4, Cloze, FindFix
+from app.adaptive.exercise.formats import CHECK_FORMATS, FORMATS, Choice4, Cloze, FindFix
 from app.adaptive.exercise.worker import CRITIC_TASK
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
@@ -96,8 +96,10 @@ def test_the_set_covers_every_flaw_and_format() -> None:
     assert set(DATASET.thresholds) == {"bad_rejected", "good_passed"}
     flaws = Counter(i.case.flaw for i in bad)
     assert set(flaws) == set(get_args(Flaw.__value__)) and min(flaws.values()) >= 3
-    assert {i.case.format for i in good} == set(FORMATS)
-    assert {i.case.format for i in bad} == set(FORMATS)
+    # Practice formats; understanding checks (ADR 0044 §3) are not recorded yet.
+    practice = set(FORMATS) - set(CHECK_FORMATS)
+    assert {i.case.format for i in good} == practice
+    assert {i.case.format for i in bad} == practice
 
 
 async def test_an_ideal_critic_meets_every_threshold() -> None:

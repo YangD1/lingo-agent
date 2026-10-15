@@ -322,7 +322,8 @@ async def answer(
             "the answer could not be graded; nothing was saved, submit it again",
         ) from exc
     if result.set_done:
-        await worker.prefetch(user_id, tenant_id)
+        if not result.quiz:
+            await worker.prefetch(user_id, tenant_id)
         diagnosis.after_set(user_id, tenant_id)
     _, item = await _item_out(session, worker, user_id, exercise_id)
     return AnsweredOut(item=item, set_done=result.set_done)

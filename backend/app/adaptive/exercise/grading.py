@@ -13,12 +13,17 @@ from app.adaptive.exercise.formats import (
     Choice4,
     ChoiceResponse,
     Cloze,
+    ConceptChoice,
     ExerciseBody,
+    Explain,
     FindFix,
     FindFixContent,
     FindFixResponse,
     Response,
+    RewriteOwn,
     TextResponse,
+    Transform,
+    Translate,
     normalize,
 )
 from app.adaptive.rules import Evidence
@@ -76,13 +81,22 @@ def grade(body: ExerciseBody, response: Response) -> CodeGrade:
             if _in(response.fix, body.answer.accepted):
                 return CodeGrade((spotted, Mark("production", True)))
             return CodeGrade((spotted,), needs_model=True)
+        case ConceptChoice(), ChoiceResponse():
+            # Marked as recognition to say right or wrong; it writes no evidence.
+            if not _in(response.choice, body.content.options):
+                raise InvalidResponseError("not one of the options")
+            return CodeGrade((Mark("recognition", _in(response.choice, (body.answer.correct,))),))
+        case Explain(), TextResponse():
+            return CodeGrade((), needs_model=True)
+        case ConceptChoice(), _:
+            raise InvalidResponseError("concept_choice takes a choice")
         case FindFix(), _:
             raise InvalidResponseError("find_fix takes a piece and a fix")
         case Choice4(), _:
             raise InvalidResponseError("choice4 takes a choice")
         case Cloze(), _:
             raise InvalidResponseError("cloze takes a text")
-        case _, TextResponse():
+        case Transform() | Translate() | RewriteOwn(), TextResponse():
             if _in(response.text, body.answer.accepted):
                 return CodeGrade((Mark("production", True),))
             return CodeGrade((), needs_model=True)

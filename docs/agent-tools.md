@@ -25,6 +25,7 @@
 | `workspace_translate` | 对话工作区精读视图的“对照 / 译文”开关，以及原文模式下每段的“翻译这一段”（ADR 0043 §4） | `translate`（立即；按段落，滚到哪段翻哪段；同一份文档同一段文字只调一次，之后读缓存；代码块不调用） |
 | `workspace_analyze` | 对话工作区精读视图里点一句话的“分析”（ADR 0043 §4） | `sentence_analysis`（立即；没单独配路由时用默认模型；同一份文档同一句只调一次） |
 | `practice_set` | `/practice` 落地页“开始一组 / 继续上次的练习”、总结页“再来一组”；学习者模型每个语法点、助手练习卡片、看板建议里的“做一组题”；设置“后台任务”里的“预先出好下一组练习” | `exercise_generate` + `exercise_critic`（立即；被拒的题最多再重写审两轮）；做完一组后在后台为下一组再各调一次（学习者可关，计入后台每日额度） |
+| `quiz_card` | 对话里的测验卡片（ADR 0044 §4；助手调用 `give_quiz` 后出现，卡片上挂标记） | `exercise_generate` + `exercise_critic`（立即；通过测验 `course.quiz_items` 题，理解检查 1–2 题；理解检查不用题库补位）；开放题和 `explain` 的作答走 `exercise_grade`（每题一次）；做完不预生成下一组。选中工具的那次调用算在 `chat_message` 里 |
 | `practice_grade` | `/practice` 开放题的提交按钮旁（也和 `practice_set` 一起挂在开组入口）；find_fix 的改法不在答案列表里时同样调用 | `exercise_grade`（立即；每题只批第一次作答；选择题、填空、和参考答案一致的答案由代码判，不调模型） |
 | `reading_rewrite` | `/reading` 列表页标题旁、阅读页的版本切换和“正在改写”提示旁（打开文章时 `POST /reading/articles/{id}/session` 取版本） | `article_rewrite`（改写 + 出题）、`reading_critic`（走 `exercise_critic` 路由）、被拒的题再加 `reading_questions`（走 `article_rewrite` 路由）；同租户同篇同等级只调一次，之后读缓存 |
 | `reading_coach` | 阅读页的“就这篇文章问助手”；阅读会话的输入框“发送” | `reading_coach`（立即，走 `chat` 路由，每轮带上文章，所以比普通一轮读得多）；`reflect`、`memory` 向量化（回复后在后台） |
@@ -68,6 +69,7 @@
 | `vocab_collect` | background | `added`、`existing`（`word_id` + 拼写：新收进生词本的词、已有卡片没有改动的词）；挂在提问的那条学习者消息上，没有收到词的消息不记。接口另返回 `words_on_list`（仍在生词本里的收词），明细据此显示“已移出” |
 | `summarize` | background | `episode_id` |
 | `propose_word_book`、`propose_learning_goal`、`propose_daily_plan`、`suggest_practice`、`suggest_link` | tool | `card_id`、`card_kind`（出了卡片时；调用被拒记 `failed`、摘要为空）；`call_id` = 模型的 tool call id。卡片本身显示当前状态 |
+| `give_quiz` | tool | 同上：`card_id`、`card_kind`（`quiz`）；被拒（语法点不在清单或范围、今天这个语法点的通过测验已出满）记 `failed` |
 | `tools` | step | 无；只在厂商拒绝工具调用、这一轮改为不带工具重答时记一行 `skipped` |
 | `lookup_word`、`add_to_vocab`、`end_session` | tool | 实时通话的工具（见“实时语音通话”）：`lookup_word` 记 `word`、`word_id`（查到的词条；没查到只有 `word`）；`add_to_vocab` 同 `vocab_collect` 的 `added` / `existing`；`end_session` 无字段。`call_id` = 厂商的 call id；挂在学习者最近一句话上（助手开口前就调用时挂在助手第一句上） |
 | `handoff` | step | `coach`：自由对话分类后转给的 coach |
@@ -102,6 +104,7 @@
 | `suggest_practice` | `kc_id`（语法点清单里的 id） | 链接，`info` | 无（点开即建练习会话，同“开始练习”） | 不需要 |
 | `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_learn`、`vocab_screen`、`vocab_mine`、`placement`、`learner`、`practice`、`writing`、`reading`、`speaking`、`speaking_call`、`memory`、`tutor`、`settings`、`usage` 之一（后 10 种 ADR 0039 新增） | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
 | `open_workspace`（ADR 0043 §6） | `kind`：`reading` / `writing`；`source`：`last_message`（学习者这一轮或上一轮发的长文）/ `article`（这段对话的文章）/ `blank`（只能配 `writing`）；`title`（≤80 字）。不带正文，正文由代码取 | 工作区，`info`；前端收到后自动在右侧打开 | 新建一份工作区文档（`workspace_docs` + 第一个版本，作者记为助手）；不改学习数据 | 卡片上“删除这份文档”；学习者也可在工作区里删除 |
+| `give_quiz`（ADR 0044 §4） | `kc_id`（语法点清单里的 id；有范围的对话必须在范围内）、`purpose`：`check`（讲完后的理解检查，1–2 题，`concept_choice` / `explain`）/ `quiz`（通过测验，3 道识别 + 2 道产出） | 测验卡片，`quiz`，`info`；卡片轮询题组，学习者逐题提交、立刻看对错和讲解，做完显示总结 | 新建一个题组（`exercise_sets`，`origin=quiz`，`quiz_purpose`），在后台出题和审题（同练习组，见下节）；作答走练习接口，写 `attempts`。理解检查不记证据、不动掌握度和语法能力；通过测验的作答和练习一样记证据。同一个语法点 24 小时内最多出 `course.generated_quizzes_per_day` 次通过测验（失败的不算），超出作为错误交回模型 | 题组和作答可在 `/learner` 证据处删除（通过测验的证据）；卡片不需要撤销。下一轮 system prompt 带上题组进度和答错的题（题面、学习者答案、正确答案，答案截到 160 字） |
 | `propose_edit`（ADR 0043 §5–§6） | `doc_id`（本会话的写作文档）、`edits`：1–20 处 `{original（当前版本里的原文片段，≤300 字）, replacement, reason}` | 小卡片，`workspace_edit`，`info`（“提了 N 处修改”，点开定位到工作区）；工作区里逐处显示差异 | 一条待确认的改稿（`workspace_edits`，每处 `pending`）；原文找不到、出现不止一次或和前一处重叠的作为错误交回模型，其余照常；学习者逐处接受 / 拒绝（`POST /workspace/edits/{id}/decide`）后，接受的那几处在当前正文里重新定位并合成一个新版本（作者记为助手）；学习者期间改过的段落标为失效，只能拒绝 | 接受后可回到上一个版本（回退也存成新版本）；拒绝的不改正文 |
 
 **实时通话的工具**另有一套：`lookup_word`、`add_to_vocab`、`end_session`（ADR 0030 §4）。它们不出卡片：`lookup_word` 只读；`add_to_vocab` 直接加进生词本（幂等，可在生词本移除），因为通话中弹确认会打断说话；`end_session` 只提议，学习者点了才挂断。上限是每次回答 3 个、每通 20 个、单个 3 秒。参数、读写和学习者在哪里看到，见下面“实时语音通话”一节。
@@ -220,6 +223,7 @@
 | 审题 | 同上 `critic`，提示词 `prompts/exercise_critic.md`，判定 `adaptive/exercise/drafts.py` `judge` | 学习者能看到的题面；开放题的参考答案；语法点说明；不含个人信息和答案 | `exercises`：通过的 `status=ok`，被拒的 `status=rejected`（只用于评估审题，不给学习者），`critic` 存判定、理由、独立作答、两方评级和模型名 | `llm/exercise_critic`（默认先用另一家模型，温度 0） | 练习页的“这组题怎么来的” |
 | 题库补位 | `adaptive/exercise/bank.py` | 入学测题库、学习者做过的题库题（入学测和练习） | `exercises`（`bank_item_id`，`critic` 为空） | 无 | 练习页标“题库题” |
 | 作答与批改 | `adaptive/exercise/answer.py` `answer`；代码判 `grading.py`；模型判 `grader.py`，提示词 `prompts/exercise_grade.md` | 题目（含答案）、学习者答案；模型只收到题面、参考答案、目标语法点和语法点清单，讲解语言取画像，不含其他个人信息 | `attempts`（每题只记第一次，`feedback` 存讲解、改正、其他错误、批改模型名）；`kc_evidence`（`source=exercise`，目标语法点按题型记识别 / 产出，其他错误各记一条，KC 必须在清单里且不是目标语法点）；重放 `kc_mastery`；`skill_estimates` grammar 走一步 Elo；`exercise_sets` 状态 ready → in_progress → done。批改模型失败时什么都不写，学习者重交 | `llm/exercise_grade`（默认路由） | 练习页每题的批改结果；`/learner` 页面的证据（可删除） |
+| 测验卡片的题组（ADR 0044 §3–§4） | `worker.py` `PracticeWorker.start_quiz` → `planner.py` `plan_quiz`；`check` 题组的出题和审题提示词后追加 `prompts/exercise_generate_check.md` / `exercise_critic_check.md`；`explain` 的反馈走 `grader.py` `explain_messages`，提示词 `prompts/explain_feedback.md` | 同上；只出一个语法点 | 同上；`exercise_sets.origin=quiz`、`quiz_purpose`；理解检查（`concept_choice` / `explain`）的作答只写 `attempts`，不写 `kc_evidence`、不走 Elo | 同上（`explain` 反馈用 `exercise_grade` 路由） | 对话里的测验卡片；不出现在 `/practice` 的“继续上次” |
 | 举报有问题的题 | `adaptive/exercise/answer.py` `report` | 这题的作答 | `exercises.status=reported`；删掉这题作答产生的全部证据并重放掌握度（作答本身保留；语法能力那一步 Elo 不回退） | 无 | 练习页“这题有问题”；重复举报不变 |
 
 ## 后台工作与定时任务（ADR 0025，任务 40）

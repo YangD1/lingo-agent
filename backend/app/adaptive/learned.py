@@ -66,7 +66,8 @@ def _passes(obs: Observation) -> Format | None:
     if obs.source != "exercise" or not obs.correct or obs.format not in SPECS:
         return None
     fmt = obs.format  # narrowed to Format by the membership test
-    return fmt if obs.evidence == SPECS[fmt].evidence[-1] else None
+    kinds = SPECS[fmt].evidence
+    return fmt if kinds and obs.evidence == kinds[-1] else None
 
 
 @dataclass
