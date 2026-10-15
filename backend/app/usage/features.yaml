@@ -355,6 +355,23 @@ features:
         timing: now
         default: {input_tokens: 500, output_tokens: 350}
 
+  # The reading view of the chat workspace (ADR 0043 §4): "Translation" shows each
+  # paragraph's translation as it scrolls into view, one call per paragraph, kept
+  # with the document; switching back or reopening makes no call.
+  workspace_translate:
+    calls:
+      - task: translate
+        timing: now
+        default: {input_tokens: 300, output_tokens: 250}
+
+  # Tapping a sentence in the workspace's reading view (ADR 0043 §4): its structure
+  # explained, once per sentence; on the default route unless the tenant routes it.
+  workspace_analyze:
+    calls:
+      - task: sentence_analysis
+        timing: now
+        default: {input_tokens: 400, output_tokens: 300}
+
   memory_edit:
     calls:
       - task: memory

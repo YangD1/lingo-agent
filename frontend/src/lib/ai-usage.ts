@@ -14,6 +14,8 @@ export type AiFeature =
   | "memory_edit"
   | "word_examples"
   | "message_translate"
+  | "workspace_translate"
+  | "workspace_analyze"
   | "writing_submit"
   | "reading_rewrite"
   | "reading_coach"
@@ -45,6 +47,7 @@ const AI_TASKS = [
   "exercise_grade",
   "word_examples",
   "translate",
+  "sentence_analysis",
   "route",
   "writing_review",
   "article_rewrite",

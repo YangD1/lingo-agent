@@ -1163,6 +1163,8 @@
         "word_examples_prefetch": "Examples ahead",
         "diagnosis": "Diagnosis",
         "message_translate": "Message translation",
+        "workspace_translate": "Workspace translation",
+        "workspace_analyze": "Sentence analysis",
         "memory_edit": "Memory edits"
       },
       "prices": {
@@ -1784,6 +1786,8 @@
       "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the assistant can find it later.",
       "word_examples": "An AI model writes two example sentences for this word at your level. They are saved, so the next time anyone asks for this word at this level, no model is called.",
       "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls.",
+      "workspace_translate": "An AI model translates the text in the workspace, paragraph by paragraph as you scroll to it. Translations are saved: switching back and forth or opening it again makes no call.",
+      "workspace_analyze": "An AI model breaks the sentence down: its main clause, the other clauses and what they do, tricky phrases, and what it means in Chinese. The analysis is saved: tapping the same sentence again makes no call.",
       "writing_submit": "An AI model reviews your writing sentence by sentence: it finds and explains grammar mistakes, scores four aspects, writes overall feedback and puts unknown words on your word list. Mistakes go into your learner model; scores are only shown.",
       "reading_rewrite": "An AI model rewrites this article for your level and writes a few comprehension questions; another model answers each question itself to check it, and a question that fails is rewritten once, then dropped. The rewrite is saved: opening it again at the same level calls no model.",
       "reading_coach": "The reading coach answers your questions about this article: each message sends the article (the version for your level, or the beginning of the original) with the conversation, so a reply reads more than a chat turn. Afterwards, as in any chat, memory and grammar notes are updated in the background.",
@@ -1815,6 +1819,7 @@
       "exercise_grade": "Grade answers",
       "word_examples": "Example sentences",
       "translate": "Translate",
+      "sentence_analysis": "Sentence analysis",
       "route": "Is it a piece of writing?",
       "writing_review": "Writing review",
       "article_rewrite": "Rewrite the article and write questions",

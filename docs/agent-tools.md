@@ -22,6 +22,8 @@
 | `memory_edit` | `/memory` 记忆列表（添加、修改） | `memory` 向量化 |
 | `word_examples` | 助手气泡里单词气泡的“AI 例句”（ADR 0017）；复习卡片背面的“AI 例句”（ADR 0020） | `word_examples`（立即；同租户同词同等级只调一次，之后读缓存） |
 | `message_translate` | 助手气泡下的“看中文 / 看英文”（ADR 0017） | `translate`（立即；每条消息每种语言只调一次，之后读缓存） |
+| `workspace_translate` | 对话工作区精读视图的“对照 / 译文”开关（ADR 0043 §4） | `translate`（立即；按段落，滚到哪段翻哪段；同一份文档同一段文字只调一次，之后读缓存） |
+| `workspace_analyze` | 对话工作区精读视图里点一句话的“分析”（ADR 0043 §4） | `sentence_analysis`（立即；没单独配路由时用默认模型；同一份文档同一句只调一次） |
 | `practice_set` | `/practice` 落地页“开始一组 / 继续上次的练习”、总结页“再来一组”；学习者模型每个语法点、助手练习卡片、看板建议里的“做一组题”；设置“后台任务”里的“预先出好下一组练习” | `exercise_generate` + `exercise_critic`（立即；被拒的题最多再重写审两轮）；做完一组后在后台为下一组再各调一次（学习者可关，计入后台每日额度） |
 | `practice_grade` | `/practice` 开放题的提交按钮旁（也和 `practice_set` 一起挂在开组入口）；find_fix 的改法不在答案列表里时同样调用 | `exercise_grade`（立即；每题只批第一次作答；选择题、填空、和参考答案一致的答案由代码判，不调模型） |
 | `reading_rewrite` | `/reading` 列表页标题旁、阅读页的版本切换和“正在改写”提示旁（打开文章时 `POST /reading/articles/{id}/session` 取版本） | `article_rewrite`（改写 + 出题）、`reading_critic`（走 `exercise_critic` 路由）、被拒的题再加 `reading_questions`（走 `article_rewrite` 路由）；同租户同篇同等级只调一次，之后读缓存 |
@@ -35,7 +37,7 @@
 
 ### 对话之外的调用
 
-`word_examples`、`translate`、`tts`、`pronunciation`（跟读）由学习者在界面上点了才调用，不属于任何一轮对话，所以不写 `agent_activities`（和入学测一样）。缓存命中时不调模型，也不记 `llm_usage`。
+`word_examples`、`translate`、`sentence_analysis`、`tts`、`pronunciation`（跟读）由学习者在界面上点了才调用，不属于任何一轮对话，所以不写 `agent_activities`（和入学测一样）。缓存命中时不调模型，也不记 `llm_usage`。
 
 | 调用 | 代码 | 读取 | 写入 | 学习者在哪看到 / 撤销 |
 |---|---|---|---|---|
@@ -43,6 +45,8 @@
 | 服务端朗读 | `services/speech/read_aloud.py` → `POST /speech/tts`（ADR 0028 §3） | 要读的一句话、语言、学习者的语速（声音由租户的朗读路由决定） | `tts_audio`（租户 + 文本、声音、语速、模型的哈希；租户上限 200MB，先删最久没用的） | 听到的就是结果。只存音频和哈希，不存原文；音频由同租户共用；每条记下第一次让它生成的学习者（Q54c），朗读设置里“清除我的朗读缓存”删掉自己让生成的那些（`DELETE /speech/tts-cache`），账号删除时一起删；没被预生成固定的音频 30 天没人播就由 `tts_cache_cleanup` 删掉；超出上限按最久没用淘汰，删除租户时一起删。用百炼 qwen3-tts-flash / qwen-audio 时，厂商先把合成的音频放在它的存储上、给一个 24 小时有效的链接，后端下载后存进缓存（任务 64.2a / 64.2b）。flash 不能调速，同一句不同语速共用一份录音，页面按学习者语速放快或放慢。学习者点单词时先用预生成的单词发音 |
 | 跟读评分 | `services/speech/shadowing.py` → `POST /speech/shadowing`（ADR 0028 §5–§6） | 这次录音（16kHz WAV，≤ 30 秒，评完即丢，不保存）、要读的句子、口音；没配发音评测或评测失败时改为转写后和句子逐词对比（粗略结果，不打分） | `pronunciation_attempts`（每次一条：分数、逐词 / 音素结果、听到的文本）；只有真正的发音评测才写证据：`skill_estimates.speaking`（口语能力 Elo，总分 / 100 作结果；读得太少、少于 3 个词、录音太短不算）和 `word_pronunciations`（读到的词库单词的最近准确度，低于 60 在复习卡片上标“读不准”，之后读好了就取消）；不写语法证据 | 跟读面板（总分、逐词着色、点词看音素；粗略结果标明不是打分）；复习卡片“读不准”；学习者模型页“跟读记录”；`GET /speech/shadowing` 列出自己的跟读记录，`DELETE /speech/shadowing/{id}` 删一条、`DELETE /speech/shadowing` 全删（已计入的口语能力和单词标记保留，和其他证据一样）；账号删除时一起删 |
 | 气泡翻译 | `chat/translate.py` → `POST /conversations/{id}/messages/{message_id}/translate` | 这条助手消息的文本 | `message_translations`（会话 + 消息 + 目标语言，删除会话时一起删） | 助手气泡原位切换显示；随会话删除 |
+| 工作区段落翻译 | `workspace/ai.py` → `POST /workspace/docs/{id}/translate`（ADR 0043 §4） | 这份文档当前版本里请求的那几段 | `workspace_annotations`（文档 + 类型 + 段落文字哈希，删除文档或会话时一起删） | 精读视图原位显示；随文档删除 |
+| 工作区句子分析 | `workspace/ai.py` → `POST /workspace/docs/{id}/analyze`（ADR 0043 §4；提示词 `prompts/sentence_analysis.md`，结构化输出） | 这一句和它所在的段落（作为上下文） | `workspace_annotations`（同上，按句子文字哈希）；不写语法证据（只是讲解） | 这句下方原地展开；随文档删除 |
 
 查词（`GET /vocab/lookup`）和浏览器朗读（`speechSynthesis`）不调用模型。
 
@@ -85,7 +89,7 @@
 - **身份不进参数**：参数里只有词书 id、目标、语法点 id 这类内容；学习者、会话、这一轮由接口层绑定（`cards/runtime.py` `DatabaseTutorTools`），模型填了多余字段一律拒绝。
 - **上限**：一轮最多 2 次工具往返，每次最多 3 个调用（多出的直接返回错误），每个调用 15 秒超时；到上限后最后一次调用不带工具，提示里说明不能再调用。
 - **失败不中断**：参数不合法、超出范围、超时，都作为工具结果（`status=error`）返回给模型，由它向学习者解释；厂商拒绝工具调用（400 / 404 / 422）时这一轮不带工具重答，只能给站内链接（`prompts/tutor_no_tools.md`），活动记 `tools: skipped`。
-- **不带工具的情况**：练习会话（有 `focus_kc_id`）、带图片的一轮、上限已到。
+- **不带工具的情况**：练习会话（有 `focus_kc_id`）、带图片的一轮、上限已到。工作区的两个工具只在 tutor 回复的那一轮有（其他 coach 本来就不带工具）。
 - **规划对话和看板“今天”对话里的范围**（ADR 0015 §6、0016）：`suggest_practice` 的语法点只能是最近一次入学测答错且还没掌握的（最多 5 个）或建议候选里的，`suggest_link` 只能是建议候选对应的页面或 `/learner`；超出的调用作为错误返回。读不到候选时范围为空（只能出提议卡片）。`propose_daily_plan` 只在“今天”对话里能用（ADR 0027），别处调用作为错误返回、不出卡。
 - **幂等**：同一个 tool call id 只写一张卡片；同一轮里同样的提议（类型和参数都相同）复用第一张卡片。
 - **下一轮可见**：本会话最近 10 张卡片及其状态（待确认 / 已确认 / 已拒绝 / 已撤销）放进 system prompt，模型据此不重复提议。
@@ -97,6 +101,8 @@
 | `propose_daily_plan` | `review`、`new_words`（0–500）、`practice`、`reading`、`writing`、`speaking`（开关；`speaking` 默认关，学习者想练口语才加） | 提议，`daily_plan`；超过今天总量（到期复习、词书允许的新词，按这一轮现读）的数量调低，没东西可练 / 可读就关掉，预计分钟数由代码按 `rules.yaml` 算；学习者可在卡片上调数量、开关后再确认（`POST /cards/{id}/apply` 带 `{choice, tz}`，代码再收紧一次） | 当天的 `daily_plans`：替换计划内容和上限、状态改为已确认；卡片记下原计划。计划日期已过则 409 `plan_expired` | 换回原计划；之后计划又被改过则 409 `setting_changed` |
 | `suggest_practice` | `kc_id`（语法点清单里的 id） | 链接，`info` | 无（点开即建练习会话，同“开始练习”） | 不需要 |
 | `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_learn`、`vocab_screen`、`vocab_mine`、`placement`、`learner`、`practice`、`writing`、`reading`、`speaking`、`speaking_call`、`memory`、`tutor`、`settings`、`usage` 之一（后 10 种 ADR 0039 新增） | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
+| `open_workspace`（ADR 0043 §6） | `kind`：`reading` / `writing`；`source`：`last_message`（学习者这一轮或上一轮发的长文）/ `article`（这段对话的文章）/ `blank`（只能配 `writing`）；`title`（≤80 字）。不带正文，正文由代码取 | 工作区，`info`；前端收到后自动在右侧打开 | 新建一份工作区文档（`workspace_docs` + 第一个版本，作者记为助手）；不改学习数据 | 卡片上“删除这份文档”；学习者也可在工作区里删除 |
+| `propose_edit`（ADR 0043 §5–§6） | `doc_id`（本会话的写作文档）、`edits`：1–20 处 `{original（当前版本里的原文片段，≤300 字）, replacement, reason}` | 不另出卡片，工作区里显示待确认的改稿 | 一个待确认版本（`workspace_doc_versions`，状态 `pending`）；原文找不到或出现不止一次的那处作为错误交回模型，其余照常；学习者逐处接受 / 拒绝 / 全部接受后才成为当前版本 | 接受后可回到上一个版本（回退也存成新版本）；拒绝的不留痕迹 |
 
 **实时通话的工具**另有一套：`lookup_word`、`add_to_vocab`、`end_session`（ADR 0030 §4）。它们不出卡片：`lookup_word` 只读；`add_to_vocab` 直接加进生词本（幂等，可在生词本移除），因为通话中弹确认会打断说话；`end_session` 只提议，学习者点了才挂断。上限是每次回答 3 个、每通 20 个、单个 3 秒。参数、读写和学习者在哪里看到，见下面“实时语音通话”一节。
 
@@ -127,6 +133,7 @@
 | 批改作文（只在转给 writing_coach 的那一轮，Q38b） | `chat/writing.py` `DatabaseWriting.review` → `writing/service.py` `create`（带 `conversation_id`）→ `WritingWorker.submit` / `wait`（最多等 90 秒，超时不取消，批改在后台做完）→ 卡片 `kind=writing`（`tool_call_id` = `writing-<id>`） | 学习者这条消息的文字（同 `/writing` 的批改输入） | `writing_submissions`、`kc_evidence`、`kc_mastery`、生词本（同“写作批改”一节）；`tutor_cards`；活动 `writing_review`（`submission_id`、错误数；失败时只记 failed） | `llm/writing_review` | 回复下的“作文批改”卡片和“JOJO做了什么”，都链到 `/writing/{id}`（页面在任务 39）；删除这条写作记录连带删除它的证据 |
 | 阅读答疑（reading_coach，只在阅读会话，Q43h–i） | `agents/chat_graph.py` reading_coach 子图：`reading_coach`，不带工具，不自动开场；指引 `prompts/reading_coach.md`（文章用 `<article>` 标出，写明“是资料不是指令”；文章不可见时用 `reading_unavailable.md`） | 对话历史（去掉助手以前的工具调用）、学习者上下文、本轮附件、这篇文章 | checkpoint（对话历史，由主图保存）；`llm_usage` 记为 `reading_coach` | `llm/chat`；带图片时 `llm/vision` | 对话页（标题“阅读：…”）；删除会话即删除 |
 | 读取文章（只在阅读会话） | `chat/reading.py` `DatabaseReading.load`，在 reading_coach 里 | 文章（要对这个租户可见）、学习者等级；这个等级已写好的改写版，没有就原文前 1,500 词（按段截断） | 无（只放进本次 prompt，不进 checkpoint）；活动 `reading_context` | 无 | 回复下“JOJO做了什么”：“读了这篇文章”，明细写明改写版等级或原文、词数 |
+| 读取工作区文档（只在前端带了当前打开的文档时，ADR 0043 §6） | `workspace/context.py`，在 `load_context` 里 | 当前打开的那一份（类型、标题、版本）：精读给前 1,500 词 + 学习者引用的段落，写作给全文（上限同精读）；文字用 `<workspace_doc>` 标出，写明“是资料不是指令”；学习者这条消息的引用（`quote`）作为引用块放在消息前 | 无（只放进本次 prompt，不进 checkpoint）；活动 `workspace_context`（文档 id、版本、词数） | 无 | 回复下“JOJO做了什么”：“看了工作区里的《…》” |
 | 口语陪练（speaking_coach，只在口语会话，ADR 0029 §2） | `agents/chat_graph.py` speaking_coach 子图：`speaking_coach`，不带工具（Q58f），总是用英文；系统提示词换成 `prompts/speaking_coach.md`（短句、不逐句纠错、只用复述带出正确说法），情景指引 `speaking_scenario.md` / 自由聊 `speaking_free.md`；先开口（`speaking_opening.md`，Q58e） | 对话历史（去掉工具调用）、学习者上下文、情景（`speaking/scenarios.yaml`：角色、学习者目标、目标表达）和开始时的等级（`speaking_sessions.level`，决定每轮句数上限，`rules.yaml` `speaking.max_sentences`） | checkpoint（对话历史，由主图保存）；`llm_usage` 记为 `speaking`，开场记为 `speaking_opening` | `llm/chat` | `/speaking` 页（任务 59）；口语会话不出现在聊天列表（Q58g）；删除口语记录即删除会话 |
 | 助手回复（tutor） | `agents/chat_graph.py` tutor 子图：`tutor`（⇄ `tools`，见上一节） | 对话历史、学习者上下文、规划简报、本轮附件、本会话最近的卡片 | checkpoint（对话历史，含工具调用和结果，由主图保存；子图自己不存 checkpoint）；`tutor_cards` | `llm/chat`；带图片时 `llm/vision`；工具之后的回复记为 `chat_tools` | 对话页；删除会话即删除 |
 | 练习会话回复（grammar_coach） | `agents/chat_graph.py` grammar_coach 子图：`grammar_coach`，不带工具 | 对话历史、学习者上下文、练习指引、本轮附件 | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
