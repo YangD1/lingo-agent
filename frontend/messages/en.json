@@ -314,7 +314,10 @@
         "reading_context": "Reading the article",
         "lookup_word": "Looking up a word",
         "add_to_vocab": "Adding to the word list",
-        "end_session": "Suggesting to hang up"
+        "end_session": "Suggesting to hang up",
+        "workspace_context": "Read the workspace document",
+        "open_workspace": "Open a workspace document",
+        "propose_edit": "Propose edits"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -360,7 +363,9 @@
         "word_book": "switch word book",
         "learning_goal": "study goal",
         "practice": "grammar practice",
-        "link": "shortcut to a page"
+        "link": "shortcut to a page",
+        "workspace": "Workspace document",
+        "workspace_edit": "Suggested edits"
       },
       "coaches": {
         "writing_coach": "writing coach",
@@ -370,7 +375,9 @@
       "lookedUp": "Looked up {word} on the call",
       "notInDictionary": "Looked up {word} on the call: not in the dictionary, so the assistant explained it",
       "endSuggested": "The assistant suggested hanging up",
-      "callToolFailed": "{step} failed; the assistant was told and went on."
+      "callToolFailed": "{step} failed; the assistant was told and went on.",
+      "readWorkspace": "read the document in the workspace",
+      "workspaceRead": "Read the document open in the workspace: version {version}, its first {words} words."
     },
     "practice": {
       "label": "Grammar practice: {kc}",
@@ -481,7 +488,11 @@
         "title": "A new plan for today",
         "empty": "Nothing planned",
         "minutes": "About {n} min"
-      }
+      },
+      "workspaceOpened": "Opened “{title}” in the workspace",
+      "workspaceEdits": "Suggested {n, plural, one {# edit} other {# edits}} to “{title}”; nothing changes until you accept them",
+      "workspaceOpen": "Open",
+      "workspaceReview": "Review"
     },
     "planning": {
       "badge": "Study planning"
@@ -531,7 +542,33 @@
       "label": "About an article you are reading: ask about words, sentences or what it means.",
       "back": "Back to the article"
     },
-    "textHidden": "Text hidden for listening practice."
+    "textHidden": "Text hidden for listening practice.",
+    "workspace": {
+      "label": "Workspace",
+      "untitled": "Untitled document",
+      "switch": "Switch document",
+      "version": "Version {n}",
+      "fullscreen": "Full screen",
+      "exitFullscreen": "Exit full screen",
+      "close": "Close the workspace",
+      "backToChat": "Back to chat",
+      "delete": "Delete document",
+      "confirmDelete": "Delete this document?",
+      "confirmDeleteDetail": "All its versions, translations and analyses are deleted. The conversation stays.",
+      "loading": "Opening…",
+      "truncated": "The text was long: only its first 5,000 words were kept.",
+      "emptyWriting": "Nothing here yet.",
+      "ask": "Ask {name}",
+      "tabs": "Chat or workspace",
+      "tabChat": "Chat",
+      "tabWorkspace": "Workspace",
+      "open": "Workspace ({n})",
+      "resize": "Drag to resize the chat and the workspace",
+      "pasteHint": "That's a long text. Open it in the workspace beside the chat?",
+      "pasteRead": "Read closely",
+      "pasteWrite": "Review as writing",
+      "pasteDismiss": "No, just send it"
+    }
   },
   "memory": {
     "edit": "Edit",

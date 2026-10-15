@@ -44,6 +44,8 @@ type Options = {
    * conversation): a refused first send then keeps it; an empty one is reused anyway.
    */
   discardRefused?: boolean;
+  /** The document open in the workspace beside the chat, sent with each message. */
+  workspaceDocId?: string | null;
 };
 
 const toApiErrorLike = (error: unknown): ApiErrorLike =>
@@ -221,6 +223,7 @@ export function useChatSession(conversationId: string | null, options: Options) 
         const stream = streamChat(id, text, {
           signal: controller.signal,
           attachmentIds: attachments.map((a) => a.id),
+          workspaceDocId: optionsRef.current.workspaceDocId,
         });
         let step = await stream.next(); // 404/409 throw here, before any reply
         accepted = true;

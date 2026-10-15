@@ -314,7 +314,10 @@
         "reading_context": "读取文章",
         "lookup_word": "查词",
         "add_to_vocab": "加入生词本",
-        "end_session": "建议挂断"
+        "end_session": "建议挂断",
+        "workspace_context": "读取工作区文档",
+        "open_workspace": "打开工作区文档",
+        "propose_edit": "提议修改"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -360,7 +363,9 @@
         "word_book": "换词书",
         "learning_goal": "学习目标",
         "practice": "语法练习",
-        "link": "页面直达"
+        "link": "页面直达",
+        "workspace": "工作区文档",
+        "workspace_edit": "修改建议"
       },
       "coaches": {
         "writing_coach": "写作教练",
@@ -370,7 +375,9 @@
       "lookedUp": "通话中查了 {word}",
       "notInDictionary": "通话中查了 {word}，词典里没有，助手自己解释了",
       "endSuggested": "助手建议结束通话",
-      "callToolFailed": "{step}没成功，助手已经知道并接着聊了。"
+      "callToolFailed": "{step}没成功，助手已经知道并接着聊了。",
+      "readWorkspace": "读了工作区里的文档",
+      "workspaceRead": "读了工作区里打开的文档：第 {version} 版，前 {words} 词。"
     },
     "practice": {
       "label": "语法练习：{kc}",
@@ -481,7 +488,11 @@
         "title": "新的今天计划",
         "empty": "什么都不安排",
         "minutes": "预计 {n} 分钟"
-      }
+      },
+      "workspaceOpened": "在工作区打开了《{title}》",
+      "workspaceEdits": "对《{title}》提了 {n} 处修改，逐处确认后才会生效",
+      "workspaceOpen": "打开",
+      "workspaceReview": "去确认"
     },
     "planning": {
       "badge": "学习规划"
@@ -531,7 +542,33 @@
       "label": "关于你正在读的一篇文章：可以问单词、句子或意思。",
       "back": "回到文章"
     },
-    "textHidden": "文字已隐藏，练听力。"
+    "textHidden": "文字已隐藏，练听力。",
+    "workspace": {
+      "label": "工作区",
+      "untitled": "未命名文档",
+      "switch": "切换文档",
+      "version": "第 {n} 版",
+      "fullscreen": "全屏",
+      "exitFullscreen": "退出全屏",
+      "close": "关闭工作区",
+      "backToChat": "回到对话",
+      "delete": "删除文档",
+      "confirmDelete": "删除这份文档？",
+      "confirmDeleteDetail": "文档的所有版本、译文和分析都会删除，对话本身不受影响。",
+      "loading": "正在打开…",
+      "truncated": "原文太长，只保留了前 5,000 词。",
+      "emptyWriting": "还没有内容。",
+      "ask": "问 {name}",
+      "tabs": "对话或工作区",
+      "tabChat": "对话",
+      "tabWorkspace": "工作区",
+      "open": "工作区（{n}）",
+      "resize": "拖动调整对话和工作区的宽度",
+      "pasteHint": "这是一段长文，放到右侧工作区里看？",
+      "pasteRead": "在工作区精读",
+      "pasteWrite": "当作文批改",
+      "pasteDismiss": "不用，直接发"
+    }
   },
   "memory": {
     "edit": "编辑",

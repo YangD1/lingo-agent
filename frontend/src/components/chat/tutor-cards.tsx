@@ -1,12 +1,22 @@
 "use client";
 
-import { BookOpen, CalendarCheck, Compass, Flag, PenLine, Target } from "lucide-react";
+import {
+  BookOpen,
+  CalendarCheck,
+  Compass,
+  FilePen,
+  Flag,
+  PanelRight,
+  PenLine,
+  Target,
+} from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { useState } from "react";
 
 import { PlanEditor, roundMinutes, useItemLabel } from "@/components/plan/plan-editor";
 import { PracticeChoices } from "@/components/practice/practice-choices";
+import { useWorkspaceOpener } from "@/components/workspace/opener";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ErrorText } from "@/components/ui/error-text";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
@@ -36,6 +46,8 @@ const ICONS = {
   link: Compass,
   writing: PenLine,
   daily_plan: CalendarCheck,
+  workspace: PanelRight,
+  workspace_edit: FilePen,
 };
 
 function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
@@ -71,6 +83,7 @@ function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
         {card.kind === "link" && <LinkCard card={card} />}
         {card.kind === "writing" && <WritingCard card={card} />}
         {card.kind === "daily_plan" && <DailyPlanCard card={card} onDecide={onDecide} />}
+        {(card.kind === "workspace" || card.kind === "workspace_edit") && <WorkspaceCard card={card} />}
       </div>
     </div>
   );
@@ -302,4 +315,26 @@ function LiveNumbers({ kind, live }: { kind: LinkKind; live?: Record<string, unk
       {text}
     </p>
   ) : null;
+}
+
+/** The tutor opened a document or proposed edits to one (ADR 0043 §5–6): open it beside the
+ * chat. Away from the chat page there is no workspace to open it in. */
+function WorkspaceCard({ card }: { card: TutorCard }) {
+  const t = useTranslations("chat.cards");
+  const open = useWorkspaceOpener();
+  const title = String(card.params.title ?? "");
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <p className="min-w-0 flex-1">
+        {card.kind === "workspace"
+          ? t("workspaceOpened", { title })
+          : t("workspaceEdits", { title, n: Number(card.params.count ?? 0) })}
+      </p>
+      {open && (
+        <Button size="sm" variant="outline" onClick={() => open(String(card.params.doc_id))}>
+          {card.kind === "workspace" ? t("workspaceOpen") : t("workspaceReview")}
+        </Button>
+      )}
+    </div>
+  );
 }

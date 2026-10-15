@@ -3,7 +3,7 @@
 import { FileUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { type DragEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { type DragEvent, type ReactNode, type Ref, useEffect, useRef, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
@@ -12,10 +12,11 @@ import type { TutorCard } from "@/lib/cards";
 import { useShowActivity } from "@/lib/preferences";
 import type { Attachment, Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import type { WorkspaceKind } from "@/lib/workspace";
 import { LingoCat } from "@/components/brand/lingo-cat";
 
 import { SETTINGS_ERRORS } from "./attachment-tray";
-import { Composer } from "./composer";
+import { Composer, type ComposerHandle } from "./composer";
 import { LanguageSwitch } from "./language-switch";
 import { MessageList } from "./message-list";
 import { useActivity } from "./use-activity";
@@ -61,6 +62,14 @@ type Props = {
   /** Sees a message before it is sent; true when it took care of it (the desk pet's
    * commands, ADR 0039 §2): nothing is sent and the input box is cleared. */
   beforeSend?: (text: string, attachments: Attachment[]) => boolean;
+  /** A card the tutor showed during a reply (the chat page opens workspace documents). */
+  onCardShown?: (card: TutorCard) => void;
+  /** The document open in the workspace, sent with each message (ADR 0043 §6). */
+  workspaceDocId?: string | null;
+  /** Open a long pasted text in the workspace; given this conversation's id, created first
+   * if this is a new chat. Without it, pasting offers nothing. */
+  openInWorkspace?: (conversationId: string, kind: WorkspaceKind, text: string) => Promise<boolean>;
+  composerRef?: Ref<ComposerHandle>;
   className?: string;
 };
 
@@ -84,6 +93,10 @@ export function TutorPanel({
   autoFocus,
   initialText,
   beforeSend,
+  onCardShown,
+  workspaceDocId = null,
+  openInWorkspace,
+  composerRef,
   className,
 }: Props) {
   const t = useTranslations("chat");
@@ -98,10 +111,14 @@ export function TutorPanel({
       cards.reload(); // current statuses, and live numbers for link cards
     },
     onActivity: activity.addLive,
-    onCard: cards.add,
+    onCard: (card) => {
+      cards.add(card);
+      onCardShown?.(card);
+    },
     onReplyDone: activity.turnFinished,
     createConversation,
     discardRefused,
+    workspaceDocId,
   });
   const tray = useAttachments(conversationId, session.ensureConversation);
 
@@ -185,6 +202,11 @@ export function TutorPanel({
         sendFeature={sendFeature}
         autoFocus={autoFocus}
         initialText={initialText}
+        onOpenInWorkspace={
+          openInWorkspace &&
+          (async (kind, text) => openInWorkspace(await session.ensureConversation(), kind, text))
+        }
+        ref={composerRef}
       />
     </section>
   );

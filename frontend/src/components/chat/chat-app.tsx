@@ -1,36 +1,84 @@
 "use client";
 
-import { LayoutGridIcon, Menu } from "lucide-react";
+import { LayoutGridIcon, Menu, PanelRight } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from "react-resizable-panels";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Segmented } from "@/components/ui/segmented";
 import { Sheet } from "@/components/ui/sheet";
-import type { ApiErrorLike } from "@/i18n/errors";
+import { useWorkspace } from "@/components/workspace/use-workspace";
+import { WorkspaceOpener } from "@/components/workspace/opener";
+import { WorkspacePane } from "@/components/workspace/workspace-pane";
+import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { api, ApiError } from "@/lib/api";
+import type { TutorCard } from "@/lib/cards";
 import type { Conversation } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import {
+  chatUrl,
+  createPasted,
+  deleteDoc,
+  quoteBlock,
+  useWorkspaceLayout,
+  type WorkspaceKind,
+} from "@/lib/workspace";
 
 import { ConversationList } from "./conversation-list";
 import { PlacementBanner } from "./placement-banner";
 import { PracticeBar } from "./practice-bar";
+import type { ComposerHandle } from "./composer";
 import { ReadingBar } from "./reading-bar";
 import { TutorPanel } from "./tutor-panel";
 
-// The active conversation lives in `?c=<id>`, updated with the History API so that
-// creating a conversation mid-send doesn't remount the page and cut the stream.
+// The active conversation lives in `?c=<id>` and the workspace document beside it in
+// `&w=<id>` (ADR 0043 §2), updated with the History API so that creating a conversation
+// mid-send doesn't remount the page and cut the stream.
 function setUrl(id: string | null, mode: "push" | "replace" = "push") {
-  const url = id ? `/chat?c=${id}` : "/chat";
+  const url = chatUrl(id, null);
   if (mode === "push") window.history.pushState(null, "", url);
   else window.history.replaceState(null, "", url);
 }
 
+/** Opening or closing a document stays in the same history entry as its conversation. */
+function setDocUrl(docId: string | null) {
+  const conversation = new URLSearchParams(window.location.search).get("c");
+  window.history.replaceState(null, "", chatUrl(conversation, docId));
+}
+
+const searchParam = (name: string) =>
+  typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(name);
+
+// The divider's place is a preference of this browser only: storage may be unavailable.
+const layoutStorage = {
+  getItem(key: string) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem(key: string, value: string) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // Not kept; the default applies next time.
+    }
+  },
+};
+
 export function ChatApp({
   initialId,
+  initialDocId = null,
   practiceKc = null,
   planning = false,
 }: {
   initialId: string | null;
+  /** `?w=<id>`: the workspace document open beside the conversation. */
+  initialDocId?: string | null;
   /** `?practice=<kc>`: start, or return to, a practice conversation on that grammar point. */
   practiceKc?: string | null;
   /** `?plan=1`: start, or return to, an empty study-planning conversation (ADR 0015 §6). */
@@ -44,10 +92,11 @@ export function ChatApp({
   // Coming back (browser Back) to a page opened with `?practice=` or `?plan=`, Next may
   // render the props it cached for that URL, though `setUrl` has since replaced it with
   // the conversation made from it: the address bar is the truth.
-  const [urlId] = useState(() =>
-    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("c"),
-  );
+  const [urlId] = useState(() => searchParam("c"));
   const [activeId, setActiveId] = useState<string | null>(urlId ?? initialId);
+  const [docId, setDocId] = useState<string | null>(() =>
+    urlId ? searchParam("w") : initialId ? initialDocId : null,
+  );
   // The conversation made from `?practice=` or `?plan=`, in case the list loads without it.
   const [practice, setPractice] = useState<Conversation | null>(null);
   const [practiceError, setPracticeError] = useState<ApiErrorLike | null>(null);
@@ -81,7 +130,10 @@ export function ChatApp({
   }, [purpose, urlId, planning, practiceKc, locale]);
 
   useEffect(() => {
-    const onPop = () => setActiveId(new URLSearchParams(window.location.search).get("c"));
+    const onPop = () => {
+      setActiveId(searchParam("c"));
+      setDocId(searchParam("w"));
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -92,7 +144,76 @@ export function ChatApp({
 
   const select = (id: string | null) => {
     setActiveId(id);
+    setDocId(null); // documents belong to their conversation
     setUrl(id);
+  };
+
+  // The workspace (ADR 0043): the document open beside the chat, and how it sits there.
+  const layout = useWorkspaceLayout();
+  const workspace = useWorkspace(activeId, docId);
+  const errorMessage = useErrorMessage();
+  const [tab, setTab] = useState<"chat" | "workspace">("workspace");
+  const [fullscreen, setFullscreen] = useState(false);
+  const chatPanel = usePanelRef();
+  const composer = useRef<ComposerHandle>(null);
+  const isOpen = docId !== null;
+  const split = isOpen && layout === "split";
+  const panels = useDefaultLayout({
+    id: "lingo.chatWorkspace",
+    panelIds: split ? ["chat-column", "workspace-column"] : ["chat-column"],
+    storage: layoutStorage,
+    onlySaveAfterUserInteractions: true,
+  });
+
+  const openDoc = useCallback((id: string) => {
+    setDocId(id);
+    setTab("workspace");
+    setDocUrl(id);
+  }, []);
+  const closeDoc = () => {
+    setDocId(null);
+    setFullscreen(false);
+    setDocUrl(null);
+  };
+  const showFullscreen = (on: boolean) => {
+    setFullscreen(on);
+    if (on) chatPanel.current?.collapse();
+    else chatPanel.current?.expand();
+  };
+
+  // The tutor opened a document (Q83b): it opens beside the chat straight away.
+  const reloadDocs = workspace.reload;
+  const onCardShown = useCallback(
+    (card: TutorCard) => {
+      if (card.kind !== "workspace" && card.kind !== "workspace_edit") return;
+      reloadDocs();
+      if (card.kind === "workspace") openDoc(String(card.params.doc_id));
+    },
+    [reloadDocs, openDoc],
+  );
+
+  async function openPasted(conversationId: string, kind: WorkspaceKind, text: string) {
+    try {
+      const doc = await createPasted(conversationId, kind, text);
+      reloadDocs();
+      openDoc(doc.id);
+      return true;
+    } catch (e) {
+      toast.error(errorMessage(e instanceof ApiError ? e : { code: "network_error", message: "" }));
+      return false;
+    }
+  }
+
+  async function removeDoc() {
+    if (!docId) return;
+    await deleteDoc(docId).catch(() => {});
+    closeDoc();
+    reloadDocs();
+  }
+
+  const ask = (text: string) => {
+    if (layout === "tabs") setTab("chat");
+    composer.current?.addQuote(quoteBlock(text));
   };
 
   async function remove(id: string) {
@@ -107,53 +228,137 @@ export function ChatApp({
     onDelete: remove,
   };
 
+  const latestDoc = workspace.docs.at(-1);
+  const pane = docId && (
+    <WorkspacePane
+      layout={layout}
+      docs={workspace.docs}
+      docId={docId}
+      doc={workspace.doc}
+      error={workspace.error}
+      fullscreen={fullscreen}
+      onFullscreen={showFullscreen}
+      onSwitch={openDoc}
+      onClose={closeDoc}
+      onDelete={() => void removeDoc()}
+      onAsk={ask}
+      className="h-full"
+    />
+  );
+  const tabs = isOpen && layout === "tabs";
+
   return (
-    <>
+    <WorkspaceOpener value={openDoc}>
       <ConversationList
         {...list}
-        className="hidden md:flex"
+        className={cn("hidden md:flex", isOpen && "md:hidden")}
         onSelect={select}
         onNew={() => select(null)}
       />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-1.5 border-b px-2 md:h-12 md:px-5">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            aria-label={t("openConversations")}
-            aria-haspopup="dialog"
-            onClick={() => setDrawerOpen(true)}
+      <div className="relative flex min-w-0 flex-1 flex-col">
+        {tabs && (
+          <div className="flex shrink-0 items-center justify-center border-b px-3 py-2">
+            <Segmented
+              label={t("workspace.tabs")}
+              value={tab}
+              onChange={setTab}
+              className="w-full max-w-xs [&>*]:flex-1"
+              options={[
+                { value: "chat", label: t("workspace.tabChat") },
+                { value: "workspace", label: t("workspace.tabWorkspace") },
+              ]}
+            />
+          </div>
+        )}
+        {/* One tree whatever the layout, so the conversation (and a reply streaming into
+            it) stays mounted while the workspace opens, closes or changes layout. The group
+            sets its own inline display, so the phone tab hides a wrapper around it. */}
+        <div className={cn("flex min-h-0 flex-1 flex-col", tabs && tab === "workspace" && "hidden")}>
+          <Group
+            id="chat-workspace"
+            className="min-h-0 flex-1"
+            defaultLayout={panels.defaultLayout}
+            onLayoutChanged={panels.onLayoutChanged}
           >
-            <Menu className="size-5" />
-          </Button>
-          <h1 className="truncate text-base font-semibold md:text-[15px]">
-            {active ? active.title || t("untitled") : t("newChat")}
-          </h1>
-        </header>
-        <TutorPanel
-          className="min-h-0 flex-1"
-          conversationId={activeId}
-          onConversationCreated={(c) => {
-            setActiveId(c.id);
-            setUrl(c.id, "replace");
-            setConversations((all) => [c, ...all.filter((o) => o.id !== c.id)]);
-          }}
-          onTurnFinished={refresh}
-          // A practice or planning conversation with nothing in it yet (Q19a, ADR 0015 §6).
-          autoOpen={Boolean(active?.focus_kc || active?.purpose === "planning")}
-          header={
-            active?.focus_kc ? (
-              <PracticeBar kc={active.focus_kc} />
-            ) : active?.article_id ? (
-              <ReadingBar articleId={active.article_id} />
-            ) : (
-              <PlacementBanner />
-            )
-          }
-          sendFeature={active?.article_id ? "reading_coach" : undefined}
-          error={practiceError}
-        />
+            <Panel
+              id="chat-column"
+              panelRef={chatPanel}
+              minSize={split ? 360 : undefined}
+              defaultSize={split ? 420 : undefined}
+              collapsible={split}
+              collapsedSize={0}
+              onResize={(size) => split && setFullscreen(size.inPixels === 0)}
+              className="flex min-w-0 flex-col"
+            >
+              <header className="flex h-14 shrink-0 items-center gap-1.5 border-b px-2 md:h-12 md:px-5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("md:hidden", isOpen && "md:inline-flex")}
+                  aria-label={t("openConversations")}
+                  aria-haspopup="dialog"
+                  onClick={() => setDrawerOpen(true)}
+                >
+                  <Menu className="size-5" />
+                </Button>
+                <h1 className="truncate text-base font-semibold md:text-[15px]">
+                  {active ? active.title || t("untitled") : t("newChat")}
+                </h1>
+                {!isOpen && latestDoc && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto shrink-0 text-muted-foreground"
+                    onClick={() => openDoc(latestDoc.id)}
+                  >
+                    <PanelRight />
+                    {t("workspace.open", { n: workspace.docs.length })}
+                  </Button>
+                )}
+              </header>
+              <TutorPanel
+                className="min-h-0 flex-1"
+                conversationId={activeId}
+                onConversationCreated={(c) => {
+                  setActiveId(c.id);
+                  setUrl(c.id, "replace");
+                  setConversations((all) => [c, ...all.filter((o) => o.id !== c.id)]);
+                }}
+                onTurnFinished={refresh}
+                // A practice or planning conversation with nothing in it yet (Q19a, ADR 0015 §6).
+                autoOpen={Boolean(active?.focus_kc || active?.purpose === "planning")}
+                header={
+                  active?.focus_kc ? (
+                    <PracticeBar kc={active.focus_kc} />
+                  ) : active?.article_id ? (
+                    <ReadingBar articleId={active.article_id} />
+                  ) : (
+                    <PlacementBanner />
+                  )
+                }
+                sendFeature={active?.article_id ? "reading_coach" : undefined}
+                error={practiceError}
+                onCardShown={onCardShown}
+                workspaceDocId={docId}
+                openInWorkspace={openPasted}
+                composerRef={composer}
+              />
+            </Panel>
+            {split && (
+              <>
+                <Separator
+                  className="w-px bg-border outline-none transition-colors hover:bg-ring data-[separator=active]:bg-ring focus-visible:bg-ring"
+                  aria-label={t("workspace.resize")}
+                />
+                <Panel id="workspace-column" minSize={480} className="flex min-w-0 flex-col">
+                  {pane}
+                </Panel>
+              </>
+            )}
+          </Group>
+        </div>
+        {isOpen && layout === "overlay" && <div className="absolute inset-0 z-20 flex flex-col">{pane}</div>}
+        {tabs && tab === "workspace" && <div className="flex min-h-0 flex-1 flex-col">{pane}</div>}
       </div>
       {/* Phones: the list is a drawer, and the way back to the other pages (no tab bar here). */}
       <Sheet
@@ -184,6 +389,6 @@ export function ChatApp({
           {tNav("dashboard")}
         </Link>
       </Sheet>
-    </>
+    </WorkspaceOpener>
   );
 }

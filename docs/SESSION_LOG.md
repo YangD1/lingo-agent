@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-10-15 任务 83.5：对话页工作区布局
+
+**做了什么**：
+- 新增 `frontend/src/lib/workspace.ts`、`frontend/src/components/workspace/`（`workspace-pane.tsx`、`selection-ask.tsx`、`use-workspace.ts`、`opener.ts`），依赖 `react-resizable-panels`。
+- `chat-app.tsx` 重写布局：`?c=&w=`、分栏可拖（比例存 localStorage）、中屏覆盖、手机标签；`workspace` 卡片自动打开；`composer.tsx` 长文粘贴提示和 `addQuote`；`tutor-panel` / `use-chat-session` / `sse.ts` 发送带 `workspace_doc_id`；卡片、活动步骤、中英文案。
+- 测试：`chat-app.test.tsx`（9）、`workspace.test.ts`、`composer.test.tsx` 新增 6；Vitest 798、E2E 84 全过。
+
+**未完成**：`WorkspacePane` 里的 `DocText` 是占位，83.6（精读视图）/ 83.7（写作视图，需加 `diff` 依赖）替换；`WorkspaceCard` 在没有 opener 的页面（仪表盘对话框、桌宠小窗）不显示按钮，83.8 补跳转 `/chat?c=&w=`。
+
+**下一步**：83.6 精读视图。
+
+**踩坑**：
+- `react-resizable-panels` 的 Panel `id` 会变成 `data-testid`，别和 `workspace` 重名；Group 带 inline `display:flex`，`hidden` 类盖不住，要隐藏外层。
+- jsdom 要补 `ResizeObserver`、`Element.prototype.getAnimations`、选区的 `getBoundingClientRect`；选中测试用 `fireEvent.mouseUp`（userEvent 会清掉选区）。
+- `node_modules/.bin/*` 是 shell 脚本，别用 node 跑；`pnpm` 走绝对路径 `~/.nvm/versions/node/v24.14.0/bin/pnpm`。
+- 默认位置的桌宠在手机宽度下会盖住工作区顶栏右侧按钮（可拖走），留到 83.9 截图时再看。
+
+---
+
 ## 2026-10-15 任务 83：对话工作区（拆分与 ADR 起草，未写代码）
 
 **做了什么**：

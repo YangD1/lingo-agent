@@ -35,12 +35,25 @@ const KNOWN_EVENTS = new Set(["token", "activity", "card", "done", "error"]);
 export async function* streamChat(
   conversationId: string,
   content: string,
-  { signal, attachmentIds = [] }: { signal?: AbortSignal; attachmentIds?: string[] } = {},
+  {
+    signal,
+    attachmentIds = [],
+    workspaceDocId = null,
+  }: {
+    signal?: AbortSignal;
+    attachmentIds?: string[];
+    /** The document open in the workspace: the reply sees it (ADR 0043 §6). */
+    workspaceDocId?: string | null;
+  } = {},
 ): AsyncGenerator<ChatEvent, void, undefined> {
   const response = await apiFetch(`/conversations/${conversationId}/messages`, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "text/event-stream" },
-    body: JSON.stringify({ content, attachment_ids: attachmentIds }),
+    body: JSON.stringify({
+      content,
+      attachment_ids: attachmentIds,
+      ...(workspaceDocId ? { workspace_doc_id: workspaceDocId } : {}),
+    }),
     signal,
   });
   yield* readEvents(response);

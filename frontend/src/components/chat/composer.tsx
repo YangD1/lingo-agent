@@ -1,13 +1,15 @@
 "use client";
 
-import { ArrowUp, Mic, Paperclip, Square } from "lucide-react";
+import { ArrowUp, BookOpenText, Mic, Paperclip, PenLine, Square, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type ClipboardEvent,
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
+  type Ref,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
 } from "react";
@@ -20,6 +22,7 @@ import { ErrorText } from "@/components/ui/error-text";
 import { ACCEPT } from "@/lib/attachments";
 import type { Attachment } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { offersWorkspace, withQuote, type WorkspaceKind } from "@/lib/workspace";
 
 import { AttachmentTrayView } from "./attachment-tray";
 import type { AttachmentTray } from "./use-attachments";
@@ -41,7 +44,14 @@ type Props = {
   autoFocus?: boolean;
   /** What the input box starts with. */
   initialText?: string;
+  /** Offered after pasting a long text (ADR 0043 §4): open it in the workspace instead.
+   * Resolves true once it is open; the pasted text then leaves the input box. */
+  onOpenInWorkspace?: (kind: WorkspaceKind, text: string) => Promise<boolean>;
+  ref?: Ref<ComposerHandle>;
 };
+
+/** What the page does to the input box from outside: "Ask {name}" adds a quote. */
+export type ComposerHandle = { addQuote: (quote: string) => void };
 
 const clock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
@@ -56,12 +66,34 @@ export function Composer({
   sendFeature = "chat_message",
   autoFocus = false,
   initialText = "",
+  onOpenInWorkspace,
+  ref,
 }: Props) {
   const t = useTranslations("chat");
   const [text, setText] = useState(initialText);
+  // A long text just pasted: the whole of it (the box may have cut it to MAX_LENGTH) and
+  // the part that went into the box.
+  const [pasted, setPasted] = useState<{ full: string; inserted: string } | null>(null);
+  const [opening, setOpening] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const recorder = useRecorder((file) => tray.add([file]));
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      addQuote(quote: string) {
+        setText((current) => withQuote(current, quote).slice(0, MAX_LENGTH));
+        const box = input.current;
+        if (box) {
+          box.focus();
+          // After React has put the text in: the cursor goes to the end, below the quote.
+          requestAnimationFrame(() => box.setSelectionRange(box.value.length, box.value.length));
+        }
+      },
+    }),
+    [],
+  );
 
   // Disabled while the history loads: focused once it is enabled.
   useEffect(() => {
@@ -76,6 +108,7 @@ export function Composer({
     if (empty || blocked) return;
     const content = text.trim();
     setText("");
+    setPasted(null);
     const taken = tray.take();
     const sent = await onSend(
       content,
@@ -99,15 +132,62 @@ export function Composer({
 
   function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
     const files = Array.from(event.clipboardData.files);
-    if (files.length === 0) return; // plain text: let it paste
+    if (files.length === 0) {
+      // Plain text: let it paste, and offer the workspace for a long one.
+      const full = event.clipboardData.getData("text/plain");
+      if (onOpenInWorkspace && offersWorkspace(full)) {
+        const box = event.currentTarget;
+        const room = MAX_LENGTH - box.value.length + (box.selectionEnd - box.selectionStart);
+        setPasted({ full, inserted: full.slice(0, Math.max(room, 0)) });
+      }
+      return;
+    }
     event.preventDefault();
     tray.add(files);
+  }
+
+  async function openPasted(kind: WorkspaceKind) {
+    if (!pasted || !onOpenInWorkspace) return;
+    setOpening(true);
+    const opened = await onOpenInWorkspace(kind, pasted.full)
+      .catch(() => false)
+      .finally(() => setOpening(false));
+    if (!opened) return;
+    setText((current) => current.replace(pasted.inserted, "").trim());
+    setPasted(null);
   }
 
   return (
     <form onSubmit={submit} data-chat-gutter className="w-full px-2.5 pt-1.5 pb-3 md:px-8 md:pt-2 md:pb-5">
       <div className="mx-auto flex max-w-3xl flex-col gap-2">
         {toolbar}
+        {pasted && (
+          <div
+            role="status"
+            data-testid="paste-hint"
+            className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-lg bg-brand-soft px-3 py-2 text-[13px] text-brand-soft-foreground"
+          >
+            <span className="mr-auto">{t("workspace.pasteHint")}</span>
+            <Button type="button" size="sm" variant="outline" disabled={opening} onClick={() => void openPasted("reading")}>
+              <BookOpenText />
+              {t("workspace.pasteRead")}
+            </Button>
+            <Button type="button" size="sm" variant="outline" disabled={opening} onClick={() => void openPasted("writing")}>
+              <PenLine />
+              {t("workspace.pasteWrite")}
+            </Button>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t("workspace.pasteDismiss")}
+              title={t("workspace.pasteDismiss")}
+              onClick={() => setPasted(null)}
+            >
+              <X />
+            </Button>
+          </div>
+        )}
         <div data-chat-composer className="glass-pop flex flex-col rounded-[18px] border transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
           <div className="px-2.5 pt-2.5 empty:hidden">
             <AttachmentTrayView tray={tray} />

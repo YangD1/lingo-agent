@@ -51,10 +51,19 @@ export type TutorCard = {
   id: string;
   /** The learner message of the turn the card was shown in. */
   turn_id: string;
-  kind: "word_book" | "learning_goal" | "practice" | "link" | "writing" | "daily_plan";
+  kind:
+    | "word_book"
+    | "learning_goal"
+    | "practice"
+    | "link"
+    | "writing"
+    | "daily_plan"
+    | "workspace"
+    | "workspace_edit";
   /** word_book: book_id, daily_new; learning_goal: goal, target_exam, daily_minutes;
    * practice: kc_id; link: kind; writing: submission_id (writing_coach's review);
-   * daily_plan: PlanCardParams (lib/plan.ts). */
+   * daily_plan: PlanCardParams (lib/plan.ts); workspace: doc_id, kind, title;
+   * workspace_edit: doc_id, edit_id, title, count (ADR 0043 §6). */
   params: Record<string, unknown>;
   status: CardStatus;
   display: { book?: Named; kc?: Named & { cefr: string } };

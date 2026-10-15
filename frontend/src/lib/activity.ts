@@ -27,6 +27,8 @@ export type Handoff = { coach: string };
 export type WritingReviewed = { submission_id: number; mistakes: number };
 /** reading_coach was given the article: its version's level, or null for the original. */
 export type ReadingContextRead = { article_id: number; level: string | null; words: number };
+/** The coach was given the document open in the workspace (ADR 0043 §6), its first words. */
+export type WorkspaceContextRead = { doc_id: string; version: number; words: number };
 /** A tool call of the tutor (ADR 0015): the card it showed, if any. */
 export type CardShown = { card_id: string | null; card_kind: string | null };
 /** `lookup_word` on a realtime call: the entry found, or what was looked up in vain. */
@@ -39,6 +41,8 @@ export const TOOL_NAMES = [
   "propose_learning_goal",
   "suggest_practice",
   "suggest_link",
+  "open_workspace",
+  "propose_edit",
 ] as const;
 export type MemoryChanges = {
   added: string[];
@@ -105,6 +109,8 @@ export type TurnDigest = {
   writingReviewed: boolean;
   /** reading_coach read the article (Q43i). */
   articleRead: boolean;
+  /** The coach read the document open in the workspace. */
+  workspaceRead: boolean;
   /** Cards the tutor showed with tool calls. */
   cardsShown: number;
   profileUpdated: boolean;
@@ -130,6 +136,7 @@ export function digest(activities: Activity[]): TurnDigest {
     handedTo: null,
     writingReviewed: false,
     articleRead: false,
+    workspaceRead: false,
     cardsShown: 0,
     profileUpdated: false,
     mistakes: 0,
@@ -155,6 +162,8 @@ export function digest(activities: Activity[]): TurnDigest {
       d.writingReviewed = true;
     } else if (a.name === "reading_context") {
       d.articleRead = true;
+    } else if (a.name === "workspace_context") {
+      d.workspaceRead = true;
     } else if (a.name === "lookup_word") {
       d.wordsLookedUp += 1;
     } else if (a.name === "add_to_vocab") {

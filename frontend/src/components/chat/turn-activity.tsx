@@ -13,6 +13,7 @@ import {
   type GrammarTags,
   type Handoff,
   type ReadingContextRead,
+  type WorkspaceContextRead,
   type WritingReviewed,
   type KCRef,
   type MemoryChanges,
@@ -49,6 +50,7 @@ const STEP_NAMES = [
   "handoff",
   "writing_review",
   "reading_context",
+  "workspace_context",
   ...TOOL_NAMES,
   ...CALL_TOOL_NAMES,
 ] as const;
@@ -80,6 +82,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
     d.handedTo && t("handedTo", { coach: coachName(d.handedTo) }),
     d.writingReviewed && t("writingReviewed"),
     d.articleRead && t("readArticle"),
+    d.workspaceRead && t("readWorkspace"),
     d.memoriesRead > 0 && t("read", { n: d.memoriesRead }),
     d.memoriesSaved > 0 && t("saved", { n: d.memoriesSaved }),
     d.memoriesDeleted > 0 && t("deleted", { n: d.memoriesDeleted }),
@@ -351,6 +354,10 @@ function Step({
             : t("readingReadOriginal", { words: s.words })}
         </p>
       );
+    }
+    case "workspace_context": {
+      const s = a.summary as WorkspaceContextRead;
+      return <p>{t("workspaceRead", { version: s.version, words: s.words })}</p>;
     }
   }
 }
