@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-10-15 任务 81：测试提速（修竞态测试、pytest 并行、清表改 DELETE）
+
+**做了什么**：
+- 用户看了任务 80 的耗时分析，让按推荐做。
+- 81.1：`test_realtime_relay.py::test_tools_run_for_the_learner_and_show_what_they_did` 同一轮里查词和加词都是 ubiquitous，并行执行时 `on_word_list` 看谁先完成；改成查 ubiquitous、加 cat。单跑 5 次全过。
+- 81.2：加 pytest-xdist；`tests/conftest.py` 按 `PYTEST_XDIST_WORKER` 把库名改成 `lingo_test_gwN`，`_create_worker_database()` 在 `db_engine` 里按需建库，`_assert_test_database` 去掉 worker 后缀再检查 `_test`。`test_attachment_files.py`（docx 的 zip 带时间戳）和 `test_crypto.py`（随机密钥）的参数化 id 每次不同，xdist 会报 “Different tests were collected”，改用 `pytest.param(..., id=...)`。**真正的大头是清表**：`db_session` 收尾的 `TRUNCATE … CASCADE` 每次约 1.6 秒，改成按 `BUSINESS_TABLES` 顺序 `DELETE`（约 0.01 秒），补上原来靠 CASCADE 清掉的 `word_sentences`（它对 `words` 的外键不级联）；其余没列的表都随 users / tenants / conversations 级联删。`Makefile` 加 `PYTEST_WORKERS ?= 4`、`test-backend` 支持 `ARGS`，`make ci` 和 CI 都 `-n 4`；P0 计划补一句。
+- 81.3：CLAUDE.md 加“测试节奏”；README 中英 `make test` 注释。
+
+**测试**：全量 pytest 1848 过：4 worker 74 秒、2 worker 106 秒、串行 154 秒（原来串行约 15 分钟）。ruff / mypy 干净。只改了测试、构建脚本和文档，没重跑 Vitest / E2E，也不用重建 Docker。
+
+**未完成**：没有推送（任务 77–81 都在本地）；CI 的 `-n 4` 要推送后看一次。
+
+**下一步**：用户看过任务 80 的效果后推送，看 CI（尤其 backend job 的并行 pytest）。
+
+**踩坑**：
+- 以后新建表时，如果它对 `BUSINESS_TABLES` 里的表的外键不是 `ON DELETE CASCADE`，要把它按依赖顺序加进列表，否则收尾 DELETE 报 ForeignKeyViolation（一跑就能看出来）。
+- 参数化 id 必须每次相同，否则 xdist 收集失败；含随机值或时间戳的参数要给固定 id。
+- 每个 worker 约 650MB，WSL 上限 8GB 且 Docker 也在跑，不要把默认 worker 数调太大。
+- 慢的单个测试（可以以后再看）：`test_migrations.py::test_autogenerate_never_drops_langgraph_tables` 约 20 秒、`test_attachments_api.py::test_text_can_be_corrected_until_sent` 约 19 秒、`test_chat_tools.py::test_undo_restores_the_old_book_and_screening_position` 约 13 秒。
+
+---
+
 ## 2026-10-15 任务 80：桌宠每天第一次点开由助手开场总结、AI 发卡、小窗新对话
 
 **做了什么**：

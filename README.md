@@ -133,7 +133,7 @@ The frontend proxies `/api` to the backend, so open <http://localhost:3000> as b
 Tests and checks (they need `make dev-db`; tests use their own databases and never call real model APIs):
 
 ```bash
-make test     # pytest + Vitest
+make test     # pytest (4 workers in parallel; PYTEST_WORKERS=0 for one) + Vitest
 make e2e      # Playwright; starts its own backend, frontend and a fake model
 make lint     # ruff + mypy, eslint + TypeScript
 make fmt      # format and autofix backend code

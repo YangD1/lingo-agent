@@ -133,7 +133,7 @@ make dev-frontend   # Next.js 开发服务器，:3000           （终端 2）
 测试和检查（需要先 `make dev-db`；测试使用独立的数据库，不会调用真实的模型 API）：
 
 ```bash
-make test     # pytest + Vitest
+make test     # pytest（默认 4 个进程并行，PYTEST_WORKERS=0 串行）+ Vitest
 make e2e      # Playwright；自己启动后端、前端和一个假模型
 make lint     # ruff + mypy、eslint + TypeScript
 make fmt      # 格式化并自动修复后端代码
