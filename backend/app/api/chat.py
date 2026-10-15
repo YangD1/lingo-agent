@@ -6,6 +6,7 @@ import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response, status
@@ -41,7 +42,7 @@ from app.chat.turn import (
     stream_reply,
 )
 from app.chat.writing import DatabaseWriting
-from app.db.models import Attachment, Conversation, SpeakingSession
+from app.db.models import Attachment, Conversation, SpeakingSession, WorkspaceDoc
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep, per_user
 from app.memory.context import DatabaseLearner
 from app.memory.embedding import memory_embedder
@@ -55,6 +56,8 @@ from app.services.news import feeds
 from app.services.news.feeds import FeedError
 from app.services.vocab.scheduler import learner_zone
 from app.speaking import sessions as speaking_sessions
+from app.workspace.context import DatabaseWorkspace
+from app.workspace.tools import WorkspaceTools
 
 logger = logging.getLogger(__name__)
 
@@ -330,6 +333,8 @@ class MessageIn(BaseModel):
     attachment_ids: Annotated[
         list[uuid.UUID], Field(max_length=attachment_service.MAX_PER_MESSAGE)
     ] = []
+    # The document open in the workspace beside the chat (ADR 0043 §6), if any.
+    workspace_doc_id: uuid.UUID | None = None
 
     @model_validator(mode="after")
     def _not_empty(self) -> "MessageIn":
@@ -352,6 +357,8 @@ class Turn:
     # A speaking conversation (ADR 0029 §2), and its scenario (None: free talk).
     speaking: bool = False
     scenario_id: str | None = None
+    # The document open in the workspace (ADR 0043 §6), checked to be this conversation's.
+    workspace_doc_id: uuid.UUID | None = None
 
     @property
     def route(self) -> Route:
@@ -392,6 +399,12 @@ async def start_turn(
         # A call's transcript is written by the relay only (ADR 0030 §6).
         raise _conflict("realtime_call", "A voice call's conversation takes no messages.")
     attachments = await _message_attachments(session, conversation, body.attachment_ids)
+    if body.workspace_doc_id is not None:
+        doc = await session.get(WorkspaceDoc, body.workspace_doc_id)
+        if doc is None or doc.conversation_id != conversation.id:
+            raise api_error(
+                status.HTTP_404_NOT_FOUND, "workspace_doc_not_found", "no such document"
+            )
     # A turn with images is answered by the vision route (ADR 0008 §4).
     task = "vision" if any(a.kind == "image" for a in attachments) else "chat"
     providers = await _providers_for(session, tenant.id, task)
@@ -422,6 +435,7 @@ async def start_turn(
             conversation.article_id,
             conversation.purpose == "speaking",
             conversation.scenario_id,
+            body.workspace_doc_id,
         )
     finally:
         locks.release(conversation.id)
@@ -620,6 +634,13 @@ async def _reply(
                 turn.conversation_id,
                 turn.message_id,
                 scope=planning.scope if planning else None,
+                workspace=WorkspaceTools(
+                    sessionmaker,
+                    user_id=user.id,
+                    tenant_id=turn.providers.tenant_id,
+                    conversation_id=turn.conversation_id,
+                    learner_texts=partial(_learner_texts, graph, turn),
+                ),
             )
             if turn.free_chat:  # the supervisor may hand it to writing_coach
                 writing = DatabaseWriting(
@@ -650,6 +671,13 @@ async def _reply(
         practice=practice,
         tools=tools,
         planning=planning,
+        workspace=(
+            DatabaseWorkspace(
+                sessionmaker, conversation_id=turn.conversation_id, doc_id=turn.workspace_doc_id
+            )
+            if turn.workspace_doc_id is not None
+            else None
+        ),
     ):
         if isinstance(event, CardEvent):  # the card itself, like GET .../cards items
             yield ServerSentEvent(event=event.event, data=event.card)
@@ -663,6 +691,14 @@ async def _reply(
                 turn.conversation_id,
                 language=memory_language(request.cookies.get(LOCALE_COOKIE)),
             )
+
+
+async def _learner_texts(graph: ChatGraphDep, turn: Turn) -> list[str]:
+    """The learner's messages in the conversation, latest first, this turn's included
+    (`open_workspace` with source last_message)."""
+    state = await graph.aget_state(service.thread_config(turn.conversation_id))
+    texts = [m.text for m in reversed(state.values.get("messages", [])) if m.type == "human"]
+    return list(dict.fromkeys([*([turn.text] if turn.text else []), *texts]))
 
 
 def _reflection(request: Request) -> ReflectionWorker:

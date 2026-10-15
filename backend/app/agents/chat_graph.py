@@ -50,6 +50,7 @@ from app.activity.service import (
     Handoff,
     ReadingContextRead,
     Step,
+    WorkspaceContextRead,
     timed,
 )
 from app.adaptive.rules import get_rules
@@ -72,6 +73,7 @@ from app.prompts import load_prompt
 from app.providers.config import TenantProviderContext
 from app.providers.llm import get_llm, get_llm_with_tools
 from app.tutor.prompt import tutor_name
+from app.workspace.context import WorkspaceSource, render_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +109,7 @@ SPEAKING_USAGE_TASK = "speaking"
 PLAN_CUE = "plan_opening"
 DAILY_CUE = "daily_opening"
 PRACTICE_CUE = "practice_opening"
+WORKSPACE_CONTEXT = "workspace_context"
 # Vendors answer a request with tools they can't take with one of these.
 _REFUSED_STATUSES = frozenset({400, 404, 422})
 
@@ -136,6 +139,8 @@ class ChatContext:
     reading: ReadingSource | None = None
     # speaking_coach's scenario and level (ADR 0029 §2); None where a caller has none.
     speaking: SpeakingSource | None = None
+    # The document open in the workspace beside the chat (ADR 0043 §6); None when none.
+    workspace: WorkspaceSource | None = None
 
 
 class ChatState(MessagesState):
@@ -149,6 +154,8 @@ class ChatState(MessagesState):
     # The language the tutor mainly talks in this turn (ADR 0017 §1), untracked so a
     # switch applies from the next reply.
     language: Annotated[ChatLanguage, UntrackedValue(str)]
+    # The document open in the workspace, untracked: it changes between turns.
+    workspace: Annotated[str, UntrackedValue(str)]
 
 
 # Callers send and get plain messages; learner_context is internal to a run.
@@ -156,6 +163,28 @@ type ChatGraph = CompiledStateGraph[ChatState, ChatContext, MessagesState, Messa
 
 
 async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
+    return {**await _load_context(state, runtime), "workspace": await _workspace(runtime)}
+
+
+async def _workspace(runtime: Runtime[ChatContext]) -> str:
+    source = runtime.context.workspace
+    if source is None:
+        return ""
+    with timed() as watch:
+        try:
+            focus = await source.load()
+        except Exception:  # the coach can reply without the document
+            logger.exception("loading the workspace document failed")
+            focus = None
+    if focus is None:
+        await report(runtime, Step(WORKSPACE_CONTEXT, "failed", duration_ms=watch.ms))
+        return ""
+    read = WorkspaceContextRead(doc_id=focus.doc_id, version=focus.version, words=focus.words)
+    await report(runtime, Step(WORKSPACE_CONTEXT, summary=read, duration_ms=watch.ms))
+    return render_workspace(focus)
+
+
+async def _load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
     cards = await _cards(runtime.context.tools)
     learner = runtime.context.learner
     practice = runtime.context.practice
@@ -433,6 +462,7 @@ async def _call(
         state.get("learner_context", ""),
         state.get("practice", ""),
         tools_section,
+        workspace=state.get("workspace", ""),
         language=state.get("language") or DEFAULT_CHAT_LANGUAGE,
         base=base,
         name=pick.name if (pick := runtime.context.providers.tutor) else None,
@@ -530,6 +560,7 @@ def system_prompt(
     language: ChatLanguage = DEFAULT_CHAT_LANGUAGE,
     base: str = "tutor_system",
     name: str | None = None,
+    workspace: str = "",
 ) -> str:
     """The tutor's instructions, the name the learner gave it, and which language to talk
     in, then what it knows about the learner, then (in a practice or planning
@@ -542,6 +573,8 @@ def system_prompt(
         )
     if practice:
         sections.append(practice)
+    if workspace:
+        sections.append(workspace)
     if tools:
         sections.append(tools)
     return "\n\n".join(sections)

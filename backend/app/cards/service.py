@@ -392,6 +392,12 @@ def describe(card: TutorCard) -> str:
             what = "open the line-by-line review of the learner's writing"
         case "daily_plan":
             what = describe_params(p)
+        case "workspace":
+            what = (
+                f"open the {p['kind']} document {p['title']!r} (id {p['doc_id']}) in the workspace"
+            )
+        case "workspace_edit":
+            what = f"propose {p['count']} edit(s) to {p['title']!r} in the workspace"
         case _:
             what = f"open the {p['kind']} page"
     return f"{what} ({_STATUS_TEXT.get(card.status, card.status)})"

@@ -83,7 +83,16 @@ ARTICLE_LICENSES = ("public_domain", "cc_by", "unknown")
 REWRITABLE_LICENSES = ("public_domain", "cc_by")
 # generating -> ready | failed; a failed version is generated again when asked for.
 ARTICLE_VERSION_STATUSES = ("generating", "ready", "failed")
-TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link", "writing", "daily_plan")
+TUTOR_CARD_KINDS = (
+    "word_book",
+    "learning_goal",
+    "practice",
+    "link",
+    "writing",
+    "daily_plan",
+    "workspace",
+    "workspace_edit",
+)
 # The chat workspace (ADR 0043): what a document is, where its text came from, who
 # wrote a version.
 WORKSPACE_KINDS = ("reading", "writing")
@@ -958,6 +967,29 @@ class WorkspaceDocVersion(TimestampMixin, Base):
     content: Mapped[dict[str, Any]] = mapped_column(JSONB)
     # The version this one went back to.
     reverted_from: Mapped[int | None] = mapped_column(Integer)
+
+
+class WorkspaceEdit(TimestampMixin, Base):
+    """Changes the tutor proposed to a writing document (`propose_edit`, ADR 0043 §5).
+
+    Each item replaces one exact passage and waits for the learner: accepted items make
+    a new version, declined ones leave no trace in the text. Items are found again in
+    the current text when decided, so edits the learner made meanwhile only stop the
+    items whose passage they changed.
+    """
+
+    __tablename__ = "workspace_edits"
+    __table_args__ = (UniqueConstraint("doc_id", "tool_call_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    doc_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspace_docs.id", ondelete="CASCADE"), index=True
+    )
+    tool_call_id: Mapped[str] = mapped_column(String(100))
+    # The version the passages were found in.
+    base_version: Mapped[int] = mapped_column(Integer)
+    # [{original, replacement, reason, status: pending | accepted | declined}]
+    items: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
 
 
 class WorkspaceAnnotation(Base):

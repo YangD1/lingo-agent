@@ -248,7 +248,7 @@ async def get_version(
     return row
 
 
-async def _add_version(
+async def add_version(
     session: AsyncSession,
     doc: WorkspaceDoc,
     author: Author,
@@ -296,7 +296,7 @@ async def save(
         doc.updated_at = now
         await session.commit()
         return latest
-    return await _add_version(session, doc, "learner", content)
+    return await add_version(session, doc, "learner", content)
 
 
 async def revert(session: AsyncSession, doc: WorkspaceDoc, number: int) -> WorkspaceDocVersion:
@@ -304,7 +304,7 @@ async def revert(session: AsyncSession, doc: WorkspaceDoc, number: int) -> Works
     target = await get_version(session, doc, number)
     if number == doc.version:
         return target
-    return await _add_version(session, doc, "learner", dict(target.content), reverted_from=number)
+    return await add_version(session, doc, "learner", dict(target.content), reverted_from=number)
 
 
 async def rename(session: AsyncSession, doc: WorkspaceDoc, title: str) -> WorkspaceDoc:

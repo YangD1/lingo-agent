@@ -90,7 +90,7 @@ async def _cached(
             WorkspaceAnnotation.key.in_(keys),
         )
     )
-    return {key: content for key, content in rows.tuples()}
+    return {key: content for key, content in rows}
 
 
 async def _keep(

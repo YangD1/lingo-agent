@@ -136,6 +136,15 @@ class ReadingContextRead(Summary):
     words: int
 
 
+class WorkspaceContextRead(Summary):
+    """`workspace_context`: the coach was given the document open in the workspace
+    (ADR 0043 §6), its first `words` words."""
+
+    doc_id: uuid.UUID
+    version: int
+    words: int
+
+
 @dataclass(frozen=True)
 class StepSpec:
     kind: ActivityKind
@@ -152,12 +161,15 @@ STEPS: dict[str, StepSpec] = {
     "handoff": StepSpec("step", Handoff),
     "writing_review": StepSpec("step", WritingReviewed),
     "reading_context": StepSpec("step", ReadingContextRead),
+    "workspace_context": StepSpec("step", WorkspaceContextRead),
     # One per tool (app/cards/tools.py), call_id = the model's tool call id.
     "propose_word_book": StepSpec("tool", CardShown),
     "propose_learning_goal": StepSpec("tool", CardShown),
     "propose_daily_plan": StepSpec("tool", CardShown),
     "suggest_practice": StepSpec("tool", CardShown),
     "suggest_link": StepSpec("tool", CardShown),
+    "open_workspace": StepSpec("tool", CardShown),
+    "propose_edit": StepSpec("tool", CardShown),
     # A realtime call's tools (app/realtime/tools.py); `add_to_vocab` as `vocab_collect`.
     "lookup_word": StepSpec("tool", WordLookedUp),
     "add_to_vocab": StepSpec("tool", WordsCollected),

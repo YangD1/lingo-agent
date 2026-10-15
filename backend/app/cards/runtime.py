@@ -13,7 +13,15 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.cards import service
-from app.cards.tools import CardScope, ToolCallError, ToolOutcome, draft_card
+from app.cards.tools import (
+    WORKSPACE_TOOL_NAMES,
+    CardDraft,
+    CardScope,
+    ToolCallError,
+    ToolOutcome,
+    draft_card,
+)
+from app.workspace.tools import WorkspaceTools
 
 
 class DatabaseTutorTools:
@@ -24,21 +32,39 @@ class DatabaseTutorTools:
         conversation_id: uuid.UUID,
         turn_id: str,
         scope: Callable[[], Awaitable[CardScope]] | None = None,
+        workspace: WorkspaceTools | None = None,
     ) -> None:
         self._sessionmaker = sessionmaker
         self._user_id = user_id
         self._conversation_id = conversation_id
         self._turn_id = turn_id
         self._scope = scope
+        self._workspace = workspace
         # One turn's calls run in parallel; put_card's same-proposal check is a read
         # then a write, so they take turns writing.
         self._writing = asyncio.Lock()
 
     async def run(self, name: str, args: Mapping[str, Any], call_id: str) -> ToolOutcome:
+        if name in WORKSPACE_TOOL_NAMES:
+            return await self._run_workspace(name, args, call_id)
         try:
             draft = draft_card(name, args, await self._scope() if self._scope else None)
         except ToolCallError as exc:
             return ToolOutcome(f"Error: {exc}. No card was shown.", ok=False)
+        return await self._put(draft, call_id)
+
+    async def _run_workspace(self, name: str, args: Mapping[str, Any], call_id: str) -> ToolOutcome:
+        """The workspace tools write documents first, then their card (ADR 0043 §6)."""
+        if self._workspace is None:
+            return ToolOutcome("Error: the workspace is not available here.", ok=False)
+        try:
+            result = await self._workspace.run(name, args, call_id)
+        except ToolCallError as exc:
+            return ToolOutcome(f"Error: {exc}.", ok=False)
+        outcome = await self._put(result.draft, call_id)
+        return ToolOutcome(result.content, ok=True, card=outcome.card)
+
+    async def _put(self, draft: CardDraft, call_id: str) -> ToolOutcome:
         async with self._writing, self._sessionmaker() as session:
             card = await service.put_card(
                 session,

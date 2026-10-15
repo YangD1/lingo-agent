@@ -19,8 +19,18 @@ from app.adaptive.rules import get_rules
 from app.memory.reflection import EXAM_TAGS
 from app.services.vocab.books import BOOKS, get_book
 
-# "writing" is put by writing_coach, not by a tool (task 38.5).
-CardKind = Literal["word_book", "learning_goal", "practice", "link", "writing", "daily_plan"]
+# "writing" is put by writing_coach, not by a tool (task 38.5); "workspace" and
+# "workspace_edit" by the workspace tools (app/workspace/tools.py, ADR 0043 §6).
+CardKind = Literal[
+    "word_book",
+    "learning_goal",
+    "practice",
+    "link",
+    "writing",
+    "daily_plan",
+    "workspace",
+    "workspace_edit",
+]
 LinkKind = Literal[
     "vocab_review",
     "vocab_learn",
@@ -138,13 +148,58 @@ class SuggestLink(_Args):
     kind: LinkKind
 
 
+class OpenWorkspace(_Args):
+    """Open a document in the workspace beside the chat, where the learner can work on
+    it while you talk. reading: close reading of a long English text (paragraph
+    translations, sentence analysis, word lookup). writing: drafting and revising the
+    learner's own writing. source: last_message = the long text the learner sent in
+    this or their previous message; article = this conversation's article (reading
+    only); blank = an empty writing document. The app copies the text itself: never
+    put the text in the arguments. The document opens by itself for the learner."""
+
+    model_config = ConfigDict(title="open_workspace")
+
+    kind: Literal["reading", "writing"]
+    source: Literal["last_message", "article", "blank"]
+    title: str | None = Field(
+        default=None, max_length=80, description="A short title; omit to use the text's start."
+    )
+
+
+class EditItem(_Args):
+    original: str = Field(
+        min_length=1,
+        max_length=300,
+        description="A passage copied exactly from the document, found once in it.",
+    )
+    replacement: str = Field(max_length=600, description="What replaces it.")
+    reason: str = Field(max_length=200, description="Why, in one short sentence.")
+
+
+class ProposeEdit(_Args):
+    """Propose changes to the learner's writing document open in the workspace (its id
+    is in your context). Each edit replaces one short passage (a phrase or a sentence)
+    copied exactly from the current text. The learner accepts or declines each one in
+    the workspace; nothing changes before, so never say the text is changed. Only when
+    the learner asks for corrections or a better version."""
+
+    model_config = ConfigDict(title="propose_edit")
+
+    doc_id: str = Field(description="The writing document's id, as given in your context.")
+    edits: list[EditItem] = Field(min_length=1, max_length=20)
+
+
 TOOL_SCHEMAS: tuple[type[_Args], ...] = (
     ProposeWordBook,
     ProposeLearningGoal,
     ProposeDailyPlan,
     SuggestPractice,
     SuggestLink,
+    OpenWorkspace,
+    ProposeEdit,
 )
+# Run by app/workspace/tools.py: they read and write documents, not only cards.
+WORKSPACE_TOOL_NAMES = frozenset({"open_workspace", "propose_edit"})
 TOOL_NAMES: frozenset[str] = frozenset(str(t.model_config.get("title")) for t in TOOL_SCHEMAS)
 _BY_NAME: dict[str, type[_Args]] = {str(t.model_config.get("title")): t for t in TOOL_SCHEMAS}
 
@@ -177,16 +232,21 @@ class CardScope:
     daily_plan: PlanTarget | None = None
 
 
-def draft_card(name: str, args: Mapping[str, Any], scope: CardScope | None = None) -> CardDraft:
-    """Validate one tool call and turn it into a card. Raises ToolCallError."""
+def parse_args(name: str, args: Mapping[str, Any]) -> BaseModel:
+    """A tool call's arguments, checked against its schema. Raises ToolCallError."""
     schema = _BY_NAME.get(name)
     if schema is None:
         raise ToolCallError(f"unknown tool {name!r}")
     try:
-        parsed = schema.model_validate(args)
+        return schema.model_validate(args)
     except ValidationError as exc:
         fields = sorted({".".join(str(p) for p in e["loc"]) or "arguments" for e in exc.errors()})
         raise ToolCallError(f"invalid arguments: {', '.join(fields)}") from exc
+
+
+def draft_card(name: str, args: Mapping[str, Any], scope: CardScope | None = None) -> CardDraft:
+    """Validate one tool call and turn it into a card. Raises ToolCallError."""
+    parsed = parse_args(name, args)
     scope = scope or CardScope()
     match parsed:
         case ProposeWordBook(book_id=book_id, daily_new=daily_new):

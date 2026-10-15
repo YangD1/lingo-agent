@@ -28,6 +28,7 @@ from app.chat.writing import WritingSource
 from app.db.models import Attachment, Conversation
 from app.memory.context import LearnerSource
 from app.providers.config import TenantProviderContext
+from app.workspace.context import WorkspaceSource
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +157,7 @@ async def stream_reply(
     writing: WritingSource | None = None,
     reading: ReadingSource | None = None,
     speaking: SpeakingSource | None = None,
+    workspace: WorkspaceSource | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -194,6 +196,7 @@ async def stream_reply(
                 writing=writing,
                 reading=reading,
                 speaking=speaking,
+                workspace=workspace,
             ):
                 queue.put_nowait(event)
         finally:
@@ -232,6 +235,7 @@ async def _run_graph(
     writing: WritingSource | None,
     reading: ReadingSource | None,
     speaking: SpeakingSource | None,
+    workspace: WorkspaceSource | None,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     text_id: str | None = None  # the tutor message whose text is streaming
@@ -269,6 +273,7 @@ async def _run_graph(
                 writing=writing,
                 reading=reading,
                 speaking=speaking,
+                workspace=workspace,
             ),
             stream_mode=["messages", "custom"],
             subgraphs=True,

@@ -17,11 +17,11 @@ from app.adaptive.kc.catalog import CefrLevel
 from app.api.errors import api_error
 from app.chat import service as chat_service
 from app.chat.service import ConversationNotFoundError
-from app.db.models import Conversation, WorkspaceDoc, WorkspaceDocVersion
+from app.db.models import Conversation, WorkspaceDoc, WorkspaceDocVersion, WorkspaceEdit
 from app.deps import CurrentTenant, CurrentUser, SessionDep, per_user
 from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
 from app.providers.tenant import load_provider_context
-from app.workspace import ai, service
+from app.workspace import ai, edits, service
 from app.workspace.service import Kind, WorkspaceError
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,7 @@ _STATUS = {
     service.VersionConflictError: status.HTTP_409_CONFLICT,
     ai.ParagraphNotFoundError: status.HTTP_404_NOT_FOUND,
     ai.SentenceNotFoundError: status.HTTP_404_NOT_FOUND,
+    edits.EditNotFoundError: status.HTTP_404_NOT_FOUND,
 }
 
 
@@ -360,3 +361,68 @@ async def analyze_sentence(
         logger.exception("analysing a sentence of workspace document %s failed", doc_id)
         raise _unavailable() from exc
     return AnalysisOut.model_validate(found)
+
+
+class EditItemOut(BaseModel):
+    index: int
+    original: str
+    replacement: str
+    reason: str
+    status: Literal["pending", "accepted", "declined"]
+    # Pending, but the passage is no longer in the text exactly once: can only be declined.
+    stale: bool
+
+
+class EditOut(BaseModel):
+    id: uuid.UUID
+    doc_id: uuid.UUID
+    base_version: int
+    created_at: datetime
+    items: list[EditItemOut]
+
+
+async def _edit_out(session: SessionDep, doc: WorkspaceDoc, edit: WorkspaceEdit) -> EditOut:
+    text = str((await service.get_version(session, doc)).content.get("text", ""))
+    return EditOut(
+        id=edit.id,
+        doc_id=edit.doc_id,
+        base_version=edit.base_version,
+        created_at=edit.created_at,
+        items=[
+            EditItemOut(index=i, **item, stale=edits.stale(item, text))
+            for i, item in enumerate(edit.items)
+        ],
+    )
+
+
+@router.get("/workspace/docs/{doc_id}/edits")
+async def list_edits(doc_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> list[EditOut]:
+    """The tutor's proposals for this document, newest first (ADR 0043 §5)."""
+    doc = await _doc(session, user, doc_id)
+    return [await _edit_out(session, doc, e) for e in await edits.list_edits(session, doc)]
+
+
+class DecideIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    accept: Annotated[list[int], Field(max_length=20)] = []
+    decline: Annotated[list[int], Field(max_length=20)] = []
+
+
+class DecidedOut(BaseModel):
+    doc: DocDetailOut
+    edit: EditOut
+
+
+@router.post("/workspace/edits/{edit_id}/decide")
+async def decide_edit(
+    edit_id: uuid.UUID, body: DecideIn, user: CurrentUser, session: SessionDep
+) -> DecidedOut:
+    """Accept or decline the tutor's changes, item by item; accepted ones make one new
+    version."""
+    try:
+        edit, doc = await edits.get_owned(session, user.id, edit_id)
+        await edits.decide(session, doc, edit, body.accept, body.decline)
+    except WorkspaceError as exc:
+        raise _error(exc) from exc
+    return DecidedOut(doc=await _detail(session, doc), edit=await _edit_out(session, doc, edit))
