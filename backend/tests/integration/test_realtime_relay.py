@@ -669,17 +669,19 @@ async def test_tools_run_for_the_learner_and_show_what_they_did(
             {
                 "type": "conversation.item.input_audio_transcription.completed",
                 "item_id": "u1",
-                "transcript": "What does ubiquitous mean? Keep it for me.",
+                "transcript": "What does ubiquitous mean? And keep cat for me.",
             },
             function_call("c1", "lookup_word", '{"word": "Ubiquitous"}'),
-            function_call("c2", "add_to_vocab", '{"word": "ubiquitous"}'),
+            # Calls in one reply run together (ADR 0030 §4): adding another word keeps
+            # what the lookup says about the list independent of which finishes first.
+            function_call("c2", "add_to_vocab", '{"word": "cat"}'),
             function_call("c3", "add_to_vocab", '{"user_id": "someone else"}'),
             function_call("c4", "end_session", "{}"),  # over 3 per reply
             {"type": "response.done", "response": {"status": "completed"}},
         )
         vendor.on(
             "input_audio_buffer.append",
-            function_call("c5", "add_to_vocab", '{"word": "ubiquitous"}'),
+            function_call("c5", "add_to_vocab", '{"word": "cat"}'),
             function_call("c6", "transfer_money", "{}"),
             function_call("c7", "end_session", "{}"),
             {"type": "response.done", "response": {"status": "completed"}},
@@ -704,10 +706,10 @@ async def test_tools_run_for_the_learner_and_show_what_they_did(
         "meanings": ["a. 无所不在的", "adv. x"],
         "on_word_list": False,
     }
-    assert outputs["c2"] == {"word": "ubiquitous", "status": "added"}
+    assert outputs["c2"] == {"word": "cat", "status": "added"}
     assert "error" in outputs["c3"]  # the learner is the caller, not an argument
     assert outputs["c4"] == {"error": "too many tool calls"}
-    assert outputs["c5"] == {"word": "ubiquitous", "status": "existing"}
+    assert outputs["c5"] == {"word": "cat", "status": "existing"}
     assert outputs["c6"] == {"error": "unknown tool"}
     assert outputs["c7"]["ok"] is True
     # Each batch of results, then one reply: the opening, plus one per batch.
@@ -722,8 +724,8 @@ async def test_tools_run_for_the_learner_and_show_what_they_did(
         ("add_to_vocab", "c5", "ok", "tool"),
         ("end_session", "c7", "ok", "tool"),
     ]
-    assert shown[1]["summary"]["added"][0]["word"] == "ubiquitous"
-    assert shown[4]["summary"]["existing"][0]["word"] == "ubiquitous"
+    assert shown[1]["summary"]["added"][0]["word"] == "cat"
+    assert shown[4]["summary"]["existing"][0]["word"] == "cat"
     assert shown[2]["summary"] == shown[3]["summary"] == {}  # failures say nothing more
     assert all(m["turn_id"] == learner_turn for m in shown)
     # Kept under the learner's message in the call's conversation.
@@ -734,7 +736,7 @@ async def test_tools_run_for_the_learner_and_show_what_they_did(
     assert sorted(calls) == ["c1", "c2", "c3", "c4", "c5", "c7"]
     history = await client.get(f"/conversations/{ready['conversation_id']}/messages")
     assert history.json()[0]["id"] == learner_turn
-    card = await db_session.scalar(select(UserCard).join(Word).where(Word.word == "ubiquitous"))
+    card = await db_session.scalar(select(UserCard).join(Word).where(Word.word == "cat"))
     assert card is not None and card.source == "auto"
     assert body["words_on_list"] == [card.word_id]
 
