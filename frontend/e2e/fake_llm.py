@@ -40,7 +40,10 @@ sentence's analysis takes its first three words as the main part. With a documen
 the tutor answers 'In your document: ...'; "open it in the workspace" calls
 `open_workspace` on the long text just sent (writing if the message says "writing"), and
 "improve" with a writing document open calls `propose_edit` on each sentence with a
-"he/she/it like" mistake.
+"he/she/it like" mistake. While the learner lets it open the workspace by itself (ADR
+0045), "help me understand" opens the long text just sent for reading; "close the
+workspace" calls `close_workspace`, "don't open the workspace by itself"
+`set_workspace_auto_open` off.
 """
 
 import asyncio
@@ -178,6 +181,11 @@ WORKSPACE_DOC = re.compile(
 )
 OPEN_WORKSPACE = re.compile(r"open it in the workspace", re.IGNORECASE)
 IMPROVE = re.compile(r"\bimprove\b", re.IGNORECASE)
+# ADR 0045: the tutor's own judgment, scripted (prompts/tutor_workspace_auto.md).
+UNDERSTAND = re.compile(r"help me understand", re.IGNORECASE)
+AUTO_OPEN_RULE = "The learner lets you open it by yourself"
+CLOSE_WORKSPACE = re.compile(r"close the workspace", re.IGNORECASE)
+AUTO_OPEN_OFF = re.compile(r"don't open the workspace by itself", re.IGNORECASE)
 WORKSPACE_PARAGRAPH = "## Paragraph\n"
 WORKSPACE_SENTENCE = "## Sentence\n"
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
@@ -596,6 +604,13 @@ def tutor_tool_call(
     if "open_workspace" in names and OPEN_WORKSPACE.search(said):
         kind = "writing" if "writing" in said.lower() else "reading"
         return "open_workspace", {"kind": kind, "source": "last_message"}
+    if "open_workspace" in names and UNDERSTAND.search(said):
+        if AUTO_OPEN_RULE in system_text(messages):
+            return "open_workspace", {"kind": "reading", "source": "last_message"}
+    if "close_workspace" in names and CLOSE_WORKSPACE.search(said):
+        return "close_workspace", {}
+    if "set_workspace_auto_open" in names and AUTO_OPEN_OFF.search(said):
+        return "set_workspace_auto_open", {"on": False}
     if "propose_edit" in names and IMPROVE.search(said) and (edit := proposed_edit(messages)):
         return "propose_edit", edit
     if "propose_daily_plan" in names and SHORT_ON_TIME.search(said):

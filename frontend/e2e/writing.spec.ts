@@ -78,8 +78,11 @@ test("chat: a long piece of writing goes to the writing coach → card → the r
   await input.fill(message);
   await input.press("Enter");
 
-  const card = page.getByTestId("tutor-card");
+  const card = page.locator('[data-testid="tutor-card"][data-kind="writing"]');
   await expect(card).toContainText("作文批改", { timeout: 30_000 });
+  // The learner lets the workspace open by itself: the writing opens there to revise (ADR 0045 §4).
+  await expect(page.getByTestId("workspace")).toBeVisible();
+  await expect(page.getByTestId("writing-editor")).toHaveValue(/Please review my writing/);
   await expect(page.getByRole("button", { name: /^JOJO做了什么：/ }).first()).toContainText(
     "写作教练",
   );
@@ -91,5 +94,5 @@ test("chat: a long piece of writing goes to the writing coach → card → the r
   await expect(page.getByTestId("writing-corrected")).toHaveCount(2);
   await page.getByRole("link", { name: "来自和助手的对话（打开对话）" }).click();
   await expect(page).toHaveURL(/\/chat\?c=/);
-  await expect(page.getByTestId("tutor-card")).toContainText("作文批改");
+  await expect(page.locator('[data-testid="tutor-card"][data-kind="writing"]')).toContainText("作文批改");
 });

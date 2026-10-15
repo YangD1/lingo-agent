@@ -286,3 +286,42 @@ test("the tutor opens the learner's writing, proposes edits; one accepted, one d
   await expect(page.getByTestId("writing-review-button")).toBeInViewport();
   await page.screenshot({ path: test.info().outputPath("workspace-writing-phone.png") });
 });
+
+test("the tutor opens the workspace by itself, closes it when told, and stops when told (ADR 0045)", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await page.goto("/chat");
+  const asking = `Can you help me understand this?\n\n${ARTICLE}`;
+
+  // A long text to understand: the tutor opens it for reading without being asked to.
+  await send(page, asking, "suggestion on a card");
+  await expect(page.getByText(/在工作区打开了《/)).toBeVisible();
+  await expect(workspace(page)).toBeVisible();
+  await expect(page).toHaveURL(/[?&]w=[0-9a-f-]{36}/);
+
+  // "Close it": the panel closes, the document stays and opens again from the card.
+  await send(page, "Please close the workspace.", "suggestion on a card");
+  await expect(workspace(page)).toBeHidden();
+  await expect(page).not.toHaveURL(/[?&]w=/);
+  const closed = page.locator('[data-testid="tutor-card"][data-kind="workspace_closed"]');
+  await expect(closed).toContainText("收起了工作区，文档都还在");
+  await closed.getByRole("button", { name: "重新打开" }).click();
+  await expect(workspace(page)).toBeVisible();
+  await page.getByRole("button", { name: "关闭工作区" }).click();
+  await expect(workspace(page)).toBeHidden();
+
+  // "Don't open it by yourself": applied at once, undoable, and the next long text stays in the chat.
+  await send(page, "From now on, don't open the workspace by itself.", "suggestion on a card");
+  const auto = page.locator('[data-testid="tutor-card"][data-kind="workspace_auto"]');
+  await expect(auto).toContainText("以后只在你要求时才打开工作区");
+  await expect(auto).toHaveAttribute("data-status", "applied");
+  await send(page, asking, "word0");
+  await expect(workspace(page)).toBeHidden();
+  await expect(page.locator('[data-testid="tutor-card"][data-kind="workspace"]')).toHaveCount(1);
+
+  // The assistant settings show it off.
+  await page.goto("/tutor");
+  await expect(page.locator("#tutor-workspace-auto")).not.toBeChecked();
+});
