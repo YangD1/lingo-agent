@@ -160,6 +160,8 @@ async def seed(
             user = await register_user(
                 session, email, password, display_name="Lin" if lang == "en" else "小林"
             )
+            # A demo account opens straight onto its history, not the setup guide (ADR 0042).
+            user.setup_completed_at = now
             tenant = await get_personal_tenant(session, user.id)
             assert tenant is not None  # register_user makes one
             await _profile(session, user.id, lang)

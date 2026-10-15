@@ -157,6 +157,8 @@ class User(TimestampMixin, Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     display_name: Mapped[str | None] = mapped_column(String(100))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # When the setup guide was last finished (ADR 0042 §1); null sends the learner to it.
+    setup_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class TenantMember(Base):

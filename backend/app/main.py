@@ -36,6 +36,7 @@ from app.api import (
     providers,
     reading,
     realtime,
+    setup,
     speaking,
     speech,
     tutor,
@@ -251,6 +252,7 @@ def create_app() -> FastAPI:
     app.include_router(realtime.router)
     app.include_router(org.router)
     app.include_router(tutor.router)
+    app.include_router(setup.router)
     return app
 
 

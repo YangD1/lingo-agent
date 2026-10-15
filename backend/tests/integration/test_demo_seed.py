@@ -101,6 +101,9 @@ async def test_seed_twice_gives_the_same_history_and_leaves_others_alone(
     assert after == before
     assert users == {other, second.user_id}
     assert before["reviews"] > 0 and before["memories"] == len(content.MEMORIES) + 1
+    async with maker() as session:
+        demo = await session.get(User, second.user_id)
+        assert demo is not None and demo.setup_completed_at == NOW  # no setup guide
 
 
 async def test_the_demo_has_a_weak_point_a_consolidating_one_and_a_streak(

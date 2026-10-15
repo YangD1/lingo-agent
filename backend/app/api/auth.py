@@ -1,9 +1,10 @@
 import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.api.errors import api_error
 from app.auth.security import create_access_token
@@ -45,6 +46,19 @@ class UserOut(BaseModel):
     id: uuid.UUID
     email: str
     display_name: str | None
+    # Null until the setup guide is finished (ADR 0042 §1).
+    setup_completed_at: datetime | None
+
+
+class UserPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: Annotated[str | None, Field(max_length=100)] = None
+
+    @field_validator("display_name")
+    @classmethod
+    def _blank_is_none(cls, value: str | None) -> str | None:
+        return value.strip() or None if value is not None else None
 
 
 class TenantOut(BaseModel):
@@ -158,3 +172,12 @@ async def logout(response: Response, settings: SettingsDep) -> None:
 @router.get("/me")
 async def me(user: CurrentUser, tenant: CurrentTenant) -> MeOut:
     return MeOut(user=UserOut.model_validate(user), tenant=TenantOut.model_validate(tenant))
+
+
+@router.patch("/me")
+async def update_me(body: UserPatch, user: CurrentUser, session: SessionDep) -> UserOut:
+    """The name the app calls the learner by (the setup guide's first step, ADR 0042 §2)."""
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
+    await session.commit()
+    return UserOut.model_validate(user)
