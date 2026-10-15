@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-10-16 任务 86.9 与任务 87：修理解检查出不成题；助手按需自动打开工作区
+
+**做了什么**
+- 86.9（dd6a494）：理解检查偶发“这次没出成题”的根因是 DeepSeek 在扁平 schema 下漏写 `options` / `correct`。出题 schema 改为每个题位一个 `item_<位置>` 字段、类型按题型生成（`adaptive/exercise/drafts.py` `generated_set_model` / `drafts_in`，必填写进 schema、解析宽松），缺字段时给模型看得懂的反馈；出题图各步失败记日志。真实模型复现 3 次都成功。ADR 0021 §3 补修订。
+- 87.1（de06165）：ADR 0045；PLAN 补一句。
+- 87.2（67ab1a8）：`tutor_profiles.workspace_auto_open`（迁移 `b2e091212155`，默认开）、设置页开关；`tutor_tools.md` 新增工作区一节，`{workspace_rule}` 按偏好装配 `tutor_workspace_auto.md` / `tutor_workspace_on_request.md`。
+- 87.3（ce437b9）：工具 `close_workspace`（只收起不删，卡片 `workspace_closed` 带“重新打开”；前端只在实时收到时收起）和 `set_workspace_auto_open`（`WorkspaceResult.apply` → `cards/runtime.py` 调用即生效，卡片 `workspace_auto` 可撤销，之后改过则 409）。
+- 87.4（a88cd3e）：`chat/writing.py` `DatabaseWriting(open_in_workspace=...)`，批改后建写作文档（按 `source_ref` = 提交 id 复用）、发 `workspace` 卡片（`writing-workspace-<id>`），活动 `workspace_opened`，coach 指引追加 `prompts/writing_workspace.md`。
+- 87.5：E2E `workspace.spec.ts` 新增一条，`writing.spec.ts` 补自动打开；`fake_llm.py` 看系统提示里的规则决定是否自动开。
+- 87.6：pytest 1979、Vitest 887、E2E 91 全过，`make lint` 干净；Docker 先后端再前端重建，`/healthz` 200。
+
+**未完成 / 下一步**
+- 任务 86、86.9、87 的提交都在本地，未推送。等用户看效果（在对话里贴长文问“帮我看懂”，或者发一篇 60 词以上的作文），再决定是否推送。
+- 真实模型下“判断需要就自动开”的效果还没用真 key 跑过，只靠提示词；如果助手开得太多或太少，调 `tutor_tools.md` 工作区一节。
+
+**踩坑**
+- `providers.tutor` 可能是 None（没有助手设置的账号），读偏好时要按默认开处理（`api/chat.py`、`workspace_rule`）。
+- 写作批改后多了一张 `workspace` 卡片，老 E2E 里 `getByTestId("tutor-card")` 会匹配到两张、触发严格模式，要按 `data-kind` 筛选。
+- 假模型的长文里含 “along”，会命中 `"long" in last` 分支，回复变成 `word0 word1…`。
+
+---
+
 ## 2026-10-15 任务 86.7、86.8：课程 E2E 与收尾，任务 86 完成
 
 **做了什么**
