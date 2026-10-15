@@ -44,6 +44,8 @@ class TutorChoice:
     nudges: bool = True
     # The tutor's opening the first time the pet is opened in a day (ADR 0041 §5).
     daily_opening: bool = True
+    # The tutor opens the chat workspace by itself (ADR 0045 §3).
+    workspace_auto_open: bool = True
     chat_model: str | None = None
     tts_model: str | None = None
     voices: dict[str, str] | None = None
@@ -106,6 +108,7 @@ def validate(choice: TutorChoice, options: TutorOptions) -> dict[str, Any]:
         "pet": choice.pet,
         "nudges": choice.nudges,
         "daily_opening": choice.daily_opening,
+        "workspace_auto_open": choice.workspace_auto_open,
         "chat_model": choice.chat_model,
         "tts_model": choice.tts_model if voices else None,
         "voices": voices,

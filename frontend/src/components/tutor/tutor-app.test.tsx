@@ -111,6 +111,8 @@ describe("TutorApp", () => {
     await userEvent.click(screen.getByRole("switch", { name: /Reminders/ }));
     await userEvent.click(screen.getByRole("switch", { name: /Desk pet/ }));
     expect(screen.queryByRole("switch", { name: /Reminders/ })).toBeNull();
+    // Not the pet's: the assistant opening the chat workspace by itself (ADR 0045 §3).
+    await userEvent.click(screen.getByRole("switch", { name: /Open the workspace by itself/ }));
     const preview = screen.getByRole("img", { name: "Preview of Max" });
     expect(preview).toHaveAttribute("data-outfit", "sporty");
     expect(preview).toHaveAttribute("data-fur", "#829cb8");
@@ -129,6 +131,7 @@ describe("TutorApp", () => {
       pet: false,
       nudges: false,
       daily_opening: true,
+      workspace_auto_open: false,
       chat_model: "main:qwen-plus",
       tts_model: "main:qwen3-tts-flash",
       voices: { "en-US": "Ethan" },

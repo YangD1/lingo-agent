@@ -94,6 +94,8 @@ TUTOR_CARD_KINDS = (
     "workspace",
     "workspace_edit",
     "quiz",
+    "workspace_closed",
+    "workspace_auto",
 )
 # The chat workspace (ADR 0043): what a document is, where its text came from, who
 # wrote a version.
@@ -702,6 +704,8 @@ class TutorProfile(TimestampMixin, Base):
     nudges: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     # The tutor speaks first the first time the pet is opened in a day (ADR 0041 §5).
     daily_opening: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # The tutor opens the chat workspace by itself when it judges it helps (ADR 0045 §3).
+    workspace_auto_open: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     chat_model: Mapped[str | None] = mapped_column(String(300))
     # The read-aloud model `voices` were picked from, and {language: voice}.
     tts_model: Mapped[str | None] = mapped_column(String(300))

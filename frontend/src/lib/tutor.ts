@@ -20,6 +20,8 @@ export type Tutor = {
   nudges: boolean;
   /** The tutor speaks first the first time the pet is opened in a day (ADR 0041). */
   daily_opening: boolean;
+  /** The assistant opens the chat workspace by itself when it helps (ADR 0045 §3). */
+  workspace_auto_open: boolean;
   /** `<connection>:<model>`. */
   chat_model: string | null;
   /** The read-aloud model `voices` were picked for. */
@@ -40,6 +42,7 @@ export const DEFAULT_TUTOR: Tutor = {
   pet: true,
   nudges: true,
   daily_opening: true,
+  workspace_auto_open: true,
   chat_model: null,
   tts_model: null,
   voices: {},
@@ -83,6 +86,7 @@ export type TutorForm = {
   pet: boolean;
   nudges: boolean;
   daily_opening: boolean;
+  workspace_auto_open: boolean;
   chat_model: string;
   voices: Record<VoiceLanguage, string>;
   realtime_model: string;
@@ -107,6 +111,7 @@ export function toForm(tutor: Tutor, options: TutorOptions): TutorForm {
     pet: tutor.pet,
     nudges: tutor.nudges,
     daily_opening: tutor.daily_opening,
+    workspace_auto_open: tutor.workspace_auto_open,
     chat_model: off.has("chat_model") ? "" : (tutor.chat_model ?? ""),
     voices: Object.fromEntries(
       VOICE_LANGUAGES.map((lang) => [lang, voicesHold ? (tutor.voices[lang] ?? "") : ""]),
@@ -133,6 +138,7 @@ export function toBody(form: TutorForm, options: TutorOptions): TutorBody {
     pet: form.pet,
     nudges: form.nudges,
     daily_opening: form.daily_opening,
+    workspace_auto_open: form.workspace_auto_open,
     chat_model: form.chat_model || null,
     tts_model: picked ? options.read_aloud.voice_model : null,
     voices,

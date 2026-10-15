@@ -72,7 +72,7 @@ from app.memory.context import (
 )
 from app.memory.language import DEFAULT_CHAT_LANGUAGE, ChatLanguage
 from app.prompts import load_prompt
-from app.providers.config import TenantProviderContext
+from app.providers.config import TenantProviderContext, TutorPick
 from app.providers.llm import get_llm, get_llm_with_tools
 from app.tutor.prompt import tutor_name
 from app.workspace.context import WorkspaceSource, render_workspace
@@ -487,6 +487,10 @@ async def _call(
         tools_section = load_prompt("tutor_tools" if bind else "tutor_no_tools").replace(
             "{cards}", cards
         )
+        if bind:
+            tools_section = tools_section.replace(
+                "{workspace_rule}", workspace_rule(runtime.context.providers.tutor)
+            )
     prompt = system_prompt(
         state.get("learner_context", ""),
         state.get("practice", ""),
@@ -516,6 +520,12 @@ async def _call(
     if reply is None:
         raise ValueError("chat model returned no output")
     return message_chunk_to_message(reply) if isinstance(reply, BaseMessageChunk) else reply
+
+
+def workspace_rule(tutor: TutorPick | None) -> str:
+    """Whether the tutor opens the workspace by itself (ADR 0045 §1, §3)."""
+    auto = tutor is None or tutor.workspace_auto_open
+    return load_prompt("tutor_workspace_auto" if auto else "tutor_workspace_on_request")
 
 
 def tool_rounds(messages: Sequence[BaseMessage]) -> int:

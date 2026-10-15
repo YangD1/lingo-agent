@@ -268,6 +268,8 @@ class TutorPick:
     voices: Mapping[str, str] = field(default_factory=dict)
     realtime_model: str | None = None
     realtime_voice: str | None = None
+    # Not a model pick, but the tutor's own setting its prompt follows (ADR 0045 §3).
+    workspace_auto_open: bool = True
 
 
 @dataclass(frozen=True)

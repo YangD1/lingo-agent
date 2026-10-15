@@ -2601,6 +2601,8 @@
       "nudgesHint": "The pet says in a bubble when words are due, what's left of today's plan, or that a model needs setting up. At most 3 a day; no model calls.",
       "dailyOpening": "Sum up on the first open of the day",
       "dailyOpeningHint": "The first time you open the desk pet each day, the assistant uses AI to look back at your last 7 days and suggest one or two things for today (a few tokens). The cat wears a ✦ hair clip until then.",
+      "workspaceAutoOpen": "Open the workspace by itself",
+      "workspaceAutoOpenHint": "When you paste a whole English text or start writing something longer, the assistant opens the workspace on the right. You can also just tell it to close it, or to stop opening it by itself.",
       "animate": "Animation",
       "animateHint": "Off: a still picture. Also still when your system asks for reduced motion."
     },

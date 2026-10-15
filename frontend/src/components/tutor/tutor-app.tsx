@@ -277,6 +277,13 @@ function LooksCard({
             />
           )}
           <SwitchRow
+            id="tutor-workspace-auto"
+            label={t("workspaceAutoOpen")}
+            hint={t("workspaceAutoOpenHint")}
+            checked={form.workspace_auto_open}
+            onChange={(workspace_auto_open) => onChange({ workspace_auto_open })}
+          />
+          <SwitchRow
             id="tutor-animate"
             label={t("animate")}
             hint={t("animateHint")}

@@ -1161,8 +1161,9 @@
 - [~] 任务 87：助手判断需要时自动打开工作区，学习者用自然语言关闭 / 关掉自动打开（2026-10-15 用户提出；Q87a 保留工作区与对话的联动、Q87b 写作由代码在批改后自动开、Q87c 存成长期偏好，均按推荐确认）
   - 现状：`open_workspace` 工具和前端“收到卡片自动打开”早已有（ADR 0043 §6），但 `tutor_tools.md` 没介绍工作区工具且要求“不确定先问”，助手从未主动打开（`workspace_docs` 里 created_by=tutor 为 0）；≥60 词的作文路由到不带工具的 writing_coach；没有关闭工具和“别自动开”的偏好
   - [x] 87.1 ADR 0045 + PLAN：何时自动开、关闭与偏好、写作批改后自动开。测试：只改文档（完成：`docs/decisions/0045-workspace-auto-open.md`，PLAN 对话工作区一段补一句）
-  - [~] 87.2 偏好 `tutor_profiles.workspace_auto_open`（默认开，迁移）+ 设置接口 / 助手设置页开关；提示词按偏好装配：开 = 判断需要就直接开，关 = 只在学习者明确要求时开。测试：pytest（迁移、接口、装配）；Vitest（设置页开关）
-  - [ ] 87.3 `tutor_tools.md` 工作区一节（粘贴整篇英文想读懂 → 精读；要写 / 改作文邮件 → 写作；短句不开；已有同一份不重开）+ 新工具 `close_workspace`（只收起，不删）、`set_workspace_auto_open`（改偏好，幂等、可在设置页改回）；`agent-tools.md`、活动记录。测试：pytest（工具、幂等、偏好装配）；Vitest（收到关闭卡片收起面板）
+  - [x] 87.2 偏好 `tutor_profiles.workspace_auto_open`（默认开，迁移）+ 设置接口 / 助手设置页开关；提示词按偏好装配：开 = 判断需要就直接开，关 = 只在学习者明确要求时开。测试：pytest（迁移、接口、装配）；Vitest（设置页开关）
+    - 完成：迁移 `b2e091212155`（`tutor_profiles.workspace_auto_open` 默认 true；卡片种类加 `workspace_closed`、`workspace_auto`）；`TutorIn/Out`、`TutorChoice`、`TutorPick.workspace_auto_open`（随 provider 上下文进对话）；`tutor_tools.md` 新增“The workspace”一节，`{workspace_rule}` 按偏好换成 `tutor_workspace_auto.md` / `tutor_workspace_on_request.md`（`chat_graph.workspace_rule`）；助手设置页“对话时自动打开工作区”开关。测试：`test_workspace_auto.py`（提示词随设置变）、`test_tutor_api.py`；Vitest `tutor-app.test.tsx`、`tutor.test.ts`
+  - [~] 87.3 `tutor_tools.md` 工作区一节（粘贴整篇英文想读懂 → 精读；要写 / 改作文邮件 → 写作；短句不开；已有同一份不重开）+ 新工具 `close_workspace`（只收起，不删）、`set_workspace_auto_open`（改偏好，幂等、可在设置页改回）；`agent-tools.md`、活动记录。测试：pytest（工具、幂等、偏好装配）；Vitest（收到关闭卡片收起面板）
   - [ ] 87.4 writing_coach 批改后：偏好开着时由代码把这篇作文建成写作文档并发 `workspace` 卡片（同一篇不重复建）。测试：pytest（开 / 关两种、幂等）
   - [ ] 87.5 E2E（假模型）：粘贴长文 → 工作区自动打开 → 说“关掉” → 面板收起；说“以后别自动开”→ 再粘贴不自动开。理由：自动打开、收起只有真浏览器能验证
   - [ ] 87.6 收尾：受影响层全量测试、lint、文档、Docker 重建（先后端再前端）
