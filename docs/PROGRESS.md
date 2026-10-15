@@ -1158,10 +1158,10 @@
       - b `DraftError` 转成可照改的话（缺哪个字段、该填什么）再交给重写。测试：pytest（缺字段、选项数不对）
       - c 送 critic 前被拒的题打 `logger.info`（位置、题型、原因），整组失败时记 warning。测试：pytest（caplog）
       - 完成：a、b、c 做完后用真实模型复现，**DeepSeek 仍然不写 `options`**：原始工具参数里连键都没有，提示和看得懂的反馈都没用。追加 d'：出题 schema 改为每个题位一个 `item_<位置>` 字段，类型是这一题型自己的模型（`drafts.generated_set_model(rules, briefs)` / `_item_model`），必填字段在 schema 里标为必填、不允许 null，解析仍然宽松，缺了逐题退回重写（`_required_in_schema`）；仍然没有带标签联合。改后真实模型复现 3 次都出成（理解检查 2 题都有）。ADR 0021 §3 写了修订；E2E 假模型同步改。全量 pytest 1970、E2E（course / practice / practice-set / diagnosis）6 条全过；lint 干净
-- [ ] 任务 87：助手判断需要时自动打开工作区，学习者用自然语言关闭 / 关掉自动打开（2026-10-15 用户提出；Q87a 保留工作区与对话的联动、Q87b 写作由代码在批改后自动开、Q87c 存成长期偏好，均按推荐确认）
+- [~] 任务 87：助手判断需要时自动打开工作区，学习者用自然语言关闭 / 关掉自动打开（2026-10-15 用户提出；Q87a 保留工作区与对话的联动、Q87b 写作由代码在批改后自动开、Q87c 存成长期偏好，均按推荐确认）
   - 现状：`open_workspace` 工具和前端“收到卡片自动打开”早已有（ADR 0043 §6），但 `tutor_tools.md` 没介绍工作区工具且要求“不确定先问”，助手从未主动打开（`workspace_docs` 里 created_by=tutor 为 0）；≥60 词的作文路由到不带工具的 writing_coach；没有关闭工具和“别自动开”的偏好
-  - [ ] 87.1 ADR 0045 + PLAN：何时自动开、关闭与偏好、写作批改后自动开。测试：只改文档
-  - [ ] 87.2 偏好 `tutor_profiles.workspace_auto_open`（默认开，迁移）+ 设置接口 / 助手设置页开关；提示词按偏好装配：开 = 判断需要就直接开，关 = 只在学习者明确要求时开。测试：pytest（迁移、接口、装配）；Vitest（设置页开关）
+  - [x] 87.1 ADR 0045 + PLAN：何时自动开、关闭与偏好、写作批改后自动开。测试：只改文档（完成：`docs/decisions/0045-workspace-auto-open.md`，PLAN 对话工作区一段补一句）
+  - [~] 87.2 偏好 `tutor_profiles.workspace_auto_open`（默认开，迁移）+ 设置接口 / 助手设置页开关；提示词按偏好装配：开 = 判断需要就直接开，关 = 只在学习者明确要求时开。测试：pytest（迁移、接口、装配）；Vitest（设置页开关）
   - [ ] 87.3 `tutor_tools.md` 工作区一节（粘贴整篇英文想读懂 → 精读；要写 / 改作文邮件 → 写作；短句不开；已有同一份不重开）+ 新工具 `close_workspace`（只收起，不删）、`set_workspace_auto_open`（改偏好，幂等、可在设置页改回）；`agent-tools.md`、活动记录。测试：pytest（工具、幂等、偏好装配）；Vitest（收到关闭卡片收起面板）
   - [ ] 87.4 writing_coach 批改后：偏好开着时由代码把这篇作文建成写作文档并发 `workspace` 卡片（同一篇不重复建）。测试：pytest（开 / 关两种、幂等）
   - [ ] 87.5 E2E（假模型）：粘贴长文 → 工作区自动打开 → 说“关掉” → 面板收起；说“以后别自动开”→ 再粘贴不自动开。理由：自动打开、收起只有真浏览器能验证
