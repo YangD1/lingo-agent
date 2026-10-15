@@ -83,7 +83,7 @@
 
 | 操作 | 代码 | 写 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|
-| 课程的“直接测验”（“我已经会了”，ADR 0044 §5） | `api/course.py` `POST /course/lessons/{kc_id}/test-out`（锁定的课也可以）→ `PracticeWorker.start_quiz`（`quiz`）→ `cards/service.py` `put_card`（turn id 和 tool call id 都是 `test-out-<时间>`） | 课程对话（没有就新建，同“开始这一课”）；`exercise_sets`（`origin=quiz`，后台出题，同 `give_quiz`）；`tutor_cards`（`quiz`）。不调对话模型，只花出题的 token；当天这个语法点的过关测验已出满时 409 `quiz_limit` | 课程对话里的测验卡片；下一轮助手在卡片上下文里看到结果 |
+| 课程的“直接测验”（“我已经会了”，ADR 0044 §5） | `api/course.py` `POST /course/lessons/{kc_id}/test-out`（锁定的课也可以）→ `PracticeWorker.start_quiz`（`quiz`）→ `cards/service.py` `put_card`（turn id 和 tool call id 都是 `test-out-<时间>`） | 课程对话（没有就新建，同“开始这一课”）；`exercise_sets`（`origin=quiz`，后台出题，同 `give_quiz`）；`tutor_cards`（`quiz`）。不调对话模型，只花出题的 token；当天这个语法点的过关测验已出满时 409 `quiz_limit` | 课程对话里的测验卡片（不挂在消息下，按时间插在消息之间）；有卡片的空对话不触发助手开场；课程对话顶栏的状态在测验做完后刷新；下一轮助手在卡片上下文里看到结果 |
 | 在助手回复的单词气泡里加入生词本（ADR 0017） | 前端 `components/chat/word-popup.tsx` → `POST /vocab/mine`（加的是查到的词条，比如 went 加的是 go） | `user_cards`（`source=manual`，规则同生词本页：精确 → 忽略大小写 → 还原原形；已标“认识”的词变回待学） | 单词气泡里提示结果；`/vocab/mine` 可删除 |
 
 ## LLM 工具调用（模型决定是否调用）
