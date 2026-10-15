@@ -15,17 +15,22 @@ import { CefrTag, Tag } from "@/components/ui/tag";
 import { Textarea } from "@/components/ui/textarea";
 import { isShortcut } from "@/lib/keyboard";
 import { kcName } from "@/lib/learner";
-import { type Item, keyText, type Reply, replyText } from "@/lib/practice";
+import { type Format, type Item, keyText, type Reply, replyText } from "@/lib/practice";
 import { cn } from "@/lib/utils";
 
 /** Formats whose answer a model grades (ADR 0021 §6): find_fix only when the fix is new. */
-const MODEL_GRADED = new Set(["find_fix", "transform", "translate", "rewrite_own"]);
+const MODEL_GRADED = new Set(["find_fix", "transform", "translate", "rewrite_own", "explain"]);
+/** Picked from options. */
+const CHOICE = new Set(["choice4", "concept_choice"]);
+/** Understanding checks ask about the rule, maybe in the learner's language (ADR 0044 §3). */
+const ABOUT_THE_RULE = new Set(["concept_choice", "explain"]);
 
 /**
  * One practice item on its own screen (P2 plan §3.7): the question and its answer
  * control, then, once answered, right or wrong with the key, the explanation and any
  * other mistakes. Keys: 1–4 pick an option, 1–6 a piece of a find-the-error sentence,
- * Enter goes on once answered.
+ * Enter goes on once answered; a quiz card in the chat turns them off (`shortcuts`), so
+ * they never take keys from the chat's input box.
  */
 export function PracticeItem({
   item,
@@ -36,6 +41,7 @@ export function PracticeItem({
   onAnswer,
   onReport,
   onNext,
+  shortcuts = true,
 }: {
   item: Item;
   /** 0-based among the set's items. */
@@ -47,6 +53,7 @@ export function PracticeItem({
   onReport: () => void;
   /** Shown once answered or reported. */
   onNext: (() => void) | null;
+  shortcuts?: boolean;
 }) {
   const t = useTranslations("practice.item");
   const locale = useLocale();
@@ -82,6 +89,7 @@ export function PracticeItem({
   }
 
   useEffect(() => {
+    if (!shortcuts) return;
     function onKey(event: KeyboardEvent) {
       if (event.key === "Enter" && answered && onNext && !event.isComposing) {
         const target = event.target as HTMLElement | null;
@@ -93,7 +101,7 @@ export function PracticeItem({
       if (!isShortcut(event) || answered) return;
       const n = Number(event.key) - 1;
       if (!Number.isInteger(n) || n < 0) return;
-      if (item.format === "choice4" && item.content.options?.[n] !== undefined) {
+      if (CHOICE.has(item.format) && item.content.options?.[n] !== undefined) {
         event.preventDefault();
         submit({ choice: item.content.options[n] });
       } else if (item.format === "find_fix" && item.content.segments?.[n] !== undefined) {
@@ -124,7 +132,7 @@ export function PracticeItem({
       <CardContent className="flex flex-col gap-5">
         <Question item={item} segment={segment} answered={answered} onPick={pickSegment} />
 
-        {!answered && item.format === "choice4" && (
+        {!answered && CHOICE.has(item.format) && (
           <>
             <ol className="flex flex-col gap-2">
               {(item.content.options ?? []).map((option, i) => (
@@ -136,22 +144,24 @@ export function PracticeItem({
                     onClick={() => submit({ choice: option })}
                   >
                     <span className="font-mono text-muted-foreground">{i + 1}.</span>
-                    <span lang="en">{option}</span>
+                    <span lang={ABOUT_THE_RULE.has(item.format) ? undefined : "en"}>{option}</span>
                   </Button>
                 </li>
               ))}
             </ol>
-            <p className="text-center text-xs text-muted-foreground max-md:hidden">
-              {t.rich("choiceKeys", { k: kbd })}
-            </p>
+            {shortcuts && (
+              <p className="text-center text-xs text-muted-foreground max-md:hidden">
+                {t.rich("choiceKeys", { k: kbd })}
+              </p>
+            )}
           </>
         )}
 
-        {!answered && item.format === "find_fix" && segment === null && (
+        {!answered && item.format === "find_fix" && segment === null && shortcuts && (
           <p className="text-center text-xs text-muted-foreground">{t.rich("findKeys", { k: kbd })}</p>
         )}
 
-        {!answered && (item.format !== "choice4" && (item.format !== "find_fix" || segment !== null)) && (
+        {!answered && !CHOICE.has(item.format) && (item.format !== "find_fix" || segment !== null) && (
           <form
             className="flex flex-col gap-2"
             onSubmit={(e) => {
@@ -161,7 +171,7 @@ export function PracticeItem({
             }}
           >
             <label htmlFor={`answer-${item.id}`} className="text-[13px] text-muted-foreground">
-              {t(`answerLabel.${item.format}`)}
+              {t(`answerLabel.${item.format as Exclude<Format, "choice4" | "concept_choice">}`)}
             </label>
             {item.format === "cloze" || item.format === "find_fix" ? (
               <Input
@@ -178,9 +188,9 @@ export function PracticeItem({
             ) : (
               <Textarea
                 id={`answer-${item.id}`}
-                lang="en"
+                lang={item.format === "explain" ? undefined : "en"}
                 spellCheck={false}
-                autoFocus
+                autoFocus={shortcuts}
                 value={text}
                 maxLength={1000}
                 onChange={(e) => setText(e.target.value)}
@@ -206,9 +216,7 @@ export function PracticeItem({
 
         {error && <ErrorText>{error}</ErrorText>}
 
-        {answered && reply && item.result && (
-          <Verdict item={item} reply={replyText(item, reply)} />
-        )}
+        {answered && reply && item.result && <Verdict item={item} reply={replyText(item, reply)} />}
         {answered && !item.result && (
           <p className="text-sm text-muted-foreground" data-testid="practice-reported">
             {t("reported")}
@@ -233,7 +241,7 @@ export function PracticeItem({
             </InlineConfirm>
           )}
           {answered && onNext && (
-            <Button autoFocus onClick={onNext} data-testid="practice-next">
+            <Button autoFocus={shortcuts} onClick={onNext} data-testid="practice-next">
               {index + 1 < total ? t("next") : t("finish")}
             </Button>
           )}
@@ -320,6 +328,16 @@ function Question({
           )}
         </div>
       );
+    case "concept_choice":
+    case "explain":
+      return (
+        <div className="flex flex-col gap-2">
+          {prompt}
+          <p className="text-lg leading-relaxed" data-testid="practice-question">
+            {c.question}
+          </p>
+        </div>
+      );
     case "rewrite_own":
       return (
         <div className="flex flex-col gap-2">
@@ -343,6 +361,8 @@ function Verdict({ item, reply }: { item: Item; reply: string }) {
   const result = item.result!;
   const key = keyText(item);
   const better = result.feedback.corrected;
+  const partly = result.feedback.verdict === "partly";
+  const lang = ABOUT_THE_RULE.has(item.format) ? undefined : "en";
   return (
     <div
       data-testid="practice-verdict"
@@ -360,11 +380,16 @@ function Verdict({ item, reply }: { item: Item; reply: string }) {
         ) : (
           <CircleX aria-hidden className="size-4 text-destructive" />
         )}
-        {t(result.correct ? "right" : "wrong")}
+        {t(result.correct ? "right" : partly ? "partly" : "wrong")}
       </p>
-      <p>
+      <p className="whitespace-pre-line">
         <span className="text-muted-foreground">{t("yours")}</span>{" "}
-        <span lang="en" className={cn(!result.correct && "line-through decoration-destructive/70")}>
+        <span
+          lang={lang}
+          className={cn(
+            !result.correct && item.format !== "explain" && "line-through decoration-destructive/70",
+          )}
+        >
           {reply}
         </span>
       </p>
@@ -379,10 +404,26 @@ function Verdict({ item, reply }: { item: Item; reply: string }) {
       {key && key !== reply && (
         <p>
           <span className="text-muted-foreground">{t("reference")}</span>{" "}
-          <span lang="en" className="font-[550]">
+          <span lang={lang} className="font-[550]">
             {key}
           </span>
         </p>
+      )}
+      {(result.feedback.missing?.length ?? 0) > 0 && (
+        <p data-testid="practice-missing">
+          <span className="text-muted-foreground">{t("missing")}</span>{" "}
+          {result.feedback.missing!.join(t("separator"))}
+        </p>
+      )}
+      {item.answer?.key_points && item.answer.key_points.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-semibold text-muted-foreground">{t("keyPoints")}</p>
+          <ul className="list-disc pl-4">
+            {item.answer.key_points.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+        </div>
       )}
       <p className="whitespace-pre-line">{result.feedback.explanation}</p>
       {result.feedback.other_mistakes.length > 0 && (

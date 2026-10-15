@@ -12,6 +12,8 @@ export type CardsView = {
   byTurn: Record<string, TutorCard[]>;
   /** Apply, decline or undo; the card shows the result. Rejects with the ApiError. */
   decide: (card: TutorCard, action: CardAction, choice?: PlanChoice) => Promise<void>;
+  /** Sends a message as the learner from a card; null while one can't be sent. */
+  ask?: ((text: string) => void) | null;
 };
 
 function upsert(cards: TutorCard[], card: TutorCard): TutorCard[] {

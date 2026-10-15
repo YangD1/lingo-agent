@@ -56,6 +56,7 @@ async def test_give_quiz_starts_a_set_and_shows_its_card(
     assert card["kind"] == "quiz" and card["status"] == "info"
     assert card["params"] == {"set_id": str(row.id), "kc_id": KC, "purpose": "quiz"}
     assert card["display"]["kc"]["id"] == KC
+    assert card["display"]["pass_score"] == get_rules().course.pass_score
     (result,) = results(script)
     assert "Quiz card shown: the pass quiz" in result.text
     assert "Do not ask the questions" in result.text

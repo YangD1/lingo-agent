@@ -59,14 +59,17 @@ export type TutorCard = {
     | "writing"
     | "daily_plan"
     | "workspace"
-    | "workspace_edit";
+    | "workspace_edit"
+    | "quiz";
   /** word_book: book_id, daily_new; learning_goal: goal, target_exam, daily_minutes;
    * practice: kc_id; link: kind; writing: submission_id (writing_coach's review);
    * daily_plan: PlanCardParams (lib/plan.ts); workspace: doc_id, kind, title;
-   * workspace_edit: doc_id, edit_id, title, count (ADR 0043 §6). */
+   * workspace_edit: doc_id, edit_id, title, count (ADR 0043 §6);
+   * quiz: set_id, kc_id, purpose (check | quiz, ADR 0044 §4). */
   params: Record<string, unknown>;
   status: CardStatus;
-  display: { book?: Named; kc?: Named & { cefr: string } };
+  /** pass_score: quiz cards, the share right a pass quiz needs. */
+  display: { book?: Named; kc?: Named & { cefr: string }; pass_score?: number };
   /** Link cards, from the list only: current numbers for the page. */
   live?: Record<string, unknown> | null;
   created_at: string | null;

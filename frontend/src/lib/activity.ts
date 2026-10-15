@@ -41,6 +41,7 @@ export const TOOL_NAMES = [
   "propose_learning_goal",
   "suggest_practice",
   "suggest_link",
+  "give_quiz",
   "open_workspace",
   "propose_edit",
 ] as const;

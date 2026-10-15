@@ -353,6 +353,9 @@ def card_json(card: TutorCard) -> dict[str, Any]:
         kc_id = next((i["ref"] for i in card.params["items"] if i["kind"] == "practice"), None)
     if kc_id is not None and (kc := get_grammar_catalog().get(kc_id)):
         display["kc"] = {"id": kc.id, "name_en": kc.name_en, "name_zh": kc.name_zh, "cefr": kc.cefr}
+    if card.kind == "quiz":
+        # The card says whether a pass quiz's score meets the mark (ADR 0044 §4).
+        display["pass_score"] = get_rules().course.pass_score
     return {
         "id": str(card.id),
         "turn_id": card.turn_id,

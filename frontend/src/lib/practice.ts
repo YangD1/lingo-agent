@@ -2,7 +2,16 @@ import { api } from "@/lib/api";
 import type { CefrLevel, MasteryState } from "@/lib/learner";
 
 /** backend/app/api/practice.py; formats from adaptive/exercise/formats.py. */
-export const FORMATS = ["choice4", "cloze", "find_fix", "transform", "translate", "rewrite_own"] as const;
+export const FORMATS = [
+  "choice4",
+  "cloze",
+  "find_fix",
+  "transform",
+  "translate",
+  "rewrite_own",
+  "concept_choice",
+  "explain",
+] as const;
 export type Format = (typeof FORMATS)[number];
 
 export type KCName = { id: string; name_en: string; name_zh: string; cefr: CefrLevel | "" };
@@ -21,6 +30,9 @@ export type Content = {
   source?: string;
   /** rewrite_own: the learner's own sentence. */
   original?: string;
+  /** concept_choice, explain: a question about the rule, maybe in the learner's language
+   * (understanding checks, ADR 0044 §3). */
+  question?: string;
 };
 
 /** The item's key, sent once answered or reported. */
@@ -28,6 +40,8 @@ export type Key = {
   correct?: string;
   accepted?: string[];
   wrong_segment?: number;
+  /** explain: what a good explanation covers. */
+  key_points?: string[];
   explanation: string;
 };
 
@@ -46,6 +60,9 @@ export type Feedback = {
   corrected: string | null;
   other_mistakes: OtherMistake[];
   model: string | null;
+  /** explain only: how much of the rule the explanation got. */
+  verdict?: "right" | "partly" | "wrong";
+  missing?: string[];
 };
 
 export type Reply =
@@ -105,7 +122,8 @@ export type PracticeSet = {
   status: SetStatus;
   /** While generating. */
   stage: "generating" | "reviewing" | "rewriting" | "filling" | null;
-  origin: Origin | "prefetch";
+  /** quiz: a quiz card's set in the chat (ADR 0044 §4). */
+  origin: Origin | "prefetch" | "quiz";
   focus_kc: KCName | null;
   error_code: string | null;
   created_at: string;
@@ -166,7 +184,8 @@ export function practiceSetHref(origin: Origin, kcId?: string | null): string {
 export function keyText(item: Item): string {
   const key = item.answer;
   if (!key) return "";
-  if (item.format === "choice4") return key.correct ?? "";
+  if (item.format === "choice4" || item.format === "concept_choice") return key.correct ?? "";
+  if (item.format === "explain") return "";
   if (item.format === "find_fix" && item.content.segments && key.wrong_segment !== undefined) {
     const pieces = [...item.content.segments];
     pieces[key.wrong_segment] = key.accepted?.[0] ?? pieces[key.wrong_segment];

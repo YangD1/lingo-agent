@@ -175,6 +175,7 @@ export function MessageList({
                   cards={cards.byTurn[m.turnId] ?? []}
                   onDecide={cards.decide}
                   conversationId={conversationId}
+                  onAsk={cards.ask}
                 />
               )}
               {activity && m.turnId && m.status !== "streaming" && (

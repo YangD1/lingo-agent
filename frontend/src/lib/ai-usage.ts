@@ -11,6 +11,7 @@ export type AiFeature =
   | "pet_daily_opening"
   | "practice_set"
   | "practice_grade"
+  | "quiz_card"
   | "memory_edit"
   | "word_examples"
   | "message_translate"

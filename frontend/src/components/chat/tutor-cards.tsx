@@ -16,6 +16,7 @@ import { useState } from "react";
 
 import { PlanEditor, roundMinutes, useItemLabel } from "@/components/plan/plan-editor";
 import { PracticeChoices } from "@/components/practice/practice-choices";
+import { QuizCard } from "@/components/chat/quiz-card";
 import { useWorkspaceOpener } from "@/components/workspace/opener";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ErrorText } from "@/components/ui/error-text";
@@ -33,17 +34,26 @@ export function TutorCards({
   cards,
   onDecide,
   conversationId = null,
+  onAsk = null,
 }: {
   cards: TutorCard[];
   onDecide: Decide;
   /** Away from the chat page, workspace cards link to this conversation there. */
   conversationId?: string | null;
+  /** Sends a message as the learner (a quiz card's "go over it"); null while one can't be sent. */
+  onAsk?: ((text: string) => void) | null;
 }) {
   if (cards.length === 0) return null;
   return (
     <div className="mt-2.5 flex flex-col gap-2" data-testid="tutor-cards">
       {cards.map((card) => (
-        <CardItem key={card.id} card={card} onDecide={onDecide} conversationId={conversationId} />
+        <CardItem
+          key={card.id}
+          card={card}
+          onDecide={onDecide}
+          conversationId={conversationId}
+          onAsk={onAsk}
+        />
       ))}
     </div>
   );
@@ -64,12 +74,27 @@ function CardItem({
   card,
   onDecide,
   conversationId,
+  onAsk,
 }: {
   card: TutorCard;
   onDecide: Decide;
   conversationId: string | null;
+  onAsk: ((text: string) => void) | null;
 }) {
-  const Icon = ICONS[card.kind];
+  if (card.kind === "quiz") {
+    // Questions need the card's full width: no icon column (ADR 0044 §4).
+    return (
+      <div
+        className="rounded-lg border border-border/70 bg-card px-3.5 py-3 text-[13px] shadow-(--shadow-card)"
+        data-testid="tutor-card"
+        data-kind={card.kind}
+        data-status={card.status}
+      >
+        <QuizCard card={card} onAsk={onAsk} />
+      </div>
+    );
+  }
+  const Icon = ICONS[card.kind as keyof typeof ICONS];
   if (!Icon) return null; // from a newer backend
   return (
     <div

@@ -317,7 +317,8 @@
         "end_session": "Suggesting to hang up",
         "workspace_context": "Read the workspace document",
         "open_workspace": "Open a workspace document",
-        "propose_edit": "Propose edits"
+        "propose_edit": "Propose edits",
+        "give_quiz": "Quiz"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -365,7 +366,8 @@
         "practice": "grammar practice",
         "link": "shortcut to a page",
         "workspace": "Workspace document",
-        "workspace_edit": "Suggested edits"
+        "workspace_edit": "Suggested edits",
+        "quiz": "Quiz"
       },
       "coaches": {
         "writing_coach": "writing coach",
@@ -494,7 +496,23 @@
       "workspaceEdits": "Suggested {n, plural, one {# edit} other {# edits}} to “{title}”; nothing changes until you accept them",
       "workspaceOpen": "Open",
       "workspaceReview": "Review",
-      "workspaceOnChat": "Open on the chat page"
+      "workspaceOnChat": "Open on the chat page",
+      "quiz": {
+        "titleCheck": "Understanding check · {kc}",
+        "titleQuiz": "Pass quiz · {kc}",
+        "loading": "Opening the quiz…",
+        "failed": "The questions couldn't be made this time; {name} will ask you a question or two instead.",
+        "checkDone": "Understanding check done",
+        "passed": "Quiz result · Passed",
+        "notPassed": "Quiz result · Not passed",
+        "score": "{correct} / {total} right",
+        "passedNote": "You reached the pass mark ({pct}%). Whether the lesson is passed also depends on your mastery of this grammar point.",
+        "notPassedNote": "The pass mark is {pct}%. Ask for another explanation, then try a new set of questions.",
+        "right": "Right",
+        "wrong": "Wrong",
+        "ask": "Ask {name} to go over it",
+        "askMessage": "I'm done. Can you go over it with me?"
+      }
     },
     "planning": {
       "badge": "Study planning"
@@ -1885,6 +1903,7 @@
       "pet_daily_opening": "The first time you open the cat each day, the assistant writes the first message of today's conversation with an AI model: a short look back at your last 7 days (numbers counted by code) and one or two suggestions for today. Once a day; it happens while the cat wears the ✦ hair clip. After that, each reply is like any chat message.",
       "practice_set": "An AI model writes a set of items on your weak grammar points; another model solves and reviews each one first, and items that fail are rewritten. Bank items fill any gaps. After you finish a set, the next one is written in the background.",
       "practice_grade": "Open answers (rewrites, translations, fixing your own sentence) and fixes not in an item's answer list are graded by an AI model: it judges the tested grammar point, explains, and points out other grammar mistakes in your answer. Multiple choice and fill-in answers are graded by code, without AI. Only your first answer to each item is graded.",
+      "quiz_card": "An AI model writes a set of quiz questions on this grammar point, and another model answers each one first to check it; questions that fail are rewritten. Gaps in a pass quiz are filled from the question bank; understanding checks don't use it. Open answers and explanations in your own words are graded by AI, once per question; choice questions are graded by code. Understanding checks only see whether you got the idea and don't count towards mastery.",
       "memory_edit": "Adding or editing a memory turns it into a vector with an embedding model, so the assistant can find it later.",
       "word_examples": "An AI model writes two example sentences for this word at your level. They are saved, so the next time anyone asks for this word at this level, no model is called.",
       "message_translate": "An AI model translates this message. The translation is saved, so switching back and forth makes no more calls.",
@@ -2080,14 +2099,17 @@
         "cloze": "Fill in the blank with the right form",
         "find_fix": "One part of this sentence is wrong: pick it, then fix it",
         "translate": "Translate into English",
-        "rewrite_own": "You wrote this sentence earlier. Correct it"
+        "rewrite_own": "You wrote this sentence earlier. Correct it",
+        "concept_choice": "Choose the right statement",
+        "explain": "Answer in your own words"
       },
       "answerLabel": {
         "cloze": "Your answer",
         "find_fix": "Change it to",
         "transform": "Your sentence",
         "translate": "Your translation",
-        "rewrite_own": "The corrected sentence"
+        "rewrite_own": "The corrected sentence",
+        "explain": "Your explanation"
       },
       "pickPiece": "Part {n}: {piece}",
       "choiceKeys": "Press <k>1</k>–<k>4</k> to choose",
@@ -2106,7 +2128,11 @@
       "reportConfirm": "Report this question as faulty? It won't count towards mastery and is kept to improve the questions.",
       "next": "Next",
       "finish": "See results",
-      "reportYes": "Report"
+      "reportYes": "Report",
+      "partly": "Partly right",
+      "missing": "Missing:",
+      "separator": "; ",
+      "keyPoints": "Key points"
     },
     "summary": {
       "title": "Set finished",

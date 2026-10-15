@@ -8,9 +8,9 @@
 
 **做了什么**：86.1 ADR 0044（1ffe166）；86.2 `app/adaptive/course.py` + `GET /course`（89404a7）；86.3 后端代码写完未提交：新题型 `concept_choice`/`explain`（`formats.py` `CHECK_FORMATS`，不计证据）、`grader.explain_messages`、`planner.plan_quiz`、`worker.start_quiz`（`QuizLimitError`）、`cards/quiz.py`（`QuizTools`、`quiz_states`）、`give_quiz` 工具、迁移 `1dae8661b914`。
 
-**未完成**：86.4–86.8 未开始（86.3 已提交，pytest 1941 全过，lint 干净）。
+**未完成**：86.5–86.8 未开始（86.3、86.4 已提交；pytest 1941、Vitest 862 全过，lint 干净）。
 
-**下一步**：86.4 前端测验卡片（复用 `components/practice/practice-item.tsx`、`lib/practice.ts`；`cards.ts` 加 kind `quiz`；`ai-usage.ts` 加 `quiz_card`）。
+**下一步**：86.5 课程对话（purpose `lesson` 路由到 tutor、`chat/lesson.py` 上下文、`lesson_opening.md` / `lesson.md`、`POST /course/lessons/{kc_id}` 与 test-out 接口、`features.yaml` `lesson_start`）。
 
 **踩坑**：评估回放（evals/test_replay.py）依赖提示词逐字一致，理解检查的提示只在题组含检查题型时追加；`Review.own_answer` 描述不能改。
 

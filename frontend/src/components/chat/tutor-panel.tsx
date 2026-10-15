@@ -168,7 +168,13 @@ export function TutorPanel({
         conversationId={conversationId}
         messages={session.messages}
         activity={showActivity ? activity : undefined}
-        cards={cards}
+        cards={{
+          ...cards,
+          ask:
+            session.streaming || session.loading
+              ? null
+              : (text) => void session.send(text),
+        }}
         empty={empty?.({
           send: session.send,
           open: session.open,

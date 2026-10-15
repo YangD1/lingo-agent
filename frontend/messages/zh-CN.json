@@ -317,7 +317,8 @@
         "end_session": "建议挂断",
         "workspace_context": "读取工作区文档",
         "open_workspace": "打开工作区文档",
-        "propose_edit": "提议修改"
+        "propose_edit": "提议修改",
+        "give_quiz": "出测验"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -365,7 +366,8 @@
         "practice": "语法练习",
         "link": "页面直达",
         "workspace": "工作区文档",
-        "workspace_edit": "修改建议"
+        "workspace_edit": "修改建议",
+        "quiz": "测验"
       },
       "coaches": {
         "writing_coach": "写作教练",
@@ -494,7 +496,23 @@
       "workspaceEdits": "对《{title}》提了 {n} 处修改，逐处确认后才会生效",
       "workspaceOpen": "打开",
       "workspaceReview": "去确认",
-      "workspaceOnChat": "在对话页打开"
+      "workspaceOnChat": "在对话页打开",
+      "quiz": {
+        "titleCheck": "理解检查 · {kc}",
+        "titleQuiz": "通过测验 · {kc}",
+        "loading": "正在打开测验…",
+        "failed": "这次没出成题，{name}会直接问你一两个问题。",
+        "checkDone": "理解检查完成",
+        "passed": "测验结果 · 通过",
+        "notPassed": "测验结果 · 未通过",
+        "score": "答对 {correct} / {total}",
+        "passedNote": "达到通过线（{pct}%）。这一课是否过关，还要看这个语法点的掌握度。",
+        "notPassedNote": "通过线是 {pct}%。可以请助手再讲一讲，之后换一组新题再测。",
+        "right": "答对",
+        "wrong": "答错",
+        "ask": "让 {name} 讲评",
+        "askMessage": "我做完了，帮我看看。"
+      }
     },
     "planning": {
       "badge": "学习规划"
@@ -1885,6 +1903,7 @@
       "pet_daily_opening": "你今天第一次点开小猫时，助手用 AI 模型写出今天对话的第一条消息：根据代码统计的最近 7 天学习情况做个小回顾，再给一两条今天的建议。一天只有一次；小猫戴着 ✦ 发卡时就会触发，之后每次回复和普通聊天一样。",
       "practice_set": "AI 模型按你的薄弱语法点出一组题，另一个模型先自己做一遍再审，没通过的题重写；凑不齐的用题库题补。做完一组后，下一组会在后台提前出好。",
       "practice_grade": "开放题（改写、翻译、改自己的句子）和不在答案列表里的改法由 AI 模型批改：判断目标语法点对不对，讲解并指出答案里其他的语法错误。选择题和填空由代码批改，不用 AI。每道题只批改第一次作答。",
+      "quiz_card": "AI 模型围绕这个语法点出一组测验题，另一个模型先自己做一遍再审，没通过的题重写；通过测验的空位用题库题补，理解检查不用题库。开放题和“用自己的话解释”由 AI 批改，每题一次；选择题由代码批改。理解检查只看你懂没懂，不计入掌握度。",
       "memory_edit": "添加或修改记忆时，向量模型会把它转成向量，方便助手之后检索。",
       "word_examples": "AI 模型按你的等级为这个词写两个例句。例句会保存下来，之后同一等级再查这个词不再调用模型。",
       "message_translate": "AI 模型翻译这条消息。译文会保存下来，来回切换不再调用模型。",
@@ -2080,14 +2099,17 @@
         "cloze": "在空格里填上正确的形式",
         "find_fix": "这句话有一处错误：先点出错的部分，再改正它",
         "translate": "翻译成英文",
-        "rewrite_own": "这是你之前说过的一句话，请改正它"
+        "rewrite_own": "这是你之前说过的一句话，请改正它",
+        "concept_choice": "选出正确的说法",
+        "explain": "用你自己的话回答"
       },
       "answerLabel": {
         "cloze": "你的答案",
         "find_fix": "改成",
         "transform": "你的句子",
         "translate": "你的翻译",
-        "rewrite_own": "改正后的句子"
+        "rewrite_own": "改正后的句子",
+        "explain": "你的解释"
       },
       "pickPiece": "第 {n} 段：{piece}",
       "choiceKeys": "按 <k>1</k>–<k>4</k> 选择",
@@ -2106,7 +2128,11 @@
       "reportConfirm": "标记这题有问题？它不会计入掌握度，并留作改进出题的样本。",
       "next": "下一题",
       "finish": "看结果",
-      "reportYes": "标记"
+      "reportYes": "标记",
+      "partly": "部分正确",
+      "missing": "还缺：",
+      "separator": "；",
+      "keyPoints": "要点"
     },
     "summary": {
       "title": "这组做完了",
