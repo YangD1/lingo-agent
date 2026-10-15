@@ -75,7 +75,11 @@ config/        providers.dev.yaml / providers.prod.yaml（由 PROVIDERS_CONFIG �
 - **全栈（Docker）**：`make up`（构建 + 启动，后端启动时自动迁移）/ `make down` / `make ps` / `make logs`；可选本地语音转写 `make asr-up`
 - **热重载开发**：`make dev-db`（只起 postgres，5433）→ `make migrate` → `make dev-backend`（:8000）+ `make dev-frontend`（:3000，`/api` 代理到后端）
 - **测试**（都要先 `make dev-db`）：`make test`（pytest 默认 4 个 worker 并行，每个用自己的 `lingo_test_gwN` 库，约 1–2 分钟；`PYTEST_WORKERS=0` 串行；+ Vitest）、`make e2e`（Playwright，自带后端、前端和假模型）；单个后端测试：`cd backend && uv run pytest tests/path::name`
-- **测试节奏**：开发中只跑和改动相关的测试；任务收尾时全量 pytest、Vitest、E2E 各跑一次，**不加 `-x`**，一轮看到全部失败。偶发失败先单独重跑确认，再修竞态，不要靠重跑碰运气。
+- **测试节奏**：拆任务时，每个子任务写明建议加哪层测试和理由，和任务一起给用户确认：
+  - pytest：后端逻辑、接口、权限、迁移、算法、提示词装配；
+  - Vitest：前端纯逻辑和组件状态（解析、格式化、条件渲染、状态切换）；
+  - E2E：跨前后端的用户主流程、跳转、流式输出等只有真浏览器能暴露的问题；纯样式和文案不加 E2E。
+  开发中只跑和改动相关的测试；收尾时把**受影响的层**各全量跑一次（没改后端就不跑全量 pytest，没改前端就不跑 Vitest / E2E），**不加 `-x`**，一轮看到全部失败。偶发失败先单独重跑确认，再修竞态，不要靠重跑碰运气。
 - **检查**：`make lint`（ruff + mypy、eslint + tsc）、`make fmt`；推送前 `make ci`（和 GitHub Actions 同样的步骤）
 - **新迁移**：`cd backend && uv run alembic revision --autogenerate -m "..."`，然后 `make migrate`
 - **CI 结果**：`gh run list`、`gh run view <id> --log-failed`
