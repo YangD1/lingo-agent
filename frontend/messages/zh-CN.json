@@ -343,6 +343,8 @@
         "workspace_context": "读取工作区文档",
         "open_workspace": "打开工作区文档",
         "propose_edit": "提议修改",
+        "close_workspace": "收起工作区",
+        "set_workspace_auto_open": "调整工作区是否自动打开",
         "give_quiz": "出测验"
       },
       "failed": "{step}失败了，这一轮先跳过。",
@@ -392,6 +394,8 @@
         "link": "页面直达",
         "workspace": "工作区文档",
         "workspace_edit": "修改建议",
+        "workspace_closed": "收起工作区",
+        "workspace_auto": "工作区自动打开",
         "quiz": "测验"
       },
       "coaches": {
@@ -531,6 +535,11 @@
       "workspaceOpen": "打开",
       "workspaceReview": "去确认",
       "workspaceOnChat": "在对话页打开",
+      "workspaceClosed": "收起了工作区，文档都还在",
+      "workspaceReopen": "重新打开",
+      "workspaceAutoOn": "以后需要时会自动打开工作区",
+      "workspaceAutoOff": "以后只在你要求时才打开工作区",
+      "workspaceAutoHint": "也可以在助手设置里改",
       "quiz": {
         "titleCheck": "理解检查 · {kc}",
         "titleQuiz": "通过测验 · {kc}",

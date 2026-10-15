@@ -170,6 +170,26 @@ describe("TutorCards", () => {
     expect(screen.queryByRole("button", { name: "去确认" })).not.toBeInTheDocument();
   });
 
+  it("says the tutor closed the workspace and opens it again (ADR 0045 §2)", async () => {
+    const workspace = opener();
+    show(
+      [card({ kind: "workspace_closed", params: { doc_id: "d1", title: "Comet" }, status: "info" })],
+      undefined,
+      { workspace, conversationId: "c1" },
+    );
+    expect(screen.getByText("收起了工作区，文档都还在")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "重新打开" }));
+    expect(workspace.open).toHaveBeenCalledWith("d1");
+  });
+
+  it("says when the workspace opens now, and can undo it (ADR 0045 §3)", async () => {
+    const off = card({ kind: "workspace_auto", params: { on: false }, status: "applied", display: {} });
+    const onDecide = show([off]);
+    expect(screen.getByText("以后只在你要求时才打开工作区")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "撤销" }));
+    expect(onDecide).toHaveBeenCalledWith(off, "undo");
+  });
+
   it("lets the learner adjust the tutor's plan before confirming it", async () => {
     const params = {
       plan_id: "p1",

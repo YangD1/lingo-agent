@@ -163,6 +163,14 @@ describe("ChatApp workspace (ADR 0043)", () => {
     expect(await screen.findByRole("combobox", { name: "Switch document" })).toHaveTextContent("My essay");
   });
 
+  it("closes the workspace the tutor closed, as its card arrives (ADR 0045 §2)", async () => {
+    show("/chat?c=c1&w=d1");
+    expect(await screen.findByTestId("workspace")).toBeInTheDocument();
+    act(() => panel.props?.onCardShown?.(card("workspace_closed", { doc_id: "d1", title: "Notes" })));
+    await waitFor(() => expect(screen.queryByTestId("workspace")).not.toBeInTheDocument());
+    expect(window.location.search).toBe("?c=c1");
+  });
+
   it("does not open anything for edits the tutor proposed: the card leads there", async () => {
     show("/chat?c=c1");
     await waitFor(() => expect(panel.props).not.toBeNull());

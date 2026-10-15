@@ -343,6 +343,8 @@
         "workspace_context": "Read the workspace document",
         "open_workspace": "Open a workspace document",
         "propose_edit": "Propose edits",
+        "close_workspace": "Close the workspace",
+        "set_workspace_auto_open": "Change when the workspace opens",
         "give_quiz": "Quiz"
       },
       "failed": "{step} failed; this turn was skipped.",
@@ -392,6 +394,8 @@
         "link": "shortcut to a page",
         "workspace": "Workspace document",
         "workspace_edit": "Suggested edits",
+        "workspace_closed": "Workspace closed",
+        "workspace_auto": "Workspace opening",
         "quiz": "Quiz"
       },
       "coaches": {
@@ -531,6 +535,11 @@
       "workspaceOpen": "Open",
       "workspaceReview": "Review",
       "workspaceOnChat": "Open on the chat page",
+      "workspaceClosed": "Closed the workspace; your documents are kept",
+      "workspaceReopen": "Reopen",
+      "workspaceAutoOn": "The workspace will open by itself when it helps",
+      "workspaceAutoOff": "The workspace will open only when you ask for it",
+      "workspaceAutoHint": "You can change this in the assistant settings too",
       "quiz": {
         "titleCheck": "Understanding check · {kc}",
         "titleQuiz": "Pass quiz · {kc}",

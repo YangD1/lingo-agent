@@ -7,7 +7,9 @@ import {
   FilePen,
   Flag,
   PanelRight,
+  PanelRightClose,
   PenLine,
+  Settings2,
   Target,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -68,6 +70,8 @@ const ICONS = {
   daily_plan: CalendarCheck,
   workspace: PanelRight,
   workspace_edit: FilePen,
+  workspace_closed: PanelRightClose,
+  workspace_auto: Settings2,
 };
 
 function CardItem({
@@ -128,6 +132,13 @@ function CardItem({
         {card.kind === "daily_plan" && <DailyPlanCard card={card} onDecide={onDecide} />}
         {(card.kind === "workspace" || card.kind === "workspace_edit") && (
           <WorkspaceCard card={card} conversationId={conversationId} />
+        )}
+        {card.kind === "workspace_closed" && <WorkspaceClosed card={card} />}
+        {card.kind === "workspace_auto" && (
+          <>
+            <WorkspaceAuto card={card} />
+            <Decision card={card} onDecide={onDecide} />
+          </>
         )}
       </div>
     </div>
@@ -413,6 +424,37 @@ function WorkspaceCard({
           </Link>
         )
       )}
+    </div>
+  );
+}
+
+/** The tutor closed the workspace at the learner's word (ADR 0045 §2): nothing was deleted. */
+function WorkspaceClosed({ card }: { card: TutorCard }) {
+  const t = useTranslations("chat.cards");
+  const workspace = useWorkspaceOpener();
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <p className="min-w-0 flex-1">{t("workspaceClosed")}</p>
+      {workspace && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => workspace.open(String(card.params.doc_id))}
+        >
+          {t("workspaceReopen")}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** The tutor turned opening the workspace by itself on or off (ADR 0045 §3); undo restores it. */
+function WorkspaceAuto({ card }: { card: TutorCard }) {
+  const t = useTranslations("chat.cards");
+  return (
+    <div className="flex flex-col gap-0.5">
+      <p>{card.params.on ? t("workspaceAutoOn") : t("workspaceAutoOff")}</p>
+      <p className="text-xs text-muted-foreground">{t("workspaceAutoHint")}</p>
     </div>
   );
 }

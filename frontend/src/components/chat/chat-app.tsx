@@ -176,11 +176,11 @@ export function ChatApp({
     setTab("workspace");
     setDocUrl(id);
   }, []);
-  const closeDoc = () => {
+  const closeDoc = useCallback(() => {
     setDocId(null);
     setFullscreen(false);
     setDocUrl(null);
-  };
+  }, []);
   const showFullscreen = (on: boolean) => {
     setFullscreen(on);
     if (on) chatPanel.current?.collapse();
@@ -188,17 +188,19 @@ export function ChatApp({
   };
 
   // The tutor opened a document (Q83b): it opens beside the chat straight away.
-  // Changes it proposed are listed again in the writing view.
+  // Changes it proposed are listed again in the writing view. It closed the workspace at the
+  // learner's word (ADR 0045 §2): only a card arriving now closes it, not one in the history.
   const reloadDocs = workspace.reload;
   const [editsSignal, setEditsSignal] = useState(0);
   const onCardShown = useCallback(
     (card: TutorCard) => {
+      if (card.kind === "workspace_closed") return closeDoc();
       if (card.kind !== "workspace" && card.kind !== "workspace_edit") return;
       reloadDocs();
       if (card.kind === "workspace") openDoc(String(card.params.doc_id));
       else setEditsSignal((n) => n + 1);
     },
-    [reloadDocs, openDoc],
+    [reloadDocs, openDoc, closeDoc],
   );
 
   async function openPasted(conversationId: string, kind: WorkspaceKind, text: string) {

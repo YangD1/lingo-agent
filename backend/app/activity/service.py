@@ -170,6 +170,8 @@ STEPS: dict[str, StepSpec] = {
     "suggest_link": StepSpec("tool", CardShown),
     "open_workspace": StepSpec("tool", CardShown),
     "propose_edit": StepSpec("tool", CardShown),
+    "close_workspace": StepSpec("tool", CardShown),
+    "set_workspace_auto_open": StepSpec("tool", CardShown),
     "give_quiz": StepSpec("tool", CardShown),
     # A realtime call's tools (app/realtime/tools.py); `add_to_vocab` as `vocab_collect`.
     "lookup_word": StepSpec("tool", WordLookedUp),

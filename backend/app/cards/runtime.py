@@ -68,7 +68,14 @@ class DatabaseTutorTools:
         except ToolCallError as exc:
             return ToolOutcome(f"Error: {exc}.", ok=False)
         outcome = await self._put(result.draft, call_id)
-        return ToolOutcome(result.content, ok=True, card=outcome.card)
+        card = outcome.card
+        if result.apply and card is not None and card["status"] == "proposed":
+            card = await self._apply(uuid.UUID(card["id"]))
+        return ToolOutcome(result.content, ok=True, card=card)
+
+    async def _apply(self, card_id: uuid.UUID) -> dict[str, Any]:
+        async with self._writing, self._sessionmaker() as session:
+            return service.card_json(await service.apply_card(session, self._user_id, card_id))
 
     async def _run_quiz(self, args: Mapping[str, Any], call_id: str) -> ToolOutcome:
         """give_quiz starts a set first, then shows its card (ADR 0044 §4)."""

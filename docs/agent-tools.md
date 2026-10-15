@@ -71,6 +71,7 @@
 | `summarize` | background | `episode_id` |
 | `propose_word_book`、`propose_learning_goal`、`propose_daily_plan`、`suggest_practice`、`suggest_link` | tool | `card_id`、`card_kind`（出了卡片时；调用被拒记 `failed`、摘要为空）；`call_id` = 模型的 tool call id。卡片本身显示当前状态 |
 | `give_quiz` | tool | 同上：`card_id`、`card_kind`（`quiz`）；被拒（语法点不在清单或范围、今天这个语法点的通过测验已出满）记 `failed` |
+| `open_workspace`、`propose_edit`、`close_workspace`、`set_workspace_auto_open` | tool | 同上：`card_id`、`card_kind`（`workspace`、`workspace_edit`、`workspace_closed`、`workspace_auto`）；工作区没开时 `close_workspace` 记 `failed` |
 | `tools` | step | 无；只在厂商拒绝工具调用、这一轮改为不带工具重答时记一行 `skipped` |
 | `lookup_word`、`add_to_vocab`、`end_session` | tool | 实时通话的工具（见“实时语音通话”）：`lookup_word` 记 `word`、`word_id`（查到的词条；没查到只有 `word`）；`add_to_vocab` 同 `vocab_collect` 的 `added` / `existing`；`end_session` 无字段。`call_id` = 厂商的 call id；挂在学习者最近一句话上（助手开口前就调用时挂在助手第一句上） |
 | `handoff` | step | `coach`：自由对话分类后转给的 coach |
@@ -88,7 +89,7 @@
 
 ## LLM 工具调用（模型决定是否调用）
 
-助手的工具（ADR 0015）。**工具只出卡片，不直接改任何设置**：有副作用的提议要学习者在卡片上点确认才执行，执行后可撤销；没有副作用的卡片只是链接。
+助手的工具（ADR 0015）。**工具只出卡片，不直接改任何设置**：有副作用的提议要学习者在卡片上点确认才执行，执行后可撤销；没有副作用的卡片只是链接。唯一例外是 `set_workspace_auto_open`：学习者自己说了要改，调用即生效，卡片上可撤销（ADR 0045 §3）。
 
 - **身份不进参数**：参数里只有词书 id、目标、语法点 id 这类内容；学习者、会话、这一轮由接口层绑定（`cards/runtime.py` `DatabaseTutorTools`），模型填了多余字段一律拒绝。
 - **上限**：一轮最多 2 次工具往返，每次最多 3 个调用（多出的直接返回错误），每个调用 15 秒超时；到上限后最后一次调用不带工具，提示里说明不能再调用。
@@ -108,6 +109,10 @@
 | `open_workspace`（ADR 0043 §6） | `kind`：`reading` / `writing`；`source`：`last_message`（学习者这一轮或上一轮发的长文）/ `article`（这段对话的文章）/ `blank`（只能配 `writing`）；`title`（≤80 字）。不带正文，正文由代码取 | 工作区，`info`；前端收到后自动在右侧打开 | 新建一份工作区文档（`workspace_docs` + 第一个版本，作者记为助手）；不改学习数据 | 卡片上“删除这份文档”；学习者也可在工作区里删除 |
 | `give_quiz`（ADR 0044 §4） | `kc_id`（语法点清单里的 id；有范围的对话必须在范围内）、`purpose`：`check`（讲完后的理解检查，1–2 题，`concept_choice` / `explain`）/ `quiz`（通过测验，3 道识别 + 2 道产出） | 测验卡片，`quiz`，`info`；卡片轮询题组，学习者逐题提交、立刻看对错和讲解，做完显示总结 | 新建一个题组（`exercise_sets`，`origin=quiz`，`quiz_purpose`），在后台出题和审题（同练习组，见下节）；作答走练习接口，写 `attempts`。理解检查不记证据、不动掌握度和语法能力；通过测验的作答和练习一样记证据。同一个语法点 24 小时内最多出 `course.generated_quizzes_per_day` 次通过测验（失败的不算），超出作为错误交回模型 | 题组和作答可在 `/learner` 证据处删除（通过测验的证据）；卡片不需要撤销。下一轮 system prompt 带上题组进度和答错的题（题面、学习者答案、正确答案，答案截到 160 字） |
 | `propose_edit`（ADR 0043 §5–§6） | `doc_id`（本会话的写作文档）、`edits`：1–20 处 `{original（当前版本里的原文片段，≤300 字）, replacement, reason}` | 小卡片，`workspace_edit`，`info`（“提了 N 处修改”，点开定位到工作区）；工作区里逐处显示差异 | 一条待确认的改稿（`workspace_edits`，每处 `pending`）；原文找不到、出现不止一次或和前一处重叠的作为错误交回模型，其余照常；学习者逐处接受 / 拒绝（`POST /workspace/edits/{id}/decide`）后，接受的那几处在当前正文里重新定位并合成一个新版本（作者记为助手）；学习者期间改过的段落标为失效，只能拒绝 | 接受后可回到上一个版本（回退也存成新版本）；拒绝的不改正文 |
+| `close_workspace`（ADR 0045 §2） | 无。学习者说“关掉右边”“先不用工作区”时调用；工作区没开或开的不是本会话的文档时作为错误交回模型 | 小卡片，`workspace_closed`，`info`（“收起了工作区”，带“重新打开”）；前端**只在实时收到时**收起面板，翻历史不收 | 无：只收起面板，不删文档、不改学习数据 | 卡片上“重新打开” |
+| `set_workspace_auto_open`（ADR 0045 §3） | `on`（布尔）。学习者说“以后别自动打开工作区”或“还是自动打开吧”时调用；关掉时提示要求同时 `close_workspace` | 设置卡片，`workspace_auto`，调用即生效（`applied`，因为是学习者自己提的），写明现在的状态；值本来就一样时也出卡片，结果告诉模型“没变” | `tutor_profiles.workspace_auto_open`；卡片记下原值。同一个 tool call id 只改一次 | 卡片“撤销”恢复原值；之后又改过则 409 `setting_changed`；也可在助手设置页改回 |
+
+工作区何时由助手自己打开（ADR 0045 §1）：`tutor_tools.md` 的工作区一节按 `workspace_auto_open` 装配——开着时，学习者贴了整篇英文想读懂 → 开精读，要写 / 改较长的作文邮件 → 开写作，短句不开、同一段已开过不重开，不用先问；关着时只在学习者明确要求时开。
 
 **实时通话的工具**另有一套：`lookup_word`、`add_to_vocab`、`end_session`（ADR 0030 §4）。它们不出卡片：`lookup_word` 只读；`add_to_vocab` 直接加进生词本（幂等，可在生词本移除），因为通话中弹确认会打断说话；`end_session` 只提议，学习者点了才挂断。上限是每次回答 3 个、每通 20 个、单个 3 秒。参数、读写和学习者在哪里看到，见下面“实时语音通话”一节。
 

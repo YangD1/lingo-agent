@@ -660,6 +660,7 @@ async def _reply(
                     tenant_id=turn.providers.tenant_id,
                     conversation_id=turn.conversation_id,
                     learner_texts=partial(_learner_texts, graph, turn),
+                    open_doc_id=turn.workspace_doc_id,
                 ),
                 quiz=QuizTools(
                     sessionmaker,

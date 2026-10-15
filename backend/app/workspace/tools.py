@@ -1,4 +1,5 @@
-"""The tutor's workspace tools (ADR 0043 §6): `open_workspace` and `propose_edit`.
+"""The tutor's workspace tools (ADR 0043 §6, ADR 0045): `open_workspace`,
+`propose_edit`, `close_workspace` and `set_workspace_auto_open`.
 
 Bound to the learner, tenant and conversation of a turn, like the card tools; the
 model names what to open, never the text, which is copied from the learner's message
@@ -14,8 +15,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive.rules import get_rules
-from app.cards.tools import CardDraft, OpenWorkspace, ProposeEdit, ToolCallError, parse_args
-from app.db.models import Conversation, WorkspaceDoc
+from app.cards.tools import (
+    CardDraft,
+    CloseWorkspace,
+    OpenWorkspace,
+    ProposeEdit,
+    SetWorkspaceAutoOpen,
+    ToolCallError,
+    parse_args,
+)
+from app.db.models import Conversation, TutorProfile, WorkspaceDoc
 from app.services.news.clean import count_words
 from app.services.reading.versions import reading_level
 from app.workspace import edits, service
@@ -28,6 +37,9 @@ MIN_WORDS = 20
 class WorkspaceResult:
     content: str
     draft: CardDraft
+    # The card takes effect as it is shown, without waiting for the learner: they asked
+    # for it in words (ADR 0045 §3).
+    apply: bool = False
 
 
 class WorkspaceTools:
@@ -39,6 +51,7 @@ class WorkspaceTools:
         tenant_id: uuid.UUID,
         conversation_id: uuid.UUID,
         learner_texts: Callable[[], Awaitable[list[str]]],
+        open_doc_id: uuid.UUID | None = None,
     ) -> None:
         self._sessionmaker = sessionmaker
         self._user_id = user_id
@@ -46,6 +59,8 @@ class WorkspaceTools:
         self._conversation_id = conversation_id
         # The learner's messages, latest first; read only when a call needs them.
         self._learner_texts = learner_texts
+        # The document open in the workspace as the learner sent the message.
+        self._open_doc_id = open_doc_id
 
     async def run(self, name: str, args: Mapping[str, Any], call_id: str) -> WorkspaceResult:
         """Raises ToolCallError, whose message goes back to the model."""
@@ -56,6 +71,10 @@ class WorkspaceTools:
                     return await self._open(session, parsed, call_id)
                 case ProposeEdit():
                     return await self._propose(session, parsed, call_id)
+                case CloseWorkspace():
+                    return await self._close(session)
+                case SetWorkspaceAutoOpen():
+                    return await self._auto_open(session, parsed)
         raise ToolCallError(f"unknown tool {name!r}")  # pragma: no cover
 
     async def _open(
@@ -151,3 +170,31 @@ class WorkspaceTools:
             "count": count,
         }
         return WorkspaceResult(content, CardDraft("workspace_edit", params))
+
+    async def _close(self, session: AsyncSession) -> WorkspaceResult:
+        doc = await session.get(WorkspaceDoc, self._open_doc_id) if self._open_doc_id else None
+        if doc is None or doc.conversation_id != self._conversation_id:
+            raise ToolCallError("the workspace is not open")
+        return WorkspaceResult(
+            f"Closed the workspace. The document {doc.title!r} is kept; the learner can "
+            "open it again from the card.",
+            CardDraft("workspace_closed", {"doc_id": str(doc.id), "title": doc.title}),
+        )
+
+    async def _auto_open(
+        self, session: AsyncSession, args: SetWorkspaceAutoOpen
+    ) -> WorkspaceResult:
+        profile = await session.get(TutorProfile, self._user_id)
+        current = profile.workspace_auto_open if profile is not None else True
+        state = (
+            "you open the workspace by yourself when it helps"
+            if args.on
+            else "you open the workspace only when the learner asks"
+        )
+        content = (
+            f"It was already set so that {state}; nothing changed."
+            if current == args.on
+            else f"From now on {state}. The learner can undo it on the card or change it "
+            "in your settings."
+        )
+        return WorkspaceResult(content, CardDraft("workspace_auto", {"on": args.on}), apply=True)

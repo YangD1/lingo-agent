@@ -44,6 +44,8 @@ export const TOOL_NAMES = [
   "give_quiz",
   "open_workspace",
   "propose_edit",
+  "close_workspace",
+  "set_workspace_auto_open",
 ] as const;
 export type MemoryChanges = {
   added: string[];

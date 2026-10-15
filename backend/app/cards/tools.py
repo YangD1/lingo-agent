@@ -19,8 +19,9 @@ from app.adaptive.rules import get_rules
 from app.memory.reflection import EXAM_TAGS
 from app.services.vocab.books import BOOKS, get_book
 
-# "writing" is put by writing_coach, not by a tool (task 38.5); "workspace" and
-# "workspace_edit" by the workspace tools (app/workspace/tools.py, ADR 0043 §6);
+# "writing" is put by writing_coach, not by a tool (task 38.5); "workspace",
+# "workspace_edit", "workspace_closed" and "workspace_auto" by the workspace tools
+# (app/workspace/tools.py, ADR 0043 §6, ADR 0045), "workspace" also by writing_coach;
 # "quiz" by give_quiz after its set is created (app/cards/quiz.py, ADR 0044 §4).
 CardKind = Literal[
     "word_book",
@@ -32,6 +33,8 @@ CardKind = Literal[
     "workspace",
     "workspace_edit",
     "quiz",
+    "workspace_closed",
+    "workspace_auto",
 ]
 LinkKind = Literal[
     "vocab_review",
@@ -207,6 +210,25 @@ class ProposeEdit(_Args):
     edits: list[EditItem] = Field(min_length=1, max_length=20)
 
 
+class CloseWorkspace(_Args):
+    """Close the workspace panel when the learner wants it out of the way. The document
+    is kept, and the card lets them open it again."""
+
+    model_config = ConfigDict(title="close_workspace")
+
+
+class SetWorkspaceAutoOpen(_Args):
+    """Change whether you open the workspace by yourself from now on, when the learner
+    tells you to or not to. It changes their setting at once; the card lets them undo
+    it, and they can also change it in your settings."""
+
+    model_config = ConfigDict(title="set_workspace_auto_open")
+
+    on: bool = Field(
+        description="true: open it by yourself when it helps; false: only when they ask."
+    )
+
+
 TOOL_SCHEMAS: tuple[type[_Args], ...] = (
     ProposeWordBook,
     ProposeLearningGoal,
@@ -216,9 +238,13 @@ TOOL_SCHEMAS: tuple[type[_Args], ...] = (
     GiveQuiz,
     OpenWorkspace,
     ProposeEdit,
+    CloseWorkspace,
+    SetWorkspaceAutoOpen,
 )
 # Run by app/workspace/tools.py: they read and write documents, not only cards.
-WORKSPACE_TOOL_NAMES = frozenset({"open_workspace", "propose_edit"})
+WORKSPACE_TOOL_NAMES = frozenset(
+    {"open_workspace", "propose_edit", "close_workspace", "set_workspace_auto_open"}
+)
 # Run by app/cards/quiz.py: it starts generating a set, then shows its card.
 QUIZ_TOOL_NAMES = frozenset({"give_quiz"})
 TOOL_NAMES: frozenset[str] = frozenset(str(t.model_config.get("title")) for t in TOOL_SCHEMAS)
@@ -237,7 +263,7 @@ class CardDraft:
 
     @property
     def has_effect(self) -> bool:
-        return self.kind in ("word_book", "learning_goal", "daily_plan")
+        return self.kind in ("word_book", "learning_goal", "daily_plan", "workspace_auto")
 
 
 @dataclass(frozen=True)

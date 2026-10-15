@@ -19,7 +19,14 @@ from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.cards.quiz import QuizState, quiz_states
 from app.cards.tools import CardDraft
-from app.db.models import DailyPlan, TutorCard, UserProfile, UserWordBook
+from app.db.models import (
+    Conversation,
+    DailyPlan,
+    TutorCard,
+    TutorProfile,
+    UserProfile,
+    UserWordBook,
+)
 from app.services.vocab.books import get_book
 from app.services.vocab.scheduler import learner_zone
 
@@ -141,6 +148,8 @@ async def apply_card(
         card.before = await _apply_goal(session, user_id, card.params)
     elif card.kind == "daily_plan":
         card.before = await _apply_daily_plan(session, user_id, card, choice, tz)
+    elif card.kind == "workspace_auto":
+        card.before = await _apply_workspace_auto(session, card)
     card.status = "applied"
     card.decided_at = datetime.now(UTC)
     await session.commit()
@@ -172,6 +181,8 @@ async def undo_card(session: AsyncSession, user_id: uuid.UUID, card_id: uuid.UUI
         await _undo_goal(session, user_id, card.params, card.before)
     elif card.kind == "daily_plan":
         await _undo_daily_plan(session, user_id, card, card.before)
+    elif card.kind == "workspace_auto":
+        await _undo_workspace_auto(session, user_id, card.params, card.before)
     card.status = "undone"
     card.undone_at = datetime.now(UTC)
     await session.commit()
@@ -340,6 +351,39 @@ async def _undo_daily_plan(
     plan.decided_at = datetime.fromisoformat(before["decided_at"]) if before["decided_at"] else None
 
 
+async def _tutor(session: AsyncSession, user_id: uuid.UUID) -> TutorProfile | None:
+    return await session.scalar(
+        select(TutorProfile)
+        .where(TutorProfile.user_id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
+async def _apply_workspace_auto(session: AsyncSession, card: TutorCard) -> dict[str, Any]:
+    """The tutor's setting (ADR 0045 §3); a learner who never saved one gets a row."""
+    profile = await _tutor(session, card.user_id)
+    if profile is None:
+        conversation = await session.get(Conversation, card.conversation_id)
+        assert conversation is not None  # FK, cascade
+        profile = TutorProfile(user_id=card.user_id, tenant_id=conversation.tenant_id)
+        session.add(profile)
+        before = True
+    else:
+        before = profile.workspace_auto_open
+    profile.workspace_auto_open = bool(card.params["on"])
+    return {"on": before}
+
+
+async def _undo_workspace_auto(
+    session: AsyncSession, user_id: uuid.UUID, params: dict[str, Any], before: dict[str, Any]
+) -> None:
+    profile = await _tutor(session, user_id)
+    if profile is None or profile.workspace_auto_open != params["on"]:
+        raise _changed_since()
+    profile.workspace_auto_open = bool(before["on"])
+
+
 # --- rendering ----------------------------------------------------------------------------
 
 
@@ -403,6 +447,14 @@ def describe(card: TutorCard, quiz: "QuizState | None" = None) -> str:
             )
         case "workspace_edit":
             what = f"propose {p['count']} edit(s) to {p['title']!r} in the workspace"
+        case "workspace_closed":
+            what = f"close the workspace, keeping the document {p['title']!r}"
+        case "workspace_auto":
+            what = (
+                "open the workspace by yourself when it helps"
+                if p["on"]
+                else "open the workspace only when the learner asks"
+            )
         case "quiz":
             kc = get_grammar_catalog().get(p["kc_id"])
             kind = "understanding check" if p["purpose"] == "check" else "pass quiz"
