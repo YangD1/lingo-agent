@@ -58,6 +58,8 @@ export type HistoryMessage = {
   role: "user" | "assistant";
   content: string;
   attachments: Attachment[];
+  /** When it joined the conversation; null for messages saved before stamps (ADR 0044 §5). */
+  created_at: string | null;
 };
 
 export const PROVIDER_KINDS = [

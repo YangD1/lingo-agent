@@ -21,23 +21,31 @@ vi.mock("@/lib/ai-usage", async (importOriginal) => ({
 
 const NO_ACTIVITY = { activities: [], memories: {}, kcs: {}, words_on_list: [], pending: false };
 
-const quiz = (turn_id: string): TutorCard => ({
+const quiz = (turn_id: string, created_at: string | null = null): TutorCard => ({
   id: "q1",
   turn_id,
   kind: "quiz",
   params: { set_id: 7, kc_id: "g.third", purpose: "quiz" },
   status: "info",
   display: {},
-  created_at: null,
+  created_at,
   decided_at: null,
   undone_at: null,
 });
 
-/** An empty conversation, with these cards; a quiz set that never arrives. */
-function backend(cards: TutorCard[]) {
+const message = (id: string, role: "user" | "assistant", content: string, created_at: string) => ({
+  id,
+  role,
+  content,
+  attachments: [],
+  created_at,
+});
+
+/** A conversation with these messages (none by default) and cards; a quiz set that never arrives. */
+function backend(cards: TutorCard[], messages: unknown[] = []) {
   api.mockImplementation((path: string) => {
     const bare = path.split("?")[0];
-    if (bare.endsWith("/messages")) return Promise.resolve([]);
+    if (bare.endsWith("/messages")) return Promise.resolve(messages);
     if (bare.endsWith("/activity")) return Promise.resolve(NO_ACTIVITY);
     if (bare.endsWith("/cards")) return Promise.resolve({ cards });
     if (bare.endsWith("/attachments")) return Promise.resolve([]);
@@ -74,5 +82,27 @@ describe("TutorPanel opening", () => {
     expect(await screen.findByTestId("quiz-card")).toBeInTheDocument();
     await new Promise((r) => setTimeout(r, 20));
     expect(streamOpening).not.toHaveBeenCalled();
+  });
+
+  it("places a test-out quiz among the messages by time", async () => {
+    backend(
+      [quiz("test-out-1", "2026-10-15T08:10:00Z")],
+      [
+        message("u1", "user", "Hi", "2026-10-15T08:00:00Z"),
+        message("a1", "assistant", "Hello there", "2026-10-15T08:00:02Z"),
+        message("u2", "user", "Thanks for the quiz", "2026-10-15T08:20:00Z"),
+      ],
+    );
+    show();
+    const card = await screen.findByTestId("quiz-card");
+    const rows = Array.from(screen.getByRole("list", { name: "Messages" }).children);
+    // The learner's hello, the reply, the quiz, then what came after it.
+    expect(rows.map((li) => li.getAttribute("data-role") ?? "quiz")).toEqual([
+      "user",
+      "assistant",
+      "quiz",
+      "user",
+    ]);
+    expect(rows[2]).toContainElement(card);
   });
 });

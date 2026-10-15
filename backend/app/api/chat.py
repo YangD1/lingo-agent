@@ -126,6 +126,8 @@ class MessageOut(BaseModel):
     attachments: list[AttachmentOut] = []
     # A tutor reply on a realtime call that the learner cut short (Q61f).
     interrupted: bool = False
+    # When it joined the conversation; null for messages saved before stamps (ADR 0044 §5).
+    created_at: datetime | None = None
 
 
 def _purpose(conversation: Conversation) -> PlanningPurpose | None:
@@ -264,6 +266,7 @@ async def get_messages(
             content=m.content,
             attachments=[AttachmentOut.of(a) for a in attached.get(m.id or "", [])],
             interrupted=m.interrupted,
+            created_at=m.created_at,
         )
         for m in history
     ]

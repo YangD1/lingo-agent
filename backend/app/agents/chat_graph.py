@@ -36,7 +36,7 @@ from langchain_core.runnables import Runnable, RunnableConfig
 from langgraph.channels import UntrackedValue
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.config import get_config
-from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.runtime import Runtime
 from langgraph.types import Command
@@ -54,6 +54,7 @@ from app.activity.service import (
     timed,
 )
 from app.adaptive.rules import get_rules
+from app.agents.messages import StampedMessagesState
 from app.agents.routing import Route, classify, worth_classifying
 from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
@@ -147,7 +148,7 @@ class ChatContext:
     workspace: WorkspaceSource | None = None
 
 
-class ChatState(MessagesState):
+class ChatState(StampedMessagesState):
     # What the tutor is told about the learner this turn. Untracked: never written to
     # the checkpoint, so memories the learner deletes leave no copy behind.
     learner_context: Annotated[str, UntrackedValue(str)]
@@ -163,7 +164,9 @@ class ChatState(MessagesState):
 
 
 # Callers send and get plain messages; learner_context is internal to a run.
-type ChatGraph = CompiledStateGraph[ChatState, ChatContext, MessagesState, MessagesState]
+type ChatGraph = CompiledStateGraph[
+    ChatState, ChatContext, StampedMessagesState, StampedMessagesState
+]
 
 
 async def load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
@@ -716,8 +719,8 @@ def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
     builder = StateGraph(
         ChatState,
         context_schema=ChatContext,
-        input_schema=MessagesState,
-        output_schema=MessagesState,
+        input_schema=StampedMessagesState,
+        output_schema=StampedMessagesState,
     )
     builder.add_node(LOAD_CONTEXT_NODE, load_context)
     builder.add_node(SUPERVISOR_NODE, supervisor)

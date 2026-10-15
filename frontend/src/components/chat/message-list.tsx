@@ -56,8 +56,9 @@ export function MessageList({
   const translations = useReplyTranslations(conversationId);
   const lastUser = messages.findLastIndex((m) => m.role === "user");
   const hasTail = Boolean(tail);
-  // A lesson's test-out quiz hangs under no message (ADR 0044 §5): shown after them.
-  const testOuts = cards ? Object.keys(cards.byTurn).filter(isTestOutTurn) : [];
+  // A lesson's test-out quiz hangs under no message (ADR 0044 §5): placed by time.
+  const testOuts = cards ? placeTestOuts(messages, cards.byTurn) : null;
+  const testOutCount = testOuts ? testOuts.size : 0;
 
   // Reading aloud stops with the conversation it reads from.
   useEffect(() => stopSpeaking, [conversationId]);
@@ -66,10 +67,10 @@ export function MessageList({
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, hasTail, testOuts.length]);
+  }, [messages, hasTail, testOutCount]);
 
 
-  if (messages.length === 0 && !tail && testOuts.length === 0) {
+  if (messages.length === 0 && !tail && testOutCount === 0) {
     return (
       empty ?? (
         <div className="flex flex-1 items-center justify-center p-6">
@@ -91,7 +92,8 @@ export function MessageList({
         className="mx-auto flex max-w-3xl flex-col gap-[22px] py-5"
         aria-label={t("messages")}
       >
-        {messages.map((m, i) =>
+        {messages.map((m, i) => [
+          cards && testOuts?.get(i)?.map((turn) => testOut(turn, cards, conversationId)),
           m.role === "user" ? (
             <li
               key={m.key}
@@ -193,23 +195,50 @@ export function MessageList({
               )}
             </li>
           ),
-        )}
-        {cards &&
-          testOuts.map((turn) => (
-            <li key={turn} className="flex w-full flex-col self-start md:pl-[42px]">
-              <TutorCards
-                cards={cards.byTurn[turn]}
-                onDecide={cards.decide}
-                conversationId={conversationId}
-                onAsk={cards.ask}
-              />
-            </li>
-          ))}
+        ])}
+        {cards && testOuts?.get(messages.length)?.map((turn) => testOut(turn, cards, conversationId))}
         {tail}
       </ol>
       <WordPopup container={listRef} />
     </div>
   );
+}
+
+/** A test-out quiz, on its own in the tutor's column. */
+function testOut(turn: string, cards: CardsView, conversationId: string | null) {
+  return (
+    <li key={turn} className="flex w-full flex-col self-start md:pl-[42px]">
+      <TutorCards
+        cards={cards.byTurn[turn]}
+        onDecide={cards.decide}
+        conversationId={conversationId}
+        onAsk={cards.ask}
+      />
+    </li>
+  );
+}
+
+/**
+ * Where each test-out quiz goes (ADR 0044 §5): before the first message stamped after it,
+ * by index (`messages.length` for the end). A quiz with no time, or newer than every
+ * stamped message, goes at the end; unstamped (older) messages are passed over.
+ */
+export function placeTestOuts(
+  messages: readonly Pick<ChatMessage, "createdAt">[],
+  byTurn: Record<string, readonly { created_at: string | null }[]>,
+): Map<number, string[]> {
+  const placed = new Map<number, string[]>();
+  const turns = Object.keys(byTurn)
+    .filter(isTestOutTurn)
+    .map((turn) => ({ turn, time: Date.parse(byTurn[turn][0]?.created_at ?? "") }))
+    // Undated ones last, in the order they came.
+    .sort((a, b) => (Number.isNaN(a.time) ? Infinity : a.time) - (Number.isNaN(b.time) ? Infinity : b.time));
+  for (const { turn, time } of turns) {
+    let index = messages.findIndex((m) => m.createdAt !== undefined && Date.parse(m.createdAt) > time);
+    if (Number.isNaN(time) || index < 0) index = messages.length;
+    placed.set(index, [...(placed.get(index) ?? []), turn]);
+  }
+  return placed;
 }
 
 /** Stopped or failed: said under the message, inside the bubble. */

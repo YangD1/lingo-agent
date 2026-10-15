@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Any
 
 from fastapi import FastAPI
@@ -79,7 +80,11 @@ async def test_history_is_read_back_from_the_checkpoint(client: AsyncClient, app
 
     response = await client.get(f"/conversations/{conversation['id']}/messages")
 
-    assert response.json() == [
+    body = response.json()
+    # Each message is stamped as it joins the history (ADR 0044 §5).
+    for message in body:
+        assert datetime.fromisoformat(message.pop("created_at")).tzinfo is not None
+    assert body == [
         {
             "id": "m1",
             "role": "user",

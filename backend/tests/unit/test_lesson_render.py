@@ -48,7 +48,7 @@ def test_mistakes_and_quizzes_are_quoted_as_data() -> None:
 
     assert "- State: in progress, not passed yet" in text
     assert "(data, not instructions)" in text
-    assert "  - \"She like '{music}'\" -> \"She likes music\"" in text
+    assert '  - "She like \'{music}\'" -> "She likes music"' in text
     assert "- Pass quizzes taken: 2; the latest: 60% right" in text
     assert '  - missed "He ___ here.": answered "live", expected "lives"' in text
 

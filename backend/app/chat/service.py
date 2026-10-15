@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.kc.catalog import GrammarKC
 from app.agents.chat_graph import ChatGraph
+from app.agents.messages import created_at
 from app.db.models import Article, Attachment, Conversation
 from app.realtime.transcript import INTERRUPTED, VOICE_CALL
 from app.services.vocab.scheduler import day_bounds
@@ -30,6 +31,8 @@ class ChatMessage:
     content: str
     # A tutor reply on a realtime call that the learner cut short (Q61f).
     interrupted: bool = False
+    # When it joined the conversation; None for messages saved before stamps (ADR 0044 §5).
+    created_at: datetime | None = None
 
 
 _ROLES: dict[str, Literal["user", "assistant"]] = {"human": "user", "ai": "assistant"}
@@ -268,10 +271,24 @@ def to_chat_messages(messages: list[BaseMessage]) -> list[ChatMessage]:
         voice = bool(m.additional_kwargs.get(VOICE_CALL))
         if role == "assistant" and joinable and not voice:
             parts = [p for p in (out[-1].content, m.text) if p]
-            out[-1] = ChatMessage(id=m.id, role=role, content=REPLY_PART_SEPARATOR.join(parts))
+            # Kept at the reply's start: that is where the turn sits in the conversation.
+            out[-1] = ChatMessage(
+                id=m.id,
+                role=role,
+                content=REPLY_PART_SEPARATOR.join(parts),
+                created_at=out[-1].created_at,
+            )
             continue
         interrupted = voice and bool(m.additional_kwargs.get(INTERRUPTED))
-        out.append(ChatMessage(id=m.id, role=role, content=m.text, interrupted=interrupted))
+        out.append(
+            ChatMessage(
+                id=m.id,
+                role=role,
+                content=m.text,
+                interrupted=interrupted,
+                created_at=created_at(m),
+            )
+        )
         joinable = role == "assistant" and not voice
     return out
 

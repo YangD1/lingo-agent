@@ -22,6 +22,9 @@ export type ChatMessage = {
   error?: ApiErrorLike;
   /** On replies: the learner message they answer, which their activity is filed under. */
   turnId?: string;
+  /** When it joined the conversation (ADR 0044 §5): the backend's stamp, or this browser's
+   * clock for one sent or streamed here; absent for messages saved before stamps. */
+  createdAt?: string;
 };
 
 type Options = {
@@ -102,6 +105,7 @@ export function useChatSession(conversationId: string | null, options: Options) 
               role: m.role,
               content: m.content,
               attachments: m.attachments,
+              createdAt: m.created_at ?? undefined,
               turnId:
                 m.role === "assistant" && history[i - 1]?.role === "user"
                   ? (history[i - 1].id ?? undefined)
@@ -201,16 +205,18 @@ export function useChatSession(conversationId: string | null, options: Options) 
       setError(null);
       setStreaming(true);
       // Optimistic: show the message now, take it back if the backend refuses the turn.
+      const now = new Date().toISOString();
       setMessages((all) => [
         ...all,
         {
           key: nextKey(),
+          createdAt: now,
           role: "user",
           // Like the backend: a voice message sent without typing reads as its transcript.
           content: text || (attachments.find((a) => a.kind === "audio")?.text ?? ""),
           attachments,
         },
-        { key: nextKey(), role: "assistant", content: "", status: "streaming" },
+        { key: nextKey(), createdAt: now, role: "assistant", content: "", status: "streaming" },
       ]);
       let created: Conversation | null = null;
       let accepted = false;
@@ -267,7 +273,14 @@ export function useChatSession(conversationId: string | null, options: Options) 
     setStreaming(true);
     setMessages((all) => [
       ...all,
-      { key: nextKey(), role: "assistant", content: "", status: "streaming", turnId: OPENING_TURN_ID },
+      {
+        key: nextKey(),
+        createdAt: new Date().toISOString(),
+        role: "assistant",
+        content: "",
+        status: "streaming",
+        turnId: OPENING_TURN_ID,
+      },
     ]);
     let accepted = false;
     try {
