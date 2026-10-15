@@ -77,8 +77,17 @@ function Pasting({
 
 /** Paste `text` the way a browser does: the event, then the text in the box. */
 function paste(input: HTMLElement, text: string) {
-  fireEvent.paste(input, { clipboardData: { files: [], getData: () => text } });
+  fireEvent.paste(input, {
+    clipboardData: { files: [], getData: (type: string) => (type === "text/plain" ? text : "") },
+  });
   fireEvent.change(input, { target: { value: (input as HTMLTextAreaElement).value + text } });
+}
+
+/** Paste what a page puts on the clipboard: the composer inserts it itself. */
+function pasteHtml(input: HTMLElement, html: string, plain: string) {
+  return fireEvent.paste(input, {
+    clipboardData: { files: [], getData: (type: string) => (type === "text/html" ? html : plain) },
+  });
 }
 
 describe("Composer: long pastes and quotes (ADR 0043 §4)", () => {
@@ -129,6 +138,42 @@ describe("Composer: long pastes and quotes (ADR 0043 §4)", () => {
     await userEvent.click(screen.getByRole("button", { name: "No, just send it" }));
     expect(screen.queryByTestId("paste-hint")).not.toBeInTheDocument();
     expect(input).toHaveValue(long);
+  });
+
+  it("pastes a page's HTML as Markdown where the cursor is (task 85)", async () => {
+    render(<Pasting onOpen={vi.fn()} />);
+    const input = screen.getByRole<HTMLTextAreaElement>("textbox");
+    await userEvent.type(input, "Before:\n\nAfter.");
+    input.setSelectionRange(9, 9);
+    const handled = pasteHtml(input, "<h2>Title</h2><ul><li>One</li><li>Two</li></ul>", "Title\nOne\nTwo");
+    expect(handled).toBe(false); // the browser's own paste is stopped
+    expect(input).toHaveValue("Before:\n\n## Title\n\n- One\n- TwoAfter.");
+    expect(screen.queryByTestId("paste-hint")).not.toBeInTheDocument();
+  });
+
+  it("pastes HTML source typed as text as Markdown", () => {
+    render(<Pasting />);
+    const input = screen.getByRole("textbox");
+    pasteHtml(input, "", "<p>A <b>bold</b> idea.</p><script>x()</script>");
+    expect(input).toHaveValue("A **bold** idea.");
+  });
+
+  it("lets plain text paste as usual", () => {
+    render(<Pasting />);
+    expect(pasteHtml(screen.getByRole("textbox"), "<p>Just text.</p>", "Just text.")).toBe(true);
+  });
+
+  it("offers and opens the converted text of a long HTML paste", async () => {
+    const onOpen = vi.fn(() => Promise.resolve(true));
+    render(<Pasting onOpen={onOpen} />);
+    const input = screen.getByRole("textbox");
+    const body = "<p>The quick brown fox jumps.</p>".repeat(Math.ceil(PASTE_HINT_CHARS / 25));
+    pasteHtml(input, `<h1>Fox</h1>${body}`, "Fox");
+    expect(screen.getByTestId("paste-hint")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Read closely" }));
+    const opened = onOpen.mock.calls[0] as unknown as [string, string];
+    expect(opened[1]).toMatch(/^# Fox\n\nThe quick brown fox jumps\.\n\nThe quick/);
+    await waitFor(() => expect(input).toHaveValue(""));
   });
 
   it("adds a quote after what was typed and puts the cursor below it", async () => {

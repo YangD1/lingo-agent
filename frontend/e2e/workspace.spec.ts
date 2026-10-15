@@ -184,6 +184,57 @@ test("a pasted Markdown article reads as Markdown: headings, lists, bold, tables
   await page.screenshot({ path: test.info().outputPath("workspace-markdown-analyse.png") });
 });
 
+// The same kind of article copied from a web page (task 85): the clipboard's HTML, with the
+// page's menu, a picture and a script around it, goes into the input box as Markdown.
+const PAGE_HTML = `<meta charset="utf-8"><!--StartFragment-->
+<nav><a href="/">Home</a> <a href="/news">News</a></nav>
+<h1>Street trees</h1>
+<p>${ARTICLE.split("\n\n")[0].replace("busy streets", "<strong>busy streets</strong>").replace("cleaner", '<a href="https://example.com">cleaner</a>')}</p>
+<img src="https://example.com/tree.jpg" alt="A tree">
+<h2>What a tree needs</h2>
+<ul><li>Water every week during its first summers</li><li>Someone to check it for damage</li><li>A family nearby to adopt it</li></ul>
+<table><tbody><tr><td><p>City</p></td><td><p>Trees planted</p></td></tr><tr><td><p>Paris</p></td><td><p>100</p></td></tr><tr><td><p>Milan</p></td><td><p>80</p></td></tr></tbody></table>
+<script>document.title = "pwned"</script>
+${ARTICLE.split("\n\n").slice(1).map((p) => `<p>${p}</p>`).join("\n")}
+<!--EndFragment-->`;
+
+test("an article copied from a web page pastes as Markdown and reads with its structure", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await page.goto("/chat");
+
+  const box = input(page);
+  await box.focus();
+  await box.evaluate((element, html) => {
+    const data = new DataTransfer();
+    data.setData("text/html", html);
+    data.setData("text/plain", "Street trees\nCities around the world...");
+    element.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: data }));
+  }, PAGE_HTML);
+  await expect(box).toHaveValue(/^# Street trees\n\nCities around the world .*\*\*busy streets\*\*/);
+  await expect(box).toHaveValue(/\[cleaner\]\(https:\/\/example\.com\)/);
+  await expect(box).not.toHaveValue(/<|Home|pwned|tree\.jpg/);
+
+  // The browser's undo takes the whole paste back out.
+  await box.press("ControlOrMeta+z");
+  await expect(box).toHaveValue("");
+  await box.press("ControlOrMeta+Shift+z");
+  await expect(box).toHaveValue(/^# Street trees/);
+
+  await page.getByTestId("paste-hint").getByRole("button", { name: "在工作区精读" }).click();
+  const text = page.getByTestId("workspace-text");
+  await expect(text.getByRole("heading", { level: 1, name: "Street trees" })).toBeVisible();
+  await expect(text.getByRole("heading", { level: 2, name: "What a tree needs" })).toBeVisible();
+  await expect(text.getByRole("listitem")).toHaveCount(3);
+  await expect(text.locator("strong", { hasText: "busy streets" })).toBeVisible();
+  await expect(text.getByRole("link", { name: "cleaner" })).toHaveAttribute("href", "https://example.com");
+  await expect(text.getByRole("columnheader", { name: "Trees planted" })).toBeVisible();
+  await expect(text.getByRole("table")).toContainText("Milan");
+  await expect(text).not.toContainText("Home");
+  await expect(page).not.toHaveTitle("pwned");
+  await page.screenshot({ path: test.info().outputPath("workspace-html-paste.png") });
+});
+
 test("the tutor opens the learner's writing, proposes edits; one accepted, one declined, then reverted", async ({
   page,
 }) => {

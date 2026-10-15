@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorText } from "@/components/ui/error-text";
 import { ACCEPT } from "@/lib/attachments";
+import { pastedText } from "@/lib/paste";
 import type { Attachment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { offersWorkspace, withQuote, type WorkspaceKind } from "@/lib/workspace";
@@ -132,18 +133,33 @@ export function Composer({
 
   function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
     const files = Array.from(event.clipboardData.files);
-    if (files.length === 0) {
-      // Plain text: let it paste, and offer the workspace for a long one.
-      const full = event.clipboardData.getData("text/plain");
-      if (onOpenInWorkspace && offersWorkspace(full)) {
-        const box = event.currentTarget;
-        const room = MAX_LENGTH - box.value.length + (box.selectionEnd - box.selectionStart);
-        setPasted({ full, inserted: full.slice(0, Math.max(room, 0)) });
-      }
+    if (files.length > 0) {
+      event.preventDefault();
+      tray.add(files);
       return;
     }
-    event.preventDefault();
-    tray.add(files);
+    // Text: HTML (copied from a page, or typed as source) goes in as Markdown (task 85);
+    // anything else pastes as usual. A long one offers the workspace.
+    const plain = event.clipboardData.getData("text/plain");
+    const full = pastedText(event.clipboardData.getData("text/html"), plain);
+    const box = event.currentTarget;
+    const room = MAX_LENGTH - box.value.length + (box.selectionEnd - box.selectionStart);
+    const inserted = full.slice(0, Math.max(room, 0));
+    if (full !== plain) {
+      event.preventDefault();
+      insertAtCursor(box, inserted);
+    }
+    if (onOpenInWorkspace && offersWorkspace(full)) setPasted({ full, inserted });
+  }
+
+  /** Types `value` over the selection, so the browser's undo takes it back out. */
+  function insertAtCursor(box: HTMLTextAreaElement, value: string) {
+    box.focus();
+    if (document.execCommand?.("insertText", false, value)) return;
+    // No editing command (jsdom, or a browser that dropped it): set the text directly.
+    const { selectionStart: start, selectionEnd: end } = box;
+    setText(box.value.slice(0, start) + value + box.value.slice(end));
+    requestAnimationFrame(() => box.setSelectionRange(start + value.length, start + value.length));
   }
 
   async function openPasted(kind: WorkspaceKind) {
