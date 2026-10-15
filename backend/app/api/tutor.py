@@ -39,6 +39,7 @@ class TutorIn(BaseModel):
     nudges: bool = True
     daily_opening: bool = True
     workspace_auto_open: bool = True
+    quiz_proactive: bool = True
     chat_model: Annotated[str, Field(max_length=300)] | None = None
     tts_model: Annotated[str, Field(max_length=300)] | None = None
     voices: dict[Language, Annotated[str, Field(max_length=service.MAX_VOICE_LENGTH)]] = {}
@@ -55,6 +56,7 @@ class TutorOut(BaseModel):
     nudges: bool = True
     daily_opening: bool = True
     workspace_auto_open: bool = True
+    quiz_proactive: bool = True
     chat_model: str | None = None
     tts_model: str | None = None
     voices: dict[Language, str] = {}
@@ -164,6 +166,7 @@ def _tutor_out(profile: TutorProfile, options: TutorOptions) -> TutorOut:
         nudges=profile.nudges,
         daily_opening=profile.daily_opening,
         workspace_auto_open=profile.workspace_auto_open,
+        quiz_proactive=profile.quiz_proactive,
         chat_model=profile.chat_model,
         tts_model=profile.tts_model,
         voices=profile.voices,

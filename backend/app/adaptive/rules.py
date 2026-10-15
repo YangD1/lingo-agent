@@ -287,6 +287,7 @@ class CourseRules(_Strict):
     quiz_min_items: int = Field(ge=1)
     check_min_items: int = Field(ge=1)
     generated_quizzes_per_day: int = Field(ge=0)
+    proactive_quiz_gap_minutes: int = Field(ge=0)
 
     @model_validator(mode="after")
     def _check(self) -> Self:

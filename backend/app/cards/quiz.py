@@ -11,9 +11,10 @@ import uuid
 from collections import Counter
 from collections.abc import Awaitable, Callable, Collection, Iterable, Mapping
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive.exercise.formats import (
@@ -32,6 +33,7 @@ from app.adaptive.exercise.planner import QuizPurpose
 from app.adaptive.exercise.worker import QuizLimitError
 from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
 from app.adaptive.kc.search import find_kcs, is_clear
+from app.adaptive.rules import get_rules
 from app.cards.tools import CardDraft, CardScope, GiveQuiz, ToolCallError, parse_args
 from app.db.models import Attempt, Exercise, ExerciseSet, TutorCard
 
@@ -59,8 +61,14 @@ class QuizTools:
         tenant_id: uuid.UUID,
         conversation_id: uuid.UUID,
         start: StartQuiz,
+        proactive: bool = True,
+        lesson: bool = False,
     ) -> None:
         self._sessionmaker = sessionmaker
+        # The learner lets the tutor give quizzes nobody asked for (ADR 0046 §4); in a
+        # lesson, which the learner opened to be taught and tested, any quiz goes.
+        self._proactive = proactive
+        self._lesson = lesson
         self._user_id = user_id
         self._tenant_id = tenant_id
         self._conversation_id = conversation_id
@@ -84,6 +92,8 @@ class QuizTools:
         if earlier is not None:
             set_id = uuid.UUID(earlier["set_id"])
         else:
+            if not parsed.asked and not self._lesson:
+                await self._check_unasked(parsed, kc)
             try:
                 set_id = await self._start(self._user_id, self._tenant_id, kc.id, parsed.purpose)
             except QuizLimitError as exc:
@@ -97,8 +107,50 @@ class QuizTools:
             "checked; the learner answers them in the card, and you will see the results "
             "in your context. Do not ask the questions or give answers in your reply: "
             "tell the learner briefly to try the card.",
-            CardDraft("quiz", {"set_id": str(set_id), "kc_id": kc.id, "purpose": parsed.purpose}),
+            CardDraft(
+                "quiz",
+                {
+                    "set_id": str(set_id),
+                    "kc_id": kc.id,
+                    "purpose": parsed.purpose,
+                    "proactive": not parsed.asked,
+                },
+            ),
         )
+
+    async def _check_unasked(self, parsed: GiveQuiz, kc: GrammarKC) -> None:
+        """A quiz the learner did not ask for (ADR 0046 §3). Raises ToolCallError."""
+        if not self._proactive:
+            raise ToolCallError(
+                "the learner turned off quizzes they did not ask for; ask in your reply "
+                "whether they want one"
+            )
+        if parsed.purpose == "quiz":
+            raise ToolCallError(
+                "a pass quiz counts toward mastery, so give one only when the learner asks "
+                "for it or agrees to it; use purpose check, or ask first"
+            )
+        async with self._sessionmaker() as session:
+            rows = (
+                await session.execute(
+                    select(TutorCard.params, TutorCard.created_at).where(
+                        TutorCard.conversation_id == self._conversation_id,
+                        TutorCard.kind == "quiz",
+                        TutorCard.params["proactive"].as_boolean(),
+                    )
+                )
+            ).all()
+            now = await session.scalar(select(func.now()))
+        if any(params["kc_id"] == kc.id for params, _ in rows):
+            raise ToolCallError(
+                f"you already gave an unasked check on {kc.name_en} in this conversation; "
+                "ask in your reply instead"
+            )
+        gap = timedelta(minutes=get_rules().course.proactive_quiz_gap_minutes)
+        if now is not None and any(now - at < gap for _, at in rows):
+            raise ToolCallError(
+                "you gave an unasked quiz only a few minutes ago; ask in your reply instead"
+            )
 
 
 def _grammar_point(parsed: GiveQuiz, within: Collection[str] | None) -> GrammarKC:

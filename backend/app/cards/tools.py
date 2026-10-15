@@ -174,6 +174,10 @@ class GiveQuiz(_Args):
         description="Otherwise the grammar point's name, e.g. 'present perfect for / since'.",
     )
     purpose: Literal["check", "quiz"]
+    asked: bool = Field(
+        description="True when the learner asked for questions or a test in this turn, or "
+        "agreed to one you offered; false when it is your own idea."
+    )
 
     @model_validator(mode="after")
     def _names_a_point(self) -> Self:

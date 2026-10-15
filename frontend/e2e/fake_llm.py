@@ -620,7 +620,7 @@ def tutor_tool_call(
         and QUIZ_ME.search(said)
         and (point := LESSON_POINT.search(system_text(messages)))
     ):
-        return "give_quiz", {"kc_id": point.group(1), "purpose": "quiz"}
+        return "give_quiz", {"kc_id": point.group(1), "purpose": "quiz", "asked": True}
     if "suggest_link" in names and FLASHCARDS.search(said):
         return "suggest_link", {"kind": "vocab_review"}
     if not WORD_BOOK.search(said):

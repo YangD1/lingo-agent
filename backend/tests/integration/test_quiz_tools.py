@@ -2,16 +2,17 @@
 the set's results reach the tutor's context on later turns."""
 
 import uuid
+from datetime import timedelta
 
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.exercise.formats import parse_body
 from app.adaptive.rules import get_rules
-from app.db.models import Attempt, Exercise, ExerciseSet
+from app.db.models import Attempt, Exercise, ExerciseSet, TutorCard
 from tests.integration.test_chat_tools import (
     Script,
     _clear_caches,  # noqa: F401
@@ -45,7 +46,10 @@ async def test_give_quiz_starts_a_set_and_shows_its_card(
     client: AsyncClient, db_session: AsyncSession, script: Script
 ) -> None:
     conversation = await ready(client)
-    script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="quiz")], "Try the card."]
+    script.replies = [
+        [tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True)],
+        "Try the card.",
+    ]
 
     status, events, _ = await send(client, conversation, "Test me on -s, please.")
 
@@ -54,7 +58,12 @@ async def test_give_quiz_starts_a_set_and_shows_its_card(
     (row,) = await quiz_sets(db_session)
     assert (row.status, row.quiz_purpose, row.focus_kc_id) == ("generating", "quiz", KC)
     assert card["kind"] == "quiz" and card["status"] == "info"
-    assert card["params"] == {"set_id": str(row.id), "kc_id": KC, "purpose": "quiz"}
+    assert card["params"] == {
+        "set_id": str(row.id),
+        "kc_id": KC,
+        "purpose": "quiz",
+        "proactive": False,
+    }
     assert card["display"]["kc"]["id"] == KC
     assert card["display"]["pass_score"] == get_rules().course.pass_score
     (result,) = results(script)
@@ -69,12 +78,12 @@ async def test_refused_calls_show_no_card(
 ) -> None:
     conversation = await ready(client)
     for _ in range(get_rules().course.generated_quizzes_per_day):
-        script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="quiz")], "Try it."]
+        script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True)], "Try it."]
         await send(client, conversation, "Quiz me.")
     script.replies = [
         [
-            tool_call("give_quiz", kc_id=KC, purpose="quiz"),
-            tool_call("give_quiz", kc_id="g.no_such_kc", purpose="check"),
+            tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True),
+            tool_call("give_quiz", kc_id="g.no_such_kc", purpose="check", asked=True),
         ],
         "Let's practise here instead.",
     ]
@@ -126,7 +135,10 @@ async def test_the_next_turn_sees_the_results(
     client: AsyncClient, db_session: AsyncSession, script: Script
 ) -> None:
     conversation = await ready(client)
-    script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="check")], "Try the card."]
+    script.replies = [
+        [tool_call("give_quiz", kc_id=KC, purpose="check", asked=True)],
+        "Try the card.",
+    ]
     await send(client, conversation, "Check I understand.")
     (row,) = await quiz_sets(db_session)
     script.calls.clear()
@@ -151,7 +163,7 @@ async def test_a_topic_finds_the_grammar_point(
     """Free chat gives no id for most points; the tutor names one (ADR 0046 §1)."""
     conversation = await ready(client)
     script.replies = [
-        [tool_call("give_quiz", topic="subject + verb word order", purpose="quiz")],
+        [tool_call("give_quiz", topic="subject + verb word order", purpose="quiz", asked=True)],
         "Try the card.",
     ]
 
@@ -169,9 +181,9 @@ async def test_an_unclear_topic_lists_candidates(
     conversation = await ready(client)
     script.replies = [
         [
-            tool_call("give_quiz", topic="present perfect", purpose="quiz"),
-            tool_call("give_quiz", topic="photosynthesis", purpose="quiz"),
-            tool_call("give_quiz", purpose="quiz"),
+            tool_call("give_quiz", topic="present perfect", purpose="quiz", asked=True),
+            tool_call("give_quiz", topic="photosynthesis", purpose="quiz", asked=True),
+            tool_call("give_quiz", purpose="quiz", asked=True),
         ],
         "Which part of the present perfect?",
     ]
@@ -185,3 +197,82 @@ async def test_an_unclear_topic_lists_candidates(
     assert "g.present_perfect_for_since" in several
     assert "no grammar point matches" in none
     assert "give kc_id or topic" in neither
+
+
+def unasked(kc_id: str = KC, purpose: str = "check") -> dict[str, object]:
+    return tool_call("give_quiz", kc_id=kc_id, purpose=purpose, asked=False)
+
+
+async def refusal(script: Script) -> str:
+    return results(script, call=-1)[-1].text
+
+
+async def test_an_unasked_quiz_is_only_a_check(
+    client: AsyncClient, db_session: AsyncSession, script: Script
+) -> None:
+    """ADR 0046 §3: a pass quiz changes mastery, so the learner has to ask for it."""
+    conversation = await ready(client)
+    script.replies = [[unasked(purpose="quiz")], "Shall we test it?"]
+    _, events, _ = await send(client, conversation, "I see, -s after he.")
+    assert kinds(events, "card") == []
+    assert "use purpose check, or ask first" in await refusal(script)
+
+    script.replies = [[unasked()], "Try the card."]
+    _, events, _ = await send(client, conversation, "Got it.")
+    (card,) = kinds(events, "card")
+    assert card["params"]["proactive"] is True and card["params"]["purpose"] == "check"
+
+
+async def test_unasked_quizzes_are_spaced_and_once_per_point(
+    client: AsyncClient, db_session: AsyncSession, script: Script
+) -> None:
+    conversation = await ready(client)
+    other = "g.be_present"
+    script.replies = [[unasked()], "Try the card."]
+    await send(client, conversation, "Got it.")
+
+    script.replies = [[unasked(other)], "Any questions?"]
+    _, events, _ = await send(client, conversation, "And am / is / are?")
+    assert kinds(events, "card") == []
+    assert "only a few minutes ago" in await refusal(script)
+
+    # Past the gap: another point is fine, the same one is not.
+    await db_session.execute(
+        update(TutorCard)
+        .where(TutorCard.kind == "quiz")
+        .values(created_at=func.now() - timedelta(minutes=11))
+    )
+    await db_session.commit()
+    script.replies = [[unasked()], "Let's talk it through."]
+    _, events, _ = await send(client, conversation, "Still a bit unsure about -s.")
+    assert kinds(events, "card") == []
+    assert "already gave an unasked check" in await refusal(script)
+    script.replies = [[unasked(other)], "Try the card."]
+    _, events, _ = await send(client, conversation, "And am / is / are?")
+    assert len(kinds(events, "card")) == 1
+
+    # Asked for: no limits.
+    script.replies = [
+        [tool_call("give_quiz", kc_id=KC, purpose="check", asked=True)],
+        "Here it is.",
+    ]
+    _, events, _ = await send(client, conversation, "Test me on -s again.")
+    assert len(kinds(events, "card")) == 1
+
+
+async def test_the_learner_can_turn_unasked_quizzes_off(
+    client: AsyncClient, db_session: AsyncSession, script: Script
+) -> None:
+    conversation = await ready(client)
+    assert (await client.put("/tutor", json={"quiz_proactive": False})).status_code == 200
+    script.replies = [[unasked()], "Want a quick check?"]
+    _, events, _ = await send(client, conversation, "Got it.")
+    assert kinds(events, "card") == []
+    assert "turned off quizzes they did not ask for" in await refusal(script)
+
+    script.replies = [
+        [tool_call("give_quiz", kc_id=KC, purpose="check", asked=True)],
+        "Here it is.",
+    ]
+    _, events, _ = await send(client, conversation, "Yes, check me.")
+    assert len(kinds(events, "card")) == 1

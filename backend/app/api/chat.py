@@ -668,6 +668,8 @@ async def _reply(
                     tenant_id=turn.providers.tenant_id,
                     conversation_id=turn.conversation_id,
                     start=request.app.state.practice_worker.start_quiz,
+                    proactive=(turn.providers.tutor is None or turn.providers.tutor.quiz_proactive),
+                    lesson=lesson is not None,
                 ),
             )
             if turn.free_chat:  # the supervisor may hand it to writing_coach

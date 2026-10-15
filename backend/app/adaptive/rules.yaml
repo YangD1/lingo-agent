@@ -337,6 +337,8 @@ course:
   # Pass quizzes on one KC the generator writes in 24 hours; later ones use the
   # placement bank only, so retaking a quiz does not spend tokens without end.
   generated_quizzes_per_day: 2
+  # Between two quizzes the tutor gives unasked in one conversation (ADR 0046 §3).
+  proactive_quiz_gap_minutes: 10
 
 # Graded reading (ADR 0024 §5, P2 plan §5.3). A version of an article is written for
 # one level and cached per tenant, article and level.

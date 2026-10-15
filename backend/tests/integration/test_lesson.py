@@ -83,7 +83,7 @@ async def test_the_tutor_opens_the_lesson_with_its_material_and_tools(
     await ready(client)
     conversation = (await start(client, OPEN))["conversation"]["id"]
     script.replies = [
-        [tool_call("give_quiz", kc_id=OPEN, purpose="check")],
+        [tool_call("give_quiz", kc_id=OPEN, purpose="check", asked=False)],
         "Have a go at the card.",
     ]
 
@@ -115,7 +115,7 @@ async def test_cards_stay_on_the_lesson_and_its_prerequisites(
     conversation = (await start(client, OPEN))["conversation"]["id"]
     script.replies = [
         [
-            tool_call("give_quiz", kc_id=LOCKED, purpose="check"),
+            tool_call("give_quiz", kc_id=LOCKED, purpose="check", asked=False),
             tool_call("suggest_link", kind="course"),
         ],
         "Let's stay on word order.",

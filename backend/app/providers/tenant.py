@@ -64,6 +64,7 @@ async def _with_tutor(session: AsyncSession, ctx: TenantProviderContext) -> Tena
         realtime_model=profile.realtime_model,
         realtime_voice=profile.realtime_voice,
         workspace_auto_open=profile.workspace_auto_open,
+        quiz_proactive=profile.quiz_proactive,
     )
     return replace(ctx, tutor=tutor, version=f"{ctx.version}:t{profile.updated_at.isoformat()}")
 

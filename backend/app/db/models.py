@@ -706,6 +706,8 @@ class TutorProfile(TimestampMixin, Base):
     daily_opening: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     # The tutor opens the chat workspace by itself when it judges it helps (ADR 0045 §3).
     workspace_auto_open: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # The tutor gives understanding checks by itself when it judges so (ADR 0046 §4).
+    quiz_proactive: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     chat_model: Mapped[str | None] = mapped_column(String(300))
     # The read-aloud model `voices` were picked from, and {language: voice}.
     tts_model: Mapped[str | None] = mapped_column(String(300))

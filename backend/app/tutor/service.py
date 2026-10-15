@@ -46,6 +46,8 @@ class TutorChoice:
     daily_opening: bool = True
     # The tutor opens the chat workspace by itself (ADR 0045 §3).
     workspace_auto_open: bool = True
+    # The tutor gives understanding checks by itself (ADR 0046 §4).
+    quiz_proactive: bool = True
     chat_model: str | None = None
     tts_model: str | None = None
     voices: dict[str, str] | None = None
@@ -109,6 +111,7 @@ def validate(choice: TutorChoice, options: TutorOptions) -> dict[str, Any]:
         "nudges": choice.nudges,
         "daily_opening": choice.daily_opening,
         "workspace_auto_open": choice.workspace_auto_open,
+        "quiz_proactive": choice.quiz_proactive,
         "chat_model": choice.chat_model,
         "tts_model": choice.tts_model if voices else None,
         "voices": voices,

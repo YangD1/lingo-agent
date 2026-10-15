@@ -270,6 +270,8 @@ class TutorPick:
     realtime_voice: str | None = None
     # Not a model pick, but the tutor's own setting its prompt follows (ADR 0045 §3).
     workspace_auto_open: bool = True
+    # Likewise: the tutor may give quizzes nobody asked for (ADR 0046 §4).
+    quiz_proactive: bool = True
 
 
 @dataclass(frozen=True)
