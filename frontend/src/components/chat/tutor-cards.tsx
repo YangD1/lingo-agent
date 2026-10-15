@@ -24,16 +24,26 @@ import { ApiError } from "@/lib/api";
 import { type CardAction, LINK_HREFS, type LinkKind, type TutorCard } from "@/lib/cards";
 import type { PlanCardParams, PlanChoice } from "@/lib/plan";
 import { cn } from "@/lib/utils";
+import { chatUrl } from "@/lib/workspace";
 
 type Decide = (card: TutorCard, action: CardAction, choice?: PlanChoice) => Promise<void>;
 
 /** The cards the tutor showed on a turn, under its reply (ADR 0015 §4). */
-export function TutorCards({ cards, onDecide }: { cards: TutorCard[]; onDecide: Decide }) {
+export function TutorCards({
+  cards,
+  onDecide,
+  conversationId = null,
+}: {
+  cards: TutorCard[];
+  onDecide: Decide;
+  /** Away from the chat page, workspace cards link to this conversation there. */
+  conversationId?: string | null;
+}) {
   if (cards.length === 0) return null;
   return (
     <div className="mt-2.5 flex flex-col gap-2" data-testid="tutor-cards">
       {cards.map((card) => (
-        <CardItem key={card.id} card={card} onDecide={onDecide} />
+        <CardItem key={card.id} card={card} onDecide={onDecide} conversationId={conversationId} />
       ))}
     </div>
   );
@@ -50,7 +60,15 @@ const ICONS = {
   workspace_edit: FilePen,
 };
 
-function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
+function CardItem({
+  card,
+  onDecide,
+  conversationId,
+}: {
+  card: TutorCard;
+  onDecide: Decide;
+  conversationId: string | null;
+}) {
   const Icon = ICONS[card.kind];
   if (!Icon) return null; // from a newer backend
   return (
@@ -83,7 +101,9 @@ function CardItem({ card, onDecide }: { card: TutorCard; onDecide: Decide }) {
         {card.kind === "link" && <LinkCard card={card} />}
         {card.kind === "writing" && <WritingCard card={card} />}
         {card.kind === "daily_plan" && <DailyPlanCard card={card} onDecide={onDecide} />}
-        {(card.kind === "workspace" || card.kind === "workspace_edit") && <WorkspaceCard card={card} />}
+        {(card.kind === "workspace" || card.kind === "workspace_edit") && (
+          <WorkspaceCard card={card} conversationId={conversationId} />
+        )}
       </div>
     </div>
   );
@@ -268,20 +288,37 @@ function LinkCard({ card }: { card: TutorCard }) {
   );
 }
 
-/** writing_coach's review of the learner's text, line by line on the writing page. */
+/** writing_coach's review of the learner's text, line by line on the writing page; on
+ * the chat page the text can also be revised in the workspace (ADR 0043 §4). */
 function WritingCard({ card }: { card: TutorCard }) {
   const t = useTranslations("chat.cards.writing");
+  const workspace = useWorkspaceOpener();
+  const [opening, setOpening] = useState(false);
+  const id = Number(card.params.submission_id);
+
+  async function revise() {
+    if (!workspace) return;
+    setOpening(true);
+    try {
+      await workspace.openFrom({ source: "writing", id });
+    } finally {
+      setOpening(false);
+    }
+  }
+
   return (
     <>
       <p className="text-sm font-semibold">{t("title")}</p>
       <p className="text-xs text-muted-foreground">{t("body")}</p>
-      <div>
-        <Link
-          href={`/writing/${String(card.params.submission_id)}`}
-          className={buttonVariants({ size: "sm" })}
-        >
+      <div className="flex flex-wrap gap-2">
+        <Link href={`/writing/${id}`} className={buttonVariants({ size: "sm" })}>
           {t("action")}
         </Link>
+        {workspace && (
+          <Button size="sm" variant="outline" disabled={opening} onClick={() => void revise()}>
+            {t("workspace")}
+          </Button>
+        )}
       </div>
     </>
   );
@@ -318,11 +355,18 @@ function LiveNumbers({ kind, live }: { kind: LinkKind; live?: Record<string, unk
 }
 
 /** The tutor opened a document or proposed edits to one (ADR 0043 §5–6): open it beside the
- * chat. Away from the chat page there is no workspace to open it in. */
-function WorkspaceCard({ card }: { card: TutorCard }) {
+ * chat. Away from the chat page there is no workspace to open it in: link to it there. */
+function WorkspaceCard({
+  card,
+  conversationId,
+}: {
+  card: TutorCard;
+  conversationId: string | null;
+}) {
   const t = useTranslations("chat.cards");
-  const open = useWorkspaceOpener();
+  const workspace = useWorkspaceOpener();
   const title = String(card.params.title ?? "");
+  const docId = String(card.params.doc_id);
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <p className="min-w-0 flex-1">
@@ -330,10 +374,19 @@ function WorkspaceCard({ card }: { card: TutorCard }) {
           ? t("workspaceOpened", { title })
           : t("workspaceEdits", { title, n: Number(card.params.count ?? 0) })}
       </p>
-      {open && (
-        <Button size="sm" variant="outline" onClick={() => open(String(card.params.doc_id))}>
+      {workspace ? (
+        <Button size="sm" variant="outline" onClick={() => workspace.open(docId)}>
           {card.kind === "workspace" ? t("workspaceOpen") : t("workspaceReview")}
         </Button>
+      ) : (
+        conversationId && (
+          <Link
+            href={chatUrl(conversationId, docId)}
+            className={buttonVariants({ size: "sm", variant: "outline" })}
+          >
+            {t("workspaceOnChat")}
+          </Link>
+        )
       )}
     </div>
   );

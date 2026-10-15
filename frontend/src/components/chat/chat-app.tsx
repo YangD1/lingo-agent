@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Segmented } from "@/components/ui/segmented";
 import { Sheet } from "@/components/ui/sheet";
 import { useWorkspace } from "@/components/workspace/use-workspace";
-import { WorkspaceOpener } from "@/components/workspace/opener";
+import { WorkspaceOpenerContext } from "@/components/workspace/opener";
 import { WorkspacePane } from "@/components/workspace/workspace-pane";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { api, ApiError } from "@/lib/api";
@@ -20,8 +20,11 @@ import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   chatUrl,
+  createFrom,
   createPasted,
   deleteDoc,
+  docFrom,
+  type DocSource,
   quoteBlock,
   useWorkspaceLayout,
   type WorkspaceKind,
@@ -207,6 +210,21 @@ export function ChatApp({
     }
   }
 
+  // The reading bar's article and writing_coach's reviewed text (ADR 0043 §3–4): opened
+  // again if this conversation already has it.
+  async function openFrom(from: DocSource) {
+    const made = docFrom(workspace.docs, from);
+    if (made) return openDoc(made.id);
+    if (!activeId) return;
+    try {
+      const doc = await createFrom(activeId, from);
+      reloadDocs();
+      openDoc(doc.id);
+    } catch (e) {
+      toast.error(errorMessage(e instanceof ApiError ? e : { code: "network_error", message: "" }));
+    }
+  }
+
   async function removeDoc() {
     if (!docId) return;
     await deleteDoc(docId).catch(() => {});
@@ -253,7 +271,7 @@ export function ChatApp({
   const tabs = isOpen && layout === "tabs";
 
   return (
-    <WorkspaceOpener value={openDoc}>
+    <WorkspaceOpenerContext value={{ open: openDoc, openFrom }}>
       <ConversationList
         {...list}
         className={cn("hidden md:flex", isOpen && "md:hidden")}
@@ -394,6 +412,6 @@ export function ChatApp({
           {tNav("dashboard")}
         </Link>
       </Sheet>
-    </WorkspaceOpener>
+    </WorkspaceOpenerContext>
   );
 }

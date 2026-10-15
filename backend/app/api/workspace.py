@@ -14,6 +14,7 @@ from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adaptive.kc.catalog import CefrLevel
+from app.adaptive.rules import get_rules
 from app.api.errors import api_error
 from app.chat import service as chat_service
 from app.chat.service import ConversationNotFoundError
@@ -21,6 +22,7 @@ from app.db.models import Conversation, WorkspaceDoc, WorkspaceDocVersion, Works
 from app.deps import CurrentTenant, CurrentUser, SessionDep, per_user
 from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
 from app.providers.tenant import load_provider_context
+from app.services.reading.versions import reading_level
 from app.workspace import ai, edits, service
 from app.workspace.service import Kind, WorkspaceError
 
@@ -128,7 +130,8 @@ class CreateIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Kind
-    # paste: `text`; article: `article_id` (+ `level`, the rewritten version shown);
+    # paste: `text`; article: `article_id` (+ `level`, the rewritten version; else the
+    # learner's reading level, the version the article page opens at and the coach reads);
     # writing: `writing_id`; blank: a writing document with no text yet.
     source: Literal["paste", "article", "writing", "blank"]
     title: Annotated[str | None, Field(max_length=service.MAX_TITLE_LENGTH)] = None
@@ -152,8 +155,9 @@ async def create_doc(
             case "paste" if body.text is not None:
                 text = service.text_for(body.kind, body.text, body.title)
             case "article" if body.article_id is not None and body.kind == "reading":
+                level = body.level or await reading_level(session, user.id, get_rules())
                 text = await service.article_text(
-                    session, tenant.id, body.article_id, body.level, body.title
+                    session, tenant.id, body.article_id, level, body.title
                 )
             case "writing" if body.writing_id is not None and body.kind == "writing":
                 text = await service.submission_text(session, user.id, body.writing_id, body.title)

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   chatUrl,
+  docFrom,
   type EditItem,
   isStale,
   layoutFor,
@@ -15,6 +16,7 @@ import {
   sentencesOf,
   withQuote,
   wordDiff,
+  type WorkspaceDoc,
   type WorkspaceEdit,
 } from "./workspace";
 
@@ -64,6 +66,19 @@ describe("chatUrl", () => {
 
   it("has no document without a conversation", () => {
     expect(chatUrl(null, "d1")).toBe("/chat");
+  });
+});
+
+describe("docFrom", () => {
+  const doc = (id: string, source: string, ref: string | null) =>
+    ({ id, source, source_ref: ref }) as WorkspaceDoc;
+
+  it("finds the latest document made from that article or text", () => {
+    const docs = [doc("a", "article", "7"), doc("w", "writing", "7"), doc("b", "article", "7")];
+    expect(docFrom(docs, { source: "article", id: 7 })?.id).toBe("b");
+    expect(docFrom(docs, { source: "writing", id: 7 })?.id).toBe("w");
+    expect(docFrom(docs, { source: "article", id: 8 })).toBeUndefined();
+    expect(docFrom([doc("p", "paste", null)], { source: "writing", id: 7 })).toBeUndefined();
   });
 });
 

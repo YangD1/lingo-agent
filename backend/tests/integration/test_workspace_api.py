@@ -100,17 +100,18 @@ async def test_an_article_opens_at_the_level_shown(
 
     url = f"/conversations/{conversation_id}/workspace"
     body = {"kind": "reading", "source": "article", "article_id": article_id}
-    original = (await client.post(url, json=body)).json()
-    assert original["content"] == {"paragraphs": ["One.", "Two."]}
-    assert (original["title"], original["source_ref"]) == ("Comet", str(article_id))
     easy = (await client.post(url, json={**body, "level": "A2"})).json()
     assert (easy["title"], easy["content"]["paragraphs"]) == (
         "Comet (easy)",
         ["Easy one.", "Easy two."],
     )
+    assert easy["source_ref"] == str(article_id)
+    # No level (the reading bar): the learner's, here practice.default_level A2.
+    mine = (await client.post(url, json=body)).json()
+    assert mine["content"] == easy["content"]
     # No B2 version yet: the original.
     b2 = (await client.post(url, json={**body, "level": "B2"})).json()
-    assert b2["content"]["paragraphs"] == ["One.", "Two."]
+    assert (b2["title"], b2["content"]["paragraphs"]) == ("Comet", ["One.", "Two."])
 
 
 async def test_an_article_that_is_not_there_is_not_found(client: AsyncClient) -> None:

@@ -48,6 +48,25 @@ export const createPasted = (conversationId: string, kind: WorkspaceKind, text: 
     json: { kind, source: "paste", text },
   });
 
+/** Where a document opened from a page comes from (ADR 0043 §3–4). */
+export type DocSource =
+  | { source: "article"; id: number }
+  | { source: "writing"; id: number };
+
+/** An article (at the learner's level) or a submitted text, as a document. */
+export const createFrom = (conversationId: string, from: DocSource) =>
+  api<WorkspaceDocDetail>(`/conversations/${conversationId}/workspace`, {
+    method: "POST",
+    json:
+      from.source === "article"
+        ? { kind: "reading", source: "article", article_id: from.id }
+        : { kind: "writing", source: "writing", writing_id: from.id },
+  });
+
+/** The conversation's document already made from that source, opened again instead of a copy. */
+export const docFrom = (docs: WorkspaceDoc[], from: DocSource) =>
+  docs.findLast((d) => d.source === from.source && d.source_ref === String(from.id));
+
 export const deleteDoc = (docId: string) =>
   api<void>(`/workspace/docs/${docId}`, { method: "DELETE" });
 

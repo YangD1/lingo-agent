@@ -482,7 +482,8 @@
       "writing": {
         "title": "Writing review",
         "body": "Every correction, four scores and the explanations are in the review.",
-        "action": "See the line-by-line review"
+        "action": "See the line-by-line review",
+        "workspace": "Revise in the workspace"
       },
       "plan": {
         "title": "A new plan for today",
@@ -492,7 +493,8 @@
       "workspaceOpened": "Opened “{title}” in the workspace",
       "workspaceEdits": "Suggested {n, plural, one {# edit} other {# edits}} to “{title}”; nothing changes until you accept them",
       "workspaceOpen": "Open",
-      "workspaceReview": "Review"
+      "workspaceReview": "Review",
+      "workspaceOnChat": "Open on the chat page"
     },
     "planning": {
       "badge": "Study planning"
@@ -540,7 +542,8 @@
     "typing": "The assistant is replying",
     "reading": {
       "label": "About an article you are reading: ask about words, sentences or what it means.",
-      "back": "Back to the article"
+      "back": "Back to the article",
+      "workspace": "Read in the workspace"
     },
     "textHidden": "Text hidden for listening practice.",
     "workspace": {

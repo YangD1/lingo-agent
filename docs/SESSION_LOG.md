@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-10-15 任务 83.8：工作区入口
+
+**做了什么**：
+- `components/workspace/opener.ts`：上下文改成对象 `WorkspaceOpenerContext`（`open(docId)`、`openFrom({source: "article" | "writing", id})`），只有对话页提供。
+- `chat-app.tsx` 的 `openFrom`：本会话已有同源文档（`docFrom`：`source` + `source_ref`）就打开它，否则 `createFrom` 新建再打开，失败 toast。
+- `ReadingBar` 加“在工作区精读”；`WritingCard` 加“在工作区改稿”；`WorkspaceCard` 没有工作区时（看板、入学测、桌宠小窗）显示链接“在对话页打开”→ `chatUrl(c, doc)`，`TutorCards` / `MessageList` 传 `conversationId`。
+- 后端 `api/workspace.py`：`source=article` 不传 `level` 时按 `reading_level` 取（和 `open_workspace`、reading_coach 一致）。ADR 0043 §3–4 同步改写法（对话页不知道学习者在文章页切到哪一版）。
+- 测试：Vitest 828 全过（`reading-bar`、`tutor-cards`、`chat-app`、`workspace.test` 的 `docFrom`）；`test_workspace_api` 17 过；lint 干净。
+
+**未完成**：83.9 收尾（E2E、截图自查含写作视图手机宽度工具栏、pytest / Vitest / E2E 全量、README 中英、`docs/demo.md`、Docker 重建）。
+
+**下一步**：83.9。
+
+**踩坑**：
+- `chat-app.test` 里打开写作文档会挂 `WritingView` 去拉 `/edits`，mock 要回 `[]`，不然 `edits.flatMap is not a function`。
+- TutorPanel 在测试里是 mock，不渲染 header；改为在 mock 里取 `useWorkspaceOpener()` 来测 `openFrom`。
+
+---
+
 ## 2026-10-15 任务 83.7：写作视图
 
 **做了什么**：

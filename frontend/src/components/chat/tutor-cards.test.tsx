@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 
+import { type WorkspaceOpener, WorkspaceOpenerContext } from "@/components/workspace/opener";
 import { ApiError } from "@/lib/api";
 import type { TutorCard } from "@/lib/cards";
 
@@ -27,14 +28,27 @@ const card = (overrides: Partial<TutorCard>): TutorCard => ({
   ...overrides,
 });
 
-function show(cards: TutorCard[], onDecide = vi.fn(async () => {})) {
+function show(
+  cards: TutorCard[],
+  onDecide = vi.fn(async () => {}),
+  {
+    workspace = null,
+    conversationId = null,
+  }: { workspace?: WorkspaceOpener | null; conversationId?: string | null } = {},
+) {
   render(
     <NextIntlClientProvider locale="zh-CN" messages={zh}>
-      <TutorCards cards={cards} onDecide={onDecide} />
+      <WorkspaceOpenerContext value={workspace}>
+        <TutorCards cards={cards} onDecide={onDecide} conversationId={conversationId} />
+      </WorkspaceOpenerContext>
     </NextIntlClientProvider>,
   );
   return onDecide;
 }
+
+const EDITS = { doc_id: "d2", edit_id: "x", title: "Essay", count: 2 };
+
+const opener = () => ({ open: vi.fn(), openFrom: vi.fn(async () => {}) });
 
 describe("TutorCards", () => {
   it("asks before changing the word book", async () => {
@@ -115,6 +129,45 @@ describe("TutorCards", () => {
     expect(screen.getByText("作文批改")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "查看逐句批改" })).toHaveAttribute("href", "/writing/7");
     expect(screen.getAllByTestId("tutor-card")).toHaveLength(1);
+    // Away from the chat page there is no workspace to revise it in.
+    expect(screen.queryByRole("button", { name: "在工作区改稿" })).not.toBeInTheDocument();
+  });
+
+  it("opens the reviewed text in the workspace on the chat page", async () => {
+    const workspace = opener();
+    show([card({ kind: "writing", params: { submission_id: 7 }, status: "info" })], undefined, {
+      workspace,
+      conversationId: "c1",
+    });
+    await userEvent.click(screen.getByRole("button", { name: "在工作区改稿" }));
+    expect(workspace.openFrom).toHaveBeenCalledWith({ source: "writing", id: 7 });
+  });
+
+  it("opens the tutor's document beside the chat on the chat page", async () => {
+    const workspace = opener();
+    show(
+      [
+        card({ id: "o", kind: "workspace", params: { doc_id: "d1", title: "Comet" }, status: "info" }),
+        card({ id: "e", kind: "workspace_edit", params: EDITS, status: "info" }),
+      ],
+      undefined,
+      { workspace, conversationId: "c1" },
+    );
+    expect(screen.getByText("在工作区打开了《Comet》")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "打开" }));
+    await userEvent.click(screen.getByRole("button", { name: "去确认" }));
+    expect(workspace.open.mock.calls).toEqual([["d1"], ["d2"]]);
+    expect(screen.queryByRole("link", { name: "在对话页打开" })).not.toBeInTheDocument();
+  });
+
+  it("links the tutor's document to the chat page elsewhere", () => {
+    show(
+      [card({ kind: "workspace_edit", params: EDITS, status: "info" })],
+      undefined,
+      { conversationId: "c1" },
+    );
+    expect(screen.getByRole("link", { name: "在对话页打开" })).toHaveAttribute("href", "/chat?c=c1&w=d2");
+    expect(screen.queryByRole("button", { name: "去确认" })).not.toBeInTheDocument();
   });
 
   it("lets the learner adjust the tutor's plan before confirming it", async () => {

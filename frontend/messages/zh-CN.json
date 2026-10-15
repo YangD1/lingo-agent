@@ -482,7 +482,8 @@
       "writing": {
         "title": "作文批改",
         "body": "逐句修改、四项评分和讲解都在批改记录里。",
-        "action": "查看逐句批改"
+        "action": "查看逐句批改",
+        "workspace": "在工作区改稿"
       },
       "plan": {
         "title": "新的今天计划",
@@ -492,7 +493,8 @@
       "workspaceOpened": "在工作区打开了《{title}》",
       "workspaceEdits": "对《{title}》提了 {n} 处修改，逐处确认后才会生效",
       "workspaceOpen": "打开",
-      "workspaceReview": "去确认"
+      "workspaceReview": "去确认",
+      "workspaceOnChat": "在对话页打开"
     },
     "planning": {
       "badge": "学习规划"
@@ -540,7 +542,8 @@
     "typing": "助手正在回复",
     "reading": {
       "label": "关于你正在读的一篇文章：可以问单词、句子或意思。",
-      "back": "回到文章"
+      "back": "回到文章",
+      "workspace": "在工作区精读"
     },
     "textHidden": "文字已隐藏，练听力。",
     "workspace": {

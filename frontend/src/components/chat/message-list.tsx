@@ -171,7 +171,11 @@ export function MessageList({
                 />
               )}
               {cards && m.turnId && (
-                <TutorCards cards={cards.byTurn[m.turnId] ?? []} onDecide={cards.decide} />
+                <TutorCards
+                  cards={cards.byTurn[m.turnId] ?? []}
+                  onDecide={cards.decide}
+                  conversationId={conversationId}
+                />
               )}
               {activity && m.turnId && m.status !== "streaming" && (
                 <TurnActivity

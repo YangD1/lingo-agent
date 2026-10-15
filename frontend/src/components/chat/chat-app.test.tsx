@@ -5,6 +5,7 @@ import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TutorCard } from "@/lib/cards";
+import type { WorkspaceOpener } from "@/components/workspace/opener";
 import type { WorkspaceDoc, WorkspaceDocDetail } from "@/lib/workspace";
 
 import en from "../../../messages/en.json";
@@ -19,12 +20,19 @@ vi.mock("@/lib/api", async (importOriginal) => ({
 
 // The conversation itself has its own tests: here, what the page hands it.
 type PanelProps = ComponentProps<typeof TutorPanel>;
-const panel = vi.hoisted(() => ({ props: null as PanelProps | null, addQuote: vi.fn() }));
+const panel = vi.hoisted(() => ({
+  props: null as PanelProps | null,
+  addQuote: vi.fn(),
+  workspace: null as WorkspaceOpener | null,
+}));
 vi.mock("./tutor-panel", async () => {
   const { useImperativeHandle } = await import("react");
+  const { useWorkspaceOpener } = await import("@/components/workspace/opener");
   return {
     TutorPanel: (props: PanelProps) => {
       panel.props = props;
+      // What the reading bar and the cards inside it are given.
+      panel.workspace = useWorkspaceOpener();
       useImperativeHandle(props.composerRef, () => ({ addQuote: panel.addQuote }), []);
       return <div data-testid="tutor-panel" />;
     },
@@ -61,6 +69,7 @@ function respond(docs: WorkspaceDoc[] = [DOC]) {
     if (path === "/conversations/c1/workspace") return Promise.resolve(docs);
     if (path.startsWith("/workspace/docs/")) {
       if (init?.method === "DELETE") return Promise.resolve(undefined);
+      if (path.endsWith("/edits")) return Promise.resolve([]);
       const id = path.split("/").at(-1);
       return Promise.resolve({ ...DETAIL, ...docs.find((d) => d.id === id) });
     }
@@ -116,6 +125,7 @@ beforeEach(() => {
 afterEach(() => {
   api.mockReset();
   panel.props = null;
+  panel.workspace = null;
 });
 
 describe("ChatApp workspace (ADR 0043)", () => {
@@ -171,6 +181,22 @@ describe("ChatApp workspace (ADR 0043)", () => {
     expect(api).toHaveBeenCalledWith("/conversations/c1/workspace", {
       method: "POST",
       json: { kind: "reading", source: "paste", text: "A long text." },
+    });
+    expect(window.location.search).toBe("?c=c1&w=d3");
+  });
+
+  it("opens an article or a reviewed text, made the first time only (ADR 0043 §3–4)", async () => {
+    respond([DOC, { ...OTHER, source: "writing", source_ref: "7" }]);
+    show("/chat?c=c1");
+    await waitFor(() => expect(panel.workspace).not.toBeNull());
+    await act(async () => panel.workspace?.openFrom({ source: "writing", id: 7 }));
+    expect(window.location.search).toBe("?c=c1&w=d2");
+    expect(api).not.toHaveBeenCalledWith("/conversations/c1/workspace", expect.objectContaining({ method: "POST" }));
+
+    await act(async () => panel.workspace?.openFrom({ source: "article", id: 3 }));
+    expect(api).toHaveBeenCalledWith("/conversations/c1/workspace", {
+      method: "POST",
+      json: { kind: "reading", source: "article", article_id: 3 },
     });
     expect(window.location.search).toBe("?c=c1&w=d3");
   });
