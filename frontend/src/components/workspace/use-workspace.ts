@@ -52,6 +52,12 @@ export function useWorkspace(conversationId: string | null, docId: string | null
     };
   }, [docId, version]);
 
+  /** The open document as a save, a decision or a revert returned it. */
+  const replace = useCallback(
+    (doc: WorkspaceDocDetail) => setDetail({ key: doc.id, value: { doc, error: null } }),
+    [],
+  );
+
   const mine = detail.key === docId ? detail.value : { doc: null, error: null };
   return {
     docs: docs.key === conversationId ? docs.value : [],
@@ -60,5 +66,6 @@ export function useWorkspace(conversationId: string | null, docId: string | null
     loading: docId !== null && detail.key !== docId,
     reload,
     refresh,
+    replace,
   };
 }

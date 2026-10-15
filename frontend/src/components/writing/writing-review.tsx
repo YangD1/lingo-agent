@@ -45,36 +45,8 @@ export function WritingReview({ id }: { id: number }) {
   const tCat = useTranslations("cat");
   const describe = useDescribeError();
   const router = useRouter();
-  const [submission, setSubmission] = useState<Submission | null>(null);
-  const [missing, setMissing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { submission, missing, error, setError } = useSubmission(id);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    fetchSubmission(id).then(setSubmission, (e: unknown) => {
-      if (e instanceof ApiError && e.status === 404) setMissing(true);
-      else setError(describe(e));
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per id
-  }, [id]);
-
-  // Poll a review still running until it is done or failed.
-  const pending = submission?.status === "pending";
-  useEffect(() => {
-    if (!pending) return;
-    let live = true;
-    const timer = setTimeout(() => {
-      fetchSubmission(id).then(
-        (s) => live && setSubmission(s),
-        (e: unknown) => live && setError(describe(e)),
-      );
-    }, POLL_MS);
-    return () => {
-      live = false;
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-armed by each poll
-  }, [pending, submission, id]);
 
   async function remove() {
     setBusy(true);
@@ -114,14 +86,7 @@ export function WritingReview({ id }: { id: number }) {
         {submission && (
           <>
             <Header submission={submission} />
-            {submission.status === "pending" && (
-              <Card data-testid="writing-pending">
-                <CardContent>
-                  <CatLoading mood="hop" size={72} label={t("pending")} />
-                  <p className="text-center text-xs text-muted-foreground">{t("pendingNote")}</p>
-                </CardContent>
-              </Card>
-            )}
+            {submission.status === "pending" && <Pending />}
             {submission.status === "failed" && <Failed submission={submission} />}
             {submission.status === "done" && <Review submission={submission} />}
             <div className="flex justify-end">
@@ -141,6 +106,58 @@ export function WritingReview({ id }: { id: number }) {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * A submission and its review, polled while the review runs. `missing`: there is no such
+ * submission (deleted, or someone else's).
+ */
+export function useSubmission(id: number) {
+  const describe = useDescribeError();
+  const [submission, setSubmission] = useState<Submission | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSubmission(id).then(setSubmission, (e: unknown) => {
+      if (e instanceof ApiError && e.status === 404) setMissing(true);
+      else setError(describe(e));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per id
+  }, [id]);
+
+  // Poll a review still running until it is done or failed.
+  const pending = submission?.status === "pending";
+  useEffect(() => {
+    if (!pending) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      fetchSubmission(id).then(
+        (s) => live && setSubmission(s),
+        (e: unknown) => live && setError(describe(e)),
+      );
+    }, POLL_MS);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-armed by each poll
+  }, [pending, submission, id]);
+
+  return { submission, missing, error, setError };
+}
+
+/** A review still running. */
+export function Pending() {
+  const t = useTranslations("writing.review");
+  return (
+    <Card data-testid="writing-pending">
+      <CardContent>
+        <CatLoading mood="hop" size={72} label={t("pending")} />
+        <p className="text-center text-xs text-muted-foreground">{t("pendingNote")}</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -177,7 +194,8 @@ function Header({ submission: s }: { submission: Submission }) {
   );
 }
 
-function Failed({ submission: s }: { submission: Submission }) {
+/** A failed review; `action` replaces "send it again from the writing page". */
+export function Failed({ submission: s, action }: { submission: Submission; action?: ReactNode }) {
   const t = useTranslations("writing.review");
   const known = FAILED_CODES.find((c) => c === s.error_code);
   return (
@@ -187,6 +205,7 @@ function Failed({ submission: s }: { submission: Submission }) {
       title={t("failed.title")}
       description={known ? t(`failed.${known}`) : t("failed.other")}
       action={
+        action ?? (
         <Link
           href={`/writing?again=${s.id}`}
           className={buttonVariants({ size: "sm", variant: "outline" })}
@@ -194,12 +213,14 @@ function Failed({ submission: s }: { submission: Submission }) {
           <RotateCcw />
           {t("failed.again")}
         </Link>
+        )
       }
     />
   );
 }
 
-function Review({ submission: s }: { submission: Submission }) {
+/** A finished review: summary, scores, words, and the sentences with their mistakes. */
+export function Review({ submission: s }: { submission: Submission }) {
   const t = useTranslations("writing.review");
   const kcs = new Map(s.kcs.map((kc) => [kc.id, kc]));
   const mistakes = (s.corrections ?? []).reduce((n, c) => n + c.mistakes.length, 0);

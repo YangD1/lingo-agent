@@ -288,7 +288,8 @@ features:
         default: {input_tokens: 5400, output_tokens: 300}
 
   # "Submit" on /writing (P2 plan §4.2): one review of the whole text, run in the
-  # background while the page waits for it (Q38c).
+  # background while the page waits for it (Q38c). "Review" on a writing document in
+  # the chat workspace (ADR 0043 §5) is the same submission.
   writing_submit:
     calls:
       - task: writing_review

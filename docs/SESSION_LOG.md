@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-10-15 任务 83.7：写作视图
+
+**做了什么**：
+- 新增 `frontend/src/components/workspace/writing-view.tsx`：编辑区停 2 秒自动保存（`save` 同时只发一个，后来的接着发；失败的那段文本不自动重发；409 显示“载入最新版本”；卸载时把没保存的发出去）；“批改”先保存再 `submitWriting(text, "")`，结果面板复用 `writing-review.tsx` 新导出的 `useSubmission` / `Pending` / `Failed` / `Review`；助手建议按词差异显示，逐条接受 / 不用、全部接受（都先保存）；失效按正在输入的文本实时判定；版本列表（新到旧）可查看、回到某版本。
+- `lib/workspace.ts` 加 `saveText`、`getVersion`、`revertTo`、`listEdits`、`decideEdit`、`isStale`、`pendingItems`、`wordDiff`（自写 LCS，没加 `diff` 依赖：段落只有一两句，省一个依赖）。
+- `use-workspace.ts` 加 `replace`；`workspace-pane.tsx` 写作文档改用 `WritingView`（`key=doc.id`），去掉 `DocText` 和 `emptyWriting` 文案；`chat-app.tsx` 收到 `workspace_edit` 卡片时 `editsSignal` 加一。
+- 测试：Vitest 822 全过（`writing-view.test.tsx` 9 个、`workspace.test.ts` 补 `wordDiff` / `isStale` / `pendingItems`）；eslint、tsc 干净；pytest 只跑了 `test_usage_features`（只改了 yaml 注释）。
+
+**未完成**：83.8 入口、83.9 E2E 与收尾（截图自查写作视图在手机宽度下的工具栏换行）。
+
+**下一步**：83.8——`ReadingBar`“在工作区打开原文”、写作批改卡片“在工作区打开”、看板 / 入学测 / 桌宠小窗里的工作区卡片改成“在对话页打开”。
+
+**踩坑**：
+- 外部来的新版本（接受、回退）靠渲染时比较 `doc.version` 和自己记的 `saved.version` 重置正文；自己保存出新版本时要先 `setSaved` 再 `onDoc`，两者同批渲染，才不会把正在输入的内容冲掉。
+- 纯插入时如果把中间空格并进改动，原文就还原不回来，所以只在一段同时有删有加时才合并。
+- 测试的 `afterEach` 要先 `cleanup()` 再 `api.mockReset()`，不然卸载时的保存拿到 `undefined`。
+
+---
+
 ## 2026-10-15 任务 83.6：精读视图
 
 **做了什么**：

@@ -557,7 +557,6 @@
       "confirmDeleteDetail": "All its versions, translations and analyses are deleted. The conversation stays.",
       "loading": "Opening…",
       "truncated": "The text was long: only its first 5,000 words were kept.",
-      "emptyWriting": "Nothing here yet.",
       "ask": "Ask {name}",
       "tabs": "Chat or workspace",
       "tabChat": "Chat",
@@ -585,6 +584,45 @@
         "clauses": "Clauses and parts",
         "phrases": "Tricky phrases",
         "tip": "Tip"
+      },
+      "writing": {
+        "words": "{n, plural, one {# word} other {# words}}",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "unsaved": "Changed — saves 2 seconds after you stop",
+        "notSaved": "Not saved",
+        "versions": "Versions ({n})",
+        "review": "Review",
+        "editor": "Your writing",
+        "placeholder": "Write in English here; it saves when you pause.",
+        "conflict": "This document changed elsewhere (changes accepted or an older version restored), so your edit wasn't saved.",
+        "reload": "Load the latest version",
+        "length": {
+          "too_short": "Write at least 20 words to get a review.",
+          "too_long": "At most 800 words can be reviewed."
+        },
+        "reviewLabel": "Review",
+        "reviewPage": "Open on the writing page",
+        "closeReview": "Close the review",
+        "retry": "Review again",
+        "edits": {
+          "heading": "{name}'s suggested changes ({n})",
+          "acceptAll": "Accept all",
+          "accept": "Accept",
+          "decline": "Decline",
+          "stale": "You've changed this passage, so this suggestion can only be declined.",
+          "removed": "Removed: {text}",
+          "added": "Added: {text}"
+        },
+        "history": {
+          "label": "Version history",
+          "number": "Version {n}",
+          "me": "Me",
+          "current": "Current",
+          "look": "View",
+          "revertedFrom": "restored version {n}",
+          "revert": "Go back to this version"
+        }
       }
     }
   },
@@ -1608,7 +1646,11 @@
     "invite_invalid": "This invite is unknown, expired, used up or revoked.",
     "own_invite": "This invite is your own.",
     "already_member": "You already use another main account. Leave it first.",
-    "rate_limited": "Too many requests. Try again in {seconds} s."
+    "rate_limited": "Too many requests. Try again in {seconds} s.",
+    "workspace_version_conflict": "The document changed elsewhere; load the latest version.",
+    "workspace_too_long": "The text is too long.",
+    "workspace_doc_not_found": "This document no longer exists.",
+    "workspace_edit_not_found": "This suggestion no longer exists."
   },
   "dashboard": {
     "title": "Dashboard",

@@ -557,7 +557,6 @@
       "confirmDeleteDetail": "文档的所有版本、译文和分析都会删除，对话本身不受影响。",
       "loading": "正在打开…",
       "truncated": "原文太长，只保留了前 5,000 词。",
-      "emptyWriting": "还没有内容。",
       "ask": "问 {name}",
       "tabs": "对话或工作区",
       "tabChat": "对话",
@@ -585,6 +584,45 @@
         "clauses": "从句和成分",
         "phrases": "难点短语",
         "tip": "提示"
+      },
+      "writing": {
+        "words": "{n} 词",
+        "saving": "正在保存…",
+        "saved": "已保存",
+        "unsaved": "有改动，停下来 2 秒后自动保存",
+        "notSaved": "没保存上",
+        "versions": "版本（{n}）",
+        "review": "批改",
+        "editor": "写作内容",
+        "placeholder": "在这里写英文，停下来会自动保存。",
+        "conflict": "这份文档在别处改过了（比如接受了修改或回到了旧版本），这里的改动没保存上。",
+        "reload": "载入最新版本",
+        "length": {
+          "too_short": "至少写 20 个词才能批改。",
+          "too_long": "最多 800 词，超过了不能批改。"
+        },
+        "reviewLabel": "批改结果",
+        "reviewPage": "在写作页查看",
+        "closeReview": "收起批改",
+        "retry": "重新批改",
+        "edits": {
+          "heading": "{name} 的修改建议（{n}）",
+          "acceptAll": "全部接受",
+          "accept": "接受",
+          "decline": "不用",
+          "stale": "这段你已经改过了，这条建议只能不用。",
+          "removed": "删去：{text}",
+          "added": "加上：{text}"
+        },
+        "history": {
+          "label": "版本记录",
+          "number": "第 {n} 版",
+          "me": "我",
+          "current": "当前",
+          "look": "查看",
+          "revertedFrom": "回到第 {n} 版",
+          "revert": "回到这个版本"
+        }
       }
     }
   },
@@ -1608,7 +1646,11 @@
     "invite_invalid": "邀请码无效：不存在、已过期、次数已用完或已撤销。",
     "own_invite": "这是你自己的邀请。",
     "already_member": "你已经在使用另一个主账号，先退出它。",
-    "rate_limited": "操作太频繁，请 {seconds} 秒后再试。"
+    "rate_limited": "操作太频繁，请 {seconds} 秒后再试。",
+    "workspace_version_conflict": "文档在别处改过了，请载入最新版本。",
+    "workspace_too_long": "内容太长了。",
+    "workspace_doc_not_found": "找不到这份文档，可能已经删除。",
+    "workspace_edit_not_found": "找不到这条修改建议。"
   },
   "dashboard": {
     "title": "能力看板",

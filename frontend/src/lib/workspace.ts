@@ -175,3 +175,130 @@ export function sentencesOf(paragraph: string): string[] {
   if (last < paragraph.length) out.push(paragraph.slice(last));
   return out;
 }
+
+/** The learner's edit of the current version: 409 `workspace_version_conflict` if stale. */
+export const saveText = (docId: string, baseVersion: number, text: string) =>
+  api<WorkspaceDocDetail>(`/workspace/docs/${docId}/content`, {
+    method: "PUT",
+    json: { base_version: baseVersion, text },
+  });
+
+/** An earlier version's content, to look at before going back to it. */
+export const getVersion = (docId: string, number: number) =>
+  api<WorkspaceVersion & { content: WorkspaceDocDetail["content"] }>(
+    `/workspace/docs/${docId}/versions/${number}`,
+  );
+
+/** Back to an earlier version, saved as a new one (no version is lost). */
+export const revertTo = (docId: string, version: number) =>
+  api<WorkspaceDocDetail>(`/workspace/docs/${docId}/revert`, { method: "POST", json: { version } });
+
+export type EditItemStatus = "pending" | "accepted" | "declined";
+
+export type EditItem = {
+  index: number;
+  original: string;
+  replacement: string;
+  reason: string;
+  status: EditItemStatus;
+  /** Pending, but the passage is no longer in the text exactly once. */
+  stale: boolean;
+};
+
+/** One `propose_edit` of the tutor's: backend/app/workspace/edits.py. */
+export type WorkspaceEdit = {
+  id: string;
+  doc_id: string;
+  base_version: number;
+  created_at: string;
+  items: EditItem[];
+};
+
+/** The tutor's proposals for a document, newest first. */
+export const listEdits = (docId: string) => api<WorkspaceEdit[]>(`/workspace/docs/${docId}/edits`);
+
+/** Accept or decline items; the accepted ones make one new version. */
+export const decideEdit = (editId: string, accept: number[], decline: number[]) =>
+  api<{ doc: WorkspaceDocDetail; edit: WorkspaceEdit }>(`/workspace/edits/${editId}/decide`, {
+    method: "POST",
+    json: { accept, decline },
+  });
+
+/**
+ * Whether a proposed change can no longer be accepted: its passage isn't in the text
+ * exactly once (the learner rewrote it). Mirrors `edits.stale` on the server, but on the
+ * text being typed, so the mark shows before it is saved.
+ */
+export function isStale(original: string, text: string): boolean {
+  const start = text.indexOf(original);
+  return start < 0 || text.indexOf(original, start + 1) >= 0;
+}
+
+/** The items still waiting for the learner, newest proposal first. */
+export function pendingItems(edits: WorkspaceEdit[]): { edit: WorkspaceEdit; item: EditItem }[] {
+  return edits.flatMap((edit) =>
+    edit.items.filter((item) => item.status === "pending").map((item) => ({ edit, item })),
+  );
+}
+
+export type DiffPiece = { text: string; op: "same" | "del" | "ins" };
+
+// Words (with inner apostrophes), runs of spaces, and single other characters.
+const TOKEN = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*|\s+|[^\p{L}\p{N}\s]/gu;
+
+/**
+ * A passage and its replacement word by word: what stays, what goes, what comes in.
+ * Passages are a sentence or two, so a plain longest-common-subsequence table is enough.
+ */
+export function wordDiff(before: string, after: string): DiffPiece[] {
+  const a = before.match(TOKEN) ?? [];
+  const b = after.match(TOKEN) ?? [];
+  // common[i][j]: the longest common run of a[i:] and b[j:].
+  const common = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      common[i][j] = a[i] === b[j] ? common[i + 1][j + 1] + 1 : Math.max(common[i + 1][j], common[i][j + 1]);
+    }
+  }
+  const out: DiffPiece[] = [];
+  const push = (text: string, op: DiffPiece["op"]) => {
+    const last = out.at(-1);
+    if (last?.op === op) last.text += text;
+    else out.push({ text, op });
+  };
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) {
+      push(a[i++], "same");
+      j++;
+    } else if (i < a.length && (j === b.length || common[i + 1][j] >= common[i][j + 1])) {
+      push(a[i++], "del");
+    } else {
+      push(b[j++], "ins");
+    }
+  }
+  // A replacement reads better whole: "[-has went-]{+have gone+}", not split at the space
+  // between its words. A lone space between changes joins them when they both remove
+  // and add; a pure insertion keeps its spaces, so either side still reads back.
+  const merged: DiffPiece[] = [];
+  const space = (k: number) =>
+    /^\s+$/.test(out[k].text) && out[k - 1]?.op !== "same" && out[k + 1] !== undefined && out[k + 1].op !== "same";
+  for (let k = 0; k < out.length; ) {
+    if (out[k].op === "same") {
+      merged.push(out[k++]);
+      continue;
+    }
+    let end = k;
+    while (end < out.length && (out[end].op !== "same" || space(end))) end++;
+    const run = out.slice(k, end);
+    if (run.some((p) => p.op === "del") && run.some((p) => p.op === "ins")) {
+      const text = (skip: DiffPiece["op"]) => run.filter((p) => p.op !== skip).map((p) => p.text).join("");
+      merged.push({ text: text("ins"), op: "del" }, { text: text("del"), op: "ins" });
+    } else {
+      merged.push(...run);
+    }
+    k = end;
+  }
+  return merged;
+}

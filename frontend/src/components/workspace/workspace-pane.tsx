@@ -13,6 +13,7 @@ import type { WorkspaceDoc, WorkspaceDocDetail, WorkspaceKind, WorkspaceLayout }
 
 import { ReadingView } from "./reading-view";
 import { SelectionAsk } from "./selection-ask";
+import { WritingView } from "./writing-view";
 
 const KIND_ICONS: Record<WorkspaceKind, typeof BookOpenText> = {
   reading: BookOpenText,
@@ -34,6 +35,10 @@ type Props = {
   onDelete: () => void;
   /** Selected text → a quote in the input box. */
   onAsk: (text: string) => void;
+  /** A save, a decision or a revert changed the document. */
+  onDoc: (doc: WorkspaceDocDetail) => void;
+  /** Goes up when the tutor proposes changes in the chat. */
+  editsSignal: number;
   className?: string;
 };
 
@@ -53,6 +58,8 @@ export function WorkspacePane({
   onClose,
   onDelete,
   onAsk,
+  onDoc,
+  editsSignal,
   className,
 }: Props) {
   const t = useTranslations("chat.workspace");
@@ -129,7 +136,11 @@ export function WorkspacePane({
             {doc.truncated && (
               <p className="mb-4 text-xs text-muted-foreground">{t("truncated")}</p>
             )}
-            <DocText doc={doc} />
+            {doc.kind === "reading" ? (
+              <ReadingView doc={doc} />
+            ) : (
+              <WritingView key={doc.id} doc={doc} onDoc={onDoc} editsSignal={editsSignal} />
+            )}
           </SelectionAsk>
         ) : (
           <p className="p-6 text-sm text-muted-foreground" role="status">
@@ -138,19 +149,5 @@ export function WorkspacePane({
         )}
       </div>
     </section>
-  );
-}
-
-/** The document: the reading view, or the writing as plain text until its view (83.7). */
-function DocText({ doc }: { doc: WorkspaceDocDetail }) {
-  const t = useTranslations("chat.workspace");
-  if (doc.kind === "reading") return <ReadingView doc={doc} />;
-  const text = doc.content.text ?? "";
-  return text ? (
-    <div className="text-[15px] leading-7 whitespace-pre-wrap" data-testid="workspace-text">
-      {text}
-    </div>
-  ) : (
-    <p className="text-sm text-muted-foreground">{t("emptyWriting")}</p>
   );
 }

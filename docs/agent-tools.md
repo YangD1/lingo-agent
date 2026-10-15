@@ -260,7 +260,7 @@
 
 ## 写作批改（P2 计划 §4.2，任务 38）
 
-`/writing` 和对话里的 writing_coach 用同一个服务（`writing/service.py`）。提交后在后台批改（Q38c）：`/writing` 轮询状态，writing_coach 等结果。不属于任何对话的提交不写 `agent_activities`，批改记录本身（逐句修改、评分、证据、收进生词本的词、模型名）就是公示；从对话来的提交由 writing_coach 在那一轮记一步活动 `writing_review`，并在回复下放一张卡片（见“对话流程中的步骤”）。
+`/writing`、对话里的 writing_coach 和工作区写作文档的“批改”按钮（ADR 0043 §5，同 `/writing` 的提交，不属于任何对话）用同一个服务（`writing/service.py`）。提交后在后台批改（Q38c）：`/writing` 轮询状态，writing_coach 等结果。不属于任何对话的提交不写 `agent_activities`，批改记录本身（逐句修改、评分、证据、收进生词本的词、模型名）就是公示；从对话来的提交由 writing_coach 在那一轮记一步活动 `writing_review`，并在回复下放一张卡片（见“对话流程中的步骤”）。
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|

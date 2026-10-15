@@ -182,12 +182,15 @@ export function ChatApp({
   };
 
   // The tutor opened a document (Q83b): it opens beside the chat straight away.
+  // Changes it proposed are listed again in the writing view.
   const reloadDocs = workspace.reload;
+  const [editsSignal, setEditsSignal] = useState(0);
   const onCardShown = useCallback(
     (card: TutorCard) => {
       if (card.kind !== "workspace" && card.kind !== "workspace_edit") return;
       reloadDocs();
       if (card.kind === "workspace") openDoc(String(card.params.doc_id));
+      else setEditsSignal((n) => n + 1);
     },
     [reloadDocs, openDoc],
   );
@@ -242,6 +245,8 @@ export function ChatApp({
       onClose={closeDoc}
       onDelete={() => void removeDoc()}
       onAsk={ask}
+      onDoc={workspace.replace}
+      editsSignal={editsSignal}
       className="h-full"
     />
   );
