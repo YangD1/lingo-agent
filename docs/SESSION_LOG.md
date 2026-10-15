@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-10-15 任务 86.6c、86.6d：消息时间戳、修偶发失败
+
+**做了什么**
+- 86.6c（dcafd92）：对话图的 `messages` 改用 `app/agents/messages.py` `add_stamped_messages` 合并，新消息写入时在 `additional_kwargs.created_at` 记时间（OpenAI 兼容、DeepSeek、Anthropic 三种客户端都只读固定字段，不会发给厂商；替换同 id 的消息保留原时间；老消息不补）。`GET /conversations/{id}/messages` 返回 `created_at`；前端 `placeTestOuts` 把直接测验卡片插到第一条比它晚的消息前。全量 pytest 1956 全过。
+- 86.6d：`setup-app.test.tsx` 偶发失败的原因是 base-ui `Select` 的选项晚一帧渲染，测试同步取 option；改成等待式查询，并用探针确认了原因。
+- 全量 Vitest 883 全过，前后端 lint 干净。
+
+**下一步**
+- 86.7 E2E（假模型）：先确认假模型能不能触发 `give_quiz`。
+
+**踩坑**
+- 想给消息加时间时，不要在每个写入点各自加：消息写入的路径有对话、开场、实时通话的 `aupdate_state`，用 reducer 一处全覆盖。
+- 用 `pgrep -f` 等待并发进程时，模式会匹配到这条 shell 命令自己，变成死循环（同 `pkill -f`）；改用 `wait`，并且别用 `( … &)` 子 shell 把进程放到后台。
+- base-ui 弹层里的元素一律用 `findBy*` 查。
+
+---
+
 ## 2026-10-15 任务 86.6、86.6b：课程页与课程对话顶栏
 
 **做了什么**

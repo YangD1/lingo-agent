@@ -184,7 +184,8 @@ describe("SetupApp", () => {
     show("model");
     const provider = await screen.findByLabelText("Provider");
     await user.click(provider);
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["DeepSeek"]);
+    // The base-ui popup mounts after the click: wait for it, as chooseOption does.
+    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["DeepSeek"]);
     await user.keyboard("{Escape}");
     await user.type(screen.getByLabelText("API key"), "sk-test");
     await user.click(screen.getByRole("button", { name: "Connect" }));
