@@ -7,6 +7,7 @@ import {
   CompassIcon,
   FilePenLineIcon,
   FilterIcon,
+  GraduationCapIcon,
   LayersIcon,
   LayoutGridIcon,
   LibraryIcon,
@@ -38,6 +39,7 @@ export type PetActionId =
   | "vocab_review"
   | "vocab_learn"
   | "practice"
+  | "course"
   | "speaking"
   | "speaking_call"
   | "writing"
@@ -93,6 +95,9 @@ export const PET_ACTIONS: readonly PetAction[] = [
   action("practice", "page", "/practice", PencilLineIcon,
     ["练语法", "语法练习", "练习语法", "做练习", "刷题"],
     ["grammar practice", "practice grammar", "practise grammar", "grammar drill"]),
+  action("course", "page", "/course", GraduationCapIcon,
+    ["上课", "课程", "语法课", "语法课程", "学语法", "下一课"],
+    ["course", "lesson", "grammar course", "next lesson"]),
   action("speaking", "page", "/speaking", MicIcon,
     ["练口语", "口语练习", "说英语", "口语"],
     ["speaking practice", "practice speaking", "practise speaking", "speaking"]),

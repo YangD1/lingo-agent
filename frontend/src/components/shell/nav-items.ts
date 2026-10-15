@@ -3,6 +3,7 @@ import {
   CatIcon,
   ClipboardCheckIcon,
   FilePenLineIcon,
+  GraduationCapIcon,
   LayoutGridIcon,
   type LucideIcon,
   ListChecksIcon,
@@ -17,6 +18,7 @@ import {
 export type NavKey =
   | "dashboard"
   | "chat"
+  | "course"
   | "vocab"
   | "practice"
   | "writing"
@@ -37,6 +39,7 @@ export const NAV_GROUPS: { key: "groupLearn" | "groupProgress" | "groupMine"; it
     items: [
       { key: "dashboard", href: "/dashboard", icon: LayoutGridIcon },
       { key: "chat", href: "/chat", icon: MessageCircleIcon },
+      { key: "course", href: "/course", icon: GraduationCapIcon },
       { key: "vocab", href: "/vocab", icon: BookOpenIcon },
       { key: "practice", href: "/practice", icon: PencilLineIcon },
       { key: "writing", href: "/writing", icon: FilePenLineIcon },

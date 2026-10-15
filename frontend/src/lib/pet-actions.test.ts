@@ -17,6 +17,8 @@ describe("matchAction", () => {
     expect(id("帮我配置模型")).toBe("setup_models");
     expect(id("配置 API Key")).toBe("setup_models");
     expect(id("Today's plan")).toBe("plan");
+    expect(id("上课")).toBe("course");
+    expect(id("next lesson")).toBe("course");
   });
 
   it("picks the longest phrase found", () => {
@@ -59,6 +61,6 @@ describe("PET_ACTIONS", () => {
     }
     for (const quick of QUICK_ACTIONS) expect(petAction(quick).id).toBe(quick);
     // Every id in the type is in the list (the list is the source of the wording check).
-    expect(ids).toHaveLength(25);
+    expect(ids).toHaveLength(26);
   });
 });

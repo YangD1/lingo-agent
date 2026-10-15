@@ -23,9 +23,10 @@ export type Conversation = {
   /**
    * "planning": the study-planning conversation from the placement result (ADR 0015 §6);
    * "daily": the dashboard's conversation of the day (ADR 0016);
-   * "speaking": a speaking practice, shown on /speaking only (ADR 0029).
+   * "speaking": a speaking practice, shown on /speaking only (ADR 0029);
+   * "lesson": a lesson of the grammar course on `focus_kc` (ADR 0044 §5).
    */
-  purpose: "planning" | "daily" | "speaking" | null;
+  purpose: "planning" | "daily" | "speaking" | "lesson" | null;
   /** The article a reading conversation is about (Q43h); null otherwise or once it is gone. */
   article_id: number | null;
 };

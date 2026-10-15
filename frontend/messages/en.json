@@ -208,6 +208,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "chat": "Chat",
+    "course": "Course",
     "settings": "Settings",
     "logout": "Log out",
     "vocab": "Vocabulary",
@@ -230,6 +231,30 @@
     "speaking": "Speaking",
     "tutor": "My assistant",
     "setup": "Setup guide"
+  },
+  "course": {
+    "loading": "Loading the course…",
+    "continue": "Continue: lesson {n} · {name}",
+    "allDone": "Every lesson is passed",
+    "progress": "{passed} / {total} lessons passed",
+    "noPlacement": "no placement test yet, starting from A1",
+    "levelProgress": "{passed} / {total} passed",
+    "start": "Start",
+    "resume": "Continue",
+    "again": "Go over again",
+    "testOut": "I already know this",
+    "open": "Open the course",
+    "mastery": "Mastery {pct}%",
+    "quizScore": "Last quiz {pct}%",
+    "blockedBy": "Pass first: {names}",
+    "separator": ", ",
+    "state": {
+      "passed": "Passed",
+      "review": "Review",
+      "learning": "Learning",
+      "available": "Not started",
+      "locked": "Locked"
+    }
   },
   "chat": {
     "newChat": "New chat",
@@ -469,6 +494,10 @@
         "usage": {
           "title": "AI usage and quotas",
           "action": "See usage"
+        },
+        "course": {
+          "title": "Grammar course",
+          "action": "Open the course"
         }
       },
       "live": {
@@ -1900,6 +1929,7 @@
       "chat_audio": "Your recording is turned into text by a speech-to-text model.",
       "practice_start": "The assistant opens the practice with a first message written by an AI model.",
       "plan_start": "The assistant opens the planning conversation with a first message written by an AI model, from your test result and learning data. After that, each reply is like any chat message.",
+      "lesson_start": "When you open a lesson, the assistant speaks first with an AI model: a small question to bring back what you know, the core rule, then a question or two to check you followed (see quiz cards). Each turn after is like a normal chat, with the lesson's material: its state, what it builds on, your recent mistakes and quiz results.",
       "pet_daily_opening": "The first time you open the cat each day, the assistant writes the first message of today's conversation with an AI model: a short look back at your last 7 days (numbers counted by code) and one or two suggestions for today. Once a day; it happens while the cat wears the ✦ hair clip. After that, each reply is like any chat message.",
       "practice_set": "An AI model writes a set of items on your weak grammar points; another model solves and reviews each one first, and items that fail are rewritten. Bank items fill any gaps. After you finish a set, the next one is written in the background.",
       "practice_grade": "Open answers (rewrites, translations, fixing your own sentence) and fixes not in an item's answer list are graded by an AI model: it judges the tested grammar point, explains, and points out other grammar mistakes in your answer. Multiple choice and fill-in answers are graded by code, without AI. Only your first answer to each item is graded.",
@@ -2630,6 +2660,10 @@
       "practice": {
         "label": "Grammar",
         "ask": "Practise some grammar?"
+      },
+      "course": {
+        "label": "Lesson",
+        "ask": "On to your next lesson?"
       },
       "speaking": {
         "label": "Speaking",

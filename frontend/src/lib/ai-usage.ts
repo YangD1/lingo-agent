@@ -9,6 +9,7 @@ export type AiFeature =
   | "practice_start"
   | "plan_start"
   | "pet_daily_opening"
+  | "lesson_start"
   | "practice_set"
   | "practice_grade"
   | "quiz_card"

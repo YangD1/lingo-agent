@@ -19,7 +19,8 @@ export type LinkKind =
   | "memory"
   | "tutor"
   | "settings"
-  | "usage";
+  | "usage"
+  | "course";
 
 export const LINK_HREFS: Record<LinkKind, string> = {
   vocab_review: "/vocab/review",
@@ -38,6 +39,7 @@ export const LINK_HREFS: Record<LinkKind, string> = {
   tutor: "/tutor",
   settings: "/settings",
   usage: "/settings#usage",
+  course: "/course",
 };
 
 /** proposed → applied | declined, applied → undone; cards without an effect are `info`. */

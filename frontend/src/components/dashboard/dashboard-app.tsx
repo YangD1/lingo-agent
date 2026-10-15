@@ -13,6 +13,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
+import { CourseEntry } from "@/components/course/course-entry";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -118,6 +119,7 @@ export function DashboardApp() {
           <>
             <SummaryCards board={board} />
             <TodayPlan plan={plan} error={planError} onChange={setPlan} onReload={() => void loadPlan()} />
+            <CourseEntry />
             {/* A turn counts toward today's numbers and the streak. */}
             <TodayTutor onTurnFinished={() => void load()} onCardDecided={onCardDecided} />
             <div className="grid items-start gap-3.5 md:grid-cols-2 md:gap-4">
