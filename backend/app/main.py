@@ -43,6 +43,7 @@ from app.api import (
     usage,
     vocab,
     word_audio,
+    workspace,
     writing,
 )
 from app.api.errors import install_error_handlers
@@ -253,6 +254,7 @@ def create_app() -> FastAPI:
     app.include_router(org.router)
     app.include_router(tutor.router)
     app.include_router(setup.router)
+    app.include_router(workspace.router)
     return app
 
 

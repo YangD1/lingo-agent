@@ -84,6 +84,12 @@ REWRITABLE_LICENSES = ("public_domain", "cc_by")
 # generating -> ready | failed; a failed version is generated again when asked for.
 ARTICLE_VERSION_STATUSES = ("generating", "ready", "failed")
 TUTOR_CARD_KINDS = ("word_book", "learning_goal", "practice", "link", "writing", "daily_plan")
+# The chat workspace (ADR 0043): what a document is, where its text came from, who
+# wrote a version.
+WORKSPACE_KINDS = ("reading", "writing")
+WORKSPACE_SOURCES = ("paste", "article", "writing", "message", "blank")
+WORKSPACE_AUTHORS = ("learner", "tutor")
+WORKSPACE_ANNOTATIONS = ("translation", "analysis")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
 # Where a practice set was started from (ADR 0021); prefetch: made in the background
@@ -896,6 +902,78 @@ class MessageTranslation(Base):
     message_id: Mapped[str] = mapped_column(String(100), primary_key=True)
     target: Mapped[str] = mapped_column(String(5), primary_key=True)
     text: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WorkspaceDoc(TimestampMixin, Base):
+    """A document open beside a conversation in the chat workspace (ADR 0043 §3).
+
+    Its text lives in versions; `version` is the current one. Deleted with the
+    conversation.
+    """
+
+    __tablename__ = "workspace_docs"
+    __table_args__ = (
+        CheckConstraint(_in("kind", WORKSPACE_KINDS), name="kind"),
+        CheckConstraint(_in("source", WORKSPACE_SOURCES), name="source"),
+        CheckConstraint(_in("created_by", WORKSPACE_AUTHORS), name="created_by"),
+        # A retried tools node finds the document instead of opening a second one.
+        UniqueConstraint("conversation_id", "tool_call_id"),
+        Index("ix_workspace_docs_conversation_id_created_at", "conversation_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE")
+    )
+    kind: Mapped[str] = mapped_column(String(10))
+    title: Mapped[str] = mapped_column(String(200))
+    source: Mapped[str] = mapped_column(String(10))
+    # The article, writing submission or message the text was taken from; no FK: the
+    # document keeps its own copy, so it outlives them.
+    source_ref: Mapped[str | None] = mapped_column(String(100))
+    created_by: Mapped[str] = mapped_column(String(10))
+    # Set when the tutor opened it (`open_workspace`).
+    tool_call_id: Mapped[str | None] = mapped_column(String(100))
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    # A reading text past the length limit was cut (Q83g).
+    truncated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+
+class WorkspaceDocVersion(TimestampMixin, Base):
+    """One version of a workspace document (ADR 0043 §3). A learner's edits within a
+    few minutes update their latest version in place (Q83f); everything else, going
+    back included, adds one."""
+
+    __tablename__ = "workspace_doc_versions"
+    __table_args__ = (CheckConstraint(_in("author", WORKSPACE_AUTHORS), name="author"),)
+
+    doc_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspace_docs.id", ondelete="CASCADE"), primary_key=True
+    )
+    number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    author: Mapped[str] = mapped_column(String(10))
+    # reading: {"paragraphs": [...]}; writing: {"text": "..."}.
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    # The version this one went back to.
+    reverted_from: Mapped[int | None] = mapped_column(Integer)
+
+
+class WorkspaceAnnotation(Base):
+    """A paragraph's translation or a sentence's analysis, kept so the same text calls
+    no model again (ADR 0043 §4). Keyed by a hash of the text (and target language),
+    so it survives edits elsewhere in the document."""
+
+    __tablename__ = "workspace_annotations"
+    __table_args__ = (CheckConstraint(_in("kind", WORKSPACE_ANNOTATIONS), name="kind"),)
+
+    doc_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspace_docs.id", ondelete="CASCADE"), primary_key=True
+    )
+    kind: Mapped[str] = mapped_column(String(12), primary_key=True)
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    content: Mapped[dict[str, Any]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
