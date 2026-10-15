@@ -25,6 +25,7 @@ from app.db.models import (
 from app.services.news import feeds
 from app.services.news.clean import count_words
 from app.services.news.feeds import FeedError
+from app.workspace.from_html import from_html
 from app.workspace.markdown import blocks_of, plain
 from app.writing.text import MAX_CHARS as MAX_WRITING_CHARS
 
@@ -107,7 +108,8 @@ def _title(title: str | None, text: str) -> str:
 
 
 def reading_text(text: str, title: str | None = None) -> Text:
-    paragraphs, truncated = _cut(paragraphs_of(text))
+    # HTML that got past the input box (task 85) is read as Markdown.
+    paragraphs, truncated = _cut(paragraphs_of(from_html(text)))
     if not paragraphs:
         raise EmptyTextError("the text is empty")
     return Text({"paragraphs": paragraphs}, _title(title, paragraphs[0]), truncated)
