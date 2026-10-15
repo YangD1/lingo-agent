@@ -63,3 +63,16 @@ export function openLevel(course: Course): CefrLevel {
 
 export const courseChatHref = (conversationId: string) =>
   `/chat?${new URLSearchParams({ c: conversationId })}`;
+
+const lessonListeners = new Set<() => void>();
+
+/** Something may have moved a lesson's state (a pass quiz finished, a turn ended): the
+ * lesson bar reloads it. */
+export function lessonChanged() {
+  lessonListeners.forEach((listener) => listener());
+}
+
+export function onLessonChanged(listener: () => void): () => void {
+  lessonListeners.add(listener);
+  return () => void lessonListeners.delete(listener);
+}

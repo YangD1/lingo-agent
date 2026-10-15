@@ -32,6 +32,9 @@ export function useCards(
   onDecided?: (card: TutorCard) => void,
 ) {
   const [owned, setOwned] = useState<Owned>({ conversationId, cards: [] });
+  // The conversation whose cards were last fetched (or failed to): before that, an empty
+  // list may only mean "not loaded yet".
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const current = useRef(conversationId);
   useEffect(() => {
     current.current = conversationId;
@@ -49,8 +52,12 @@ export function useCards(
     const id = current.current;
     if (id === null) return;
     fetchCards(id).then(
-      (body) => current.current === id && setCards(() => body.cards),
-      () => {},
+      (body) => {
+        if (current.current !== id) return;
+        setCards(() => body.cards);
+        setLoadedFor(id);
+      },
+      () => current.current === id && setLoadedFor(id),
     );
   }, [setCards]);
 
@@ -71,5 +78,5 @@ export function useCards(
   const cards = owned.conversationId === conversationId ? owned.cards : [];
   const byTurn: Record<string, TutorCard[]> = {};
   for (const card of cards) (byTurn[card.turn_id] ??= []).push(card);
-  return { byTurn, decide, add, reload };
+  return { byTurn, decide, add, reload, loaded: loadedFor === conversationId };
 }

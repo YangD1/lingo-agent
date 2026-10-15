@@ -47,8 +47,9 @@ type Props = {
   discardRefused?: boolean;
   /** Have the tutor speak first while the conversation is empty (practice, planning). */
   autoOpen?: boolean;
-  /** Above the messages: the practice bar or the placement banner. */
-  header?: ReactNode;
+  /** Above the messages: the practice or lesson bar, or the placement banner. Given a
+   * function, it can add a card it made (a lesson's test-out quiz). */
+  header?: ReactNode | ((panel: { addCard: (card: TutorCard) => void }) => ReactNode);
   /** Instead of the default hint while there are no messages. */
   empty?: (actions: EmptyActions) => ReactNode;
   /** An error from outside the panel, e.g. starting the conversation failed. */
@@ -123,15 +124,17 @@ export function TutorPanel({
   const tray = useAttachments(conversationId, session.ensureConversation);
 
   // The tutor speaks first (Q19a, ADR 0015 §6). Tried once per conversation and page load,
-  // so a refusal (e.g. no model) doesn't loop.
+  // so a refusal (e.g. no model) doesn't loop. Not under a card already there: a lesson
+  // tested out of starts with its quiz, without the model (ADR 0044 §5).
   const opened = useRef(new Set<string>());
   const { readyFor, messages, streaming, open } = session;
+  const hasCards = Object.keys(cards.byTurn).length > 0;
   useEffect(() => {
-    if (!autoOpen || !conversationId || readyFor !== conversationId) return;
-    if (opened.current.has(conversationId) || messages.length > 0 || streaming) return;
+    if (!autoOpen || !conversationId || readyFor !== conversationId || !cards.loaded) return;
+    if (opened.current.has(conversationId) || messages.length > 0 || hasCards || streaming) return;
     opened.current.add(conversationId);
     void open();
-  }, [autoOpen, conversationId, readyFor, messages.length, streaming, open]);
+  }, [autoOpen, conversationId, readyFor, cards.loaded, messages.length, hasCards, streaming, open]);
 
   const [dragging, setDragging] = useState(false);
   const hasFiles = (event: DragEvent) => event.dataTransfer.types.includes("Files");
@@ -163,7 +166,7 @@ export function TutorPanel({
           {t("attachments.dropHere")}
         </div>
       )}
-      {header}
+      {typeof header === "function" ? header({ addCard: cards.add }) : header}
       <MessageList
         conversationId={conversationId}
         messages={session.messages}

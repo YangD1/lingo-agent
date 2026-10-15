@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { LogoMark } from "@/components/brand/logo";
 import { LingoCat } from "@/components/brand/lingo-cat";
 import { useErrorMessage } from "@/i18n/errors";
+import { isTestOutTurn } from "@/lib/course";
 import { stopSpeaking } from "@/lib/speech";
 import { ErrorText } from "@/components/ui/error-text";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,8 @@ export function MessageList({
   const translations = useReplyTranslations(conversationId);
   const lastUser = messages.findLastIndex((m) => m.role === "user");
   const hasTail = Boolean(tail);
+  // A lesson's test-out quiz hangs under no message (ADR 0044 §5): shown after them.
+  const testOuts = cards ? Object.keys(cards.byTurn).filter(isTestOutTurn) : [];
 
   // Reading aloud stops with the conversation it reads from.
   useEffect(() => stopSpeaking, [conversationId]);
@@ -63,10 +66,10 @@ export function MessageList({
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages, hasTail]);
+  }, [messages, hasTail, testOuts.length]);
 
 
-  if (messages.length === 0 && !tail) {
+  if (messages.length === 0 && !tail && testOuts.length === 0) {
     return (
       empty ?? (
         <div className="flex flex-1 items-center justify-center p-6">
@@ -191,6 +194,17 @@ export function MessageList({
             </li>
           ),
         )}
+        {cards &&
+          testOuts.map((turn) => (
+            <li key={turn} className="flex w-full flex-col self-start md:pl-[42px]">
+              <TutorCards
+                cards={cards.byTurn[turn]}
+                onDecide={cards.decide}
+                conversationId={conversationId}
+                onAsk={cards.ask}
+              />
+            </li>
+          ))}
         {tail}
       </ol>
       <WordPopup container={listRef} />

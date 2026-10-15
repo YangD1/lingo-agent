@@ -411,6 +411,11 @@
       "evidence": "See the evidence",
       "badge": "Grammar practice"
     },
+    "lesson": {
+      "label": "Lesson {n}: {kc}",
+      "next": "Next: lesson {n}",
+      "course": "Course"
+    },
     "cards": {
       "wordBook": {
         "title": "Switch your word book to {book}",

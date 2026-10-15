@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorText } from "@/components/ui/error-text";
 import { ApiError } from "@/lib/api";
 import type { TutorCard } from "@/lib/cards";
+import { lessonChanged } from "@/lib/course";
 import { kcName } from "@/lib/learner";
 import {
   type Answered,
@@ -122,7 +123,9 @@ export function QuizCard({
     setItemError(null);
     try {
       const { item } = await run();
-      setSet({ ...set, items: set.items.map((i) => (i.id === item.id ? item : i)) });
+      const next = { ...set, items: set.items.map((i) => (i.id === item.id ? item : i)) };
+      setSet(next);
+      if (purpose === "quiz" && firstOpen(next) < 0) lessonChanged();
       if (item.result?.correct) petHappy();
     } catch (e) {
       setItemError(describe(e));

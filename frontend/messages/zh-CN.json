@@ -411,6 +411,11 @@
       "evidence": "查看依据",
       "badge": "语法练习"
     },
+    "lesson": {
+      "label": "第 {n} 课：{kc}",
+      "next": "下一课：第 {n} 课",
+      "course": "课程"
+    },
     "cards": {
       "wordBook": {
         "title": "把词书换成 {book}",

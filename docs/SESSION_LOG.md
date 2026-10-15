@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-10-15 任务 86.6、86.6b：课程页与课程对话顶栏
+
+**做了什么**
+- 86.6（提交 b585c84）：`/course` 课程页（`components/course/course-app.tsx`）、看板入口卡（`course-entry.tsx`）、侧栏“课程”、桌宠指令、`suggest_link` `course`、中英文案。
+- 发现 ADR 0044 §5 的 `LessonBar` 没有落进任何子任务，用户确认补为 86.6b 并已完成：`chat/lesson-bar.tsx`；`lib/course.ts` 的 `lessonChanged` 事件；test-out 卡片在 `message-list.tsx` 末尾显示；`tutor-panel.tsx` 等卡片读到后再自动开场，已有卡片不开场。
+- 全量 Vitest 878 全过，tsc、eslint 干净。后端没动，没跑 pytest。
+
+**未完成 / 下一步**
+- 86.7 E2E（假模型）：进第一课 → 讲解 → 测验卡 → 作答 → 过关 → 顶栏“下一课”。要看假模型能不能触发 `give_quiz`（`backend` 假 LLM 的工具调用脚本）。
+- 86.8 收尾：全量 pytest / Vitest / E2E、lint、Docker 重建（先后端再前端）。
+
+**踩坑**
+- test-out 卡片的 turn id 不对应任何消息，`MessageList` 原来在没有消息时直接显示空状态，卡片看不见；而且 `autoOpen` 只看消息数，会在直接测验后再触发课程开场。两处都改了。
+- test-out 卡片排在消息末尾：消息没有时间戳，直接测验后再聊天，刷新后卡片会在后来的消息下面。目前可以接受，需要时再按 `created_at` 排。
+- `setup-app.test.tsx` 的 “offers chat providers only…” 在全量并行时偶发失败 1 次（3 次里），单独跑都过，待查竞态。
+- 用 `node node_modules/vitest/vitest.mjs`，不要用 `node_modules/.bin/vitest`（它是 shell 脚本，用 node 跑会报语法错）。
+
+---
+
 ## 2026-10-15 任务 86（进行中）：体系化课程 + 对话内测验卡片
 
 **做了什么**：86.1 ADR 0044（1ffe166）；86.2 `app/adaptive/course.py` + `GET /course`（89404a7）；86.3 后端代码写完未提交：新题型 `concept_choice`/`explain`（`formats.py` `CHECK_FORMATS`，不计证据）、`grader.explain_messages`、`planner.plan_quiz`、`worker.start_quiz`（`QuizLimitError`）、`cards/quiz.py`（`QuizTools`、`quiz_states`）、`give_quiz` 工具、迁移 `1dae8661b914`。

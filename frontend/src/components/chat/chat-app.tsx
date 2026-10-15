@@ -16,6 +16,7 @@ import { WorkspacePane } from "@/components/workspace/workspace-pane";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { api, ApiError } from "@/lib/api";
 import type { TutorCard } from "@/lib/cards";
+import { lessonChanged } from "@/lib/course";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -33,6 +34,7 @@ import {
 
 import { ConversationList } from "./conversation-list";
 import { PlacementBanner } from "./placement-banner";
+import { LessonBar } from "./lesson-bar";
 import { PracticeBar } from "./practice-bar";
 import type { ComposerHandle } from "./composer";
 import { ReadingBar } from "./reading-bar";
@@ -350,11 +352,17 @@ export function ChatApp({
                   setUrl(c.id, "replace");
                   setConversations((all) => [c, ...all.filter((o) => o.id !== c.id)]);
                 }}
-                onTurnFinished={refresh}
+                onTurnFinished={() => {
+                  refresh();
+                  // The turn may have moved the lesson's mastery.
+                  if (active?.purpose === "lesson") lessonChanged();
+                }}
                 // A practice or planning conversation with nothing in it yet (Q19a, ADR 0015 §6).
                 autoOpen={Boolean(active?.focus_kc || active?.purpose === "planning")}
-                header={
-                  active?.focus_kc ? (
+                header={({ addCard }) =>
+                  active?.purpose === "lesson" && active.focus_kc ? (
+                    <LessonBar conversationId={active.id} kc={active.focus_kc} onCard={addCard} />
+                  ) : active?.focus_kc ? (
                     <PracticeBar kc={active.focus_kc} />
                   ) : active?.article_id ? (
                     <ReadingBar articleId={active.article_id} />

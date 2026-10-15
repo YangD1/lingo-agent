@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TutorCard } from "@/lib/cards";
+import { onLessonChanged } from "@/lib/course";
 import type { Item, PracticeSet } from "@/lib/practice";
 
 import zh from "../../../messages/zh-CN.json";
@@ -171,6 +172,31 @@ describe("QuizCard", () => {
     await user.click(ask);
     expect(onAsk).toHaveBeenCalledWith("我做完了，帮我看看。");
     expect(ask).toBeDisabled();
+  });
+
+  it("tells the lesson bar once a pass quiz is answered through", async () => {
+    const user = userEvent.setup();
+    const changed = vi.fn();
+    const off = onLessonChanged(changed);
+    practice.fetchSet.mockResolvedValue(set({ items: [concept] }));
+    practice.answerItem.mockResolvedValue({ item: done(concept, true), set_done: true });
+    show("quiz");
+    await user.click(await screen.findByRole("button", { name: /主语是单数/ }));
+    expect(changed).toHaveBeenCalledOnce();
+    off();
+  });
+
+  it("does not tell the lesson bar about a check", async () => {
+    const user = userEvent.setup();
+    const changed = vi.fn();
+    const off = onLessonChanged(changed);
+    practice.fetchSet.mockResolvedValue(set({ items: [concept] }));
+    practice.answerItem.mockResolvedValue({ item: done(concept, true), set_done: true });
+    show("check");
+    await user.click(await screen.findByRole("button", { name: /主语是单数/ }));
+    expect(screen.getByTestId("practice-verdict")).toBeInTheDocument();
+    expect(changed).not.toHaveBeenCalled();
+    off();
   });
 
   it("does not take number keys from the chat", async () => {
