@@ -1,9 +1,10 @@
 """What the generator and the critic write, and how code checks it (ADR 0021 §3).
 
-Both calls use flat schemas rather than the per-format models of `formats.py`: a
-tagged union is not portable across providers' structured output, while optional
-fields are. Code then assembles each draft into its format's model, so an item reaches
-the learner only after `formats.py` has validated it and the critic has passed it.
+Neither call uses a tagged union, which is not portable across providers' structured
+output: the critic writes one flat review per item, and the generator one field per
+position whose type lists only that format's fields (task 86.9). Code then assembles
+each draft into its format's model in `formats.py`, so an item reaches the learner only
+after `formats.py` has validated it and the critic has passed it.
 
 The generator rates each item on the difficulty rubric of `rules.yaml`; the critic
 rates it again without seeing that rating. The critic answers the closed formats
@@ -13,7 +14,7 @@ taken on the critic's word.
 """
 
 import random
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cache
 from typing import Any, Literal, cast
@@ -124,21 +125,81 @@ class Draft(_Model):
 
 
 def draft_model(rules: Rules) -> type[BaseModel]:
-    return create_model("RatedDraft", __base__=Draft, ratings=(ratings_model(rules), ...))
+    return _rated_draft(ratings_model(rules))
 
 
-def generated_set_model(rules: Rules) -> type[BaseModel]:
-    """The generator's output: drafts for the positions it was asked for."""
+def generated_set_model(rules: Rules, briefs: Sequence[ItemBrief]) -> type[BaseModel]:
+    """The generator's output: one draft per position asked for, under `item_<position>`,
+    each with only its format's fields. Its schema marks the fields a format needs as
+    required and not null, while parsing still accepts a draft that leaves one out, so
+    that draft goes back for a rewrite saying what is missing instead of failing the
+    whole call: with one flat schema for every format, DeepSeek-V4-Flash left out a
+    concept_choice's `options` and `correct` in every round (task 86.9)."""
+    ratings = ratings_model(rules)
+    fields: dict[str, Any] = {
+        f"item_{b.position}": (
+            _item_model(b.item.format, ratings) | None,
+            Field(None, description=f"The {b.item.format} item at position {b.position}"),
+        )
+        for b in briefs
+    }
     return create_model(
         "GeneratedItems",
-        __base__=_Model,
-        items=(list[draft_model(rules)], ...),  # type: ignore[misc]
+        __config__=ConfigDict(
+            extra="ignore", frozen=True, json_schema_extra=_required_in_schema(tuple(fields))
+        ),
+        **fields,
     )
 
 
-def drafts_in(output: BaseModel) -> list[Draft]:
-    """The drafts of a `generated_set_model` output."""
-    return list(cast(Any, output).items)
+@cache
+def _item_model(fmt: Format, ratings: type[BaseModel]) -> type[BaseModel]:
+    required = REQUIRED[fmt]
+    fields: dict[str, Any] = {
+        name: (Draft.model_fields[name].annotation, Field(None, description=_described(name)))
+        for name in (*required, *OPTIONAL.get(fmt, ()))
+    }
+    return create_model(
+        f"Draft_{fmt}",
+        __config__=ConfigDict(
+            extra="ignore", frozen=True, json_schema_extra=_required_in_schema(required)
+        ),
+        **fields,
+        explanation=(str, Field(description=_described("explanation"))),
+        ratings=(ratings, ...),
+    )
+
+
+def _required_in_schema(names: tuple[str, ...]) -> Callable[[dict[str, Any]], None]:
+    """Shows `names` to the model as required and not null; parsing still takes null."""
+
+    def edit(schema: dict[str, Any]) -> None:
+        for name in names:
+            field = schema["properties"][name]
+            field.pop("default", None)
+            (kind,) = (k for k in field.pop("anyOf") if k.get("type") != "null")
+            field.update(kind)
+        schema["required"] = [*names, *schema.get("required", [])]
+
+    return edit
+
+
+def drafts_in(output: BaseModel, briefs: Sequence[ItemBrief]) -> list[Draft]:
+    """The drafts of a `generated_set_model(rules, briefs)` output."""
+    found = []
+    for b in briefs:
+        item: BaseModel | None = getattr(output, f"item_{b.position}", None)
+        if item is None:
+            continue
+        ratings: type[BaseModel] = type(cast(Any, item).ratings)
+        data = {**item.model_dump(), "position": b.position, "format": b.item.format}
+        found.append(cast(Draft, _rated_draft(ratings).model_validate(data)))
+    return found
+
+
+@cache
+def _rated_draft(ratings: type[BaseModel]) -> type[BaseModel]:
+    return create_model("RatedDraft", __base__=Draft, ratings=(ratings, ...))
 
 
 def ratings_of(item: "Draft | Review") -> BaseModel:
@@ -150,6 +211,51 @@ class DraftError(ValueError):
     """A draft that does not make a valid item of its planned format."""
 
 
+# The draft fields each format is assembled from, besides `explanation`: the generator
+# is told them per item, in its brief and in the schema (task 86.9).
+REQUIRED: Mapping[Format, tuple[str, ...]] = {
+    "choice4": ("stem", "options", "correct"),
+    "cloze": ("stem", "accepted"),
+    "find_fix": ("segments", "wrong_segment", "accepted"),
+    "transform": ("instruction", "source", "accepted"),
+    "translate": ("source", "accepted"),
+    "rewrite_own": ("instruction", "accepted"),
+    "concept_choice": ("question", "options", "correct"),
+    "explain": ("question", "key_points"),
+}
+
+
+# What a format may fill besides REQUIRED.
+OPTIONAL: Mapping[Format, tuple[str, ...]] = {"cloze": ("hint",), "translate": ("instruction",)}
+
+
+def fields_of(fmt: Format) -> list[str]:
+    """What a draft of `fmt` must fill."""
+    return [*REQUIRED[fmt], "explanation"]
+
+
+def _missing(draft: Draft, fmt: Format) -> list[str]:
+    return [f for f in REQUIRED[fmt] if getattr(draft, f) in (None, "", [])]
+
+
+def _described(field: str) -> str | None:
+    return Draft.model_fields[field].description
+
+
+def _wanted(field: str) -> str:
+    """What a field holds, without the formats its description starts with."""
+    return (Draft.model_fields[field].description or field).partition(": ")[2]
+
+
+def _problem(err: Any) -> str:
+    """A validation error as the draft field it is about, for the rewrite: the item's
+    own path (`concept_choice.content.options.0`) means nothing to the generator."""
+    field = next((str(p) for p in reversed(err["loc"]) if str(p) in Draft.model_fields), None)
+    if field is None:
+        return str(err["msg"])
+    return f"`{field}`: {err['msg']}"
+
+
 def to_body(draft: Draft, brief: ItemBrief, rng: random.Random) -> ExerciseBody:
     """The item a draft describes, checked by its format's model. choice4 options are
     shuffled; rewrite_own takes the learner's sentence and its evidence id from the
@@ -157,6 +263,8 @@ def to_body(draft: Draft, brief: ItemBrief, rng: random.Random) -> ExerciseBody:
     fmt = brief.item.format
     if draft.format != fmt:
         raise DraftError(f"format is {draft.format}, planned {fmt}")
+    if missing := _missing(draft, fmt):
+        raise DraftError("; ".join(f"`{f}` is missing: {fmt} needs {_wanted(f)}" for f in missing))
     content: dict[str, Any]
     answer: dict[str, Any] = {"explanation": draft.explanation}
     match fmt:
@@ -197,10 +305,8 @@ def to_body(draft: Draft, brief: ItemBrief, rng: random.Random) -> ExerciseBody:
     try:
         return parse_body(fmt, content, answer)
     except ValidationError as e:
-        problems = "; ".join(
-            f"{'.'.join(map(str, err['loc']))}: {err['msg']}" for err in e.errors()
-        )
-        raise DraftError(problems) from e
+        problems = dict.fromkeys(_problem(err) for err in e.errors())
+        raise DraftError("; ".join(problems)) from e
 
 
 # --- the critic ---

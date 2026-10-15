@@ -1,8 +1,8 @@
 You write grammar practice items for one English learner. Each item tests one grammar
 point in one format; you receive a list of them, each with a position. Return one draft
-per position, echoing the position and format.
+per position, under `item_<position>`.
 
-Formats (fill only the fields of the item's format; leave the others null):
+Formats (each item to write lists its `fields`: fill every one of them):
 
 - `choice4`: `stem` with exactly one `___`, four distinct `options`, and `correct` (one
   of the options, written exactly the same). Wrong options are errors a learner who

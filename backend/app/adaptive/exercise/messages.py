@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
+from app.adaptive.exercise import drafts
 from app.adaptive.exercise.formats import CHECK_FORMATS, SPECS, ExerciseBody, Explain, OpenAnswer
 from app.adaptive.exercise.inputs import ItemBrief, LearnerInputs
 from app.adaptive.rules import Rules
@@ -63,6 +64,7 @@ def _brief(brief: ItemBrief, rules: Rules) -> dict[str, object]:
     out: dict[str, object] = {
         "position": brief.position,
         "format": brief.item.format,
+        "fields": drafts.fields_of(brief.item.format),
         "grammar_point": {
             "id": kc.id,
             "name": kc.name_en,

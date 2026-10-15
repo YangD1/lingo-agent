@@ -138,23 +138,19 @@ class FakeModels:
         rounds = len(self.generated)
         self.generated.append([a["position"] for a in asked])
         self.prompts.append(str(messages[-1].content))
-        items = []
+        items = {}
         for a in asked:
             fmt = a["format"]
             data = {**DRAFTS[fmt]}
             if (rounds, a["position"]) in self.invalid:
                 data["accepted"] = None
                 data["correct"] = "none of them"
-            items.append(
-                {
-                    "position": a["position"],
-                    "format": fmt,
-                    "explanation": "Because.",
-                    "ratings": {k: {"level": v, "reason": "r"} for k, v in MIDDLE.items()},
-                    **data,
-                }
-            )
-        return ModelReply(schema.model_validate({"items": items}), "fake:writer")
+            items[f"item_{a['position']}"] = {
+                "explanation": "Because.",
+                "ratings": {k: {"level": v, "reason": "r"} for k, v in MIDDLE.items()},
+                **data,
+            }
+        return ModelReply(schema.model_validate(items), "fake:writer")
 
     async def critique(
         self, messages: Sequence[BaseMessage], schema: type[BaseModel]
@@ -334,6 +330,25 @@ async def test_too_few_items_fail_the_set_with_the_model_error() -> None:
     result, _ = await run(FakeModels(generate_error=error), seen=seen)
 
     assert result.items == [] and result.error_code == "no_llm_configured"
+
+
+async def test_a_failed_set_logs_why_its_slots_stayed_open(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Drafts rejected before review left no trace; only a rerun found out why (86.9)."""
+    rounds = 1 + RULES.practice.max_regenerations
+    models = FakeModels(invalid={(r, p) for r in range(rounds) for p in range(6)})
+    seen = {item.id: NOW for item in BANK.items}
+
+    with caplog.at_level("INFO", logger="app.agents.exercise_graph"):
+        result, _ = await run(models, seen=seen)
+
+    assert result.items == [] and result.error_code == "generation_failed"
+    assert models.reviewed == []
+    rejected = [r for r in caplog.records if "rejected before review" in r.getMessage()]
+    assert len(rejected) == 6 * rounds
+    (failed,) = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert "0 of 6 items" in failed.getMessage() and "invalid item" in failed.getMessage()
 
 
 async def test_dropped_slots_leave_a_gap() -> None:

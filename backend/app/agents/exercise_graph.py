@@ -20,6 +20,7 @@ checkpointer is needed: a set is generated in one go, and a process that dies mi
 leaves a `generating` set that the service marks failed.
 """
 
+import logging
 import random
 import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
@@ -41,6 +42,8 @@ from app.adaptive.kc.catalog import GrammarCatalog
 from app.adaptive.placement.items import ItemBank
 from app.adaptive.rules import Rules
 from app.providers.errors import NoModelConfiguredError
+
+logger = logging.getLogger(__name__)
 
 GENERATE_NODE: Final = "generate"
 CRITIC_NODE: Final = "critic"
@@ -188,17 +191,19 @@ async def generate(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> d
     try:
         reply = await ctx.generate(
             generate_messages(wanted, ctx.learner, ctx.rules, feedback or None),
-            drafts.generated_set_model(ctx.rules),
+            drafts.generated_set_model(ctx.rules, wanted),
         )
     except Exception as exc:
+        logger.warning("exercise generation call failed", exc_info=True)
         return {"model_error": _error_code(exc), "rounds": rounds + 1, **clock}
-    found = drafts.by_position(drafts.drafts_in(reply.output), [b.position for b in wanted])
+    found = drafts.by_position(drafts.drafts_in(reply.output, wanted), [b.position for b in wanted])
     rng = random.Random(ctx.seed * 1000 + rounds)
     candidates: dict[int, _Candidate] = {}
     new_feedback = dict(state["feedback"])
     for brief in wanted:
         draft = found.get(brief.position)
         if draft is None:
+            _rejected_unreviewed(brief, rounds, "no draft was written for this position")
             new_feedback[brief.position] = Rejected({}, ["no draft was written for this position"])
             continue
         shown = draft.model_dump(exclude={"position", "ratings"}, exclude_none=True)
@@ -206,6 +211,7 @@ async def generate(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> d
             body = drafts.to_body(draft, brief, rng)
             value, levels = drafts.difficulty(brief.kc, drafts.ratings_of(draft), ctx.rules)
         except ValueError as exc:  # DraftError, or a rating prior_difficulty rejects
+            _rejected_unreviewed(brief, rounds, str(exc))
             new_feedback[brief.position] = Rejected(shown, [f"invalid item: {exc}"])
             continue
         candidates[brief.position] = {
@@ -216,6 +222,18 @@ async def generate(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> d
             "model": reply.model,
         }
     return {"candidates": candidates, "feedback": new_feedback, "rounds": rounds + 1, **clock}
+
+
+def _rejected_unreviewed(brief: ItemBrief, rounds: int, reason: str) -> None:
+    """Kept only as feedback for the rewrite otherwise, so a set that ends with nothing
+    the critic saw could not be told apart from a model outage (task 86.9)."""
+    logger.info(
+        "exercise draft %d (%s) rejected before review, round %d: %s",
+        brief.position,
+        brief.item.format,
+        rounds + 1,
+        reason,
+    )
 
 
 def _out_of_time(state: ExerciseState, ctx: ExerciseContext) -> bool:
@@ -240,6 +258,7 @@ async def critic(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dic
             drafts.critic_report_model(ctx.rules),
         )
     except Exception as exc:
+        logger.warning("exercise critic call failed", exc_info=True)
         # Unreviewed items never reach the learner: their slots stay open for the bank.
         return {"candidates": {}, "model_error": _error_code(exc)}
     reviews = drafts.by_position(drafts.reviews_in(reply.output), sorted(candidates))
@@ -345,6 +364,17 @@ async def fill(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[
     least = ctx.rules.practice.min_items if ctx.min_items is None else ctx.min_items
     failed = len(items) < least
     error = (state["model_error"] or "generation_failed") if failed else None
+    if failed:
+        logger.warning(
+            "exercise set failed: %d of %d items (at least %d), %d rounds, error %s; "
+            "still open: %s",
+            len(items),
+            len(ctx.briefs),
+            least,
+            state["rounds"],
+            error,
+            {p: list(r.reasons) for p, r in state["feedback"].items() if p in state["open"]},
+        )
     return {"result": SetResult(items, state["rejected"], error, from_bank)}
 
 

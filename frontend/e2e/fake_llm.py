@@ -183,25 +183,19 @@ WORKSPACE_SENTENCE = "## Sentence\n"
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 
 
-def practice_section(
-    messages: list[dict[str, Any]], title: str
-) -> list[dict[str, Any]]:
+def practice_section(messages: list[dict[str, Any]], title: str) -> list[dict[str, Any]]:
     """The JSON list after `title` in the last message (backend/app/adaptive/exercise/messages.py)."""
     content = text_of(messages[-1]["content"]) if messages else ""
     if title not in content:
         return []
     start = content.index(title) + len(title)
     end = content.find("\n\n", start)
-    items: list[dict[str, Any]] = json.loads(
-        content[start : end if end != -1 else None]
-    )
+    items: list[dict[str, Any]] = json.loads(content[start : end if end != -1 else None])
     return items
 
 
 def rated() -> dict[str, Any]:
-    return {
-        k: {"level": v, "reason": "Typical for the level."} for k, v in RATINGS.items()
-    }
+    return {k: {"level": v, "reason": "Typical for the level."} for k, v in RATINGS.items()}
 
 
 def text_of(content: Any) -> str:
@@ -250,14 +244,10 @@ def system_text(messages: list[dict[str, Any]]) -> str:
 
 
 def reply_for(messages: list[dict[str, Any]]) -> str:
-    if (
-        messages and messages[-1]["role"] == "tool"
-    ):  # the turn goes on after a tool call
+    if messages and messages[-1]["role"] == "tool":  # the turn goes on after a tool call
         return "I've put a suggestion on a card. Confirm it if it suits you."
     last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
-    images = (
-        sum(p.get("type") == "image_url" for p in last) if isinstance(last, list) else 0
-    )
+    images = sum(p.get("type") == "image_url" for p in last) if isinstance(last, list) else 0
     last = text_of(last)
     if last.startswith(OPENING_CUE) and (point := practice_point(messages)):
         return f"Let's practise: {point}."
@@ -283,9 +273,7 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
             return "我们主要用中文聊。"
         return "We mainly talk in English."
     if "what do you remember" in last.lower():
-        return "I remember: " + (
-            " | ".join(remembered_facts(messages)) or "nothing yet"
-        )
+        return "I remember: " + (" | ".join(remembered_facts(messages)) or "nothing yet")
     if "long" in last.lower():
         return " ".join(f"word{i}" for i in range(40))
     seen = f"I can see {images} image(s). " if images else ""
@@ -305,9 +293,7 @@ def reflection(messages: list[dict[str, Any]]) -> dict[str, Any]:
         if remember := REMEMBER.search(text):
             facts.append(remember.group(1).strip())
         if message_id:
-            words += [
-                {"message": message_id, "word": w} for w in ASKED_WORD.findall(text)
-            ]
+            words += [{"message": message_id, "word": w} for w in ASKED_WORD.findall(text)]
         if message_id and (third := THIRD_PERSON.search(text)):
             if third.group(1):
                 used.append({"message": message_id, "kc_id": THIRD_PERSON_KC})
@@ -323,9 +309,7 @@ def reflection(messages: list[dict[str, Any]]) -> dict[str, Any]:
                     }
                 )
     return {
-        "memory_ops": [
-            {"action": "add", "content": f"{f[0].upper()}{f[1:]}."} for f in facts
-        ],
+        "memory_ops": [{"action": "add", "content": f"{f[0].upper()}{f[1:]}."} for f in facts],
         "mistakes": mistakes,
         "used_correctly": used,
         "vocab_candidates": words,
@@ -369,10 +353,7 @@ def writing_review(prompt: str) -> dict[str, Any]:
 # 295 words, inside A2's 250-400.
 ROVER_SENTENCE = "The rover can go far and run on the ubiquitous red sand."
 ROVER_TEXT = [
-    " ".join(
-        [ROVER_SENTENCE] * 4
-        + ["It was found by serendipity, and the team was very happy."]
-    ),
+    " ".join([ROVER_SENTENCE] * 4 + ["It was found by serendipity, and the team was very happy."]),
 ] * 5
 
 
@@ -467,16 +448,12 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
     if name == "GeneratedItems":
         asked = practice_section(messages, "Items to write:\n")
         return {
-            "items": [
-                {
-                    "position": a["position"],
-                    "format": a["format"],
-                    "explanation": "The subject is third person singular, so the verb takes -s.",
-                    "ratings": rated(),
-                    **PRACTICE_DRAFTS[a["format"]],
-                }
-                for a in asked
-            ]
+            f"item_{a['position']}": {
+                "explanation": "The subject is third person singular, so the verb takes -s.",
+                "ratings": rated(),
+                **PRACTICE_DRAFTS[a["format"]],
+            }
+            for a in asked
         }
     if name == "CriticReport":
         items = practice_section(messages, "Items to review:\n")
@@ -525,9 +502,7 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
                 {
                     "hypothesis": DIAGNOSIS_HYPOTHESIS,
                     "kc_ids": [THIRD_PERSON_KC],
-                    "evidence_ids": [
-                        int(i) for i in DIAGNOSIS_EVIDENCE.findall(prompt)
-                    ],
+                    "evidence_ids": [int(i) for i in DIAGNOSIS_EVIDENCE.findall(prompt)],
                     "confidence": "high",
                     "suggestion": "用 he / she 各说三句日常习惯。",
                 }
@@ -604,9 +579,7 @@ def chunk(model: str, delta: dict[str, Any], **extra: Any) -> str:
         "object": "chat.completion.chunk",
         "created": int(time.time()),
         "model": model,
-        "choices": [{"index": 0, "delta": delta, "finish_reason": None}]
-        if delta
-        else [],
+        "choices": [{"index": 0, "delta": delta, "finish_reason": None}] if delta else [],
         **extra,
     }
     return f"data: {json.dumps(body)}\n\n"
@@ -617,21 +590,13 @@ def tutor_tool_call(
 ) -> tuple[str, dict[str, Any]] | None:
     """The tool the tutor calls this time, if any: only right after a learner message."""
     names = {t["function"]["name"] for t in tools}
-    if (
-        "propose_word_book" not in names
-        or not messages
-        or messages[-1]["role"] != "user"
-    ):
+    if "propose_word_book" not in names or not messages or messages[-1]["role"] != "user":
         return None
     said = text_of(messages[-1]["content"])
     if "open_workspace" in names and OPEN_WORKSPACE.search(said):
         kind = "writing" if "writing" in said.lower() else "reading"
         return "open_workspace", {"kind": kind, "source": "last_message"}
-    if (
-        "propose_edit" in names
-        and IMPROVE.search(said)
-        and (edit := proposed_edit(messages))
-    ):
+    if "propose_edit" in names and IMPROVE.search(said) and (edit := proposed_edit(messages)):
         return "propose_edit", edit
     if "propose_daily_plan" in names and SHORT_ON_TIME.search(said):
         return "propose_daily_plan", PROPOSED_PLAN
@@ -694,12 +659,8 @@ async def completions(request: Request) -> StreamingResponse | JSONResponse:
         # Structured output inside the chat graph is streamed (routing.classify).
         name = body["tools"][0]["function"]["name"]
         usage = {"prompt_tokens": 42, "completion_tokens": 10, "total_tokens": 52}
-        return stream_tool_call(
-            model, name, tool_arguments(name, body["messages"]), usage
-        )
-    if body.get("tools") and (
-        call := tutor_tool_call(body["tools"], body.get("messages", []))
-    ):
+        return stream_tool_call(model, name, tool_arguments(name, body["messages"]), usage)
+    if body.get("tools") and (call := tutor_tool_call(body["tools"], body.get("messages", []))):
         usage = {"prompt_tokens": 42, "completion_tokens": 10, "total_tokens": 52}
         return stream_tool_call(model, *call, usage)
     text = reply_for(body.get("messages", []))
@@ -755,9 +716,7 @@ async def speech(request: Request) -> Response:
     body = await request.json()
     if "broken" in body.get("model", ""):
         return JSONResponse({"error": {"message": "speech is down"}}, status_code=503)
-    return Response(
-        f"mp3:{body['voice']}:{body['input']}".encode(), media_type="audio/mpeg"
-    )
+    return Response(f"mp3:{body['voice']}:{body['input']}".encode(), media_type="audio/mpeg")
 
 
 # Bailian's qwen-audio (task 64.2a): the reading is described in a prompt, and the answer
@@ -772,9 +731,7 @@ async def qwen_audio(request: Request) -> JSONResponse:
     body = await request.json()
     spec = body["input"]
     clip = str(uuid.uuid4())
-    QWEN_AUDIO[clip] = (
-        f"mp3:{spec['seed']}:{spec['rate']}:{spec['text_prompt']}".encode()
-    )
+    QWEN_AUDIO[clip] = f"mp3:{spec['seed']}:{spec['rate']}:{spec['text_prompt']}".encode()
     url = f"{str(request.base_url).rstrip('/')}/qwen-audio/{clip}.mp3"
     return JSONResponse({"output": {"audio": {"url": url}}, "usage": {"duration": 1}})
 
@@ -793,9 +750,7 @@ async def qwen_tts(request: Request) -> JSONResponse:
         return JSONResponse({"code": "InvalidApiKey"}, status_code=401)
     spec = (await request.json())["input"]
     clip = str(uuid.uuid4())
-    QWEN_AUDIO[clip] = (
-        f"wav:{spec['voice']}:{spec['language_type']}:{spec['text']}".encode()
-    )
+    QWEN_AUDIO[clip] = f"wav:{spec['voice']}:{spec['language_type']}:{spec['text']}".encode()
     url = f"{str(request.base_url).rstrip('/')}/qwen-audio/{clip}.wav"
     usage = {"characters": len(spec["text"])}
     return JSONResponse({"output": {"audio": {"url": url}}, "usage": usage})
@@ -873,8 +828,7 @@ CALL_HEARD_BYTES = 24000 * 2 * 3 // 2
 # 0.2 s of a quiet tone, so the page has something to play.
 CALL_AUDIO = base64.b64encode(
     b"".join(
-        int(800 * ((i // 27) % 2 * 2 - 1)).to_bytes(2, "little", signed=True)
-        for i in range(4800)
+        int(800 * ((i // 27) % 2 * 2 - 1)).to_bytes(2, "little", signed=True) for i in range(4800)
     )
 ).decode()
 
@@ -894,9 +848,7 @@ async def realtime(ws: WebSocket) -> None:
         replies += 1
         item = f"a{replies}"
         if text:  # a reply that only calls tools says nothing
-            await send(
-                type="response.output_audio.delta", item_id=item, delta=CALL_AUDIO
-            )
+            await send(type="response.output_audio.delta", item_id=item, delta=CALL_AUDIO)
             for i, word in enumerate(text.split(" ")):
                 await send(
                     type="response.output_audio_transcript.delta",

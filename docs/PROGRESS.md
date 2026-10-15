@@ -1129,7 +1129,7 @@
     - [x] 85.2 输入框接入：`onPaste` 转换结果和纯文本不同时阻止默认粘贴、在光标处插入转好的文字（保留撤销），长文提示和“在工作区精读”用转好的文字。测试：Vitest（composer 粘贴分支）；E2E（模拟网页复制的 `text/html` 粘贴一篇文章 → 工作区显示标题、列表、表格）——剪贴板事件只有真浏览器可信（完成：`composer.tsx` `onPaste` 用 `pastedText`，结果和纯文本不同时阻止默认粘贴，`insertAtCursor` 用 `execCommand("insertText")` 插入（浏览器撤销 / 重做可用，没有时直接改文字）；长文提示和“在工作区精读”用转好的文字。Vitest composer +4；E2E +1（网页 HTML 粘贴：导航 / 图片 / 脚本被丢，撤销重做，工作区显示标题、列表、粗体、链接、表格表头））
     - [x] 85.3 后端兜底：`workspace/markdown.py` 用标准库 `HTMLParser` 把存文档时残留的 HTML 转成 Markdown（标题、段落、列表、粗斜体、链接、代码、表格），危险标签整块丢掉，代码块不动；`paragraphs_of` 调用。助手 `open_workspace` 打开的文字也受益。测试：pytest（转换、危险标签、代码块里的 HTML 不动）（完成：放在新模块 `app/workspace/from_html.py` `from_html`（不塞进 markdown.py，约 250 行）：标签外的文字原样保留（学习者自己的 Markdown），HTML 元素内空白按 HTML 规则合并；不认识的标签原样当文字（`Array<string>` 不受影响）；表格首行作表头、单元格里的 `|` 转义；链接只留 http(s) / mailto；`reading_text` 调用，`_check` 存版本时同样经过。pytest +5，workspace 相关 50 个全过）
     - [x] 85.4 收尾：Vitest、E2E 全量，pytest 全量；lint；文档（ADR 0043 §4、PLAN）；Docker 重建（先后端再前端）（测试、lint、文档已完成：pytest 1905（tests 1876 + evals 29）、Vitest 854、E2E 88 全过，`make lint` 干净；ADR 0043 §4、PLAN、README 中英同步；顺带把 Vitest 并发上限设为 8（`vitest.config.mts` `maxWorkers`）：默认每核一个 jsdom worker（32 核 → 31 个）全量时内存峰值 7.4GB / 8GB，是 use-attachments、speech-settings、learner-app 全量偶发超时的原因，上限 8 后峰值约 4GB、耗时基本不变，连跑 2 次全过。Docker 已重建：用户腾出内存后（Windows 可提交内存 8.3GB）先后端再前端，`/healthz` 200、前端 200，迁移 head `5194bac6a933`，空闲内存 backend 220MiB / frontend 44MiB / postgres 78MiB）
-- [ ] 任务 86：体系化课程 + 对话内测验卡片（2026-10-15 用户提出：像截图那样 AI 在对话里出题，成体系地让学习者掌握阶段该掌握的内容）
+- [x] 任务 86：体系化课程 + 对话内测验卡片（2026-10-15 用户提出：像截图那样 AI 在对话里出题，成体系地让学习者掌握阶段该掌握的内容）
   - 确认（全部按推荐）：Q86a 先只做语法（词汇、阅读以后作为单元挂进课程）；Q86b 一课一个语法点，按等级 + 前置依赖排序；Q86c 过关 = 测验答对 ≥ 80% 且算法掌握度达阈值，不让 LLM 判过关，可“我已经会了”直接测验跳课；Q86d 测验卡片在所有对话里都可用；Q86e “用自己的话解释”只给反馈、不计掌握度；Q86f 一张卡片一组题，每题单独提交、当场看结果，答完汇总；Q86g 过关测验 5 题（3 识别 + 2 产出）；Q86h 没过关助手针对错题补讲后可重测，重测换新题，同一课一天第三次起用题库兜底
   - 题型：理解检查（讲解中 1–2 题）新增 `concept_choice`（概念单选，代码判）和 `explain`（模型反馈），都不计掌握度；过关测验复用 choice4 / cloze / find_fix（识别）+ transform / translate / rewrite_own（产出，rewrite_own 仅有对话错误时），题型由选题算法按掌握度定，助手只传 `kc_id` 和用途；所有题过 critic；测验失败用入学测题库 choice4 兜底，理解检查失败则跳过；先复用题库里没做过的题
     - [x] 86.1 ADR 0044 + PLAN：课程模型、两种新题型、测验卡片、过关规则。测试：只改文档（完成：`docs/decisions/0044-grammar-course-and-quiz-cards.md`；过关门槛 `pass_score` 0.8 + `pass_p` 0.8，按现有 BKT 参数手算：自己等级的语法点 5 题错 1 题 p≈0.99、只对 3 题得分 0.6 不过；出题异步（工具 15 秒超时）；课程对话走 tutor 带工具；锁课 = 前置未过关，可直接测验跳课；PLAN 功能清单和数据表同步）
@@ -1152,3 +1152,17 @@
       - 完成：`e2e/course.spec.ts` 两条。①课程页“开始”第 1 课 → 顶栏、助手开场 → 说“给我测验”→ 假模型调 `give_quiz`（`fake_llm.py` 从课程提示词的 `grammar point id` 取 `kc_id`）→ 测验卡 5 题按答案作答全对 → 通过 → 顶栏“下一课：第 2 课”→ 第 2 课对话；回课程页第 1 课已过关、第 2 课学习中。②锁定课“我已经会了”→ 课程对话里只有测验卡，没有开场回复（临时去掉 `tutor-panel` 的有卡片判断时这条会失败，已确认）。2 条通过（约 23 秒）
     - [x] 86.8 收尾：文档、受影响层全量测试、lint、Docker 重建（先后端再前端）
       - 完成：PLAN.md 同步 86.5 的限额修订（出满后拒绝，不再说“改用题库”）并补课程顶栏、消息时间戳；`agent-tools.md` 直接测验一行补学习者能看到的变化。全量 pytest 1956（86.6c 后跑）、Vitest 883、E2E 90 全过；`make lint` 干净。Docker 先后端再前端重建，`/` 200、`/api/healthz` 200，内存 frontend 65MiB / backend 227MiB（刚启动）/ postgres 137MiB。未推送
+    - [x] 86.9 修理解检查偶发“这次没出成题”（2026-10-15 用户反馈；按推荐做 a–c，不做题库兜底 d）
+      - 原因（复现确认）：DeepSeek-V4-Flash 写 `concept_choice` 时 `options` / `correct` 留 null，三轮都在送 critic 前被 `drafts.to_body` 判无效；题目清单只给题型名不说必填字段，重写反馈是 Pydantic 路径（`content.options.0: Field required`）模型看不懂；送 critic 前的拒绝原因不记日志，线上只能复现排查
+      - a `_brief` 按题型列出必填字段（从 `drafts` 推导、不手写），`exercise_generate_check.md` 写明 concept_choice 是四选一必须给 4 个选项和 `correct`。测试：pytest（每个题型必填清单与格式模型一致、提示词装配含清单）
+      - b `DraftError` 转成可照改的话（缺哪个字段、该填什么）再交给重写。测试：pytest（缺字段、选项数不对）
+      - c 送 critic 前被拒的题打 `logger.info`（位置、题型、原因），整组失败时记 warning。测试：pytest（caplog）
+      - 完成：a、b、c 做完后用真实模型复现，**DeepSeek 仍然不写 `options`**：原始工具参数里连键都没有，提示和看得懂的反馈都没用。追加 d'：出题 schema 改为每个题位一个 `item_<位置>` 字段，类型是这一题型自己的模型（`drafts.generated_set_model(rules, briefs)` / `_item_model`），必填字段在 schema 里标为必填、不允许 null，解析仍然宽松，缺了逐题退回重写（`_required_in_schema`）；仍然没有带标签联合。改后真实模型复现 3 次都出成（理解检查 2 题都有）。ADR 0021 §3 写了修订；E2E 假模型同步改。全量 pytest 1970、E2E（course / practice / practice-set / diagnosis）6 条全过；lint 干净
+- [ ] 任务 87：助手判断需要时自动打开工作区，学习者用自然语言关闭 / 关掉自动打开（2026-10-15 用户提出；Q87a 保留工作区与对话的联动、Q87b 写作由代码在批改后自动开、Q87c 存成长期偏好，均按推荐确认）
+  - 现状：`open_workspace` 工具和前端“收到卡片自动打开”早已有（ADR 0043 §6），但 `tutor_tools.md` 没介绍工作区工具且要求“不确定先问”，助手从未主动打开（`workspace_docs` 里 created_by=tutor 为 0）；≥60 词的作文路由到不带工具的 writing_coach；没有关闭工具和“别自动开”的偏好
+  - [ ] 87.1 ADR 0045 + PLAN：何时自动开、关闭与偏好、写作批改后自动开。测试：只改文档
+  - [ ] 87.2 偏好 `tutor_profiles.workspace_auto_open`（默认开，迁移）+ 设置接口 / 助手设置页开关；提示词按偏好装配：开 = 判断需要就直接开，关 = 只在学习者明确要求时开。测试：pytest（迁移、接口、装配）；Vitest（设置页开关）
+  - [ ] 87.3 `tutor_tools.md` 工作区一节（粘贴整篇英文想读懂 → 精读；要写 / 改作文邮件 → 写作；短句不开；已有同一份不重开）+ 新工具 `close_workspace`（只收起，不删）、`set_workspace_auto_open`（改偏好，幂等、可在设置页改回）；`agent-tools.md`、活动记录。测试：pytest（工具、幂等、偏好装配）；Vitest（收到关闭卡片收起面板）
+  - [ ] 87.4 writing_coach 批改后：偏好开着时由代码把这篇作文建成写作文档并发 `workspace` 卡片（同一篇不重复建）。测试：pytest（开 / 关两种、幂等）
+  - [ ] 87.5 E2E（假模型）：粘贴长文 → 工作区自动打开 → 说“关掉” → 面板收起；说“以后别自动开”→ 再粘贴不自动开。理由：自动打开、收起只有真浏览器能验证
+  - [ ] 87.6 收尾：受影响层全量测试、lint、文档、Docker 重建（先后端再前端）

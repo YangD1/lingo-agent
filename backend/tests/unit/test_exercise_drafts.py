@@ -122,7 +122,8 @@ def text(message: BaseMessage) -> str:
 
 def test_schemas_use_no_tagged_unions() -> None:
     """Flat optional fields work with every provider's structured output; oneOf does not."""
-    for model in (drafts.generated_set_model(RULES), drafts.critic_report_model(RULES)):
+    generated = drafts.generated_set_model(RULES, [brief(f, i) for i, f in enumerate(DRAFTS)])
+    for model in (generated, drafts.critic_report_model(RULES)):
         schema = json.dumps(model.model_json_schema())
         assert "oneOf" not in schema and "discriminator" not in schema
 
@@ -135,6 +136,40 @@ def test_ratings_follow_the_rubric() -> None:
     value, levels = drafts.difficulty(KC, model.model_validate(ratings(HARD)), RULES)
     assert levels == HARD
     assert value == pytest.approx(RULES.difficulty.cefr_anchor["A1"] + 0.4 + 0.4 + 0.3 + 0.4)
+
+
+def test_each_position_shows_its_format_fields_as_required() -> None:
+    """With one flat schema for every format, a weak model left a concept_choice's
+    options out in every round (task 86.9)."""
+    model = drafts.generated_set_model(RULES, [brief("concept_choice", 0), brief("cloze", 3)])
+    schema = model.model_json_schema()
+    assert schema["required"] == ["item_0", "item_3"]
+    defs = schema["$defs"]
+    concept = defs["Draft_concept_choice"]
+    assert set(concept["properties"]) == {
+        "question",
+        "options",
+        "correct",
+        "explanation",
+        "ratings",
+    }
+    assert concept["required"][:3] == ["question", "options", "correct"]
+    assert concept["properties"]["options"]["type"] == "array"
+    cloze = defs["Draft_cloze"]
+    assert "hint" in cloze["properties"] and "hint" not in cloze["required"]
+
+
+def test_a_left_out_field_or_item_is_parsed_and_sent_back() -> None:
+    """The schema asks for every field, but a draft without one is still read, so that
+    one item is rewritten instead of the whole call failing."""
+    briefs = [brief("concept_choice", 0), brief("explain", 1)]
+    output = drafts.generated_set_model(RULES, briefs).model_validate(
+        {"item_0": {"question": "Why 'works'?", "explanation": "-s.", "ratings": ratings()}}
+    )
+    (found,) = drafts.drafts_in(output, briefs)
+    assert (found.position, found.format, found.options) == (0, "concept_choice", None)
+    with pytest.raises(drafts.DraftError, match="`options` is missing"):
+        drafts.to_body(found, briefs[0], random.Random(0))
 
 
 # --- drafts to items ---
@@ -181,6 +216,43 @@ def test_rewrite_own_takes_the_learner_sentence_from_code() -> None:
 def test_invalid_drafts_say_why(fmt: Format, changes: dict[str, Any], problem: str) -> None:
     with pytest.raises(drafts.DraftError, match=problem):
         drafts.to_body(draft(fmt, **changes), brief(fmt), random.Random(0))
+
+
+@pytest.mark.parametrize("fmt", list(DRAFTS))
+def test_required_fields_are_enough_and_each_needed(fmt: Format) -> None:
+    """The fields the generator is told to fill (task 86.9) are what assembling uses."""
+    only = {f: DRAFTS[fmt][f] for f in drafts.REQUIRED[fmt]}
+    nulls = {f: None for f in DRAFTS[fmt] if f not in only}
+    drafts.to_body(draft(fmt, **nulls), brief(fmt), random.Random(0))
+    for field in drafts.REQUIRED[fmt]:
+        with pytest.raises(drafts.DraftError, match=f"`{field}` is missing"):
+            drafts.to_body(draft(fmt, **{field: None}), brief(fmt), random.Random(0))
+
+
+def test_a_missing_field_says_what_to_write() -> None:
+    """A weak model left concept_choice options null three rounds running when told
+    `concept_choice.content.options.0: Field required`."""
+    with pytest.raises(drafts.DraftError) as caught:
+        drafts.to_body(
+            draft("concept_choice", options=None, correct=None),
+            brief("concept_choice"),
+            random.Random(0),
+        )
+    assert str(caught.value) == (
+        "`options` is missing: concept_choice needs the four options, the correct one "
+        "included; `correct` is missing: concept_choice needs the correct option, as written"
+    )
+
+
+def test_validation_errors_name_the_draft_field() -> None:
+    with pytest.raises(drafts.DraftError) as caught:
+        drafts.to_body(
+            draft("choice4", options=["works", "work", "working"]),
+            brief("choice4"),
+            random.Random(0),
+        )
+    assert str(caught.value).startswith("`options`: ")
+    assert "content" not in str(caught.value)
 
 
 # --- the critic's verdict ---
@@ -258,6 +330,12 @@ def test_generate_messages_carry_the_brief_and_personal_context() -> None:
     assert '"position": 3' in body and KC_ID in body
     assert '"original": "She like tea."' in body and "She likes tea." in body
     assert "rejected" not in body
+
+
+def test_each_brief_lists_the_fields_to_fill() -> None:
+    _, human = messages.generate_messages([brief("concept_choice")], LEARNER, RULES)
+    sent = json.loads(text(human).split("Items to write:\n")[1].split("\n\n")[0])
+    assert sent[0]["fields"] == ["question", "options", "correct", "explanation"]
 
 
 def test_generate_messages_send_rejected_drafts_back_with_reasons() -> None:
