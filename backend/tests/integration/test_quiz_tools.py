@@ -12,7 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.exercise.formats import parse_body
 from app.adaptive.rules import get_rules
+from app.agents.chat_graph import quiz_rule
 from app.db.models import Attempt, Exercise, ExerciseSet, TutorCard
+from app.prompts import load_prompt
+from app.providers.config import TutorPick
 from tests.integration.test_chat_tools import (
     Script,
     _clear_caches,  # noqa: F401
@@ -276,3 +279,25 @@ async def test_the_learner_can_turn_unasked_quizzes_off(
     ]
     _, events, _ = await send(client, conversation, "Yes, check me.")
     assert len(kinds(events, "card")) == 1
+
+
+async def test_the_prompt_follows_the_setting(client: AsyncClient, script: Script) -> None:
+    conversation = await ready(client)
+    script.replies = ["Hi!"]
+    await send(client, conversation, "Hello")
+    first = system_text(script.calls[0][1])
+    assert "### Quizzes" in first
+    assert load_prompt("tutor_quiz_proactive") in first
+
+    assert (await client.put("/tutor", json={"quiz_proactive": False})).status_code == 200
+    script.replies = ["Hi again!"]
+    await send(client, conversation, "Hello again")
+    second = system_text(script.calls[1][1])
+    assert load_prompt("tutor_quiz_on_request") in second
+    assert load_prompt("tutor_quiz_proactive") not in second
+
+
+def test_a_lesson_tests_whatever_the_setting() -> None:
+    off = TutorPick(quiz_proactive=False)
+    assert quiz_rule(off, lesson=True) == load_prompt("tutor_quiz_proactive")
+    assert quiz_rule(off, lesson=False) == load_prompt("tutor_quiz_on_request")

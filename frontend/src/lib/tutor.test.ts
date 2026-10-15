@@ -58,6 +58,7 @@ describe("tutor form", () => {
       nudges: true,
       daily_opening: true,
       workspace_auto_open: true,
+      quiz_proactive: true,
       chat_model: "qwen:qwen-plus",
       tts_model: "qwen:qwen3-tts-flash",
       voices: { "en-US": "Ethan" },

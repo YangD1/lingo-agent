@@ -491,9 +491,10 @@ async def _call(
             "{cards}", cards
         )
         if bind:
+            tutor = runtime.context.providers.tutor
             tools_section = tools_section.replace(
-                "{workspace_rule}", workspace_rule(runtime.context.providers.tutor)
-            )
+                "{workspace_rule}", workspace_rule(tutor)
+            ).replace("{quiz_rule}", quiz_rule(tutor, lesson=runtime.context.lesson is not None))
     prompt = system_prompt(
         state.get("learner_context", ""),
         state.get("practice", ""),
@@ -529,6 +530,13 @@ def workspace_rule(tutor: TutorPick | None) -> str:
     """Whether the tutor opens the workspace by itself (ADR 0045 §1, §3)."""
     auto = tutor is None or tutor.workspace_auto_open
     return load_prompt("tutor_workspace_auto" if auto else "tutor_workspace_on_request")
+
+
+def quiz_rule(tutor: TutorPick | None, *, lesson: bool) -> str:
+    """Whether the tutor gives quizzes nobody asked for (ADR 0046 §3-4); a lesson is
+    there to be tested, whatever the setting."""
+    proactive = lesson or tutor is None or tutor.quiz_proactive
+    return load_prompt("tutor_quiz_proactive" if proactive else "tutor_quiz_on_request")
 
 
 def tool_rounds(messages: Sequence[BaseMessage]) -> int:

@@ -22,6 +22,8 @@ export type Tutor = {
   daily_opening: boolean;
   /** The assistant opens the chat workspace by itself when it helps (ADR 0045 §3). */
   workspace_auto_open: boolean;
+  /** The assistant may give understanding checks nobody asked for (ADR 0046 §4). */
+  quiz_proactive: boolean;
   /** `<connection>:<model>`. */
   chat_model: string | null;
   /** The read-aloud model `voices` were picked for. */
@@ -43,6 +45,7 @@ export const DEFAULT_TUTOR: Tutor = {
   nudges: true,
   daily_opening: true,
   workspace_auto_open: true,
+  quiz_proactive: true,
   chat_model: null,
   tts_model: null,
   voices: {},
@@ -87,6 +90,7 @@ export type TutorForm = {
   nudges: boolean;
   daily_opening: boolean;
   workspace_auto_open: boolean;
+  quiz_proactive: boolean;
   chat_model: string;
   voices: Record<VoiceLanguage, string>;
   realtime_model: string;
@@ -112,6 +116,7 @@ export function toForm(tutor: Tutor, options: TutorOptions): TutorForm {
     nudges: tutor.nudges,
     daily_opening: tutor.daily_opening,
     workspace_auto_open: tutor.workspace_auto_open,
+    quiz_proactive: tutor.quiz_proactive,
     chat_model: off.has("chat_model") ? "" : (tutor.chat_model ?? ""),
     voices: Object.fromEntries(
       VOICE_LANGUAGES.map((lang) => [lang, voicesHold ? (tutor.voices[lang] ?? "") : ""]),
@@ -139,6 +144,7 @@ export function toBody(form: TutorForm, options: TutorOptions): TutorBody {
     nudges: form.nudges,
     daily_opening: form.daily_opening,
     workspace_auto_open: form.workspace_auto_open,
+    quiz_proactive: form.quiz_proactive,
     chat_model: form.chat_model || null,
     tts_model: picked ? options.read_aloud.voice_model : null,
     voices,

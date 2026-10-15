@@ -2614,6 +2614,8 @@
       "dailyOpeningHint": "The first time you open the desk pet each day, the assistant uses AI to look back at your last 7 days and suggest one or two things for today (a few tokens). The cat wears a ✦ hair clip until then.",
       "workspaceAutoOpen": "Open the workspace by itself",
       "workspaceAutoOpenHint": "When you paste a whole English text or start writing something longer, the assistant opens the workspace on the right. You can also just tell it to close it, or to stop opening it by itself.",
+      "quizProactive": "Let the assistant quiz you by itself",
+      "quizProactiveHint": "After explaining a rule, or when you keep making the same mistake, the assistant may give you a short check card (one or two questions, a few tokens to write; it does not change your mastery). At most once per grammar point in a chat. Off: quiz cards only when you ask for them.",
       "animate": "Animation",
       "animateHint": "Off: a still picture. Also still when your system asks for reduced motion."
     },
