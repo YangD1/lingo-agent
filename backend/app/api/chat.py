@@ -28,6 +28,7 @@ from app.attachments.service import AttachmentNotFoundError, AttachmentStateErro
 from app.cards.quiz import QuizTools
 from app.cards.runtime import DatabaseTutorTools
 from app.chat import service, translate
+from app.chat.lesson import DatabaseLesson
 from app.chat.locks import ConversationLocks
 from app.chat.planning import DatabasePlanning, PlanningPurpose
 from app.chat.practice import DatabasePractice
@@ -80,8 +81,9 @@ class ConversationOut(BaseModel):
     # The grammar point a practice conversation is about; None for free chat.
     focus_kc: FocusKcOut | None = None
     # "planning": a study-planning conversation (ADR 0015 §6); "daily": the dashboard's
-    # conversation of the day (ADR 0016); None otherwise.
-    purpose: PlanningPurpose | None = None
+    # conversation of the day (ADR 0016); "lesson": a lesson of the grammar course on
+    # focus_kc (ADR 0044 §5); None otherwise.
+    purpose: PlanningPurpose | Literal["lesson"] | None = None
     # The article a reading conversation is about (Q43h); None otherwise, or once the
     # article is gone.
     article_id: int | None = None
@@ -95,7 +97,7 @@ class ConversationOut(BaseModel):
             created_at=conversation.created_at,
             updated_at=conversation.updated_at,
             focus_kc=FocusKcOut.model_validate(kc, from_attributes=True) if kc else None,
-            purpose=_purpose(conversation),
+            purpose="lesson" if conversation.purpose == "lesson" else _purpose(conversation),
             article_id=conversation.article_id,
         )
 
@@ -360,16 +362,25 @@ class Turn:
     scenario_id: str | None = None
     # The document open in the workspace (ADR 0043 §6), checked to be this conversation's.
     workspace_doc_id: uuid.UUID | None = None
+    # A lesson of the grammar course on focus_kc_id (ADR 0044 §5).
+    lesson: bool = False
 
     @property
     def route(self) -> Route:
-        return route_for(self.focus_kc_id, self.article_id, speaking=self.speaking)
+        return route_for(
+            self.focus_kc_id, self.article_id, speaking=self.speaking, lesson=self.lesson
+        )
 
     @property
     def free_chat(self) -> bool:
         """A learner's message in free chat: the supervisor may hand it to another
         coach (task 38.4)."""
-        return self.route is Route.TUTOR and self.planning is None and self.text is not None
+        return (
+            self.route is Route.TUTOR
+            and self.planning is None
+            and not self.lesson
+            and self.text is not None
+        )
 
 
 def _conflict(code: str, message: str) -> HTTPException:
@@ -437,6 +448,7 @@ async def start_turn(
             conversation.purpose == "speaking",
             conversation.scenario_id,
             body.workspace_doc_id,
+            conversation.purpose == "lesson",
         )
     finally:
         locks.release(conversation.id)
@@ -452,7 +464,7 @@ async def start_opening(
     graph: ChatGraphDep,
 ) -> AsyncIterator[Turn]:
     """Like start_turn, for the coach's first message in a practice, planning, daily
-    (from the desk pet, ADR 0041) or speaking conversation."""
+    (from the desk pet, ADR 0041), lesson or speaking conversation."""
     response.headers["Cache-Control"] = "no-transform"
     conversation = await _owned(session, user, conversation_id)
     planning = _purpose(conversation)
@@ -482,6 +494,7 @@ async def start_opening(
             planning,
             speaking=speaking,
             scenario_id=conversation.scenario_id,
+            lesson=conversation.purpose == "lesson",
         )
     finally:
         locks.release(conversation.id)
@@ -603,6 +616,7 @@ async def _reply(
     practice: DatabasePractice | None = None
     tools: DatabaseTutorTools | None = None
     planning: DatabasePlanning | None = None
+    lesson: DatabaseLesson | None = None
     writing: DatabaseWriting | None = None
     reading: DatabaseReading | None = None
     speaking: DatabaseSpeaking | None = None
@@ -629,12 +643,14 @@ async def _reply(
                 planning = DatabasePlanning(
                     sessionmaker, user.id, turn.planning, tenant_id=turn.providers.tenant_id
                 )
+            if turn.lesson and turn.focus_kc_id is not None:
+                lesson = DatabaseLesson(sessionmaker, user.id, turn.focus_kc_id)
             tools = DatabaseTutorTools(
                 sessionmaker,
                 user.id,
                 turn.conversation_id,
                 turn.message_id,
-                scope=planning.scope if planning else None,
+                scope=planning.scope if planning else lesson.scope if lesson else None,
                 workspace=WorkspaceTools(
                     sessionmaker,
                     user_id=user.id,
@@ -679,6 +695,7 @@ async def _reply(
         practice=practice,
         tools=tools,
         planning=planning,
+        lesson=lesson,
         workspace=(
             DatabaseWorkspace(
                 sessionmaker, conversation_id=turn.conversation_id, doc_id=turn.workspace_doc_id

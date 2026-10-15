@@ -8,11 +8,14 @@
 
 **做了什么**：86.1 ADR 0044（1ffe166）；86.2 `app/adaptive/course.py` + `GET /course`（89404a7）；86.3 后端代码写完未提交：新题型 `concept_choice`/`explain`（`formats.py` `CHECK_FORMATS`，不计证据）、`grader.explain_messages`、`planner.plan_quiz`、`worker.start_quiz`（`QuizLimitError`）、`cards/quiz.py`（`QuizTools`、`quiz_states`）、`give_quiz` 工具、迁移 `1dae8661b914`。
 
-**未完成**：86.5–86.8 未开始（86.3、86.4 已提交；pytest 1941、Vitest 862 全过，lint 干净）。
+**未完成**：86.6–86.8 未开始（86.3–86.5 已提交；pytest 1950、Vitest 862 全过，lint 干净）。
 
-**下一步**：86.5 课程对话（purpose `lesson` 路由到 tutor、`chat/lesson.py` 上下文、`lesson_opening.md` / `lesson.md`、`POST /course/lessons/{kc_id}` 与 test-out 接口、`features.yaml` `lesson_start`）。
+**下一步**：86.6 `/course` 页、侧栏、看板入口、`LessonBar`；前端要点：
+- `LINK_HREFS` / `LinkKind` 加 `course`（后端已加）、桌宠快捷指令；`ai-usage.ts` 加 `lesson_start`。
+- 对话页按 `purpose === "lesson"` 显示 `LessonBar`，不显示 `PracticeBar`（课程对话也有 `focus_kc`）。
+- test-out 的卡片 turn id 是 `test-out-…`，不挂在任何消息下：`MessageList` 要把这类“孤儿”卡片画在末尾；有这类卡片时不要自动调 `/opening`（否则助手会照开场提示从头讲课）。
 
-**踩坑**：评估回放（evals/test_replay.py）依赖提示词逐字一致，理解检查的提示只在题组含检查题型时追加；`Review.own_answer` 描述不能改。
+**踩坑**：入学测题库每个语法点最多 2 题，题库补位只能补少量空位，不能单独撑起一组过关测验（Q86h 因此修订）。评估回放（evals/test_replay.py）依赖提示词逐字一致，理解检查的提示只在题组含检查题型时追加；`Review.own_answer` 描述不能改。
 
 ---
 

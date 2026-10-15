@@ -24,6 +24,11 @@ def test_reading_conversations_go_to_reading_coach() -> None:
     assert route_for(None, None) is Route.TUTOR
 
 
+def test_lessons_go_to_the_tutor_though_they_have_a_grammar_point() -> None:
+    # ADR 0044 §5: a lesson is taught with the tutor's tools.
+    assert route_for("g.past_simple_irregular", lesson=True) is Route.TUTOR
+
+
 def test_free_planning_and_daily_conversations_stay_with_the_tutor() -> None:
     # Planning and daily conversations have no grammar point: the tutor answers them,
     # with their brief and limited tools.

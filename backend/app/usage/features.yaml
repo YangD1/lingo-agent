@@ -323,6 +323,16 @@ features:
         timing: now
         default: {input_tokens: 3500, output_tokens: 200}
 
+  # Starting a lesson of the grammar course (ADR 0044 §5): the tutor speaks first, then
+  # usually calls give_quiz for an understanding check (quiz_card); each turn after is
+  # chat_message's, with the lesson's material in the prompt.
+  lesson_start:
+    calls:
+      - task: lesson_opening
+        route: chat
+        timing: now
+        default: {input_tokens: 5000, output_tokens: 300}
+
   # The desk pet opened for the first time in the day (ADR 0041): the tutor opens
   # today's conversation with a look back at the last 7 days and one or two
   # suggestions. Marked by the pet's AI hair clip; later turns are chat_message.

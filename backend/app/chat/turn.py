@@ -19,6 +19,7 @@ from app.agents.routing import Route
 from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
 from app.cards.tools import TutorTools
+from app.chat.lesson import LessonSource
 from app.chat.planning import PlanningSource
 from app.chat.practice import PracticeSource
 from app.chat.reading import ReadingSource
@@ -95,6 +96,8 @@ PLAN_OPENING_USAGE_TASK = "plan_opening"
 SPEAKING_OPENING_USAGE_TASK = "speaking_opening"
 # And for today's conversation, opened from the desk pet (ADR 0041).
 DAILY_OPENING_USAGE_TASK = "daily_opening"
+# And for a lesson's (ADR 0044 §5).
+LESSON_OPENING_USAGE_TASK = "lesson_opening"
 
 
 def title_from(text: str) -> str:
@@ -152,6 +155,7 @@ async def stream_reply(
     practice: PracticeSource | None = None,
     tools: TutorTools | None = None,
     planning: PlanningSource | None = None,
+    lesson: LessonSource | None = None,
     route: Route = Route.TUTOR,
     classify: bool = False,
     writing: WritingSource | None = None,
@@ -171,8 +175,9 @@ async def stream_reply(
     LangGraph only checkpoints finished nodes, so after a disconnect the learner's
     message is kept but no half-written reply is.
 
-    `text` None is an opening (of a practice, planning, daily or speaking conversation): the tutor
-    speaks first, no learner message is added, and `message_id` is OPENING_TURN_ID.
+    `text` None is an opening (of a practice, planning, daily, lesson or speaking
+    conversation): the tutor speaks first, no learner message is added, and
+    `message_id` is OPENING_TURN_ID.
     """
     queue: asyncio.Queue[TurnEvent | None] = asyncio.Queue()  # None marks the end
 
@@ -191,6 +196,7 @@ async def stream_reply(
                 practice=practice,
                 tools=tools,
                 planning=planning,
+                lesson=lesson,
                 route=route,
                 classify=classify,
                 writing=writing,
@@ -230,6 +236,7 @@ async def _run_graph(
     practice: PracticeSource | None,
     tools: TutorTools | None,
     planning: PlanningSource | None,
+    lesson: LessonSource | None,
     route: Route,
     classify: bool,
     writing: WritingSource | None,
@@ -241,7 +248,9 @@ async def _run_graph(
     text_id: str | None = None  # the tutor message whose text is streaming
     usage = {"input_tokens": 0, "output_tokens": 0}
     opening = (
-        DAILY_OPENING_USAGE_TASK
+        LESSON_OPENING_USAGE_TASK
+        if lesson is not None
+        else DAILY_OPENING_USAGE_TASK
         if planning is not None and planning.purpose == "daily"
         else PLAN_OPENING_USAGE_TASK
         if planning is not None
@@ -268,6 +277,7 @@ async def _run_graph(
                 practice=practice,
                 tools=tools,
                 planning=planning,
+                lesson=lesson,
                 route=route,
                 classify=classify,
                 writing=writing,

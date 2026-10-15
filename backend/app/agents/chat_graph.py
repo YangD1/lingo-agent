@@ -57,6 +57,7 @@ from app.adaptive.rules import get_rules
 from app.agents.routing import Route, classify, worth_classifying
 from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
+from app.chat.lesson import LessonBrief, LessonSource, render_lesson
 from app.chat.planning import PlanningBrief, PlanningSource, render_planning
 from app.chat.practice import PracticeSource, render_practice
 from app.chat.reading import ReadingSource, render_reading
@@ -109,6 +110,7 @@ SPEAKING_USAGE_TASK = "speaking"
 PLAN_CUE = "plan_opening"
 DAILY_CUE = "daily_opening"
 PRACTICE_CUE = "practice_opening"
+LESSON_CUE = "lesson_opening"
 WORKSPACE_CONTEXT = "workspace_context"
 # Vendors answer a request with tools they can't take with one of these.
 _REFUSED_STATUSES = frozenset({400, 404, 422})
@@ -129,6 +131,8 @@ class ChatContext:
     tools: TutorTools | None = None
     # A study-planning conversation's brief (ADR 0015 §6); None elsewhere.
     planning: PlanningSource | None = None
+    # A lesson conversation's material (ADR 0044 §5); None elsewhere.
+    lesson: LessonSource | None = None
     # The coach that answers this turn (ADR 0023 §3).
     route: Route = Route.TUTOR
     # Free chat: the supervisor may classify the turn and hand it to another coach.
@@ -189,7 +193,8 @@ async def _load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict
     learner = runtime.context.learner
     practice = runtime.context.practice
     planning = runtime.context.planning
-    if learner is None and practice is None and planning is None:
+    lesson = runtime.context.lesson
+    if learner is None and practice is None and planning is None and lesson is None:
         return {
             "learner_context": "",
             "practice": "",
@@ -199,6 +204,7 @@ async def _load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict
     latest = next((m.text for m in reversed(state["messages"]) if isinstance(m, HumanMessage)), "")
     context = focus = None
     brief: PlanningBrief | None = None
+    taught: LessonBrief | None = None
     failed = False
     with timed() as watch:
         # Memory and practice guidance make replies better; their failure must not stop them.
@@ -220,7 +226,13 @@ async def _load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict
             except Exception:
                 logger.exception("loading the planning brief failed")
                 failed = True
-    if failed and context is None and focus is None and brief is None:
+        if lesson is not None:
+            try:
+                taught = await lesson.load()
+            except Exception:
+                logger.exception("loading the lesson failed")
+                failed = True
+    if failed and context is None and focus is None and brief is None and taught is None:
         await report(runtime, Step(LOAD_CONTEXT_NODE, "failed", duration_ms=watch.ms))
         return {
             "learner_context": "",
@@ -233,13 +245,21 @@ async def _load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict
         facts=list(context.fact_ids[: facts_shown(context.facts)]),
         episodes=list(context.episode_ids),
         profile_items=len(context.profile),
-        practice_kc=focus.kc.id if focus else None,
+        practice_kc=focus.kc.id if focus else taught.lesson.kc.id if taught else None,
         planning=brief is not None,
     )
     await report(runtime, Step(LOAD_CONTEXT_NODE, summary=read, duration_ms=watch.ms))
     return {
         "learner_context": render_learner_context(context),
-        "practice": render_practice(focus) if focus else render_planning(brief) if brief else "",
+        "practice": (
+            render_practice(focus)
+            if focus
+            else render_planning(brief)
+            if brief
+            else render_lesson(taught)
+            if taught
+            else ""
+        ),
         "cards": cards,
         "language": context.chat_language,
     }
@@ -286,7 +306,13 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
             "metadata": {**config.get("metadata", {}), "usage_task": TOOLS_USAGE_TASK},
         }
     planning = runtime.context.planning
-    cue = load_prompt(DAILY_CUE if planning and planning.purpose == "daily" else PLAN_CUE)
+    cue = load_prompt(
+        LESSON_CUE
+        if runtime.context.lesson
+        else DAILY_CUE
+        if planning and planning.purpose == "daily"
+        else PLAN_CUE
+    )
     try:
         reply = await _call(runtime, task, state, history, has_tools, bind, config, cue)
     except Exception as exc:

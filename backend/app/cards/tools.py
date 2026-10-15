@@ -50,6 +50,7 @@ LinkKind = Literal[
     "tutor",
     "settings",
     "usage",
+    "course",
 ]
 LINK_KINDS: tuple[LinkKind, ...] = get_args(LinkKind)
 # Mirrors the vocab API and the profile's check constraint.

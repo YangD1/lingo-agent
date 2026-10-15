@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.kc.catalog import GrammarKC
@@ -64,10 +64,11 @@ async def create_conversation(
     article: Article | None = None,
     locale: str | None = None,
 ) -> Conversation:
-    """A free chat; with `focus` a practice conversation on that grammar point; with
-    `purpose` "planning" a study-planning one; with `article` one about that article
-    (Q43h). Titled in the UI's `locale` (the list shows titles as they are). Daily
-    conversations come from `todays_daily`."""
+    """A free chat; with `focus` a practice conversation on that grammar point, or a
+    lesson on it with `purpose` "lesson" (ADR 0044 §5); with `purpose` "planning" a
+    study-planning one; with `article` one about that article (Q43h). Titled in the
+    UI's `locale` (the list shows titles as they are). Daily conversations come from
+    `todays_daily`."""
     conversation = Conversation(tenant_id=tenant_id, user_id=user_id, purpose=purpose)
     if article is not None:
         conversation.purpose = "reading"
@@ -75,7 +76,9 @@ async def create_conversation(
         conversation.title = reading_title(article.title, locale)
     elif focus is not None:
         conversation.focus_kc_id = focus.id
-        conversation.title = practice_title(focus, locale)
+        conversation.title = (
+            lesson_title(focus, locale) if purpose == "lesson" else practice_title(focus, locale)
+        )
     elif purpose == "planning":
         conversation.title = planning_title(locale)
     session.add(conversation)
@@ -88,6 +91,12 @@ def practice_title(kc: GrammarKC, locale: str | None) -> str:
     if locale and locale.lower().startswith("zh"):
         return f"练习：{kc.name_zh}"  # noqa: RUF001 (Chinese punctuation)
     return f"Practice: {kc.name_en}"
+
+
+def lesson_title(kc: GrammarKC, locale: str | None) -> str:
+    if locale and locale.lower().startswith("zh"):
+        return f"课程：{kc.name_zh}"  # noqa: RUF001 (Chinese punctuation)
+    return f"Lesson: {kc.name_en}"
 
 
 def reading_title(title: str, locale: str | None) -> str:
@@ -180,7 +189,29 @@ async def unstarted_practice(
     """The learner's latest practice conversation on `kc_id`, if they haven't said
     anything in it yet (the tutor's opening may be there): opening the same practice
     again returns to it instead of leaving empty conversations behind (Q19c)."""
-    return await _unstarted(session, graph, user_id, Conversation.focus_kc_id == kc_id)
+    return await _unstarted(
+        session,
+        graph,
+        user_id,
+        and_(Conversation.focus_kc_id == kc_id, Conversation.purpose.is_(None)),
+    )
+
+
+async def latest_lesson(
+    session: AsyncSession, user_id: uuid.UUID, kc_id: str
+) -> Conversation | None:
+    """The learner's latest lesson conversation on `kc_id`: a lesson is continued where
+    it was left, started or not (ADR 0044 §5)."""
+    return await session.scalar(
+        select(Conversation)
+        .where(
+            Conversation.user_id == user_id,
+            Conversation.purpose == "lesson",
+            Conversation.focus_kc_id == kc_id,
+        )
+        .order_by(Conversation.updated_at.desc(), Conversation.id)
+        .limit(1)
+    )
 
 
 async def unstarted_reading(

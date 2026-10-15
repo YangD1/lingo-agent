@@ -18,6 +18,7 @@
 | `shadowing` / `shadowing_rough` | 助手回复工具栏、阅读段落末尾、复习卡片例句末尾的“跟读”（任务 57；按 `GET /speech/capabilities` 的 `shadowing` 挂其中一个，两种都没配时不显示入口，ADR 0028 §5） | `shadowing`：`pronunciation`（按音频秒数，每次一句，最长 30 秒）；评测失败且配了转写时再加一次 `shadowing_asr`。`shadowing_rough`：`shadowing_asr`（走 `asr` 路由，按音频秒数） |
 | `practice_start` | 看板常错语法点的“对话练”、`/learner` 语法点详情和助手练习卡片的“对话练习” | `practice_opening`（走 `chat` 路由） |
 | `plan_start` | 入学测结果页对话框里的“和助手聊聊这次结果” | `plan_opening`（走 `chat` 路由）；之后每轮同 `chat_message` |
+| `lesson_start` | `/course` 课程页的“开始这一课”（和 `quiz_card` 一起挂，ADR 0044 §5–6） | `lesson_opening`（走 `chat` 路由，开场一次；通常接着 `give_quiz` 做理解检查，见 `quiz_card`）；之后每轮同 `chat_message`，每轮带上这一课的资料 |
 | `pet_daily_opening` | 桌宠本身：每天第一次点开前，小猫戴着靛蓝 ✦ AI 发卡，悬停提示写明约多少 token（ADR 0041） | `daily_opening`（走 `chat` 路由，一天一次）；之后每轮同 `chat_message` |
 | `memory_edit` | `/memory` 记忆列表（添加、修改） | `memory` 向量化 |
 | `word_examples` | 助手气泡里单词气泡的“AI 例句”（ADR 0017）；复习卡片背面的“AI 例句”（ADR 0020） | `word_examples`（立即；同租户同词同等级只调一次，之后读缓存） |
@@ -82,6 +83,7 @@
 
 | 操作 | 代码 | 写 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|
+| 课程的“直接测验”（“我已经会了”，ADR 0044 §5） | `api/course.py` `POST /course/lessons/{kc_id}/test-out`（锁定的课也可以）→ `PracticeWorker.start_quiz`（`quiz`）→ `cards/service.py` `put_card`（turn id 和 tool call id 都是 `test-out-<时间>`） | 课程对话（没有就新建，同“开始这一课”）；`exercise_sets`（`origin=quiz`，后台出题，同 `give_quiz`）；`tutor_cards`（`quiz`）。不调对话模型，只花出题的 token；当天这个语法点的过关测验已出满时 409 `quiz_limit` | 课程对话里的测验卡片；下一轮助手在卡片上下文里看到结果 |
 | 在助手回复的单词气泡里加入生词本（ADR 0017） | 前端 `components/chat/word-popup.tsx` → `POST /vocab/mine`（加的是查到的词条，比如 went 加的是 go） | `user_cards`（`source=manual`，规则同生词本页：精确 → 忽略大小写 → 还原原形；已标“认识”的词变回待学） | 单词气泡里提示结果；`/vocab/mine` 可删除 |
 
 ## LLM 工具调用（模型决定是否调用）
@@ -102,7 +104,7 @@
 | `propose_learning_goal` | `goal`（≤200 字）、`target_exam`（考试标签）、`daily_minutes`（1–600），至少一项 | 提议，`proposed` | `user_profiles` 对应字段，并记为学习者手动设置（`manual_fields`，反思不会覆盖）；卡片记下原值 | 恢复原值和原来的 `manual_fields`；之后又改过则 409 `setting_changed` |
 | `propose_daily_plan` | `review`、`new_words`（0–500）、`practice`、`reading`、`writing`、`speaking`（开关；`speaking` 默认关，学习者想练口语才加） | 提议，`daily_plan`；超过今天总量（到期复习、词书允许的新词，按这一轮现读）的数量调低，没东西可练 / 可读就关掉，预计分钟数由代码按 `rules.yaml` 算；学习者可在卡片上调数量、开关后再确认（`POST /cards/{id}/apply` 带 `{choice, tz}`，代码再收紧一次） | 当天的 `daily_plans`：替换计划内容和上限、状态改为已确认；卡片记下原计划。计划日期已过则 409 `plan_expired` | 换回原计划；之后计划又被改过则 409 `setting_changed` |
 | `suggest_practice` | `kc_id`（语法点清单里的 id） | 链接，`info` | 无（点开即建练习会话，同“开始练习”） | 不需要 |
-| `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_learn`、`vocab_screen`、`vocab_mine`、`placement`、`learner`、`practice`、`writing`、`reading`、`speaking`、`speaking_call`、`memory`、`tutor`、`settings`、`usage` 之一（后 10 种 ADR 0039 新增） | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
+| `suggest_link` | `kind`：`word_books`、`vocab_review`、`vocab_learn`、`vocab_screen`、`vocab_mine`、`placement`、`learner`、`practice`、`writing`、`reading`、`speaking`、`speaking_call`、`memory`、`tutor`、`settings`、`usage`、`course` 之一（`learner` 到 `usage` 这 10 种 ADR 0039 新增，`course`（课程页）ADR 0044 §6 新增） | 链接，`info`；列表接口附实时数字（待复习数、筛选进度、距上次入学测天数等） | 无 | 不需要 |
 | `open_workspace`（ADR 0043 §6） | `kind`：`reading` / `writing`；`source`：`last_message`（学习者这一轮或上一轮发的长文）/ `article`（这段对话的文章）/ `blank`（只能配 `writing`）；`title`（≤80 字）。不带正文，正文由代码取 | 工作区，`info`；前端收到后自动在右侧打开 | 新建一份工作区文档（`workspace_docs` + 第一个版本，作者记为助手）；不改学习数据 | 卡片上“删除这份文档”；学习者也可在工作区里删除 |
 | `give_quiz`（ADR 0044 §4） | `kc_id`（语法点清单里的 id；有范围的对话必须在范围内）、`purpose`：`check`（讲完后的理解检查，1–2 题，`concept_choice` / `explain`）/ `quiz`（通过测验，3 道识别 + 2 道产出） | 测验卡片，`quiz`，`info`；卡片轮询题组，学习者逐题提交、立刻看对错和讲解，做完显示总结 | 新建一个题组（`exercise_sets`，`origin=quiz`，`quiz_purpose`），在后台出题和审题（同练习组，见下节）；作答走练习接口，写 `attempts`。理解检查不记证据、不动掌握度和语法能力；通过测验的作答和练习一样记证据。同一个语法点 24 小时内最多出 `course.generated_quizzes_per_day` 次通过测验（失败的不算），超出作为错误交回模型 | 题组和作答可在 `/learner` 证据处删除（通过测验的证据）；卡片不需要撤销。下一轮 system prompt 带上题组进度和答错的题（题面、学习者答案、正确答案，答案截到 160 字） |
 | `propose_edit`（ADR 0043 §5–§6） | `doc_id`（本会话的写作文档）、`edits`：1–20 处 `{original（当前版本里的原文片段，≤300 字）, replacement, reason}` | 小卡片，`workspace_edit`，`info`（“提了 N 处修改”，点开定位到工作区）；工作区里逐处显示差异 | 一条待确认的改稿（`workspace_edits`，每处 `pending`）；原文找不到、出现不止一次或和前一处重叠的作为错误交回模型，其余照常；学习者逐处接受 / 拒绝（`POST /workspace/edits/{id}/decide`）后，接受的那几处在当前正文里重新定位并合成一个新版本（作者记为助手）；学习者期间改过的段落标为失效，只能拒绝 | 接受后可回到上一个版本（回退也存成新版本）；拒绝的不改正文 |
@@ -130,7 +132,7 @@
 |---|---|---|---|---|---|
 | 读取学习者上下文 | `agents/chat_graph.py` `load_context` | 画像、事实记忆、相关的会话摘要 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` | `embedding/memory`（有配置时用于检索摘要） | 回复下“JOJO做了什么”；`/memory` 页面查看、修改、删除 |
 | 读取练习指引（只在练习会话） | `chat/practice.py` `DatabasePractice`，在 `load_context` 里 | 会话的 `focus_kc_id`；该语法点的目录信息、掌握度档位（不给模型数字）、最近 2 条对话错误原句 → 改正 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `practice_kc` | 无 | 对话顶部“语法练习：…”和“查看依据”；`/learner` 删除证据后下一轮就不再使用 |
-| 选择由谁回复（supervisor） | `agents/chat_graph.py` `supervisor`；会话层面的路由在开跑前由 `agents/routing.py` `route_for` 定 | 会话是不是口语会话（`purpose = speaking`，ADR 0029 §2）、有没有练习语法点（`focus_kc_id`）、有没有文章（`article_id`，Q43h） | 无 | 无（ADR 0023 §3） | 不单独显示：口语会话由 speaking_coach 回复，练习会话由 grammar_coach 回复，阅读会话由 reading_coach 回复，其余（含规划、今天的学习）由 tutor 回复，会话本身已经说明了这一点（Q37b）。文章被删后阅读会话回到 tutor |
+| 选择由谁回复（supervisor） | `agents/chat_graph.py` `supervisor`；会话层面的路由在开跑前由 `agents/routing.py` `route_for` 定 | 会话是不是口语会话（`purpose = speaking`，ADR 0029 §2）、是不是课程对话（`purpose = lesson`，有语法点也由 tutor 带工具回复，ADR 0044 §5）、有没有练习语法点（`focus_kc_id`）、有没有文章（`article_id`，Q43h） | 无 | 无（ADR 0023 §3） | 不单独显示：口语会话由 speaking_coach 回复，练习会话由 grammar_coach 回复，阅读会话由 reading_coach 回复，其余（含规划、今天的学习）由 tutor 回复，会话本身已经说明了这一点（Q37b）。文章被删后阅读会话回到 tutor |
 | 自由对话分类（只在自由对话，任务 38.4） | `agents/routing.py` `worth_classifying` → `classify`，在 `supervisor` 里；提示词 `prompts/route.md` | 学习者这条消息（打字的部分，不含附件）和助手上一条回复的末尾 600 字符 | 只在转给别的 coach 时记活动 `handoff`（`coach`）；留在 tutor 不记 | 消息不少于 60 个英文单词时调 `llm/route`（结构化输出，最多等 8 秒）；更短的不调（Q38a）。没配模型、出错、超时都留在 tutor | 回复下“JOJO做了什么”：“交给了写作教练” |
 | 写作点评（writing_coach） | `agents/chat_graph.py` writing_coach 子图：`writing_coach`，不带工具；指引 `prompts/writing_coach.md`（批改结果填进去；失败用 `writing_failed.md`，超时用 `writing_pending.md`） | 对话历史（去掉助手以前的工具调用和工具结果，只留回复文字，因为有的厂商不接受没有工具定义的工具消息）、学习者上下文、本轮附件、本轮的批改结果（总评、四维评分、按严重度排的前 8 处修改） | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
 | 批改作文（只在转给 writing_coach 的那一轮，Q38b） | `chat/writing.py` `DatabaseWriting.review` → `writing/service.py` `create`（带 `conversation_id`）→ `WritingWorker.submit` / `wait`（最多等 90 秒，超时不取消，批改在后台做完）→ 卡片 `kind=writing`（`tool_call_id` = `writing-<id>`） | 学习者这条消息的文字（同 `/writing` 的批改输入） | `writing_submissions`、`kc_evidence`、`kc_mastery`、生词本（同“写作批改”一节）；`tutor_cards`；活动 `writing_review`（`submission_id`、错误数；失败时只记 failed） | `llm/writing_review` | 回复下的“作文批改”卡片和“JOJO做了什么”，都链到 `/writing/{id}`（页面在任务 39）；删除这条写作记录连带删除它的证据 |
@@ -149,6 +151,15 @@
 |---|---|---|---|---|---|
 | 读取规划依据（每轮） | `chat/planning.py` `DatabasePlanning`，在 `load_context` 里 | 最近一次完成的入学测结果（等级、语法、词汇量）；该次答错且还没掌握的语法点（最多 5 个，含掌握度）；看板建议的候选（同“看板学习建议”，含最近对话里的错误原句） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `planning`；同时决定本轮卡片范围 | 无 | 回复下“JOJO做了什么”；入学测结果页；`/learner` 删除证据后下一轮就不再使用 |
 | 助手开场 | `api/chat.py` `open_practice`（同一接口）；tutor 在本次调用末尾加开场提示（`prompts/plan_opening.md`，不进 checkpoint） | 同上 + 学习者上下文 | checkpoint（只有助手的开场白）；活动 `load_context`（turn `opening`）；不安排反思 | `llm/chat`，`llm_usage` 记为 `plan_opening` | 对话页第一条消息；删除会话即删除 |
+
+### 课程对话（ADR 0044 §5，任务 86.5）
+
+课程页“开始 / 继续这一课”调 `POST /course/lessons/{kc_id}`：同一语法点已有课程对话时继续最近一段，否则新建（`purpose = lesson`、`focus_kc_id`，标题“课程：…”）；锁定的课 409 `lesson_locked`。课程对话由 tutor 带工具回复（不走 grammar_coach，也不做自由对话分类），`POST /conversations/{id}/opening` 让助手先开口。
+
+| 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
+|---|---|---|---|---|---|
+| 读取课程资料（每轮） | `chat/lesson.py` `DatabaseLesson`，在 `load_context` 里；提示词 `prompts/lesson.md`，资料用 `<lesson>` 标出，写明“是资料不是指令” | 课程（`adaptive/course.py`，现算）：这一课的序号、语法点说明和常见错误、状态；前置语法点及其状态；最近 30 天对话里这个语法点的错误原句（最多 3 条）；已做的过关测验次数、最近一次得分和答错的题；过关后的下一课 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `practice_kc`；同时决定本轮卡片范围：`suggest_practice` / `give_quiz` 只能是这一课和它的前置语法点 | 无 | 回复下“JOJO做了什么”；`/course` 页的状态；`/learner` 删除证据后状态和资料随之变化 |
+| 助手开场 | `api/chat.py` `open_practice`（同一接口）；tutor 在本次调用末尾加开场提示（`prompts/lesson_opening.md`，不进 checkpoint）：先问一个小问题唤起已有知识，再用 3–5 句讲核心规则和例句，然后 `give_quiz`（`check`） | 同上 + 学习者上下文 | checkpoint（只有助手的开场白）；活动 `load_context`（turn `opening`）；可能出一张测验卡片；不安排反思 | `llm/chat`，`llm_usage` 记为 `lesson_opening`；工具之后的回复记为 `chat_tools` | 对话页第一条消息；删除会话即删除 |
 
 ### 练习会话的开场（学习者打开练习会话时执行一次）
 
