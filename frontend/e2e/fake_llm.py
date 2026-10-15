@@ -35,6 +35,12 @@ Realtime calls (ADR 0030): /v1/realtime speaks OpenAI's Realtime protocol by a f
 script: the tutor opens, the learner's first 1.5 s of audio is heard as a question about
 "serendipity", which the tutor looks up and adds to the word list, then suggests hanging
 up and says goodbye.
+Workspace (ADR 0043): a paragraph's translation is "译文 " plus its first words, and a
+sentence's analysis takes its first three words as the main part. With a document open,
+the tutor answers 'In your document: ...'; "open it in the workspace" calls
+`open_workspace` on the long text just sent (writing if the message says "writing"), and
+"improve" with a writing document open calls `propose_edit` on each sentence with a
+"he/she/it like" mistake.
 """
 
 import asyncio
@@ -161,6 +167,19 @@ RATINGS = {
 }
 
 
+# The workspace (backend/app/prompts/workspace_context.md, backend/app/workspace/ai.py).
+WORKSPACE_DOC = re.compile(
+    r"a (reading|writing) document,\s.*?\(id ([0-9a-f-]{36}), version"
+    r".*?<workspace_doc>\n(.*?)\n</workspace_doc>",
+    re.DOTALL,
+)
+OPEN_WORKSPACE = re.compile(r"open it in the workspace", re.IGNORECASE)
+IMPROVE = re.compile(r"\bimprove\b", re.IGNORECASE)
+WORKSPACE_PARAGRAPH = "## Paragraph\n"
+WORKSPACE_SENTENCE = "## Sentence\n"
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+
+
 def practice_section(
     messages: list[dict[str, Any]], title: str
 ) -> list[dict[str, Any]]:
@@ -250,8 +269,10 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
     if last.startswith(OPENING_CUE) and "planning conversation" in last:
         level = PLAN_LEVEL.search(system_text(messages))
         return f"Your level is {level.group(1) if level else 'unknown'}. What is your goal?"
+    if "<workspace_doc>" in system_text(messages):
+        return f"In your document: {last}"
     if article := ARTICLE_TAG.search(system_text(messages)):  # reading_coach (Q43h)
-        return f"About \"{article.group(1)}\": you asked {last}"
+        return f'About "{article.group(1)}": you asked {last}'
     if demo := DEMO_CHAT.get(last):
         return demo
     if "which language" in last.lower():
@@ -345,7 +366,10 @@ def writing_review(prompt: str) -> dict[str, Any]:
 # 295 words, inside A2's 250-400.
 ROVER_SENTENCE = "The rover can go far and run on the ubiquitous red sand."
 ROVER_TEXT = [
-    " ".join([ROVER_SENTENCE] * 4 + ["It was found by serendipity, and the team was very happy."]),
+    " ".join(
+        [ROVER_SENTENCE] * 4
+        + ["It was found by serendipity, and the team was very happy."]
+    ),
 ] * 5
 
 
@@ -354,7 +378,11 @@ def reading_question(position: int) -> dict[str, Any]:
         "position": position,
         "question": f"Question {position}: what can the rover do?",
         "correct": f"The rover can go far ({position})",
-        "distractors": [f"It can fly ({position})", f"It can swim ({position})", f"It can sing ({position})"],
+        "distractors": [
+            f"It can fly ({position})",
+            f"It can swim ({position})",
+            f"It can sing ({position})",
+        ],
         "evidence": ROVER_SENTENCE,
     }
 
@@ -365,7 +393,9 @@ def reading_reviews(messages: list[dict[str, Any]]) -> dict[str, Any]:
         "reviews": [
             {
                 "position": q["position"],
-                "own_answer": next(i for i, o in enumerate(q["options"]) if o.startswith("The rover")),
+                "own_answer": next(
+                    i for i, o in enumerate(q["options"]) if o.startswith("The rover")
+                ),
                 "answer_in_text": True,
                 "one_answer": True,
                 "needs_text": True,
@@ -492,7 +522,9 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
                 {
                     "hypothesis": DIAGNOSIS_HYPOTHESIS,
                     "kc_ids": [THIRD_PERSON_KC],
-                    "evidence_ids": [int(i) for i in DIAGNOSIS_EVIDENCE.findall(prompt)],
+                    "evidence_ids": [
+                        int(i) for i in DIAGNOSIS_EVIDENCE.findall(prompt)
+                    ],
                     "confidence": "high",
                     "suggestion": "用 he / she 各说三句日常习惯。",
                 }
@@ -505,6 +537,19 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
                 {"en": f"I {w} every day.", "zh": f"我每天都 {w}。"},
                 {"en": f"Do you {w} often?", "zh": f"你经常 {w} 吗"},
             ]
+        }
+    if name == "Translation" and prompt.startswith(WORKSPACE_PARAGRAPH):
+        words = prompt.removeprefix(WORKSPACE_PARAGRAPH).split()
+        return {"text": "译文 " + " ".join(words[:6])}
+    if name == "SentenceAnalysis" and WORKSPACE_SENTENCE in prompt:
+        sentence = prompt.split(WORKSPACE_SENTENCE, 1)[1].strip()
+        words = sentence.split()
+        return {
+            "main": " ".join(words[:3]),
+            "clauses": [{"text": " ".join(words[:3]), "role": "主句的主干"}],
+            "phrases": [{"text": words[-1].strip(".!?"), "meaning": "句末的词"}],
+            "meaning": "句意 " + sentence,
+            "tip": "先找主干。",
         }
     if name == "Translation" and (target := TRANSLATE_TARGET.search(prompt)):
         message = prompt.split("## Message\n", 1)[-1]
@@ -576,6 +621,15 @@ def tutor_tool_call(
     ):
         return None
     said = text_of(messages[-1]["content"])
+    if "open_workspace" in names and OPEN_WORKSPACE.search(said):
+        kind = "writing" if "writing" in said.lower() else "reading"
+        return "open_workspace", {"kind": kind, "source": "last_message"}
+    if (
+        "propose_edit" in names
+        and IMPROVE.search(said)
+        and (edit := proposed_edit(messages))
+    ):
+        return "propose_edit", edit
     if "propose_daily_plan" in names and SHORT_ON_TIME.search(said):
         return "propose_daily_plan", PROPOSED_PLAN
     if "suggest_link" in names and FLASHCARDS.search(said):
@@ -583,6 +637,25 @@ def tutor_tool_call(
     if not WORD_BOOK.search(said):
         return None
     return "propose_word_book", PROPOSED_BOOK
+
+
+def proposed_edit(messages: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Each sentence of the open writing document with a "he/she/it like" mistake, fixed."""
+    doc = WORKSPACE_DOC.search(system_text(messages))
+    if not doc or doc.group(1) != "writing":
+        return None
+    edits = []
+    for sentence in SENTENCE_END.split(doc.group(3)):
+        if (third := THIRD_PERSON.search(sentence)) and not third.group(1):
+            wrong = third.group(0)
+            edits.append(
+                {
+                    "original": sentence,
+                    "replacement": sentence.replace(wrong, wrong + "s", 1),
+                    "reason": "Add -s to the verb after he, she or it.",
+                }
+            )
+    return {"doc_id": doc.group(2), "edits": edits} if edits else None
 
 
 def stream_tool_call(
@@ -673,7 +746,9 @@ async def speech(request: Request) -> Response:
     body = await request.json()
     if "broken" in body.get("model", ""):
         return JSONResponse({"error": {"message": "speech is down"}}, status_code=503)
-    return Response(f"mp3:{body['voice']}:{body['input']}".encode(), media_type="audio/mpeg")
+    return Response(
+        f"mp3:{body['voice']}:{body['input']}".encode(), media_type="audio/mpeg"
+    )
 
 
 # Bailian's qwen-audio (task 64.2a): the reading is described in a prompt, and the answer
@@ -688,7 +763,9 @@ async def qwen_audio(request: Request) -> JSONResponse:
     body = await request.json()
     spec = body["input"]
     clip = str(uuid.uuid4())
-    QWEN_AUDIO[clip] = f"mp3:{spec['seed']}:{spec['rate']}:{spec['text_prompt']}".encode()
+    QWEN_AUDIO[clip] = (
+        f"mp3:{spec['seed']}:{spec['rate']}:{spec['text_prompt']}".encode()
+    )
     url = f"{str(request.base_url).rstrip('/')}/qwen-audio/{clip}.mp3"
     return JSONResponse({"output": {"audio": {"url": url}}, "usage": {"duration": 1}})
 
@@ -707,7 +784,9 @@ async def qwen_tts(request: Request) -> JSONResponse:
         return JSONResponse({"code": "InvalidApiKey"}, status_code=401)
     spec = (await request.json())["input"]
     clip = str(uuid.uuid4())
-    QWEN_AUDIO[clip] = f"wav:{spec['voice']}:{spec['language_type']}:{spec['text']}".encode()
+    QWEN_AUDIO[clip] = (
+        f"wav:{spec['voice']}:{spec['language_type']}:{spec['text']}".encode()
+    )
     url = f"{str(request.base_url).rstrip('/')}/qwen-audio/{clip}.wav"
     usage = {"characters": len(spec["text"])}
     return JSONResponse({"output": {"audio": {"url": url}}, "usage": usage})
@@ -785,7 +864,8 @@ CALL_HEARD_BYTES = 24000 * 2 * 3 // 2
 # 0.2 s of a quiet tone, so the page has something to play.
 CALL_AUDIO = base64.b64encode(
     b"".join(
-        int(800 * ((i // 27) % 2 * 2 - 1)).to_bytes(2, "little", signed=True) for i in range(4800)
+        int(800 * ((i // 27) % 2 * 2 - 1)).to_bytes(2, "little", signed=True)
+        for i in range(4800)
     )
 ).decode()
 
@@ -805,7 +885,9 @@ async def realtime(ws: WebSocket) -> None:
         replies += 1
         item = f"a{replies}"
         if text:  # a reply that only calls tools says nothing
-            await send(type="response.output_audio.delta", item_id=item, delta=CALL_AUDIO)
+            await send(
+                type="response.output_audio.delta", item_id=item, delta=CALL_AUDIO
+            )
             for i, word in enumerate(text.split(" ")):
                 await send(
                     type="response.output_audio_transcript.delta",
@@ -813,7 +895,11 @@ async def realtime(ws: WebSocket) -> None:
                     delta=word if i == 0 else f" {word}",
                 )
                 await asyncio.sleep(DELAY)
-            await send(type="response.output_audio_transcript.done", item_id=item, transcript=text)
+            await send(
+                type="response.output_audio_transcript.done",
+                item_id=item,
+                transcript=text,
+            )
         for name, arguments in tools:
             call_id = f"call-{replies}-{name}"
             calls[call_id] = name

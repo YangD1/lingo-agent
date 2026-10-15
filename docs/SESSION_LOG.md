@@ -4,6 +4,27 @@
 
 ---
 
+## 2026-10-15 任务 83.9：工作区收尾（任务 83 完成）
+
+**做了什么**：
+- `frontend/e2e/workspace.spec.ts`（新）2 条：精读流程（粘贴长文提示 → 在工作区精读 → 对照 → 点句分析 → 选中“问助手”带 `>` 引用发送 → 刷新 `?w=` 仍打开 → 900 宽覆盖 → 390 宽标签切换）；写作流程（发作文 → “open it in the workspace” → `open_workspace` 卡片并自动打开 → “improve” → `propose_edit` 2 处 → 接受 / 不用 → 第 2 版 → 回到第 1 版成第 3 版 → 手机宽度“批改”按钮在视口内）。
+- `frontend/e2e/fake_llm.py`：`WORKSPACE_DOC` 从系统提示取文档类型、id、正文；有 `<workspace_doc>` 时回复 “In your document: …”；`Translation`（`## Paragraph` 开头）回“译文 + 前 6 词”；`SentenceAnalysis` 假分析；`tutor_tool_call` 加 `open_workspace`、`propose_edit`（`proposed_edit` 给每句 “he/she/it like” 加 -s）。
+- README 中英各加一条“对话旁的工作区”；`docs/demo.md` 对话一节加工作区演示（注意粘贴阈值 800 字符、`last_message` 要 ≥ 20 词），新账号走查加一项。
+- 全量：pytest 1893、Vitest 828、E2E 86 全过；lint 干净。Docker 先后端再前端重建，`/healthz` 200，迁移 head `5194bac6a933`。
+
+**未完成**：无。任务 77–83 都还没推送。
+
+**下一步**：等用户看效果；用户同意后推送并看 CI。以后的文档类型（练习、语法讲解、表达对比、笔记）见 ADR 0043。
+
+**踩坑**：
+- `workspace_context.md` 的标题是 “a writing document,\n…”，逗号后是换行；假模型的正则要写 `document,\s`。
+- 上一条回复还在流式输出时，第二次 Enter 会被忽略：E2E 的 `send` 要等回复完、“发送”按钮回来。
+- 用户消息气泡是纯文本，引用不渲染成 blockquote，断言 `> …` 文本。
+- 回退后版本列表会自动收起（有意为之），要再点开才能看到新版本。
+- 粘贴提示要 ≥ 800 字符，三段短文不够。
+
+---
+
 ## 2026-10-15 任务 83.8：工作区入口
 
 **做了什么**：
