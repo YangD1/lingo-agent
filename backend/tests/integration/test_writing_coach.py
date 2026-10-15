@@ -1,6 +1,8 @@
 """writing_coach in free chat (task 38.5): the learner's text is reviewed with the
-`/writing` service, a card links to the review, and the coach comments on it."""
+`/writing` service, a card links to the review, and the coach comments on it. While the
+learner lets the workspace open by itself, the text is opened there too (ADR 0045 §4)."""
 
+import uuid
 from typing import Any
 
 import pytest
@@ -13,7 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import chat_graph
 from app.agents.routing import Route
-from app.db.models import KCEvidence, WritingSubmission
+from app.chat.writing import DatabaseWriting
+from app.db.models import KCEvidence, WorkspaceDoc, WritingSubmission
 from app.providers.config import TenantProviderContext
 from tests.integration.test_chat_send import send
 from tests.integration.test_chat_tools import (
@@ -89,7 +92,7 @@ async def test_after_a_tool_call_the_next_turn_is_reviewed_by_writing_coach(
     assert "Good start." in prompt and '"walk" -> "fixed"' in prompt
 
     # The card links to the submission, kept with this conversation.
-    (card,) = kinds(events, "card")
+    card, _ = kinds(events, "card")
     submission = await db_session.scalar(select(WritingSubmission))
     assert submission is not None
     assert (card["kind"], card["status"]) == ("writing", "info")
@@ -100,7 +103,11 @@ async def test_after_a_tool_call_the_next_turn_is_reviewed_by_writing_coach(
         select(func.count()).where(KCEvidence.writing_id == submission.id)
     )
     assert evidence == 3
-    assert [c["kind"] for c in await cards(client, conversation)] == ["link", "writing"]
+    assert [c["kind"] for c in await cards(client, conversation)] == [
+        "link",
+        "writing",
+        "workspace",
+    ]
     detail = (await client.get(f"/writing/{submission.id}")).json()
     assert detail["from_conversation"] is True and detail["conversation_id"] == conversation
 
@@ -133,7 +140,7 @@ async def test_a_failed_review_still_gets_a_reply(
     review = step(await activity(client, conversation), "writing_review")
     assert review["status"] == "failed"
     # The card still leads to the submission, which says it failed.
-    (card,) = kinds(events, "card")
+    card, _ = kinds(events, "card")
     assert card["kind"] == "writing"
 
 
@@ -147,3 +154,81 @@ async def test_short_messages_are_not_classified(
     await send(client, conversation, "Hi, how are you?")
 
     assert to_writing_coach == []
+
+
+async def test_the_reviewed_text_opens_in_the_workspace(
+    client: AsyncClient,
+    app: FastAPI,
+    script: Script,  # noqa: F811
+    db_session: AsyncSession,
+) -> None:
+    conversation = await ready(client)
+    fake_worker(app, FakeReview())
+    script.replies = ["Nice story!"]
+
+    _, events, _ = await send(client, conversation, ESSAY)
+
+    _, opened = kinds(events, "card")
+    submission = await db_session.scalar(select(WritingSubmission))
+    doc = await db_session.scalar(select(WorkspaceDoc))
+    assert submission is not None and doc is not None
+    assert (doc.kind, doc.source, doc.source_ref) == ("writing", "writing", str(submission.id))
+    assert (doc.created_by, str(doc.conversation_id)) == ("tutor", conversation)
+    assert (opened["kind"], opened["status"]) == ("workspace", "info")
+    assert opened["params"] == {"doc_id": str(doc.id), "kind": "writing", "title": doc.title}
+    body = (await client.get(f"/workspace/docs/{doc.id}")).json()
+    assert ESSAY.split("\n\n")[0] in str(body)
+    # The coach knows, to tell the learner; the step says which document.
+    _, messages = script.calls[-1]
+    assert "open in the workspace" in system_text(messages)
+    rows = await activity(client, conversation)
+    assert step(rows, "workspace_opened")["summary"] == {"doc_id": str(doc.id)}
+
+
+async def test_nothing_opens_while_auto_open_is_off(
+    client: AsyncClient,
+    app: FastAPI,
+    script: Script,  # noqa: F811
+    db_session: AsyncSession,
+) -> None:
+    conversation = await ready(client)
+    assert (await client.put("/tutor", json={"workspace_auto_open": False})).status_code == 200
+    fake_worker(app, FakeReview())
+    script.replies = ["Nice story!"]
+
+    _, events, _ = await send(client, conversation, ESSAY)
+
+    assert [c["kind"] for c in kinds(events, "card")] == ["writing"]
+    assert await db_session.scalar(select(func.count()).select_from(WorkspaceDoc)) == 0
+    _, messages = script.calls[-1]
+    assert "open in the workspace" not in system_text(messages)
+    assert not [r for r in await activity(client, conversation) if r["name"] == "workspace_opened"]
+
+
+async def test_a_submission_opens_once(
+    client: AsyncClient,
+    app: FastAPI,
+    script: Script,  # noqa: F811
+    db_session: AsyncSession,
+) -> None:
+    conversation = await ready(client)
+    fake_worker(app, FakeReview())
+    script.replies = ["Nice story!"]
+    await send(client, conversation, ESSAY)
+    submission = await db_session.scalar(select(WritingSubmission))
+    assert submission is not None
+
+    writing = DatabaseWriting(
+        app.state.sessionmaker,
+        app.state.writing_worker,
+        user_id=submission.user_id,
+        tenant_id=uuid.uuid4(),
+        conversation_id=submission.conversation_id,
+        turn_id="again",
+        open_in_workspace=True,
+    )
+    async with app.state.sessionmaker() as session:
+        again = await writing._workspace_doc(session, submission.id)
+
+    (doc,) = (await db_session.scalars(select(WorkspaceDoc))).all()
+    assert again.id == doc.id

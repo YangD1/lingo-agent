@@ -145,6 +145,13 @@ class WorkspaceContextRead(Summary):
     words: int
 
 
+class WorkspaceOpened(Summary):
+    """`workspace_opened`: the learner's writing, reviewed by writing_coach, was opened
+    in the workspace by code to revise it there (ADR 0045 §4)."""
+
+    doc_id: uuid.UUID
+
+
 @dataclass(frozen=True)
 class StepSpec:
     kind: ActivityKind
@@ -162,6 +169,7 @@ STEPS: dict[str, StepSpec] = {
     "writing_review": StepSpec("step", WritingReviewed),
     "reading_context": StepSpec("step", ReadingContextRead),
     "workspace_context": StepSpec("step", WorkspaceContextRead),
+    "workspace_opened": StepSpec("step", WorkspaceOpened),
     # One per tool (app/cards/tools.py), call_id = the model's tool call id.
     "propose_word_book": StepSpec("tool", CardShown),
     "propose_learning_goal": StepSpec("tool", CardShown),

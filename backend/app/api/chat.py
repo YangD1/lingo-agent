@@ -678,6 +678,9 @@ async def _reply(
                     tenant_id=turn.providers.tenant_id,
                     conversation_id=turn.conversation_id,
                     turn_id=turn.message_id,
+                    open_in_workspace=(
+                        turn.providers.tutor is None or turn.providers.tutor.workspace_auto_open
+                    ),
                 )
     async for event in stream_reply(
         graph,

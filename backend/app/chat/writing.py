@@ -4,7 +4,8 @@ The turn always reviews the learner's message, without the model deciding to: th
 same service as `/writing` (`app/writing/service.py`) stores it as a submission of
 this conversation, the worker reviews it while the turn waits, and a card links the
 learner to the line-by-line review. The coach is then told the result, to comment on
-briefly.
+briefly. While the learner lets the workspace open by itself, the text is also opened
+there as a writing document to revise (ADR 0045 §4).
 
 Bound at the API layer to the learner, conversation and turn, like the tutor's tools.
 """
@@ -13,14 +14,16 @@ import uuid
 from dataclasses import dataclass, replace
 from typing import Any, Protocol
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.activity.service import ActivityStatus, WritingReviewed
+from app.activity.service import ActivityStatus, WorkspaceOpened, WritingReviewed
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.cards import service as cards
 from app.cards.tools import CardDraft
-from app.db.models import WritingSubmission
+from app.db.models import Conversation, WorkspaceDoc, WritingSubmission
 from app.prompts import load_prompt
+from app.workspace import service as workspace
 from app.writing import service
 from app.writing.worker import WritingWorker
 
@@ -40,6 +43,9 @@ class WritingOutcome:
     # None when no submission was made (failed steps carry no summary anyway).
     summary: WritingReviewed | None
     card: dict[str, Any] | None = None
+    # The text opened in the workspace (ADR 0045 §4): its card and step.
+    workspace: dict[str, Any] | None = None
+    opened: WorkspaceOpened | None = None
 
 
 class WritingSource(Protocol):
@@ -56,6 +62,7 @@ class DatabaseWriting:
         tenant_id: uuid.UUID,
         conversation_id: uuid.UUID,
         turn_id: str,
+        open_in_workspace: bool = False,
     ) -> None:
         self._sessionmaker = sessionmaker
         self._worker = worker
@@ -63,6 +70,8 @@ class DatabaseWriting:
         self._tenant_id = tenant_id
         self._conversation_id = conversation_id
         self._turn_id = turn_id
+        # The learner lets the workspace open by itself (ADR 0045 §4).
+        self._open_in_workspace = open_in_workspace
 
     async def review(self, text: str) -> WritingOutcome:
         async with self._sessionmaker() as session:
@@ -88,7 +97,44 @@ class DatabaseWriting:
                 tool_call_id=f"writing-{submission_id}",
                 draft=CardDraft("writing", {"submission_id": submission_id}),
             )
-            return outcome(reviewed, cards.card_json(card))
+            result = outcome(reviewed, cards.card_json(card))
+            if not self._open_in_workspace:
+                return result
+            doc = await self._workspace_doc(session, submission_id)
+            opened = await cards.put_card(
+                session,
+                user_id=self._user_id,
+                conversation_id=self._conversation_id,
+                turn_id=self._turn_id,
+                tool_call_id=f"writing-workspace-{submission_id}",
+                draft=CardDraft(
+                    "workspace", {"doc_id": str(doc.id), "kind": doc.kind, "title": doc.title}
+                ),
+            )
+            return replace(
+                result,
+                guidance=f"{result.guidance}\n\n{load_prompt('writing_workspace')}",
+                workspace=cards.card_json(opened),
+                opened=WorkspaceOpened(doc_id=doc.id),
+            )
+
+    async def _workspace_doc(self, session: AsyncSession, submission_id: int) -> WorkspaceDoc:
+        """The submission's writing document in this conversation, made once."""
+        doc = await session.scalar(
+            select(WorkspaceDoc).where(
+                WorkspaceDoc.conversation_id == self._conversation_id,
+                WorkspaceDoc.source == "writing",
+                WorkspaceDoc.source_ref == str(submission_id),
+            )
+        )
+        if doc is not None:
+            return doc
+        conversation = await session.get(Conversation, self._conversation_id)
+        assert conversation is not None and conversation.user_id == self._user_id
+        text = await workspace.submission_text(session, self._user_id, submission_id)
+        return await workspace.create(
+            session, conversation, "writing", "writing", text, created_by="tutor"
+        )
 
 
 def failed() -> WritingOutcome:

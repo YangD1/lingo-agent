@@ -341,6 +341,7 @@
         "add_to_vocab": "加入生词本",
         "end_session": "建议挂断",
         "workspace_context": "读取工作区文档",
+        "workspace_opened": "在工作区打开作文",
         "open_workspace": "打开工作区文档",
         "propose_edit": "提议修改",
         "close_workspace": "收起工作区",
@@ -408,7 +409,8 @@
       "endSuggested": "助手建议结束通话",
       "callToolFailed": "{step}没成功，助手已经知道并接着聊了。",
       "readWorkspace": "读了工作区里的文档",
-      "workspaceRead": "读了工作区里打开的文档：第 {version} 版，前 {words} 词。"
+      "workspaceRead": "读了工作区里打开的文档：第 {version} 版，前 {words} 词。",
+      "workspaceOpenedStep": "把这篇作文在工作区打开了，可以接着改稿。"
     },
     "practice": {
       "label": "语法练习：{kc}",

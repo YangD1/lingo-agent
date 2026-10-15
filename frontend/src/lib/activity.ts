@@ -29,6 +29,8 @@ export type WritingReviewed = { submission_id: number; mistakes: number };
 export type ReadingContextRead = { article_id: number; level: string | null; words: number };
 /** The coach was given the document open in the workspace (ADR 0043 §6), its first words. */
 export type WorkspaceContextRead = { doc_id: string; version: number; words: number };
+/** The learner's writing, reviewed by writing_coach, opened in the workspace (ADR 0045 §4). */
+export type WorkspaceOpened = { doc_id: string };
 /** A tool call of the tutor (ADR 0015): the card it showed, if any. */
 export type CardShown = { card_id: string | null; card_kind: string | null };
 /** `lookup_word` on a realtime call: the entry found, or what was looked up in vain. */

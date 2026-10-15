@@ -341,6 +341,7 @@
         "add_to_vocab": "Adding to the word list",
         "end_session": "Suggesting to hang up",
         "workspace_context": "Read the workspace document",
+        "workspace_opened": "Open the writing in the workspace",
         "open_workspace": "Open a workspace document",
         "propose_edit": "Propose edits",
         "close_workspace": "Close the workspace",
@@ -408,7 +409,8 @@
       "endSuggested": "The assistant suggested hanging up",
       "callToolFailed": "{step} failed; the assistant was told and went on.",
       "readWorkspace": "read the document in the workspace",
-      "workspaceRead": "Read the document open in the workspace: version {version}, its first {words} words."
+      "workspaceRead": "Read the document open in the workspace: version {version}, its first {words} words.",
+      "workspaceOpenedStep": "Opened your writing in the workspace to revise it there."
     },
     "practice": {
       "label": "Grammar practice: {kc}",

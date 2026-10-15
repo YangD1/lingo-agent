@@ -74,6 +74,17 @@ describe("TurnActivity", () => {
     );
   });
 
+  it("tells the writing was opened in the workspace (ADR 0045 §4)", () => {
+    show({
+      activities: [
+        step("writing_review", { submission_id: 7, mistakes: 3 }, { kind: "step" }),
+        step("workspace_opened", { doc_id: "d1" }, { kind: "step" }),
+      ],
+    });
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.getByText("Opened your writing in the workspace to revise it there.")).toBeInTheDocument();
+  });
+
   it("shows one line, and the details when opened", () => {
     show({
       activities: [

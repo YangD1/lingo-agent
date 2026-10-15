@@ -51,6 +51,7 @@ const STEP_NAMES = [
   "writing_review",
   "reading_context",
   "workspace_context",
+  "workspace_opened",
   ...TOOL_NAMES,
   ...CALL_TOOL_NAMES,
 ] as const;
@@ -362,6 +363,8 @@ function Step({
       const s = a.summary as WorkspaceContextRead;
       return <p>{t("workspaceRead", { version: s.version, words: s.words })}</p>;
     }
+    case "workspace_opened":
+      return <p>{t("workspaceOpenedStep")}</p>;
   }
 }
 

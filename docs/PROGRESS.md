@@ -1164,6 +1164,6 @@
   - [x] 87.2 偏好 `tutor_profiles.workspace_auto_open`（默认开，迁移）+ 设置接口 / 助手设置页开关；提示词按偏好装配：开 = 判断需要就直接开，关 = 只在学习者明确要求时开。测试：pytest（迁移、接口、装配）；Vitest（设置页开关）
     - 完成：迁移 `b2e091212155`（`tutor_profiles.workspace_auto_open` 默认 true；卡片种类加 `workspace_closed`、`workspace_auto`）；`TutorIn/Out`、`TutorChoice`、`TutorPick.workspace_auto_open`（随 provider 上下文进对话）；`tutor_tools.md` 新增“The workspace”一节，`{workspace_rule}` 按偏好换成 `tutor_workspace_auto.md` / `tutor_workspace_on_request.md`（`chat_graph.workspace_rule`）；助手设置页“对话时自动打开工作区”开关。测试：`test_workspace_auto.py`（提示词随设置变）、`test_tutor_api.py`；Vitest `tutor-app.test.tsx`、`tutor.test.ts`
   - [x] 87.3 `tutor_tools.md` 工作区一节（粘贴整篇英文想读懂 → 精读；要写 / 改作文邮件 → 写作；短句不开；已有同一份不重开）+ 新工具 `close_workspace`（只收起，不删）、`set_workspace_auto_open`（改偏好，幂等、可在设置页改回）；`agent-tools.md`、活动记录。测试：pytest（工具、幂等、偏好装配）；Vitest（收到关闭卡片收起面板）（完成：`CloseWorkspace`、`SetWorkspaceAutoOpen`（调用即生效、可撤销），卡片 `workspace_closed` / `workspace_auto`，前端实时收到关闭卡片才收起；pytest `test_workspace_auto.py` 6 条、Vitest 3 条；agent-tools.md、features.yaml 已同步）
-  - [~] 87.4 writing_coach 批改后：偏好开着时由代码把这篇作文建成写作文档并发 `workspace` 卡片（同一篇不重复建）。测试：pytest（开 / 关两种、幂等）
-  - [ ] 87.5 E2E（假模型）：粘贴长文 → 工作区自动打开 → 说“关掉” → 面板收起；说“以后别自动开”→ 再粘贴不自动开。理由：自动打开、收起只有真浏览器能验证
+  - [x] 87.4 writing_coach 批改后：偏好开着时由代码把这篇作文建成写作文档并发 `workspace` 卡片（同一篇不重复建）。测试：pytest（开 / 关两种、幂等）（完成：`DatabaseWriting` 带 `open_in_workspace`，按提交 id 复用文档，卡片 `writing-workspace-<id>`，活动 `workspace_opened`，coach 指引补 `writing_workspace.md`；pytest `test_writing_coach.py` 6 条、Vitest 1 条）
+  - [~] 87.5 E2E（假模型）：粘贴长文 → 工作区自动打开 → 说“关掉” → 面板收起；说“以后别自动开”→ 再粘贴不自动开。理由：自动打开、收起只有真浏览器能验证
   - [ ] 87.6 收尾：受影响层全量测试、lint、文档、Docker 重建（先后端再前端）

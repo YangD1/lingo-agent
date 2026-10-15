@@ -360,6 +360,9 @@ async def writing_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict
             runtime.stream_writer({"card": outcome.card})
         step = Step("writing_review", outcome.status, outcome.summary, watch.ms)
         await report(runtime, step)
+        if outcome.workspace is not None:
+            runtime.stream_writer({"card": outcome.workspace})
+            await report(runtime, Step("workspace_opened", summary=outcome.opened))
     guided: ChatState = {**state, "practice": outcome.guidance}
     reply = await _call(
         runtime,
