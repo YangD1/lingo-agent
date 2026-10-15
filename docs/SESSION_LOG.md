@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-10-15 任务 85：粘贴时理解 HTML 和 Markdown
+
+**做了什么**：
+- 85.1 `frontend/src/lib/paste.ts`（新）：`pastedText(html, plain)`、`sourceToMarkdown(text)`。turndown 7.2.4 + `@joplin/turndown-plugin-gfm` 1.0.68（类型声明 `src/types/turndown-plugin-gfm.d.ts`）。剪贴板 HTML 带结构才转（`STRUCTURE`），含 `white-space: pre` 的编辑器代码用纯文本；`clean` 丢弃 `DROPPED`、拆掉 Google Docs 的 `<b id="docs-internal-guid">`、样式 span 转 strong/em/del、`wordLists` 把 Word 列表段落转成真列表、`tablesForMarkdown` 单元格压成一行（代码换成 `lingo-code` 避免插件保留 HTML）且无表头时首行作表头。源码路径：整篇 HTML 用 turndown（不转义），Markdown 夹标签时按围栏 / 行内代码切开，只转标签。Vitest +12。
+- 85.2 `composer.tsx` `onPaste`：转换结果和纯文本不同时 `preventDefault` + `insertAtCursor`（`execCommand("insertText")`，可撤销；没有时直接改文字）；长文提示 / 工作区用转好的文字。Vitest +4，E2E +1（网页 HTML 粘贴、撤销重做、工作区结构）。
+- 85.3 `backend/app/workspace/from_html.py`（新）`from_html`：标准库 `HTMLParser`，标签外文字原样保留，元素内空白合并，未知标签当文字，危险元素整块丢，代码不动；`service.reading_text` 调用。pytest +5。
+- 85.4：ADR 0043 §4、PLAN、README 中英。`frontend/vitest.config.mts` 加 `maxWorkers: 8`（理由见踩坑）。全量 pytest 1905、Vitest 854、E2E 88 全过，`make lint` 干净。
+
+**未完成**：
+- Docker 重建（先后端再前端）：Windows 可提交内存只剩约 2.0GB（`powershell.exe Get-CimInstance Win32_OperatingSystem` 的 FreeVirtualMemory），没敢构建。任务 84、85 的效果都要重建后才看得到；旧精读文档需要重新粘贴。
+- 任务 77–85 都没推送。
+
+**下一步**：用户腾出内存后重建 Docker（`make up` 或分别构建 backend、frontend），`/healthz` 200 后把 85.4 和任务 85 标 `[x]`；用户同意后推送并看 CI。
+
+**踩坑**：
+- **Vitest 全量偶发失败的原因找到了**：默认每核一个 jsdom worker，这台机器 32 核 → 31 个，全量时 WSL 内存峰值 7.4GB / 7.9GB，测试被饿到超时（use-attachments、speech-settings、learner-app 轮流出现，单独跑都过）。`maxWorkers: 8` 后峰值约 4GB，耗时 22s 左右不变。
+- `@joplin/turndown-plugin-gfm` 遇到单元格里有代码、列表、标题的表格会原样保留成 HTML，单元格换行转成 `<br>`；所以先在 DOM 里把单元格压平。插件把短单元格补到 3 个字符（`| 12  |`）。
+- jsdom 没有 `document.execCommand`，组件测试走直接改文字的分支；撤销只有 E2E 能验证。
+- `make test` 的 pytest 不带路径，`testpaths` 含 `evals`，所以总数是 tests + evals。
+
+---
+
 ## 2026-10-15 任务 84：工作区 Markdown 渲染；任务 85 已规划
 
 **做了什么**：
