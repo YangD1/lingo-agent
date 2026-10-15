@@ -35,5 +35,6 @@ export const config = {
     "/placement/:path*",
     "/settings/:path*",
     "/join/:path*",
+    "/setup/:path*",
   ],
 };

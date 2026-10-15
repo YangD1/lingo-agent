@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 import type { ShellUser } from "./app-sidebar";
 import { NAV_ITEMS, TAB_KEYS, activeItem, isActive } from "./nav-items";
+import { SetupLink } from "./setup-link";
 import { UserAvatar } from "./user-avatar";
 
 /** Phone top bar: the mark and the current page's name. */
@@ -110,6 +111,7 @@ export function MobileTabBar({ user }: { user: ShellUser }) {
           <LocaleSwitcher className="min-w-32 flex-1" />
           <ThemeSwitcher variant="labels" />
         </div>
+        <SetupLink className="mt-2 w-full" />
       </Sheet>
     </nav>
   );

@@ -4,6 +4,7 @@ import {
   CatIcon,
   ChartColumnIcon,
   ClipboardCheckIcon,
+  CompassIcon,
   FilePenLineIcon,
   FilterIcon,
   LayersIcon,
@@ -57,7 +58,8 @@ export type PetActionId =
   | "setup_background"
   | "setup_members"
   | "setup_membership"
-  | "setup_usage";
+  | "setup_usage"
+  | "setup_guide";
 
 export type PetAction = {
   id: PetActionId;
@@ -155,6 +157,10 @@ export const PET_ACTIONS: readonly PetAction[] = [
   action("setup_usage", "setup", "/settings#usage", ChartColumnIcon,
     ["用量", "额度", "token用量", "花了多少"],
     ["usage", "quota", "tokens used"]),
+  // The setup guide, all steps again (ADR 0042 §4).
+  action("setup_guide", "page", "/setup", CompassIcon,
+    ["配置引导", "新手引导", "设置引导", "重新配置", "初始设置"],
+    ["setup guide", "onboarding", "set up again", "getting started"]),
 ];
 
 const BY_ID = new Map(PET_ACTIONS.map((a) => [a.id, a]));

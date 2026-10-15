@@ -5,21 +5,13 @@ import { AppSidebar } from "@/components/shell/app-sidebar";
 import { MobileTabBar, MobileTopBar } from "@/components/shell/mobile-nav";
 import { TutorPet } from "@/components/tutor/tutor-pet";
 import { ReviewDeckHost } from "@/components/vocab/review-deck-host";
-import { ApiError } from "@/lib/api";
-import { serverApi } from "@/lib/server-api";
-import type { Me } from "@/lib/types";
-
-async function getMe(): Promise<Me> {
-  try {
-    return await serverApi<Me>("/auth/me");
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 401) redirect("/session-expired");
-    throw error;
-  }
-}
+import { getMe } from "@/lib/server-me";
+import { SETUP_PATH } from "@/lib/setup";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const me = await getMe();
+  // A new account sets up first (ADR 0042 §1); the guide and invite links live outside this layout.
+  if (me.user.setup_completed_at === null) redirect(SETUP_PATH);
   const user = { name: me.user.display_name || me.user.email, email: me.user.email };
   return (
     <div className="flex h-dvh">

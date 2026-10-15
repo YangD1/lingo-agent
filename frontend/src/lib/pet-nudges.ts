@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { type Advice, type AdviceItem, adviceHref, fetchAdvice, templateKey } from "@/lib/advice";
 import type { PetActionOpens } from "@/lib/pet-actions";
 import { fetchPlan, type Plan } from "@/lib/plan";
+import { MODEL_SETUP_PATH } from "@/lib/setup";
 import { useOnReviewed } from "@/lib/vocab";
 
 /**
@@ -160,7 +161,7 @@ export function pickNudge({
     const setup: Nudge = {
       id: "setup_model",
       key: "setupModel",
-      href: "/settings#connections",
+      href: MODEL_SETUP_PATH,
       opens: "setup",
     };
     // On the settings page itself there's nothing to lead to.

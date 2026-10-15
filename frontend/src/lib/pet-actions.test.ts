@@ -59,6 +59,6 @@ describe("PET_ACTIONS", () => {
     }
     for (const quick of QUICK_ACTIONS) expect(petAction(quick).id).toBe(quick);
     // Every id in the type is in the list (the list is the source of the wording check).
-    expect(ids).toHaveLength(24);
+    expect(ids).toHaveLength(25);
   });
 });

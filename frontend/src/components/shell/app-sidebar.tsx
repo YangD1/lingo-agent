@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 
 import { NAV_GROUPS, isActive } from "./nav-items";
+import { SetupLink } from "./setup-link";
 import { UserAvatar } from "./user-avatar";
 
 export type ShellUser = { name: string; email: string };
@@ -135,6 +136,7 @@ function AccountPanel({ user }: { user: ShellUser }) {
         <LocaleSwitcher className="min-w-0 flex-1" />
         <ThemeSwitcher />
       </div>
+      <SetupLink />
       <LogoutButton />
     </>
   );

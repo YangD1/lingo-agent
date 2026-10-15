@@ -3,7 +3,13 @@
 import type { AiFeature } from "@/lib/ai-usage";
 import type { Capability, Limit, UNITS, Used } from "@/lib/org";
 
-export type User = { id: string; email: string; display_name: string | null };
+export type User = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  /** Null until the setup guide is finished (ADR 0042); the app sends the learner there. */
+  setup_completed_at: string | null;
+};
 export type Tenant = { id: string; name: string; kind: string };
 export type Me = { user: User; tenant: Tenant };
 

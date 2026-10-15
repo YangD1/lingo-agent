@@ -35,13 +35,10 @@ import {
   voicesFor,
 } from "@/lib/tutor";
 import { VOICE_LANGUAGES, type VoiceLanguage, type VoiceOption } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
-import { DEFAULT_FUR, FUR_SWATCHES, OUTFITS } from "./avatar-draw";
+import { DEFAULT_FUR } from "./avatar-draw";
+import { FurPicker, OutfitPicker } from "./looks-fields";
 import { TutorAvatar } from "./tutor-avatar";
-
-// Names of FUR_SWATCHES, in order.
-const FUR_NAMES = ["orange", "gold", "beige", "grey", "blue", "black", "white", "pink"] as const;
 
 // Whose reading a tried voice is, so the preview speaks only for it.
 const TRY_OWNER = "tutor-voice-try";
@@ -214,7 +211,6 @@ function LooksCard({
   const t = useTranslations("tutor.looks");
   const speaking = useSpeaking(TRY_OWNER);
   const fur = form.color || DEFAULT_FUR;
-  const custom = !(FUR_SWATCHES as readonly string[]).includes(fur);
   return (
     // `/tutor#looks`: the name under each reply leads here (ADR 0040 §3).
     <Card id="looks" data-testid="tutor-looks" className="scroll-mt-14 lg:scroll-mt-4">
@@ -248,67 +244,12 @@ function LooksCard({
             />
             <p className="text-xs text-muted-foreground">{t("nameHint")}</p>
           </div>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-sm leading-none font-medium">{t("outfit")}</legend>
-            <div className="flex flex-wrap gap-2">
-              {OUTFITS.map((outfit) => (
-                <button
-                  key={outfit}
-                  type="button"
-                  aria-pressed={form.avatar === outfit}
-                  aria-label={t(`outfits.${outfit}`)}
-                  title={t(`outfits.${outfit}`)}
-                  onClick={() => onChange({ avatar: outfit })}
-                  data-testid={`tutor-outfit-${outfit}`}
-                  className={cn(
-                    "rounded-lg border p-1 outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
-                    form.avatar === outfit && "border-primary ring-1 ring-primary",
-                  )}
-                >
-                  <TutorAvatar outfit={outfit} fur={fur} animate={false} size={56} label="" />
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-sm leading-none font-medium">{t("fur")}</legend>
-            <div className="flex flex-wrap items-center gap-2">
-              {FUR_SWATCHES.map((swatch, i) => (
-                <button
-                  key={swatch}
-                  type="button"
-                  aria-pressed={fur === swatch}
-                  aria-label={t(`furs.${FUR_NAMES[i]}`)}
-                  title={t(`furs.${FUR_NAMES[i]}`)}
-                  onClick={() => onChange({ color: swatch === DEFAULT_FUR ? "" : swatch })}
-                  className={cn(
-                    "size-8 rounded-full border-2 border-[#563f39]/40 outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                    fur === swatch && "ring-2 ring-primary ring-offset-2 ring-offset-card",
-                  )}
-                  style={{ backgroundColor: swatch }}
-                />
-              ))}
-              <label
-                className={cn(
-                  "relative flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs text-muted-foreground hover:bg-accent",
-                  custom && "ring-2 ring-primary ring-offset-2 ring-offset-card",
-                )}
-              >
-                <span
-                  aria-hidden
-                  className="size-4 rounded-full border"
-                  style={{ backgroundColor: fur }}
-                />
-                {t("furCustom")}
-                <input
-                  type="color"
-                  value={fur}
-                  onChange={(e) => onChange({ color: e.target.value.toLowerCase() })}
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                />
-              </label>
-            </div>
-          </fieldset>
+          <OutfitPicker
+            value={form.avatar}
+            fur={fur}
+            onChange={(avatar) => onChange({ avatar })}
+          />
+          <FurPicker value={form.color} onChange={(color) => onChange({ color })} />
           <SwitchRow
             id="tutor-pet"
             label={t("pet")}

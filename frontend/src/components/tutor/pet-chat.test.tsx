@@ -219,7 +219,7 @@ describe("PetChat", () => {
     expect(screen.getByTestId("pet-chat-no-model")).toHaveTextContent("No chat model is set up");
     expect(screen.getByRole("link", { name: "Set up models" })).toHaveAttribute(
       "href",
-      "/settings#connections",
+      "/setup?step=model",
     );
   });
 

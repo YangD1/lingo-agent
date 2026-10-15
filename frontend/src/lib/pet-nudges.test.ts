@@ -57,7 +57,7 @@ describe("pickNudge", () => {
     const none = advice([item("vocab_review", { count: 5 })], false);
     expect(pick(none)).toMatchObject({
       id: "setup_model",
-      href: "/settings#connections",
+      href: "/setup?step=model",
       opens: "setup",
     });
     expect(pick(none, { pathname: "/settings" })).toBeNull();

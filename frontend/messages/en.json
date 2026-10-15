@@ -228,7 +228,8 @@
     "writing": "Writing",
     "reading": "Reading",
     "speaking": "Speaking",
-    "tutor": "My assistant"
+    "tutor": "My assistant",
+    "setup": "Setup guide"
   },
   "chat": {
     "newChat": "New chat",
@@ -1398,7 +1399,8 @@
         "cancel": "Cancel"
       }
     },
-    "tutorLink": "Only want to change your assistant’s name, looks, model or voice? Go to"
+    "tutorLink": "Only want to change your assistant’s name, looks, model or voice? Go to",
+    "setupLink": "New here, or want to go through the setup again? Open the"
   },
   "placement": {
     "title": "Placement test",
@@ -2579,6 +2581,10 @@
       "setup_usage": {
         "label": "Usage",
         "ask": "See your AI usage and quotas?"
+      },
+      "setup_guide": {
+        "label": "Setup guide",
+        "ask": "Go through the setup guide again?"
       }
     },
     "bubble": {
@@ -2610,5 +2616,82 @@
       "afterReview": "All reviewed! {n} new words left. Keep going?",
       "planDone": "Today's plan is all done. Brilliant!"
     }
+  },
+  "setup": {
+    "progress": "Step {n} of {total}",
+    "stepsLabel": "Setup steps",
+    "set": "set up",
+    "notSet": "not set up",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip",
+    "skipAll": "Skip all and look around",
+    "steps": {
+      "profile": {
+        "short": "Name & language",
+        "title": "Let's get acquainted",
+        "description": "Your assistant calls you by this name and explains grammar in the language you pick.",
+        "name": "What should we call you?",
+        "namePlaceholder": "e.g. Lin",
+        "languageLater": "Decide later",
+        "languageHint": "If you don't pick, the assistant decides by your English level. Your time zone is taken from this device."
+      },
+      "model": {
+        "short": "Model",
+        "title": "Connect a chat model",
+        "description": "Chat, practice and reading rewrites need it. One is enough: other features fall back to it.",
+        "modeLabel": "How to connect",
+        "modeKey": "Paste an API key",
+        "modeInvite": "I have an invite code",
+        "provider": "Provider",
+        "moreProviders": "More providers, plus speech-to-text, read-aloud and realtime voice, are on the",
+        "settingsLink": "settings page",
+        "apiKey": "API key",
+        "apiKeyHint": "The key is stored encrypted on the server and only used to call the model. It's checked by listing the available models, which costs no tokens.",
+        "connect": "Connect",
+        "keyFailed": "Couldn't connect: {error}. Check the key and press \"Connect\" again.",
+        "noChatModels": "This provider lists no chat models. Try another provider, or enter a model by hand on the settings page.",
+        "connected": "Connected to {provider}, using {model} by default.",
+        "ready": "A chat model is ready: you can talk with your assistant now.",
+        "manage": "Manage in settings",
+        "inviteHint": "Got an invite code from family, a teacher or your team? Once you join, you use their models within the quota they give you, no key of your own needed.",
+        "skipTitle": "Skip the model for now?",
+        "skipDescription": "Without a model, chat, practice and reading rewrites won't work; word reviews and the placement test still do. You can connect one later in settings or from the desk pet.",
+        "skipConfirm": "Skip for now",
+        "skipCancel": "Connect a model"
+      },
+      "goals": {
+        "short": "Goals",
+        "title": "What are you learning for?",
+        "description": "Your assistant plans each day, picks word books and topics from this. Change it anytime in Memory → About me.",
+        "goalPlaceholder": "e.g. In six months, follow and speak up in meetings with foreign colleagues",
+        "noExam": "None, just getting better",
+        "minutes": "{n} min",
+        "interestsHint": "Reading and chat prefer these topics."
+      },
+      "tutor": {
+        "short": "Assistant",
+        "title": "Name your assistant",
+        "description": "It shows up in chat and sits in the corner of the page as a cat. Leave it as is and it's JOJO.",
+        "nameHint": "Models and voices are on the \"My assistant\" page."
+      },
+      "placement": {
+        "short": "Level test",
+        "title": "Check your current level",
+        "description": "The placement test takes about 10 minutes and measures your vocabulary and grammar, so words, practice and reading match your level.",
+        "what": "It uses no model and no tokens; leave midway and pick up where you left off.",
+        "start": "Finish setup and start the test",
+        "taken": "You've taken the placement test. To retake it, visit the Placement page later."
+      }
+    },
+    "done": {
+      "title": "You're all set",
+      "description": "Anything you skipped can be set up later, and this guide can be opened again from settings or the user menu.",
+      "later": "Set up later",
+      "advanced": "Speech-to-text, read-aloud, realtime voice, background work and other advanced settings are on the",
+      "settings": "settings page",
+      "finish": "Start learning"
+    },
+    "open": "Setup guide"
   }
 }

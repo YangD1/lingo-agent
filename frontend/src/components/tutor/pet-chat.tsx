@@ -20,6 +20,7 @@ import {
   readChatSize,
   type Viewport,
 } from "@/lib/pet-chat-size";
+import { MODEL_SETUP_PATH } from "@/lib/setup";
 import { checkToday, createToday, fetchToday } from "@/lib/today";
 import type { Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -262,7 +263,6 @@ export function PetChat({
   }, []);
 
   const chatHref = conversation ? `/chat?c=${conversation.id}` : "/chat";
-  const setup = petAction("setup_models");
   return (
     <div
       ref={box}
@@ -336,7 +336,7 @@ export function PetChat({
             icon={<PlugIcon aria-hidden />}
             data-testid="pet-chat-no-model"
             action={
-              <Link href={setup.href} className={buttonVariants({ size: "sm" })}>
+              <Link href={MODEL_SETUP_PATH} className={buttonVariants({ size: "sm" })}>
                 {tActions("setup_models.label")}
               </Link>
             }

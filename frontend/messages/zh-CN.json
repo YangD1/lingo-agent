@@ -228,7 +228,8 @@
     "writing": "写作",
     "reading": "阅读",
     "speaking": "口语",
-    "tutor": "我的助手"
+    "tutor": "我的助手",
+    "setup": "配置引导"
   },
   "chat": {
     "newChat": "新对话",
@@ -1398,7 +1399,8 @@
         "cancel": "取消"
       }
     },
-    "tutorLink": "只想换助手的名字、样子、模型或声音？去"
+    "tutorLink": "只想换助手的名字、样子、模型或声音？去",
+    "setupLink": "第一次用、或想重新理一遍配置？打开"
   },
   "placement": {
     "title": "入学测",
@@ -2579,6 +2581,10 @@
       "setup_usage": {
         "label": "用量",
         "ask": "看看 AI 用量和额度？"
+      },
+      "setup_guide": {
+        "label": "配置引导",
+        "ask": "带你重新走一遍配置引导？"
       }
     },
     "bubble": {
@@ -2610,5 +2616,82 @@
       "afterReview": "复习完啦！还有 {n} 个新词，接着学？",
       "planDone": "今天的计划全部完成，太棒了！"
     }
+  },
+  "setup": {
+    "progress": "第 {n} 步，共 {total} 步",
+    "stepsLabel": "配置引导的步骤",
+    "set": "已配置",
+    "notSet": "未配置",
+    "back": "上一步",
+    "next": "下一步",
+    "skip": "跳过",
+    "skipAll": "全部跳过，先进去看看",
+    "steps": {
+      "profile": {
+        "short": "称呼和语言",
+        "title": "先认识一下",
+        "description": "助手会这样称呼你，并用你选的语言讲解语法。",
+        "name": "怎么称呼你",
+        "namePlaceholder": "比如：小林",
+        "languageLater": "以后再说",
+        "languageHint": "不选的话，助手按你的英语水平自动决定。时区按这台设备自动设置。"
+      },
+      "model": {
+        "short": "接入模型",
+        "title": "接入一个对话模型",
+        "description": "对话、练习、阅读改写都靠它。接一个就够用，其余功能会自动用它兜底。",
+        "modeLabel": "接入方式",
+        "modeKey": "粘贴 API key",
+        "modeInvite": "我有邀请码",
+        "provider": "厂商",
+        "moreProviders": "转写、朗读、实时语音等更多厂商和设置在",
+        "settingsLink": "设置页",
+        "apiKey": "API key",
+        "apiKeyHint": "key 加密保存在服务器，只用来调用模型。验证方式是列出可用模型，不耗 token。",
+        "connect": "连接",
+        "keyFailed": "没连上：{error}。检查 key 后再点一次“连接”。",
+        "noChatModels": "这个厂商没有列出可对话的模型，换一个厂商试试，或到设置页手动填写模型。",
+        "connected": "已连上 {provider}，默认用 {model}。",
+        "ready": "已经有可用的对话模型，可以直接和助手聊了。",
+        "manage": "在设置页管理",
+        "inviteHint": "家人、老师或团队给了你邀请码？加入后，在对方分配的额度内用对方的模型，不用自己买 key。",
+        "skipTitle": "先不接模型？",
+        "skipDescription": "没有模型时，对话、练习、阅读改写都用不了，背单词和入学测可以照常用。以后在设置页或点桌宠都能接入。",
+        "skipConfirm": "先跳过",
+        "skipCancel": "回去接模型"
+      },
+      "goals": {
+        "short": "学习目标",
+        "title": "你想学成什么样",
+        "description": "助手据此安排每天的计划、挑词书和话题。都可以以后在“记忆 → 关于我”里改。",
+        "goalPlaceholder": "比如：半年后能和外国同事开会，听得懂、说得出",
+        "noExam": "没有，就是想提高",
+        "minutes": "{n} 分钟",
+        "interestsHint": "阅读和对话会优先挑这些话题。"
+      },
+      "tutor": {
+        "short": "助手",
+        "title": "给你的助手起个名字",
+        "description": "它会出现在对话里，也会作为小猫待在页面角落。不改就叫 JOJO。",
+        "nameHint": "模型和声音在“我的助手”页里换。"
+      },
+      "placement": {
+        "short": "水平测试",
+        "title": "测一下现在的水平",
+        "description": "入学测约 10 分钟，测出词汇量和语法水平，之后的单词、练习和阅读都按你的水平来。",
+        "what": "不调用模型，不耗 token；中途离开下次接着测。",
+        "start": "完成引导，开始测试",
+        "taken": "你已经做过入学测了，想重测可以以后在“入学测”页再来。"
+      }
+    },
+    "done": {
+      "title": "都准备好了",
+      "description": "跳过的项随时可以补上，这个引导也能从设置页或用户菜单再次打开。",
+      "later": "以后去配置",
+      "advanced": "转写、朗读、实时语音、后台任务等进阶设置在",
+      "settings": "设置页",
+      "finish": "开始学习"
+    },
+    "open": "配置引导"
   }
 }

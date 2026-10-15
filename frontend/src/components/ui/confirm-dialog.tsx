@@ -16,6 +16,8 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel,
+  tone = "danger",
   onConfirm,
 }: {
   trigger: ReactElement;
@@ -23,6 +25,10 @@ export function ConfirmDialog({
   description?: string;
   /** Defaults to "Delete". */
   confirmLabel?: string;
+  /** Defaults to "Cancel". */
+  cancelLabel?: string;
+  /** "default" for a choice that loses nothing, e.g. skipping a setup step. */
+  tone?: "danger" | "default";
   onConfirm: () => void;
 }) {
   const t = useTranslations("confirm");
@@ -42,9 +48,10 @@ export function ConfirmDialog({
             )}
           </div>
           <div className="flex justify-end gap-2 px-[22px] pt-4 pb-5">
-            <AlertDialog.Close render={<Button variant="ghost" />}>{t("cancel")}</AlertDialog.Close>
+            <AlertDialog.Close render={<Button variant="ghost" />}>{cancelLabel ?? t("cancel")}
+            </AlertDialog.Close>
             <Button
-              variant="danger"
+              variant={tone}
               onClick={() => {
                 setOpen(false);
                 onConfirm();

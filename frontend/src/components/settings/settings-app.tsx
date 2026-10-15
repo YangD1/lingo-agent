@@ -8,6 +8,7 @@ import {
   type LucideIcon,
   AudioLines,
   CatIcon,
+  Compass,
   Phone,
   Plug,
   UserRoundPlus,
@@ -21,6 +22,7 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import { Callout } from "@/components/ui/callout";
 import { api } from "@/lib/api";
 import { useHashFlash } from "@/lib/hash-flash";
+import { SETUP_PATH } from "@/lib/setup";
 import type { Connection, Presets } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +83,14 @@ export function SettingsApp() {
                 {t("tutorLink")}{" "}
                 <Link href="/tutor" className="font-medium underline-offset-4 hover:underline">
                   {tNav("tutor")}
+                </Link>
+              </span>
+            </Callout>
+            <Callout tone="neutral" icon={<Compass aria-hidden />} data-testid="settings-setup-link">
+              <span className="flex-1">
+                {t("setupLink")}{" "}
+                <Link href={SETUP_PATH} className="font-medium underline-offset-4 hover:underline">
+                  {tNav("setup")}
                 </Link>
               </span>
             </Callout>

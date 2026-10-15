@@ -440,7 +440,7 @@ describe("TutorPet reminders", () => {
     expect(screen.getByRole("status")).toHaveTextContent("I don't have a chat model");
     expect(screen.getByRole("link", { name: "Open settings" })).toHaveAttribute(
       "href",
-      "/settings#connections",
+      "/setup?step=model",
     );
     fireEvent.click(screen.getByRole("button", { name: "Later" }));
     expect(screen.queryByTestId("pet-bubble")).toBeNull();
