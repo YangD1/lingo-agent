@@ -16,7 +16,7 @@
 
 **未完成**：
 - ~~Docker 重建~~（已完成，见追记）：当时 Windows 可提交内存只剩约 2.0GB（`powershell.exe Get-CimInstance Win32_OperatingSystem` 的 FreeVirtualMemory），没敢构建。任务 84、85 的效果都要重建后才看得到；旧精读文档需要重新粘贴。
-- 任务 77–85 都没推送。
+- ~~任务 77–85 都没推送~~：已推送到 b7ffe28（37 个提交），CI run 38733205453 的 backend、frontend、e2e、docker 四个 job 全绿（约 11 分钟）。
 
 **下一步**：用户腾出内存后重建 Docker（`make up` 或分别构建 backend、frontend），`/healthz` 200 后把 85.4 和任务 85 标 `[x]`；用户同意后推送并看 CI。
 
