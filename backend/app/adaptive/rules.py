@@ -279,6 +279,24 @@ class MasteryGateRules(_Strict):
     clean_days: int = Field(ge=0)
 
 
+class CourseRules(_Strict):
+    pass_score: OpenProbability
+    pass_p: OpenProbability
+    quiz_items: int = Field(ge=1, le=10)
+    quiz_production: int = Field(ge=0, le=10)
+    quiz_min_items: int = Field(ge=1)
+    check_min_items: int = Field(ge=1)
+    generated_quizzes_per_day: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.quiz_production > self.quiz_items:
+            raise ValueError("quiz_production must not exceed quiz_items")
+        if self.quiz_min_items > self.quiz_items:
+            raise ValueError("quiz_min_items must not exceed quiz_items")
+        return self
+
+
 class WordRange(_Strict):
     min: int = Field(ge=1)
     max: int = Field(ge=1)
@@ -404,6 +422,7 @@ class Rules(_Strict):
     advice: AdviceRules
     practice: PracticeRules
     mastery_gate: MasteryGateRules
+    course: CourseRules
     reading: ReadingRules
     graph: GraphRules
     diagnosis: DiagnosisRules

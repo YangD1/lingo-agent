@@ -71,8 +71,9 @@ REVIEW_FORMATS = ("recognize", "listen", "spell")
 PLACEMENT_STATUSES = ("in_progress", "done", "abandoned")
 PLACEMENT_STAGES = ("vocab", "grammar")
 # planning: after a placement test (ADR 0015 §6); daily: the dashboard's (ADR 0016);
-# speaking / realtime: spoken practice, cascaded or by realtime voice (ADR 0029, 0030).
-CONVERSATION_PURPOSES = ("planning", "daily", "reading", "speaking", "realtime")
+# speaking / realtime: spoken practice, cascaded or by realtime voice (ADR 0029, 0030);
+# lesson: one lesson of the grammar course, on `focus_kc_id` (ADR 0044 §5).
+CONVERSATION_PURPOSES = ("planning", "daily", "reading", "speaking", "realtime", "lesson")
 # A writing submission is reviewed in the background (Q38c).
 WRITING_STATUSES = ("pending", "done", "failed")
 SCHEDULER_RUN_STATUSES = ("running", "ok", "skipped", "error")
@@ -102,8 +103,12 @@ WORKSPACE_ANNOTATIONS = ("translation", "analysis")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
 TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
 # Where a practice set was started from (ADR 0021); prefetch: made in the background
-# after the learner finished a set, waiting for the next one.
-EXERCISE_SET_ORIGINS = ("dashboard", "learner", "card", "plan", "practice", "prefetch")
+# after the learner finished a set, waiting for the next one; quiz: a quiz card the
+# tutor gave in chat (ADR 0044 §4).
+EXERCISE_SET_ORIGINS = ("dashboard", "learner", "card", "plan", "practice", "prefetch", "quiz")
+# A quiz card's set (ADR 0044 §4): check = understanding check, no evidence;
+# quiz = the lesson's pass quiz.
+QUIZ_PURPOSES = ("check", "quiz")
 # generating -> ready -> in_progress -> done; generating -> failed.
 EXERCISE_SET_STATUSES = ("generating", "ready", "in_progress", "done", "failed")
 WORD_AUDIO_JOB_STATUSES = ("running", "paused", "done", "cancelled")
@@ -1315,6 +1320,7 @@ class ExerciseSet(Base):
     __table_args__ = (
         CheckConstraint(_in("origin", EXERCISE_SET_ORIGINS), name="origin"),
         CheckConstraint(_in("status", EXERCISE_SET_STATUSES), name="status"),
+        CheckConstraint(_in("quiz_purpose", QUIZ_PURPOSES), name="quiz_purpose"),
         Index("ix_exercise_sets_user_id_created_at", "user_id", "created_at"),
     )
 
@@ -1329,6 +1335,8 @@ class ExerciseSet(Base):
     rules_version: Mapped[str] = mapped_column(String(50), server_default="")
     # The KC the learner asked to practise (Q35a); NULL for a set planned freely.
     focus_kc_id: Mapped[str | None] = mapped_column(String(100))
+    # Set for origin "quiz" only (ADR 0044 §4).
+    quiz_purpose: Mapped[str | None] = mapped_column(String(10))
     # Per KC of the set, its mastery when the learner began answering (Q35c):
     # {kc_id: {"p_mastery": float | null, "learned": bool}}; null before that.
     mastery_before: Mapped[dict[str, Any] | None] = mapped_column(JSONB)

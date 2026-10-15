@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-13.1"
+version: "2026-10-15.1"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -316,6 +316,24 @@ mastery_gate:
   min_span_hours: 20
   # ...and no counted mistake on the KC in conversation or writing in the days before.
   clean_days: 14
+
+# The grammar course (ADR 0044): one lesson per KC, its state worked out on read.
+course:
+  # A lesson is passed when its latest pass quiz scored at least `pass_score` and the
+  # KC's p_mastery is at least `pass_p` (or the KC is learned). A KC below the
+  # learner's level also counts as passed at `pass_p`, without a quiz.
+  pass_score: 0.8
+  pass_p: 0.8
+  # A pass quiz: this many items, `quiz_production` of them production formats.
+  quiz_items: 5
+  quiz_production: 2
+  # A quiz with fewer items than this, after the bank, fails; an understanding check
+  # (two items, no bank) needs `check_min_items`.
+  quiz_min_items: 3
+  check_min_items: 1
+  # Pass quizzes on one KC the generator writes in 24 hours; later ones use the
+  # placement bank only, so retaking a quiz does not spend tokens without end.
+  generated_quizzes_per_day: 2
 
 # Graded reading (ADR 0024 §5, P2 plan §5.3). A version of an article is written for
 # one level and cached per tenant, article and level.
