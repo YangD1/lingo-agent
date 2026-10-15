@@ -12,8 +12,10 @@
 - 85.3 `backend/app/workspace/from_html.py`（新）`from_html`：标准库 `HTMLParser`，标签外文字原样保留，元素内空白合并，未知标签当文字，危险元素整块丢，代码不动；`service.reading_text` 调用。pytest +5。
 - 85.4：ADR 0043 §4、PLAN、README 中英。`frontend/vitest.config.mts` 加 `maxWorkers: 8`（理由见踩坑）。全量 pytest 1905、Vitest 854、E2E 88 全过，`make lint` 干净。
 
+**追记**：用户腾出内存后（Windows 可提交内存 8.3GB）已重建 Docker，先后端再前端，`/healthz` 200、前端 200，迁移 head `5194bac6a933`；任务 85 标 `[x]`。
+
 **未完成**：
-- Docker 重建（先后端再前端）：Windows 可提交内存只剩约 2.0GB（`powershell.exe Get-CimInstance Win32_OperatingSystem` 的 FreeVirtualMemory），没敢构建。任务 84、85 的效果都要重建后才看得到；旧精读文档需要重新粘贴。
+- ~~Docker 重建~~（已完成，见追记）：当时 Windows 可提交内存只剩约 2.0GB（`powershell.exe Get-CimInstance Win32_OperatingSystem` 的 FreeVirtualMemory），没敢构建。任务 84、85 的效果都要重建后才看得到；旧精读文档需要重新粘贴。
 - 任务 77–85 都没推送。
 
 **下一步**：用户腾出内存后重建 Docker（`make up` 或分别构建 backend、frontend），`/healthz` 200 后把 85.4 和任务 85 标 `[x]`；用户同意后推送并看 CI。
