@@ -11,6 +11,7 @@ import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { cn } from "@/lib/utils";
 import type { WorkspaceDoc, WorkspaceDocDetail, WorkspaceKind, WorkspaceLayout } from "@/lib/workspace";
 
+import { ReadingView } from "./reading-view";
 import { SelectionAsk } from "./selection-ask";
 
 const KIND_ICONS: Record<WorkspaceKind, typeof BookOpenText> = {
@@ -140,18 +141,10 @@ export function WorkspacePane({
   );
 }
 
-/** The document as plain text; the reading and writing views (83.6, 83.7) build on it. */
+/** The document: the reading view, or the writing as plain text until its view (83.7). */
 function DocText({ doc }: { doc: WorkspaceDocDetail }) {
   const t = useTranslations("chat.workspace");
-  if (doc.kind === "reading") {
-    return (
-      <div className="flex flex-col gap-4 text-[15px] leading-7" data-testid="workspace-text">
-        {(doc.content.paragraphs ?? []).map((p, i) => (
-          <p key={i}>{p}</p>
-        ))}
-      </div>
-    );
-  }
+  if (doc.kind === "reading") return <ReadingView doc={doc} />;
   const text = doc.content.text ?? "";
   return text ? (
     <div className="text-[15px] leading-7 whitespace-pre-wrap" data-testid="workspace-text">

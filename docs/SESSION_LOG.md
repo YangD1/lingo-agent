@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-10-15 任务 83.6：精读视图
+
+**做了什么**：
+- 新增 `frontend/src/components/workspace/reading-view.tsx`：原文 / 对照 / 译文切换（对照用容器查询 `@2xl:grid-cols-2`，窄时上下排）；IntersectionObserver 看见哪段翻哪段，每批最多 6 段、同时只发一个请求；“点句分析”开关下点句子在其下方展开分析卡（含重试）；平时点词走 `WordPopup`；每段一个跟读按钮（`source="reading"`，文章来源带 `sourceId`）。
+- `lib/workspace.ts` 加 `translateParagraphs`、`analyzeSentence`、`nextToTranslate`、`sentencesOf`；`workspace-pane.tsx` 精读文档改用 `ReadingView`；中英文案 `chat.workspace.reading`。
+- 测试：`reading-view.test.tsx` 7 个，`workspace.test.ts` 补 2 组，`chat-app.test.tsx` 选择器随单词 span 调整；Vitest 808、E2E 84 全过，eslint / tsc 干净。
+
+**未完成**：83.7 写作视图（`workspace-pane.tsx` 的 `DocText` 写作分支仍是纯文本占位）、83.8 入口、83.9 E2E 与收尾。
+
+**下一步**：83.7——自动保存、批改（AiBadge）、助手改动的 diff（`diff` 依赖）、逐条接受 / 拒绝、版本列表和回退。
+
+**踩坑**：
+- IO 的 effect 依赖 `pump` 会在每次结果后重建观察器、清空“可见”集合，重试就不再触发；改成 `latestPump` ref，effect 只依赖 `[display, key]`。
+- 分析卡重试不能复用开关（会关掉），单独拆 `loadSentence`。
+- 全量 E2E 时 `org.spec` 偶发 `apiRequestContext.post: socket hang up`（经 Next 代理），单独重跑通过，与本改动无关；再出现就查代理在高并发下的连接复用。
+
+---
+
 ## 2026-10-15 任务 83.5：对话页工作区布局
 
 **做了什么**：

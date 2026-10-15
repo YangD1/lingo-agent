@@ -567,7 +567,25 @@
       "pasteHint": "That's a long text. Open it in the workspace beside the chat?",
       "pasteRead": "Read closely",
       "pasteWrite": "Review as writing",
-      "pasteDismiss": "No, just send it"
+      "pasteDismiss": "No, just send it",
+      "reading": {
+        "display": "Show",
+        "original": "Original",
+        "both": "Side by side",
+        "translation": "Translation",
+        "translating": "Translating…",
+        "retry": "Try again",
+        "analyse": "Analyse sentences",
+        "analyseHint": "Tap a sentence to see its main clause, the other clauses and tricky phrases under it; tap again to close.",
+        "analysisLabel": "Sentence analysis",
+        "analysing": "Analysing this sentence…",
+        "closeAnalysis": "Close the analysis",
+        "meaning": "Meaning",
+        "main": "Main clause",
+        "clauses": "Clauses and parts",
+        "phrases": "Tricky phrases",
+        "tip": "Tip"
+      }
     }
   },
   "memory": {

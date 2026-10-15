@@ -567,7 +567,25 @@
       "pasteHint": "这是一段长文，放到右侧工作区里看？",
       "pasteRead": "在工作区精读",
       "pasteWrite": "当作文批改",
-      "pasteDismiss": "不用，直接发"
+      "pasteDismiss": "不用，直接发",
+      "reading": {
+        "display": "显示方式",
+        "original": "原文",
+        "both": "对照",
+        "translation": "译文",
+        "translating": "正在翻译…",
+        "retry": "重试",
+        "analyse": "点句分析",
+        "analyseHint": "点一句话，在它下面看主干、从句和难点短语；再点一次收起。",
+        "analysisLabel": "句子分析",
+        "analysing": "正在分析这句话…",
+        "closeAnalysis": "收起分析",
+        "meaning": "意思",
+        "main": "主干",
+        "clauses": "从句和成分",
+        "phrases": "难点短语",
+        "tip": "提示"
+      }
     }
   },
   "memory": {

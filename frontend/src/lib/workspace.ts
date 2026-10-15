@@ -111,3 +111,67 @@ export function useWorkspaceLayout(): WorkspaceLayout {
     () => "split",
   );
 }
+
+/** The reading view's three ways to show a document (ADR 0043 §4). */
+export type ReadingDisplay = "original" | "both" | "translation";
+
+/** Paragraphs translated in one request at most: backend/app/workspace/ai.py. */
+export const MAX_PARAGRAPHS_PER_REQUEST = 6;
+
+export type ParagraphTranslations = {
+  version: number;
+  translations: { index: number; text: string }[];
+};
+
+/** Paragraphs of the current version in Chinese: made once, then kept on the server. */
+export const translateParagraphs = (docId: string, paragraphs: number[]) =>
+  api<ParagraphTranslations>(`/workspace/docs/${docId}/translate`, {
+    method: "POST",
+    json: { paragraphs },
+  });
+
+export type SentenceAnalysis = {
+  main: string;
+  clauses: { text: string; role: string }[];
+  phrases: { text: string; meaning: string }[];
+  meaning: string;
+  tip: string;
+};
+
+export const analyzeSentence = (docId: string, paragraph: number, sentence: string) =>
+  api<SentenceAnalysis>(`/workspace/docs/${docId}/analyze`, {
+    method: "POST",
+    json: { paragraph, sentence },
+  });
+
+/**
+ * The paragraphs to translate next: those in view without a translation or a request on
+ * the way, in reading order, at most one request's worth. The rest wait for the next round.
+ */
+export function nextToTranslate(
+  visible: Iterable<number>,
+  done: ReadonlySet<number>,
+  pending: ReadonlySet<number>,
+): number[] {
+  return [...new Set(visible)]
+    .filter((i) => !done.has(i) && !pending.has(i))
+    .sort((a, b) => a - b)
+    .slice(0, MAX_PARAGRAPHS_PER_REQUEST);
+}
+
+/**
+ * A paragraph cut into sentences, each with the space after it, so that they join back
+ * into the paragraph. A stop ends a sentence only before a space ("3.5", "e.g.x" don't).
+ */
+export function sentencesOf(paragraph: string): string[] {
+  const out: string[] = [];
+  const end = /[.!?…]+["'”’)\]]*\s+/g;
+  let last = 0;
+  for (const match of paragraph.matchAll(end)) {
+    const stop = match.index + match[0].length;
+    out.push(paragraph.slice(last, stop));
+    last = stop;
+  }
+  if (last < paragraph.length) out.push(paragraph.slice(last));
+  return out;
+}

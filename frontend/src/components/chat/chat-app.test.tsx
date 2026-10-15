@@ -123,7 +123,7 @@ describe("ChatApp workspace (ADR 0043)", () => {
     show("/chat?c=c1&w=d1");
     const pane = await screen.findByTestId("workspace");
     expect(pane).toHaveAttribute("data-layout", "split");
-    expect(await within(pane).findByText("The quick brown fox jumps.")).toBeInTheDocument();
+    expect(await within(pane).findByTestId("workspace-text")).toHaveTextContent("The quick brown fox jumps.");
     expect(within(pane).getByTestId("workspace-version")).toHaveTextContent("Version 2");
     expect(panel.props?.workspaceDocId).toBe("d1");
     expect(screen.getByRole("separator")).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe("ChatApp workspace (ADR 0043)", () => {
 
   it("quotes selected text into the input box", async () => {
     show("/chat?c=c1&w=d1");
-    const text = await screen.findByText("The quick brown fox jumps.");
+    const text = (await screen.findByTestId("workspace-text")).querySelector("p")!;
     const range = document.createRange();
     range.selectNodeContents(text);
     // jsdom lays nothing out.

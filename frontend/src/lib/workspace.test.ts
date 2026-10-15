@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   chatUrl,
   layoutFor,
+  MAX_PARAGRAPHS_PER_REQUEST,
   MAX_QUOTE_CHARS,
+  nextToTranslate,
   offersWorkspace,
   PASTE_HINT_CHARS,
   quoteBlock,
+  sentencesOf,
   withQuote,
 } from "./workspace";
 
@@ -64,5 +67,27 @@ describe("layoutFor", () => {
     expect(layoutFor(true, true)).toBe("split");
     expect(layoutFor(false, true)).toBe("overlay");
     expect(layoutFor(false, false)).toBe("tabs");
+  });
+});
+
+describe("sentencesOf", () => {
+  it("cuts after a stop and the space after it, keeping every character", () => {
+    const p = 'He left. "Why?" she asked! It cost 3.5 dollars… Then';
+    const parts = sentencesOf(p);
+    expect(parts).toEqual(["He left. ", '"Why?" ', "she asked! ", "It cost 3.5 dollars… ", "Then"]);
+    expect(parts.join("")).toBe(p);
+  });
+
+  it("is the whole paragraph without a stop", () => {
+    expect(sentencesOf("no stop here")).toEqual(["no stop here"]);
+  });
+});
+
+describe("nextToTranslate", () => {
+  it("takes what's in view and not done or on the way, in order, one request at a time", () => {
+    expect(nextToTranslate([5, 1, 2, 1], new Set([2]), new Set([5]))).toEqual([1]);
+    const many = Array.from({ length: 10 }, (_, i) => 9 - i);
+    expect(nextToTranslate(many, new Set(), new Set())).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(MAX_PARAGRAPHS_PER_REQUEST).toBe(6);
   });
 });
