@@ -49,7 +49,8 @@ jobs:
       - run: uv run mypy app evals
       # Migrations are covered here: the test session downgrades to base and upgrades to
       # head on the empty database before any test runs.
-      - run: uv run pytest
+      # One database per xdist worker (lingo_test_gw0, ...), created next to lingo_test.
+      - run: uv run pytest -n 4
       # Scores of the replayed evaluation sets (ADR 0033 §3); pytest already checked them.
       - name: Evaluation scores
         if: always()

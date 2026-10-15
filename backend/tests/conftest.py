@@ -2,6 +2,7 @@ import ipaddress
 import os
 from collections.abc import AsyncIterator, Iterator
 
+import psycopg
 import pytest
 from alembic import command
 from fastapi import FastAPI
@@ -19,6 +20,14 @@ os.environ["LANGSMITH_TRACING"] = "false"
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://lingo:lingo@localhost:5433/lingo_test"
 )
+# Under pytest-xdist each worker gets its own database next to the configured one
+# (lingo_test_gw0, ...): every test truncates tables, so workers can't share one.
+_XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER")
+if _XDIST_WORKER:
+    _base = make_url(TEST_DATABASE_URL)
+    TEST_DATABASE_URL = _base.set(database=f"{_base.database}_{_XDIST_WORKER}").render_as_string(
+        hide_password=False
+    )
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["JWT_SECRET"] = "test-secret-" + "x" * 32
 # Fixed, test-only keyring (32 zero bytes): never valid outside the test suite.
@@ -55,6 +64,9 @@ from app.services.reading.worker import ReadingWorker  # noqa: E402
 from app.services.speech.worker import WordAudioWorker  # noqa: E402
 from app.writing.worker import WritingWorker  # noqa: E402
 
+# Emptied after every test with DELETE, in this order: children before the rows they
+# reference; tables left out go with them through ON DELETE CASCADE. (TRUNCATE took ~1.6s
+# each time, most of a test's run time.)
 BUSINESS_TABLES = (
     "word_audio_jobs",
     "tts_audio",
@@ -89,6 +101,7 @@ BUSINESS_TABLES = (
     "tenant_members",
     "users",
     "tenants",
+    "word_sentences",
     "words",
 )
 
@@ -99,8 +112,25 @@ CHECKPOINT_TABLES = ("checkpoints", "checkpoint_blobs", "checkpoint_writes")
 def _assert_test_database(url: str) -> None:
     # Every test truncates tables; never let that hit a dev or prod database.
     name = make_url(url).database or ""
+    if _XDIST_WORKER:
+        name = name.removesuffix(f"_{_XDIST_WORKER}")
     if not name.endswith("_test"):
         raise RuntimeError(f"refusing to run DB tests against {name!r}: name must end in _test")
+
+
+async def _create_worker_database() -> None:
+    """Create this xdist worker's database if it's missing, via the configured one."""
+    url = make_url(TEST_DATABASE_URL)
+    name = url.database or ""
+    base = to_psycopg_conninfo(
+        url.set(database=name.removesuffix(f"_{_XDIST_WORKER}")).render_as_string(
+            hide_password=False
+        )
+    )
+    async with await psycopg.AsyncConnection.connect(base, autocommit=True) as conn:
+        found = await conn.execute("SELECT 1 FROM pg_database WHERE datname = %s", (name,))
+        if await found.fetchone() is None:
+            await conn.execute(f'CREATE DATABASE "{name}"')
 
 
 def run_alembic(connection: Connection, revision: str, *, downgrade: bool = False) -> None:
@@ -140,6 +170,8 @@ async def db_engine() -> AsyncIterator[AsyncEngine]:
     _assert_test_database(TEST_DATABASE_URL)
     engine = create_engine(TEST_DATABASE_URL)
     try:
+        if _XDIST_WORKER:
+            await _create_worker_database()
         async with engine.begin() as conn:
             await conn.run_sync(run_alembic, "base", downgrade=True)
             await conn.run_sync(run_alembic, "head")
@@ -158,8 +190,8 @@ async def db_session(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
     async with create_sessionmaker(db_engine)() as session:
         yield session
     async with db_engine.begin() as conn:
-        tables = ", ".join((*BUSINESS_TABLES, *CHECKPOINT_TABLES))
-        await conn.execute(text(f"TRUNCATE {tables} CASCADE"))
+        for table in (*BUSINESS_TABLES, *CHECKPOINT_TABLES):
+            await conn.execute(text(f"DELETE FROM {table}"))
 
 
 @pytest.fixture

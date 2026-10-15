@@ -39,7 +39,8 @@ def docx_bytes() -> bytes:
         (b"ID3\x04\x00" + b"\x00" * 11, "a", "audio", "audio/mpeg"),
         (b"\xff\xfb\x90\x00" + b"\x00" * 12, "a", "audio", "audio/mpeg"),
         (b"%PDF-1.7\n", "doc", "document", "application/pdf"),
-        (docx_bytes(), "doc", "document", DOCX_MIME),
+        # Fixed id: the zip carries the current time, and xdist workers must agree on ids.
+        pytest.param(docx_bytes(), "doc", "document", DOCX_MIME, id="docx"),
         ("Hello 世界\n".encode(), "notes.TXT", "document", "text/plain"),
         (b"# Title", "notes.md", "document", "text/markdown"),
     ],

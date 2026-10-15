@@ -80,7 +80,8 @@ def test_rotation() -> None:
         ("bad id!:AAAA", "expected 'id:base64key'"),
         ("k1:not-base64!!", "base64"),
         ("k1:" + "A" * 20, "must be 32 bytes"),
-        (f"{NEW},{NEW}", "duplicate"),
+        # Fixed id: the key is random, and xdist workers must agree on ids.
+        pytest.param(f"{NEW},{NEW}", "duplicate", id="duplicate"),
     ],
 )
 def test_bad_keyrings_rejected(raw: str, message: str) -> None:

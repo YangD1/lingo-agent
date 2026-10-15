@@ -10,6 +10,9 @@ SHELL := /bin/bash
 
 ENV_FILE ?= .env
 PNPM ?= pnpm
+# pytest-xdist workers; each uses its own database (lingo_test_gw0, ...). About 650MB
+# each, so 4 fits the 8GB WSL cap; PYTEST_WORKERS=0 runs in one process.
+PYTEST_WORKERS ?= 4
 COMPOSE ?= docker compose
 
 # Same format as `python -m app.credentials.crypto gen-key` ("id:" + urlsafe base64 of
@@ -121,8 +124,8 @@ install: ## Install backend and frontend dependencies from the lockfiles
 test: test-backend test-frontend ## Run backend tests (needs dev-db) and frontend unit tests
 
 .PHONY: test-backend
-test-backend: ## pytest against the lingo_test database (needs dev-db)
-	cd backend && uv run pytest
+test-backend: ## pytest in parallel, one lingo_test_gwN database per worker (needs dev-db; PYTEST_WORKERS=4)
+	cd backend && uv run pytest -n $(PYTEST_WORKERS) $(ARGS)
 
 .PHONY: test-frontend
 test-frontend: ## Vitest
@@ -152,7 +155,7 @@ screenshots: ## Retake docs/screenshots/ from the demo account (needs dev-db; ow
 .PHONY: ci
 ci: ## Run what CI runs, in the same order (needs dev-db; the docker job is `make build`)
 	cd backend && uv sync --locked && uv run ruff check . && uv run ruff format --check . \
-		&& uv run mypy app evals && uv run pytest
+		&& uv run mypy app evals && uv run pytest -n $(PYTEST_WORKERS)
 	cd frontend && $(PNPM) install --frozen-lockfile && $(PNPM) lint && $(PNPM) typecheck \
 		&& $(PNPM) test && $(PNPM) build
 	cd frontend && CI=true $(PNPM) e2e

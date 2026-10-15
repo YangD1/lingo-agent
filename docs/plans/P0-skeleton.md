@@ -315,6 +315,7 @@ compose 要点：所有服务设 `mem_limit`；postgres 有 healthcheck，backen
 
 - **ruff**：`select = ["E","F","I","B","UP","ASYNC","RUF"]`，行宽 100；**mypy**：`strict = true`（第三方库缺类型的逐个 ignore）。
 - **测试 DB**：本地用 compose 里的 postgres，建独立库 `lingo_test`；CI 用 GitHub Actions 的 service container（同一个 pgvector 镜像）。不引入 testcontainers（少一个依赖）。
+  - （2026-10-15 任务 81 补充）pytest 用 pytest-xdist 并行（`make test-backend` 默认 4 个 worker），每个 worker 用自己的库 `lingo_test_gw0…`，由 conftest 在同一服务器上按需创建；每个测试结束后按依赖顺序 `DELETE` 清表（原来的 `TRUNCATE … CASCADE` 每次约 1.6 秒，占了大部分耗时）。
 - 测试清单：
   - `unit/test_provider_config.py`：YAML 解析、未知 provider 报错、缺 key 的模型被跳过、整链不可用报错
   - `unit/test_llm_router.py`：task 路由、默认回退、fallback 生效（主模型抛错 → 用备用）、流式首 chunk 前失败才切换、`get_structured_llm` 每个模型都带 schema
