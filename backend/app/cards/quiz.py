@@ -9,7 +9,7 @@ set and card.
 
 import uuid
 from collections import Counter
-from collections.abc import Awaitable, Callable, Iterable, Mapping
+from collections.abc import Awaitable, Callable, Collection, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -30,7 +30,8 @@ from app.adaptive.exercise.formats import (
 )
 from app.adaptive.exercise.planner import QuizPurpose
 from app.adaptive.exercise.worker import QuizLimitError
-from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
+from app.adaptive.kc.search import find_kcs, is_clear
 from app.cards.tools import CardDraft, CardScope, GiveQuiz, ToolCallError, parse_args
 from app.db.models import Attempt, Exercise, ExerciseSet, TutorCard
 
@@ -39,6 +40,8 @@ type StartQuiz = Callable[[uuid.UUID, uuid.UUID, str, QuizPurpose], Awaitable[uu
 
 # Answers quoted per wrong item, so a long answer does not fill the prompt.
 _QUOTE = 160
+# Grammar points offered back when a topic matches several (ADR 0046 §1).
+_CANDIDATES = 5
 
 
 @dataclass(frozen=True)
@@ -69,11 +72,8 @@ class QuizTools:
         """Raises ToolCallError, whose message goes back to the model."""
         parsed = parse_args("give_quiz", args)
         assert isinstance(parsed, GiveQuiz)
-        kc = get_grammar_catalog().get(parsed.kc_id)
-        if kc is None:
-            raise ToolCallError(f"unknown kc_id {parsed.kc_id!r}")
-        if scope is not None and scope.kc_ids is not None and kc.id not in scope.kc_ids:
-            raise ToolCallError(f"kc_id {kc.id!r} is not a grammar point of this conversation")
+        within = scope.kc_ids if scope is not None else None
+        kc = _grammar_point(parsed, within)
         async with self._sessionmaker() as session:
             earlier = await session.scalar(
                 select(TutorCard.params).where(
@@ -99,6 +99,32 @@ class QuizTools:
             "tell the learner briefly to try the card.",
             CardDraft("quiz", {"set_id": str(set_id), "kc_id": kc.id, "purpose": parsed.purpose}),
         )
+
+
+def _grammar_point(parsed: GiveQuiz, within: Collection[str] | None) -> GrammarKC:
+    """The call's KC, by id or by name (ADR 0046 §1). Raises ToolCallError."""
+    catalog = get_grammar_catalog()
+    if parsed.kc_id:
+        kc = catalog.get(parsed.kc_id)
+        if kc is None:
+            raise ToolCallError(f"unknown kc_id {parsed.kc_id!r}")
+        if within is not None and kc.id not in within:
+            raise ToolCallError(f"kc_id {kc.id!r} is not a grammar point of this conversation")
+        return kc
+    assert parsed.topic is not None
+    matches = find_kcs(catalog, parsed.topic, within)
+    if is_clear(matches):
+        return matches[0].kc
+    if not matches:
+        raise ToolCallError(
+            f"no grammar point matches {parsed.topic!r}; try another name in English, or "
+            "ask the questions in your reply if the test is not on one grammar point"
+        )
+    listed = "; ".join(f"{m.kc.id} ({m.kc.name_en})" for m in matches[:_CANDIDATES])
+    raise ToolCallError(
+        f"{parsed.topic!r} matches several grammar points: {listed}. "
+        "Call give_quiz again with the kc_id of the one meant."
+    )
 
 
 # --- results, for the tutor's context ---------------------------------------------------

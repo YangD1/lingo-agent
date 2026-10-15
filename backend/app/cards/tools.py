@@ -8,9 +8,9 @@ or the turn are never arguments - the code running the tools already knows them.
 
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol, get_args
+from typing import Any, Literal, Protocol, Self, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, model_validator
 
 from app.adaptive.daily_plan.algorithm import PlanChoice
 from app.adaptive.daily_plan.card import PlanTarget, card_params
@@ -165,8 +165,21 @@ class GiveQuiz(_Args):
 
     model_config = ConfigDict(title="give_quiz")
 
-    kc_id: str = Field(description="Grammar point id, as given in your context.")
+    kc_id: str | None = Field(
+        default=None, description="Grammar point id, when your context gives one."
+    )
+    topic: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Otherwise the grammar point's name, e.g. 'present perfect for / since'.",
+    )
     purpose: Literal["check", "quiz"]
+
+    @model_validator(mode="after")
+    def _names_a_point(self) -> Self:
+        if not self.kc_id and not (self.topic and self.topic.strip()):
+            raise ValueError("give kc_id or topic")
+        return self
 
 
 class OpenWorkspace(_Args):
@@ -287,7 +300,13 @@ def parse_args(name: str, args: Mapping[str, Any]) -> BaseModel:
     try:
         return schema.model_validate(args)
     except ValidationError as exc:
-        fields = sorted({".".join(str(p) for p in e["loc"]) or "arguments" for e in exc.errors()})
+        # A whole-call rule (no field) says what is wrong in its own words.
+        fields = sorted(
+            {
+                ".".join(str(p) for p in e["loc"]) or e["msg"].removeprefix("Value error, ")
+                for e in exc.errors()
+            }
+        )
         raise ToolCallError(f"invalid arguments: {', '.join(fields)}") from exc
 
 
