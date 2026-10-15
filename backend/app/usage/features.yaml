@@ -239,7 +239,8 @@ features:
   # grammar point the way practice does, a pass quiz of course.quiz_items items or an
   # understanding check of a few; nothing is generated ahead after it. Open answers
   # and explanations are graded on exercise_grade (once per item). The chat call that
-  # chose the tool is chat_message's.
+  # chose the tool is chat_message's. The tutor may also give an understanding check on
+  # its own (ADR 0046 §3), unless the learner turned that off in the tutor settings.
   quiz_card:
     calls:
       - task: exercise_generate

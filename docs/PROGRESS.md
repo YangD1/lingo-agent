@@ -1167,3 +1167,11 @@
   - [x] 87.4 writing_coach 批改后：偏好开着时由代码把这篇作文建成写作文档并发 `workspace` 卡片（同一篇不重复建）。测试：pytest（开 / 关两种、幂等）（完成：`DatabaseWriting` 带 `open_in_workspace`，按提交 id 复用文档，卡片 `writing-workspace-<id>`，活动 `workspace_opened`，coach 指引补 `writing_workspace.md`；pytest `test_writing_coach.py` 6 条、Vitest 1 条）
   - [x] 87.5 E2E（假模型）：粘贴长文 → 工作区自动打开 → 说“关掉” → 面板收起；说“以后别自动开”→ 再粘贴不自动开。理由：自动打开、收起只有真浏览器能验证（完成：`workspace.spec.ts` 新增一条（自动开 → 说关掉收起、重新打开 → 说以后别自动开 → 再发长文不开、设置页开关为关）；`writing.spec.ts` 补作文批改后工作区自动打开；fake_llm 按装配的提示词决定是否自动开）
   - [x] 87.6 收尾：受影响层全量测试、lint、文档、Docker 重建（先后端再前端）（完成：pytest 1979、Vitest 887、E2E 91 全过，`make lint` 干净；Docker 先后端再前端重建，迁移 head `b2e091212155`，`/healthz`、`/api/healthz` 200）
+- [ ] 任务 88：普通对话里也出测验卡片，助手按需主动出理解检查（2026-10-16 用户反馈：说“出点题给我测试吧”，助手直接在回复里写了 4 道题，没出卡片；按推荐确认：主动出题只出 `check`、限频 + 设置开关；学习者要“测试”默认出 `quiz`；混合题和词汇题不做）
+  - 原因：①`give_quiz` 必须填 `kc_id`，普通对话的上下文只有“最近常错的语法点”带 id，“主语 + 动词”（`g.word_order_svo`）不在里面，模型无 id 可填；②`tutor_tools.md` 把 `give_quiz` 写成讲完规则 / 课程过关用，没有“学习者要题就用卡片、不准在回复里写题”
+  - [x] 88.1 ADR 0046 + PLAN + `agent-tools.md`：按名字找语法点、学习者要题必须出卡片、主动出题的规则和限频、偏好开关。测试：只改文档
+  - [ ] 88.2 `give_quiz` 加 `topic`（`kc_id` 改可选，二选一）：目录 `find_kcs(topic)` 按 id / 中英文名 / 说明打分；唯一明确命中就出卡，模糊时把最多 5 个候选（id + 名称）作为工具错误返回、让助手选一个再调。测试：pytest（命中、中文名命中、模糊给候选、找不到、`kc_id` 优先）
+  - [ ] 88.3 主动出题限制：`give_quiz` 加 `asked`（学习者这一轮要了题或同意了你提的测验）；`asked = false` 只能 `check`、偏好关掉时拒绝、同一对话同一语法点只主动出一次、同一对话两次主动出题至少隔 `course.proactive_quiz_gap_minutes`（10）分钟；拒绝都作为工具错误，让助手改口头问。卡片 `params` 记 `proactive`。测试：pytest（四条规则、`asked = true` 不受限）
+  - [ ] 88.4 偏好 `tutor_profiles.quiz_proactive`（默认开，迁移）+ 设置接口 + 助手设置页开关；`tutor_tools.md` 测验一节重写（要题 / “测测我” → `give_quiz`，默认 `quiz`、刚讲完想确认 → `check`；不在回复里写题；跨多个语法点或词汇题可以口头出），`{quiz_rule}` 按偏好换成主动 / 只在要求时。测试：pytest（迁移、接口、装配）；Vitest（设置页开关）
+  - [ ] 88.5 E2E（假模型）：普通对话说“出点题测我” → 假模型用 `topic` 调 `give_quiz` → 测验卡出现并能作答。理由：普通对话出卡片是跨前后端主流程。另用真实模型（百炼 qwen-plus，临时账号）试几次“出点题给我测试吧”，确认会调工具
+  - [ ] 88.6 收尾：受影响层全量测试、lint、Docker 重建（先后端再前端）
