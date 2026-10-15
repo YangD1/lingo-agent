@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-10-16 任务 88：普通对话里也出测验卡片，助手按需主动出理解检查
+
+**做了什么**
+- 起因：用户在普通对话里说“出点题给我测试吧”，助手在回复里写了 4 道题。原因有二：普通对话的上下文没有这个语法点的 id，`give_quiz` 填不了；`tutor_tools.md` 也没要求“要题就出卡片”。
+- 88.1（b0aa3d8）：ADR 0046；PLAN、`agent-tools.md`、`features.yaml` 同步。
+- 88.2（dbb0562）：`adaptive/kc/search.py` `find_kcs` / `is_clear`（按 id、中英文名、说明做词重叠匹配，中文按二字组匹配）；`GiveQuiz` 新增 `topic`，`kc_id` 改为可选；匹配不明确时把 5 个候选作为工具错误返回（`cards/quiz.py` `_grammar_point`）。
+- 88.3（c421e55）：`tutor_profiles.quiz_proactive`（迁移 `c3a7f05e9d21`）+ 接口；`GiveQuiz.asked`；`QuizTools._check_unasked`：主动出题只能出 `check`，偏好关掉时拒绝，同一对话同一语法点只主动出一次，两次主动出题至少隔 `course.proactive_quiz_gap_minutes`（10）分钟；课程对话（`lesson=True`）不受这些限制；卡片 `params.proactive`。
+- 88.4（e3c4c29）：`tutor_tools.md` 新增测验一节，`{quiz_rule}` 装配 `tutor_quiz_proactive.md` / `tutor_quiz_on_request.md`（`chat_graph.quiz_rule`，课程对话固定用前者）；助手设置页新增开关“允许助手主动出题”。
+- 88.5（384edfd）：E2E `quiz-chat.spec.ts`；百炼 qwen-plus 实测后修正（见 PROGRESS 88.5）：`kc_id` 不是已有 id 时按名字再找一次，单个字母不参与匹配，提示词加强；`get_structured_llm` 对 None 输出抛 `StructuredOutputMissingError`（审题模型用文字回答时整组出题会崩）；被拒的工具调用打 info 日志。
+- 88.6：pytest 1994、Vitest 887、E2E 92 全过，`make lint` 干净；Docker 先后端再前端重建，`/api/healthz` 200。
+
+**未完成 / 下一步**
+- 任务 86–88 的提交都在本地，未推送，等用户看效果。
+- 实测只用了 qwen-plus。DeepSeek 等其他模型如果还在回复里写题，先看 `tutor_tools.md` 测验一节；不够再考虑：识别到要题的意图时，代码强制模型调用 `give_quiz`（`tool_choice`）。
+- 主动出题按时间限频，不按轮数，ADR 0046 §3 写了原因。
+
+**踩坑**
+- app 的 `logger.info` 在 uvicorn 默认配置下不输出。实测时看工具被拒的原因，直接从 `checkpoint_writes.blob` 里 grep `Error:`。
+- 实测用 `E2E_DB=lingo_smoke E2E_BACKEND_PORT=8300 uv run --project ../backend python e2e/run_backend.py` 起一个独立库的后端，不碰开发库；测完 `DROP DATABASE lingo_smoke`。
+
+---
+
 ## 2026-10-16 任务 86.9 与任务 87：修理解检查出不成题；助手按需自动打开工作区
 
 **做了什么**
