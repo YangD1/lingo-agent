@@ -19,6 +19,7 @@
 - 任务 86–88 的提交都在本地，未推送，等用户看效果。
 - 实测只用了 qwen-plus。DeepSeek 等其他模型如果还在回复里写题，先看 `tutor_tools.md` 测验一节；不够再考虑：识别到要题的意图时，代码强制模型调用 `give_quiz`（`tool_choice`）。
 - 主动出题按时间限频，不按轮数，ADR 0046 §3 写了原因。
+- 用户记录了两个问题，明天处理（看板任务 89，未拆分）：出题太慢；助手回复没有流式输出。
 
 **踩坑**
 - app 的 `logger.info` 在 uvicorn 默认配置下不输出。实测时看工具被拒的原因，直接从 `checkpoint_writes.blob` 里 grep `Error:`。

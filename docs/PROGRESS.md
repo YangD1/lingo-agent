@@ -1180,3 +1180,10 @@
       - 顺带发现并修复：qwen-plus 当审题模型时偶尔用文字回答、不调结构化工具，`with_structured_output` 返回 None，`reviews_in` 崩溃导致整组失败。`get_structured_llm` 现在对 None 抛 `StructuredOutputMissingError`，交给备用模型或调用方原有的错误处理（单测 `test_a_structured_call_without_its_output_raises`）
       - 被拒的工具调用现在打 `logger.info`（`cards/runtime.py`）
   - [x] 88.6 收尾：受影响层全量测试、lint、Docker 重建（先后端再前端）（完成：pytest 1994、Vitest 887、E2E 92 全过，`make lint` 干净；Docker 先后端再前端重建，迁移 `c3a7f05e9d21` 已上，`/` 200、`/api/healthz` 200）
+- [ ] 任务 89：出题太慢；助手回复没有流式输出（2026-10-16 用户记录，明天处理，未拆分、未确认）
+  - 问题 1：测验卡片出题非常慢。用户的想法：预设几种组件和它们要的数据结构，让 AI 只生成内容去填组件，而不是现做。
+    - 现状（待核实，供明天参考）：题型组件已经是预设的（`choice4`、`cloze`、`find_fix`、`transform`、`translate`、`concept_choice`、`explain` 等，前端各有组件），AI 按题型 schema 输出 JSON 填进去（`adaptive/exercise/drafts.py` `generated_set_model`）。慢的地方更可能在流程：一次出题调用 → 一次审题（critic）调用，被拒的题最多再重写两轮；出题和审题都是一次性结构化输出，卡片要等整组过完 critic 才显示（轮询）。
+    - 要先测量：每一步的耗时（出题、审题、重写轮数），哪个模型、多少 token。
+    - 可能的方向（待和用户讨论）：一道一道出、过了审就先显示；题库或预生成（入学测题库太小）；理解检查跳过或简化审题；换更快的模型做出题 / 审题路由。
+  - 问题 2：助手回复没做到流式输出（用户观察，场景未细化：普通对话、带工具的轮次、桌宠小窗？）。
+    - 待核实：`agents/chat_graph.py` `_call` 用 `astream` 合并 chunk，前端按 `token` 事件渲染；需要确认后端是否逐 chunk 发了 `token`、带工具时 qwen（OpenAI 兼容）是否真的流式返回、中间是否有缓冲（Next 代理 `/api`、Docker、SSE 头）。
