@@ -166,6 +166,53 @@ describe("ReadingView (ADR 0043 §4)", () => {
     expect(translateCalls()).toEqual([[0], [0]]);
   });
 
+  it("in the original, translates one paragraph under it on request, showing it is on the way", async () => {
+    let answer: (value: unknown) => void = () => {};
+    api.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)));
+    show();
+    const buttons = screen.getAllByRole("button", { name: "Translate this paragraph" });
+    expect(buttons).toHaveLength(3);
+    await userEvent.click(buttons[1]);
+    expect(screen.getByTestId("translation-pending")).toHaveTextContent("Translating…");
+    await act(async () => answer({ version: 1, translations: [{ index: 1, text: "译文 1" }] }));
+    expect(screen.getByText("译文 1")).toBeInTheDocument();
+    expect(screen.getAllByTestId("translation")).toHaveLength(1);
+    expect(translateCalls()).toEqual([[1]]);
+
+    // Hidden and shown again: kept, not asked for again.
+    await userEvent.click(screen.getByRole("button", { name: "Hide this paragraph's translation" }));
+    expect(screen.queryByText("译文 1")).not.toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole("button", { name: "Translate this paragraph" })[1]);
+    expect(screen.getByText("译文 1")).toBeInTheDocument();
+    expect(translateCalls()).toEqual([[1]]);
+  });
+
+  it("uses a paragraph translated in the original in the other displays", async () => {
+    show();
+    await userEvent.click(screen.getAllByRole("button", { name: "Translate this paragraph" })[0]);
+    expect(await screen.findByText("译文 0")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "Side by side" }));
+    // The other displays show every translation: no button under each paragraph.
+    expect(screen.queryByRole("button", { name: "Translate this paragraph" })).not.toBeInTheDocument();
+    inView(0, 1);
+    expect(await screen.findByText("译文 1")).toBeInTheDocument();
+    expect(translateCalls()).toEqual([[0], [1]]);
+    await userEvent.click(screen.getByRole("radio", { name: "Translation" }));
+    inView(0, 1);
+    expect(screen.getByText("译文 0")).toBeInTheDocument();
+    expect(translateCalls()).toEqual([[0], [1]]);
+  });
+
+  it("in the original, says when a paragraph's translation failed, and tries again", async () => {
+    api.mockRejectedValueOnce(new Error("down"));
+    show();
+    await userEvent.click(screen.getAllByRole("button", { name: "Translate this paragraph" })[2]);
+    const failed = await screen.findByRole("alert");
+    await userEvent.click(within(failed).getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("译文 2")).toBeInTheDocument();
+    expect(translateCalls()).toEqual([[2], [2]]);
+  });
+
   it("opens a sentence's analysis under it, several at once, and closes it again", async () => {
     show();
     await userEvent.click(screen.getByRole("button", { name: "Analyse sentences" }));

@@ -62,8 +62,14 @@ test("a pasted article is read closely: translation, sentence analysis, a quote 
   await expect(text).toContainText("Cities around the world");
   await expect(workspace(page)).toContainText("Cities around the world are planting");
 
-  // Side by side with a translation, paragraph by paragraph.
+  // In the original, one paragraph's translation under it on request.
+  await page.getByTestId("paragraph-translate").first().click();
+  await expect(page.getByTestId("translation")).toHaveText("译文 Cities around the world are planting");
+  await page.screenshot({ path: test.info().outputPath("workspace-reading-paragraph.png") });
+
+  // Side by side with a translation, paragraph by paragraph (the first one kept).
   await page.getByRole("radio", { name: "对照" }).click();
+  await expect(page.getByTestId("paragraph-translate")).toHaveCount(0);
   await expect(page.getByTestId("translation").first()).toHaveText("译文 Cities around the world are planting");
   await expect(page.getByTestId("translation")).toHaveCount(4);
 

@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-10-15 任务 83.10：用户反馈（“做了什么”窄列样式、原文按段翻译）
+
+**做了什么**：
+- `frontend/src/components/chat/turn-activity.tsx`：胶囊 `max-w-full`，名字 `shrink-0`，摘要按钮 `min-w-0` + 文字 `truncate` + `title`，窄列（工作区打开时）保持一行。
+- `frontend/src/components/workspace/reading-view.tsx`：抽出 `request(batch, done?)`（滚动翻译 `pump` 和按段请求共用，结果都进 `found`）；`shown`（按版本记哪些段在原文下展开译文）+ `toggleTranslation`；`OriginalParagraph` 新增 `translation` 属性，右侧按钮列（跟读、翻译 `data-testid="paragraph-translate"`）；`TranslatedParagraph` 等待态改为转圈 + 两条占位行；`retry` 删缓存后直接 `request([i])`（原文模式没有滚动触发）。
+- 文案 `translateParagraph` / `hideTranslation`（中英）；AI 用量说明、`features.yaml` 注释、ADR 0043 §4、agent-tools、README 中英同步。
+- 测试：`reading-view.test.tsx` +3；`e2e/workspace.spec.ts` 精读流程先在原文翻第一段再切对照。Vitest 831、E2E 86 全过，lint 干净；Docker 前端重建，`/healthz` 200。
+
+**未完成**：无。任务 77–83 都还没推送。
+
+**下一步**：等用户看效果；同意后推送并看 CI。
+
+**踩坑**：
+- 滚动翻译的 `busy` 只管 `pump` 的批次；按段请求不占 `busy`，靠 `pending` 去重，所以切到对照时正在路上的那段不会重复请求。
+
+---
+
 ## 2026-10-15 任务 83.9：工作区收尾（任务 83 完成）
 
 **做了什么**：

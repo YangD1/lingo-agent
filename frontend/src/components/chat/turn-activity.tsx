@@ -103,12 +103,14 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
       {/* A pill rather than bare grey text (Q73): the row is how the learner sees what the
           assistant did (ADR 0013), so it should read as something to open. The name is a
           link of its own beside the button: a link can't sit inside a button. */}
-      <div className="flex w-fit items-center rounded-full border border-border/70 bg-card/70 text-foreground/75">
+      {/* One line however narrow the column (beside the workspace): the name keeps its width
+          and the summary ends in "…"; the details hold all of it. */}
+      <div className="flex w-fit max-w-full items-center rounded-full border border-border/70 bg-card/70 text-foreground/75">
         <Link
           href="/tutor#looks"
           aria-label={t("editName", { name })}
           title={t("editName", { name })}
-          className="max-w-[10rem] truncate rounded-full py-1 pr-0.5 pl-2.5 font-semibold text-primary underline decoration-primary/40 decoration-dashed underline-offset-[3px] outline-none hover:text-primary/80 hover:decoration-solid focus-visible:outline-2 focus-visible:outline-ring"
+          className="max-w-[10rem] shrink-0 truncate rounded-full py-1 pr-0.5 pl-2.5 font-semibold text-primary underline decoration-primary/40 decoration-dashed underline-offset-[3px] outline-none hover:text-primary/80 hover:decoration-solid focus-visible:outline-2 focus-visible:outline-ring"
         >
           {name}
         </Link>
@@ -117,10 +119,11 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
           aria-expanded={open}
           aria-controls={detailsId}
           aria-label={t("label", { name, parts: summary })}
+          title={t("line", { parts: summary })}
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-1 rounded-full py-1 pr-2.5 pl-0.5 text-left transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          className="flex min-w-0 items-center gap-1 rounded-full py-1 pr-2.5 pl-0.5 text-left transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         >
-          <span>{t("line", { parts: summary })}</span>
+          <span className="truncate">{t("line", { parts: summary })}</span>
           <ChevronRight
             className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
           />

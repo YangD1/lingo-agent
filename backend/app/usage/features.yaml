@@ -357,8 +357,9 @@ features:
         default: {input_tokens: 500, output_tokens: 350}
 
   # The reading view of the chat workspace (ADR 0043 §4): "Translation" shows each
-  # paragraph's translation as it scrolls into view, one call per paragraph, kept
-  # with the document; switching back or reopening makes no call.
+  # paragraph's translation as it scrolls into view, and in the original a paragraph's
+  # button translates that one; one call per paragraph, kept with the document, so
+  # switching displays or reopening makes no call.
   workspace_translate:
     calls:
       - task: translate

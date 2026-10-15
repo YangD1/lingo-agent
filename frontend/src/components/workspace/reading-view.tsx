@@ -1,6 +1,6 @@
 "use client";
 
-import { ScanText, X } from "lucide-react";
+import { Languages, Loader2, ScanText, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Fragment, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
@@ -60,37 +60,46 @@ export function ReadingView({ doc }: { doc: WorkspaceDocDetail }) {
   const busy = useRef(false);
   const current = useRef(key);
 
+  // Every translation, scrolled to or asked for under a paragraph, lands in `found`: the
+  // other displays use it as it is.
+  const request = useCallback(
+    (batch: number[], done?: () => void) => {
+      batch.forEach((i) => pending.current.add(i));
+      const settle = (add: (map: Map<number, Translated>) => void) => {
+        // A newer version came in meanwhile: its paragraphs are other ones.
+        if (current.current !== key) return;
+        batch.forEach((i) => pending.current.delete(i));
+        done?.();
+        // The new state pumps the next batch (the effect below).
+        setTranslations((prev) => {
+          const map = new Map(prev.key === key ? prev.found : []);
+          add(map);
+          return { key, found: map };
+        });
+      };
+      translateParagraphs(doc.id, batch).then(
+        (result) =>
+          settle((map) => {
+            if (result.version !== doc.version) return;
+            result.translations.forEach((p) => map.set(p.index, { text: p.text }));
+          }),
+        (e: unknown) => {
+          const error = describe(e);
+          settle((map) => batch.forEach((i) => map.set(i, { error })));
+        },
+      );
+    },
+    [doc.id, doc.version, key, describe],
+  );
+
   const pump = useCallback(() => {
     if (busy.current) return;
     const done = new Set(translations.key === key ? translations.found.keys() : []);
     const batch = nextToTranslate(visible.current, done, pending.current);
     if (batch.length === 0) return;
     busy.current = true;
-    batch.forEach((i) => pending.current.add(i));
-    const settle = (add: (map: Map<number, Translated>) => void) => {
-      // A newer version came in meanwhile: its paragraphs are other ones.
-      if (current.current !== key) return;
-      batch.forEach((i) => pending.current.delete(i));
-      busy.current = false;
-      // The new state pumps the next batch (the effect below).
-      setTranslations((prev) => {
-        const map = new Map(prev.key === key ? prev.found : []);
-        add(map);
-        return { key, found: map };
-      });
-    };
-    translateParagraphs(doc.id, batch).then(
-      (result) =>
-        settle((map) => {
-          if (result.version !== doc.version) return;
-          result.translations.forEach((p) => map.set(p.index, { text: p.text }));
-        }),
-      (e: unknown) => {
-        const error = describe(e);
-        settle((map) => batch.forEach((i) => map.set(i, { error })));
-      },
-    );
-  }, [doc.id, doc.version, key, translations, describe]);
+    request(batch, () => (busy.current = false));
+  }, [key, translations, request]);
 
   // After each answer the next batch goes out; the observer below calls the latest pump.
   const latestPump = useRef(pump);
@@ -129,12 +138,28 @@ export function ReadingView({ doc }: { doc: WorkspaceDocDetail }) {
     };
   }, [display, key]);
 
-  const retry = (i: number) =>
+  // Asked for again straight away, whichever display (in the original no scrolling asks).
+  const retry = (i: number) => {
     setTranslations((prev) => {
       const map = new Map(prev.found);
       map.delete(i);
       return { key: prev.key, found: map };
     });
+    if (!pending.current.has(i)) request([i]);
+  };
+
+  // In the original, a paragraph's translation shown under it on request.
+  const [shown, setShown] = useState<{ key: string; at: Set<number> }>({ key, at: new Set() });
+  const shownAt = shown.key === key ? shown.at : new Set<number>();
+  const toggleTranslation = (i: number) => {
+    const at = new Set(shownAt);
+    if (at.has(i)) at.delete(i);
+    else {
+      at.add(i);
+      if (!found?.has(i) && !pending.current.has(i)) request([i]);
+    }
+    setShown({ key, at });
+  };
 
   // Sentence analyses, per version too.
   const [analyses, setAnalyses] = useState<Analyses>({ key, open: new Map() });
@@ -214,7 +239,17 @@ export function ReadingView({ doc }: { doc: WorkspaceDocDetail }) {
                       }
                     : undefined
                 }
+                translation={
+                  display === "original"
+                    ? { open: shownAt.has(i), toggle: () => toggleTranslation(i) }
+                    : undefined
+                }
               />
+              {display === "original" && shownAt.has(i) && (
+                <div className="mt-1.5 border-l-2 border-brand-soft pl-3">
+                  <TranslatedParagraph translated={translated} onRetry={() => retry(i)} />
+                </div>
+              )}
               {shadowingAt === i && (
                 <ShadowingPanel
                   sentences={shadowingSentences(text)}
@@ -249,11 +284,17 @@ export function ReadingView({ doc }: { doc: WorkspaceDocDetail }) {
 
 function TranslatedParagraph({ translated, onRetry }: { translated?: Translated; onRetry: () => void }) {
   const t = useTranslations("chat.workspace.reading");
+  // A model call takes a few seconds: a spinner and the lines the text will fill.
   if (!translated)
     return (
-      <p className="text-sm text-muted-foreground" data-testid="translation-pending">
-        {t("translating")}
-      </p>
+      <div role="status" className="flex flex-col gap-2 py-1" data-testid="translation-pending">
+        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Loader2 aria-hidden className="size-3.5 animate-spin" />
+          {t("translating")}
+        </span>
+        <span aria-hidden className="h-3 w-full animate-pulse rounded-full bg-muted" />
+        <span aria-hidden className="h-3 w-3/4 animate-pulse rounded-full bg-muted" />
+      </div>
     );
   if ("error" in translated)
     return (
@@ -283,6 +324,7 @@ function OriginalParagraph({
   onSentence,
   onRetry,
   shadowing,
+  translation,
 }: {
   text: string;
   analysing: boolean;
@@ -290,8 +332,11 @@ function OriginalParagraph({
   onSentence: (sentence: number, text: string) => void;
   onRetry: (sentence: number, text: string) => void;
   shadowing?: { open: boolean; toggle: () => void };
+  /** Only in the original: the other displays show every translation already. */
+  translation?: { open: boolean; toggle: () => void };
 }) {
   const t = useTranslations("speech.shadowing");
+  const tr = useTranslations("chat.workspace.reading");
   const sentences = sentencesOf(text);
   const runs: { from: number; to: number }[] = [];
   let from = 0;
@@ -351,14 +396,33 @@ function OriginalParagraph({
           );
         })}
       </div>
-      {canShadow && (
-        <ShadowingButton
-          compact
-          open={shadowing.open}
-          onToggle={shadowing.toggle}
-          label={t("openParagraph")}
-          className="mt-0.5 shrink-0"
-        />
+      {(canShadow || translation) && (
+        <div className="mt-0.5 flex shrink-0 flex-col gap-0.5">
+          {canShadow && (
+            <ShadowingButton
+              compact
+              open={shadowing.open}
+              onToggle={shadowing.toggle}
+              label={t("openParagraph")}
+            />
+          )}
+          {translation && (
+            <button
+              type="button"
+              aria-label={translation.open ? tr("hideTranslation") : tr("translateParagraph")}
+              title={translation.open ? tr("hideTranslation") : tr("translateParagraph")}
+              aria-expanded={translation.open}
+              onClick={translation.toggle}
+              data-testid="paragraph-translate"
+              className={cn(
+                "inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground/70 hover:bg-muted hover:text-foreground",
+                translation.open && "bg-muted text-foreground",
+              )}
+            >
+              <Languages aria-hidden className="size-3.5" />
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
