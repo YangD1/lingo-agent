@@ -4,11 +4,13 @@ Only the learner's own conversations and documents; the tutor opens and edits th
 through its tools (`app/cards/runtime.py`), not here.
 """
 
+import logging
 import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, status
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adaptive.kc.catalog import CefrLevel
@@ -16,9 +18,13 @@ from app.api.errors import api_error
 from app.chat import service as chat_service
 from app.chat.service import ConversationNotFoundError
 from app.db.models import Conversation, WorkspaceDoc, WorkspaceDocVersion
-from app.deps import CurrentTenant, CurrentUser, SessionDep
-from app.workspace import service
+from app.deps import CurrentTenant, CurrentUser, SessionDep, per_user
+from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
+from app.providers.tenant import load_provider_context
+from app.workspace import ai, service
 from app.workspace.service import Kind, WorkspaceError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["workspace"])
 
@@ -29,6 +35,8 @@ _STATUS = {
     service.DocNotFoundError: status.HTTP_404_NOT_FOUND,
     service.SourceNotFoundError: status.HTTP_404_NOT_FOUND,
     service.VersionConflictError: status.HTTP_409_CONFLICT,
+    ai.ParagraphNotFoundError: status.HTTP_404_NOT_FOUND,
+    ai.SentenceNotFoundError: status.HTTP_404_NOT_FOUND,
 }
 
 
@@ -237,3 +245,118 @@ async def rename_doc(
 @router.delete("/workspace/docs/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_doc(doc_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> None:
     await service.delete(session, await _doc(session, user, doc_id))
+
+
+def _no_model(exc: NoModelConfiguredError) -> Exception:
+    message = (
+        QUOTA_MESSAGE
+        if exc.code == "quota_exhausted"
+        else "No chat model is configured. Add one in Settings."
+    )
+    return api_error(status.HTTP_409_CONFLICT, exc.code, message)
+
+
+def _unavailable() -> Exception:
+    return api_error(
+        status.HTTP_502_BAD_GATEWAY, "llm_unavailable", "The model is unavailable right now."
+    )
+
+
+class TranslateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # Paragraphs of the current version, by position: those scrolled into view.
+    paragraphs: Annotated[list[int], Field(min_length=1, max_length=ai.MAX_PARAGRAPHS_PER_REQUEST)]
+
+
+class ParagraphTranslationOut(BaseModel):
+    index: int
+    text: str
+
+
+class TranslationsOut(BaseModel):
+    version: int
+    translations: list[ParagraphTranslationOut]
+
+
+@router.post("/workspace/docs/{doc_id}/translate", dependencies=[per_user("chat")])
+async def translate_doc(
+    doc_id: uuid.UUID,
+    body: TranslateIn,
+    user: CurrentUser,
+    tenant: CurrentTenant,
+    session: SessionDep,
+) -> TranslationsOut:
+    """Paragraphs in Chinese (ADR 0043 §4): made by a model the first time, then kept."""
+    doc = await _doc(session, user, doc_id)
+    ctx = await load_provider_context(session, tenant.id)
+    config: RunnableConfig = {"metadata": {"user_id": str(user.id)}}
+    try:
+        found = await ai.translate(session, ctx, doc, body.paragraphs, config)
+    except WorkspaceError as exc:
+        raise _error(exc) from exc
+    except NoModelConfiguredError as exc:
+        raise _no_model(exc) from exc
+    except Exception as exc:
+        # Details stay in the server log; vendor errors can echo input.
+        logger.exception("translating workspace document %s failed", doc_id)
+        raise _unavailable() from exc
+    return TranslationsOut(
+        version=doc.version,
+        translations=[ParagraphTranslationOut(index=i, text=t) for i, t in found.items()],
+    )
+
+
+class AnalyzeIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    paragraph: int
+    sentence: Annotated[str, Field(min_length=1, max_length=ai.MAX_SENTENCE_CHARS)]
+
+
+class ClauseOut(BaseModel):
+    text: str
+    role: str
+
+
+class PhraseOut(BaseModel):
+    text: str
+    meaning: str
+
+
+class AnalysisOut(BaseModel):
+    main: str
+    clauses: list[ClauseOut]
+    phrases: list[PhraseOut]
+    meaning: str
+    tip: str
+
+
+@router.post("/workspace/docs/{doc_id}/analyze", dependencies=[per_user("chat")])
+async def analyze_sentence(
+    doc_id: uuid.UUID,
+    body: AnalyzeIn,
+    user: CurrentUser,
+    tenant: CurrentTenant,
+    session: SessionDep,
+) -> AnalysisOut:
+    """How a sentence of the document is built (ADR 0043 §4), once per sentence."""
+    doc = await _doc(session, user, doc_id)
+    ctx = await load_provider_context(session, tenant.id)
+    config: RunnableConfig = {"metadata": {"user_id": str(user.id)}}
+    try:
+        found = await ai.analyze(session, ctx, doc, body.paragraph, body.sentence, config)
+    except WorkspaceError as exc:
+        raise _error(exc) from exc
+    except NoModelConfiguredError as exc:
+        raise _no_model(exc) from exc
+    except ai.AnalysisInvalidError as exc:
+        raise api_error(
+            status.HTTP_502_BAD_GATEWAY,
+            "analysis_invalid",
+            "The model's analysis didn't fit the sentence. Please try again.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("analysing a sentence of workspace document %s failed", doc_id)
+        raise _unavailable() from exc
+    return AnalysisOut.model_validate(found)
