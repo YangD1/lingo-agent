@@ -23,6 +23,7 @@ from app.prompts import load_prompt
 from app.providers.config import TenantProviderContext
 from app.providers.llm import get_structured_llm
 from app.workspace import service
+from app.workspace.markdown import contains, is_code, plain
 
 TRANSLATE_TASK = "translate"
 ANALYSIS_TASK = "sentence_analysis"
@@ -125,6 +126,10 @@ async def translate(
         raise ParagraphNotFoundError("no such paragraph")
     keys = {i: _key("zh", paragraphs[i]) for i in dict.fromkeys(indexes)}
     found = await _cached(session, doc.id, "translation", list(keys.values()))
+    # Q84c: a code block is shown as it is, never sent to the model.
+    for i, key in keys.items():
+        if is_code(paragraphs[i]):
+            found[key] = {"text": paragraphs[i]}
     missing = [i for i, key in keys.items() if key not in found]
     if missing:
         llm = get_structured_llm(ctx, TRANSLATE_TASK, Translation)
@@ -183,8 +188,9 @@ async def analyze(
     if not 0 <= paragraph < len(paragraphs):
         raise ParagraphNotFoundError("no such paragraph")
     sentence = _flat(sentence)
-    # Only text from the document: the endpoint is not a free analysis service.
-    if len(sentence) < 2 or sentence not in _flat(paragraphs[paragraph]):
+    # Only text from the document: the endpoint is not a free analysis service. The view
+    # sends a sentence of the block without its Markdown marks (Q84b).
+    if len(sentence) < 2 or not contains(paragraphs[paragraph], sentence):
         raise SentenceNotFoundError("the sentence is not in that paragraph")
     language = await explain_in(session, doc.user_id)
     key = _key(language, sentence)
@@ -194,7 +200,7 @@ async def analyze(
     llm = get_structured_llm(ctx, ANALYSIS_TASK, SentenceAnalysis)
     prompt = (
         f"Explanation language: {_LANGUAGES[language]}\n\n"
-        f"## Paragraph\n{paragraphs[paragraph]}\n\n## Sentence\n{sentence}"
+        f"## Paragraph\n{plain(paragraphs[paragraph])}\n\n## Sentence\n{sentence}"
     )
     result = await llm.ainvoke(
         [SystemMessage(load_prompt("sentence_analysis")), HumanMessage(prompt)], config=config

@@ -4,7 +4,9 @@ import {
   chatUrl,
   docFrom,
   type EditItem,
+  isCodeBlock,
   isStale,
+  isTableBlock,
   layoutFor,
   MAX_PARAGRAPHS_PER_REQUEST,
   MAX_QUOTE_CHARS,
@@ -12,8 +14,11 @@ import {
   offersWorkspace,
   PASTE_HINT_CHARS,
   pendingItems,
+  plainBlock,
+  plainOf,
   quoteBlock,
   sentencesOf,
+  unitsOf,
   withQuote,
   wordDiff,
   type WorkspaceDoc,
@@ -170,5 +175,41 @@ describe("pendingItems", () => {
   it("lists the undecided items, newest proposal first", () => {
     const edits = [edit("new", [item(0, "accepted"), item(1, "pending")]), edit("old", [item(0, "pending")])];
     expect(pendingItems(edits).map(({ edit, item }) => `${edit.id}:${item.index}`)).toEqual(["new:1", "old:0"]);
+  });
+});
+
+describe("Markdown blocks (task 84)", () => {
+  it("tells code and tables apart", () => {
+    expect(isCodeBlock("```js\nx()\n```")).toBe(true);
+    expect(isCodeBlock("~~~\nx\n~~~")).toBe(true);
+    expect(isCodeBlock("Use `x` here.")).toBe(false);
+    expect(isTableBlock("| a | b |\n| - | - |\n| 1 | 2 |")).toBe(true);
+    expect(isTableBlock("a | b")).toBe(false);
+  });
+
+  it("drops inline marks, but not what only looks like them", () => {
+    expect(plainOf("Trees give **shade** on [hot days](https://x.org), `really` ~~not~~ *so*.")).toBe(
+      "Trees give shade on hot days, really not so.",
+    );
+    expect(plainOf("snake_case and 2*3*4 stay, _this_ goes")).toBe("snake_case and 2*3*4 stay, this goes");
+  });
+
+  it("cuts a block into headings, list items, quotes and text", () => {
+    expect(unitsOf("## Why **it** matters")).toEqual([{ kind: "heading", level: 2, text: "Why it matters" }]);
+    expect(unitsOf("- Shade on hot days\n  - a **little**\n2) Water them\n   every week")).toEqual([
+      { kind: "item", level: 0, marker: "•", text: "Shade on hot days" },
+      { kind: "item", level: 1, marker: "•", text: "a little" },
+      // A line that only goes on belongs to the item before it.
+      { kind: "item", level: 0, marker: "2.", text: "Water them every week" },
+    ]);
+    expect(unitsOf("> Planting is cheap,\n> looking after it is not.")).toEqual([
+      { kind: "quote", level: 0, text: "Planting is cheap, looking after it is not." },
+    ]);
+    expect(unitsOf("Just text.")).toEqual([{ kind: "text", level: 0, text: "Just text." }]);
+  });
+
+  it("reads a block without its marks, and code not at all", () => {
+    expect(plainBlock("- One **thing**.\n- Another.")).toBe("One thing. Another.");
+    expect(plainBlock("```\nx\n```")).toBe("");
   });
 });

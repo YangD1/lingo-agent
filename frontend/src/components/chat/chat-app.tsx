@@ -24,6 +24,7 @@ import {
   createPasted,
   deleteDoc,
   docFrom,
+  listDocs,
   type DocSource,
   quoteBlock,
   useWorkspaceLayout,
@@ -211,11 +212,13 @@ export function ChatApp({
   }
 
   // The reading bar's article and writing_coach's reviewed text (ADR 0043 §3–4): opened
-  // again if this conversation already has it.
+  // again if this conversation already has it. The list is asked for afresh: the loaded one
+  // may not have arrived yet, and a stale one would make the document twice.
   async function openFrom(from: DocSource) {
-    const made = docFrom(workspace.docs, from);
-    if (made) return openDoc(made.id);
     if (!activeId) return;
+    const docs = await listDocs(activeId).catch(() => workspace.docs);
+    const made = docFrom(docs, from);
+    if (made) return openDoc(made.id);
     try {
       const doc = await createFrom(activeId, from);
       reloadDocs();

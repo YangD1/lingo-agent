@@ -259,4 +259,78 @@ describe("ReadingView (ADR 0043 §4)", () => {
     await userEvent.click(mics[0]);
     expect(screen.getByTestId("shadowing-panel")).toHaveTextContent("reading|7|The fox ran.|It was fast.");
   });
+
+  describe("Markdown (task 84)", () => {
+    const MD: WorkspaceDocDetail = {
+      ...DOC,
+      source: "paste",
+      source_ref: null,
+      content: {
+        paragraphs: [
+          "## Street trees",
+          "- Trees give **shade** on [hot days](https://x.org).\n- They clean the air.",
+          "```\nplant(tree)\n```",
+          "| City | Trees |\n| --- | --- |\n| Paris | 100 |",
+        ],
+      },
+    };
+
+    it("shows headings, lists, bold, links, code and tables, with words to look up", () => {
+      show(MD);
+      const text = screen.getByTestId("workspace-text");
+      expect(within(text).getByRole("heading", { level: 2 })).toHaveTextContent("Street trees");
+      expect(within(text).getAllByRole("listitem")).toHaveLength(2);
+      expect(within(text).getByText("shade").closest("strong")).not.toBeNull();
+      expect(within(text).getByText("shade")).toHaveAttribute("data-word", "shade");
+      expect(within(text).getByRole("link", { name: "hot days" })).toHaveAttribute("target", "_blank");
+      expect(within(text).getByRole("table")).toHaveTextContent("Paris");
+      // Code as it is: no words to look up, no translating it.
+      const code = text.querySelector("pre");
+      expect(code).toHaveTextContent("plant(tree)");
+      expect(code?.querySelector("[data-word]")).toBeNull();
+      expect(text.innerHTML).not.toContain("**");
+      expect(screen.getAllByRole("button", { name: "Translate this paragraph" })).toHaveLength(3);
+    });
+
+    it("translates every block but code, and shows the translation as Markdown", async () => {
+      api.mockImplementation((path: string, init: { json: { paragraphs: number[] } }) =>
+        Promise.resolve({
+          version: 1,
+          translations: init.json.paragraphs.map((index) => ({ index, text: `- **译文** ${index}` })),
+        }),
+      );
+      show(MD);
+      await userEvent.click(screen.getByRole("radio", { name: "Side by side" }));
+      // The code block is never watched, so never asked for.
+      expect(observer?.targets).toHaveLength(3);
+      inView(0, 1, 3);
+      await waitFor(() => expect(screen.getAllByTestId("translation")).toHaveLength(3));
+      expect(translateCalls()).toEqual([[0, 1, 3]]);
+      const first = screen.getAllByTestId("translation")[0];
+      expect(within(first).getByRole("listitem")).toHaveTextContent("译文 0");
+      expect(within(first).getByText("译文").tagName).toBe("STRONG");
+      // The code is still there, once.
+      expect(screen.getAllByText("plant(tree)")).toHaveLength(1);
+    });
+
+    it("keeps headings and list items while sentences are analysed, without the inline marks", async () => {
+      show(MD);
+      await userEvent.click(screen.getByRole("button", { name: "Analyse sentences" }));
+      const text = screen.getByTestId("workspace-text");
+      expect(within(text).getByRole("heading", { level: 2 })).toHaveTextContent("Street trees");
+      expect(text.querySelectorAll('[data-unit="item"]')).toHaveLength(2);
+      expect(text.querySelector('[data-unit="item"]')).toHaveAttribute("data-marker", "•");
+      // The table is not cut into sentences.
+      expect(within(text).getByRole("table")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Trees give shade on hot days." }));
+      expect(api).toHaveBeenCalledWith("/workspace/docs/d1/analyze", {
+        method: "POST",
+        json: { paragraph: 1, sentence: "Trees give shade on hot days." },
+      });
+      const card = await screen.findByTestId("sentence-analysis");
+      // Under its own item, the next item after it.
+      expect(card.parentElement).toHaveAttribute("data-unit", "item");
+      expect(card.parentElement?.nextElementSibling).toHaveTextContent("They clean the air.");
+    });
+  });
 });

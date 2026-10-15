@@ -178,6 +178,73 @@ export function nextToTranslate(
     .slice(0, MAX_PARAGRAPHS_PER_REQUEST);
 }
 
+// A reading document's paragraphs are Markdown blocks (task 84; how the backend cuts them:
+// backend/app/workspace/markdown.py).
+
+/** A fenced code block: shown as it is, never translated or analysed (Q84c). */
+export const isCodeBlock = (block: string) => /^\s{0,3}(`{3,}|~{3,})/.test(block);
+
+/** A table: translated whole, shown as a table, not cut into sentences. */
+export const isTableBlock = (block: string) => block.split("\n").every((line) => /^\s*\|/.test(line));
+
+const INLINE: [RegExp, string][] = [
+  [/!\[([^\]]*)\]\([^)]*\)/g, "$1"],
+  [/\[([^\]]+)\]\([^)]*\)/g, "$1"],
+  [/`([^`]*)`/g, "$1"],
+  [/(\*\*|__)(.+?)\1/g, "$2"],
+  [/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/g, "$1"],
+  [/(?<![\w_])_(?!\s)(.+?)(?<!\s)_(?![\w_])/g, "$1"],
+  [/~~(.+?)~~/g, "$1"],
+];
+
+/** One line's words without its inline marks (bold, links, code…). */
+export function plainOf(line: string): string {
+  return INLINE.reduce((text, [pattern, keep]) => text.replace(pattern, keep), line)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * What a block is made of when it is cut into sentences (Q84b): headings, list items and
+ * quotes keep their place; their inline marks are dropped. `marker` is a list item's
+ * number ("2.") or bullet.
+ */
+export type Unit = {
+  kind: "heading" | "item" | "quote" | "text";
+  level: number;
+  marker?: string;
+  text: string;
+};
+
+export function unitsOf(block: string): Unit[] {
+  const units: Unit[] = [];
+  for (const line of block.split("\n")) {
+    if (!line.trim()) continue;
+    const heading = /^\s{0,3}(#{1,6})\s+(.*)$/.exec(line);
+    const item = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/.exec(line);
+    const quote = /^\s{0,3}>\s?(.*)$/.exec(line);
+    const last = units.at(-1);
+    if (heading) units.push({ kind: "heading", level: heading[1].length, text: plainOf(heading[2]) });
+    else if (item)
+      units.push({
+        kind: "item",
+        level: Math.floor(item[1].length / 2),
+        marker: /\d/.test(item[2]) ? item[2].replace(")", ".") : "•",
+        text: plainOf(item[3]),
+      });
+    else if (quote && last?.kind === "quote") last.text = `${last.text} ${plainOf(quote[1])}`.trim();
+    else if (quote) units.push({ kind: "quote", level: 0, text: plainOf(quote[1]) });
+    // A line that only goes on: part of the item, quote or text before it.
+    else if (last && last.kind !== "heading") last.text = `${last.text} ${plainOf(line)}`.trim();
+    else units.push({ kind: "text", level: 0, text: plainOf(line) });
+  }
+  return units.filter((unit) => unit.text);
+}
+
+/** A block's words without its marks: what shadowing reads. */
+export const plainBlock = (block: string) =>
+  isCodeBlock(block) ? "" : unitsOf(block).map((unit) => unit.text).join(" ");
+
 /**
  * A paragraph cut into sentences, each with the space after it, so that they join back
  * into the paragraph. A stop ends a sentence only before a space ("3.5", "e.g.x" don't).

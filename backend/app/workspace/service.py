@@ -5,7 +5,6 @@ version, except a learner's edits within a few minutes of their last version, wh
 update it in place (Q83f), so typing does not leave a version per pause.
 """
 
-import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -26,6 +25,7 @@ from app.db.models import (
 from app.services.news import feeds
 from app.services.news.clean import count_words
 from app.services.news.feeds import FeedError
+from app.workspace.markdown import blocks_of, plain
 from app.writing.text import MAX_CHARS as MAX_WRITING_CHARS
 
 type Kind = Literal["reading", "writing"]
@@ -84,9 +84,8 @@ class Text:
 
 
 def paragraphs_of(text: str) -> list[str]:
-    """Blocks separated by blank lines; a line break alone joins the lines."""
-    blocks = re.split(r"\n\s*\n", text.replace("\r\n", "\n").strip())
-    return [re.sub(r"\s+", " ", b).strip() for b in blocks if b.strip()]
+    """Blocks separated by blank lines, keeping their Markdown (`markdown.blocks_of`)."""
+    return blocks_of(text)
 
 
 def _cut(paragraphs: list[str]) -> tuple[list[str], bool]:
@@ -101,7 +100,7 @@ def _title(title: str | None, text: str) -> str:
     title = " ".join((title or "").split())
     if title:
         return title[:MAX_TITLE_LENGTH]
-    first = " ".join(text.split())
+    first = plain(text) or " ".join(text.split())
     if len(first) <= DERIVED_TITLE_LENGTH:
         return first
     return first[:DERIVED_TITLE_LENGTH].rsplit(" ", 1)[0] + "…"

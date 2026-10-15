@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Fragment, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
+import { Markdown } from "@/components/chat/markdown";
 import { WordPopup } from "@/components/chat/word-popup";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { ShadowingButton } from "@/components/speech/shadowing-button";
@@ -16,12 +17,17 @@ import { shadowingSentences, useShadowingMode } from "@/lib/shadowing";
 import { cn } from "@/lib/utils";
 import {
   type ReadingDisplay,
+  type Unit,
   type SentenceAnalysis,
   type WorkspaceDocDetail,
   analyzeSentence,
+  isCodeBlock,
+  isTableBlock,
   nextToTranslate,
+  plainBlock,
   sentencesOf,
   translateParagraphs,
+  unitsOf,
 } from "@/lib/workspace";
 
 type Translated = { text: string } | { error: string };
@@ -222,6 +228,13 @@ export function ReadingView({ doc }: { doc: WorkspaceDocDetail }) {
       )}
       <div ref={container} className="@container flex flex-col gap-4 text-[15px] leading-7" data-testid="workspace-text">
         {paragraphs.map((text, i) => {
+          // Code as it is, once, whatever the display (Q84c); never in view for translating.
+          if (isCodeBlock(text))
+            return (
+              <div key={`${key}:${i}`} data-code-block={i} lang="en" className="min-w-0">
+                <Markdown>{text}</Markdown>
+              </div>
+            );
           const translated = found?.get(i);
           const original = (
             <div lang="en" className="min-w-0">
@@ -232,7 +245,7 @@ export function ReadingView({ doc }: { doc: WorkspaceDocDetail }) {
                 onSentence={(s, sentence) => toggleSentence(i, s, sentence)}
                 onRetry={(s, sentence) => loadSentence(i, s, sentence)}
                 shadowing={
-                  shadowable
+                  shadowable && !isTableBlock(text)
                     ? {
                         open: shadowingAt === i,
                         toggle: () => setShadowing(shadowingAt === i ? null : { key, at: i }),
@@ -252,7 +265,7 @@ export function ReadingView({ doc }: { doc: WorkspaceDocDetail }) {
               )}
               {shadowingAt === i && (
                 <ShadowingPanel
-                  sentences={shadowingSentences(text)}
+                  sentences={shadowingSentences(plainBlock(text))}
                   source="reading"
                   sourceId={shadowingSource}
                   onClose={() => setShadowing(null)}
@@ -305,17 +318,17 @@ function TranslatedParagraph({ translated, onRetry }: { translated?: Translated;
         </Button>
       </p>
     );
+  // Markdown, with the marks the original has (the prompt keeps them).
   return (
-    <p lang="zh-CN" className="text-muted-foreground" data-testid="translation">
-      {translated.text}
-    </p>
+    <div lang="zh-CN" className="text-muted-foreground" data-testid="translation">
+      <Markdown>{translated.text}</Markdown>
+    </div>
   );
 }
 
 /**
- * The paragraph's sentences, each a run of words. An open analysis goes under its sentence,
- * splitting the paragraph there, so the text around it stays in `<p>`s (the word popup finds
- * a word's sentence in its `<p>`).
+ * A block of the original (task 84). As Markdown, its words open the word popup; while a
+ * sentence is tapped or analysed it is cut into sentences instead (`Units`).
  */
 function OriginalParagraph({
   text,
@@ -337,64 +350,35 @@ function OriginalParagraph({
 }) {
   const t = useTranslations("speech.shadowing");
   const tr = useTranslations("chat.workspace.reading");
-  const sentences = sentencesOf(text);
-  const runs: { from: number; to: number }[] = [];
-  let from = 0;
-  sentences.forEach((_, s) => {
-    if (open(s) || s === sentences.length - 1) {
-      runs.push({ from, to: s + 1 });
-      from = s + 1;
-    }
-  });
-  const canShadow = shadowing && shadowingSentences(text).length > 0;
+  // Each unit's sentences, numbered through the block.
+  let next = 0;
+  const units = isTableBlock(text)
+    ? []
+    : unitsOf(text).map((unit) => ({
+        unit,
+        sentences: sentencesOf(unit.text).map((sentence) => ({ s: next++, text: sentence })),
+      }));
+  const cut = analysing || units.some(({ sentences }) => sentences.some(({ s }) => open(s)));
+  const canShadow = shadowing && shadowingSentences(plainBlock(text)).length > 0;
 
   return (
     <div className="flex items-start gap-1">
       <div className="min-w-0 flex-1">
-        {runs.map((run) => {
-          const last = sentences[run.to - 1];
-          const analysis = open(run.to - 1);
-          return (
-            <Fragment key={run.from}>
-              <p className="my-0">
-                {sentences.slice(run.from, run.to).map((sentence, k) => {
-                  const s = run.from + k;
-                  return analysing ? (
-                    <span
-                      key={s}
-                      role="button"
-                      tabIndex={0}
-                      aria-expanded={Boolean(open(s))}
-                      data-sentence={s}
-                      onClick={() => onSentence(s, sentence)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          onSentence(s, sentence);
-                        }
-                      }}
-                      className={cn(
-                        "cursor-pointer rounded-sm transition-colors hover:bg-brand-soft focus-visible:bg-brand-soft focus-visible:outline-none",
-                        open(s) && "bg-brand-soft",
-                      )}
-                    >
-                      {sentence}
-                    </span>
-                  ) : (
-                    <Words key={s} text={sentence} highlighted={Boolean(open(s))} />
-                  );
-                })}
-              </p>
-              {analysis && (
-                <AnalysisCard
-                  analysis={analysis}
-                  onClose={() => onSentence(run.to - 1, last)}
-                  onRetry={() => onRetry(run.to - 1, last)}
-                />
-              )}
-            </Fragment>
-          );
-        })}
+        {cut && units.length > 0 ? (
+          units.map(({ unit, sentences }, u) => (
+            <UnitView
+              key={u}
+              unit={unit}
+              sentences={sentences}
+              analysing={analysing}
+              open={open}
+              onSentence={onSentence}
+              onRetry={onRetry}
+            />
+          ))
+        ) : (
+          <Markdown words>{text}</Markdown>
+        )}
       </div>
       {(canShadow || translation) && (
         <div className="mt-0.5 flex shrink-0 flex-col gap-0.5">
@@ -424,6 +408,99 @@ function OriginalParagraph({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+const HEADING_SIZE = ["", "text-xl", "text-lg", "text-base"];
+
+/**
+ * A heading, list item, quote or run of text cut into sentences, its marks dropped (Q84b).
+ * An open analysis goes under its sentence, splitting the unit there, so the text around
+ * it stays in `<p>`s (the word popup finds a word's sentence in its `<p>`).
+ */
+function UnitView({
+  unit,
+  sentences,
+  analysing,
+  open,
+  onSentence,
+  onRetry,
+}: {
+  unit: Unit;
+  sentences: { s: number; text: string }[];
+  analysing: boolean;
+  open: (sentence: number) => Analysis | undefined;
+  onSentence: (sentence: number, text: string) => void;
+  onRetry: (sentence: number, text: string) => void;
+}) {
+  const runs: { s: number; text: string }[][] = [];
+  let run: { s: number; text: string }[] = [];
+  sentences.forEach((sentence, k) => {
+    run.push(sentence);
+    if (open(sentence.s) || k === sentences.length - 1) {
+      runs.push(run);
+      run = [];
+    }
+  });
+  const heading = unit.kind === "heading";
+
+  return (
+    <div
+      role={heading ? "heading" : undefined}
+      aria-level={heading ? unit.level : undefined}
+      className={cn(
+        heading && cn("mt-3 mb-1 font-semibold first:mt-0", HEADING_SIZE[unit.level] ?? ""),
+        unit.kind === "item" && "relative pl-5 before:absolute before:left-0 before:text-muted-foreground before:content-[attr(data-marker)]",
+        unit.kind === "quote" && "my-1 rounded-md bg-muted px-3 py-1",
+      )}
+      style={unit.kind === "item" ? { marginLeft: `${unit.level * 1.25}rem` } : undefined}
+      data-marker={unit.marker}
+      data-unit={unit.kind}
+    >
+      {runs.map((sentencesOfRun) => {
+        const last = sentencesOfRun[sentencesOfRun.length - 1];
+        const analysis = open(last.s);
+        return (
+          <Fragment key={sentencesOfRun[0].s}>
+            <p className="my-0">
+              {sentencesOfRun.map(({ s, text: sentence }) =>
+                analysing ? (
+                  <span
+                    key={s}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={Boolean(open(s))}
+                    data-sentence={s}
+                    onClick={() => onSentence(s, sentence)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSentence(s, sentence);
+                      }
+                    }}
+                    className={cn(
+                      "cursor-pointer rounded-sm transition-colors hover:bg-brand-soft focus-visible:bg-brand-soft focus-visible:outline-none",
+                      open(s) && "bg-brand-soft",
+                    )}
+                  >
+                    {sentence}
+                  </span>
+                ) : (
+                  <Words key={s} text={sentence} highlighted={Boolean(open(s))} />
+                ),
+              )}
+            </p>
+            {analysis && (
+              <AnalysisCard
+                analysis={analysis}
+                onClose={() => onSentence(last.s, last.text)}
+                onRetry={() => onRetry(last.s, last.text)}
+              />
+            )}
+          </Fragment>
+        );
+      })}
     </div>
   );
 }

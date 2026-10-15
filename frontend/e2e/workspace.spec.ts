@@ -127,6 +127,63 @@ test("a pasted article is read closely: translation, sentence analysis, a quote 
   await expect(workspace(page)).toBeVisible();
 });
 
+// A Markdown article (task 84): headings, a list, bold, a link, a table, code and a quote.
+const MARKDOWN = [
+  "# Street trees",
+  "Cities around the world are planting more trees along their **busy streets**. The trees give shade on hot days and make the air a little [cleaner](https://example.com). Many people say the streets also feel calmer than before.",
+  "## What a tree needs",
+  "- Water every week during its first summers\n- Someone to check it for damage\n- A family nearby to adopt it",
+  "| City | Trees planted |\n| --- | --- |\n| Paris | 100 |\n| Milan | 80 |",
+  "```\nplant(tree, street)\n```",
+  "> Planting a tree is cheap, but looking after it is not.",
+  "Not everyone is happy about the new trees. Some shop owners worry that the branches will hide their signs, and drivers complain about leaves on the road in autumn.",
+  "Scientists are still measuring how much cooler a street with trees can be. Early results show a difference of several degrees in the afternoon, and the researchers hope the numbers will help other towns decide where to plant next.",
+].join("\n\n");
+
+test("a pasted Markdown article reads as Markdown: headings, lists, bold, tables and code kept", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await page.goto("/chat");
+
+  await paste(input(page), MARKDOWN);
+  await page.getByTestId("paste-hint").getByRole("button", { name: "在工作区精读" }).click();
+  const text = page.getByTestId("workspace-text");
+  await expect(text.getByRole("heading", { level: 1, name: "Street trees" })).toBeVisible();
+  await expect(text.getByRole("heading", { level: 2, name: "What a tree needs" })).toBeVisible();
+  await expect(text.getByRole("listitem")).toHaveCount(3);
+  await expect(text.locator("strong", { hasText: "busy streets" })).toBeVisible();
+  await expect(text.getByRole("link", { name: "cleaner" })).toHaveAttribute("href", "https://example.com");
+  await expect(text.getByRole("table")).toContainText("Milan");
+  await expect(text.locator("pre")).toHaveText("plant(tree, street)");
+  await expect(text).not.toContainText("**");
+  // Every block but the code can be translated.
+  await expect(page.getByTestId("paragraph-translate")).toHaveCount(8);
+
+  // The list's translation sits under the list.
+  const list = text.locator("[data-paragraph]").filter({ has: page.getByRole("list") });
+  await list.getByTestId("paragraph-translate").click();
+  await expect(list.getByTestId("translation")).toContainText("译文");
+
+  // Side by side, the code is shown once and never translated.
+  await page.getByRole("radio", { name: "对照" }).click();
+  await expect(page.getByTestId("translation").first()).toBeVisible();
+  await text.getByText("Not everyone is happy").scrollIntoViewIfNeeded(); // translated as they come into view
+  await expect(page.getByTestId("translation")).toHaveCount(8);
+  await expect(text.locator("pre")).toHaveCount(1);
+  await page.screenshot({ path: test.info().outputPath("workspace-markdown-side.png") });
+  await page.getByRole("radio", { name: "原文" }).click();
+
+  // Sentence analysis keeps the headings and the list items, without the marks.
+  await page.getByTestId("reading-analyse").click();
+  await expect(text.getByRole("heading", { level: 2, name: "What a tree needs" })).toBeVisible();
+  await expect(text.locator('[data-unit="item"]')).toHaveCount(3);
+  const sentence = text.locator("[data-sentence]", { hasText: "Cities around the world are planting more trees" });
+  await expect(sentence).toHaveText(/along their busy streets\./);
+  await sentence.click();
+  await expect(page.getByTestId("sentence-analysis")).toContainText("Cities around the");
+  await page.screenshot({ path: test.info().outputPath("workspace-markdown-analyse.png") });
+});
+
 test("the tutor opens the learner's writing, proposes edits; one accepted, one declined, then reverted", async ({
   page,
 }) => {

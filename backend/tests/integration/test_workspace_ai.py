@@ -31,13 +31,13 @@ class FakeTranslator(FakeStructured):
         return Translation(text="译 " + str(messages[-1].content).split("\n", 1)[1])
 
 
-async def open_doc(client: AsyncClient, kind: str = "reading") -> str:
+async def open_doc(client: AsyncClient, kind: str = "reading", text: str = TEXT) -> str:
     await login(client)
     await connect(client, "deepseek")
     conversation_id = await new_conversation(client)
     response = await client.post(
         f"/conversations/{conversation_id}/workspace",
-        json={"kind": kind, "source": "paste", "text": TEXT},
+        json={"kind": kind, "source": "paste", "text": text},
     )
     doc_id: str = response.json()["id"]
     return doc_id
@@ -214,3 +214,48 @@ async def test_an_empty_analysis_is_not_kept(
     assert response.status_code == 502
     assert response.json()["detail"]["code"] == "analysis_invalid"
     assert await db_session.scalar(select(func.count()).select_from(WorkspaceAnnotation)) == 0
+
+
+MARKDOWN = (
+    "## Street trees\n"
+    "- Trees give **shade** on [hot days](https://example.com).\n"
+    "- They clean the air.\n\n"
+    "```\nplant(tree)\n```"
+)
+
+
+async def test_a_markdown_paste_keeps_its_blocks(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc_id = await open_doc(client, text=MARKDOWN)
+    doc = (await client.get(f"/workspace/docs/{doc_id}")).json()
+    assert doc["title"] == "Street trees"
+    assert doc["content"]["paragraphs"] == [
+        "## Street trees",
+        "- Trees give **shade** on [hot days](https://example.com).\n- They clean the air.",
+        "```\nplant(tree)\n```",
+    ]
+
+    # Translated with its marks (the prompt says to keep them); a code block as it is,
+    # with no call (Q84c).
+    fake = FakeTranslator()
+    monkeypatch.setattr(ai, "get_structured_llm", fake)
+    translations = (await translate(client, doc_id, 1, 2)).json()["translations"]
+    assert translations[0]["text"].startswith("译 - Trees give **shade**")
+    assert translations[1] == {"index": 2, "text": "```\nplant(tree)\n```"}
+    assert fake.calls == 1
+    assert "keep every mark" in ai.load_prompt("workspace_translate")
+
+
+async def test_a_sentence_of_a_markdown_block_is_analysed_without_its_marks(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc_id = await open_doc(client, text=MARKDOWN)
+    fake = FakeStructured(ANALYSIS)
+    monkeypatch.setattr(ai, "get_structured_llm", fake)
+    # The view sends the sentence as shown in analysis mode: no marks (Q84b).
+    response = await analyze(client, doc_id, "Trees give shade on hot days.", paragraph=1)
+    assert response.status_code == 200, response.text
+    assert "## Paragraph\nTrees give shade on hot days. They clean the air.\n" in fake.prompts[0]
+    # Not a way round the check.
+    assert (await analyze(client, doc_id, "Trees give hot days.", paragraph=1)).status_code == 404

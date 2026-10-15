@@ -4,6 +4,29 @@
 
 ---
 
+## 2026-10-15 任务 84：工作区 Markdown 渲染；任务 85 已规划
+
+**做了什么**：
+- 后端 `backend/app/workspace/markdown.py`（新）：`blocks_of`（标题单独成块，列表 / 引用 / 表格保留换行，围栏代码块连空行原样保留，普通段落折行合并）、`is_code`、`plain`（去掉标记的纯文字）、`contains`（按词序匹配句子）。`service.paragraphs_of` 改用 `blocks_of`，`_title` 用 `plain`；`ai.translate` 代码块不调模型原样返回，`ai.analyze` 用 `contains` / `plain`；翻译提示词要求保留 Markdown 标记和换行。
+- 前端 `lib/workspace.ts`：`isCodeBlock` / `isTableBlock` / `plainOf` / `unitsOf` / `plainBlock`；`reading-view.tsx` 原文和译文都用 `Markdown`（原文带 `words` 可查词），点句分析时用 `UnitView` 按标题 / 列表项 / 引用切句；代码块不进翻译观察、不查词、不跟读；表格不跟读不切句。
+- 测试：pytest +7（单元 5、集成 2），Vitest +7，E2E +1（`e2e/workspace.spec.ts` 粘贴 Markdown 文章：标题、列表、粗体、链接、表格、代码、引用，按段翻译、对照、点句分析）。全量 pytest 1900、E2E 87 全过，lint 干净。
+- 修了一个偶发失败（也是产品竞态）：`chat-app.tsx` `openFrom` 原来用已加载的文档列表判断“开过没有”，列表没到时会重复建文档；改为先 `listDocs` 取最新列表。
+- 文档：ADR 0043 §4 加 Markdown 一条，PLAN、agent-tools 同步。
+- 任务 85（粘贴时理解 HTML 和 Markdown）已拆成 85.1–85.4 写进看板，Q85a–c 用户按推荐确认，**子任务拆分还没请用户确认**。
+
+**未完成**：
+- 84.3：再跑一次全量 Vitest（单份！）确认 `openFrom` 修复；`use-attachments.test.ts` “keeps a failed upload so it can be retried” 在全量时偶发失败过一次，单独跑 / 全量重跑都没复现，原因未查明；Docker 重建（先后端再前端）；看板标 `[x]`、改“当前阶段”；提交。
+- 已存的旧精读文档换行已被合并，需重新粘贴才能看到 Markdown 效果。
+
+**下一步**：收尾 84 → 请用户确认 85 拆分 → 85.1。
+
+**踩坑**：
+- **WSL 崩溃**：为复现偶发失败同时起了 3 份全量 Vitest，WSL（8GB）被撑爆。全量测试一次只跑一份，按顺序跑，不和 Docker 构建同时跑。
+- 精读译文是滚到哪翻到哪，E2E 数译文前要先滚到最后一段。
+- 输入框粘贴提示要求超过 800 字，E2E 文章别写太短。
+
+---
+
 ## 2026-10-15 任务 83.10：用户反馈（“做了什么”窄列样式、原文按段翻译）
 
 **做了什么**：
