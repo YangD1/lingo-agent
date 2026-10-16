@@ -1248,6 +1248,7 @@
     - 完成（迁移 head `a6d5d0cbe419`：`tutor_cards.status` 加 `withdrawn`，新列 `withdrawn_reason`）：`cards/tools.py` `WithdrawCard`；`cards/service.py` `withdraw_card`（按本会话的 `tool_call_id` 找卡、锁卡和题组、有作答或已 in_progress / done 拒绝、已应用 / 拒绝 / 撤销的拒绝、题组 `failed` + `withdrawn`）；`cards/runtime.py` `_withdraw`，提交后调 `PracticeWorker.cancel`；工具结果和卡片列表带 `card <调用 id>`；`tutor_tools.md` 加说明；活动记 `withdraw_card`。pytest `test_withdraw_card.py` 4 个 + worker 1 个，相关 288 过，ruff、mypy（app）干净。
   - [x] 92.2 前端：撤回的卡收起成一行（原因，可展开原内容），“应用”不可点；“做了什么”显示撤回。测试：Vitest（撤回卡显示、按钮）。
     - 完成：`tutor-cards.tsx` `Withdrawn`（虚线框一行“私教撤回了这张卡：原因”，“看原内容”展开原卡、按钮全无；测验卡只显示标题，不加载题）；`CardStatus` 加 `withdrawn`；`chat-app.tsx` 撤回的工作区卡不再打开 / 收起工作区；“做了什么”分开计“撤回了 n 张卡片”、明细“撤回了卡片：…”。Vitest chat + activity 167 过，typecheck、eslint 干净。
-  - [~] 92.3 E2E：假模型同一轮先出测验卡再撤回，卡变成已撤回、题不再出现。理由：跨前后端主流程。
-  - [ ] 92.4 收尾：ADR 0049、`docs/agent-tools.md`、PLAN；受影响层全量、lint、Docker 重建、交接记录。
+  - [x] 92.3 E2E：假模型同一轮先出测验卡再撤回，卡变成已撤回、题不再出现。理由：跨前后端主流程。
+    - 完成：`fake_llm.py` 学习者说“又不想做了”时，出测验卡后按工具结果里的 `(card call_…)` 调 `withdraw_card`；`quiz-chat.spec.ts` 新增一条（撤回卡显示原因、无题、“撤回了 1 张卡片”、看原内容、刷新后仍撤回）。quiz-chat 2 过。
+  - [~] 92.4 收尾：ADR 0049、`docs/agent-tools.md`、PLAN；受影响层全量、lint、Docker 重建、交接记录。
 - [ ] 任务 93：流式调用的用量记账被逐块累加（硅基流动每块都带累计用量，出题一次记上亿 token），核实后修正并纠正已有记录。

@@ -105,6 +105,10 @@ QUIZ_ME = re.compile(r"测验|quiz me", re.IGNORECASE)
 LESSON_POINT = re.compile(r"grammar point id ([\w.]+)\)")
 # Free chat asking for questions: no id in the context, so the point goes by name (ADR 0046).
 TEST_ME = re.compile(r"出点题")
+# Asks for questions, then changes their mind in the same message: the tutor gives the
+# quiz card, then takes it back in the same turn (ADR 0049), naming it as its result does.
+CHANGED_MIND = re.compile(r"又不想做了")
+CARD_REF = re.compile(r"\(card (call_\w+)\)")
 PROPOSED_PLAN = {
     "review": 0,
     "new_words": 3,
@@ -602,7 +606,14 @@ def tutor_tool_call(
 ) -> tuple[str, dict[str, Any]] | None:
     """The tool the tutor calls this time, if any: only right after a learner message."""
     names = {t["function"]["name"] for t in tools}
-    if "propose_word_book" not in names or not messages or messages[-1]["role"] != "user":
+    if "propose_word_book" not in names or not messages:
+        return None
+    if messages[-1]["role"] == "tool" and "withdraw_card" in names:
+        said = next(text_of(m["content"]) for m in reversed(messages) if m["role"] == "user")
+        given = CARD_REF.match(text_of(messages[-1]["content"]))
+        if CHANGED_MIND.search(said) and given:
+            return "withdraw_card", {"card": given.group(1), "reason": "你改主意了"}
+    if messages[-1]["role"] != "user":
         return None
     said = text_of(messages[-1]["content"])
     if "open_workspace" in names and OPEN_WORKSPACE.search(said):
