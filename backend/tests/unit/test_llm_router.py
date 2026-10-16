@@ -15,7 +15,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field, SecretStr
 
 from app.providers import llm
-from app.providers.clients import GuardedChatAnthropic
+from app.providers.clients import GuardedChatAnthropic, UsageOnceChatOpenAI
 from app.providers.config import ResolvedModel
 from tests.unit.provider_fixtures import TENANT, conn, make_config, make_ctx
 
@@ -168,7 +168,11 @@ def resolved(kind: Any, connection: str, model: str, **extra: Any) -> ResolvedMo
 
 @pytest.mark.parametrize(
     ("kind", "cls"),
-    [("deepseek", ChatDeepSeek), ("anthropic", GuardedChatAnthropic), ("openai", ChatOpenAI)],
+    [
+        ("deepseek", ChatDeepSeek),
+        ("anthropic", GuardedChatAnthropic),
+        ("openai", UsageOnceChatOpenAI),
+    ],
 )
 def test_build_chat_model_picks_integration(kind: str, cls: type[BaseChatModel]) -> None:
     model = llm.build_chat_model(resolved(kind, kind, "some-model"), task="chat")
@@ -243,7 +247,7 @@ def test_get_llm_builds_chain_from_tenant_connections(monkeypatch: pytest.Monkey
     chain = llm.get_llm(make_ctx(conn("deepseek"), conn("openai")), "default")
     assert isinstance(chain, RunnableWithFallbacks)
     assert isinstance(chain.runnable, ChatDeepSeek)
-    assert [type(f) for f in chain.fallbacks] == [ChatOpenAI]
+    assert [type(f) for f in chain.fallbacks] == [UsageOnceChatOpenAI]
 
     only_openai = llm.get_llm(make_ctx(conn("openai"), version="v2"), "default")
     assert isinstance(only_openai, ChatOpenAI)

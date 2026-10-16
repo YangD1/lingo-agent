@@ -1252,4 +1252,9 @@
     - 完成：`fake_llm.py` 学习者说“又不想做了”时，出测验卡后按工具结果里的 `(card call_…)` 调 `withdraw_card`；`quiz-chat.spec.ts` 新增一条（撤回卡显示原因、无题、“撤回了 1 张卡片”、看原内容、刷新后仍撤回）。quiz-chat 2 过。
   - [x] 92.4 收尾：ADR 0049、`docs/agent-tools.md`、PLAN；受影响层全量、lint、Docker 重建、交接记录。
     - 完成：ADR 0049 新增，`agent-tools.md`（工具表、活动表、卡片状态、下一轮可见）和 PLAN 同步；pytest 2062、Vitest 898、E2E 93 全过；`make lint` 干净；Docker 先后端再前端重建，迁移 head `a6d5d0cbe419`，`/api/healthz` 200。
-- [ ] 任务 93：流式调用的用量记账被逐块累加（硅基流动每块都带累计用量，出题一次记上亿 token），核实后修正并纠正已有记录。
+- [~] 任务 93：流式调用的用量记账被逐块累加（硅基流动每块都带累计用量，出题一次记上亿 token），核实后修正并纠正已有记录。
+  - 核实（2026-10-16）：开发库只有 2 行异常，都是 `siliconflow` `DeepSeek-V4.1-Flash` 的 `exercise_generate`（#443、#447）。按“每块带累计用量、langchain 把各块相加”反推：#443 = 16796 块 × 输入 4920，输出累加 ≈ 16796²/2，两项都对得上（#447 ≈ 22872 块、输入 5005）。真实用量约 #443 输入 4920 / 输出约 16.8k，#447 输入 5005 / 输出约 22.9k。审题、反思等非流式调用正常。`chat/turn.py` 的流式回复也是逐块相加，同样受影响（只是回复短，没那么显眼）。
+  - [x] 93.1 provider 层：OpenAI 兼容的流式调用不再逐块相加用量，改成每个字段取各块里的最大值，在流结束时只交出一次（累计式取到最后一块；OpenAI 式只有末块带用量，结果不变；输入、输出分在两块的也对）。只改 OpenAI 兼容这一类（`ChatOpenAI` 子类覆盖 `_astream`），Anthropic 等不动。测试：pytest（假 SSE：每块带累计用量 → 只记一次真实值；OpenAI 式末块；输入输出分块；`chat/turn.py` 流式回复的计数）。
+    - 完成：`providers/clients.py` `UsageOnceChatOpenAI` 覆盖 `_astream`：各块的用量先拿掉，每个字段取最大值，流结束时补一块只带用量的空块；`build_chat_model` 对 `openai` / `openai_compatible` 直接建它（DeepSeek 官方、Anthropic、Gemini 不变）。langchain-core 调 `_astream` 后才触发回调和拼最终消息，所以记账（`on_llm_end`）和 `chat/turn.py` 的流式计数都只看到一次。`tests/unit/test_streamed_usage.py` 6 个（去掉修复时累计式 3 个失败），`test_llm_router.py` 两处改认子类；unit 1198、对话相关 integration 88 过。
+  - [~] 93.2 纠正已有记录：开发库的 #443、#447 改成上面反推的值（只动这 2 行）。不写迁移：别的部署无法可靠识别哪些行被放大。测试：无（一次性 SQL，改前改后各查一次）。
+  - [ ] 93.3 收尾：受影响层全量 pytest（不动前端）、lint、Docker 重建后端、交接记录。不写 ADR（修 bug，不改设计）。

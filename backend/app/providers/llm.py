@@ -22,7 +22,7 @@ from langchain_core.runnables import Runnable, RunnableConfig, RunnableLambda
 from pydantic import BaseModel, ValidationError
 
 from app.providers.cache import TTLCache
-from app.providers.clients import GuardedChatAnthropic
+from app.providers.clients import GuardedChatAnthropic, UsageOnceChatOpenAI
 from app.providers.config import (
     REASONING_PARAM,
     ProvidersConfig,
@@ -94,11 +94,17 @@ def build_chat_model(
     if resolved.kind == "anthropic":
         return GuardedChatAnthropic(model=resolved.model, **kwargs).with_http_client(http_client)
 
-    # openai_compatible is just the OpenAI client pointed at another base_url.
-    model_provider = "openai" if resolved.kind == "openai_compatible" else resolved.kind
+    if resolved.kind in ("openai", "openai_compatible"):
+        # openai_compatible is just the OpenAI client pointed at another base_url.
+        return UsageOnceChatOpenAI(
+            model=resolved.model,
+            http_async_client=http_client,
+            http_client=make_blocked_sync_client(),
+            **kwargs,
+        )
     model = init_chat_model(
         resolved.model,
-        model_provider=model_provider,
+        model_provider=resolved.kind,
         http_async_client=http_client,
         http_client=make_blocked_sync_client(),
         **kwargs,
