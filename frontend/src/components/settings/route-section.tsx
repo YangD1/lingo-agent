@@ -36,6 +36,8 @@ export type RouteTask =
   | "chat"
   | "reflect"
   | "vision"
+  | "exercise_generate"
+  | "exercise_critic"
   | "asr"
   | "tts"
   | "words"
@@ -45,6 +47,8 @@ const SECTION: Record<RouteTask, TaskRoute["section"]> = {
   chat: "llm",
   reflect: "llm",
   vision: "llm",
+  exercise_generate: "llm",
+  exercise_critic: "llm",
   asr: "asr",
   tts: "tts",
   words: "tts",
@@ -56,6 +60,8 @@ const TASK_KEY: Record<RouteTask, string> = {
   chat: "chat",
   reflect: "reflect",
   vision: "vision",
+  exercise_generate: "exercise_generate",
+  exercise_critic: "exercise_critic",
   asr: "default",
   tts: "default",
   words: "words",
@@ -63,7 +69,10 @@ const TASK_KEY: Record<RouteTask, string> = {
   realtime: "default",
 };
 // A connection's default model is a chat model: only a good first guess for these.
-const TEXT_TASKS = new Set<RouteTask>(["chat", "reflect"]);
+const TEXT_TASKS = new Set<RouteTask>(["chat", "reflect", "exercise_generate", "exercise_critic"]);
+// How hard a chat model thinks before answering (task 89.2); "default" sends nothing.
+const REASONING_LEVELS = ["default", "off", "low", "medium", "high"] as const;
+type Reasoning = (typeof REASONING_LEVELS)[number];
 // Azure assesses pronunciation through the same connection; the route names this model.
 const PRONUNCIATION_MODEL = "pronunciation";
 
@@ -161,18 +170,21 @@ export function RouteSection({
     return row(c?.name ?? "", firstModel(task, c));
   }
 
+  // `patch` replaces those params; the route's other params are kept. Empty values drop.
   async function put(
     models: string[],
     disabled: string[],
-    voices?: Record<string, Voices>,
+    patch: Record<string, unknown> = {},
   ): Promise<boolean> {
     setMessage(null);
     setBusy(true);
-    const params = voices && Object.keys(voices).length > 0 ? { params: { voices } } : {};
+    const params = Object.fromEntries(
+      Object.entries({ ...route?.params, ...patch }).filter(
+        ([, v]) => v != null && !(typeof v === "object" && Object.keys(v).length === 0),
+      ),
+    );
     try {
-      setRoute(
-        await api<TaskRoute>(path, { method: "PUT", json: { models, disabled, ...params } }),
-      );
+      setRoute(await api<TaskRoute>(path, { method: "PUT", json: { models, disabled, params } }));
       return true;
     } catch (e) {
       setMessage({ ok: false, text: describe(e) });
@@ -189,7 +201,7 @@ export function RouteSection({
     const voices = Object.fromEntries(
       Object.entries(savedVoices).filter(([voiceRef]) => shown.includes(voiceRef)),
     );
-    if (await put(shown, disabled, voices)) {
+    if (await put(shown, disabled, { voices })) {
       setMessage({ ok: true, text: t(on ? "switchedOn" : "switchedOff", { ref }) });
     }
   }
@@ -256,9 +268,18 @@ export function RouteSection({
         return Object.keys(chosen).length > 0 ? [[refs[i], chosen]] : [];
       }),
     );
-    if (await put(refs, disabled, voices)) {
+    if (await put(refs, disabled, { voices })) {
       setRows(null);
       setMessage({ ok: true, text: t("saved") });
+    }
+  }
+
+  // Saved at once, like the row switches; on a route never saved, with the chain shown.
+  const reasoning = (route?.params.reasoning as Reasoning | undefined) ?? "default";
+  async function setReasoning(level: Reasoning) {
+    if (!route) return;
+    if (await put(shown, route.disabled, { reasoning: level === "default" ? null : level })) {
+      setMessage({ ok: true, text: t("reasoningSaved", { level: t(`reasoning.${level}`) }) });
     }
   }
 
@@ -353,6 +374,22 @@ export function RouteSection({
                   );
                 })}
               </ol>
+            )}
+            {section === "llm" && !lent && shown.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">{t("reasoningLabel")}</span>
+                  <Select
+                    aria-label={t("reasoningLabel")}
+                    value={reasoning}
+                    onValueChange={(v) => void setReasoning(v as Reasoning)}
+                    disabled={busy}
+                    className="w-28"
+                    options={REASONING_LEVELS.map((v) => ({ value: v, label: t(`reasoning.${v}`) }))}
+                  />
+                </div>
+                {!compact && <p className="text-xs text-muted-foreground">{t("reasoningHint")}</p>}
+              </div>
             )}
             <div className="flex gap-2">
               <Button

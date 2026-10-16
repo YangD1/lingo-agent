@@ -1196,6 +1196,16 @@
           "description": "识别图片和扫描版 PDF 页面，并回复带图片的消息。请选能看图的模型：对话模型不会自动用于这里。",
           "none": "未配置：添加模型之前，无法识别图片和扫描版 PDF。"
         },
+        "exercise_generate": {
+          "title": "出题模型",
+          "description": "生成练习题和对话里的测验卡片。题目要按格式一次写好，适合用快、不推理的模型（或把思考强度设成关），出题会快很多。",
+          "none": "没有可用的模型：添加对话模型之前无法出题。"
+        },
+        "exercise_critic": {
+          "title": "审题模型",
+          "description": "出完的题先自己做一遍再检查，不合格的退回重写。最好和出题模型不是同一家，更容易发现错误。",
+          "none": "没有可用的模型：添加对话模型之前无法出题。"
+        },
         "asr": {
           "title": "语音转文字",
           "description": "转写语音消息和音频文件（OpenAI 兼容的 /audio/transcriptions 接口，比如 Groq、OpenAI、SiliconFlow 或本地的 speaches）。",
@@ -1245,7 +1255,17 @@
       "voiceBuiltIn": "内置默认声音（保存后显示）",
       "voicesHint": "每个模型下可以按语言指定声音，留空用内置声音。Azure 连接可以从它的声音列表里选；qwen-audio 模型填一句英文的声音描述（如 \"A calm British man\"）。",
       "providedBy": "由 {name} 提供：你自己没有配这项的模型。",
-      "quotaExhausted": "{name} 给你的这项额度暂时用完了。可以自己添加连接，或等额度重置（UTC）。"
+      "quotaExhausted": "{name} 给你的这项额度暂时用完了。可以自己添加连接，或等额度重置（UTC）。",
+      "reasoningLabel": "思考强度",
+      "reasoning": {
+        "default": "默认",
+        "off": "关",
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "reasoningHint": "推理模型先思考再回答，思考越多，第一个字出来得越慢。“默认”不发这个参数。百炼和硅基流动只有开和关（低、中、高都是开）；Anthropic 和 DeepSeek 官方接口不受影响；模型不支持时这次调用会失败，改回默认即可。",
+      "reasoningSaved": "思考强度已设为“{level}”。"
     },
     "usage": {
       "title": "用量",

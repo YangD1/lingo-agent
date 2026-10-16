@@ -109,9 +109,54 @@ describe("RouteSection", () => {
     await waitFor(() =>
       expect(api).toHaveBeenCalledWith("/tenant/routes/llm/reflect", {
         method: "PUT",
-        json: { models: ["relay:chat-model"], disabled: [] },
+        json: { models: ["relay:chat-model"], disabled: [], params: {} },
       }),
     );
+  });
+
+  // --- reasoning (task 89.2) -----------------------------------------------------------
+
+  it("sets a chat route's reasoning at once, keeping its other params", async () => {
+    const generate = route({
+      task: "exercise_generate",
+      params: { temperature: 0.7 },
+      effective: ["relay:chat-model"],
+      effective_source: "default",
+    });
+    api.mockImplementation(async (path: string, init?: { json?: object }) =>
+      path === "/tenant/routes"
+        ? [...ROUTES, generate]
+        : { ...generate, ...init?.json, overridden: true, effective_source: "override" },
+    );
+    show("exercise_generate", [RELAY]);
+
+    expect(await screen.findByText("Exercise writer")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("combobox", { name: "Reasoning" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Off" }));
+
+    expect(api).toHaveBeenCalledWith("/tenant/routes/llm/exercise_generate", {
+      method: "PUT",
+      json: {
+        models: ["relay:chat-model"],
+        disabled: [],
+        params: { temperature: 0.7, reasoning: "off" },
+      },
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("Reasoning set to Off");
+
+    // Default sends nothing.
+    await userEvent.click(screen.getByRole("combobox", { name: "Reasoning" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Default" }));
+    expect(api).toHaveBeenLastCalledWith("/tenant/routes/llm/exercise_generate", {
+      method: "PUT",
+      json: { models: ["relay:chat-model"], disabled: [], params: { temperature: 0.7 } },
+    });
+  });
+
+  it("offers reasoning only on chat model routes that have a model", async () => {
+    show("asr");
+    expect(await screen.findByRole("list", { name: "Speech-to-text" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Reasoning" })).not.toBeInTheDocument();
   });
 
   // --- switching models off (ADR 0026) ----------------------------------------------
@@ -141,7 +186,7 @@ describe("RouteSection", () => {
 
     expect(api).toHaveBeenCalledWith("/tenant/routes/llm/chat", {
       method: "PUT",
-      json: { models: ["relay:a", "openai:b"], disabled: ["relay:a"] },
+      json: { models: ["relay:a", "openai:b"], disabled: ["relay:a"], params: {} },
     });
     expect(await screen.findByRole("switch", { name: "Use relay:a" })).not.toBeChecked();
     expect(screen.getByRole("status")).toHaveTextContent("relay:a is off");
@@ -199,7 +244,7 @@ describe("RouteSection", () => {
     await waitFor(() =>
       expect(api).toHaveBeenCalledWith("/tenant/routes/llm/chat", {
         method: "PUT",
-        json: { models: ["openai:b", "relay:a"], disabled: ["openai:b", "relay:a"] },
+        json: { models: ["openai:b", "relay:a"], disabled: ["openai:b", "relay:a"], params: {} },
       }),
     );
   });
@@ -232,7 +277,7 @@ describe("RouteSection", () => {
     await waitFor(() =>
       expect(api).toHaveBeenCalledWith("/tenant/routes/pronunciation/default", {
         method: "PUT",
-        json: { models: ["azure:pronunciation"], disabled: [] },
+        json: { models: ["azure:pronunciation"], disabled: [], params: {} },
       }),
     );
     // Nothing asked the vendor for a model list.

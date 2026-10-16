@@ -1187,6 +1187,22 @@
     - 可能的方向（待和用户讨论）：一道一道出、过了审就先显示；题库或预生成（入学测题库太小）；理解检查跳过或简化审题；换更快的模型做出题 / 审题路由。
   - 问题 2：助手回复没做到流式输出（用户观察，场景未细化：普通对话、带工具的轮次、桌宠小窗？）。
     - 待核实：`agents/chat_graph.py` `_call` 用 `astream` 合并 chunk，前端按 `token` 事件渲染；需要确认后端是否逐 chunk 发了 `token`、带工具时 qwen（OpenAI 兼容）是否真的流式返回、中间是否有缓冲（Next 代理 `/api`、Docker、SSE 头）。
+    - 2026-10-16 读代码：链路上没看到明显的缓冲点。后端 `chat/turn.py` 逐 chunk 发 `token`；两个 SSE 接口都加了 `Cache-Control: no-transform`（防 Next 代理 gzip 后整段缓冲，ADR 0003）；provider 层 `stream_usage=True`，fallback 链 `astream` 也逐块；前端 `lib/sse.ts` 用 `EventSourceParserStream`，`use-chat-session.ts` 收到 `token` 就追加。所以必须用真实模型实测才能定位。另一个可能：带工具的轮次里，第一次调用只产出工具调用、没有文字，工具（比如 `give_quiz` 出题）跑很久，第二次调用才开始出字，看起来就像“等半天一次出来”。
+  - 拆分（2026-10-16 提出，用户确认）：
+    - [x] 89.1 测量：在独立库 `lingo_smoke:8300` 起后端，用百炼 key 临时账号，分别测（a）普通对话直连后端、（b）经 Next 代理 `:3000`（Docker）的 token 到达时间分布；（c）出题各步耗时（出题、审题、重写轮数、token）。把结果写进看板。测试：不加测试（纯测量）。
+      - 结果（2026-10-16，百炼 qwen-plus，临时账号已删，`lingo_smoke` 已删）：
+        - 流式：直连后端首字 0.6 s，53 块逐块到达，最大间隔 0.2 s；经 Docker `:3000` 代理首字 0.5 s，最大间隔 0.16 s；真浏览器（Playwright，主聊天页）0.7 s 出字，之后每 100 ms 都在变长。带工具的轮次（要题）也是先出字，工具执行时有约 1.3 s 的停顿。**代码和代理都在流式**。桌宠、首页、主聊天都用同一个 `TutorPanel` / `use-chat-session.ts`。
+        - 用户开发库里聊天走 `sub2api` 的 `gpt-6-sol`（推理模型，经第三方中转）：`chat` 平均 7.5 s / 134 token。怀疑是这个模型先思考（不出字）或者中转站不逐块转发，需要用这个 key 实测首字时间才能确定。
+        - 出题（`give_quiz`，quiz 5 题，qwen-plus）：从卡片出现到整组 ready 约 57 s = 出题 29.6 s（输入 4717 / 输出 1319 token）+ 审题 17.1 s（1942 / 755）+ 重写被拒的题 6.7 s（2052 / 287）。用户开发库里出题走 `DeepSeek-V4-Flash`（siliconflow）：出题平均 33 s、输出 3432 token，审题 14.6 s、输出 836 token。审题输出的 token 和出题一个量级，说明审题在写长说明。
+        - sub2api（用户给的 key，没保存）：中转站逐块转发（`text/event-stream`，`delta` 只有 `content`）。短提示首字 2.8 s；`reasoning_effort: low` 1.6 s、`none` 3.0 s（只测一次，有波动；`minimal` 不支持，支持 none/low/medium/high/xhigh/max）；`gpt-6.1-sol` 首字 2.6 s。走 app 真实提示（输入约 7000 token）：首字 3.9 s / 2.1 s，之后 1.6–3 s 就出完。**结论：是流式的，“像不流式”是因为推理模型先思考几秒、然后出字很快**，前端等待时已有“正在输入”提示。sub2api README 没写延迟相关的请求参数；`reasoning_effort` 是上游参数，中转站透传。现在 `CallParams`（`credentials/service.py`）不允许设 `reasoning_effort`，设置页也没有编辑模型参数的地方。
+    - 用户决定（2026-10-16）：出题按 A（每道题单独出、并行、过审就先显示）+ C（出题 / 审题用更快、不推理的模型）。细化拆分用户已确认（逐题显示：测验卡片和练习页都改；思考强度：设置页手动选，代码不改默认值；只用百炼代测）：
+    - [x] 89.2 “思考强度”参数：`CallParams` 允许 `reasoning_effort`（OpenAI 风格，none/low/medium/high/xhigh/max）；路由设置里每个任务可选“思考强度”（默认 / 关 / 低 / 中 / 高）。聊天设成低可以把首字从约 3–4 s 降到约 1.5 s。测试：pytest（白名单、传进 SDK）；Vitest（路由设置）。真 key 复测 sub2api 首字。
+      - 完成（ADR 0047）：`CallParams.reasoning`（off/low/medium/high，只能设在 `llm` 路由或连接上）；`providers/llm.py` `reasoning_kwargs` 按连接翻译：百炼 / 硅基流动发 `extra_body.enable_thinking`，其他 OpenAI 系发 `reasoning_effort`（off→none），anthropic / deepseek 不发；`sdk_params` 去掉 `reasoning`。顺手修：`SectionSpec.all_routes` 把只有 `task_params` 的任务（reflect、exercise_generate…）算作可设路由，以前“后台整理模型”卡片读不到路由、保存 422。设置页：文字模型路由卡片加“思考强度”下拉（立即保存）、新增“出题模型”“审题模型”卡片；保存路由时保留原有参数（以前会清掉音色以外的参数）。
+      - 测试：pytest（`test_llm_router.py` 翻译与传参、`test_model_settings_api.py` 白名单 / 非 llm 路由拒绝 / reflect 与出题可设路由）1207 过；Vitest settings 54 过；E2E settings + model-switches 6 过；`make lint` 干净。实测 sub2api：首字 默认 7.9/2.0/2.9 s → 低 3.0/2.8/2.0 s → 关 2.6/2.8/2.0 s。
+    - [ ] 89.3 ADR 0047 + 出题流水线改成按题并行：每个题位独立“出题 → 审题 → 被拒最多重写两轮”，并发有上限；过审的题立刻存库；题组多一个“部分就绪”状态，接口返回已就绪的题。测试：pytest（图、并发上限、部分失败、存库、接口）。
+    - [ ] 89.4 前端逐题显示：测验卡片（和练习页）先显示已过审的题，其余显示“正在出题”。测试：Vitest（卡片状态）；E2E（`quiz-chat.spec.ts`、`practice-set.spec.ts` 补逐题出现）。
+    - [ ] 89.5 C：出题 / 审题默认关思考（用 89.2 的参数，按任务配置）；用真实模型对比 89.3 前后的耗时，写进看板。测试：pytest（任务默认参数）。
+    - [ ] 89.6 收尾：受影响层全量跑一次、lint、Docker 重建、交接记录。
 - [ ] 任务 90：长期记忆的跨会话效果（2026-10-16 用户记录，明天和任务 89 一起看，未拆分、未确认）
   - 问题：用户觉得长期记忆跨会话还不够好（具体表现待用户补充：新会话里忘了什么、记错了什么、带进来的东西太多还是太少）。
   - 用户提的参考：[dsh-memoir](https://github.com/Qinling-Melon-Farmers/dsh-memoir)（Apache-2.0，TypeScript，DeepSeek Harness 的插件，34 star，v0.9.2，pre-1.0）。要点（2026-10-16 读 README）：

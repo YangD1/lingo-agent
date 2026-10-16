@@ -46,6 +46,9 @@ REALTIME_PARAMS: frozenset[str] = frozenset({"realtime_url", "realtime_dialect"}
 # Connection params only speech endpoints read, never passed to an SDK either: Bailian's
 # qwen-audio reads aloud on the workspace's own host (task 64.2a).
 SPEECH_URL_PARAMS: frozenset[str] = frozenset({"tts_url"})
+# How hard a chat model thinks before answering (task 89.2): turned into each vendor's
+# own parameter by the chat model builder, never passed through as is.
+REASONING_PARAM = "reasoning"
 # Every param that belongs on a connection and must never reach an SDK constructor.
 NON_SDK_PARAMS: frozenset[str] = REALTIME_PARAMS | SPEECH_URL_PARAMS
 # Sections a deployment may leave out entirely.
@@ -133,7 +136,10 @@ class SectionSpec(BaseModel):
         return self.routes.get(task, self.default)
 
     def all_routes(self) -> dict[str, RouteSpec]:
-        return {"default": self.default, **self.routes}
+        """Every task a tenant may route: a task with only `task_params` (reflect,
+        exercise_generate, ...) runs on the default route until the tenant sets its own."""
+        by_params = {task: self.default for task in self.task_params}
+        return {"default": self.default, **by_params, **self.routes}
 
 
 class ProvidersConfig(BaseModel):
@@ -304,8 +310,8 @@ class ResolvedModel:
 
 def sdk_params(params: Mapping[str, Any]) -> dict[str, Any]:
     """A model's params for an SDK constructor: without the ones only realtime or a
-    speech endpoint reads."""
-    return {k: v for k, v in params.items() if k not in NON_SDK_PARAMS}
+    speech endpoint reads, and without `reasoning`, which only a chat model translates."""
+    return {k: v for k, v in params.items() if k not in NON_SDK_PARAMS and k != REASONING_PARAM}
 
 
 def load_providers_config(path: Path) -> ProvidersConfig:

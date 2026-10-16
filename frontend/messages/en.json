@@ -1196,6 +1196,16 @@
           "description": "Reads images and scanned PDF pages, and answers messages that carry images. Pick models that can see images: chat models are not used for this automatically.",
           "none": "Not set up: images and scanned PDFs can't be read until you add a model here."
         },
+        "exercise_generate": {
+          "title": "Exercise writer",
+          "description": "Writes practice items and the quiz cards in chat. Items are written in one structured pass: a fast model without reasoning (or reasoning set to off) makes quizzes much quicker.",
+          "none": "No model available: exercises can't be written until a chat model is added."
+        },
+        "exercise_critic": {
+          "title": "Exercise reviewer",
+          "description": "Solves each new item before checking it and sends faulty ones back to be rewritten. A model from another vendor than the writer's catches more mistakes.",
+          "none": "No model available: exercises can't be written until a chat model is added."
+        },
         "asr": {
           "title": "Speech-to-text",
           "description": "Transcribes voice messages and audio files (an OpenAI-compatible /audio/transcriptions API, e.g. Groq, OpenAI, SiliconFlow or a local speaches server).",
@@ -1245,7 +1255,17 @@
       "voiceBuiltIn": "Built-in voice (shown once saved)",
       "voicesHint": "Under each model you can choose a voice per language; empty uses the built-in one. An Azure connection offers its voices; for a qwen-audio model, describe the voice in English (e.g. \"A calm British man\").",
       "providedBy": "Provided by {name}: you don't have a model of your own for this.",
-      "quotaExhausted": "Your quota from {name} for this is used up for now. Add a connection of your own, or wait for it to reset (UTC)."
+      "quotaExhausted": "Your quota from {name} for this is used up for now. Add a connection of your own, or wait for it to reset (UTC).",
+      "reasoningLabel": "Reasoning",
+      "reasoning": {
+        "default": "Default",
+        "off": "Off",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "reasoningHint": "Reasoning models think before they answer: the more they think, the later the first word appears. Default sends nothing. Bailian and SiliconFlow only switch it on or off (low, medium and high all mean on); Anthropic's and DeepSeek's own APIs are unaffected. If a model doesn't support it, its calls fail: set it back to Default.",
+      "reasoningSaved": "Reasoning set to {level}."
     },
     "usage": {
       "title": "Usage",

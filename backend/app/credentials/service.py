@@ -26,6 +26,7 @@ from app.providers.config import (
     NON_SDK_PARAMS,
     PRONUNCIATION_KINDS,
     REALTIME_KINDS,
+    REASONING_PARAM,
     SPEECH_ONLY_KINDS,
     ProviderKind,
     ProvidersConfig,
@@ -101,6 +102,9 @@ class CallParams(BaseModel):
     top_p: Annotated[float, Field(gt=0, le=1)] | None = None
     # On by default so streamed calls report token usage; off for servers that reject it.
     stream_usage: bool | None = None
+    # How hard a chat model thinks before answering (task 89.2); unset: the vendor's
+    # default. Sent as the vendor's own parameter, see providers/llm.py.
+    reasoning: Literal["off", "low", "medium", "high"] | None = None
     # tts routes only (ADR 0028 §3): the voice each model reads a language with, keyed by
     # "<connection>:<model>", over the built-in voices. Never sent to a chat SDK.
     voices: dict[Annotated[str, Field(max_length=200)], dict[Language, VoiceName]] | None = None
@@ -535,6 +539,8 @@ async def put_route(
         raise ProviderConfigError(
             ", ".join(sorted(NON_SDK_PARAMS & route.params.keys())) + " belong on a connection"
         )
+    if route.params.get(REASONING_PARAM) is not None and section != "llm":
+        raise ProviderConfigError("reasoning can only be set on a chat model route")
     if route.params.get("voices") is not None:
         if section != "tts":
             raise ProviderConfigError("voices can only be set on a text-to-speech route")

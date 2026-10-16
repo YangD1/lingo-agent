@@ -107,6 +107,8 @@ export function SettingsApp() {
                 <div className="grid gap-3.5 md:grid-cols-2 md:gap-4">
                   <RouteSection task="reflect" connections={connections} compact />
                   <RouteSection task="vision" connections={connections} compact />
+                  <RouteSection task="exercise_generate" connections={connections} compact />
+                  <RouteSection task="exercise_critic" connections={connections} compact />
                   <RouteSection task="asr" connections={connections} compact />
                   <RouteSection task="tts" connections={connections} compact />
                   <RouteSection task="words" connections={connections} compact />

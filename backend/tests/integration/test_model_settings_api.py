@@ -124,7 +124,13 @@ async def test_invalid_connections_rejected(
 
 @pytest.mark.parametrize(
     "params",
-    [{"http_async_client": "x"}, {"default_headers": {"x": "y"}}, {"openai_proxy": "http://p"}],
+    [
+        {"http_async_client": "x"},
+        {"default_headers": {"x": "y"}},
+        {"openai_proxy": "http://p"},
+        {"reasoning": "max"},  # only the levels the settings page offers
+        {"reasoning_effort": "low"},  # set through `reasoning`, never raw
+    ],
 )
 async def test_params_outside_allow_list_rejected(
     client: AsyncClient, params: dict[str, Any]
@@ -483,13 +489,28 @@ async def test_routes_default_then_override_then_revert(client: AsyncClient) -> 
         "/tenant/routes/llm/chat",
         json={
             "models": ["relay:claude-sonnet-5", "openai:gpt-5-mini"],
-            "params": {"temperature": 0.2},
+            "params": {"temperature": 0.2, "reasoning": "off"},
         },
     )
     assert put.status_code == 200
     route = chat((await client.get("/tenant/routes")).json())
     assert route["overridden"] is True
     assert route["models"] == ["relay:claude-sonnet-5", "openai:gpt-5-mini"]
+    assert route["params"] == {"temperature": 0.2, "reasoning": "off"}
+    # Tasks with only call params in the YAML (task 89.2): routable all the same.
+    for task in ("reflect", "exercise_generate"):
+        put = await client.put(
+            f"/tenant/routes/llm/{task}",
+            json={"models": ["openai:gpt-5-mini"], "params": {"reasoning": "low"}},
+        )
+        assert put.status_code == 200, task
+        assert put.json()["params"] == {"reasoning": "low"}
+    speech = await client.put(
+        "/tenant/routes/asr/default",
+        json={"models": ["openai:gpt-transcribe"], "params": {"reasoning": "off"}},
+    )
+    assert speech.status_code == 422
+    assert "chat model route" in speech.text
 
     assert (await client.delete("/tenant/routes/llm/chat")).status_code == 204
     assert chat((await client.get("/tenant/routes")).json())["overridden"] is False

@@ -248,3 +248,52 @@ def test_get_llm_builds_chain_from_tenant_connections(monkeypatch: pytest.Monkey
     only_openai = llm.get_llm(make_ctx(conn("openai"), version="v2"), "default")
     assert isinstance(only_openai, ChatOpenAI)
     assert TENANT is not None
+
+
+@pytest.mark.parametrize(
+    ("kind", "base_url", "level", "expected"),
+    [
+        ("openai_compatible", "https://relay.example.com/v1", "off", {"reasoning_effort": "none"}),
+        ("openai", "https://api.openai.com/v1", "low", {"reasoning_effort": "low"}),
+        (
+            "openai_compatible",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "off",
+            {"extra_body": {"enable_thinking": False}},
+        ),
+        (
+            "openai_compatible",
+            "https://api.siliconflow.cn/v1",
+            "high",
+            {"extra_body": {"enable_thinking": True}},
+        ),
+        ("anthropic", "https://api.anthropic.com", "off", {}),
+        ("deepseek", "https://api.deepseek.com/v1", "low", {}),
+        ("openai_compatible", "https://relay.example.com/v1", None, {}),
+    ],
+)
+def test_reasoning_becomes_the_vendors_own_parameter(
+    kind: str, base_url: str, level: str | None, expected: dict[str, Any]
+) -> None:
+    extra = {} if level is None else {"reasoning": level}
+    assert llm.reasoning_kwargs(resolved(kind, "c", "m", base_url=base_url, **extra)) == expected
+
+
+def test_reasoning_reaches_the_sdk_only_translated() -> None:
+    spec = resolved("openai_compatible", "relay", "m", reasoning="low")
+    relay = llm.build_chat_model(spec, "chat")
+    assert isinstance(relay, ChatOpenAI)
+    assert relay.reasoning_effort == "low"
+    qwen = resolved(
+        "openai_compatible",
+        "qwen",
+        "qwen-plus",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        reasoning="off",
+    )
+    model = llm.build_chat_model(qwen, "chat")
+    assert isinstance(model, ChatOpenAI)
+    assert model.extra_body == {"enable_thinking": False}
+    assert model.reasoning_effort is None
+    # Anthropic's constructor would reject an unknown `reasoning` kwarg.
+    llm.build_chat_model(resolved("anthropic", "anthropic", "m", reasoning="off"), "chat")

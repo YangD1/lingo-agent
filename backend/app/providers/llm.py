@@ -10,6 +10,7 @@ Business code asks for a *task* in the context of a tenant, never a model name:
 from collections.abc import Sequence
 from functools import lru_cache
 from typing import Any, cast
+from urllib.parse import urlsplit
 
 from langchain.chat_models import init_chat_model
 from langchain_core.callbacks import BaseCallbackHandler
@@ -21,6 +22,7 @@ from pydantic import BaseModel
 from app.providers.cache import TTLCache
 from app.providers.clients import GuardedChatAnthropic
 from app.providers.config import (
+    REASONING_PARAM,
     ProvidersConfig,
     ResolvedModel,
     TenantProviderContext,
@@ -47,13 +49,30 @@ def get_providers_config() -> ProvidersConfig:
     return load_providers_config(get_settings().providers_config_path)
 
 
+# OpenAI-compatible servers that switch thinking with `enable_thinking` and ignore
+# `reasoning_effort` (Bailian's Qwen, SiliconFlow; checked 2026-10-16), by host suffix.
+_ENABLE_THINKING_HOSTS = ("aliyuncs.com", "siliconflow.cn", "siliconflow.com")
+
+
+def reasoning_kwargs(resolved: ResolvedModel) -> dict[str, Any]:
+    """The vendor's own parameter for the `reasoning` param (task 89.2). Anthropic and
+    DeepSeek's API get nothing: neither thinks unless asked to in its own way."""
+    level = resolved.params.get(REASONING_PARAM)
+    if level is None or resolved.kind not in ("openai", "openai_compatible"):
+        return {}
+    host = (urlsplit(resolved.base_url).hostname or "").lower()
+    if host.endswith(_ENABLE_THINKING_HOSTS):
+        return {"extra_body": {"enable_thinking": level != "off"}}
+    return {"reasoning_effort": "none" if level == "off" else level}
+
+
 def build_chat_model(
     resolved: ResolvedModel,
     task: str,
     *,
     callbacks: list[BaseCallbackHandler] | None = None,
 ) -> BaseChatModel:
-    params: dict[str, Any] = sdk_params(resolved.params)
+    params: dict[str, Any] = sdk_params(resolved.params) | reasoning_kwargs(resolved)
     http_client = make_async_http_client(
         allow_private=get_settings().provider_allow_private_networks,
         timeout=params.get("timeout"),
