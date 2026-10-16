@@ -32,6 +32,7 @@ SILICONFLOW = "https://api.siliconflow.cn/v1"
         ("openai_compatible", BAILIAN, "qwen3-235b-a22b", ("off", "on")),
         ("openai_compatible", BAILIAN, "deepseek-v3.2", ("off", "on")),
         ("openai_compatible", SILICONFLOW, "Qwen/Qwen3-8B", ("off", "on")),
+        ("openai_compatible", SILICONFLOW, "deepseek-ai/DeepSeek-V4-Flash", ("off", "on")),
         ("openai_compatible", SILICONFLOW, "zai-org/GLM-4.6", ("off", "on")),
         # Always thinks, never thinks, or a fixed variant: left at the default.
         ("openai_compatible", BAILIAN, "qwq-plus", ()),

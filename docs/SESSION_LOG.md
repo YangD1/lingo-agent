@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-10-16 任务 91 完成：思考强度按模型给档位
+
+**做了什么**
+- 用户提出“按模型判断思考强度，只发合理参数，默认就是默认，允许在设置页调”。Q91a 按模型分别设、Q91b 认不出的模型只有默认、Q91c 厂商拒绝时去掉参数重试一次，都按推荐确认。
+- 91.1（04b47e8）`providers/reasoning_catalog.py` `reasoning_spec(kind, base_url, model)`：OpenAI 系推理模型发 `reasoning_effort`，档位按型号区分；百炼 / 硅基流动上的混合模型发 `enable_thinking`，只有开 / 关（新增档位 `on`）；其余模型不发。
+- 91.2（01ea516）路由的 `params.reasoning` 改成 `{ref: 档位}`，保存时校验，`/tenant/routes` 返回 `reasoning_options`，旧的单个值照样能读。
+- 91.3（c4e9166）HTTP 传输层 `WithoutReasoningRetry`：厂商返回 400 且错误指向思考参数时，去掉参数重发一次。
+- 91.4（c69bc62）设置页每个模型一行下拉框，只列它支持的档位。
+- 91.5 ADR 0047 §1、§3 和 PLAN 改写；pytest 2056、Vitest 895、settings E2E 6 全过；lint 干净；Docker 先后端再前端重建。
+
+**未完成 / 下一步**
+- 规则表是按模型名推断的：`DeepSeek-V4*` 按 V3.1 推断为开 / 关，`gpt-6.1*` 按 `gpt-6.1-sol` 推断，都没实测。猜错时有重试兜底，可以看后端日志里有没有 “refused the thinking parameter”。
+- 任务 86–91 的提交都在本地，未推送。任务 90 待用户说明。
+
+**踩坑**
+- 前端不要用 `npx prettier`：项目没装 Prettier（只有 eslint），它会按 80 列重排整个文件。这次已经还原、重新改过。
+- `ProviderConnection.kind` 是 `str`，所以 `reasoning_spec` 的参数类型放宽成 `ProviderKind | str`。
+
+---
+
 ## 2026-10-16 任务 89 完成：出题一次流式写整组、写完一道就审一道
 
 **做了什么**

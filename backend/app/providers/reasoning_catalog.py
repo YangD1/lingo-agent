@@ -42,9 +42,10 @@ _TOGGLE_HOSTS = ("aliyuncs.com", "siliconflow.cn", "siliconflow.com")
 
 _ALWAYS_THINKS = re.compile(r"qwq|thinking|-r1|reasoner", re.IGNORECASE)
 # Hybrid models these hosts switch with `enable_thinking` (Bailian and SiliconFlow
-# model docs, 2026-10). The fixed `-instruct` / `-thinking` variants are not hybrid.
+# model docs, 2026-10; DeepSeek V4 assumed like V3.1, unchecked). The fixed
+# `-instruct` / `-thinking` variants are not hybrid.
 _TOGGLE_MODELS = re.compile(
-    r"^(qwen3|qwen-(plus|flash|turbo)|deepseek-v3\.[1-9]|glm-4\.[5-9]|glm-[5-9])",
+    r"^(qwen3|qwen-(plus|flash|turbo)|deepseek-v(3\.[1-9]|[4-9])|glm-4\.[5-9]|glm-[5-9])",
     re.IGNORECASE,
 )
 _FIXED_VARIANT = re.compile(r"instruct|coder", re.IGNORECASE)
