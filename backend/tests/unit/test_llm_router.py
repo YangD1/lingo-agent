@@ -250,47 +250,59 @@ def test_get_llm_builds_chain_from_tenant_connections(monkeypatch: pytest.Monkey
     assert TENANT is not None
 
 
+RELAY = "https://relay.example.com/v1"
+BAILIAN = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+
 @pytest.mark.parametrize(
-    ("kind", "base_url", "level", "expected"),
+    ("kind", "base_url", "model", "level", "expected"),
     [
-        ("openai_compatible", "https://relay.example.com/v1", "off", {"reasoning_effort": "none"}),
-        ("openai", "https://api.openai.com/v1", "low", {"reasoning_effort": "low"}),
+        ("openai_compatible", RELAY, "gpt-6-sol", "off", {"reasoning_effort": "none"}),
+        ("openai", "https://api.openai.com/v1", "o3", "low", {"reasoning_effort": "low"}),
+        # gpt-6.1-sol has no `none`: "off" isn't sent rather than failing the call.
+        ("openai_compatible", RELAY, "gpt-6.1-sol", "off", {}),
+        ("openai_compatible", RELAY, "gpt-4o", "low", {}),
         (
             "openai_compatible",
-            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            BAILIAN,
+            "qwen-plus",
             "off",
             {"extra_body": {"enable_thinking": False}},
         ),
         (
             "openai_compatible",
+            BAILIAN,
+            "qwen-plus",
+            "on",
+            {"extra_body": {"enable_thinking": True}},
+        ),
+        # Saved before task 91: any level but "off" switched thinking on.
+        (
+            "openai_compatible",
             "https://api.siliconflow.cn/v1",
+            "Qwen/Qwen3-8B",
             "high",
             {"extra_body": {"enable_thinking": True}},
         ),
-        ("anthropic", "https://api.anthropic.com", "off", {}),
-        ("deepseek", "https://api.deepseek.com/v1", "low", {}),
-        ("openai_compatible", "https://relay.example.com/v1", None, {}),
+        ("openai_compatible", BAILIAN, "qwq-plus", "off", {}),
+        ("anthropic", "https://api.anthropic.com", "claude-opus-5-5", "off", {}),
+        ("deepseek", "https://api.deepseek.com/v1", "deepseek-chat", "low", {}),
+        ("openai_compatible", RELAY, "gpt-6-sol", None, {}),
     ],
 )
-def test_reasoning_becomes_the_vendors_own_parameter(
-    kind: str, base_url: str, level: str | None, expected: dict[str, Any]
+def test_reasoning_becomes_the_models_own_parameter(
+    kind: str, base_url: str, model: str, level: str | None, expected: dict[str, Any]
 ) -> None:
     extra = {} if level is None else {"reasoning": level}
-    assert llm.reasoning_kwargs(resolved(kind, "c", "m", base_url=base_url, **extra)) == expected
+    assert llm.reasoning_kwargs(resolved(kind, "c", model, base_url=base_url, **extra)) == expected
 
 
 def test_reasoning_reaches_the_sdk_only_translated() -> None:
-    spec = resolved("openai_compatible", "relay", "m", reasoning="low")
+    spec = resolved("openai_compatible", "relay", "gpt-6-sol", reasoning="low")
     relay = llm.build_chat_model(spec, "chat")
     assert isinstance(relay, ChatOpenAI)
     assert relay.reasoning_effort == "low"
-    qwen = resolved(
-        "openai_compatible",
-        "qwen",
-        "qwen-plus",
-        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-        reasoning="off",
-    )
+    qwen = resolved("openai_compatible", "qwen", "qwen-plus", base_url=BAILIAN, reasoning="off")
     model = llm.build_chat_model(qwen, "chat")
     assert isinstance(model, ChatOpenAI)
     assert model.extra_body == {"enable_thinking": False}

@@ -1231,3 +1231,11 @@
     - 不自动删：active / archived / superseded 生命周期，重要度 1–5、可置顶；写入前查近似重复，让调用方选更新 / 替代 / 强制新增
     - 记录每条记忆来自哪个会话、哪一轮
   - 现状对照（待核实）：我们是回复后后台反思节点用结构化输出抽取画像 / 事实 / 情景（`backend/app/memory/reflection.py`、`worker.py`），按需检索（`context.py`，embedding 可选），学习者能查看、编辑、删除（ADR 0009 等）。可能值得借鉴：热记忆的 token 预算 + 会话内冻结、近似重复时显式选择更新还是替代、记忆生命周期（替代而不是删除）、BM25 作为没配 embedding 时的检索兜底。明天先请用户说具体表现，再对照代码决定。
+- [~] 任务 91：思考强度按模型给档位、按模型翻译（2026-10-16 用户提出；Q91a 按模型分别设、Q91b 认不出的模型只有“默认”、Q91c 厂商仍拒绝思考参数时同模型去掉重试一次，均按推荐确认）。改写 ADR 0047 §1，无迁移。
+  - 起因：89.2 的思考强度整条路由一个值、所有模型同样 5 档，`reasoning_kwargs` 只按连接地址翻译：`gpt-6.1-sol` 选“关”发 `none` 报 400；百炼 / 硅基流动选“低”实际是开思考。
+  - [x] 91.1 后端 `providers/reasoning_catalog.py`：按连接类型 / 地址 / 模型 id 给出可选档位和每档发的参数（OpenAI 系推理模型 `reasoning_effort`、百炼 / 硅基流动可开关的 Qwen3 `enable_thinking` 只有开 / 关、只会思考的和不推理的和认不出的只有默认）；`reasoning_kwargs` 按模型翻译，不支持的档不发。测试：pytest（目录各分支、翻译）。
+    - 完成：`providers/reasoning_catalog.py` `reasoning_spec(kind, base_url, model)` → `ReasoningSpec(style, levels).kwargs(level)`；新增档位 `on`（开 / 关模型用），开 / 关模型收到旧的低 / 中 / 高仍算开；`llm.py` `reasoning_kwargs` 改用它。pytest `test_reasoning_catalog.py` + `test_llm_router.py` 61 过，ruff、mypy 干净。
+  - [~] 91.2 按模型存：`params.reasoning = {"连接:模型": 档位}`，旧的单个值当作对所有模型生效再按模型过滤；`/tenant/routes` 返回每个模型的 `reasoning_options`；保存时校验档位属于该模型，否则 422。测试：pytest（解析新旧格式、接口返回、422）。
+  - [ ] 91.3 兜底：厂商返回 400 且错误指向思考参数时，同一模型去掉思考参数重试一次（流式 / 结构化 / 普通调用都覆盖），记日志。测试：pytest（mock 400 后重试成功、非思考参数的 400 不重试）。
+  - [ ] 91.4 设置页：每个模型行显示自己的思考强度下拉，只列可选档位，只有默认的不显示；文案改成开 / 关等对应档位。测试：Vitest（选项按模型、无下拉、保存 payload）。不加 E2E：表单状态，Vitest 覆盖。
+  - [ ] 91.5 收尾：改写 ADR 0047 §1、PLAN 对应段落、`.env.example` 无变化；受影响层全量（pytest、Vitest；跑 settings 相关 E2E 确认没坏）、lint、Docker 重建、交接记录。

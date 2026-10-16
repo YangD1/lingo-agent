@@ -13,7 +13,6 @@ from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, cast
-from urllib.parse import urlsplit
 
 from langchain.chat_models import init_chat_model
 from langchain_core.callbacks import BaseCallbackHandler
@@ -34,6 +33,7 @@ from app.providers.config import (
     sdk_params,
 )
 from app.providers.net_guard import make_async_http_client, make_blocked_sync_client
+from app.providers.reasoning_catalog import reasoning_spec
 from app.settings import get_settings
 from app.usage.recorder import UsageLabels, make_recorder
 
@@ -54,21 +54,11 @@ def get_providers_config() -> ProvidersConfig:
     return load_providers_config(get_settings().providers_config_path)
 
 
-# OpenAI-compatible servers that switch thinking with `enable_thinking` and ignore
-# `reasoning_effort` (Bailian's Qwen, SiliconFlow; checked 2026-10-16), by host suffix.
-_ENABLE_THINKING_HOSTS = ("aliyuncs.com", "siliconflow.cn", "siliconflow.com")
-
-
 def reasoning_kwargs(resolved: ResolvedModel) -> dict[str, Any]:
-    """The vendor's own parameter for the `reasoning` param (task 89.2). Anthropic and
-    DeepSeek's API get nothing: neither thinks unless asked to in its own way."""
-    level = resolved.params.get(REASONING_PARAM)
-    if level is None or resolved.kind not in ("openai", "openai_compatible"):
-        return {}
-    host = (urlsplit(resolved.base_url).hostname or "").lower()
-    if host.endswith(_ENABLE_THINKING_HOSTS):
-        return {"extra_body": {"enable_thinking": level != "off"}}
-    return {"reasoning_effort": "none" if level == "off" else level}
+    """The vendor's own parameter for the `reasoning` param, only where this model takes
+    that level (task 91, providers/reasoning_catalog.py)."""
+    spec = reasoning_spec(resolved.kind, resolved.base_url, resolved.model)
+    return spec.kwargs(resolved.params.get(REASONING_PARAM))
 
 
 def build_chat_model(
