@@ -35,6 +35,8 @@ class CardOut(BaseModel):
     created_at: str | None
     decided_at: str | None
     undone_at: str | None
+    # Why the tutor took it back (ADR 0049); None unless withdrawn.
+    withdrawn_reason: str | None = None
 
 
 class CardsOut(BaseModel):

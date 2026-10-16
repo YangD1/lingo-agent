@@ -61,6 +61,8 @@ test("the tutor withdraws a quiz card it gave, and its questions never come", as
   // Still taken back after a reload, and no questions turned up meanwhile.
   await page.reload();
   await expect(page.getByTestId("tutor-card")).toHaveAttribute("data-status", "withdrawn");
+  // The reason comes with the card list too, not only with the streamed card.
+  await expect(page.getByTestId("tutor-card")).toContainText("你改主意了");
   await expect(page.getByTestId("practice-item")).toHaveCount(0);
 });
 

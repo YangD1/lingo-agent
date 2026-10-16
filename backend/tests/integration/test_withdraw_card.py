@@ -78,7 +78,10 @@ async def test_a_quiz_withdrawn_in_the_same_turn_stops_its_set(
     assert result(script, quiz).text.startswith(f"(card {quiz['id']})")
     took = result(script, withdraw)
     assert took.status == "success" and "Card withdrawn" in took.text
-    assert [c["status"] for c in await cards(client, conversation)] == ["withdrawn"]
+    # The list the chat reloads after the turn keeps the reason.
+    assert [(c["status"], c["withdrawn_reason"]) for c in await cards(client, conversation)] == [
+        ("withdrawn", "主题弄错了")
+    ]
     steps = [a["name"] for a in await activity(client, conversation)]
     assert {"give_quiz", "withdraw_card"} <= set(steps)
 
