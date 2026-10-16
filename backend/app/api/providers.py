@@ -41,6 +41,7 @@ from app.providers.model_catalog import (
     looks_like_speech_to_text,
     looks_like_text_to_speech,
 )
+from app.providers.reasoning_catalog import ReasoningLevel, reasoning_spec
 from app.providers.tenant import load_provider_context
 from app.providers.tts import LANGUAGES, Language, default_voice, tts_task
 from app.providers.tts_voices import Gender, voice_options
@@ -82,6 +83,9 @@ class TaskRouteOut(BaseModel):
     # tts only: the voices each model in the chain offers to pick from (Q64q); models
     # whose voices aren't listed have none here.
     voice_options: dict[str, list[VoiceOptionOut]] | None = None
+    # llm only: the thinking levels each model in the chain takes besides its default
+    # (task 91); models left at their default have none here.
+    reasoning_options: dict[str, list[ReasoningLevel]] | None = None
     # The main account's name when its connections serve this task for a member (ADR
     # 0031 §5); `quota_exhausted` when they would, but the member's quota is used up.
     provided_by: str | None = None
@@ -383,7 +387,8 @@ def _task_route_out(
         effective_source = source
         if chain[0].billed_tenant_id is not None and ctx.sponsor is not None:
             provided_by = ctx.sponsor.name
-    # Voices are looked up on whichever account's connections the chain uses.
+    # Voices (and thinking levels) are looked up on whichever account's connections the
+    # chain uses.
     voices_ctx = context_for(config, ctx, section, reads)
     return TaskRouteOut(
         section=section,
@@ -399,6 +404,11 @@ def _task_route_out(
         ),
         voice_options=(
             _voice_options(voices_ctx, [*route.models, *effective]) if section == "tts" else None
+        ),
+        reasoning_options=(
+            _reasoning_options(voices_ctx, [*route.models, *effective])
+            if section == "llm"
+            else None
         ),
         provided_by=provided_by,
         quota_exhausted=quota_exhausted,
@@ -416,6 +426,18 @@ def _default_voices(
             continue
         resolved = ResolvedModel(name, conn.kind, model, conn.base_url, None)
         out[ref] = {lang: default_voice(resolved, lang) for lang in LANGUAGES}
+    return out
+
+
+def _reasoning_options(
+    ctx: TenantProviderContext, refs: list[str]
+) -> dict[str, list[ReasoningLevel]]:
+    out: dict[str, list[ReasoningLevel]] = {}
+    for ref in refs:
+        name, _, model = ref.partition(":")
+        conn = ctx.connections.get(name)
+        if conn is not None and (levels := reasoning_spec(conn.kind, conn.base_url, model).levels):
+            out[ref] = list(levels)
     return out
 
 

@@ -52,6 +52,7 @@ from app.providers.net_guard import (
 from app.providers.pronunciation import AssessmentError, NoSpeechError, PronunciationAssessor
 from app.providers.realtime import realtime_target, redact_key
 from app.providers.realtime_session import RealtimeConnectError, open_session
+from app.providers.reasoning_catalog import ReasoningLevel, reasoning_spec
 from app.providers.tts import (
     LANGUAGES,
     QWEN_AUDIO_TIMEOUT,
@@ -103,8 +104,12 @@ class CallParams(BaseModel):
     # On by default so streamed calls report token usage; off for servers that reject it.
     stream_usage: bool | None = None
     # How hard a chat model thinks before answering (task 89.2); unset: the vendor's
-    # default. Sent as the vendor's own parameter, see providers/llm.py.
-    reasoning: Literal["off", "low", "medium", "high"] | None = None
+    # default. On a route, per "<connection>:<model>" (task 91); a single level (on a
+    # connection, or saved before task 91) applies to every model that takes it. Sent
+    # as the model's own parameter, see providers/reasoning_catalog.py.
+    reasoning: (
+        ReasoningLevel | dict[Annotated[str, Field(max_length=200)], ReasoningLevel] | None
+    ) = None
     # tts routes only (ADR 0028 §3): the voice each model reads a language with, keyed by
     # "<connection>:<model>", over the built-in voices. Never sent to a chat SDK.
     voices: dict[Annotated[str, Field(max_length=200)], dict[Language, VoiceName]] | None = None
@@ -132,6 +137,8 @@ async def _check_connection_params(params: CallParams, *, allow_private: bool) -
     `realtime_url` and `tts_url` normalized."""
     if params.voices is not None:
         raise ProviderConfigError("voices belong on a text-to-speech route, not a connection")
+    if isinstance(params.reasoning, dict):
+        raise ProviderConfigError("reasoning per model belongs on a route, not a connection")
     if params.realtime_url is not None:
         url = await validate_realtime_url(params.realtime_url, allow_private=allow_private)
         params = params.model_copy(update={"realtime_url": url})
@@ -541,6 +548,14 @@ async def put_route(
         )
     if route.params.get(REASONING_PARAM) is not None and section != "llm":
         raise ProviderConfigError("reasoning can only be set on a chat model route")
+    if isinstance(levels := route.params.get(REASONING_PARAM), dict):
+        for ref, level in levels.items():
+            if ref not in route.models:
+                raise ProviderConfigError(f"reasoning for {ref!r}, which is not in the route")
+            conn = connections[ref.partition(":")[0]]
+            spec = reasoning_spec(conn.kind, conn.base_url, ref.partition(":")[2])
+            if level not in spec.levels:
+                raise ProviderConfigError(f"{ref!r} doesn't take reasoning level {level!r}")
     if route.params.get("voices") is not None:
         if section != "tts":
             raise ProviderConfigError("voices can only be set on a text-to-speech route")

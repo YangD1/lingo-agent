@@ -81,7 +81,7 @@ class ReasoningSpec:
 _NONE = ReasoningSpec()
 
 
-def reasoning_spec(kind: ProviderKind, base_url: str, model: str) -> ReasoningSpec:
+def reasoning_spec(kind: ProviderKind | str, base_url: str, model: str) -> ReasoningSpec:
     if kind not in ("openai", "openai_compatible"):
         return _NONE
     # SiliconFlow and relays prefix the vendor: "Qwen/Qwen3-8B", "openai/gpt-5".

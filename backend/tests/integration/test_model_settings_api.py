@@ -516,6 +516,55 @@ async def test_routes_default_then_override_then_revert(client: AsyncClient) -> 
     assert chat((await client.get("/tenant/routes")).json())["overridden"] is False
 
 
+async def test_route_reasoning_is_set_per_model_within_its_levels(client: AsyncClient) -> None:
+    await login(client)
+    await create(client, preset="openai", api_key=SECRET)
+    await create(
+        client, preset="anthropic", name="relay", base_url="https://r.example.com", api_key=SECRET
+    )
+    models = ["openai:gpt-5.1", "openai:gpt-5-mini", "relay:claude-sonnet-5"]
+
+    async def put(reasoning: dict[str, str]) -> Any:
+        return await client.put(
+            "/tenant/routes/llm/chat", json={"models": models, "params": {"reasoning": reasoning}}
+        )
+
+    ok = await put({"openai:gpt-5.1": "off", "openai:gpt-5-mini": "high"})
+    assert ok.status_code == 200, ok.text
+    route = next(
+        r
+        for r in (await client.get("/tenant/routes")).json()
+        if r["section"] == "llm" and r["task"] == "chat"
+    )
+    assert route["params"]["reasoning"] == {"openai:gpt-5.1": "off", "openai:gpt-5-mini": "high"}
+    # Anthropic is left at its default: no levels to pick.
+    assert route["reasoning_options"] == {
+        "openai:gpt-5.1": ["off", "low", "medium", "high"],
+        "openai:gpt-5-mini": ["low", "medium", "high"],
+    }
+    for reasoning, message in [
+        ({"openai:gpt-5-mini": "off"}, "doesn't take"),
+        ({"openai:gpt-5.1": "on"}, "doesn't take"),
+        ({"relay:claude-sonnet-5": "low"}, "doesn't take"),
+        ({"openai:o3": "low"}, "not in the route"),
+    ]:
+        bad = await put(reasoning)
+        assert bad.status_code == 422, reasoning
+        assert message in bad.text
+    # A connection's level is one for all its models, never per model.
+    conn = await client.post(
+        "/tenant/connections",
+        json={
+            "preset": "openai",
+            "name": "other",
+            "api_key": SECRET,
+            "params": {"reasoning": {"other:gpt-5.1": "low"}},
+        },
+    )
+    assert conn.status_code == 422
+    assert "belongs on a route" in conn.text
+
+
 @pytest.mark.parametrize(
     ("path", "body", "message"),
     [

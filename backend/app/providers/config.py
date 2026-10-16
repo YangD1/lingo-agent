@@ -470,12 +470,19 @@ def _resolved(
 ) -> ResolvedModel:
     spec = config.section(section)
     by_task = spec.task_params.get(task, {}) if spec is not None else {}
+    params = {**config.defaults, **by_task, **conn.params, **route.params}
+    # A route's reasoning per model (task 91): this model's, else the connection's.
+    if isinstance(levels := route.params.get(REASONING_PARAM), Mapping):
+        params.pop(REASONING_PARAM)
+        level = levels.get(f"{conn.name}:{model}", conn.params.get(REASONING_PARAM))
+        if level is not None:
+            params[REASONING_PARAM] = level
     return ResolvedModel(
         connection=conn.name,
         kind=conn.kind,
         model=model,
         base_url=conn.base_url,
         api_key=conn.api_key,
-        params={**config.defaults, **by_task, **conn.params, **route.params},
+        params=params,
         deployment_defaults=frozenset(config.defaults) - {*by_task, *conn.params, *route.params},
     )

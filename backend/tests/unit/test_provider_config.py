@@ -143,6 +143,22 @@ def test_params_layering_defaults_then_connection_then_route() -> None:
     assert model.params == {"timeout": 60, "max_retries": 3, "temperature": 0.7}
 
 
+def test_route_reasoning_per_model_over_the_connections() -> None:
+    ctx = make_ctx(
+        conn("openai", reasoning="medium"),
+        conn("relay", "openai_compatible"),
+        routes={
+            ("llm", "chat"): RouteSpec(
+                models=["relay:gpt-6-sol", "openai:gpt-5.1", "relay:gpt-4o"],
+                params={"reasoning": {"relay:gpt-6-sol": "low"}},
+            )
+        },
+    )
+    chain = resolve_route(make_config(), ctx, "llm", "chat")
+    # Its own level, else its connection's, else none at all.
+    assert [m.params.get("reasoning") for m in chain] == ["low", "medium", None]
+
+
 def test_task_params_sit_between_defaults_and_the_connection() -> None:
     config = make_config(
         llm={
