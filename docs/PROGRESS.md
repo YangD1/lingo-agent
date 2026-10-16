@@ -1202,7 +1202,19 @@
     - [x] 89.3 ADR 0048 + 出题流水线改成按题并行：每个题位独立“出题 → 审题 → 被拒最多重写两轮”，并发有上限；过审的题立刻存库；题组多一个“部分就绪”状态，接口返回已就绪的题。测试：pytest（图、并发上限、部分失败、存库、接口）。
       - 完成（ADR 0048，无迁移）：`agents/exercise_graph.py` 改成每个题位一条流水线（`_slot`：出题 → 校验 → 审题，被拒带原因重写），`asyncio.gather` 并行，`practice.parallel_calls`（4）限制同时进行的模型调用；等待预算按题位估算；`NoModelConfiguredError` 让所有题位停止开新调用；不再上报 `reviewing`。过审即调 `ExerciseContext.publish` → `service.publish_item` 存库（题组已放弃时不存）；`save_result` 只插还没存的题，返回 `Saved(stored, done)`。`answer.OPEN_SET` 加 `generating`，首次作答按 `kc_plan` 记作答前掌握度；出完时有人作答过的题组变 `in_progress`、全答完直接 `done`（worker 补触发提前出下一组和诊断，`PracticeWorker.on_done` 接 `DiagnosisWorker.after_set`）；开始作答的题组题少也不判失败。`SetOut.planned`（计划题数，计划排好前是 0）。题组状态没加新值，“部分就绪” = `generating` 且已有题。
       - 测试：pytest `test_exercise_graph.py`（并行、并发上限、单题位失败、重写、预算）、`test_set_answered_while_written.py`（边出边答、存一次、题少不失败、失败题组不能答）、`test_practice_worker.py`（出题中答完由 worker 收尾）、`test_practice_api.py`（出题中返回已有题和 `planned`、可作答）；全量 2015 过；`make lint` 后端部分干净。假模型调用不让出事件循环，集成测试里要轮询等题落库（踩坑）。
-    - [ ] 89.4 前端逐题显示：测验卡片（和练习页）先显示已过审的题，其余显示“正在出题”。测试：Vitest（卡片状态）；E2E（`quiz-chat.spec.ts`、`practice-set.spec.ts` 补逐题出现）。
+    - [!] 89.4 前端逐题显示：测验卡片（和练习页）先显示已过审的题，其余显示“正在出题”。测试：Vitest（卡片状态）；E2E（`quiz-chat.spec.ts`、`practice-set.spec.ts` 补逐题出现）。
+      - 进度（2026-10-16，未提交）：`lib/practice.ts` 加 `planned`、`firstOpenId`、`itemPlace`（按作答顺序编号，出题中总数取计划数），去掉 `reviewing`；`quiz-card.tsx`、`practice-app.tsx` 当前题按 id 记，出题中显示已有的题、答完显示“正在出下一题”，轮询时保留正在看的题；出题中答完、worker 收尾时测验卡片通知课程刷新，练习页保留最后一题讲解再看总结。Vitest 23 过，typecheck、eslint 干净。E2E 未写（打算让 `fake_llm.py` 按题位错开出题时间）。
+      - 用户选 A（2026-10-16）。原阻塞：用户倾向“一次性出整组题，渲染分出”。核对结果：思考强度默认值还没改（89.5 未做）；qwen-plus 不思考也要 30 s 出 5 题（约 45 token/s），而且题必须先过审才能显示，所以只靠快模型 + 流式 + 等待动画解决不了。给出的选项：A 一次出题调用流式输出，每写完一道就单独送审（并行），过审即显示（推荐；89.3 的存库、出题中作答、`planned` 和这里的前端改动都能沿用；要先用百炼验证流式工具调用参数能逐块拿到）；B 保留 89.3 每题单独调用，做完 89.4、89.5。
+    - 方向 A 实测（2026-10-16，用户账号的 sub2api `gpt-6-sol`，应用真实出题提示词和 schema，测验 5 题，脚本在 `/tmp/probe`，未入库）：
+      - 强制工具调用的参数经 sub2api **逐块流式到达**（约 1000 块），`item_0…item_4` 按顺序写，每道约 3 s 写完；用 `parse_partial_json`，“下一个 `item_N` 开始”就说明上一道写完了，最终 JSON 全部通过 schema 校验。
+      - 思考强度默认：思考 1069 token，**27.5 s 才出第一个字**，整组 47.9 s。`low`：首字 2.0 s、整组 16.5 s；`none`：3.3 s / 18.0 s。`gpt-6.1-sol` 不支持 `none`（400，只支持 low 以上），89.2 的“关”对它会报错。
+      - A 的原型（流式出题 + 写完一道就单独送审，`low`）：两次分别是第一题过审 12.0 / 10.3 s，整组 21.1 / 19.2 s；单题审题约 4–6 s、输出约 140 token。对比：现在开发库的默认设置，光出题就要约 48 s。
+    - 按 A 重新拆分（待用户确认）：
+    - [x] 89.3b provider 层流式结构化输出：`providers/llm.py` 新增流式版 `get_structured_llm`，边收边给出部分解析结果，最后给校验过的对象。fallback 只在还没收到任何内容时切到下一个模型，用量照常记账。测试：pytest（部分结果、最终校验、出字前失败走 fallback、出字后失败抛错）。
+      - 完成：`providers/llm.py` `astream_structured(ctx, task, schema, messages)`，每次参数变长就给一个 `StructuredPart(args)`（`AIMessageChunk` 拼接后的 `tool_calls[0].args`，最后一个值可能没写完），最后一个 `done=True`，`output` 是校验过的对象，不合 schema 时为 None（调用方可以只用能用的部分）。所有模型都用 `bind_tools([schema], tool_choice=名字)` 强制工具调用；出第一块前失败（含用文字回答 → `StructuredOutputMissingError`）换下一个模型，出块后失败直接抛。测试：pytest `test_llm_router.py` 5 个（逐块参数、不合 schema、出块前 fallback（含文字回答）、出块后抛错、全部用文字回答）；后端 lint 干净。sub2api `gpt-6-sol`（low）经 LangChain 实测：949 块，`item_0…4` 在 4.6 / 6.3 / 8.6 / 11.1 / 14.3 s 出现，18.4 s 结束，校验通过。
+    - [~] 89.3c 出题图改回按轮次：每轮对所有没完成的题位做**一次**流式出题调用，某道写完（下一道开始或流结束）就校验并单独送审，审题并行（`parallel_calls` 上限），过审即存库；被拒的题带原因进下一轮统一重写，最多 `1 + max_regenerations` 轮，等待预算按轮判断；流中途失败时，已写完的题照常审。ADR 0048 改成这个方案，PLAN 同步。89.3 里的存库、出题中作答、`planned`、worker 收尾都保留。测试：pytest（出题没结束就开始审题、过审即存库、重写轮、中途失败、并发上限、预算）。
+    - 89.4 前端逐题显示（上面已做大半，不受影响）；E2E：`fake_llm.py` 的流式工具调用逐块慢慢发，`quiz-chat.spec.ts` 和 `practice-set.spec.ts` 验证题逐题出现。
+    - 89.5 改为：出题 / 审题默认思考强度设成 `low`（不用“关”，因为有的模型不支持 `none`），`features.yaml` 按实测更新；用 sub2api 实测改动前后的耗时。
     - [ ] 89.5 C：出题 / 审题默认关思考（用 89.2 的参数，按任务配置）；用真实模型对比 89.3 前后的耗时，写进看板。测试：pytest（任务默认参数）。
     - [ ] 89.6 收尾：受影响层全量跑一次、lint、Docker 重建、交接记录。
 - [ ] 任务 90：长期记忆的跨会话效果（2026-10-16 用户记录，明天和任务 89 一起看，未拆分、未确认）

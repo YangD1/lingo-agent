@@ -1,5 +1,5 @@
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Sequence
 from typing import Any
 
 import httpx2
@@ -12,7 +12,7 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableWithFallbacks
 from langchain_deepseek import ChatDeepSeek
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 
 from app.providers import llm
 from app.providers.clients import GuardedChatAnthropic
@@ -297,3 +297,128 @@ def test_reasoning_reaches_the_sdk_only_translated() -> None:
     assert model.reasoning_effort is None
     # Anthropic's constructor would reject an unknown `reasoning` kwarg.
     llm.build_chat_model(resolved("anthropic", "anthropic", "m", reasoning="off"), "chat")
+
+
+# --- streamed structured output (ADR 0048) ---------------------------------------------
+
+
+class ToolStreamModel(BaseChatModel):
+    """Streams `pieces` as the arguments of one tool call (or as text with `as_text`);
+    raises ProviderDown after `fail_after` pieces."""
+
+    pieces: list[str]
+    fail_after: int | None = None
+    as_text: bool = False
+    bound: list[Any] = Field(default_factory=list)
+
+    @property
+    def _llm_type(self) -> str:
+        return "tool-stream"
+
+    def bind_tools(  # type: ignore[override]
+        self, tools: Sequence[Any], *, tool_choice: str | None = None, **kwargs: Any
+    ) -> Runnable[LanguageModelInput, BaseMessage]:
+        self.bound.append((list(tools), tool_choice))
+        return self
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        raise NotImplementedError
+
+    async def _astream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: AsyncCallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[ChatGenerationChunk]:
+        for i, piece in enumerate(self.pieces):
+            if i == self.fail_after:
+                raise ProviderDown
+            if self.as_text:
+                message = AIMessageChunk(content=piece)
+            else:
+                message = AIMessageChunk(
+                    content="",
+                    tool_call_chunks=[
+                        {"name": "Items" if i == 0 else None, "args": piece, "id": "c1", "index": 0}
+                    ],
+                )
+            yield ChatGenerationChunk(message=message)
+
+
+class Items(BaseModel):
+    first: str
+    second: str
+
+
+PIECES = ['{"first": "a', 'pple", "sec', 'ond": "pear"}']
+
+
+async def collect() -> list[llm.StructuredPart[Items]]:
+    return [part async for part in llm.astream_structured(CTX, "extract", Items, "q")]
+
+
+async def test_structured_stream_gives_the_args_as_they_are_written(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = ToolStreamModel(pieces=PIECES)
+    use_models(monkeypatch, model)
+    parts = await collect()
+    assert [p.args for p in parts if not p.done] == [
+        {"first": "a"},
+        {"first": "apple"},
+        {"first": "apple", "second": "pear"},
+    ]
+    assert parts[-1] == llm.StructuredPart(
+        {"first": "apple", "second": "pear"}, Items(first="apple", second="pear"), done=True
+    )
+    # The schema is forced as a tool call.
+    assert model.bound == [([Items], "Items")]
+
+
+async def test_structured_stream_args_that_do_not_fit_end_without_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_models(monkeypatch, ToolStreamModel(pieces=['{"first": "apple"}']))
+    last = (await collect())[-1]
+    assert last.done and last.output is None and last.args == {"first": "apple"}
+
+
+async def test_structured_stream_falls_back_before_its_first_part(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_models(
+        monkeypatch,
+        ToolStreamModel(pieces=PIECES, fail_after=0),
+        ToolStreamModel(pieces=["I would rather say it in words."], as_text=True),
+        ToolStreamModel(pieces=PIECES),
+    )
+    parts = await collect()
+    assert parts[-1].output == Items(first="apple", second="pear")
+
+
+async def test_structured_stream_failing_after_its_first_part_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first, backup = ToolStreamModel(pieces=PIECES, fail_after=2), ToolStreamModel(pieces=PIECES)
+    use_models(monkeypatch, first, backup)
+    seen: list[dict[str, Any]] = []
+    with pytest.raises(ProviderDown):
+        async for part in llm.astream_structured(CTX, "extract", Items, "q"):
+            seen.append(part.args)
+    # The backup never runs: two models' items in one set would not fit together.
+    assert seen == [{"first": "a"}, {"first": "apple"}]
+
+
+async def test_structured_stream_answered_in_text_by_every_model_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    use_models(monkeypatch, ToolStreamModel(pieces=["No."], as_text=True))
+    with pytest.raises(llm.StructuredOutputMissingError):
+        await collect()

@@ -5,9 +5,12 @@ Business code asks for a *task* in the context of a tenant, never a model name:
     ctx = await load_provider_context(session, tenant.id)
     reply = await get_llm(ctx, "chat").ainvoke(messages)
     parsed = await get_structured_llm(ctx, "memory_extract", MemorySchema).ainvoke(messages)
+    async for part in astream_structured(ctx, "exercise_generate", Items, messages): ...
 """
 
-from collections.abc import Sequence
+import logging
+from collections.abc import AsyncIterator, Sequence
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, cast
 from urllib.parse import urlsplit
@@ -15,9 +18,9 @@ from urllib.parse import urlsplit
 from langchain.chat_models import init_chat_model
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseChatModel, LanguageModelInput
-from langchain_core.messages import BaseMessage
-from langchain_core.runnables import Runnable, RunnableLambda
-from pydantic import BaseModel
+from langchain_core.messages import AIMessageChunk, BaseMessage
+from langchain_core.runnables import Runnable, RunnableConfig, RunnableLambda
+from pydantic import BaseModel, ValidationError
 
 from app.providers.cache import TTLCache
 from app.providers.clients import GuardedChatAnthropic
@@ -33,6 +36,8 @@ from app.providers.config import (
 from app.providers.net_guard import make_async_http_client, make_blocked_sync_client
 from app.settings import get_settings
 from app.usage.recorder import UsageLabels, make_recorder
+
+logger = logging.getLogger(__name__)
 
 # ChatOpenAI refuses to start without a key; keyless OpenAI-compatible servers ignore it.
 _KEYLESS_PLACEHOLDER = "not-needed"
@@ -173,6 +178,76 @@ def _with_tools(
 
 class StructuredOutputMissingError(Exception):
     """A structured call got no output of its schema."""
+
+
+@dataclass(frozen=True, slots=True)
+class StructuredPart[T: BaseModel]:
+    """What a streamed structured call has written so far (ADR 0048)."""
+
+    # The arguments parsed so far: the last value in them may still be cut off.
+    args: dict[str, Any]
+    # Last part only: `args` checked against the schema, or None when they don't fit
+    # (the caller may still use the parts it can).
+    output: T | None = None
+    done: bool = False
+
+
+async def astream_structured[T: BaseModel](
+    ctx: TenantProviderContext,
+    task: str,
+    schema: type[T],
+    messages: LanguageModelInput,
+    *,
+    config: RunnableConfig | None = None,
+) -> AsyncIterator[StructuredPart[T]]:
+    """Structured output for `task`, given as it is written (ADR 0048): one part each
+    time the arguments grow, then a last part with the checked output.
+
+    The schema is a forced tool call on every model, so its arguments stream as JSON.
+    As with streamed text (get_llm), the next model takes over only if one fails before
+    its first part; a failure after that raises. A model that answers in text instead
+    raises StructuredOutputMissingError, so the next model answers.
+    """
+    models = get_chat_models(ctx, task)
+    for i, model in enumerate(models):
+        last = i == len(models) - 1
+        started = False
+        try:
+            async for part in _stream_one(model, schema, messages, config):
+                started = True
+                yield part
+            return
+        except Exception:
+            if started or last:
+                raise
+            logger.warning("%s: streamed structured call failed, next model", task, exc_info=True)
+
+
+async def _stream_one[T: BaseModel](
+    model: BaseChatModel,
+    schema: type[T],
+    messages: LanguageModelInput,
+    config: RunnableConfig | None,
+) -> AsyncIterator[StructuredPart[T]]:
+    bound = model.bind_tools([schema], tool_choice=schema.__name__)
+    message: AIMessageChunk | None = None
+    written = 0
+    async for chunk in bound.astream(messages, config=config):
+        if not isinstance(chunk, AIMessageChunk):
+            continue
+        message = chunk if message is None else message + chunk
+        size = sum(len(c.get("args") or "") for c in message.tool_call_chunks)
+        if size > written and message.tool_calls:
+            written = size
+            yield StructuredPart(dict(message.tool_calls[0]["args"]))
+    if message is None or not message.tool_calls:
+        raise StructuredOutputMissingError(f"the model returned no {schema.__name__}")
+    args = dict(message.tool_calls[0]["args"])
+    try:
+        output: T | None = schema.model_validate(args)
+    except ValidationError:
+        output = None
+    yield StructuredPart(args, output, done=True)
 
 
 def get_structured_llm[T: BaseModel](
