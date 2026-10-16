@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-10-16 任务 93 完成：流式调用的用量只记一次
+
+**做了什么**
+- 核实：开发库只有 #443、#447 异常，都是硅基流动 `DeepSeek-V4.1-Flash` 的流式出题。#443 = 16796 块 × 输入 4920，输出累加 ≈ 16796²/2，证实“每块带累计用量、langchain 逐块相加”。
+- 93.1（cdfaf00）`providers/clients.py` `UsageOnceChatOpenAI` 覆盖 `_astream`：拿掉各块用量，每个字段取最大值，结束时补一块；`build_chat_model` 对 `openai` / `openai_compatible` 直接建它。`tests/unit/test_streamed_usage.py` 6 个（累计式、OpenAI 末块、输入输出分块、记账、LangGraph 消息流）。
+- 93.2 开发库两行改成反推值（#443 4920 / 16795，#447 5005 / 22876）。用户同意，不写迁移。
+- 93.3 pytest 2068 全过，lint 干净，Docker 重建后端。
+
+**未完成 / 下一步**
+- 任务 86–93 都在本地未推送。任务 90 待用户说明。
+- DeepSeek 官方（`ChatDeepSeek`）没换成子类：官方只在末块带用量，不受影响；要是以后发现也是累计式，同样处理。
+
+**踩坑**
+- langchain-core 在 v2 流式路径会把 `run_manager` 传进 `ChatOpenAI._astream`，那里的 `on_llm_new_token` 看到的是原始块；但记账读 `on_llm_end` 的最终消息，`chat/turn.py` 读 LangGraph 消息流，两者都经过覆盖后的 `_astream`，测试已覆盖。
+- `uv run mypy .` 在测试目录有 129 个旧错误，`make lint` 只查 `app evals`，不是这次引入的。
+
+---
+
 ## 2026-10-16 任务 92 完成：私教可以撤回自己出的卡
 
 **做了什么**
