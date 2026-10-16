@@ -72,6 +72,7 @@
 | `propose_word_book`、`propose_learning_goal`、`propose_daily_plan`、`suggest_practice`、`suggest_link` | tool | `card_id`、`card_kind`（出了卡片时；调用被拒记 `failed`、摘要为空）；`call_id` = 模型的 tool call id。卡片本身显示当前状态 |
 | `give_quiz` | tool | 同上：`card_id`、`card_kind`（`quiz`）；被拒（语法点不在清单或范围、按名字没找到或有多个候选、今天这个语法点的通过测验已出满、主动出题不符合限制）记 `failed` |
 | `open_workspace`、`propose_edit`、`close_workspace`、`set_workspace_auto_open` | tool | 同上：`card_id`、`card_kind`（`workspace`、`workspace_edit`、`workspace_closed`、`workspace_auto`）；工作区没开时 `close_workspace` 记 `failed` |
+| `withdraw_card` | tool | `card_id`、`card_kind`（被撤回的那张）；拒绝（没有这张卡、学习者已决定、测验已有作答）记 `failed` |
 | `tools` | step | 无；只在厂商拒绝工具调用、这一轮改为不带工具重答时记一行 `skipped` |
 | `lookup_word`、`add_to_vocab`、`end_session` | tool | 实时通话的工具（见“实时语音通话”）：`lookup_word` 记 `word`、`word_id`（查到的词条；没查到只有 `word`）；`add_to_vocab` 同 `vocab_collect` 的 `added` / `existing`；`end_session` 无字段。`call_id` = 厂商的 call id；挂在学习者最近一句话上（助手开口前就调用时挂在助手第一句上） |
 | `handoff` | step | `coach`：自由对话分类后转给的 coach |
@@ -98,7 +99,8 @@
 - **不带工具的情况**：练习会话（有 `focus_kc_id`）、带图片的一轮、上限已到。工作区的两个工具只在 tutor 回复的那一轮有（其他 coach 本来就不带工具）。
 - **规划对话和看板“今天”对话里的范围**（ADR 0015 §6、0016）：`suggest_practice` 的语法点只能是最近一次入学测答错且还没掌握的（最多 5 个）或建议候选里的，`suggest_link` 只能是建议候选对应的页面或 `/learner`；超出的调用作为错误返回。读不到候选时范围为空（只能出提议卡片）。`propose_daily_plan` 只在“今天”对话里能用（ADR 0027），别处调用作为错误返回、不出卡。
 - **幂等**：同一个 tool call id 只写一张卡片；同一轮里同样的提议（类型和参数都相同）复用第一张卡片。
-- **下一轮可见**：本会话最近 10 张卡片及其状态（待确认 / 已确认 / 已拒绝 / 已撤销）放进 system prompt，模型据此不重复提议。
+- **下一轮可见**：本会话最近 10 张卡片及其状态（待确认 / 已确认 / 已拒绝 / 已撤销 / 已撤回）和卡片 id（`[card call_…]`）放进 system prompt，模型据此不重复提议，也能撤回之前的卡片。
+- **撤回**（ADR 0049）：出卡工具的返回文字带卡片 id（`card call_…`），模型发现卡片出错（比如测验的语法点找偏了）时在同一轮或之后调 `withdraw_card`，不要在回复里让学习者别管它。
 
 | 工具 | 参数 | 卡片 | 确认后写 | 撤销 |
 |---|---|---|---|---|
@@ -112,12 +114,13 @@
 | `propose_edit`（ADR 0043 §5–§6） | `doc_id`（本会话的写作文档）、`edits`：1–20 处 `{original（当前版本里的原文片段，≤300 字）, replacement, reason}` | 小卡片，`workspace_edit`，`info`（“提了 N 处修改”，点开定位到工作区）；工作区里逐处显示差异 | 一条待确认的改稿（`workspace_edits`，每处 `pending`）；原文找不到、出现不止一次或和前一处重叠的作为错误交回模型，其余照常；学习者逐处接受 / 拒绝（`POST /workspace/edits/{id}/decide`）后，接受的那几处在当前正文里重新定位并合成一个新版本（作者记为助手）；学习者期间改过的段落标为失效，只能拒绝 | 接受后可回到上一个版本（回退也存成新版本）；拒绝的不改正文 |
 | `close_workspace`（ADR 0045 §2） | 无。学习者说“关掉右边”“先不用工作区”时调用；工作区没开或开的不是本会话的文档时作为错误交回模型 | 小卡片，`workspace_closed`，`info`（“收起了工作区”，带“重新打开”）；前端**只在实时收到时**收起面板，翻历史不收 | 无：只收起面板，不删文档、不改学习数据 | 卡片上“重新打开” |
 | `set_workspace_auto_open`（ADR 0045 §3） | `on`（布尔）。学习者说“以后别自动打开工作区”或“还是自动打开吧”时调用；关掉时提示要求同时 `close_workspace` | 设置卡片，`workspace_auto`，调用即生效（`applied`，因为是学习者自己提的），写明现在的状态；值本来就一样时也出卡片，结果告诉模型“没变” | `tutor_profiles.workspace_auto_open`；卡片记下原值。同一个 tool call id 只改一次 | 卡片“撤销”恢复原值；之后又改过则 409 `setting_changed`；也可在助手设置页改回 |
+| `withdraw_card`（ADR 0049） | `card`（卡片 id，即出卡那次的 tool call id，只认本会话）、`reason`（给学习者看的一句话，1–300 字） | 不出新卡，原卡改为 `withdrawn`，收起成一行写明原因，可展开看原内容（只读） | 无；测验卡的题组还在出题或没人答时标 `failed` / `withdrawn` 并取消出题任务。学习者已确认 / 拒绝 / 撤销过的提议、已有作答的测验拒绝撤回，作为错误交回模型；已撤回的再撤不改动（幂等） | 不需要（撤回本身就是收回；要改设置应出新的提议） |
 
 工作区何时由助手自己打开（ADR 0045 §1）：`tutor_tools.md` 的工作区一节按 `workspace_auto_open` 装配——开着时，学习者贴了整篇英文想读懂 → 开精读，要写 / 改较长的作文邮件 → 开写作，短句不开、同一段已开过不重开，不用先问；关着时只在学习者明确要求时开。
 
 **实时通话的工具**另有一套：`lookup_word`、`add_to_vocab`、`end_session`（ADR 0030 §4）。它们不出卡片：`lookup_word` 只读；`add_to_vocab` 直接加进生词本（幂等，可在生词本移除），因为通话中弹确认会打断说话；`end_session` 只提议，学习者点了才挂断。上限是每次回答 3 个、每通 20 个、单个 3 秒。参数、读写和学习者在哪里看到，见下面“实时语音通话”一节。
 
-卡片存在 `tutor_cards`（`cards/service.py`；状态 `proposed → applied | declined`、`applied → undone`，链接卡片是 `info`；提议不过期），删除会话时一起删除。接口：`GET /conversations/{id}/cards`、`POST /cards/{id}/apply|decline|undo`（只能操作自己的卡片）。回复中的卡片通过 SSE `card` 事件实时推送。
+卡片存在 `tutor_cards`（`cards/service.py`；状态 `proposed → applied | declined`、`applied → undone`，链接卡片是 `info`；`proposed` 和 `info` 可被模型撤回成 `withdrawn`（记 `withdrawn_reason`，ADR 0049）；提议不过期），删除会话时一起删除。接口：`GET /conversations/{id}/cards`、`POST /cards/{id}/apply|decline|undo`（只能操作自己的卡片）。回复中的卡片通过 SSE `card` 事件实时推送。
 
 **学习者在哪里看到**：卡片显示在那一轮助手回复的下方（`frontend/src/components/chat/tutor-cards.tsx`），和回复一起属于对话，不受“显示JOJO做了什么”开关影响。提议卡片上有“确认 / 不用了”，确认后可“撤销”；撤销被拒绝（之后又改过设置）时卡片上说明原因。每次调用在“JOJO做了什么”里记一行（展示了什么卡片，或没能展示）；厂商不支持工具时也有一行说明。
 

@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-10-16 任务 92 完成：私教可以撤回自己出的卡
+
+**做了什么**
+- 用户截图：私教出了语法点找偏的测验卡，回复里说“先不用答这张”，卡片还在、后台还在出题。用户要求 AI 能打断、取消自己的工具执行。Q92a 所有卡都能撤、测验卡顺带停出题，Q92b 已决定 / 已作答的拒绝，Q92c 收起成一行写原因、可展开，都按推荐确认。
+- 92.1（1d8d3f6）后端：`cards/tools.py` `WithdrawCard`；`cards/service.py` `withdraw_card`（锁卡、幂等、拒绝情形、测验题组改 `failed` / `withdrawn`）；`cards/runtime.py` `_withdraw` 提交后调 `PracticeWorker.cancel`；出卡工具返回文字带 `card call_…`，卡片上下文每行带 `[card …]`；迁移 `a6d5d0cbe419`（状态 `withdrawn`、列 `withdrawn_reason`）。
+- 92.2（ad6acbd）前端：`tutor-cards.tsx` `Withdrawn` 收起成一行，展开看只读原内容；“做了什么”显示撤回。
+- 92.3（632d91f）E2E：`fake_llm.py` 学习者说“又不想做了”时按工具结果里的卡片 id 撤回；`quiz-chat.spec.ts` 新增一条。
+- 92.4 ADR 0049、`agent-tools.md`、PLAN；pytest 2062、Vitest 898、E2E 93 全过；lint 干净；Docker 先后端再前端重建。
+
+**未完成 / 下一步**
+- 任务 93（流式用量逐块累加，llm_usage #443 记了 8 千万输入 token）等用户确认后再做。
+- 任务 86–92 的提交都在本地，未推送。任务 90 待用户说明。
+- 撤回靠模型自己发现出错；真实模型会不会用这个工具还没用真 key 验证过。
+
+**踩坑**
+- 撤回的测验题组要在出题任务被取消前写成 `withdrawn`：`PracticeWorker._run` 被取消时只把仍是 `generating` 的改成 `interrupted`，所以顺序是先提交再 `cancel`。
+- 全量 E2E 已经要 9.8 分钟，接近 Bash 单次 10 分钟上限，下次可能要放后台跑。
+
+---
+
 ## 2026-10-16 任务 91 完成：思考强度按模型给档位
 
 **做了什么**
