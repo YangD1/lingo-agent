@@ -14,7 +14,8 @@
 #            the tenant's daily background budget (ADR 0025 §5), and gets a learner
 #            switch in app/scheduler/prefs.py
 #   per      what one call covers: call / image / page (scanned PDF pages only) /
-#            minute (realtime calls only: their usage summed over the call's length)
+#            minute (realtime calls only: their usage summed over the call's length) /
+#            item (one call per item of a set, e.g. each question reviewed on its own)
 #   default  estimate without history: input/output tokens, audio_seconds for asr and
 #            pronunciation, characters for tts
 #   history  false when the call is never recorded in llm_usage (embeddings)
@@ -212,18 +213,23 @@ features:
   # the next one is written the same way in the background (Q33e).
   practice_set:
     calls:
+      # One streamed call writes the set; each question is reviewed on its own as soon
+      # as it is written (ADR 0048). Measured 2026-10-16 (gpt-6-sol, low): a review
+      # about 1200 tokens in, 150 out.
       - task: exercise_generate
         timing: now
         default: {input_tokens: 6800, output_tokens: 1500}
       - task: exercise_critic
         timing: now
-        default: {input_tokens: 5900, output_tokens: 1000}
+        per: item
+        default: {input_tokens: 1200, output_tokens: 150}
       - task: exercise_generate
         timing: background
         default: {input_tokens: 6800, output_tokens: 1500}
       - task: exercise_critic
         timing: background
-        default: {input_tokens: 5900, output_tokens: 1000}
+        per: item
+        default: {input_tokens: 1200, output_tokens: 150}
 
   # Grading an answer the code cannot (ADR 0021 §6): open formats, and find_fix with a
   # fix not in the item's list. One call per such answer, only the first time an item
@@ -243,12 +249,15 @@ features:
   # its own (ADR 0046 §3), unless the learner turned that off in the tutor settings.
   quiz_card:
     calls:
+      # As practice_set (ADR 0048). Measured 2026-10-16 (gpt-6-sol, low, 5 questions):
+      # writing 3500 tokens in, 1000 out.
       - task: exercise_generate
         timing: now
-        default: {input_tokens: 5000, output_tokens: 1000}
+        default: {input_tokens: 3500, output_tokens: 1000}
       - task: exercise_critic
         timing: now
-        default: {input_tokens: 4500, output_tokens: 700}
+        per: item
+        default: {input_tokens: 1200, output_tokens: 150}
       - task: exercise_grade
         timing: now
         default: {input_tokens: 11900, output_tokens: 150}

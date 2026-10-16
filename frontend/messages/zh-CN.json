@@ -2030,7 +2030,8 @@
     "per": {
       "image": "每张图",
       "page": "每页",
-      "minute": "每分钟"
+      "minute": "每分钟",
+      "item": "每道题"
     },
     "tokens": "约 {input} 输入 + {output} 输出 token",
     "audio": "约 {seconds} 秒音频（按时长计费，不按 token）",

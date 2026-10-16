@@ -1217,9 +1217,11 @@
       - 完成：`exercise_graph.py` `produce` 按轮推进，`_round` 每轮一次 `ctx.generate`（`StreamedCall`，产出 `Written(args, model, done)`），某个 `item_N` 之后出现下一个字段或流结束就 `_settle`（`_candidate` 逐题校验 → `_review` 单独审题，受 `parallel_calls` 限制 → 过审即 `publish`）；被拒的进下一轮；出题中途失败时已写完的照常审、不再开新轮；某道审题失败只关这一道；`NoModelConfiguredError` 停止所有轮次。worker `streamed_call` 包 `astream_structured`，`_AnsweredBy.writing` 记正在写的模型。ADR 0048 改写为方向 A（文件改名 `0048-streamed-exercise-pipeline.md`，记录了为什么不用 89.3 第一版的每题单独调用），PLAN、`agent-tools.md` 同步。
       - 测试：pytest `test_exercise_graph.py` 18 个（新增：出题没结束就审题、过审即发布；中途断流保留已写完的题；审题没模型停止轮次；并发上限改测审题）；全量 2021 过；后端 lint 干净。sub2api `gpt-6-sol`（low）跑真出题图：第一题 13.3 s 发布，前 4 道 13.3 / 15.2 / 16.3 / 19.9 s；第 5 道翻译题三轮都因难度判断差太多被拒（出题 -2.1、审题 -3.3），是题目质量问题，正式流程会用题库补。
     - 89.4 前端逐题显示（上面已做大半，不受影响）；E2E：`fake_llm.py` 的流式工具调用逐块慢慢发，`quiz-chat.spec.ts` 和 `practice-set.spec.ts` 验证题逐题出现。
-    - 89.5 改为：出题 / 审题默认思考强度设成 `low`（不用“关”，因为有的模型不支持 `none`），`features.yaml` 按实测更新；用 sub2api 实测改动前后的耗时。
-    - [ ] 89.5 C：出题 / 审题默认关思考（用 89.2 的参数，按任务配置）；用真实模型对比 89.3 前后的耗时，写进看板。测试：pytest（任务默认参数）。
-    - [ ] 89.6 收尾：受影响层全量跑一次、lint、Docker 重建、交接记录。
+    - [x] 89.5 C：出题 / 审题默认关思考（用 89.2 的参数，按任务配置）；用真实模型对比 89.3 前后的耗时，写进看板。测试：pytest（任务默认参数）。
+      - 用户决定（2026-10-16）：**不改代码默认值**，思考强度在设置页手动选（和 89.2 时的决定一致）。原因：百炼、硅基流动只有开 / 关两档，“低”会被翻译成开思考，qwen-plus 这类默认不思考的模型反而变慢；部署默认值会发给所有 OpenAI 兼容模型，不支持 `reasoning_effort` 的模型可能直接报错。另外，`gpt-6.1-sol` 不支持 `none`，设置页选“关”会报 400（89.2 遗留，未处理）。
+      - 完成：AI 用量公示加计费单位 `item`（“每道题”），`practice_set`、`quiz_card` 的 `exercise_critic` 改成 `per: item`，默认估计按实测改成每题 1200 输入 / 150 输出；`quiz_card` 的出题默认估计改成 3500 / 1000。测试：pytest `test_usage_features.py`（出题按次、审题按题）；Vitest `ai-badge.test.tsx`（“per question”）；`make lint` 干净。
+      - 前后耗时（sub2api `gpt-6-sol`，测验 5 题）：改动前，默认思考强度下光出题就要约 48 s（思考 27.5 s 后才出字），之后整组审题，前端整组出完才显示；改动后（思考强度 low）第一题 10–13 s 可以作答，整组 19–21 s。
+    - [~] 89.6 收尾：受影响层全量跑一次、lint、Docker 重建、交接记录。
 - [ ] 任务 90：长期记忆的跨会话效果（2026-10-16 用户记录，明天和任务 89 一起看，未拆分、未确认）
   - 问题：用户觉得长期记忆跨会话还不够好（具体表现待用户补充：新会话里忘了什么、记错了什么、带进来的东西太多还是太少）。
   - 用户提的参考：[dsh-memoir](https://github.com/Qinling-Melon-Farmers/dsh-memoir)（Apache-2.0，TypeScript，DeepSeek Harness 的插件，34 star，v0.9.2，pre-1.0）。要点（2026-10-16 读 README）：

@@ -41,6 +41,15 @@ def test_shipped_catalog_loads() -> None:
     assert (opening.task, opening.route_task) == ("practice_opening", "chat")
 
 
+def test_questions_are_reviewed_one_call_each() -> None:
+    """ADR 0048: one streamed call writes a set, the critic reviews each question."""
+    features = get_features().features
+    for name in ("practice_set", "quiz_card"):
+        calls = features[name].calls
+        assert {c.per for c in calls if c.task == "exercise_generate"} == {"call"}
+        assert {c.per for c in calls if c.task == "exercise_critic"} == {"item"}
+
+
 def test_every_shipped_audio_call_is_estimated_by_audio_length() -> None:
     for feature in get_features().features.values():
         for c in feature.calls:

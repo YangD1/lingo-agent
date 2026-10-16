@@ -13,7 +13,7 @@ from app.providers.config import Section
 FEATURES_PATH = Path(__file__).parent / "features.yaml"
 
 Timing = Literal["now", "background"]
-Per = Literal["call", "image", "page", "minute"]
+Per = Literal["call", "image", "page", "minute", "item"]
 # Sections billed by audio length.
 AUDIO_SECTIONS: frozenset[str] = frozenset({"asr", "pronunciation"})
 

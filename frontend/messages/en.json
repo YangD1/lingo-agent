@@ -2030,7 +2030,8 @@
     "per": {
       "image": "per image",
       "page": "per page",
-      "minute": "per minute"
+      "minute": "per minute",
+      "item": "per question"
     },
     "tokens": "≈ {input} input + {output} output tokens",
     "audio": "≈ {seconds} s of audio (billed by length, not tokens)",

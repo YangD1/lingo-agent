@@ -46,6 +46,10 @@ const estimates = {
     },
     { feature: "chat_image", calls: [call({ task: "vision", per: "image" })] },
     {
+      feature: "quiz_card",
+      calls: [call({ task: "exercise_critic", per: "item", input_tokens: 1200, output_tokens: 150 })],
+    },
+    {
       feature: "read_aloud",
       calls: [call({ task: "tts", characters: 60, model: "school:tts-1", provided_by: "Riverside School" })],
     },
@@ -140,6 +144,13 @@ describe("AiBadge", () => {
     expect(details).toHaveTextContent("reads each image first");
     expect(details).toHaveTextContent("Scanned pages are read by an AI model");
     expect(await screen.findByText(/per image/)).toBeInTheDocument();
+  });
+
+  it("estimates a review per question", async () => {
+    api.mockResolvedValue(estimates);
+    show("quiz_card");
+    await userEvent.click(screen.getByRole("button", { name: /Uses AI/ }));
+    expect(await screen.findByText(/≈ 1,200 input \+ 150 output tokens per question/)).toBeInTheDocument();
   });
 
   it("says so when the estimate can't be loaded", async () => {

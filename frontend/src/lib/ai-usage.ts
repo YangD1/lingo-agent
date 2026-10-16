@@ -77,8 +77,9 @@ export function isAiTask(task: string): task is AiTask {
 export type CallEstimate = {
   task: string;
   timing: "now" | "background";
-  /** "minute": a realtime call's usage over its length (ADR 0030). */
-  per: "call" | "image" | "page" | "minute";
+  /** "minute": a realtime call's usage over its length (ADR 0030); "item": one call per
+   * item of a set, e.g. each question reviewed (ADR 0048). */
+  per: "call" | "image" | "page" | "minute" | "item";
   input_tokens: number;
   output_tokens: number;
   /** Speech-to-text and pronunciation assessment: billed by audio length, not tokens. */
