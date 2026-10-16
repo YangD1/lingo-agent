@@ -346,7 +346,8 @@
         "propose_edit": "Propose edits",
         "close_workspace": "Close the workspace",
         "set_workspace_auto_open": "Change when the workspace opens",
-        "give_quiz": "Quiz"
+        "give_quiz": "Quiz",
+        "withdraw_card": "Take back a card"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -375,6 +376,7 @@
       "practice": "followed the practice plan",
       "practiceRead": "Practice guidance: {kc} (how well you know it and your recent mistakes)",
       "cards": "showed {n, plural, one {# card} other {# cards}}",
+      "cardsWithdrawn": "took back {n, plural, one {# card} other {# cards}}",
       "planning": "went through your placement result",
       "handedTo": "handed to the {coach}",
       "writingReviewed": "reviewed your writing",
@@ -386,6 +388,7 @@
       "readingReadOriginal": "Read the article you asked about: the original, {words} words.",
       "readArticle": "read the article",
       "cardShown": "Showed a card: {card}",
+      "cardWithdrawn": "Took back a card: {card}",
       "toolFailed": "A card couldn't be shown ({step}); the assistant was told why.",
       "toolsUnavailable": "The model doesn't support tools, so the assistant answered with links instead of cards.",
       "cardKinds": {
@@ -557,6 +560,12 @@
         "wrong": "Wrong",
         "ask": "Ask {name} to go over it",
         "askMessage": "I'm done. Can you go over it with me?"
+      },
+      "withdrawn": {
+        "title": "Your tutor took this card back.",
+        "reason": "Your tutor took this card back: {reason}",
+        "show": "Show it",
+        "hide": "Hide"
       }
     },
     "planning": {

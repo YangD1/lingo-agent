@@ -48,6 +48,7 @@ export const TOOL_NAMES = [
   "propose_edit",
   "close_workspace",
   "set_workspace_auto_open",
+  "withdraw_card",
 ] as const;
 export type MemoryChanges = {
   added: string[];
@@ -116,8 +117,9 @@ export type TurnDigest = {
   articleRead: boolean;
   /** The coach read the document open in the workspace. */
   workspaceRead: boolean;
-  /** Cards the tutor showed with tool calls. */
+  /** Cards the tutor showed with tool calls, and took back (ADR 0049). */
   cardsShown: number;
+  cardsWithdrawn: number;
   profileUpdated: boolean;
   mistakes: number;
   usedCorrectly: number;
@@ -143,6 +145,7 @@ export function digest(activities: Activity[]): TurnDigest {
     articleRead: false,
     workspaceRead: false,
     cardsShown: 0,
+    cardsWithdrawn: 0,
     profileUpdated: false,
     mistakes: 0,
     usedCorrectly: 0,
@@ -173,6 +176,8 @@ export function digest(activities: Activity[]): TurnDigest {
       d.wordsLookedUp += 1;
     } else if (a.name === "add_to_vocab") {
       d.wordsCollected += (a.summary as WordsCollected).added?.length ?? 0;
+    } else if (a.name === "withdraw_card") {
+      if ((a.summary as CardShown).card_id) d.cardsWithdrawn += 1;
     } else if (a.kind === "tool") {
       if ((a.summary as CardShown).card_id) d.cardsShown += 1;
     } else if (a.name === "reflect_memory") {

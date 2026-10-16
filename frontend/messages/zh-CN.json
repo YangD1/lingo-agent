@@ -346,7 +346,8 @@
         "propose_edit": "提议修改",
         "close_workspace": "收起工作区",
         "set_workspace_auto_open": "调整工作区是否自动打开",
-        "give_quiz": "出测验"
+        "give_quiz": "出测验",
+        "withdraw_card": "撤回卡片"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -375,6 +376,7 @@
       "practice": "按练习要求回复",
       "practiceRead": "练习指引：{kc}（掌握度档位和最近的错句）",
       "cards": "展示了 {n} 张卡片",
+      "cardsWithdrawn": "撤回了 {n} 张卡片",
       "planning": "参考了你的入学测结果",
       "handedTo": "交给了{coach}",
       "writingReviewed": "批改了你的作文",
@@ -386,6 +388,7 @@
       "readingReadOriginal": "读了你问的这篇文章：原文，{words} 词。",
       "readArticle": "读了这篇文章",
       "cardShown": "展示了卡片：{card}",
+      "cardWithdrawn": "撤回了卡片：{card}",
       "toolFailed": "有一张卡片没能展示（{step}），已把原因告诉助手。",
       "toolsUnavailable": "当前模型不支持工具调用，助手改用链接代替卡片回答。",
       "cardKinds": {
@@ -557,6 +560,12 @@
         "wrong": "答错",
         "ask": "让 {name} 讲评",
         "askMessage": "我做完了，帮我看看。"
+      },
+      "withdrawn": {
+        "title": "私教撤回了这张卡。",
+        "reason": "私教撤回了这张卡：{reason}",
+        "show": "看原内容",
+        "hide": "收起"
       }
     },
     "planning": {

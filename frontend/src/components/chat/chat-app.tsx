@@ -194,6 +194,7 @@ export function ChatApp({
   const [editsSignal, setEditsSignal] = useState(0);
   const onCardShown = useCallback(
     (card: TutorCard) => {
+      if (card.status === "withdrawn") return; // taken back: nothing to open or close
       if (card.kind === "workspace_closed") return closeDoc();
       if (card.kind !== "workspace" && card.kind !== "workspace_edit") return;
       reloadDocs();

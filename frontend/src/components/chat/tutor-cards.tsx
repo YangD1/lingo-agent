@@ -11,10 +11,11 @@ import {
   PenLine,
   Settings2,
   Target,
+  Undo2,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { PlanEditor, roundMinutes, useItemLabel } from "@/components/plan/plan-editor";
 import { PracticeChoices } from "@/components/practice/practice-choices";
@@ -26,6 +27,7 @@ import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { ApiError } from "@/lib/api";
 import { type CardAction, LINK_HREFS, type LinkKind, type TutorCard } from "@/lib/cards";
 import type { PlanCardParams, PlanChoice } from "@/lib/plan";
+import { kcName } from "@/lib/learner";
 import { cn } from "@/lib/utils";
 import { chatUrl } from "@/lib/workspace";
 
@@ -79,12 +81,32 @@ function CardItem({
   onDecide,
   conversationId,
   onAsk,
+  nested = false,
 }: {
   card: TutorCard;
   onDecide: Decide;
   conversationId: string | null;
   onAsk: ((text: string) => void) | null;
+  /** Shown inside a withdrawn card: not a card of the turn itself. */
+  nested?: boolean;
 }) {
+  if (card.status === "withdrawn") {
+    return (
+      <Withdrawn card={card}>
+        {card.kind === "quiz" ? (
+          <QuizTitle card={card} />
+        ) : (
+          <CardItem
+            card={{ ...card, status: "info" }}
+            onDecide={onDecide}
+            conversationId={conversationId}
+            onAsk={onAsk}
+            nested
+          />
+        )}
+      </Withdrawn>
+    );
+  }
   if (card.kind === "quiz") {
     // Questions need the card's full width: no icon column (ADR 0044 §4).
     return (
@@ -103,7 +125,7 @@ function CardItem({
   return (
     <div
       className="flex gap-3 rounded-lg border border-border/70 bg-card px-3.5 py-3 text-[13px] shadow-(--shadow-card)"
-      data-testid="tutor-card"
+      data-testid={nested ? undefined : "tutor-card"}
       data-kind={card.kind}
       data-status={card.status}
     >
@@ -143,6 +165,47 @@ function CardItem({
       </div>
     </div>
   );
+}
+
+/**
+ * A card the tutor took back (ADR 0049): one line with its reason; what it showed can be
+ * looked at again, with nothing left to confirm.
+ */
+function Withdrawn({ card, children }: { card: TutorCard; children: ReactNode }) {
+  const t = useTranslations("chat.cards.withdrawn");
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="flex flex-col gap-2 rounded-lg border border-dashed border-border px-3.5 py-2 text-[13px] text-muted-foreground"
+      data-testid="tutor-card"
+      data-kind={card.kind}
+      data-status={card.status}
+    >
+      <div className="flex items-center gap-2">
+        <Undo2 aria-hidden className="size-3.5 shrink-0" />
+        <p className="min-w-0 flex-1">
+          {card.withdrawn_reason ? t("reason", { reason: card.withdrawn_reason }) : t("title")}
+        </p>
+        <Button size="xs" variant="ghost" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          {open ? t("hide") : t("show")}
+        </Button>
+      </div>
+      {open && (
+        <div className="opacity-70" data-testid="withdrawn-original">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** What a withdrawn quiz card was on: its questions were never meant to be answered. */
+function QuizTitle({ card }: { card: TutorCard }) {
+  const t = useTranslations("chat.cards.quiz");
+  const locale = useLocale();
+  const kc = card.display.kc;
+  const name = kc ? kcName(kc, locale) : String(card.params.kc_id);
+  return <p>{t(card.params.purpose === "check" ? "titleCheck" : "titleQuiz", { kc: name })}</p>;
 }
 
 function WordBook({ card }: { card: TutorCard }) {

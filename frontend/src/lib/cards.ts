@@ -43,7 +43,8 @@ export const LINK_HREFS: Record<LinkKind, string> = {
 };
 
 /** proposed → applied | declined, applied → undone; cards without an effect are `info`. */
-export type CardStatus = "proposed" | "applied" | "declined" | "undone" | "info";
+/** withdrawn: the tutor took the card back (ADR 0049), saying why in `withdrawn_reason`. */
+export type CardStatus = "proposed" | "applied" | "declined" | "undone" | "info" | "withdrawn";
 export type CardAction = "apply" | "decline" | "undo";
 
 type Named = { id: string; name_en: string; name_zh: string };
@@ -80,6 +81,7 @@ export type TutorCard = {
   created_at: string | null;
   decided_at: string | null;
   undone_at: string | null;
+  withdrawn_reason?: string | null;
 };
 
 export function fetchCards(conversationId: string): Promise<{ cards: TutorCard[] }> {

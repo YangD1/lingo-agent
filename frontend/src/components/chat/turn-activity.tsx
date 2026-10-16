@@ -93,6 +93,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
     d.wordsLookedUp > 0 && t("lookedUpCount", { n: d.wordsLookedUp }),
     d.wordsCollected > 0 && t("words", { n: d.wordsCollected }),
     d.cardsShown > 0 && t("cards", { n: d.cardsShown }),
+    d.cardsWithdrawn > 0 && t("cardsWithdrawn", { n: d.cardsWithdrawn }),
     d.summaryUpdated && t("summaryUpdated"),
     d.failed.length + d.skipped.length > 0 && t("someFailed"),
     waiting && t("waiting"),
@@ -187,7 +188,8 @@ function Step({
     if (a.status !== "ok") return <p>{t("toolFailed", { step })}</p>;
     const kind = (a.summary as CardShown).card_kind ?? "";
     const key = `cardKinds.${kind}` as Parameters<typeof t>[0];
-    return <p>{t("cardShown", { card: t.has(key) ? t(key) : step })}</p>;
+    const card = t.has(key) ? t(key) : step;
+    return <p>{t(a.name === "withdraw_card" ? "cardWithdrawn" : "cardShown", { card })}</p>;
   }
   if (a.name === "tools") return <p>{t("toolsUnavailable")}</p>;
   if (a.status === "failed") return <p>{t("failed", { step })}</p>;

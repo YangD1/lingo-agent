@@ -52,6 +52,14 @@ describe("digest", () => {
     expect(d).toMatchObject({ planned: true, cardsShown: 2, failed: ["suggest_practice"] });
   });
 
+  it("counts cards taken back apart from the cards shown", () => {
+    const d = digest([
+      step("give_quiz", { card_id: "k1", card_kind: "quiz" }, { kind: "tool", call_id: "c1" }),
+      step("withdraw_card", { card_id: "k1", card_kind: "quiz" }, { kind: "tool", call_id: "c2" }),
+    ]);
+    expect(d).toMatchObject({ cardsShown: 1, cardsWithdrawn: 1 });
+  });
+
   it("names the coach a turn was handed to", () => {
     expect(digest([]).handedTo).toBeNull();
     const d = digest([step("handoff", { coach: "writing_coach" }, { kind: "step" })]);

@@ -64,6 +64,38 @@ describe("TutorCards", () => {
     expect(onDecide).toHaveBeenLastCalledWith(proposal, "decline");
   });
 
+  it("folds a withdrawn card into its reason, with nothing left to confirm", async () => {
+    const onDecide = show([card({ status: "withdrawn", withdrawn_reason: "主题弄错了" })]);
+    const item = screen.getByTestId("tutor-card");
+    expect(item).toHaveAttribute("data-status", "withdrawn");
+    expect(item).toHaveTextContent("私教撤回了这张卡：主题弄错了");
+    expect(screen.queryByText("把词书换成 雅思")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "看原内容" }));
+    expect(screen.getByTestId("withdrawn-original")).toHaveTextContent("把词书换成 雅思");
+    expect(screen.queryByRole("button", { name: "确认" })).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("tutor-card")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "收起" }));
+    expect(screen.queryByTestId("withdrawn-original")).not.toBeInTheDocument();
+    expect(onDecide).not.toHaveBeenCalled();
+  });
+
+  it("shows only what a withdrawn quiz was on, without loading its questions", async () => {
+    show([
+      card({
+        kind: "quiz",
+        status: "withdrawn",
+        withdrawn_reason: null,
+        params: { set_id: "s1", kc_id: "g.reporting_verbs", purpose: "quiz" },
+        display: { kc: { id: "g.reporting_verbs", name_en: "Reporting verbs", name_zh: "转述动词", cefr: "B2" } },
+      }),
+    ]);
+    expect(screen.getByTestId("tutor-card")).toHaveTextContent("私教撤回了这张卡。");
+    await userEvent.click(screen.getByRole("button", { name: "看原内容" }));
+    expect(screen.getByTestId("withdrawn-original")).toHaveTextContent("通过测验 · 转述动词");
+    expect(screen.queryByTestId("quiz-card")).not.toBeInTheDocument();
+  });
+
   it("undoes an applied card, and says why it can't", async () => {
     const applied = card({ status: "applied" });
     const onDecide = show(
