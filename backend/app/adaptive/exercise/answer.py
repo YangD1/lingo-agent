@@ -65,7 +65,10 @@ from app.db.models import (
     UserProfile,
 )
 
-OPEN_SET = ("ready", "in_progress")
+# Items of a set still being written can be answered as soon as they are stored (ADR
+# 0048 §3); such a set is finished only once it is written.
+OPEN_SET = ("generating", "ready", "in_progress")
+FINISHABLE = ("ready", "in_progress")
 
 
 class ExerciseNotFoundError(LookupError):
@@ -119,7 +122,8 @@ def _repeated(attempt: Attempt) -> Answered:
 async def _open_set(session: AsyncSession, item: Exercise) -> ExerciseSet:
     if item.status == "reported":
         raise NotAnswerableError("the item was reported")
-    exercise_set = await session.get(ExerciseSet, item.set_id)
+    # Locked: the worker may be storing the end of the set just now (ADR 0048 §3).
+    exercise_set = await session.get(ExerciseSet, item.set_id, with_for_update=True)
     assert exercise_set is not None  # FK
     if exercise_set.status not in OPEN_SET:
         raise NotAnswerableError(f"the set is {exercise_set.status}")
@@ -194,9 +198,9 @@ async def _explained(
     return cast(Explained, reply.output), reply.model
 
 
-async def _finish_if_done(session: AsyncSession, exercise_set: ExerciseSet, now: datetime) -> bool:
+async def finish_if_done(session: AsyncSession, exercise_set: ExerciseSet, now: datetime) -> bool:
     """Mark the set done once every item still counting has an answer."""
-    if exercise_set.status not in OPEN_SET:
+    if exercise_set.status not in FINISHABLE:
         return False
     waiting = await session.scalar(
         select(func.count())
@@ -240,15 +244,27 @@ async def _update_ability(
 
 
 async def _start(session: AsyncSession, exercise_set: ExerciseSet, now: datetime) -> None:
-    """ready -> in_progress, keeping the set's KC mastery as it was before (Q35c).
+    """The first answer: ready -> in_progress, keeping the set's KC mastery as it was
+    before (Q35c). A set still being written stays `generating` (ADR 0048 §3).
 
     Called before `refresh`, so the mastery rows do not include this answer yet; a KC
     without a row has no evidence (null p_mastery).
     """
-    if exercise_set.status != "ready":
+    if exercise_set.mastery_before is not None or exercise_set.status not in (
+        "ready",
+        "generating",
+    ):
         return
-    exercise_set.status = "in_progress"
+    if exercise_set.status == "ready":
+        exercise_set.status = "in_progress"
     exercise_set.started_at = exercise_set.started_at or now
+    await record_mastery_before(session, exercise_set)
+
+
+async def record_mastery_before(session: AsyncSession, exercise_set: ExerciseSet) -> None:
+    """Add to `mastery_before` the set's KCs it lacks: those of its items and, while it
+    is being written, of its plan. Once the set is written, only bank items for KCs
+    outside the plan can be new, and nothing in the set has touched them yet."""
     kc_ids = set(
         await session.scalars(
             select(Exercise.kc_id).where(
@@ -256,21 +272,23 @@ async def _start(session: AsyncSession, exercise_set: ExerciseSet, now: datetime
             )
         )
     )
+    kc_ids |= {planned["kc_id"] for planned in exercise_set.kc_plan or []}
+    before = dict(exercise_set.mastery_before or {})
+    missing = kc_ids - before.keys()
     rows = {
         row.kc_id: row
         for row in await session.scalars(
             select(KCMastery).where(
-                KCMastery.user_id == exercise_set.user_id, KCMastery.kc_id.in_(kc_ids)
+                KCMastery.user_id == exercise_set.user_id, KCMastery.kc_id.in_(missing)
             )
         )
     }
-    exercise_set.mastery_before = {
-        kc_id: {
+    for kc_id in missing:
+        before[kc_id] = {
             "p_mastery": rows[kc_id].p_mastery if kc_id in rows else None,
             "learned": kc_id in rows and rows[kc_id].mastered_at is not None,
         }
-        for kc_id in sorted(kc_ids)
-    }
+    exercise_set.mastery_before = dict(sorted(before.items()))
 
 
 async def answer(
@@ -376,7 +394,7 @@ async def answer(
     if counted:
         await _update_ability(session, user_id, item, correct, rules)
     await _start(session, exercise_set, now)
-    set_done = await _finish_if_done(session, exercise_set, now)
+    set_done = await finish_if_done(session, exercise_set, now)
     await session.flush()
     if counted:
         await refresh(
@@ -458,7 +476,7 @@ async def report(
     if exercise_set.status in OPEN_SET:
         await _start(session, exercise_set, now)
         await session.flush()
-        set_done = await _finish_if_done(session, exercise_set, now)
+        set_done = await finish_if_done(session, exercise_set, now)
     await session.flush()
     await refresh(session, user_id, affected, rules=rules, catalog=catalog)
     await session.commit()

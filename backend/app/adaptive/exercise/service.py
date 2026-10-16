@@ -2,11 +2,12 @@
 
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from datetime import UTC, datetime
 
-from sqlalchemy import CursorResult, select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adaptive.exercise import answer as answering_
 from app.agents.exercise_graph import MadeItem, SetResult
 from app.db.models import Exercise, ExerciseSet
 
@@ -29,28 +30,77 @@ def _row(user_id: uuid.UUID, set_id: uuid.UUID, item: MadeItem, status: str) -> 
     )
 
 
-async def save_result(
-    session: AsyncSession, user_id: uuid.UUID, set_id: uuid.UUID, result: SetResult
+async def publish_item(
+    session: AsyncSession, user_id: uuid.UUID, set_id: uuid.UUID, item: MadeItem
 ) -> bool:
-    """Store a generated set: its items, the critic's rejects, and `ready` or `failed`.
-
-    Only a set still `generating` takes a result, so a result arriving after the set
-    was given up on (`failed` by the service) is dropped; returns whether it was stored.
-    Does not commit.
-    """
-    ready = result.error_code is None
-    claimed: CursorResult[Any] = await session.execute(  # type: ignore[assignment]
-        update(ExerciseSet)
-        .where(ExerciseSet.id == set_id, ExerciseSet.status == "generating")
-        .values(status="ready" if ready else "failed", error_code=result.error_code)
+    """Store an item the critic passed while the rest of the set is still being written
+    (ADR 0048 §2): the learner can answer it at once. Only into a set still
+    `generating`; returns whether it was stored. Does not commit."""
+    status = await session.scalar(
+        select(ExerciseSet.status).where(ExerciseSet.id == set_id).with_for_update()
     )
-    if claimed.rowcount == 0:
+    if status != "generating":
         return False
-    session.add_all(_row(user_id, set_id, item, "rejected") for item in result.rejected)
-    if ready:
-        session.add_all(_row(user_id, set_id, item, "ok") for item in result.items)
+    session.add(_row(user_id, set_id, item, "ok"))
     await session.flush()
     return True
+
+
+@dataclass(frozen=True, slots=True)
+class Saved:
+    stored: bool
+    # Every item was answered while the set was being written: it is done now.
+    done: bool = False
+
+
+async def save_result(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    set_id: uuid.UUID,
+    result: SetResult,
+    *,
+    now: datetime | None = None,
+) -> Saved:
+    """Store a generated set: the items not published yet, the critic's rejects, and
+    its status (ADR 0048 §2-§3).
+
+    Only a set still `generating` takes a result, so a result arriving after the set
+    was given up on (`failed` by the service) is dropped. A set the learner already
+    answered in is never failed for having too few items; it goes on as `in_progress`,
+    or is `done` when every item has an answer. Does not commit.
+    """
+    now = now or datetime.now(UTC)
+    exercise_set = await session.scalar(
+        select(ExerciseSet).where(ExerciseSet.id == set_id).with_for_update()
+    )
+    if exercise_set is None or exercise_set.status != "generating":
+        return Saved(stored=False)
+    published = set(
+        await session.scalars(
+            select(Exercise.position).where(
+                Exercise.set_id == set_id, Exercise.status != "rejected"
+            )
+        )
+    )
+    answering = exercise_set.mastery_before is not None
+    ready = result.error_code is None or (answering and bool(published or result.items))
+    session.add_all(_row(user_id, set_id, item, "rejected") for item in result.rejected)
+    if ready:
+        session.add_all(
+            _row(user_id, set_id, item, "ok")
+            for item in result.items
+            if item.position not in published
+        )
+    await session.flush()
+    if not ready:
+        exercise_set.status, exercise_set.error_code = "failed", result.error_code
+        return Saved(stored=True)
+    if not answering:
+        exercise_set.status = "ready"
+        return Saved(stored=True)
+    exercise_set.status = "in_progress"
+    await answering_.record_mastery_before(session, exercise_set)
+    return Saved(stored=True, done=await answering_.finish_if_done(session, exercise_set, now))
 
 
 @dataclass(frozen=True, slots=True)

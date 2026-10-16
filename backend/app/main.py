@@ -137,6 +137,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if interrupted:
         logger.warning("%d practice sets were mid-generation at the last shutdown", interrupted)
     app.state.diagnosis_worker = DiagnosisWorker(app.state.sessionmaker)
+    app.state.practice_worker.on_done = app.state.diagnosis_worker.after_set
     app.state.writing_worker = WritingWorker(app.state.sessionmaker)
     interrupted = await app.state.writing_worker.recover()
     if interrupted:

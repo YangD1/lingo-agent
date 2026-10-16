@@ -2,20 +2,29 @@
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
+from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.adaptive.exercise.formats import CHECK_FORMATS
+from app.adaptive.exercise import answer as answering
+from app.adaptive.exercise.formats import CHECK_FORMATS, ChoiceResponse
 from app.adaptive.exercise.planner import PRODUCTION, RECOGNITION
 from app.adaptive.exercise.worker import PracticeWorker, QuizLimitError
+from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
-from app.agents.exercise_graph import ExerciseContext, StructuredCall, build_exercise_graph
+from app.agents.exercise_graph import (
+    ExerciseContext,
+    ModelReply,
+    StructuredCall,
+    build_exercise_graph,
+)
 from app.auth.service import register_user
 from app.db.models import Exercise, ExerciseSet, Tenant, TenantMember
 from app.db.session import create_sessionmaker
@@ -430,3 +439,55 @@ async def test_pass_quizzes_written_per_day_are_capped(
         await session.commit()
     await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
     await practice.wait_idle()
+
+
+async def test_a_set_answered_through_while_written_is_finished_by_the_worker(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """ADR 0048 §3: the item answered first was published before the other slot gave
+    up, so no answer finished the set; storing it does, and says so."""
+    user_id, tenant_id = await learner(maker)
+    rounds = 1 + RULES.practice.max_regenerations
+    models = FakeModels(bad={(r, 1) for r in range(rounds)})
+    critique = models.critique
+
+    async def answer_first_then_review(
+        messages: Sequence[BaseMessage], schema: type[BaseModel]
+    ) -> ModelReply:
+        if models.rounds_of(1) == rounds:  # the other slot's last review
+            async with maker() as session:
+                # Slot 0 passed long ago, but the fake calls never wait, so its row may
+                # still be on its way to the database.
+                first = None
+                for _ in range(500):
+                    first = await session.scalar(
+                        select(Exercise.id).where(
+                            Exercise.user_id == user_id, Exercise.position == 0
+                        )
+                    )
+                    if first is not None:
+                        break
+                    await asyncio.sleep(0.01)
+                assert first is not None  # published while slot 1 was still rewritten
+                await answering.answer(
+                    session,
+                    user_id,
+                    first,
+                    ChoiceResponse(choice="one person"),
+                    grade_call=None,
+                    rules=RULES,
+                    catalog=get_grammar_catalog(),
+                )
+        return await critique(messages, schema)
+
+    models.critique = answer_first_then_review  # type: ignore[method-assign]
+    practice = worker(maker, models)
+    done: list[tuple[uuid.UUID, uuid.UUID]] = []
+    practice.on_done = lambda user, tenant: done.append((user, tenant))
+
+    set_id = await practice.start_quiz(user_id, tenant_id, KCS[0], "check")
+    await practice.wait_idle()
+
+    row = await get_set(maker, set_id)
+    assert row.status == "done" and row.finished_at is not None
+    assert done == [(user_id, tenant_id)]

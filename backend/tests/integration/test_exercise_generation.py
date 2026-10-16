@@ -32,7 +32,7 @@ async def test_items_and_rejects_are_stored_and_read_back(db_session: AsyncSessi
     rounds = 1 + RULES.practice.max_regenerations
     result, _ = await run(FakeModels(bad={(0, 2)} | {(r, 4) for r in range(rounds)}))
 
-    assert await service.save_result(db_session, user_id, set_id, result)
+    assert (await service.save_result(db_session, user_id, set_id, result)).stored
 
     exercise_set = await db_session.get(ExerciseSet, set_id)
     assert exercise_set is not None and exercise_set.status == "ready"
@@ -65,7 +65,7 @@ async def test_a_failed_set_keeps_its_error_and_no_items(db_session: AsyncSessio
         db_session, user_id, set_id, SetResult([], [], "no_llm_configured")
     )
 
-    assert stored
+    assert stored.stored
     exercise_set = await db_session.get(ExerciseSet, set_id)
     assert exercise_set is not None
     assert (exercise_set.status, exercise_set.error_code) == ("failed", "no_llm_configured")
@@ -80,5 +80,5 @@ async def test_a_set_given_up_on_takes_no_result(db_session: AsyncSession) -> No
     await db_session.flush()
     result, _ = await run(FakeModels())
 
-    assert not await service.save_result(db_session, user_id, set_id, result)
+    assert not (await service.save_result(db_session, user_id, set_id, result)).stored
     assert await items(db_session, set_id) == []

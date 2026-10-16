@@ -41,6 +41,7 @@ from app.adaptive.rules import get_rules
 from app.agents.exercise_graph import (
     ExerciseContext,
     ExerciseGraph,
+    MadeItem,
     ModelReply,
     SetResult,
     Stage,
@@ -144,6 +145,9 @@ class PracticeWorker:
         self._tasks: dict[uuid.UUID, asyncio.Task[None]] = {}
         self._stages: dict[uuid.UUID, Stage] = {}
         self._locks: dict[uuid.UUID, asyncio.Lock] = {}
+        # Told when a set is finished by its last items being written, not by an answer
+        # (ADR 0048 §3): the app diagnoses after a set, as it does after the answer.
+        self.on_done: Callable[[uuid.UUID, uuid.UUID], None] | None = None
 
     def stage(self, set_id: uuid.UUID) -> Stage | None:
         """How far generation of this set has got; None when it is not running here."""
@@ -421,7 +425,19 @@ class PracticeWorker:
 
         async def save(result: SetResult) -> None:
             async with self._sessionmaker() as session:
-                await service.save_result(session, user_id, set_id, result)
+                saved = await service.save_result(session, user_id, set_id, result)
+                await session.commit()
+            if saved.done:
+                # Every item was answered while the set was written (ADR 0048 §3):
+                # what the answer that finished it would have started.
+                if quiz is None:
+                    await self.prefetch(user_id, tenant_id)
+                if self.on_done is not None:
+                    self.on_done(user_id, tenant_id)
+
+        async def publish(item: MadeItem) -> None:
+            async with self._sessionmaker() as session:
+                await service.publish_item(session, user_id, set_id, item)
                 await session.commit()
 
         async def report(stage: Stage) -> None:
@@ -440,6 +456,7 @@ class PracticeWorker:
             seed=seed,
             save=save,
             report=report,
+            publish=publish,
             wider_kcs=wider,
             wait_budget=None if background else rules.practice.wait_budget_seconds,
             min_items=(

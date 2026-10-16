@@ -108,6 +108,9 @@ class SetView:
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+    # Items planned, 0 until the plan is made (ADR 0048 §4): while generating, the
+    # stored items are only some.
+    planned: int
     items: list[Item]
     how_made: HowMade | None
     summary: Summary | None
@@ -289,6 +292,7 @@ async def get_set(
         created_at=exercise_set.created_at,
         started_at=exercise_set.started_at,
         finished_at=exercise_set.finished_at,
+        planned=len(exercise_set.kc_plan),
         items=items,
         how_made=await how_made(session, user_id, set_id) if shown else None,
         summary=(

@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-10-16 任务 89.2–89.3：思考强度参数；出题按题并行
+
+**做了什么**
+- 89.2（78fcc84）：路由 / 连接可设“思考强度”，出题、审题模型可单独设路由（ADR 0047，详见看板）。
+- 89.3（ADR 0048）：出题图按题位并行，过审即存库，出题中可作答，`SetOut.planned`。上个会话因截图累积超过请求上限中断，本会话接着修完最后一个测试（`test_a_set_answered_through_while_written_is_finished_by_the_worker`：假模型不让出事件循环，第 0 题还没落库第 1 题就审完了，改成轮询等落库）并补了接口的 `planned` 和测试。pytest 2015 过，后端 lint 干净。
+
+**未完成 / 下一步**
+- 89.4 前端逐题显示：`frontend/src/lib/` 的练习题组类型加 `planned`；`quiz-card.tsx`、练习页在 `generating` 时显示已有的未答题，答完已有的显示“正在出下一题”；`quiz-card.test.tsx:115` 还用着 `stage: "reviewing"`，改成 `generating` / `rewriting`。E2E `quiz-chat.spec.ts`、`practice-set.spec.ts` 补逐题出现。
+- 89.5：出题 / 审题默认关思考，真实模型对比前后耗时，更新 `features.yaml` 估计（每题单独调用，输入 token 变多，ADR 0048 §6）。
+
+**踩坑**
+- 截图要先缩小再读（memory `screenshot-downscale`），上个会话就是图片累积超过 32MB 中断的。
+- mypy 的检查范围是 `app evals`（`make lint`），不是 `tests`；`tests` 下有一百多条既有报错，不在范围内。
+
+---
+
 ## 2026-10-16 任务 89、90 开工前核对
 
 **做了什么**

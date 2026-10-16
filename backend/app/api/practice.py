@@ -133,7 +133,7 @@ class SummaryOut(_Out):
 class SetOut(_Out):
     id: uuid.UUID
     status: str
-    # While generating: generating / reviewing / rewriting / filling.
+    # While generating: generating / rewriting / filling.
     stage: str | None = None
     origin: str
     focus_kc: KCNameOut | None
@@ -141,6 +141,9 @@ class SetOut(_Out):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+    # Items planned, 0 until the plan is made; while generating, `items` holds those
+    # already written (ADR 0048).
+    planned: int
     items: list[ItemOut]
     how_made: HowMadeOut | None
     # Once the set is done.

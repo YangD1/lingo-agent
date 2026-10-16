@@ -1,16 +1,19 @@
-"""Practice set graph (ADR 0021 §3, P2 plan §3.4):
+"""Practice set graph (ADR 0021 §3, P2 plan §3.4; per slot since ADR 0048):
 
-    START -> generate -> critic -> (generate again, at most practice.max_regenerations
-             more rounds) -> fill -> save -> END
+    START -> produce -> fill -> save -> END
+
+`produce` runs one pipeline per slot, side by side (at most `practice.parallel_calls`
+model calls at a time): `generate` drafts that one slot, code turns the draft into its
+format's item (`drafts.to_body`), `critic` reviews it and `drafts.judge` decides; a
+rejected or invalid item is written again with the reasons, at most
+`practice.max_regenerations` more rounds. An accepted item is handed to
+`ExerciseContext.publish` at once, so the learner can start before the set is done.
 
 A set the learner is waiting for has a time budget (`practice.wait_budget_seconds`,
-task 49.3): no new round is started that, at the pace of the last one, would end past
-it; the bank fills the open slots instead. A set generated ahead has none.
+task 49.3): a slot starts no new round that, at the pace of its last one, would end
+past it; the bank fills it instead. A set generated ahead has none.
 
-`generate` drafts every slot still open in one structured call; code turns each draft
-into its format's item (`drafts.to_body`). `critic` reviews the new items in one call
-and `drafts.judge` decides; a rejected item goes back to `generate` with the reasons.
-`fill` gives the slots still open after the last round (or after a model failed) an
+`fill` gives the slots still open (rounds used up, out of time, or a model failed) an
 item from the placement bank, drops what the bank cannot fill, and fails the set when
 fewer than `practice.min_items` are left (Q33c, Q33d). `save` hands the result to the
 context, like the placement graph.
@@ -20,11 +23,12 @@ checkpointer is needed: a set is generated in one go, and a process that dies mi
 leaves a `generating` set that the service marks failed.
 """
 
+import asyncio
 import logging
 import random
 import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Final, Literal, TypedDict
 
@@ -45,11 +49,11 @@ from app.providers.errors import NoModelConfiguredError
 
 logger = logging.getLogger(__name__)
 
-GENERATE_NODE: Final = "generate"
-CRITIC_NODE: Final = "critic"
+PRODUCE_NODE: Final = "produce"
 FILL_NODE: Final = "fill"
 SAVE_NODE: Final = "save"
 
+# `reviewing` is no longer reported (ADR 0048 §1): the slots are at different steps.
 type Stage = Literal["generating", "reviewing", "rewriting", "filling"]
 
 
@@ -108,6 +112,9 @@ class ExerciseContext:
     seed: int
     save: Callable[[SetResult], Awaitable[None]]
     report: Callable[[Stage], Awaitable[None]] | None = None
+    # Called with each item as soon as the critic passes it, before the set is done
+    # (ADR 0048 §2).
+    publish: Callable[[MadeItem], Awaitable[None]] | None = None
     # The learner's candidate weak KCs by priority, for bank items past the set's own
     # KCs (Q33g).
     wider_kcs: Sequence[str] = ()
@@ -129,24 +136,18 @@ class _Candidate(TypedDict):
 
 
 class ExerciseState(TypedDict, total=False):
-    # Slots still without an accepted item.
-    open: list[int]
-    # Items waiting for the critic, by position.
-    candidates: dict[int, _Candidate]
+    # By position, the accepted item of each slot that got one.
     accepted: dict[int, MadeItem]
-    # The latest rejection per open slot, sent back with the next generate call.
-    feedback: dict[int, Rejected]
     rejected: list[MadeItem]
+    # Slots that ended without an accepted item.
+    open: list[int]
+    # The last reasons per open slot, for the log of a failed set.
+    feedback: dict[int, Rejected]
+    # Most rounds any slot took.
     rounds: int
-    # 1 + practice.max_regenerations.
     max_rounds: int
-    # Why the model calls stopped: an error code; the open slots go to the bank.
+    # Why some model call stopped a slot: an error code, the first one seen.
     model_error: str | None
-    # By `ExerciseContext.clock`: when the first round and the latest round started.
-    started_at: float
-    round_started_at: float
-    # Another round would end past the wait budget.
-    out_of_time: bool
     result: SetResult
 
 
@@ -158,14 +159,12 @@ type ExerciseGraph = CompiledStateGraph[
 def start_state(briefs: Sequence[ItemBrief], rules: Rules) -> ExerciseState:
     return {
         "max_rounds": 1 + rules.practice.max_regenerations,
-        "open": [b.position for b in briefs],
-        "candidates": {},
         "accepted": {},
-        "feedback": {},
         "rejected": [],
+        "open": [b.position for b in briefs],
+        "feedback": {},
         "rounds": 0,
         "model_error": None,
-        "out_of_time": False,
     }
 
 
@@ -178,50 +177,187 @@ async def _report(ctx: ExerciseContext, stage: Stage) -> None:
         await ctx.report(stage)
 
 
-async def generate(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[str, Any]:
-    ctx = runtime.context
-    rounds = state["rounds"]
-    clock: dict[str, Any] = {"round_started_at": ctx.clock()}
-    if rounds == 0:
-        clock["started_at"] = clock["round_started_at"]
-    await _report(ctx, "generating" if rounds == 0 else "rewriting")
-    by_position = {b.position: b for b in ctx.briefs}
-    wanted = [by_position[p] for p in state["open"]]
-    feedback = {p: r for p, r in state["feedback"].items() if p in state["open"]}
+@dataclass
+class _Slot:
+    """How one slot's pipeline ended."""
+
+    accepted: MadeItem | None = None
+    rejected: list[MadeItem] = field(default_factory=list)
+    feedback: Rejected | None = None
+    rounds: int = 0
+    error: str | None = None
+
+
+@dataclass
+class _Run:
+    """What the slots of one set share while they run side by side."""
+
+    ctx: ExerciseContext
+    max_rounds: int
+    calls: asyncio.Semaphore
+    started_at: float
+    # Set when a call shows no model can serve this tenant: no slot starts another.
+    stop: str | None = None
+    rewriting: bool = False
+
+    def out_of_time(self, round_seconds: float) -> bool:
+        """Another round of a slot, at the pace of its last one, would end past the
+        wait budget (task 49.3)."""
+        if self.ctx.wait_budget is None:
+            return False
+        return self.ctx.clock() - self.started_at + round_seconds > self.ctx.wait_budget
+
+    async def call(
+        self, call: StructuredCall, messages: Sequence[BaseMessage], schema: type[BaseModel]
+    ) -> ModelReply:
+        async with self.calls:
+            return await call(messages, schema)
+
+
+async def _write(
+    run: _Run, brief: ItemBrief, feedback: Rejected | None, rounds: int
+) -> tuple[_Candidate, None] | tuple[None, Rejected]:
+    """One draft for the slot, turned into its format's item; or why it can't be used.
+    Raises when the model call fails."""
+    ctx = run.ctx
+    reply = await run.call(
+        ctx.generate,
+        generate_messages(
+            [brief], ctx.learner, ctx.rules, {brief.position: feedback} if feedback else None
+        ),
+        drafts.generated_set_model(ctx.rules, [brief]),
+    )
+    draft = drafts.by_position(drafts.drafts_in(reply.output, [brief]), [brief.position]).get(
+        brief.position
+    )
+    if draft is None:
+        _rejected_unreviewed(brief, rounds, "no draft was written for this position")
+        return None, Rejected({}, ["no draft was written for this position"])
+    shown = draft.model_dump(exclude={"position", "ratings"}, exclude_none=True)
+    rng = random.Random(ctx.seed * 1000 + brief.position * 10 + rounds)
     try:
-        reply = await ctx.generate(
-            generate_messages(wanted, ctx.learner, ctx.rules, feedback or None),
-            drafts.generated_set_model(ctx.rules, wanted),
-        )
-    except Exception as exc:
-        logger.warning("exercise generation call failed", exc_info=True)
-        return {"model_error": _error_code(exc), "rounds": rounds + 1, **clock}
-    found = drafts.by_position(drafts.drafts_in(reply.output, wanted), [b.position for b in wanted])
-    rng = random.Random(ctx.seed * 1000 + rounds)
-    candidates: dict[int, _Candidate] = {}
-    new_feedback = dict(state["feedback"])
-    for brief in wanted:
-        draft = found.get(brief.position)
-        if draft is None:
-            _rejected_unreviewed(brief, rounds, "no draft was written for this position")
-            new_feedback[brief.position] = Rejected({}, ["no draft was written for this position"])
-            continue
-        shown = draft.model_dump(exclude={"position", "ratings"}, exclude_none=True)
+        body = drafts.to_body(draft, brief, rng)
+        value, levels = drafts.difficulty(brief.kc, drafts.ratings_of(draft), ctx.rules)
+    except ValueError as exc:  # DraftError, or a rating prior_difficulty rejects
+        _rejected_unreviewed(brief, rounds, str(exc))
+        return None, Rejected(shown, [f"invalid item: {exc}"])
+    candidate: _Candidate = {
+        "body": body,
+        "draft": shown,
+        "difficulty": value,
+        "ratings": levels,
+        "model": reply.model,
+    }
+    return candidate, None
+
+
+async def _review(
+    run: _Run, brief: ItemBrief, candidate: _Candidate, rounds: int
+) -> tuple[MadeItem | None, Rejected | None]:
+    """The critic's item for the slot: accepted (no reasons), rejected (kept, with
+    reasons), or not reviewed (None, with reasons). Raises when the model call fails."""
+    ctx = run.ctx
+    reply = await run.call(
+        ctx.critique,
+        critic_messages([(brief, candidate["body"])], ctx.learner, ctx.rules),
+        drafts.critic_report_model(ctx.rules),
+    )
+    review = drafts.by_position(drafts.reviews_in(reply.output), [brief.position]).get(
+        brief.position
+    )
+    if review is None:
+        # Not reviewed is not rejected: the item is fine as far as anyone knows, so it
+        # is written again rather than kept as a critic decision.
+        return None, Rejected(candidate["draft"], ["the reviewer skipped it"])
+    verdict = drafts.judge(candidate["body"], brief.kc, candidate["difficulty"], review, ctx.rules)
+    record = {
+        "verdict": "pass" if verdict.ok else "fail",
+        "reasons": list(verdict.reasons),
+        "problems": list(review.problems),
+        "own_answer": review.own_answer,
+        "own_segment": review.own_segment,
+        "ratings": dict(verdict.ratings),
+        "generator_ratings": candidate["ratings"],
+        "generator_difficulty": candidate["difficulty"],
+        "round": rounds,
+        "model": reply.model,
+    }
+    item = MadeItem(
+        position=brief.position,
+        kc_id=brief.kc.id,
+        format=brief.item.format,
+        body=candidate["body"],
+        difficulty=verdict.difficulty,
+        ratings=verdict.ratings,
+        critic=record,
+        model=candidate["model"],
+    )
+    return item, None if verdict.ok else Rejected(candidate["draft"], verdict.reasons)
+
+
+async def _slot(run: _Run, brief: ItemBrief) -> _Slot:
+    """Write, check and review one slot, rewriting it with the reasons until it passes,
+    runs out of rounds or time, or a model call fails (ADR 0048 §1)."""
+    out = _Slot()
+    round_seconds = 0.0
+    while out.rounds < run.max_rounds and run.stop is None:
+        if out.rounds > 0 and run.out_of_time(round_seconds):
+            break
+        if out.rounds > 0 and not run.rewriting:
+            run.rewriting = True
+            await _report(run.ctx, "rewriting")
+        began = run.ctx.clock()
+        out.rounds += 1
         try:
-            body = drafts.to_body(draft, brief, rng)
-            value, levels = drafts.difficulty(brief.kc, drafts.ratings_of(draft), ctx.rules)
-        except ValueError as exc:  # DraftError, or a rating prior_difficulty rejects
-            _rejected_unreviewed(brief, rounds, str(exc))
-            new_feedback[brief.position] = Rejected(shown, [f"invalid item: {exc}"])
-            continue
-        candidates[brief.position] = {
-            "body": body,
-            "draft": shown,
-            "difficulty": value,
-            "ratings": levels,
-            "model": reply.model,
-        }
-    return {"candidates": candidates, "feedback": new_feedback, "rounds": rounds + 1, **clock}
+            candidate, problem = await _write(run, brief, out.feedback, out.rounds - 1)
+            if candidate is not None:
+                item, problem = await _review(run, brief, candidate, out.rounds)
+                if item is not None and problem is None:
+                    out.accepted = item
+                    if run.ctx.publish is not None:
+                        await run.ctx.publish(item)
+                    return out
+                if item is not None:
+                    out.rejected.append(item)
+        except Exception as exc:
+            logger.warning("exercise slot %d: model call failed", brief.position, exc_info=True)
+            out.error = _error_code(exc)
+            if isinstance(exc, NoModelConfiguredError):
+                run.stop = out.error
+            return out
+        out.feedback = problem
+        round_seconds = run.ctx.clock() - began
+    return out
+
+
+async def produce(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[str, Any]:
+    """Every slot's pipeline, side by side; an accepted item is published at once."""
+    ctx = runtime.context
+    await _report(ctx, "generating")
+    run = _Run(
+        ctx,
+        state["max_rounds"],
+        asyncio.Semaphore(ctx.rules.practice.parallel_calls),
+        ctx.clock(),
+    )
+    slots = await asyncio.gather(*(_slot(run, brief) for brief in ctx.briefs))
+    accepted = {s.accepted.position: s.accepted for s in slots if s.accepted is not None}
+    rejected = [item for s in slots for item in s.rejected]
+    open_slots = [b.position for b, s in zip(ctx.briefs, slots, strict=True) if s.accepted is None]
+    feedback = {
+        b.position: s.feedback
+        for b, s in zip(ctx.briefs, slots, strict=True)
+        if s.accepted is None and s.feedback is not None
+    }
+    errors = [s.error for s in slots if s.error is not None]
+    return {
+        "accepted": accepted,
+        "rejected": rejected,
+        "open": sorted(open_slots),
+        "feedback": feedback,
+        "rounds": max((s.rounds for s in slots), default=0),
+        "model_error": run.stop or (errors[0] if errors else None),
+    }
 
 
 def _rejected_unreviewed(brief: ItemBrief, rounds: int, reason: str) -> None:
@@ -234,98 +370,6 @@ def _rejected_unreviewed(brief: ItemBrief, rounds: int, reason: str) -> None:
         rounds + 1,
         reason,
     )
-
-
-def _out_of_time(state: ExerciseState, ctx: ExerciseContext) -> bool:
-    if ctx.wait_budget is None:
-        return False
-    now = ctx.clock()
-    last_round = now - state["round_started_at"]
-    return now - state["started_at"] + last_round > ctx.wait_budget
-
-
-async def critic(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[str, Any]:
-    ctx = runtime.context
-    candidates = state["candidates"]
-    if not candidates:
-        return {"out_of_time": _out_of_time(state, ctx)}
-    await _report(ctx, "reviewing")
-    by_position = {b.position: b for b in ctx.briefs}
-    reviewed = [(by_position[p], c["body"]) for p, c in sorted(candidates.items())]
-    try:
-        reply = await ctx.critique(
-            critic_messages(reviewed, ctx.learner, ctx.rules),
-            drafts.critic_report_model(ctx.rules),
-        )
-    except Exception as exc:
-        logger.warning("exercise critic call failed", exc_info=True)
-        # Unreviewed items never reach the learner: their slots stay open for the bank.
-        return {"candidates": {}, "model_error": _error_code(exc)}
-    reviews = drafts.by_position(drafts.reviews_in(reply.output), sorted(candidates))
-    accepted = dict(state["accepted"])
-    feedback = dict(state["feedback"])
-    rejected = list(state["rejected"])
-    still_open = [p for p in state["open"] if p not in candidates]
-    for position, candidate in sorted(candidates.items()):
-        brief = by_position[position]
-        review = reviews.get(position)
-        if review is None:
-            # Not reviewed is not rejected: the item is fine as far as anyone knows,
-            # so it is written again rather than kept as a critic decision.
-            feedback[position] = Rejected(candidate["draft"], ["the reviewer skipped it"])
-            still_open.append(position)
-            continue
-        verdict = drafts.judge(
-            candidate["body"], brief.kc, candidate["difficulty"], review, ctx.rules
-        )
-        record = {
-            "verdict": "pass" if verdict.ok else "fail",
-            "reasons": list(verdict.reasons),
-            "problems": list(review.problems),
-            "own_answer": review.own_answer,
-            "own_segment": review.own_segment,
-            "ratings": dict(verdict.ratings),
-            "generator_ratings": candidate["ratings"],
-            "generator_difficulty": candidate["difficulty"],
-            "round": state["rounds"],
-            "model": reply.model,
-        }
-        item = MadeItem(
-            position=position,
-            kc_id=brief.kc.id,
-            format=brief.item.format,
-            body=candidate["body"],
-            difficulty=verdict.difficulty,
-            ratings=verdict.ratings,
-            critic=record,
-            model=candidate["model"],
-        )
-        if verdict.ok:
-            accepted[position] = item
-            feedback.pop(position, None)
-        else:
-            rejected.append(item)
-            feedback[position] = Rejected(candidate["draft"], verdict.reasons)
-            still_open.append(position)
-    return {
-        "accepted": accepted,
-        "feedback": feedback,
-        "rejected": rejected,
-        "candidates": {},
-        "open": sorted(still_open),
-        "out_of_time": _out_of_time(state, ctx),
-    }
-
-
-def after_critic(state: ExerciseState) -> str:
-    if (
-        state["open"]
-        and state["model_error"] is None
-        and not state["out_of_time"]
-        and state["rounds"] < state["max_rounds"]
-    ):
-        return GENERATE_NODE
-    return FILL_NODE
 
 
 async def fill(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[str, Any]:
@@ -385,13 +429,11 @@ async def save(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[
 
 def build_exercise_graph() -> ExerciseGraph:
     builder = StateGraph(ExerciseState, context_schema=ExerciseContext)
-    builder.add_node(GENERATE_NODE, generate)
-    builder.add_node(CRITIC_NODE, critic)
+    builder.add_node(PRODUCE_NODE, produce)
     builder.add_node(FILL_NODE, fill)
     builder.add_node(SAVE_NODE, save)
-    builder.add_edge(START, GENERATE_NODE)
-    builder.add_edge(GENERATE_NODE, CRITIC_NODE)
-    builder.add_conditional_edges(CRITIC_NODE, after_critic, [GENERATE_NODE, FILL_NODE])
+    builder.add_edge(START, PRODUCE_NODE)
+    builder.add_edge(PRODUCE_NODE, FILL_NODE)
     builder.add_edge(FILL_NODE, SAVE_NODE)
     builder.add_edge(SAVE_NODE, END)
     return builder.compile()

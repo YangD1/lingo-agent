@@ -72,7 +72,7 @@ async def test_a_whole_set(client: AsyncClient, app: FastAPI, db_session: AsyncS
     state = await ready_set(client, app, {"origin": "learner"})
     assert state["id"] == started["id"]  # the same set, now generated
     items = state["items"]
-    assert len(items) == RULES.practice.set_size
+    assert len(items) == state["planned"] == RULES.practice.set_size
     assert all(i["format"] == "choice4" and i["from_bank"] for i in items)
     assert all(i["answer"] is None and i["result"] is None for i in items)
     assert state["how_made"]["from_bank"] == len(items)
@@ -243,6 +243,44 @@ async def test_the_page_never_sees_where_an_own_sentence_came_from(
     await db_session.commit()
     [item] = (await get(client, f"/practice/sets/{exercise_set.id}"))["items"]
     assert item["content"] == {"instruction": "Fix it.", "original": "He go to work."}
+
+
+async def test_a_set_being_written_shows_the_items_it_has(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """ADR 0048 §2/§4: items stored as they pass the critic are shown, and answerable,
+    while the rest are still being written."""
+    await login(client)
+    user_id = await db_session.scalar(select(User.id).where(User.email == "learner@example.com"))
+    assert user_id is not None
+    plan = [{"kc_id": KC, "format": "choice4", "difficulty": 0.0}] * 3
+    exercise_set = ExerciseSet(user_id=user_id, origin="quiz", status="generating", kc_plan=plan)
+    db_session.add(exercise_set)
+    await db_session.flush()
+    content, key = ITEMS["choice4"]
+    body = parse_body("choice4", content, key)
+    db_session.add(
+        Exercise(
+            user_id=user_id,
+            set_id=exercise_set.id,
+            position=1,
+            kc_id=KC,
+            format="choice4",
+            content=body.content.model_dump(mode="json"),
+            answer=body.answer.model_dump(mode="json"),
+            difficulty=0.0,
+            status="ok",
+        )
+    )
+    await db_session.commit()
+
+    state = await get(client, f"/practice/sets/{exercise_set.id}")
+    assert (state["status"], state["stage"], state["planned"]) == ("generating", "generating", 3)
+    [item] = state["items"]
+    answered = await post(
+        client, f"/practice/exercises/{item['id']}/answer", {"choice": key["correct"]}
+    )
+    assert answered["item"]["result"]["correct"] is True and not answered["set_done"]
 
 
 async def test_an_open_answer_graded_by_the_model(
