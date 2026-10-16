@@ -17,12 +17,18 @@ they miss only loses the choice, and providers/llm.py retries once without the
 parameter when a vendor still rejects it.
 """
 
+import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
+import httpx2
+
 from app.providers.config import ProviderKind
+
+logger = logging.getLogger(__name__)
 
 # "on" is for the on/off models; low / medium / high for the effort ones.
 ReasoningLevel = Literal["off", "on", "low", "medium", "high"]
@@ -97,3 +103,59 @@ def reasoning_spec(kind: ProviderKind | str, base_url: str, model: str) -> Reaso
         if pattern.search(name):
             return ReasoningSpec("effort", levels) if levels else _NONE
     return _NONE
+
+
+# The parameters ReasoningSpec.kwargs puts in a request body.
+_SENT_FIELDS = ("reasoning_effort", "enable_thinking")
+# What a vendor's 400 says when it is the thinking parameter it refuses ("Unsupported
+# value: 'none' ... reasoning_effort", "enable_thinking is not supported ...").
+_REFUSES_REASONING = re.compile(r"reasoning|thinking", re.IGNORECASE)
+
+
+class WithoutReasoningRetry(httpx2.AsyncBaseTransport):
+    """The safety net under the table above: when a vendor answers 400 about the
+    thinking parameter, the same request goes once more without it. Any other 400,
+    or the second answer, goes back as it is."""
+
+    def __init__(self, inner: httpx2.AsyncBaseTransport) -> None:
+        self._inner = inner
+
+    async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
+        response = await self._inner.handle_async_request(request)
+        if response.status_code != 400:
+            return response
+        body = _json_body(request)
+        if body is None or not any(f in body for f in _SENT_FIELDS):
+            return response
+        await response.aread()
+        if not _REFUSES_REASONING.search(response.text):
+            return response
+        logger.warning(
+            "%s refused the thinking parameter for %r; retrying without it",
+            request.url.host,
+            body.get("model"),
+        )
+        await response.aclose()
+        for field in _SENT_FIELDS:
+            body.pop(field, None)
+        headers = request.headers.copy()
+        del headers["content-length"]
+        retry = httpx2.Request(
+            request.method,
+            request.url,
+            headers=headers,
+            content=json.dumps(body).encode(),
+            extensions=request.extensions,
+        )
+        return await self._inner.handle_async_request(retry)
+
+    async def aclose(self) -> None:
+        await self._inner.aclose()
+
+
+def _json_body(request: httpx2.Request) -> dict[str, Any] | None:
+    try:
+        body = json.loads(request.content)
+    except (httpx2.RequestNotRead, ValueError):
+        return None
+    return body if isinstance(body, dict) else None

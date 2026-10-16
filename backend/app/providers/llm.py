@@ -33,7 +33,7 @@ from app.providers.config import (
     sdk_params,
 )
 from app.providers.net_guard import make_async_http_client, make_blocked_sync_client
-from app.providers.reasoning_catalog import reasoning_spec
+from app.providers.reasoning_catalog import WithoutReasoningRetry, reasoning_spec
 from app.settings import get_settings
 from app.usage.recorder import UsageLabels, make_recorder
 
@@ -67,10 +67,12 @@ def build_chat_model(
     *,
     callbacks: list[BaseCallbackHandler] | None = None,
 ) -> BaseChatModel:
-    params: dict[str, Any] = sdk_params(resolved.params) | reasoning_kwargs(resolved)
+    reasoning = reasoning_kwargs(resolved)
+    params: dict[str, Any] = sdk_params(resolved.params) | reasoning
     http_client = make_async_http_client(
         allow_private=get_settings().provider_allow_private_networks,
         timeout=params.get("timeout"),
+        wrap=WithoutReasoningRetry if reasoning else None,
     )
     kwargs: dict[str, Any] = {
         # ChatOpenAI only turns this on by itself for the default base URL *and* client,

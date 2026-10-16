@@ -17,7 +17,7 @@ anthropic SDKs switched to them and reject plain httpx clients via isinstance ch
 import asyncio
 import ipaddress
 import socket
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 import anyio
 import httpcore2
@@ -180,15 +180,21 @@ class GuardedNetworkBackend(httpcore2.AsyncNetworkBackend):
         await self._inner.sleep(seconds)
 
 
-def make_async_http_client(*, allow_private: bool, timeout: float | None) -> httpx2.AsyncClient:
-    """HTTP client for model SDKs talking to tenant-controlled endpoints."""
+def make_async_http_client(
+    *,
+    allow_private: bool,
+    timeout: float | None,
+    wrap: Callable[[httpx2.AsyncBaseTransport], httpx2.AsyncBaseTransport] | None = None,
+) -> httpx2.AsyncClient:
+    """HTTP client for model SDKs talking to tenant-controlled endpoints. `wrap` puts a
+    transport over the guarded one (it still sends every request through the guard)."""
     transport = httpx2.AsyncHTTPTransport(trust_env=False)
     if not allow_private:
         # httpx2 has no public hook for the network backend; its httpcore2 pool reads
         # `_network_backend` when opening connections. Guarded by a regression test.
         transport._pool._network_backend = GuardedNetworkBackend()
     return httpx2.AsyncClient(
-        transport=transport,
+        transport=wrap(transport) if wrap else transport,
         timeout=timeout,
         # Redirects could bounce a vetted request to an internal address.
         follow_redirects=False,

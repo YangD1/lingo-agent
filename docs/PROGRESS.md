@@ -1237,6 +1237,7 @@
     - 完成：`providers/reasoning_catalog.py` `reasoning_spec(kind, base_url, model)` → `ReasoningSpec(style, levels).kwargs(level)`；新增档位 `on`（开 / 关模型用），开 / 关模型收到旧的低 / 中 / 高仍算开；`llm.py` `reasoning_kwargs` 改用它。pytest `test_reasoning_catalog.py` + `test_llm_router.py` 61 过，ruff、mypy 干净。
   - [x] 91.2 按模型存：`params.reasoning = {"连接:模型": 档位}`，旧的单个值当作对所有模型生效再按模型过滤；`/tenant/routes` 返回每个模型的 `reasoning_options`；保存时校验档位属于该模型，否则 422。测试：pytest（解析新旧格式、接口返回、422）。
     - 完成：`CallParams.reasoning` 接受单个档位或 `{ref: 档位}`（连接上只能是单个）；`config._resolved` 取本模型的档位，没有就用连接的；`credentials/service.py` 保存路由时校验 ref 在路由里、档位在该模型的可选档位里；`TaskRouteOut.reasoning_options`。pytest `test_provider_config.py` + `test_model_settings_api.py` 97 过，ruff、mypy 干净。
-  - [~] 91.3 兜底：厂商返回 400 且错误指向思考参数时，同一模型去掉思考参数重试一次（流式 / 结构化 / 普通调用都覆盖），记日志。测试：pytest（mock 400 后重试成功、非思考参数的 400 不重试）。
-  - [ ] 91.4 设置页：每个模型行显示自己的思考强度下拉，只列可选档位，只有默认的不显示；文案改成开 / 关等对应档位。测试：Vitest（选项按模型、无下拉、保存 payload）。不加 E2E：表单状态，Vitest 覆盖。
+  - [x] 91.3 兜底：厂商返回 400 且错误指向思考参数时，同一模型去掉思考参数重试一次（流式 / 结构化 / 普通调用都覆盖），记日志。测试：pytest（mock 400 后重试成功、非思考参数的 400 不重试）。
+    - 完成：放在 HTTP 层，所有调用方式一次覆盖：`reasoning_catalog.WithoutReasoningRetry` 传输层，400 且请求带 `reasoning_effort` / `enable_thinking`、错误文字提到 reasoning / thinking 时，去掉参数重发一次并记 warning；`net_guard.make_async_http_client(wrap=...)`，只有发了思考参数的模型才套。pytest `test_reasoning_catalog.py` 28 过，ruff、mypy 干净。
+  - [~] 91.4 设置页：每个模型行显示自己的思考强度下拉，只列可选档位，只有默认的不显示；文案改成开 / 关等对应档位。测试：Vitest（选项按模型、无下拉、保存 payload）。不加 E2E：表单状态，Vitest 覆盖。
   - [ ] 91.5 收尾：改写 ADR 0047 §1、PLAN 对应段落、`.env.example` 无变化；受影响层全量（pytest、Vitest；跑 settings 相关 E2E 确认没坏）、lint、Docker 重建、交接记录。
