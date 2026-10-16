@@ -108,6 +108,8 @@ TEST_ME = re.compile(r"出点题")
 # Asks for questions, then changes their mind in the same message: the tutor gives the
 # quiz card, then takes it back in the same turn (ADR 0049), naming it as its result does.
 CHANGED_MIND = re.compile(r"又不想做了")
+# Asks for new questions, not the unfinished quiz back (task 94).
+NEW_SET = re.compile(r"换一组")
 CARD_REF = re.compile(r"\(card (call_\w+)\)")
 PROPOSED_PLAN = {
     "review": 0,
@@ -637,7 +639,8 @@ def tutor_tool_call(
     ):
         return "give_quiz", {"kc_id": point.group(1), "purpose": "quiz", "asked": True}
     if "give_quiz" in names and TEST_ME.search(said):
-        return "give_quiz", {"topic": "subject + verb word order", "purpose": "quiz", "asked": True}
+        quiz = {"topic": "subject + verb word order", "purpose": "quiz", "asked": True}
+        return "give_quiz", quiz | ({"fresh": True} if NEW_SET.search(said) else {})
     if "suggest_link" in names and FLASHCARDS.search(said):
         return "suggest_link", {"kind": "vocab_review"}
     if not WORD_BOOK.search(said):

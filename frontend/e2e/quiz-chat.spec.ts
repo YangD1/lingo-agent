@@ -6,6 +6,13 @@ test.use({ locale: "zh-CN" });
 
 const input = (page: Page) => page.getByRole("textbox", { name: /输入消息/ });
 
+/** Sends and waits for the reply to finish, so the next message can go. */
+async function send(page: Page, text: string) {
+  await input(page).fill(text);
+  await input(page).press("Enter");
+  await expect(page.getByRole("button", { name: "发送" })).toBeVisible();
+}
+
 // A quiz asked for in a free chat (ADR 0046): the context gives no grammar point id, so
 // the tutor names the point and the questions come as a card, not in its reply.
 test("asked for questions in a free chat, the tutor gives a quiz card", async ({ page }) => {
@@ -55,4 +62,30 @@ test("the tutor withdraws a quiz card it gave, and its questions never come", as
   await page.reload();
   await expect(page.getByTestId("tutor-card")).toHaveAttribute("data-status", "withdrawn");
   await expect(page.getByTestId("practice-item")).toHaveCount(0);
+});
+
+// Asked again (task 94): no daily cap, the unfinished quiz comes back where it stopped;
+// asked for a new set, new questions are written.
+test("asked again, the unfinished quiz comes back; a new set when asked for one", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await page.goto("/chat");
+
+  await send(page, "出点题给我测试吧");
+  const first = page.getByTestId("quiz-card").nth(0);
+  for (let n = 1; n <= 2; n++) {
+    await expect(first.getByTestId("practice-progress")).toHaveText(`第 ${n} / 5 题`, { timeout: 30_000 });
+    await answerPractice(page, false);
+    await expect(first.getByTestId("practice-verdict")).toBeVisible();
+    await first.getByTestId("practice-next").click();
+  }
+
+  await send(page, "再出点题吧");
+  const again = page.getByTestId("quiz-card").nth(1);
+  await expect(again.getByTestId("practice-progress")).toHaveText("第 3 / 5 题", { timeout: 30_000 });
+
+  await send(page, "换一组，出点题");
+  const fresh = page.getByTestId("quiz-card").nth(2);
+  await expect(fresh.getByTestId("practice-progress")).toHaveText("第 1 / 5 题", { timeout: 30_000 });
+  await expect(page.getByTestId("quiz-failed")).toHaveCount(0);
 });
