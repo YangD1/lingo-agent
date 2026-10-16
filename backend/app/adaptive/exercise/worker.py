@@ -20,7 +20,7 @@ import asyncio
 import logging
 import secrets
 import uuid
-from collections.abc import Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -45,12 +45,14 @@ from app.agents.exercise_graph import (
     ModelReply,
     SetResult,
     Stage,
+    StreamedCall,
     StructuredCall,
+    Written,
     start_state,
 )
 from app.db.models import ExerciseSet
 from app.providers.config import TenantProviderContext
-from app.providers.llm import get_structured_llm
+from app.providers.llm import astream_structured, get_structured_llm
 from app.providers.tenant import load_provider_context
 from app.scheduler import budget, prefs
 
@@ -59,9 +61,10 @@ logger = logging.getLogger(__name__)
 GENERATE_TASK = "exercise_generate"
 CRITIC_TASK = "exercise_critic"
 
-# Builds the two model calls for a tenant; tests pass fakes.
+# Builds the two model calls for a tenant, generate (streamed) and critic; tests pass
+# fakes.
 type CallFactory = Callable[
-    [TenantProviderContext, RunnableConfig], tuple[StructuredCall, StructuredCall]
+    [TenantProviderContext, RunnableConfig], tuple[StreamedCall, StructuredCall]
 ]
 
 
@@ -73,6 +76,9 @@ class _AnsweredBy(BaseCallbackHandler):
     def __init__(self) -> None:
         self._started: dict[uuid.UUID, str] = {}
         self.model: str | None = None
+        # The model that started last: while streaming, the one writing (a fallback
+        # only takes over before the first part).
+        self.writing: str | None = None
 
     def on_chat_model_start(
         self,
@@ -90,7 +96,7 @@ class _AnsweredBy(BaseCallbackHandler):
         )
         name = (metadata or {}).get("ls_model_name")
         if connection and name:
-            self._started[run_id] = f"{connection}:{name}"
+            self._started[run_id] = self.writing = f"{connection}:{name}"
 
     def on_llm_end(self, response: LLMResult, *, run_id: uuid.UUID, **kwargs: Any) -> None:
         if run_id in self._started:
@@ -115,10 +121,28 @@ def structured_call(
     return invoke
 
 
+def streamed_call(ctx: TenantProviderContext, config: RunnableConfig, task: str) -> StreamedCall:
+    """A streamed structured call on `task`'s route that notes which model writes."""
+
+    async def stream(
+        messages: Sequence[BaseMessage], schema: type[BaseModel]
+    ) -> AsyncIterator[Written]:
+        answered = _AnsweredBy()
+        run: RunnableConfig = {
+            **config,
+            "callbacks": [answered],
+            "tags": [*config.get("tags", []), task],
+        }
+        async for part in astream_structured(ctx, task, schema, messages, config=run):
+            yield Written(part.args, answered.writing, part.done)
+
+    return stream
+
+
 def model_calls(
     ctx: TenantProviderContext, config: RunnableConfig
-) -> tuple[StructuredCall, StructuredCall]:
-    return structured_call(ctx, config, GENERATE_TASK), structured_call(ctx, config, CRITIC_TASK)
+) -> tuple[StreamedCall, StructuredCall]:
+    return streamed_call(ctx, config, GENERATE_TASK), structured_call(ctx, config, CRITIC_TASK)
 
 
 class QuizLimitError(Exception):

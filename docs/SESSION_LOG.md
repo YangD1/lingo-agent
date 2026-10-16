@@ -4,6 +4,20 @@
 
 ---
 
+## 2026-10-16 任务 89.4 进行中，出题方向待用户再选
+
+**做了什么**
+- 89.4 前端逐题显示做了大半（未提交，详见看板 89.4）：`lib/practice.ts`、`components/chat/quiz-card.tsx`、`components/practice/practice-app.tsx`、两个 Vitest 文件、`messages/*.json`（`practice.waitingNext`，去掉 `stage.reviewing`）。Vitest 23 过，typecheck、eslint 干净。
+
+**未完成 / 下一步**
+- 用户倾向“一次性出整组题，渲染分出”，在 A / B 之间待选（看板 89.4 下）。选 A：先用百炼测流式工具调用参数能否逐块到达，再改 `agents/exercise_graph.py` 的 `produce`（一次出题流式，每完成一个 `item_N` 就送审），同步改 ADR 0048、PLAN。
+- E2E 还没写：打算在 `frontend/e2e/fake_llm.py` 的 `GeneratedItems` 里按题位错开时间，只对测验生效，免得拖慢其他 E2E。
+
+**踩坑**
+- 题可能乱序到达（后面的题位先过审），前端当前题要按 id 记，不能按下标。
+
+---
+
 ## 2026-10-16 任务 89.2–89.3：思考强度参数；出题按题并行
 
 **做了什么**

@@ -1,9 +1,9 @@
-"""The practice set graph with fake models (ADR 0021 §3, ADR 0048): per slot generate →
-critic → rewrite, side by side; then bank → save."""
+"""The practice set graph with fake models (ADR 0021 §3, ADR 0048): rounds of one
+streamed generate call, each draft reviewed as soon as it is written; then bank → save."""
 
 import asyncio
 import json
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -24,6 +24,7 @@ from app.agents.exercise_graph import (
     ModelReply,
     SetResult,
     Stage,
+    Written,
     build_exercise_graph,
     start_state,
 )
@@ -122,12 +123,15 @@ class FakeModels:
     """Valid drafts for every slot asked; the critic solves closed items as the key
     does. `bad` lists (round, position) the critic rejects, `invalid` the drafts that
     break their format; rounds count per slot, from 0. `generate_error` fails the
-    calls for the positions in `failing` (all when empty)."""
+    generate calls before they write anything; `cut_after` makes them fail after
+    writing that many drafts' worth (the last one cut off)."""
 
     bad: set[tuple[int, int]] = field(default_factory=set)
     invalid: set[tuple[int, int]] = field(default_factory=set)
     generate_error: Exception | None = None
-    failing: set[int] = field(default_factory=set)
+    cut_after: int | None = None
+    # Seconds the generate call takes per draft.
+    write_seconds: float = 0
     critic_error: Exception | None = None
     generated: list[list[int]] = field(default_factory=list)
     reviewed: list[list[int]] = field(default_factory=list)
@@ -138,11 +142,14 @@ class FakeModels:
     # Model calls running at once, the most seen.
     running: int = 0
     most_running: int = 0
+    # A generate call is streaming; reviews made meanwhile.
+    writing: bool = False
+    reviewed_while_writing: int = 0
 
-    async def _busy(self) -> None:
+    async def _busy(self, seconds: float = 0) -> None:
         self.running += 1
         self.most_running = max(self.most_running, self.running)
-        await asyncio.sleep(0)  # let the other slots in
+        await asyncio.sleep(seconds)  # let the other calls in
         self.running -= 1
 
     def rounds_of(self, position: int) -> int:
@@ -150,12 +157,10 @@ class FakeModels:
 
     async def generate(
         self, messages: Sequence[BaseMessage], schema: type[BaseModel]
-    ) -> ModelReply:
+    ) -> AsyncIterator[Written]:
         asked = section(messages, "Items to write:\n")
         await self._busy()
-        if self.generate_error is not None and (
-            not self.failing or any(a["position"] in self.failing for a in asked)
-        ):
+        if self.generate_error is not None:
             raise self.generate_error
         (rounds,) = {self.rounds_of(a["position"]) for a in asked}
         self.generated.append([a["position"] for a in asked])
@@ -173,13 +178,27 @@ class FakeModels:
                 "ratings": {k: {"level": v, "reason": "r"} for k, v in MIDDLE.items()},
                 **data,
             }
-        return ModelReply(schema.model_validate(items), "fake:writer")
+        schema.model_validate(items)
+        # One draft at a time, as a model writes the set (keys in order).
+        self.writing = True
+        try:
+            written: dict[str, Any] = {}
+            for n, (key, value) in enumerate(items.items()):
+                if n == self.cut_after:
+                    raise RuntimeError("connection reset")
+                written[key] = value
+                yield Written(dict(written), "fake:writer")
+                await asyncio.sleep(self.write_seconds)
+            yield Written(dict(written), "fake:writer", done=True)
+        finally:
+            self.writing = False
 
     async def critique(
         self, messages: Sequence[BaseMessage], schema: type[BaseModel]
     ) -> ModelReply:
         items = section(messages, "Items to review:\n")
-        await self._busy()
+        self.reviewed_while_writing += self.writing
+        await self._busy(0.002)
         if self.critic_error is not None:
             raise self.critic_error
         (rounds,) = {self.rounds_of(i["position"]) - 1 for i in items}
@@ -211,6 +230,7 @@ async def run(
     wait_budget: float | None = None,
     tick: float = 0.0,
     min_items: int | None = None,
+    on_publish: Callable[[MadeItem], Awaitable[None]] | None = None,
 ) -> tuple[SetResult, list[Stage]]:
     """`tick`: seconds the fake clock moves on each time it is read."""
     now = [0.0]
@@ -228,6 +248,8 @@ async def run(
     async def publish(item: MadeItem) -> None:
         assert not saved, "published after the set was saved"
         models.published.append(item.position)
+        if on_publish is not None:
+            await on_publish(item)
 
     async def report(stage: Stage) -> None:
         stages.append(stage)
@@ -272,11 +294,26 @@ async def test_all_items_pass_first_time() -> None:
     assert result.items[0].ratings == MIDDLE
     rewrite = result.items[5].body
     assert rewrite.content.evidence_id == OWN.evidence_id  # type: ignore[union-attr]
-    # One call per slot, each writing and reviewing that slot only.
-    assert sorted(models.generated) == [[p] for p in range(6)]
+    # One call writes the set; each item is reviewed on its own.
+    assert models.generated == [list(range(6))]
     assert sorted(models.reviewed) == [[p] for p in range(6)]
     assert sorted(models.published) == list(range(6))
     assert stages == ["generating"]
+
+
+async def test_items_are_reviewed_and_published_while_the_set_is_written() -> None:
+    models = FakeModels(write_seconds=0.01)  # a review takes 0.002 s
+    published_while_writing: list[int] = []
+
+    async def note(item: MadeItem) -> None:
+        if models.writing:
+            published_while_writing.append(item.position)
+
+    result, _ = await run(models, on_publish=note)
+
+    assert models.reviewed_while_writing >= 1
+    assert published_while_writing and published_while_writing[0] == 0
+    assert len(result.items) == 6
 
 
 async def test_only_rejected_items_are_rewritten_with_the_reasons() -> None:
@@ -284,7 +321,8 @@ async def test_only_rejected_items_are_rewritten_with_the_reasons() -> None:
 
     result, stages = await run(models)
 
-    assert sorted(models.generated) == [[0], [1], [2], [2], [3], [4], [5]]
+    # Round 2 writes slot 2 only.
+    assert models.generated == [list(range(6)), [2]]
     assert models.reviewed.count([2]) == 2
     assert "Two options fit." in models.prompts[2][1] and "rejected" in models.prompts[2][1]
     assert result.error_code is None and len(result.items) == 6 and result.from_bank == 0
@@ -304,7 +342,7 @@ async def test_invalid_drafts_are_rewritten_without_reaching_the_critic() -> Non
     result, _ = await run(models)
 
     assert sorted(models.reviewed) == [[p] for p in range(6)]  # never the invalid drafts
-    assert sorted(models.generated) == [[0], [0], [1], [1], [2], [3], [4], [5]]
+    assert models.generated == [list(range(6)), [0, 1]]
     assert "invalid item" in models.prompts[0][1]
     assert len(result.items) == 6 and result.rejected == []
 
@@ -315,7 +353,7 @@ async def test_items_failing_every_round_go_to_the_bank() -> None:
 
     result, stages = await run(models)
 
-    assert models.generated.count([1]) == rounds
+    assert models.generated[1:] == [[1]] * (rounds - 1)
     assert len(result.rejected) == rounds
     assert result.error_code is None and result.from_bank == 1
     assert 1 not in models.published
@@ -330,8 +368,8 @@ async def test_a_waiting_learner_gets_no_round_past_the_budget(
     budget: float | None, rounds: int
 ) -> None:
     # One slot, 40 s a clock read: the set starts at 40, each round reads the clock as
-    # it starts and ends (40 s long), and before a rewrite once more: the check before
-    # round 2 sees 160 - 40 + 40 = 160 s, before round 3 280 s.
+    # it starts (80) and ends (120, 40 s long), and before a rewrite once more: the
+    # check before round 2 sees 160 - 40 + 40 = 160 s, before round 3 280 s.
     assert 1 + RULES.practice.max_regenerations == 3
     models = FakeModels(bad={(r, 0) for r in range(3)})
 
@@ -359,7 +397,7 @@ async def test_unreviewed_items_never_reach_the_learner() -> None:
     result, _ = await run(models)
 
     assert result.from_bank == 6 and result.rejected == [] and models.published == []
-    assert len(models.generated) == 6  # one each: no retry after a model failure
+    assert models.generated == [list(range(6))]  # a failed review is not written again
 
 
 async def test_too_few_items_fail_the_set_with_the_model_error() -> None:
@@ -418,11 +456,11 @@ async def test_difficulty_disagreement_is_a_rejection() -> None:
 
     result, _ = await run(models)
 
-    assert models.generated.count([3]) == 2
+    assert models.generated == [list(range(6)), [3]]
     assert "difficulty ratings disagree" in result.rejected[0].critic["reasons"][0]  # type: ignore[index]
 
 
-async def test_calls_run_side_by_side_up_to_the_limit() -> None:
+async def test_reviews_run_side_by_side_up_to_the_limit() -> None:
     models = FakeModels()
 
     await run(models, n=6)
@@ -430,22 +468,23 @@ async def test_calls_run_side_by_side_up_to_the_limit() -> None:
     assert models.most_running == RULES.practice.parallel_calls
 
 
-async def test_a_failing_slot_does_not_stop_the_others() -> None:
-    models = FakeModels(generate_error=RuntimeError("timeout"), failing={4})
+async def test_a_call_cut_off_midway_keeps_the_drafts_written_before() -> None:
+    # Cut while writing the 4th draft: the 3rd was the last one in the args then, maybe
+    # cut off too, so only the first two are whole.
+    models = FakeModels(cut_after=3)
 
     result, _ = await run(models)
 
-    assert sorted(models.published) == [0, 1, 2, 3, 5]
-    assert result.error_code is None and result.from_bank == 1
-    assert result.items[4].bank_item_id is not None
+    assert sorted(models.published) == [0, 1]
+    assert models.generated == [list(range(6))]  # no round after a failed call
+    assert result.error_code is None and result.from_bank == 4
 
 
-async def test_no_model_stops_every_slot() -> None:
-    error = NoModelConfiguredError("llm", "exercise_generate", [])
-    models = FakeModels(generate_error=error, failing={0}, bad={(0, p) for p in range(6)})
+async def test_no_model_for_the_critic_stops_the_rounds() -> None:
+    error = NoModelConfiguredError("llm", "exercise_critic", [])
+    models = FakeModels(critic_error=error)
 
     result, _ = await run(models)
 
-    # Slot 0 found out first; the slots rejected in round 0 started no other round.
-    assert all(models.rounds_of(p) <= 1 for p in range(6))
+    assert models.generated == [list(range(6))]
     assert models.published == [] and result.from_bank == 6

@@ -22,7 +22,9 @@ from app.adaptive.rules import get_rules
 from app.agents.exercise_graph import (
     ExerciseContext,
     ModelReply,
+    StreamedCall,
     StructuredCall,
+    Written,
     build_exercise_graph,
 )
 from app.auth.service import register_user
@@ -148,9 +150,10 @@ async def test_starting_twice_while_generating_gives_the_same_set(
     gate = asyncio.Event()
     generate = models.generate
 
-    async def held(*args: object) -> object:
+    async def held(*args: object) -> AsyncIterator[Written]:
         await gate.wait()
-        return await generate(*args)  # type: ignore[arg-type]
+        async for written in generate(*args):  # type: ignore[arg-type]
+            yield written
 
     models.generate = held  # type: ignore[method-assign,assignment]
     practice = worker(maker, models)
@@ -216,7 +219,7 @@ async def test_an_unexpected_error_fails_the_set(
 
     def broken(
         ctx: TenantProviderContext, config: RunnableConfig
-    ) -> tuple[StructuredCall, StructuredCall]:
+    ) -> tuple[StreamedCall, StructuredCall]:
         raise RuntimeError("bug")
 
     practice = PracticeWorker(maker, build_exercise_graph(), calls=broken)

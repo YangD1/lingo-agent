@@ -1,17 +1,19 @@
-"""Practice set graph (ADR 0021 §3, P2 plan §3.4; per slot since ADR 0048):
+"""Practice set graph (ADR 0021 §3, P2 plan §3.4; streamed since ADR 0048):
 
     START -> produce -> fill -> save -> END
 
-`produce` runs one pipeline per slot, side by side (at most `practice.parallel_calls`
-model calls at a time): `generate` drafts that one slot, code turns the draft into its
-format's item (`drafts.to_body`), `critic` reviews it and `drafts.judge` decides; a
-rejected or invalid item is written again with the reasons, at most
-`practice.max_regenerations` more rounds. An accepted item is handed to
-`ExerciseContext.publish` at once, so the learner can start before the set is done.
+`produce` runs rounds. Each round is one streamed `generate` call writing every slot
+still open; as soon as a slot's draft is written (the next one starts, or the call
+ends), code turns it into its format's item (`drafts.to_body`) and `critic` reviews it
+on its own, while the rest are still written (at most `practice.parallel_calls` reviews
+at a time); `drafts.judge` decides. An accepted item is handed to
+`ExerciseContext.publish` at once, so the learner can start before the set is done. The
+rejected or invalid slots are written again with the reasons in the next round, at
+most `practice.max_regenerations` more rounds.
 
 A set the learner is waiting for has a time budget (`practice.wait_budget_seconds`,
-task 49.3): a slot starts no new round that, at the pace of its last one, would end
-past it; the bank fills it instead. A set generated ahead has none.
+task 49.3): no round starts that, at the pace of the last one, would end past it; the
+bank fills the open slots instead. A set generated ahead has none.
 
 `fill` gives the slots still open (rounds used up, out of time, or a model failed) an
 item from the placement bank, drops what the bank cannot fill, and fails the set when
@@ -27,7 +29,7 @@ import asyncio
 import logging
 import random
 import time
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Final, Literal, TypedDict
@@ -36,7 +38,7 @@ from langchain_core.messages import BaseMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.runtime import Runtime
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.adaptive.exercise import bank, drafts
 from app.adaptive.exercise.formats import ExerciseBody, Format
@@ -53,8 +55,8 @@ PRODUCE_NODE: Final = "produce"
 FILL_NODE: Final = "fill"
 SAVE_NODE: Final = "save"
 
-# `reviewing` is no longer reported (ADR 0048 §1): the slots are at different steps.
-type Stage = Literal["generating", "reviewing", "rewriting", "filling"]
+# Reviews run while the set is written (ADR 0048 §1), so there is no `reviewing` stage.
+type Stage = Literal["generating", "rewriting", "filling"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +68,23 @@ class ModelReply:
 
 # A structured call: messages and the output schema in, the parsed output out.
 type StructuredCall = Callable[[Sequence[BaseMessage], type[BaseModel]], Awaitable[ModelReply]]
+
+
+@dataclass(frozen=True, slots=True)
+class Written:
+    """What a streamed structured call has written so far (ADR 0048)."""
+
+    # The output's fields so far, as JSON: the last one may still be cut off.
+    args: Mapping[str, Any]
+    # "<connection>:<model>" writing it; None if unknown.
+    model: str | None = None
+    # The call has ended: the last field is whole too.
+    done: bool = False
+
+
+# A streamed structured call: messages and the output schema in, what is written so far
+# out, each time it grows.
+type StreamedCall = Callable[[Sequence[BaseMessage], type[BaseModel]], AsyncIterator[Written]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,7 +118,7 @@ class SetResult:
 
 @dataclass(frozen=True)
 class ExerciseContext:
-    generate: StructuredCall
+    generate: StreamedCall
     critique: StructuredCall
     learner: LearnerInputs
     briefs: Sequence[ItemBrief]
@@ -178,34 +197,28 @@ async def _report(ctx: ExerciseContext, stage: Stage) -> None:
 
 
 @dataclass
-class _Slot:
-    """How one slot's pipeline ended."""
-
-    accepted: MadeItem | None = None
-    rejected: list[MadeItem] = field(default_factory=list)
-    feedback: Rejected | None = None
-    rounds: int = 0
-    error: str | None = None
-
-
-@dataclass
 class _Run:
-    """What the slots of one set share while they run side by side."""
+    """One set's rounds: what the slots got so far, shared by the reviews that run side
+    by side."""
 
     ctx: ExerciseContext
-    max_rounds: int
     calls: asyncio.Semaphore
-    started_at: float
-    # Set when a call shows no model can serve this tenant: no slot starts another.
-    stop: str | None = None
-    rewriting: bool = False
+    accepted: dict[int, MadeItem] = field(default_factory=dict)
+    rejected: list[MadeItem] = field(default_factory=list)
+    # The last reasons per slot not accepted, for its rewrite and the log.
+    feedback: dict[int, Rejected] = field(default_factory=dict)
+    # Slots a failed review ended: not written again, left to the bank.
+    closed: set[int] = field(default_factory=set)
+    # Why a model call failed: an error code, the first one seen.
+    error: str | None = None
+    # Set when generating failed, or a call shows no model can serve this tenant: no
+    # round starts after this one.
+    stop: bool = False
 
-    def out_of_time(self, round_seconds: float) -> bool:
-        """Another round of a slot, at the pace of its last one, would end past the
-        wait budget (task 49.3)."""
-        if self.ctx.wait_budget is None:
-            return False
-        return self.ctx.clock() - self.started_at + round_seconds > self.ctx.wait_budget
+    def failed(self, exc: Exception, *, generating: bool) -> None:
+        self.error = self.error or _error_code(exc)
+        if generating or isinstance(exc, NoModelConfiguredError):
+            self.stop = True
 
     async def call(
         self, call: StructuredCall, messages: Sequence[BaseMessage], schema: type[BaseModel]
@@ -214,25 +227,24 @@ class _Run:
             return await call(messages, schema)
 
 
-async def _write(
-    run: _Run, brief: ItemBrief, feedback: Rejected | None, rounds: int
+def _candidate(
+    run: _Run, brief: ItemBrief, raw: Any, model: str | None, rounds: int
 ) -> tuple[_Candidate, None] | tuple[None, Rejected]:
-    """One draft for the slot, turned into its format's item; or why it can't be used.
-    Raises when the model call fails."""
+    """A slot's draft, as written in the streamed set, turned into its format's item; or
+    why it can't be used."""
     ctx = run.ctx
-    reply = await run.call(
-        ctx.generate,
-        generate_messages(
-            [brief], ctx.learner, ctx.rules, {brief.position: feedback} if feedback else None
-        ),
-        drafts.generated_set_model(ctx.rules, [brief]),
-    )
-    draft = drafts.by_position(drafts.drafts_in(reply.output, [brief]), [brief.position]).get(
-        brief.position
-    )
-    if draft is None:
+    key = f"item_{brief.position}"
+    try:
+        output = drafts.generated_set_model(ctx.rules, [brief]).model_validate({key: raw})
+    except ValidationError as exc:
+        reason = f"invalid item: {exc.errors()[0]['msg']}"
+        _rejected_unreviewed(brief, rounds, reason)
+        return None, Rejected(raw if isinstance(raw, dict) else {}, [reason])
+    found = drafts.drafts_in(output, [brief])
+    if not found:
         _rejected_unreviewed(brief, rounds, "no draft was written for this position")
         return None, Rejected({}, ["no draft was written for this position"])
+    draft = found[0]
     shown = draft.model_dump(exclude={"position", "ratings"}, exclude_none=True)
     rng = random.Random(ctx.seed * 1000 + brief.position * 10 + rounds)
     try:
@@ -246,7 +258,7 @@ async def _write(
         "draft": shown,
         "difficulty": value,
         "ratings": levels,
-        "model": reply.model,
+        "model": model,
     }
     return candidate, None
 
@@ -295,68 +307,99 @@ async def _review(
     return item, None if verdict.ok else Rejected(candidate["draft"], verdict.reasons)
 
 
-async def _slot(run: _Run, brief: ItemBrief) -> _Slot:
-    """Write, check and review one slot, rewriting it with the reasons until it passes,
-    runs out of rounds or time, or a model call fails (ADR 0048 §1)."""
-    out = _Slot()
-    round_seconds = 0.0
-    while out.rounds < run.max_rounds and run.stop is None:
-        if out.rounds > 0 and run.out_of_time(round_seconds):
-            break
-        if out.rounds > 0 and not run.rewriting:
-            run.rewriting = True
-            await _report(run.ctx, "rewriting")
-        began = run.ctx.clock()
-        out.rounds += 1
+async def _settle(run: _Run, brief: ItemBrief, raw: Any, model: str | None, rounds: int) -> None:
+    """Check and review one slot's draft as soon as it is written; publish it once it
+    passes, else keep the reasons for the next round."""
+    candidate, problem = _candidate(run, brief, raw, model, rounds)
+    if candidate is not None:
         try:
-            candidate, problem = await _write(run, brief, out.feedback, out.rounds - 1)
-            if candidate is not None:
-                item, problem = await _review(run, brief, candidate, out.rounds)
-                if item is not None and problem is None:
-                    out.accepted = item
-                    if run.ctx.publish is not None:
-                        await run.ctx.publish(item)
-                    return out
-                if item is not None:
-                    out.rejected.append(item)
+            item, problem = await _review(run, brief, candidate, rounds + 1)
         except Exception as exc:
-            logger.warning("exercise slot %d: model call failed", brief.position, exc_info=True)
-            out.error = _error_code(exc)
-            if isinstance(exc, NoModelConfiguredError):
-                run.stop = out.error
-            return out
-        out.feedback = problem
-        round_seconds = run.ctx.clock() - began
-    return out
+            logger.warning("exercise slot %d: review failed", brief.position, exc_info=True)
+            run.failed(exc, generating=False)
+            run.closed.add(brief.position)
+            return
+        if item is not None and problem is None:
+            run.accepted[brief.position] = item
+            run.feedback.pop(brief.position, None)
+            if run.ctx.publish is not None:
+                await run.ctx.publish(item)
+            return
+        if item is not None:
+            run.rejected.append(item)
+    assert problem is not None
+    run.feedback[brief.position] = problem
+
+
+async def _round(run: _Run, wanted: Sequence[ItemBrief], rounds: int) -> None:
+    """One streamed generate call for the slots still open; each draft goes to review as
+    soon as the next one starts (or the call ends), so items are reviewed, and passed
+    ones published, while the rest are still being written (ADR 0048 §1)."""
+    ctx = run.ctx
+    by_key = {f"item_{b.position}": b for b in wanted}
+    feedback = {b.position: run.feedback[b.position] for b in wanted if b.position in run.feedback}
+    settling: list[asyncio.Task[None]] = []
+    taken: set[str] = set()
+    try:
+        async for written in ctx.generate(
+            generate_messages(wanted, ctx.learner, ctx.rules, feedback or None),
+            drafts.generated_set_model(ctx.rules, wanted),
+        ):
+            keys = [k for k in written.args if k in by_key]
+            # The last key may still be written, until the call ends.
+            for key in keys if written.done else keys[:-1]:
+                if key not in taken:
+                    taken.add(key)
+                    settling.append(
+                        asyncio.create_task(
+                            _settle(run, by_key[key], written.args[key], written.model, rounds)
+                        )
+                    )
+        for key, brief in by_key.items():
+            if key not in taken:
+                _rejected_unreviewed(brief, rounds, "no draft was written for this position")
+                run.feedback[brief.position] = Rejected(
+                    {}, ["no draft was written for this position"]
+                )
+    except Exception as exc:
+        # The drafts already written are still reviewed; the rest go to the bank.
+        logger.warning("exercise generation call failed", exc_info=True)
+        run.failed(exc, generating=True)
+    finally:
+        await asyncio.gather(*settling)
 
 
 async def produce(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> dict[str, Any]:
-    """Every slot's pipeline, side by side; an accepted item is published at once."""
+    """Rounds of one streamed generate call each, reviewing drafts as they are written;
+    the slots not accepted are written again with the reasons."""
     ctx = runtime.context
-    await _report(ctx, "generating")
-    run = _Run(
-        ctx,
-        state["max_rounds"],
-        asyncio.Semaphore(ctx.rules.practice.parallel_calls),
-        ctx.clock(),
-    )
-    slots = await asyncio.gather(*(_slot(run, brief) for brief in ctx.briefs))
-    accepted = {s.accepted.position: s.accepted for s in slots if s.accepted is not None}
-    rejected = [item for s in slots for item in s.rejected]
-    open_slots = [b.position for b, s in zip(ctx.briefs, slots, strict=True) if s.accepted is None]
-    feedback = {
-        b.position: s.feedback
-        for b, s in zip(ctx.briefs, slots, strict=True)
-        if s.accepted is None and s.feedback is not None
-    }
-    errors = [s.error for s in slots if s.error is not None]
+    run = _Run(ctx, asyncio.Semaphore(ctx.rules.practice.parallel_calls))
+    started_at = ctx.clock()
+    wanted = list(ctx.briefs)
+    rounds = 0
+    last_round = 0.0
+    while wanted and rounds < state["max_rounds"] and not run.stop:
+        if rounds > 0:
+            # Another round, at the pace of the last one, would end past the budget.
+            now = ctx.clock()
+            if ctx.wait_budget is not None and now - started_at + last_round > ctx.wait_budget:
+                break
+        await _report(ctx, "generating" if rounds == 0 else "rewriting")
+        began = ctx.clock()
+        await _round(run, wanted, rounds)
+        rounds += 1
+        last_round = ctx.clock() - began
+        wanted = [
+            b for b in wanted if b.position not in run.accepted and b.position not in run.closed
+        ]
+    open_slots = sorted(b.position for b in ctx.briefs if b.position not in run.accepted)
     return {
-        "accepted": accepted,
-        "rejected": rejected,
-        "open": sorted(open_slots),
-        "feedback": feedback,
-        "rounds": max((s.rounds for s in slots), default=0),
-        "model_error": run.stop or (errors[0] if errors else None),
+        "accepted": dict(run.accepted),
+        "rejected": list(run.rejected),
+        "open": open_slots,
+        "feedback": {p: r for p, r in run.feedback.items() if p in open_slots},
+        "rounds": rounds,
+        "model_error": run.error,
     }
 
 
