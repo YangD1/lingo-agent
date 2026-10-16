@@ -9,8 +9,9 @@ when a set is done, writes the next one in the background; each learner has at m
 one such set waiting. A set generated ahead of time is used only while younger than
 `practice.prefetch_max_hours` and planned under the current rules; otherwise it is
 marked failed (`expired`) and a new one is generated. `start_quiz` writes a quiz card's
-set on one KC (ADR 0044 §4): planned by `plan_quiz`, never resumed or taken by the
-practice page, and limited to `course.generated_quizzes_per_day` pass quizzes per KC.
+set on one KC (ADR 0044 §4): planned by `plan_quiz`, never taken by the practice page.
+Asked again, it hands back the learner's unfinished quiz on that KC instead of writing
+a new one (task 94), unless the learner wants new questions.
 
 Like the reflection worker, a single backend process runs this: there is no queue, and
 a set still `generating` at startup was cut off by a restart and is marked failed.
@@ -21,7 +22,7 @@ import logging
 import secrets
 import uuid
 from collections.abc import AsyncIterator, Callable, Sequence
-from dataclasses import asdict, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
@@ -30,7 +31,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.outputs import LLMResult
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive.bkt import prior
@@ -145,8 +146,11 @@ def model_calls(
     return streamed_call(ctx, config, GENERATE_TASK), structured_call(ctx, config, CRITIC_TASK)
 
 
-class QuizLimitError(Exception):
-    """The learner has had the day's generated pass quizzes on this KC."""
+@dataclass(frozen=True, slots=True)
+class QuizStart:
+    set_id: uuid.UUID
+    # An unfinished set handed back, not a new one being written.
+    resumed: bool
 
 
 class PracticeWorker:
@@ -204,35 +208,42 @@ class PracticeWorker:
         return set_id
 
     async def start_quiz(
-        self, user_id: uuid.UUID, tenant_id: uuid.UUID, kc_id: str, purpose: QuizPurpose
-    ) -> uuid.UUID:
-        """A new quiz card set on `kc_id`, generated in the background. Raises
-        `ValueError` for a KC not in the catalog and `QuizLimitError` past the day's
-        pass quizzes on it."""
+        self,
+        user_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        kc_id: str,
+        purpose: QuizPurpose,
+        *,
+        fresh: bool = False,
+    ) -> QuizStart:
+        """A quiz card set on `kc_id`: the learner's unfinished one with this purpose
+        from the last `course.resume_quiz_hours`, else (or with `fresh`) a new one
+        generated in the background. Raises `ValueError` for a KC not in the catalog."""
         if kc_id not in get_grammar_catalog():
             raise ValueError(f"unknown KC {kc_id}")
         async with self._lock(user_id), self._sessionmaker() as session:
-            if purpose == "quiz":
-                since = self._clock() - timedelta(days=1)
-                made = await session.scalar(
-                    select(func.count())
-                    .select_from(ExerciseSet)
+            if not fresh:
+                since = self._clock() - timedelta(hours=get_rules().course.resume_quiz_hours)
+                unfinished = await session.scalar(
+                    select(ExerciseSet.id)
                     .where(
                         ExerciseSet.user_id == user_id,
                         ExerciseSet.origin == "quiz",
-                        ExerciseSet.quiz_purpose == "quiz",
+                        ExerciseSet.quiz_purpose == purpose,
                         ExerciseSet.focus_kc_id == kc_id,
-                        ExerciseSet.status != "failed",
+                        ExerciseSet.status.in_(("generating", "ready", "in_progress")),
                         ExerciseSet.created_at >= since,
                     )
+                    .order_by(ExerciseSet.created_at.desc())
+                    .limit(1)
                 )
-                if (made or 0) >= get_rules().course.generated_quizzes_per_day:
-                    raise QuizLimitError(kc_id)
+                if unfinished is not None:
+                    return QuizStart(unfinished, resumed=True)
             set_id = await self._create(
                 session, user_id, "quiz", started=True, focus_kc=kc_id, quiz=purpose
             )
         self._spawn(set_id, user_id, tenant_id)
-        return set_id
+        return QuizStart(set_id, resumed=False)
 
     def cancel(self, set_id: uuid.UUID) -> None:
         """Stop generating a set the caller already marked failed (a withdrawn quiz

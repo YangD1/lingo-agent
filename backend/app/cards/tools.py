@@ -180,6 +180,11 @@ class GiveQuiz(_Args):
         description="True when the learner asked for questions or a test in this turn, or "
         "agreed to one you offered; false when it is your own idea."
     )
+    fresh: bool = Field(
+        default=False,
+        description="True when the learner wants new questions (another set, again, "
+        "different ones). Otherwise their unfinished quiz on the point comes back.",
+    )
 
     @model_validator(mode="after")
     def _names_a_point(self) -> Self:

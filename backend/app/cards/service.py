@@ -158,7 +158,19 @@ async def withdraw_card(
             raise CardStateError(
                 "card_answered", "the learner has started answering this quiz; it stays"
             )
-        if status in ("generating", "ready"):
+        # A quiz asked for again shows its unfinished set on a new card (task 94): the
+        # set stops only when no other card still shows it.
+        shown_elsewhere = await session.scalar(
+            select(
+                exists().where(
+                    TutorCard.kind == "quiz",
+                    TutorCard.id != card.id,
+                    TutorCard.status != "withdrawn",
+                    TutorCard.params["set_id"].astext == str(set_id),
+                )
+            )
+        )
+        if status in ("generating", "ready") and not shown_elsewhere:
             await session.execute(
                 update(ExerciseSet)
                 .where(ExerciseSet.id == set_id)

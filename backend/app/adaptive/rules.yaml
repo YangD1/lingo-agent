@@ -4,7 +4,7 @@
 # Bump `version` on ANY change: kc_mastery rows record the version they were computed
 # with, and rows from an older version are rebuilt by replaying kc_evidence.
 
-version: "2026-10-16.1"
+version: "2026-10-16.2"
 
 bkt:
   # Chance of moving from "not learned" to "learned" at each counted observation.
@@ -337,9 +337,9 @@ course:
   # (two items, no bank) needs `check_min_items`.
   quiz_min_items: 3
   check_min_items: 1
-  # Pass quizzes on one KC the generator writes in 24 hours; later ones use the
-  # placement bank only, so retaking a quiz does not spend tokens without end.
-  generated_quizzes_per_day: 2
+  # Asked for a quiz again, the learner gets the unfinished one on that KC from these
+  # last hours back (task 94), unless they ask for new questions.
+  resume_quiz_hours: 24
   # Between two quizzes the tutor gives unasked in one conversation (ADR 0046 §3).
   proactive_quiz_gap_minutes: 10
 

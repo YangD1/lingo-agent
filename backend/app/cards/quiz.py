@@ -9,10 +9,10 @@ set and card.
 
 import uuid
 from collections import Counter
-from collections.abc import Awaitable, Callable, Collection, Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -30,15 +30,27 @@ from app.adaptive.exercise.formats import (
     parse_body,
 )
 from app.adaptive.exercise.planner import QuizPurpose
-from app.adaptive.exercise.worker import QuizLimitError
+from app.adaptive.exercise.worker import QuizStart
 from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
 from app.adaptive.kc.search import find_kcs, is_clear
 from app.adaptive.rules import get_rules
 from app.cards.tools import CardDraft, CardScope, GiveQuiz, ToolCallError, parse_args
 from app.db.models import Attempt, Exercise, ExerciseSet, TutorCard
 
-# Starts generating a set: (user, tenant, KC, purpose) -> set id; PracticeWorker.start_quiz.
-type StartQuiz = Callable[[uuid.UUID, uuid.UUID, str, QuizPurpose], Awaitable[uuid.UUID]]
+
+class StartQuiz(Protocol):
+    """PracticeWorker.start_quiz: an unfinished set on the KC, or a new one."""
+
+    async def __call__(
+        self,
+        user_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        kc_id: str,
+        purpose: QuizPurpose,
+        *,
+        fresh: bool = False,
+    ) -> QuizStart: ...
+
 
 # Answers quoted per wrong item, so a long answer does not fill the prompt.
 _QUOTE = 160
@@ -90,21 +102,31 @@ class QuizTools:
                 )
             )
         if earlier is not None:
-            set_id = uuid.UUID(earlier["set_id"])
+            started = QuizStart(uuid.UUID(earlier["set_id"]), resumed=False)
         else:
             if not parsed.asked and not self._lesson:
                 await self._check_unasked(parsed, kc)
-            try:
-                set_id = await self._start(self._user_id, self._tenant_id, kc.id, parsed.purpose)
-            except QuizLimitError as exc:
-                raise ToolCallError(
-                    "the learner has already taken today's pass quizzes on this grammar "
-                    "point; suggest trying again tomorrow, and keep practising in the chat"
-                ) from exc
+            started = await self._start(
+                self._user_id, self._tenant_id, kc.id, parsed.purpose, fresh=parsed.fresh
+            )
+        set_id = started.set_id
         what = "an understanding check" if parsed.purpose == "check" else "the pass quiz"
+        if started.resumed:
+            async with self._sessionmaker() as session:
+                state = (await quiz_states(session, [set_id]))[set_id]
+            shown = (
+                f"Quiz card shown again: the learner's unfinished {what} on {kc.name_en} "
+                f"({state.describe(parsed.purpose, get_rules().course.pass_score)}), so they "
+                "carry on where they stopped. If they want new questions instead, call "
+                "give_quiz again with fresh true."
+            )
+        else:
+            shown = (
+                f"Quiz card shown: {what} on {kc.name_en}. Its questions are being written "
+                "and checked."
+            )
         return QuizResult(
-            f"Quiz card shown: {what} on {kc.name_en}. Its questions are being written and "
-            "checked; the learner answers them in the card, and you will see the results "
+            f"{shown} The learner answers them in the card, and you will see the results "
             "in your context. Do not ask the questions or give answers in your reply: "
             "tell the learner briefly to try the card.",
             CardDraft(
@@ -233,7 +255,10 @@ class QuizState:
         if self.status == "generating":
             return "questions still being written"
         if self.status == "failed":
-            return "could not be made; ask the learner a question or two yourself"
+            return (
+                "could not be made; if the learner still wants it, call give_quiz again "
+                "with fresh true"
+            )
         if self.answered < self.total:
             return f"{self.answered} of {self.total} answered so far"
         text = f"all answered, {self.correct} of {self.total} right"

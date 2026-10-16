@@ -10,7 +10,6 @@ from langchain_core.messages import HumanMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adaptive.rules import get_rules
 from app.db.models import Conversation, ExerciseSet
 from app.usage.recorder import UsageRecord
 from tests.integration.test_chat_send import connect, login, parse_sse, send
@@ -157,13 +156,12 @@ async def test_test_out_shows_a_pass_quiz_without_a_turn(
     )
     assert [c["id"] for c in await cards(client, conversation["id"])] == [card["id"]]
 
-    # The same lesson again, until the day's pass quizzes are used up.
-    for _ in range(get_rules().course.generated_quizzes_per_day - 1):
+    # The same lesson again (task 94): no daily cap; the unfinished quiz comes back.
+    for _ in range(3):
         again = await client.post(f"/course/lessons/{LOCKED}/test-out")
         assert again.status_code == 200
         assert again.json()["conversation"]["id"] == conversation["id"]
-    limit = await client.post(f"/course/lessons/{LOCKED}/test-out")
-    assert (limit.status_code, limit.json()["detail"]["code"]) == (409, "quiz_limit")
+        assert again.json()["card"]["params"]["set_id"] == card["params"]["set_id"]
 
 
 async def test_the_lesson_knows_how_the_pass_quiz_went(

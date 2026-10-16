@@ -76,28 +76,41 @@ async def test_give_quiz_starts_a_set_and_shows_its_card(
     assert "give_quiz" in steps
 
 
-async def test_refused_calls_show_no_card(
+async def test_asked_again_the_unfinished_quiz_comes_back(
     client: AsyncClient, db_session: AsyncSession, script: Script
 ) -> None:
+    """Task 94: no daily cap. The same quiz asked for again shows its unfinished set;
+    `fresh` writes new questions; refused calls show no card."""
     conversation = await ready(client)
-    for _ in range(get_rules().course.generated_quizzes_per_day):
-        script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True)], "Try it."]
-        await send(client, conversation, "Quiz me.")
+    script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True)], "Try it."]
+    _, events, _ = await send(client, conversation, "Quiz me.")
+    (first,) = kinds(events, "card")
+    script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True)], "Again."]
+
+    _, events, _ = await send(client, conversation, "Quiz me again.")
+
+    (card,) = kinds(events, "card")
+    assert card["id"] != first["id"]
+    assert card["params"]["set_id"] == first["params"]["set_id"]
+    assert len(await quiz_sets(db_session)) == 1
+    again = results(script, call=-1)[-1].text
+    assert "Quiz card shown again" in again and "fresh true" in again, again
+
     script.replies = [
         [
-            tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True),
+            tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True, fresh=True),
             tool_call("give_quiz", kc_id="g.photosynthesis", purpose="check", asked=True),
         ],
-        "Let's practise here instead.",
+        "New ones.",
     ]
+    _, events, _ = await send(client, conversation, "换一组新题")
 
-    _, events, _ = await send(client, conversation, "Again!")
-
-    assert kinds(events, "card") == []
-    limit, unknown = (m.text for m in results(script, call=-1)[-2:])
-    assert "already taken today's pass quizzes" in limit
+    (card,) = kinds(events, "card")
+    assert card["params"]["set_id"] != first["params"]["set_id"]
+    assert len(await quiz_sets(db_session)) == 2
+    fresh, unknown = (m.text for m in results(script, call=-1)[-2:])
+    assert fresh.startswith("(card ") and "Quiz card shown: the pass quiz" in fresh
     assert unknown.startswith("Error: no grammar point matches"), unknown
-    assert len(await quiz_sets(db_session)) == get_rules().course.generated_quizzes_per_day
 
 
 async def answer(db: AsyncSession, set_id: uuid.UUID, rights: list[bool]) -> None:

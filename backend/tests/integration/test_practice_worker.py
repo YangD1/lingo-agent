@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.adaptive.exercise import answer as answering
 from app.adaptive.exercise.formats import CHECK_FORMATS, ChoiceResponse
 from app.adaptive.exercise.planner import PRODUCTION, RECOGNITION
-from app.adaptive.exercise.worker import PracticeWorker, QuizLimitError
+from app.adaptive.exercise.worker import PracticeWorker, QuizStart
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.agents.exercise_graph import (
@@ -386,7 +386,7 @@ async def test_an_understanding_check_is_written_fresh(
     models = FakeModels()
     practice = worker(maker, models)
 
-    set_id = await practice.start_quiz(user_id, tenant_id, KCS[0], "check")
+    set_id = (await practice.start_quiz(user_id, tenant_id, KCS[0], "check")).set_id
     await practice.wait_idle()
 
     row = await get_set(maker, set_id)
@@ -410,7 +410,7 @@ async def test_a_pass_quiz_mixes_recognition_and_production(
     user_id, tenant_id = await learner(maker)
     practice = worker(maker, FakeModels())
 
-    set_id = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+    set_id = (await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")).set_id
     await practice.wait_idle()
 
     formats = [i.format for i in sorted(await items(maker, set_id), key=lambda i: i.position)]
@@ -420,27 +420,72 @@ async def test_a_pass_quiz_mixes_recognition_and_production(
     assert sum(f in PRODUCTION for f in formats) == course.quiz_production
 
 
-async def test_pass_quizzes_written_per_day_are_capped(
+async def test_asked_again_the_unfinished_quiz_comes_back(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Task 94: no daily cap; asking again hands back the unfinished set on the KC,
+    `fresh` writes a new one."""
+    user_id, tenant_id = await learner(maker)
+    models = FakeModels()
+    practice = worker(maker, models)
+
+    first = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+    await practice.wait_idle()
+    written = len(models.generated)
+    assert not first.resumed
+    assert await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz") == QuizStart(
+        first.set_id, resumed=True
+    )
+    assert len(models.generated) == written  # nothing new written
+    # Another purpose or KC is another quiz.
+    check = await practice.start_quiz(user_id, tenant_id, KCS[0], "check")
+    other = await practice.start_quiz(user_id, tenant_id, KCS[1], "quiz")
+    assert not check.resumed and not other.resumed
+    # New questions when asked for; then that newest one comes back.
+    fresh = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz", fresh=True)
+    assert not fresh.resumed and fresh.set_id != first.set_id
+    again = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+    assert again == QuizStart(fresh.set_id, resumed=True)
+    await practice.wait_idle()
+
+
+@pytest.mark.parametrize("status", ["done", "failed"])
+async def test_a_finished_or_failed_quiz_is_not_resumed(
+    maker: async_sessionmaker[AsyncSession], status: str
+) -> None:
+    user_id, tenant_id = await learner(maker)
+    practice = worker(maker, FakeModels())
+    first = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+    await practice.wait_idle()
+    async with maker() as session:
+        await session.execute(
+            update(ExerciseSet).where(ExerciseSet.id == first.set_id).values(status=status)
+        )
+        await session.commit()
+
+    again = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+
+    assert not again.resumed and again.set_id != first.set_id
+    await practice.wait_idle()
+
+
+async def test_an_old_unfinished_quiz_is_not_resumed(
     maker: async_sessionmaker[AsyncSession],
 ) -> None:
     user_id, tenant_id = await learner(maker)
     clock = Clock()
     practice = worker(maker, FakeModels(), clock=clock)
-    limit = RULES.course.generated_quizzes_per_day
-
-    made = [await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz") for _ in range(limit)]
+    first = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
     await practice.wait_idle()
-    with pytest.raises(QuizLimitError):
-        await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
-    # Checks, other KCs and failed sets do not count.
-    await practice.start_quiz(user_id, tenant_id, KCS[0], "check")
-    await practice.start_quiz(user_id, tenant_id, KCS[1], "quiz")
     async with maker() as session:
         await session.execute(
-            update(ExerciseSet).where(ExerciseSet.id == made[0]).values(status="failed")
+            update(ExerciseSet)
+            .where(ExerciseSet.id == first.set_id)
+            .values(created_at=clock.now - timedelta(hours=RULES.course.resume_quiz_hours + 1))
         )
         await session.commit()
-    await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+
+    assert not (await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")).resumed
     await practice.wait_idle()
 
 
@@ -488,7 +533,7 @@ async def test_a_set_answered_through_while_written_is_finished_by_the_worker(
     done: list[tuple[uuid.UUID, uuid.UUID]] = []
     practice.on_done = lambda user, tenant: done.append((user, tenant))
 
-    set_id = await practice.start_quiz(user_id, tenant_id, KCS[0], "check")
+    set_id = (await practice.start_quiz(user_id, tenant_id, KCS[0], "check")).set_id
     await practice.wait_idle()
 
     row = await get_set(maker, set_id)
@@ -504,7 +549,7 @@ async def test_a_withdrawn_quiz_stops_generating(
     models = FakeModels(write_seconds=0.2)
     practice = worker(maker, models)
 
-    set_id = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+    set_id = (await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")).set_id
     async with asyncio.timeout(5):
         # Until the generate call has started.
         while not models.writing:  # noqa: ASYNC110

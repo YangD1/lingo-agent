@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.adaptive import course
 from app.adaptive.course import LessonState
-from app.adaptive.exercise.worker import PracticeWorker, QuizLimitError
+from app.adaptive.exercise.worker import PracticeWorker
 from app.adaptive.kc.catalog import CefrLevel, GrammarKC, get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.api.chat import ConversationOut
@@ -173,7 +173,6 @@ async def start_lesson(
     responses={
         200: {"description": "in the lesson's latest conversation"},
         404: {"description": "lesson_not_found"},
-        409: {"description": "quiz_limit"},
     },
 )
 async def test_out(
@@ -191,14 +190,7 @@ async def test_out(
     kc = _kc(kc_id)
     conversation = await _lesson(request, response, user, tenant, session, kc, body)
     worker: PracticeWorker = request.app.state.practice_worker
-    try:
-        set_id = await worker.start_quiz(user.id, tenant.id, kc.id, "quiz")
-    except QuizLimitError as exc:
-        raise api_error(
-            status.HTTP_409_CONFLICT,
-            "quiz_limit",
-            "You have taken today's pass quizzes on this grammar point. Try again tomorrow.",
-        ) from exc
+    set_id = (await worker.start_quiz(user.id, tenant.id, kc.id, "quiz")).set_id
     turn = f"test-out-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S%f')}"
     card = await cards.put_card(
         session,

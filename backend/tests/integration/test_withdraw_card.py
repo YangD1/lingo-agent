@@ -156,3 +156,24 @@ async def test_only_this_conversations_cards(client: AsyncClient, script: Script
     assert missing.status == "error" and "no card" in missing.text
     assert invalid.status == "error" and "reason" in invalid.text
     assert [c["status"] for c in await cards(client, conversation)] == ["proposed"]
+
+
+async def test_a_quiz_shown_on_another_card_keeps_its_set(
+    client: AsyncClient, db_session: AsyncSession, script: Script, stopped: list[uuid.UUID]
+) -> None:
+    """Task 94: asked again, the unfinished set comes back on a new card; withdrawing
+    that card leaves the set to the first one."""
+    conversation = await ready(client)
+    script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True)], "Try it."]
+    await send(client, conversation, "Quiz me.")
+    again = tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True)
+    withdraw = tool_call("withdraw_card", card=again["id"], reason="上面那张就是")
+    script.replies = [[again], [withdraw], "用上面那张就行。"]
+
+    await send(client, conversation, "Quiz me again.")
+
+    assert result(script, withdraw).status == "success"
+    row = await quiz_set(db_session)
+    assert row.status == "generating" and stopped == []
+    statuses = sorted(c["status"] for c in await cards(client, conversation))
+    assert statuses == ["info", "withdrawn"]
