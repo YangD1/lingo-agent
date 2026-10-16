@@ -104,7 +104,8 @@ WORKSPACE_SOURCES = ("paste", "article", "writing", "message", "blank")
 WORKSPACE_AUTHORS = ("learner", "tutor")
 WORKSPACE_ANNOTATIONS = ("translation", "analysis")
 # proposed -> applied | declined; applied -> undone. Cards without side effects: info.
-TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info")
+# withdrawn: the tutor took the card back (ADR 0049), with its reason.
+TUTOR_CARD_STATUSES = ("proposed", "applied", "declined", "undone", "info", "withdrawn")
 # Where a practice set was started from (ADR 0021); prefetch: made in the background
 # after the learner finished a set, waiting for the next one; quiz: a quiz card the
 # tutor gave in chat (ADR 0044 §4).
@@ -1055,6 +1056,9 @@ class TutorCard(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     undone_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Why the tutor withdrew it, in its words to the learner (ADR 0049); `decided_at`
+    # is when.
+    withdrawn_reason: Mapped[str | None] = mapped_column(String(300))
 
 
 class AgentActivity(Base):

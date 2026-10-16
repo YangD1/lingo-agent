@@ -1243,3 +1243,10 @@
     - 完成：`route-section.tsx` 每个模型行在开关前显示自己的思考强度下拉（`reasoning_options` 里有的才显示，转借主账号的链不显示），`levelOf` / `savedReasoning` 按后端口径读旧的单个值；编辑链保存时只保留还在链里的模型的档位；文案加“开”、`reasoningFor`，去掉 `reasoningLabel`。Vitest settings 55 过，typecheck、eslint 干净。
   - [x] 91.5 收尾：改写 ADR 0047 §1、PLAN 对应段落、`.env.example` 无变化；受影响层全量（pytest、Vitest；跑 settings 相关 E2E 确认没坏）、lint、Docker 重建、交接记录。
     - 完成：ADR 0047 §1、§3 改写，PLAN 同步；pytest 2056、Vitest 895 全过，E2E settings + model-switches 6 过；`make lint` 干净；Docker 先后端再前端重建，`/api/healthz` 200。看了用户开发库：聊天链 `sub2api:gpt-6-sol`（关 / 低 / 中 / 高）+ `siliconflow:deepseek-ai/DeepSeek-V4-Flash`，后者规则按 V3.1 推断为开 / 关（未实测，猜错有重试兜底）。
+- [~] 任务 92：私教可以撤回自己出的卡、停掉还在跑的出题（2026-10-16 用户提出：私教发现测验主题出错，却没法收回，题照样在后台出、照样审）。Q92a 所有卡都能撤回、测验卡顺带停掉出题；Q92b 学习者已答题 / 已应用就拒绝；Q92c 撤回的卡收起成一行写明原因、可展开，均按推荐确认。ADR 0049。
+  - [x] 92.1 后端：`withdraw_card(card, reason)` 工具（参数校验、只认本会话、幂等、已答 / 已应用拒绝），卡片记撤回状态和原因；测验卡取消出题任务，题组 `failed` + `withdrawn`；各卡工具的返回文字带上调用 id。测试：pytest（各类卡、取消出题后不再调模型、拒绝情形、幂等、跨会话）。
+    - 完成（迁移 head `a6d5d0cbe419`：`tutor_cards.status` 加 `withdrawn`，新列 `withdrawn_reason`）：`cards/tools.py` `WithdrawCard`；`cards/service.py` `withdraw_card`（按本会话的 `tool_call_id` 找卡、锁卡和题组、有作答或已 in_progress / done 拒绝、已应用 / 拒绝 / 撤销的拒绝、题组 `failed` + `withdrawn`）；`cards/runtime.py` `_withdraw`，提交后调 `PracticeWorker.cancel`；工具结果和卡片列表带 `card <调用 id>`；`tutor_tools.md` 加说明；活动记 `withdraw_card`。pytest `test_withdraw_card.py` 4 个 + worker 1 个，相关 288 过，ruff、mypy（app）干净。
+  - [~] 92.2 前端：撤回的卡收起成一行（原因，可展开原内容），“应用”不可点；“做了什么”显示撤回。测试：Vitest（撤回卡显示、按钮）。
+  - [ ] 92.3 E2E：假模型同一轮先出测验卡再撤回，卡变成已撤回、题不再出现。理由：跨前后端主流程。
+  - [ ] 92.4 收尾：ADR 0049、`docs/agent-tools.md`、PLAN；受影响层全量、lint、Docker 重建、交接记录。
+- [ ] 任务 93：流式调用的用量记账被逐块累加（硅基流动每块都带累计用量，出题一次记上亿 token），核实后修正并纠正已有记录。

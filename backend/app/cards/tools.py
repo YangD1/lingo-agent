@@ -62,6 +62,8 @@ MAX_DAILY_MINUTES = 600
 MAX_GOAL_LENGTH = 200
 # The schema's bound; the rules' daily_plan.max_count and today's limits apply after.
 MAX_PLAN_COUNT = 1000
+# The column's bound (tutor_cards.withdrawn_reason).
+MAX_WITHDRAW_REASON = 300
 
 
 def _enum(values: Collection[str]) -> dict[str, JsonValue]:
@@ -246,6 +248,26 @@ class SetWorkspaceAutoOpen(_Args):
     )
 
 
+class WithdrawCard(_Args):
+    """Take back a card you showed in this conversation by mistake (the wrong grammar
+    point, a proposal the learner didn't want). A quiz card's questions stop being
+    written. Refused once the learner has answered it or confirmed it; then say so in
+    your reply. Tell the learner briefly that you took it back."""
+
+    model_config = ConfigDict(title="withdraw_card")
+
+    card: str = Field(
+        max_length=100,
+        description="The card's id, as its tool result or the cards list gives it.",
+    )
+    reason: str = Field(
+        min_length=1,
+        max_length=MAX_WITHDRAW_REASON,
+        description="Why, in a few words in the language you talk to the learner in; "
+        "the card shows it.",
+    )
+
+
 TOOL_SCHEMAS: tuple[type[_Args], ...] = (
     ProposeWordBook,
     ProposeLearningGoal,
@@ -257,6 +279,7 @@ TOOL_SCHEMAS: tuple[type[_Args], ...] = (
     ProposeEdit,
     CloseWorkspace,
     SetWorkspaceAutoOpen,
+    WithdrawCard,
 )
 # Run by app/workspace/tools.py: they read and write documents, not only cards.
 WORKSPACE_TOOL_NAMES = frozenset(
@@ -264,6 +287,8 @@ WORKSPACE_TOOL_NAMES = frozenset(
 )
 # Run by app/cards/quiz.py: it starts generating a set, then shows its card.
 QUIZ_TOOL_NAMES = frozenset({"give_quiz"})
+# Changes a card already shown instead of showing one (ADR 0049).
+WITHDRAW_TOOL_NAME = "withdraw_card"
 TOOL_NAMES: frozenset[str] = frozenset(str(t.model_config.get("title")) for t in TOOL_SCHEMAS)
 _BY_NAME: dict[str, type[_Args]] = {str(t.model_config.get("title")): t for t in TOOL_SCHEMAS}
 

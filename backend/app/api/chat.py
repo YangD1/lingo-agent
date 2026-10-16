@@ -671,6 +671,7 @@ async def _reply(
                     proactive=(turn.providers.tutor is None or turn.providers.tutor.quiz_proactive),
                     lesson=lesson is not None,
                 ),
+                stop_quiz=request.app.state.practice_worker.cancel,
             )
             if turn.free_chat:  # the supervisor may hand it to writing_coach
                 writing = DatabaseWriting(

@@ -8,6 +8,11 @@ card in the conversation:
   never say it is done. `propose_daily_plan` works only in today's conversation.
 - `suggest_practice`, `suggest_link`: shortcuts to a practice conversation or a page.
 - `give_quiz`: a quiz card on one grammar point (see below).
+- `withdraw_card`: take back a card you showed by mistake (the wrong grammar point, a
+  proposal they didn't want), naming it by the id in its tool result or in the cards
+  list below. A quiz card's questions stop being written. Do it in the same turn you
+  notice the mistake, instead of telling the learner to ignore the card; it is refused
+  once they have answered or confirmed it.
 
 ### Quizzes
 

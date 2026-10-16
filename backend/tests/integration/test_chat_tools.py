@@ -182,6 +182,7 @@ async def test_a_proposal_shows_a_card_and_the_reply_goes_on(
         "propose_edit",
         "close_workspace",
         "set_workspace_auto_open",
+        "withdraw_card",
     ]
     (result,) = [m for m in followup if isinstance(m, ToolMessage)]
     assert result.tool_call_id == call["id"] and result.status == "success"

@@ -494,3 +494,32 @@ async def test_a_set_answered_through_while_written_is_finished_by_the_worker(
     row = await get_set(maker, set_id)
     assert row.status == "done" and row.finished_at is not None
     assert done == [(user_id, tenant_id)]
+
+
+async def test_a_withdrawn_quiz_stops_generating(
+    maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """ADR 0049: the caller marks the set withdrawn, cancel stops the model calls."""
+    user_id, tenant_id = await learner(maker)
+    models = FakeModels(write_seconds=0.2)
+    practice = worker(maker, models)
+
+    set_id = await practice.start_quiz(user_id, tenant_id, KCS[0], "quiz")
+    async with asyncio.timeout(5):
+        # Until the generate call has started.
+        while not models.writing:  # noqa: ASYNC110
+            await asyncio.sleep(0.01)
+    async with maker() as session:
+        await session.execute(
+            update(ExerciseSet)
+            .where(ExerciseSet.id == set_id)
+            .values(status="failed", error_code="withdrawn")
+        )
+        await session.commit()
+    practice.cancel(set_id)
+    await practice.wait_idle()
+
+    row = await get_set(maker, set_id)
+    assert (row.status, row.error_code) == ("failed", "withdrawn")
+    assert models.reviewed == [] and await items(maker, set_id) == []
+    practice.cancel(set_id)  # no longer running: nothing to do

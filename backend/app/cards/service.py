@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, exists, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,8 +20,11 @@ from app.adaptive.rules import get_rules
 from app.cards.quiz import QuizState, quiz_states
 from app.cards.tools import CardDraft
 from app.db.models import (
+    Attempt,
     Conversation,
     DailyPlan,
+    Exercise,
+    ExerciseSet,
     TutorCard,
     TutorProfile,
     UserProfile,
@@ -107,6 +110,66 @@ async def conversation_cards(
         stmt.order_by(TutorCard.created_at.desc(), TutorCard.id.desc()).limit(limit)
     )
     return list(reversed(recent.all()))
+
+
+@dataclasses.dataclass(frozen=True)
+class Withdrawn:
+    card: TutorCard
+    # A quiz card's set whose generation is to stop; the caller cancels it after commit.
+    set_id: uuid.UUID | None = None
+
+
+async def withdraw_card(
+    session: AsyncSession, conversation_id: uuid.UUID, tool_call_id: str, reason: str
+) -> Withdrawn:
+    """Take back a card the tutor showed in this conversation (ADR 0049); commits.
+    Withdrawing again is a no-op. Raises CardNotFoundError, or CardStateError once the
+    learner has acted on it: a confirmed proposal is undone by them, answered questions
+    count toward mastery."""
+    card = await session.scalar(
+        select(TutorCard)
+        .where(TutorCard.conversation_id == conversation_id, TutorCard.tool_call_id == tool_call_id)
+        .with_for_update()
+    )
+    if card is None:
+        raise CardNotFoundError(tool_call_id)
+    if card.status == "withdrawn":
+        return Withdrawn(card)
+    if card.status not in ("proposed", "info"):
+        raise CardStateError(
+            "card_decided", f"the learner has already {card.status} this card; it stays"
+        )
+    stop: uuid.UUID | None = None
+    if card.kind == "quiz":
+        set_id = uuid.UUID(card.params["set_id"])
+        # Locked, so an answer can't slip in between the check and the update.
+        status = await session.scalar(
+            select(ExerciseSet.status).where(ExerciseSet.id == set_id).with_for_update()
+        )
+        answered = await session.scalar(
+            select(
+                exists().where(
+                    Attempt.exercise_id == Exercise.id,
+                    Exercise.set_id == set_id,
+                )
+            )
+        )
+        if answered or status in ("in_progress", "done"):
+            raise CardStateError(
+                "card_answered", "the learner has started answering this quiz; it stays"
+            )
+        if status in ("generating", "ready"):
+            await session.execute(
+                update(ExerciseSet)
+                .where(ExerciseSet.id == set_id)
+                .values(status="failed", error_code="withdrawn")
+            )
+            stop = set_id
+    card.status = "withdrawn"
+    card.withdrawn_reason = reason.strip()
+    card.decided_at = datetime.now(UTC)
+    await session.commit()
+    return Withdrawn(card, stop)
 
 
 # --- the learner's decisions --------------------------------------------------------------
@@ -410,6 +473,7 @@ def card_json(card: TutorCard) -> dict[str, Any]:
         "created_at": card.created_at.isoformat() if card.created_at else None,
         "decided_at": card.decided_at.isoformat() if card.decided_at else None,
         "undone_at": card.undone_at.isoformat() if card.undone_at else None,
+        "withdrawn_reason": card.withdrawn_reason,
     }
 
 
@@ -419,6 +483,7 @@ _STATUS_TEXT = {
     "declined": "the learner declined it",
     "undone": "the learner confirmed it, then undid it",
     "info": "shown",
+    "withdrawn": "you withdrew it",
 }
 
 
@@ -474,7 +539,8 @@ def render_context(
 ) -> str:
     quizzes = quizzes or {}
     return "\n".join(
-        f"- {describe(c, quizzes.get(s) if (s := _quiz_set(c)) else None)}" for c in cards
+        f"- [card {c.tool_call_id}] {describe(c, quizzes.get(s) if (s := _quiz_set(c)) else None)}"
+        for c in cards
     )
 
 

@@ -234,6 +234,12 @@ class PracticeWorker:
         self._spawn(set_id, user_id, tenant_id)
         return set_id
 
+    def cancel(self, set_id: uuid.UUID) -> None:
+        """Stop generating a set the caller already marked failed (a withdrawn quiz
+        card, ADR 0049): no more model calls for it. Nothing when it isn't running here."""
+        if (task := self._tasks.get(set_id)) is not None:
+            task.cancel()
+
     async def prefetch(self, user_id: uuid.UUID, tenant_id: uuid.UUID) -> uuid.UUID | None:
         """Generate the learner's next set in the background, unless one is waiting, the
         learner switched it off, or the tenant's background budget for today is used up
