@@ -1256,16 +1256,17 @@
       "voicesHint": "每个模型下可以按语言指定声音，留空用内置声音。Azure 连接可以从它的声音列表里选；qwen-audio 模型填一句英文的声音描述（如 \"A calm British man\"）。",
       "providedBy": "由 {name} 提供：你自己没有配这项的模型。",
       "quotaExhausted": "{name} 给你的这项额度暂时用完了。可以自己添加连接，或等额度重置（UTC）。",
-      "reasoningLabel": "思考强度",
+      "reasoningFor": "{ref} 的思考强度",
       "reasoning": {
         "default": "默认",
         "off": "关",
+        "on": "开",
         "low": "低",
         "medium": "中",
         "high": "高"
       },
-      "reasoningHint": "推理模型先思考再回答，思考越多，第一个字出来得越慢。“默认”不发这个参数。百炼和硅基流动只有开和关（低、中、高都是开）；Anthropic 和 DeepSeek 官方接口不受影响；模型不支持时这次调用会失败，改回默认即可。",
-      "reasoningSaved": "思考强度已设为“{level}”。"
+      "reasoningHint": "推理模型先思考再回答，思考越多，第一个字出来得越慢。每个模型只列出它支持的档位（有的只有开和关）；没有下拉框的模型保持默认。“默认”不发这个参数。",
+      "reasoningSaved": "{ref} 的思考强度已设为“{level}”。"
     },
     "usage": {
       "title": "用量",

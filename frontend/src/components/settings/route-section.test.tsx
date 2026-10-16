@@ -3,10 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Connection, TaskRoute } from "@/lib/types";
+import type { Connection, ReasoningLevel, TaskRoute } from "@/lib/types";
 
 import en from "../../../messages/en.json";
-import { RouteSection, type RouteTask } from "./route-section";
+import { RouteSection, type RouteTask, levelOf, savedReasoning } from "./route-section";
 
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
@@ -114,14 +114,15 @@ describe("RouteSection", () => {
     );
   });
 
-  // --- reasoning (task 89.2) -----------------------------------------------------------
+  // --- reasoning (task 89.2, per model since task 91) ----------------------------------
 
-  it("sets a chat route's reasoning at once, keeping its other params", async () => {
+  it("sets a model's reasoning at once, keeping the route's other params", async () => {
     const generate = route({
       task: "exercise_generate",
       params: { temperature: 0.7 },
-      effective: ["relay:chat-model"],
+      effective: ["relay:chat-model", "relay:other"],
       effective_source: "default",
+      reasoning_options: { "relay:chat-model": ["off", "low", "medium", "high"] },
     });
     api.mockImplementation(async (path: string, init?: { json?: object }) =>
       path === "/tenant/routes"
@@ -131,32 +132,64 @@ describe("RouteSection", () => {
     show("exercise_generate", [RELAY]);
 
     expect(await screen.findByText("Exercise writer")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("combobox", { name: "Reasoning" }));
-    await userEvent.click(await screen.findByRole("option", { name: "Off" }));
+    // Only the models that take a level have the choice.
+    expect(screen.queryByRole("combobox", { name: "Reasoning for relay:other" })).toBeNull();
+    await userEvent.click(screen.getByRole("combobox", { name: "Reasoning for relay:chat-model" }));
+    const options = await screen.findAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual(["Default", "Off", "Low", "Medium", "High"]);
+    await userEvent.click(screen.getByRole("option", { name: "Off" }));
 
     expect(api).toHaveBeenCalledWith("/tenant/routes/llm/exercise_generate", {
       method: "PUT",
       json: {
-        models: ["relay:chat-model"],
+        models: ["relay:chat-model", "relay:other"],
         disabled: [],
-        params: { temperature: 0.7, reasoning: "off" },
+        params: { temperature: 0.7, reasoning: { "relay:chat-model": "off" } },
       },
     });
-    expect(await screen.findByRole("status")).toHaveTextContent("Reasoning set to Off");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "relay:chat-model: reasoning set to Off",
+    );
 
     // Default sends nothing.
-    await userEvent.click(screen.getByRole("combobox", { name: "Reasoning" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "Reasoning for relay:chat-model" }));
     await userEvent.click(await screen.findByRole("option", { name: "Default" }));
     expect(api).toHaveBeenLastCalledWith("/tenant/routes/llm/exercise_generate", {
       method: "PUT",
-      json: { models: ["relay:chat-model"], disabled: [], params: { temperature: 0.7 } },
+      json: {
+        models: ["relay:chat-model", "relay:other"],
+        disabled: [],
+        params: { temperature: 0.7 },
+      },
     });
   });
 
-  it("offers reasoning only on chat model routes that have a model", async () => {
+  it("reads a single saved level per model, as the backend does", () => {
+    const options: Record<string, ReasoningLevel[]> = {
+      "relay:gpt": ["low", "medium", "high"],
+      "qwen:qwen-plus": ["off", "on"],
+    };
+    expect(levelOf("low", "relay:gpt", options["relay:gpt"])).toBe("low");
+    expect(levelOf("off", "relay:gpt", options["relay:gpt"])).toBe("default");
+    expect(levelOf("low", "qwen:qwen-plus", options["qwen:qwen-plus"])).toBe("on");
+    expect(levelOf({ "relay:gpt": "high" }, "relay:gpt", options["relay:gpt"])).toBe("high");
+    expect(levelOf({ "relay:gpt": "high" }, "qwen:qwen-plus", options["qwen:qwen-plus"])).toBe(
+      "default",
+    );
+    // Only models still in the chain, and only their own levels, are kept.
+    expect(savedReasoning("low", options, ["relay:gpt", "qwen:qwen-plus", "relay:plain"])).toEqual({
+      "relay:gpt": "low",
+      "qwen:qwen-plus": "on",
+    });
+    expect(savedReasoning({ "relay:gpt": "high", "gone:m": "low" }, options, ["relay:gpt"])).toEqual({
+      "relay:gpt": "high",
+    });
+  });
+
+  it("offers reasoning only on chat model routes", async () => {
     show("asr");
     expect(await screen.findByRole("list", { name: "Speech-to-text" })).toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Reasoning" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /^Reasoning for/ })).not.toBeInTheDocument();
   });
 
   // --- switching models off (ADR 0026) ----------------------------------------------

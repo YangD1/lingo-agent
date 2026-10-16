@@ -14,6 +14,7 @@ import { ErrorText } from "@/components/ui/error-text";
 import { api } from "@/lib/api";
 import {
   type Connection,
+  type ReasoningLevel,
   type TaskRoute,
   VOICE_LANGUAGES,
   type VoiceLanguage,
@@ -70,9 +71,9 @@ const TASK_KEY: Record<RouteTask, string> = {
 };
 // A connection's default model is a chat model: only a good first guess for these.
 const TEXT_TASKS = new Set<RouteTask>(["chat", "reflect", "exercise_generate", "exercise_critic"]);
-// How hard a chat model thinks before answering (task 89.2); "default" sends nothing.
-const REASONING_LEVELS = ["default", "off", "low", "medium", "high"] as const;
-type Reasoning = (typeof REASONING_LEVELS)[number];
+// How hard a chat model thinks before answering (task 89.2), per model (task 91): the
+// backend lists the levels each one takes; "default" sends nothing.
+type Reasoning = "default" | ReasoningLevel;
 // Azure assesses pronunciation through the same connection; the route names this model.
 const PRONUNCIATION_MODEL = "pronunciation";
 
@@ -140,6 +141,8 @@ export function RouteSection({
   // A member's task served by their main account shows the main account's chain (ADR 0031 §5).
   const lent = !!route?.provided_by;
   const shown = route ? (route.overridden && !lent ? route.models : route.effective) : [];
+  // The thinking levels each model takes; the main account's chain is not this tenant's.
+  const reasoningOptions = (lent ? null : route?.reasoning_options) ?? {};
 
   function stateOf(ref: string): RowState {
     if (lent) return "on"; // the main account's connections: not in this tenant's list
@@ -268,18 +271,22 @@ export function RouteSection({
         return Object.keys(chosen).length > 0 ? [[refs[i], chosen]] : [];
       }),
     );
-    if (await put(refs, disabled, { voices })) {
+    // Levels only for the models still in the chain.
+    const reasoning = route && savedReasoning(route.params.reasoning, reasoningOptions, refs);
+    if (await put(refs, disabled, { voices, reasoning })) {
       setRows(null);
       setMessage({ ok: true, text: t("saved") });
     }
   }
 
   // Saved at once, like the row switches; on a route never saved, with the chain shown.
-  const reasoning = (route?.params.reasoning as Reasoning | undefined) ?? "default";
-  async function setReasoning(level: Reasoning) {
+  async function setReasoning(ref: string, level: Reasoning) {
     if (!route) return;
-    if (await put(shown, route.disabled, { reasoning: level === "default" ? null : level })) {
-      setMessage({ ok: true, text: t("reasoningSaved", { level: t(`reasoning.${level}`) }) });
+    const levels = savedReasoning(route.params.reasoning, reasoningOptions, shown);
+    if (level === "default") delete levels[ref];
+    else levels[ref] = level;
+    if (await put(shown, route.disabled, { reasoning: levels })) {
+      setMessage({ ok: true, text: t("reasoningSaved", { ref, level: t(`reasoning.${level}`) }) });
     }
   }
 
@@ -362,9 +369,22 @@ export function RouteSection({
                           ).join(" · ")}
                         </span>
                       )}
+                      {reasoningOptions[m] && (
+                        <Select
+                          size="sm"
+                          aria-label={t("reasoningFor", { ref: m })}
+                          value={levelOf(route.params.reasoning, m, reasoningOptions[m])}
+                          onValueChange={(v) => void setReasoning(m, v)}
+                          disabled={busy}
+                          className="ml-auto w-20 shrink-0"
+                          options={(["default", ...reasoningOptions[m]] as Reasoning[]).map(
+                            (v) => ({ value: v, label: t(`reasoning.${v}`) }),
+                          )}
+                        />
+                      )}
                       <Switch
                         size="sm"
-                        className="ml-auto"
+                        className={cn(!reasoningOptions[m] && "ml-auto")}
                         aria-label={t("rowSwitch", { ref: m })}
                         checked={state !== "off"}
                         disabled={busy}
@@ -375,21 +395,8 @@ export function RouteSection({
                 })}
               </ol>
             )}
-            {section === "llm" && !lent && shown.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground">{t("reasoningLabel")}</span>
-                  <Select
-                    aria-label={t("reasoningLabel")}
-                    value={reasoning}
-                    onValueChange={(v) => void setReasoning(v as Reasoning)}
-                    disabled={busy}
-                    className="w-28"
-                    options={REASONING_LEVELS.map((v) => ({ value: v, label: t(`reasoning.${v}`) }))}
-                  />
-                </div>
-                {!compact && <p className="text-xs text-muted-foreground">{t("reasoningHint")}</p>}
-              </div>
+            {!compact && shown.some((m) => reasoningOptions[m]) && (
+              <p className="text-xs text-muted-foreground">{t("reasoningHint")}</p>
             )}
             <div className="flex gap-2">
               <Button
@@ -626,5 +633,33 @@ function VoiceInputs({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * The level a model in the chain thinks at. A single saved level (from before task 91)
+ * counts where the model takes it; to an on/off model, low / medium / high mean on, as
+ * the backend reads them.
+ */
+export function levelOf(saved: unknown, ref: string, options: readonly ReasoningLevel[]): Reasoning {
+  const level = (
+    saved && typeof saved === "object" ? (saved as Record<string, unknown>)[ref] : saved
+  ) as ReasoningLevel | undefined;
+  if (!level) return "default";
+  if (options.includes(level)) return level;
+  return options.includes("on") && level !== "off" ? "on" : "default";
+}
+
+/** Each model's saved level, for the models of `chain` that take one (none: default). */
+export function savedReasoning(
+  saved: unknown,
+  options: Record<string, ReasoningLevel[]>,
+  chain: string[],
+): Record<string, ReasoningLevel> {
+  return Object.fromEntries(
+    chain.flatMap((ref) => {
+      const level = options[ref] ? levelOf(saved, ref, options[ref]) : "default";
+      return level === "default" ? [] : [[ref, level]];
+    }),
   );
 }

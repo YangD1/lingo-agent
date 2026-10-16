@@ -103,6 +103,8 @@ export type ConnectionTest = {
   // small image; the backend guesses when the request doesn't say.
   purpose: TestPurpose;
 };
+/** How hard a chat model thinks (task 91): "on" for on/off models, the rest for effort ones. */
+export type ReasoningLevel = "off" | "on" | "low" | "medium" | "high";
 export type TaskRoute = {
   section: "llm" | "embedding" | "asr" | "tts" | "pronunciation" | "realtime";
   task: string;
@@ -121,6 +123,8 @@ export type TaskRoute = {
   default_voices?: Record<string, Record<VoiceLanguage, string | null>> | null;
   /** tts only: per "<connection>:<model>", the voices it offers to pick from (Q64q). */
   voice_options?: Record<string, VoiceOption[]> | null;
+  /** llm only: per "<connection>:<model>", the thinking levels it takes besides its default. */
+  reasoning_options?: Record<string, ReasoningLevel[]> | null;
   /** The main account's name when its connections serve this task for a member (ADR 0031 §5). */
   provided_by?: string | null;
   /** ... and the member's quota for it is used up for now. */

@@ -1256,16 +1256,17 @@
       "voicesHint": "Under each model you can choose a voice per language; empty uses the built-in one. An Azure connection offers its voices; for a qwen-audio model, describe the voice in English (e.g. \"A calm British man\").",
       "providedBy": "Provided by {name}: you don't have a model of your own for this.",
       "quotaExhausted": "Your quota from {name} for this is used up for now. Add a connection of your own, or wait for it to reset (UTC).",
-      "reasoningLabel": "Reasoning",
+      "reasoningFor": "Reasoning for {ref}",
       "reasoning": {
         "default": "Default",
         "off": "Off",
+        "on": "On",
         "low": "Low",
         "medium": "Medium",
         "high": "High"
       },
-      "reasoningHint": "Reasoning models think before they answer: the more they think, the later the first word appears. Default sends nothing. Bailian and SiliconFlow only switch it on or off (low, medium and high all mean on); Anthropic's and DeepSeek's own APIs are unaffected. If a model doesn't support it, its calls fail: set it back to Default.",
-      "reasoningSaved": "Reasoning set to {level}."
+      "reasoningHint": "Reasoning models think before they answer: the more they think, the later the first word appears. Each model lists only the levels it takes (some only switch thinking on or off); models without a list stay at their default. Default sends nothing.",
+      "reasoningSaved": "{ref}: reasoning set to {level}."
     },
     "usage": {
       "title": "Usage",
