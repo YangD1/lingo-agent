@@ -63,6 +63,8 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 PORT = int(os.environ.get("E2E_LLM_PORT", "8101"))
 DELAY = float(os.environ.get("FAKE_LLM_DELAY", "0.02"))
 LONG_DELAY = 0.1
+# Seconds between practice drafts in a streamed set (ADR 0048): items come in one by one.
+ITEM_DELAY = float(os.environ.get("FAKE_LLM_ITEM_DELAY", "0.6"))
 
 app = FastAPI()
 
@@ -654,14 +656,23 @@ def proposed_edit(messages: list[dict[str, Any]]) -> dict[str, Any] | None:
 def stream_tool_call(
     model: str, name: str, arguments: dict[str, Any], usage: dict[str, int]
 ) -> StreamingResponse:
+    """The call's arguments in one chunk; a practice set's one field (item) at a time."""
+    pieces = [json.dumps(arguments)]
+    if name == "GeneratedItems" and arguments:
+        fields = [f"{json.dumps(k)}: {json.dumps(v)}" for k, v in arguments.items()]
+        pieces = ["{" + fields[0], *(", " + f for f in fields[1:]), "}"]
+
     async def stream() -> AsyncIterator[str]:
         call = {
             "index": 0,
             "id": f"call_{uuid.uuid4().hex[:12]}",
             "type": "function",
-            "function": {"name": name, "arguments": json.dumps(arguments)},
+            "function": {"name": name, "arguments": pieces[0]},
         }
         yield chunk(model, {"role": "assistant", "content": None, "tool_calls": [call]})
+        for piece in pieces[1:]:
+            await asyncio.sleep(ITEM_DELAY)
+            yield chunk(model, {"tool_calls": [{"index": 0, "function": {"arguments": piece}}]})
         yield chunk(model, {}, usage=usage)
         yield "data: [DONE]\n\n"
 

@@ -38,8 +38,10 @@ test("course: first lesson, pass quiz in the chat, then the next lesson", async 
   await expect(card).toHaveAttribute("data-purpose", "quiz");
   await expect(card.getByTestId("practice-item")).toBeVisible({ timeout: 30_000 });
 
-  // Every item answered with the fake model's key, one at a time.
-  for (let n = 0; n < 10 && (await card.getByTestId("practice-item").isVisible()); n++) {
+  // Every item answered with the fake model's key, one at a time; the next may still be
+  // written, and the card waits for it (ADR 0048).
+  for (let n = 1; n <= 5; n++) {
+    await expect(card.getByTestId("practice-progress")).toHaveText(`第 ${n} / 5 题`, { timeout: 10_000 });
     await answerPractice(page, false);
     await expect(card.getByTestId("practice-verdict")).toHaveAttribute("data-correct", "true");
     await card.getByTestId("practice-next").click();

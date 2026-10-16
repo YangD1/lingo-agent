@@ -120,8 +120,8 @@ export type Origin = "dashboard" | "learner" | "card" | "plan" | "practice";
 export type PracticeSet = {
   id: string;
   status: SetStatus;
-  /** While generating. */
-  stage: "generating" | "reviewing" | "rewriting" | "filling" | null;
+  /** While generating (ADR 0048: each item is written on its own, so no "reviewing"). */
+  stage: "generating" | "rewriting" | "filling" | null;
   /** quiz: a quiz card's set in the chat (ADR 0044 §4). */
   origin: Origin | "prefetch" | "quiz";
   focus_kc: KCName | null;
@@ -129,6 +129,9 @@ export type PracticeSet = {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+  /** Items planned, 0 until the plan is made. While generating, `items` holds those
+   * already written, answerable at once (ADR 0048). */
+  planned: number;
   items: Item[];
   how_made: HowMade | null;
   /** Once done. */
@@ -169,6 +172,21 @@ export const reportItem = (id: number) =>
 /** Items still to answer: shown, not reported, no result yet. */
 export const openItems = (set: PracticeSet) =>
   set.items.filter((i) => i.status === "ok" && i.result === null);
+
+/** The first item still open, by position; null when none is. */
+export const firstOpenId = (set: PracticeSet): number | null => openItems(set)[0]?.id ?? null;
+
+/**
+ * Number and count for an item on show: items are numbered in the order they are
+ * answered or reported, since while a set is written they need not arrive in order
+ * (ADR 0048). The count is the plan's while the rest are still being written.
+ */
+export function itemPlace(set: PracticeSet, item: Item): { index: number; total: number } {
+  const done = (i: Item) => i.result !== null || i.status !== "ok";
+  const index = set.items.filter((i) => done(i) && i.id !== item.id).length;
+  const total = set.status === "generating" ? Math.max(set.planned, set.items.length) : set.items.length;
+  return { index, total };
+}
 
 export const isUnfinished = (status: SetStatus) =>
   status === "generating" || status === "ready" || status === "in_progress";

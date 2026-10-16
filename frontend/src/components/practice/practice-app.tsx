@@ -20,8 +20,10 @@ import {
   answerItem,
   fetchRecentSets,
   fetchSet,
+  firstOpenId,
   isUnfinished,
   type Item,
+  itemPlace,
   openItems,
   type Origin,
   type PracticeSet,
@@ -40,19 +42,21 @@ export const POLL_MS = 1500;
 type View =
   | { kind: "loading" }
   | { kind: "landing"; recent: SetBrief[] }
-  | { kind: "set"; set: PracticeSet; current: number };
+  // `current`: the item on show, by id (items written later may come before it); null
+  // while waiting for the next item to be written (ADR 0048).
+  | { kind: "set"; set: PracticeSet; current: number | null };
 
-/** The item to show: the first one still open, else the last (the set is done). */
-function firstOpen(set: PracticeSet): number {
-  const open = openItems(set)[0];
-  return open ? set.items.indexOf(open) : Math.max(0, set.items.length - 1);
+/** The item to show: the first one still open; else, once written, the last. */
+function firstOpen(set: PracticeSet): number | null {
+  return firstOpenId(set) ?? (set.status === "generating" ? null : (set.items.at(-1)?.id ?? null));
 }
 
 /**
  * Grammar practice sets (P2 plan §3.7, task 35). Opened from an entry point
  * (`?from=…`, maybe `&kc=…`) it starts or continues a set at once; opened on its own it
  * shows a start button and the latest sets. A set being generated shows the hopping cat
- * until it is ready; then one item per screen, and the summary once done.
+ * until its first item is written; then one item per screen, each as soon as it is
+ * written (ADR 0048), and the summary once done.
  */
 export function PracticeApp({ from, kc }: { from: Origin | null; kc: string | null }) {
   const t = useTranslations("practice");
@@ -69,6 +73,15 @@ export function PracticeApp({ from, kc }: { from: Origin | null; kc: string | nu
   const [finished, setFinished] = useState(false);
 
   const show = (set: PracticeSet) => setView({ kind: "set", set, current: firstOpen(set) });
+  /** A newer state of the set on show: the item on show stays, answered or not. */
+  const refresh = (set: PracticeSet) => {
+    const kept = view.kind === "set" && view.set.id === set.id ? view.current : null;
+    const stays = kept !== null && set.items.some((i) => i.id === kept);
+    // Answered through while written: the set was finished by storing the rest, so the
+    // last verdict stays on show before the summary, as after a finishing answer.
+    if (stays && set.status === "done") setFinished(true);
+    setView({ kind: "set", set, current: stays ? kept : firstOpen(set) });
+  };
 
   async function start(origin: Origin, kcId: string | null = null) {
     setBusy(true);
@@ -116,7 +129,7 @@ export function PracticeApp({ from, kc }: { from: Origin | null; kc: string | nu
     let live = true;
     const timer = setTimeout(() => {
       fetchSet(generatingId).then(
-        (set) => live && show(set),
+        (set) => live && refresh(set),
         (e: unknown) => live && setError(describe(e)),
       );
     }, POLL_MS);
@@ -157,16 +170,24 @@ export function PracticeApp({ from, kc }: { from: Origin | null; kc: string | nu
   async function next() {
     if (view.kind !== "set") return;
     setItemError(null);
-    if (finished || openItems(view.set).length === 0) {
+    const writing = view.set.status === "generating";
+    if (finished || (openItems(view.set).length === 0 && !writing)) {
       setFinished(false);
       await open(view.set.id); // done: fetch the summary
       return;
     }
-    setView({ ...view, current: firstOpen(view.set) });
+    // While written, nothing open yet means waiting for the next item.
+    setView({ ...view, current: firstOpenId(view.set) });
   }
 
+  const shown = view.kind === "set" ? view.set.items.find((i) => i.id === view.current) : undefined;
+
   return (
-    <div className="pet-safe flex-1 overflow-y-auto">
+    <div
+      className="pet-safe flex-1 overflow-y-auto"
+      data-testid="practice-page"
+      data-status={view.kind === "set" ? view.set.status : undefined}
+    >
       <div
         className={cn(
           "mx-auto flex flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8",
@@ -190,13 +211,17 @@ export function PracticeApp({ from, kc }: { from: Origin | null; kc: string | nu
             onOpen={(id) => void open(id)}
           />
         )}
-        {view.kind === "set" && view.set.status === "generating" && (
+        {view.kind === "set" && view.set.status === "generating" && shown === undefined && (
           <Card data-testid="practice-generating">
             <CardContent>
               <CatLoading
                 mood="hop"
                 size={72}
-                label={t(`stage.${view.set.stage ?? "generating"}`)}
+                label={
+                  view.set.items.length > 0
+                    ? t("waitingNext")
+                    : t(`stage.${view.set.stage ?? "generating"}`)
+                }
               />
               <p className="text-center text-xs text-muted-foreground">{t("generatingNote")}</p>
             </CardContent>
@@ -216,21 +241,18 @@ export function PracticeApp({ from, kc }: { from: Origin | null; kc: string | nu
           />
         )}
         {view.kind === "set" &&
-          (view.set.status === "ready" || view.set.status === "in_progress" || (view.set.status === "done" && finished)) &&
-          view.set.items[view.current] && (
+          (isUnfinished(view.set.status) || (view.set.status === "done" && finished)) &&
+          shown && (
             <>
               {view.set.focus_kc && <FocusLine set={view.set} />}
               <PracticeItem
-                key={view.set.items[view.current].id}
-                item={view.set.items[view.current]}
-                index={view.current}
-                total={view.set.items.length}
+                key={shown.id}
+                item={shown}
+                {...itemPlace(view.set, shown)}
                 busy={busy}
                 error={itemError}
-                onAnswer={(reply: Reply, ms: number) =>
-                  void act(() => answerItem(view.set.items[view.current].id, reply, ms))
-                }
-                onReport={() => void act(() => reportItem(view.set.items[view.current].id))}
+                onAnswer={(reply: Reply, ms: number) => void act(() => answerItem(shown.id, reply, ms))}
+                onReport={() => void act(() => reportItem(shown.id))}
                 onNext={() => void next()}
               />
             </>

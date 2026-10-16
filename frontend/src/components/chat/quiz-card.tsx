@@ -18,8 +18,9 @@ import {
   type Answered,
   answerItem,
   fetchSet,
+  firstOpenId,
   type Item,
-  openItems,
+  itemPlace,
   type PracticeSet,
   reportItem,
 } from "@/lib/practice";
@@ -39,11 +40,6 @@ export function quizScore(set: PracticeSet): { correct: number; total: number } 
   return { correct: items.filter((i) => i.result?.correct).length, total: items.length };
 }
 
-function firstOpen(set: PracticeSet): number {
-  const open = openItems(set)[0];
-  return open ? set.items.indexOf(open) : -1;
-}
-
 /** One line naming an item, for the summary. */
 function questionText(item: Item): string {
   const c = item.content;
@@ -53,7 +49,8 @@ function questionText(item: Item): string {
 /**
  * A quiz card in the chat (ADR 0044 §4): the tutor's `give_quiz` set, written in the
  * background, answered here one item at a time through the practice API, each with its
- * result at once, then a summary. "Go over it" sends a fixed message as the learner, so
+ * result at once, then a summary. Items show as soon as they are written (ADR 0048), so
+ * the learner may wait for the next one between items. "Go over it" sends a fixed message as the learner, so
  * the tutor reviews it only when asked.
  */
 export function QuizCard({
@@ -66,6 +63,7 @@ export function QuizCard({
 }) {
   const t = useTranslations("chat.cards.quiz");
   const tStage = useTranslations("practice.stage");
+  const tPractice = useTranslations("practice");
   const locale = useLocale();
   const describe = useDescribeError();
   const name = useTutor()?.display_name ?? DEFAULT_TUTOR.display_name;
@@ -79,12 +77,21 @@ export function QuizCard({
   const [itemError, setItemError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const sending = useRef(false);
-  // The item on show; -1 for the summary.
-  const [current, setCurrent] = useState(0);
+  // The item on show, by id: items written later may come before it. Null between
+  // items while the rest are written, then for the summary.
+  const [current, setCurrent] = useState<number | null>(null);
 
+  /** A newer state of the set; the item on show stays, answered or not. */
+  const lastStatus = useRef<PracticeSet["status"] | null>(null);
   const show = (next: PracticeSet) => {
+    if (purpose === "quiz" && lastStatus.current === "generating" && next.status === "done") {
+      lessonChanged(); // answered through while written: storing the rest finished it
+    }
+    lastStatus.current = next.status;
     setSet(next);
-    setCurrent(firstOpen(next));
+    setCurrent((id) =>
+      id !== null && next.items.some((i) => i.id === id) ? id : firstOpenId(next),
+    );
   };
 
   useEffect(() => {
@@ -122,14 +129,14 @@ export function QuizCard({
     setBusy(true);
     setItemError(null);
     try {
-      const { item } = await run();
-      const next = { ...set, items: set.items.map((i) => (i.id === item.id ? item : i)) };
-      setSet(next);
-      if (purpose === "quiz" && firstOpen(next) < 0) lessonChanged();
+      const { item, set_done } = await run();
+      setSet({ ...set, items: set.items.map((i) => (i.id === item.id ? item : i)) });
+      if (purpose === "quiz" && set_done) lessonChanged();
       if (item.result?.correct) petHappy();
     } catch (e) {
       setItemError(describe(e));
       if (e instanceof ApiError && e.code === "not_answerable") {
+        setCurrent(null);
         await fetchSet(set.id).then(show, () => undefined);
       }
     } finally {
@@ -142,9 +149,10 @@ export function QuizCard({
   const title = t(purpose === "check" ? "titleCheck" : "titleQuiz", { kc: kcLabel });
   const items = set ? counted(set) : [];
   const empty = set !== null && (set.status === "failed" || (!generating && items.length === 0));
+  const shown = set?.items.find((i) => i.id === current);
 
   return (
-    <div className="flex flex-col gap-3" data-testid="quiz-card" data-purpose={purpose}>
+    <div className="flex flex-col gap-3" data-testid="quiz-card" data-purpose={purpose} data-status={set?.status}>
       <div className="flex items-center gap-2">
         <span
           aria-hidden
@@ -157,9 +165,13 @@ export function QuizCard({
       </div>
       {error && <ErrorText size="xs">{error}</ErrorText>}
       {!set && !error && <CatLoading size={40} label={t("loading")} />}
-      {generating && (
+      {generating && !shown && (
         <div data-testid="quiz-generating">
-          <CatLoading mood="hop" size={48} label={tStage(set?.stage ?? "generating")} />
+          <CatLoading
+            mood="hop"
+            size={48}
+            label={items.length > 0 ? tPractice("waitingNext") : tStage(set?.stage ?? "generating")}
+          />
         </div>
       )}
       {empty && (
@@ -167,24 +179,23 @@ export function QuizCard({
           {t("failed", { name })}
         </p>
       )}
-      {set && !generating && !empty && current >= 0 && set.items[current] && (
+      {set && !empty && shown && (
         <PracticeItem
-          key={set.items[current].id}
-          item={set.items[current]}
-          index={items.indexOf(set.items[current])}
-          total={items.length}
+          key={shown.id}
+          item={shown}
+          {...itemPlace(set, shown)}
           busy={busy}
           error={itemError}
           shortcuts={false}
-          onAnswer={(reply, ms) => void act(() => answerItem(set.items[current].id, reply, ms))}
-          onReport={() => void act(() => reportItem(set.items[current].id))}
+          onAnswer={(reply, ms) => void act(() => answerItem(shown.id, reply, ms))}
+          onReport={() => void act(() => reportItem(shown.id))}
           onNext={() => {
             setItemError(null);
-            setCurrent(firstOpen(set));
+            setCurrent(firstOpenId(set));
           }}
         />
       )}
-      {set && !generating && !empty && current < 0 && (
+      {set && !generating && !empty && !shown && (
         <Summary
           set={set}
           purpose={purpose}

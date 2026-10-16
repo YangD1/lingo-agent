@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -70,6 +70,7 @@ const set = (overrides: Partial<PracticeSet> = {}): PracticeSet => ({
   created_at: "2026-10-02T09:00:00Z",
   started_at: "2026-10-02T09:00:00Z",
   finished_at: null,
+  planned: 3,
   items: [choice, findFix, translate],
   how_made: { written: 2, from_bank: 1, rejected: 1, writers: ["deepseek:chat"], reviewers: ["qwen:max"] },
   summary: null,
@@ -129,7 +130,7 @@ describe("PracticeApp", () => {
     ];
     api
       .mockResolvedValueOnce(recent)
-      .mockResolvedValueOnce(set({ status: "generating", stage: "reviewing", items: [] }))
+      .mockResolvedValueOnce(set({ status: "generating", stage: "filling", items: [] }))
       .mockResolvedValueOnce(set());
     show();
 
@@ -142,7 +143,7 @@ describe("PracticeApp", () => {
       json: { origin: "practice", kc_id: null },
     });
     expect(await screen.findByTestId("practice-generating")).toBeInTheDocument();
-    expect(await screen.findByRole("status", { name: "Checking questions…" })).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: "Filling in from the question bank…" })).toBeInTheDocument();
 
     // Polled until ready.
     expect(await screen.findByTestId("practice-item", {}, { timeout: 3000 })).toBeInTheDocument();
@@ -194,6 +195,46 @@ describe("PracticeApp", () => {
 
     await userEvent.keyboard("{Enter}");
     expect(await screen.findByTestId("practice-segments")).toBeInTheDocument();
+  });
+
+  it("practises the items written so far, waiting for the next (ADR 0048)", async () => {
+    const writing = (items: Item[]) => set({ status: "generating", stage: "generating", items });
+    const wrong = answered(choice, false, { choice: "live" });
+    api
+      .mockResolvedValueOnce(writing([choice]))
+      .mockResolvedValueOnce({ item: wrong, set_done: false })
+      .mockResolvedValueOnce(writing([wrong, translate]));
+    show("practice");
+
+    expect(await screen.findByTestId("practice-item")).toHaveTextContent("1 / 3");
+    await userEvent.keyboard("1");
+    expect(await screen.findByTestId("practice-verdict")).toBeInTheDocument();
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByRole("status", { name: "Writing the next question…" })).toBeInTheDocument();
+
+    // Polled: the next item written comes up, numbered after the one answered.
+    const box = await screen.findByRole("textbox", { name: "Your translation" }, { timeout: 3000 });
+    expect(box).toBeInTheDocument();
+    expect(screen.getByTestId("practice-item")).toHaveTextContent("2 / 3");
+  });
+
+  it("keeps the last verdict when storing the rest finishes the set", async () => {
+    const right = answered(choice, true, { choice: "lives" });
+    api
+      .mockResolvedValueOnce(set({ status: "generating", stage: "rewriting", planned: 2, items: [choice] }))
+      .mockResolvedValueOnce({ item: right, set_done: false })
+      .mockResolvedValueOnce(set({ status: "done", items: [right], summary: { total: 1, correct: 1, kcs: [] } }))
+      .mockResolvedValueOnce(set({ status: "done", items: [right], summary: { total: 1, correct: 1, kcs: [] } }));
+    show("practice");
+
+    await screen.findByTestId("practice-item");
+    await userEvent.keyboard("1");
+    expect(await screen.findByTestId("practice-verdict")).toBeInTheDocument();
+    // Polled while the verdict is on show: the set is done, the verdict stays.
+    await waitFor(() => expect(api).toHaveBeenCalledTimes(3), { timeout: 3000 });
+    expect(screen.getByTestId("practice-verdict")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "See results" }));
+    expect(await screen.findByTestId("practice-summary")).toHaveTextContent("1 of 1 right");
   });
 
   it("finds the wrong piece, then fixes it keeping its spacing", async () => {

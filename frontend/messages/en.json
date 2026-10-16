@@ -2125,13 +2125,13 @@
   },
   "practice": {
     "focus": "This set focuses on: {kc}",
-    "generatingNote": "The first set takes about half a minute; the next one is prepared while you practise.",
+    "generatingNote": "Each question shows as soon as it's ready; the next set is prepared while you practise.",
     "stage": {
       "generating": "Writing questions…",
-      "reviewing": "Checking questions…",
       "rewriting": "Some questions didn't pass the check; rewriting them…",
       "filling": "Filling in from the question bank…"
     },
+    "waitingNext": "Writing the next question…",
     "failed": {
       "title": "This set couldn't be made",
       "retry": "Try again",

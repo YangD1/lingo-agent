@@ -2125,13 +2125,13 @@
   },
   "practice": {
     "focus": "这组专练：{kc}",
-    "generatingNote": "第一次出题大约需要半分钟；做完这组后，下一组会提前准备好。",
+    "generatingNote": "出好一道就先显示一道；做完这组后，下一组会提前准备好。",
     "stage": {
       "generating": "正在出题…",
-      "reviewing": "正在审题…",
       "rewriting": "有几道题没通过审题，正在重写…",
       "filling": "正在从题库补题…"
     },
+    "waitingNext": "正在出下一题…",
     "failed": {
       "title": "这组题没出成",
       "retry": "再试一次",

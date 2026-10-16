@@ -71,6 +71,7 @@ const set = (overrides: Partial<PracticeSet> = {}): PracticeSet => ({
   created_at: "2026-10-15T09:00:00Z",
   started_at: "2026-10-15T09:00:00Z",
   finished_at: null,
+  planned: 2,
   items: [concept, explain],
   how_made: null,
   summary: null,
@@ -112,11 +113,11 @@ describe("QuizCard", () => {
   it("waits while the questions are written", async () => {
     vi.useFakeTimers();
     practice.fetchSet
-      .mockResolvedValueOnce(set({ status: "generating", stage: "reviewing", items: [] }))
+      .mockResolvedValueOnce(set({ status: "generating", stage: "rewriting", items: [] }))
       .mockResolvedValueOnce(set());
     show();
     await act(async () => {});
-    expect(screen.getByRole("status", { name: "正在审题…" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "有几道题没通过审题，正在重写…" })).toBeInTheDocument();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(QUIZ_POLL_MS);
@@ -124,6 +125,52 @@ describe("QuizCard", () => {
     expect(practice.fetchSet).toHaveBeenCalledTimes(2);
     expect(screen.getByTestId("practice-question")).toHaveTextContent("为什么是 lives？");
     expect(screen.getByText("理解检查 · 第三人称单数")).toBeInTheDocument();
+  });
+
+  it("shows each item as soon as it is written, keeping the one on show (ADR 0048)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Position 1 is written first; position 0 comes in while 1 is answered.
+    const writing = (items: Item[]) => set({ status: "generating", stage: "generating", items });
+    practice.fetchSet
+      .mockResolvedValueOnce(writing([explain]))
+      .mockResolvedValueOnce(writing([concept, explain]))
+      .mockResolvedValue(writing([concept, explain]));
+    show();
+
+    expect(await screen.findByTestId("practice-question")).toHaveTextContent("什么时候动词加 -s？");
+    expect(screen.getByText("第 1 / 2 题")).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUIZ_POLL_MS);
+    });
+    // The item on show stays, though an item before it arrived.
+    expect(screen.getByTestId("practice-question")).toHaveTextContent("什么时候动词加 -s？");
+    expect(screen.queryByTestId("quiz-generating")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("quiz-summary")).not.toBeInTheDocument();
+  });
+
+  it("waits for the next item, and tells the lesson bar once the rest is stored", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const changed = vi.fn();
+    const off = onLessonChanged(changed);
+    practice.fetchSet
+      .mockResolvedValueOnce(set({ status: "generating", stage: "rewriting", items: [concept] }))
+      .mockResolvedValueOnce(set({ status: "done", items: [done(concept, true)] }));
+    practice.answerItem.mockResolvedValueOnce({ item: done(concept, true), set_done: false });
+    show("quiz");
+
+    await user.click(await screen.findByRole("button", { name: /主语是单数/ }));
+    expect(screen.getByText("第 1 / 2 题")).toBeInTheDocument();
+    await user.click(screen.getByTestId("practice-next"));
+    expect(screen.getByRole("status", { name: "正在出下一题…" })).toBeInTheDocument();
+    expect(changed).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(QUIZ_POLL_MS);
+    });
+    expect(screen.getByTestId("quiz-summary")).toHaveTextContent("答对 1 / 1");
+    expect(changed).toHaveBeenCalledOnce();
+    off();
   });
 
   it("answers each item at once, then sums up and asks for a review", async () => {

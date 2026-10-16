@@ -16,8 +16,10 @@ test("practice set: written, checked, answered, graded, summed up", async ({ pag
   await expect(page.getByText("还没有练习记录。")).toBeVisible();
   await page.getByTestId("practice-start").click();
 
-  // Written and checked by the fake model in the background, then one item per screen.
+  // Written and checked by the fake model in the background, then one item per screen,
+  // each as soon as it passed the check, while the rest are still written (ADR 0048).
   await expect(page.getByTestId("practice-item")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("practice-page")).toHaveAttribute("data-status", "generating");
   const progress = page.getByTestId("practice-progress");
   const total = Number((await progress.textContent())?.match(/\/ (\d+)/)?.[1]);
   expect(total).toBeGreaterThanOrEqual(5);
@@ -30,7 +32,7 @@ test("practice set: written, checked, answered, graded, summed up", async ({ pag
 
   let wrong = 0;
   for (let n = 2; n <= total; n++) {
-    await expect(progress).toHaveText(`第 ${n} / ${total} 题`);
+    await expect(progress).toHaveText(`第 ${n} / ${total} 题`, { timeout: 10_000 });
     const format = await answer(page, wrong === 0);
     const verdict = page.getByTestId("practice-verdict");
     if (format === "translate" && wrong === 0) {
