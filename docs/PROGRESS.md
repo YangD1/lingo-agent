@@ -1263,6 +1263,7 @@
 - [~] 任务 94：学习者要题就出，不再说“今天出不了”（2026-10-16 用户反馈：私教回“今天这节的测试卡不能再生成了，明天可以重试”，然后在回复里自己写了一道题。原因是 ADR 0044 §4 的“同一语法点 24 小时内最多生成 2 次过关测验”，而算进去的两组一组没做、一组只做了 1 题。用户：“问了就重新生成就好”。按推荐做，用户没选“接着做还是出新题”，取两者都支持）
   - [x] 94.1 后端：去掉每天 2 次的限制（`QuizLimitError`、`course.generated_quizzes_per_day`、课程“直接测验”的 409 `quiz_limit`）；`start_quiz` 先找同一语法点、同一用途还没做完的题组（出题中 / 已出好 / 做了一部分，24 小时内），有就给新卡指向它，接着做、不花 token；`give_quiz` 新增 `fresh`（学习者明确要新题时填 true，跳过续做）。测试：pytest（续做、`fresh` 出新组、做完 / 失败 / 撤回的不续做、不再限次数、直接测验也续做）。
     - 完成：`worker.start_quiz(..., fresh=False) -> QuizStart(set_id, resumed)`，先找 `course.resume_quiz_hours`（24）内同语法点同用途、状态 generating / ready / in_progress 的题组；`QuizLimitError`、`generated_quizzes_per_day`、test-out 的 409 去掉（`rules.yaml` 版本 → `2026-10-16.2`）；`GiveQuiz.fresh`；续做时工具结果写“Quiz card shown again …（已答几题）… fresh true”；失败题组在上下文里改成“再调一次 give_quiz（fresh）”；两张卡指向同一组时撤回一张不停题组。pytest：worker 续做 / fresh / 做完失败不续 / 过期不续，聊天里续做与 fresh，test-out 续做，撤回共用题组；相关 111 过。
-  - [~] 94.2 提示词与卡片：工具结果写明是接着做（已答几题）还是新出；出题失败时告诉私教“学习者要的话再调一次 `give_quiz`”，不再让它口头出题；`tutor_tools.md` 写明学习者说“再出 / 换一组”就 `fresh`；前端失败文案改成“说一声再出一次就会重新出”。测试：pytest（提示词装配、工具结果文字）、Vitest（失败文案）。
-  - [ ] 94.3 E2E：同一语法点要题 → 不做 → 再要，出现的卡是同一组题；说“换一组”出新组。理由：跨前后端主流程。
+  - [x] 94.2 提示词与卡片：工具结果写明是接着做（已答几题）还是新出；出题失败时告诉私教“学习者要的话再调一次 `give_quiz`”，不再让它口头出题；`tutor_tools.md` 写明学习者说“再出 / 换一组”就 `fresh`；前端失败文案改成“说一声再出一次就会重新出”。测试：pytest（提示词装配、工具结果文字）、Vitest（失败文案）。
+    - 完成：`tutor_tools.md` 测验一节加一条（没做完的会接着做；要新题、换一组、做完再来时 `fresh` true；不要说今天出不了，失败了再调一次）；测验卡失败文案改成“跟{name}说一声‘再出一次’，就会重新出”（中英）。pytest：提示词含 fresh 规则、失败题组的上下文文字（quiz_tools 12 过）；Vitest quiz-card 12 过。
+  - [~] 94.3 E2E：同一语法点要题 → 不做 → 再要，出现的卡是同一组题；说“换一组”出新组。理由：跨前后端主流程。
   - [ ] 94.4 收尾：ADR 0044 §4、0046 改写（或新 ADR 0050）、`agent-tools.md`、PLAN；pytest、Vitest、E2E 全量；lint；Docker 重建；交接记录。

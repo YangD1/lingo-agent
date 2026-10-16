@@ -93,6 +93,8 @@ async def test_asked_again_the_unfinished_quiz_comes_back(
     assert card["id"] != first["id"]
     assert card["params"]["set_id"] == first["params"]["set_id"]
     assert len(await quiz_sets(db_session)) == 1
+    prompt = system_text(script.calls[-1][1])
+    assert "set `fresh` true" in prompt and "Never tell them a quiz cannot be made" in prompt
     again = results(script, call=-1)[-1].text
     assert "Quiz card shown again" in again and "fresh true" in again, again
 
@@ -328,3 +330,25 @@ async def test_a_name_in_kc_id_is_searched_too(
     _, events, _ = await send(client, conversation, "Quiz me on -s.")
     (card,) = kinds(events, "card")
     assert card["params"]["kc_id"] == KC
+
+
+async def test_a_failed_quiz_is_offered_again_not_asked_in_the_reply(
+    client: AsyncClient, db_session: AsyncSession, script: Script
+) -> None:
+    """Task 94: the tutor is told to make the card again, not to ask questions itself."""
+    conversation = await ready(client)
+    script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True)], "Try it."]
+    await send(client, conversation, "Quiz me.")
+    (row,) = await quiz_sets(db_session)
+    await db_session.execute(
+        update(ExerciseSet).where(ExerciseSet.id == row.id).values(status="failed")
+    )
+    await db_session.commit()
+    script.calls.clear()
+    script.replies = ["Let me make it again."]
+
+    await send(client, conversation, "It broke.")
+
+    prompt = system_text(script.calls[0][1])
+    assert "could not be made; if the learner still wants it, call give_quiz again" in prompt
+    assert "question or two yourself" not in prompt

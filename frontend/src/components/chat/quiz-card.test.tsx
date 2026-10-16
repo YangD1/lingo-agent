@@ -271,7 +271,7 @@ describe("QuizCard", () => {
   it("says when no questions could be made", async () => {
     practice.fetchSet.mockResolvedValue(set({ status: "failed", items: [] }));
     show("check", null);
-    expect(await screen.findByTestId("quiz-failed")).toHaveTextContent("JOJO会直接问你");
+    expect(await screen.findByTestId("quiz-failed")).toHaveTextContent("跟JOJO说一声“再出一次”");
   });
 
   it("offers no review while a message can't be sent", async () => {

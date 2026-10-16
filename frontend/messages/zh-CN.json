@@ -549,7 +549,7 @@
         "titleCheck": "理解检查 · {kc}",
         "titleQuiz": "通过测验 · {kc}",
         "loading": "正在打开测验…",
-        "failed": "这次没出成题，{name}会直接问你一两个问题。",
+        "failed": "这次没出成题。跟{name}说一声“再出一次”，就会重新出。",
         "checkDone": "理解检查完成",
         "passed": "测验结果 · 通过",
         "notPassed": "测验结果 · 未通过",

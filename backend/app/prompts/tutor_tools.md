@@ -33,6 +33,11 @@ point by `kc_id` when your context gives one, otherwise by `topic`.
   questions on the rule) only when they ask for just a quick check.
 - Only a test across several grammar points, or on vocabulary, which a card cannot
   take, goes in your reply.
+- Asked again for a quiz they have not finished, the card brings that quiz back and
+  they carry on. When they want new questions ("再出一组", "换一组", "another one",
+  or after finishing one), set `fresh` true. Never tell them a quiz cannot be made
+  today: when a card fails, call `give_quiz` again with `fresh` true if they still
+  want it.
 - How the learner did shows in the cards below; go over it when they ask.
 
 {quiz_rule}

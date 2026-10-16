@@ -549,7 +549,7 @@
         "titleCheck": "Understanding check · {kc}",
         "titleQuiz": "Pass quiz · {kc}",
         "loading": "Opening the quiz…",
-        "failed": "The questions couldn't be made this time; {name} will ask you a question or two instead.",
+        "failed": "The questions couldn't be made this time. Tell {name} “try again” and new ones will be written.",
         "checkDone": "Understanding check done",
         "passed": "Quiz result · Passed",
         "notPassed": "Quiz result · Not passed",
