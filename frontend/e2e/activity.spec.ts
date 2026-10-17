@@ -25,7 +25,8 @@ test("each reply shows what the tutor did, and the learner can hide it", async (
   await send(page, "She like music, and please remember that I have a sister.");
   // Background results arrive by polling after the reply.
   const first = activityOf(replies(page).first());
-  await expect(first).toHaveAccessibleName("JOJO做了什么：记下 1 条 · 标记 1 个语法错误", {
+  // Every free-chat turn reads the progress the app counted (ADR 0052 §1).
+  await expect(first).toHaveAccessibleName("JOJO做了什么：看了学习近况 · 记下 1 条 · 标记 1 个语法错误", {
     timeout: 15_000,
   });
 
@@ -36,14 +37,17 @@ test("each reply shows what the tutor did, and the learner can hide it", async (
   await expect(details.getByText(/一般现在时第三人称单数 -s（A1）/)).toBeVisible();
   await expect(details.getByRole("link", { name: "管理记忆" })).toHaveAttribute("href", "/memory");
 
-  // The next turn reads the fact the first one saved.
+  // Facts are fixed for a sitting (ADR 0053 §3): the next turn here doesn't read
+  // the new one yet; a new conversation does (below).
   await send(page, "Thanks!");
-  await expect(activityOf(replies(page).nth(1))).toContainText("读取 1 条记忆");
+  await expect(activityOf(replies(page).nth(1))).toHaveAccessibleName("JOJO做了什么：看了学习近况", {
+    timeout: 15_000,
+  });
 
   // Reopening the conversation shows it again, from the server.
   await page.reload();
   await expect(activityOf(replies(page).first())).toHaveAccessibleName(
-    "JOJO做了什么：记下 1 条 · 标记 1 个语法错误",
+    "JOJO做了什么：看了学习近况 · 记下 1 条 · 标记 1 个语法错误",
   );
   const conversationUrl = page.url();
 
@@ -62,6 +66,14 @@ test("each reply shows what the tutor did, and the learner can hide it", async (
   await page.getByRole("checkbox", { name: /在助手回复下显示/ }).check();
   await page.goto(conversationUrl);
   await expect(activityOf(replies(page).first())).toBeVisible();
+
+  await page.getByRole("button", { name: "新对话" }).click();
+  await send(page, "Hi again!");
+  // Facts and summaries of earlier conversations both count as read (ADR 0052 §2).
+  const fresh = activityOf(replies(page).first());
+  await expect(fresh).toContainText(/读取 \d+ 条记忆/, { timeout: 15_000 });
+  await fresh.click();
+  await expect(replies(page).first().getByText("I have a sister.", { exact: true })).toBeVisible();
 });
 
 test("the assistant's name under a reply leads to renaming it (ADR 0040)", async ({ page }) => {
