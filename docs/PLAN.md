@@ -79,7 +79,7 @@ realtime:                                   # 端到端语音对话，后端中�
 | **LangGraph** | Supervisor 多 Agent 图（ADR 0023）、子图（入学测是自适应循环子图、出题是 generate → critic 循环子图）、Postgres checkpointer 做会话持久化（长期记忆不用 Store，见 ADR 0009） |
 | **OpenTelemetry**（取代原计划的 LangSmith，见 ADR 0005） | 可选的全链路 trace（OpenInference 埋点，OTLP 导出到本地 Phoenix 或任意后端）；用量统计走自建 `llm_usage` 表；评估数据集与回归评测用 pytest |
 | **GraphRAG** | 语法知识图谱：真相源是 `grammar.yaml`（前置依赖人工整理，易混关系 LLM 起草 → 人工审核），同步到 Postgres 的 `kc_edges`；检索 = 递归查询前置链和易混点，直接 join 学习者的掌握度和错误证据，用于错因溯源和选题（ADR 0022；以后资料多了再加向量召回） |
-| **长期记忆** | 自建表：`user_profile`（结构化画像）+ `memories`（事实记忆和会话摘要，embedding 可选）；回复后由后台反思节点用结构化输出抽取（借鉴 LangMem 的增/改/删思路，不引入该库）；结构化学习者模型放 PG 表（见 ADR 0009、0010） |
+| **长期记忆** | 自建表：`user_profile`（结构化画像）+ `memories`（事实记忆和会话摘要，embedding 可选）；回复后由后台反思节点用结构化输出抽取（借鉴 LangMem 的增/改/删思路，不引入该库）；结构化学习者模型放 PG 表（见 ADR 0009、0010）；每个会话另带一节由代码数出的“现在学到哪”（课程、最近测验、词书、阅读），摘要在会话闲置后补写、带上卡片结果，没配 embedding 时用 BM25 挑摘要并去重（ADR 0052） |
 
 ---
 
