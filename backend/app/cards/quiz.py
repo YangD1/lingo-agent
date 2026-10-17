@@ -276,7 +276,7 @@ def _answers(body: ExerciseBody) -> tuple[tuple[str, ...], str]:
 def revealed(reply: str, items: Mapping[int, ExerciseBody]) -> list[int]:
     """Ids of the unanswered pass-quiz items whose answer `reply` gives away: an
     accepted answer quoted in it, unless the card already shows those words, or, for a
-    choice, every option is listed alike. String matching, no model (ADR 0051 §5)."""
+    choice, every option is listed alike. String matching, no model (ADR 0051 §4)."""
     text = normalize(reply)
     out: list[int] = []
     for item_id, body in items.items():

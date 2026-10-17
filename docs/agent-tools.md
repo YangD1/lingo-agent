@@ -69,6 +69,7 @@
 | `grammar_tagging` | background | `mistakes`（`kc_id`、`error_type`、`severity`、`original`、`correction`）、`used_correctly`（KC id）；每条学习者消息一行。摘要里有错误原句的副本，所以学习者在 `/learner` 删掉一条证据时，这里对应的一项也去掉；“删除所有学习记录”时这些行全部删除 |
 | `vocab_collect` | background | `added`、`existing`（`word_id` + 拼写：新收进生词本的词、已有卡片没有改动的词）；挂在提问的那条学习者消息上，没有收到词的消息不记。接口另返回 `words_on_list`（仍在生词本里的收词），明细据此显示“已移出” |
 | `summarize` | background | `episode_id` |
+| `quiz_reveal` | background | `kc_id`、`items`（讲过答案、按答错算的题数）；只在命中时记，在 `done` 之前作为 activity 事件推送（ADR 0051 §4） |
 | `propose_word_book`、`propose_learning_goal`、`propose_daily_plan`、`suggest_practice`、`suggest_link` | tool | `card_id`、`card_kind`（出了卡片时；调用被拒记 `failed`、摘要为空）；`call_id` = 模型的 tool call id。卡片本身显示当前状态 |
 | `give_quiz` | tool | 同上：`card_id`、`card_kind`（`quiz`）；被拒（语法点不在清单或范围、按名字没找到或有多个候选、没点名且取不到当前课、主动出题不符合限制）记 `failed` |
 | `open_workspace`、`propose_edit`、`close_workspace`、`set_workspace_auto_open` | tool | 同上：`card_id`、`card_kind`（`workspace`、`workspace_edit`、`workspace_closed`、`workspace_auto`）；工作区没开时 `close_workspace` 记 `failed` |
@@ -152,6 +153,7 @@
 | 口语陪练（speaking_coach，只在口语会话，ADR 0029 §2） | `agents/chat_graph.py` speaking_coach 子图：`speaking_coach`，不带工具（Q58f），总是用英文；系统提示词换成 `prompts/speaking_coach.md`（短句、不逐句纠错、只用复述带出正确说法），情景指引 `speaking_scenario.md` / 自由聊 `speaking_free.md`；先开口（`speaking_opening.md`，Q58e） | 对话历史（去掉工具调用）、学习者上下文、情景（`speaking/scenarios.yaml`：角色、学习者目标、目标表达）和开始时的等级（`speaking_sessions.level`，决定每轮句数上限，`rules.yaml` `speaking.max_sentences`） | checkpoint（对话历史，由主图保存）；`llm_usage` 记为 `speaking`，开场记为 `speaking_opening` | `llm/chat` | `/speaking` 页（任务 59）；口语会话不出现在聊天列表（Q58g）；删除口语记录即删除会话 |
 | 助手回复（tutor） | `agents/chat_graph.py` tutor 子图：`tutor`（⇄ `tools`，见上一节） | 对话历史、学习者上下文、规划简报、本轮附件、本会话最近的卡片 | checkpoint（对话历史，含工具调用和结果，由主图保存；子图自己不存 checkpoint）；`tutor_cards` | `llm/chat`；带图片时 `llm/vision`；工具之后的回复记为 `chat_tools` | 对话页；删除会话即删除 |
 | 练习会话回复（grammar_coach） | `agents/chat_graph.py` grammar_coach 子图：`grammar_coach`，不带工具 | 对话历史、学习者上下文、练习指引、本轮附件 | checkpoint（对话历史，由主图保存） | `llm/chat`；带图片时 `llm/vision` | 对话页；删除会话即删除 |
+| 检查回复有没有泄测验答案（ADR 0051 §4，任务 95.3） | `cards/quiz.py` `check_reply` / `mark_revealed`，`api/chat.py` `_reply` 在 `done` 之前调用（只在 tutor 带工具的轮次） | 本轮回复全文；本对话最近一张没撤回的过关测验卡里还没答的题和答案 | `exercises.revealed_at`；命中时活动 `quiz_reveal`；之后作答不记证据、不动能力，过关得分按答错算 | 无（字符串匹配） | 回复下“JOJO做了什么”；测验卡这道题上方的提示和总结里的“讲过答案，不计分”；不能撤销（学习者可以要一组新题） |
 
 ### 规划对话（嵌在入学测结果页，ADR 0015 §6、0016 §4）
 

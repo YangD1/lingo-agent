@@ -4,6 +4,26 @@
 
 ---
 
+## 2026-10-17 任务 95.3 完成：讲过答案的过关题按答错算，任务 95 收尾
+
+**做了什么**
+- 用户选：讲过答案的题**按答错算**；误判**不加申诉**（可以 `fresh` 重出）。
+- 95.3a（b44f869）`cards/quiz.py` `revealed`：纯字符串匹配，整词、ASCII 词边界（中文紧挨英文也认得）；题面里本来有的、选择题把全部选项列一遍、没加引号或加粗的 1–2 字母短答案都不算。单测 `tests/unit/test_quiz_reveal.py`。
+- 95.3b（3eb32c3）迁移 `exercises.revealed_at`（head `d7e0951ae371`）；`mark_revealed` / `check_reply`；`answer.py` 不记证据（含其他错误）、不动能力；`course.quiz_scores` 和 `QuizState` 按答错算；活动 `quiz_reveal`。集成测试 `tests/integration/test_quiz_reveal.py`。
+- 95.3c（1fe1953）检查挪到 `done` 之前，命中时推 activity 事件；`ItemOut.revealed`；前端 `quizzesChanged` 每轮结束让测验卡重拉题组；卡片提示 + 总结标注，`quizScore` 按答错算；“JOJO做了什么”加 `quiz_reveal`。
+- 95.3d ADR 0051 §4、`agent-tools.md`、PLAN；pytest 2089、Vitest 901、E2E quiz-chat + course 5 条过，lint 干净；Docker 已重建（先后端再前端）。
+
+**未完成 / 下一步**
+- **任务 90**：长期记忆跨会话，开工前请用户补充跨会话具体哪里不好。
+- 95.3 没做真模型冒烟：判定是确定性代码，pytest 已覆盖；要看 qwen-plus 实际泄题时命中率，可以按记忆 real-model-smoke-backend 起冒烟后端试。
+- 任务 86–96 本地未推送。
+
+**踩坑**
+- 一条命令里 `ruff check && ... ` 和后面的 `git commit` 分在不同行时，lint 失败也会提交；改用一行 `&&` 串起来，或者 lint 通过后再单独提交。
+- 前端测验卡只在出题中轮询，回复后写的标记要靠每轮结束的 `quizzesChanged` 重拉；所以检查必须在 `done` 之前，否则前端可能先拉到旧数据。
+
+---
+
 ## 2026-10-17 任务 96 完成：没说语法点的要题测当前课
 
 **做了什么**
