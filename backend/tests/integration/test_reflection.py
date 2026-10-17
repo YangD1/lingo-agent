@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -16,7 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Conversation, TenantMember, User
 from app.memory import reflection, service
 from app.memory.reflection import EpisodeSummary, KnownFact, MemoryOp, ProfileUpdate, Reflection
-from app.memory.worker import SUMMARY_EVERY_TURNS, ReflectionWorker
+from app.memory.worker import (
+    IDLE_AFTER,
+    SUMMARY_EVERY_TURNS,
+    SWEEP_WITHIN,
+    ReflectionWorker,
+)
 from tests.integration.test_chat_send import (
     connect,
     fake_models,
@@ -205,6 +211,38 @@ async def test_summary_every_few_turns_and_when_the_learner_moves_on(
     db_session.expire_all()
     [episode] = await service.list_memories(db_session, user_id, "episode")
     assert episode.content == "Summary 2"
+
+
+async def test_a_conversation_left_idle_gets_the_rest_of_its_summary(
+    client: AsyncClient, app: FastAPI, db_session: AsyncSession, reflector: FakeReflector
+) -> None:
+    """ADR 0052 §2: going back to one conversation never starts another, so idle
+    ones are swept for, without waiting for SUMMARY_EVERY_TURNS."""
+    await login(client)
+    await connect(client, "deepseek")
+    worker: ReflectionWorker = app.state.reflection_worker
+    left = await new_conversation(client)
+    await send(client, left, "Turn 0")
+    await send(client, left, "Turn 1")
+    await idle(app)
+    assert reflector.summary_prompts == []
+    now = datetime.now(UTC)
+
+    assert await worker.sweep_idle(now) == 0  # just now: not idle yet
+    assert await worker.sweep_idle(now + SWEEP_WITHIN + IDLE_AFTER) == 0  # too long ago
+    assert await worker.sweep_idle(now + IDLE_AFTER) == 1
+    await idle(app)
+    [prompt] = reflector.summary_prompts
+    assert "Turn 0" in prompt and "Turn 1" in prompt
+    user, _ = await learner(db_session)
+    [episode] = await service.list_memories(db_session, user.id, "episode")
+    assert episode.source_conversation_id == uuid.UUID(left)
+
+    # Summed up since its last turn: not swept again until a new one.
+    assert await worker.sweep_idle(now + IDLE_AFTER) == 0
+    await send(client, left, "Turn 2")
+    await idle(app)
+    assert await worker.sweep_idle(datetime.now(UTC) + IDLE_AFTER) == 1
 
 
 async def test_disabled_reflection_makes_no_calls(

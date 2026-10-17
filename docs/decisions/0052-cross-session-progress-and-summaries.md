@@ -2,7 +2,7 @@
 
 - **状态**：已采纳（2026-10-17，任务 90；用户按推荐确认顺序 A → B → C → E → D 和 Q90a–c）
 - **日期**：2026-10-17
-- **影响**：修订 ADR 0009 §1（摘要什么时候写）、§2（没配 embedding 时怎么挑摘要）、§3（摘要的输入和语言）、§4（读取时多一节“现在学到哪”）。`user_profiles` 加 `ui_locale`（迁移）；新增 `memory/progress.py`（近况）、`memory/retrieval.py`（BM25 与去重）；调度器加任务 `memory_idle_summaries`；活动 `load_context` 加 `progress` 字段；提示词 `learner_context.md`、`reflect_summary.md`、`reflect.md` 修改。
+- **影响**：修订 ADR 0009 §1（摘要什么时候写）、§2（没配 embedding 时怎么挑摘要）、§3（摘要的输入和语言）、§4（读取时多一节“现在学到哪”）。`user_profiles` 加 `ui_locale`（迁移）；新增 `memory/progress.py`（近况）、`memory/retrieval.py`（BM25 与去重）；`ReflectionWorker` 加闲置扫描（`sweep_idle`）；活动 `load_context` 加 `progress` 字段；提示词 `learner_context.md`、`reflect_summary.md`、`reflect.md` 修改。
 
 ## 背景
 任务 90 查了开发库里一个真实使用的账号（13 个会话、约 21 轮、1 条事实、8 条摘要、没配 embedding），新会话开头带进去的东西有这些问题：
@@ -30,8 +30,9 @@
 - 公示：活动 `load_context` 加 `progress`（布尔，带了这一节），回复下“私教做了什么”写“看了学习近况”。
 
 ### 2. 摘要补写：闲置了就写，不只是开新会话
-- 调度器任务 `memory_idle_summaries` 每 10 分钟扫一次：最近 2 天内有更新、闲置满 30 分钟、还有没总结进去的对话（没有摘要，或摘要早于会话最后更新）的会话，交给 `ReflectionWorker.schedule(finish=True)`（Q90b）。worker 发现没有新的学习者消息就直接返回，不调模型。
+- `ReflectionWorker` 在进程里每 10 分钟扫一次（`sweep_idle`，启动时和重启补做一起开）：最近 2 天内有更新、闲置满 30 分钟、还有没总结进去的对话（没有摘要，或摘要早于会话最后更新）的会话，交给 `ReflectionWorker.schedule(finish=True)`（Q90b）。worker 发现没有新的学习者消息就直接返回，不调模型。
 - `finish_previous`（开新会话时补写上一个）保留，它让摘要更早写好。
+- 不放进调度器（APScheduler，ADR 0025）：调度器的任务拿不到进程内的反思 worker，而且每 10 分钟一次会在后台任务页和 `scheduler_runs` 里刷出很多记录；重启补做（`recover`）本来就在 worker 里。
 - 不加设置开关：摘要属于记忆，部署方仍可以用 `MEMORY_REFLECTION_ENABLED=false` 关掉整个反思。
 
 ### 3. 摘要的输入和写法

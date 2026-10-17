@@ -68,7 +68,7 @@
 | `reflect_memory` | background | `added`、`updated`（记忆 id）、`deleted`（只计数）、`profile_fields`；挂在一批反思的最后一条学习者消息上 |
 | `grammar_tagging` | background | `mistakes`（`kc_id`、`error_type`、`severity`、`original`、`correction`）、`used_correctly`（KC id）；每条学习者消息一行。摘要里有错误原句的副本，所以学习者在 `/learner` 删掉一条证据时，这里对应的一项也去掉；“删除所有学习记录”时这些行全部删除 |
 | `vocab_collect` | background | `added`、`existing`（`word_id` + 拼写：新收进生词本的词、已有卡片没有改动的词）；挂在提问的那条学习者消息上，没有收到词的消息不记。接口另返回 `words_on_list`（仍在生词本里的收词），明细据此显示“已移出” |
-| `summarize` | background | `episode_id` |
+| `summarize` | background | `episode_id`；满 6 轮、开新会话、或会话闲置满 30 分钟（ADR 0052 §2）时写 |
 | `quiz_reveal` | background | `kc_id`、`items`（讲过答案、按答错算的题数）；只在命中时记，在 `done` 之前作为 activity 事件推送（ADR 0051 §4） |
 | `propose_word_book`、`propose_learning_goal`、`propose_daily_plan`、`suggest_practice`、`suggest_link` | tool | `card_id`、`card_kind`（出了卡片时；调用被拒记 `failed`、摘要为空）；`call_id` = 模型的 tool call id。卡片本身显示当前状态 |
 | `give_quiz` | tool | 同上：`card_id`、`card_kind`（`quiz`）；被拒（语法点不在清单或范围、按名字没找到或有多个候选、没点名且取不到当前课、主动出题不符合限制）记 `failed` |
@@ -195,7 +195,7 @@
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
 | 反思：记忆与画像 | `memory/reflection.py`、`memory/worker.py` | 本轮及之前几条消息、画像、事实记忆 | `memories`（增删改事实）、`user_profiles`（学习者没手改过的字段）；活动 `reflect_memory` | `llm/reflect`；向量化用 `embedding/memory` | 回复下“JOJO做了什么”；`/memory` 页面 |
-| 反思：会话摘要 | 同上 | 新消息、旧摘要 | `memories`（episode）；活动 `summarize` | `llm/reflect` | 回复下“JOJO做了什么”；`/memory` 页面 |
+| 反思：会话摘要（满 6 轮、开新会话、或 `ReflectionWorker.sweep_idle` 发现会话闲置满 30 分钟时） | 同上 | 新消息、旧摘要 | `memories`（episode）；活动 `summarize` | `llm/reflect` | 回复下“JOJO做了什么”；`/memory` 页面 |
 | 反思：自动收词（与记忆同一次调用） | 同上 + `services/vocab/mine.py` `collect` | 反思给出的候选词（带消息短 id）、`words` | `user_cards`（只为还没有卡片的词建 `source=auto` 的卡，已有卡片一律不动，所以移出就是精确撤销；每次反思最多 5 个，查不到的词丢弃；本会话里通话工具 `add_to_vocab` 已经处理过的词跳过，所以通话中撤销的词不会被加回）；活动 `vocab_collect` | `llm/reflect` | 回复下“JOJO做了什么”：每个词可“移出”；`/vocab/mine`：来源显示“对话中收集”，可删除 |
 | 反思：语法打标（与记忆同一次调用） | 同上 + `adaptive/evidence.py`、`adaptive/mastery.py` | 本轮学习者消息（短 id u1、u2）、语法 KC 清单（system prompt 固定前缀） | `kc_evidence`（同一条消息的证据先删后写）；由证据重放更新 `kc_mastery`；活动 `grammar_tagging` | `llm/reflect` | 回复下“JOJO做了什么”（语法点链到 `/learner?kc=`）；`/learner` 页面：每条证据可查看、可删除 |
 | 口语会话的证据过滤（只在口语会话，ADR 0029 §4） | `speaking/evidence.py` `kept_evidence`，在语法打标里 | 打标结果、哪些消息是录音（`attachments.kind = audio`）、会话的 `corrected_message_ids` | `kc_evidence` 记为 `source = speaking`；少于 3 个词的语音消息不记错误（Q58a，打字的不过滤）；学习者改过转写的消息一条也不记（Q58b） | 无 | 同上 |
@@ -218,7 +218,7 @@
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
 | 接通前检查 | `api/realtime.py` `realtime_call`、`realtime/limits.py` `call_limit` | 登录 cookie 和 Origin（防跨站）；租户的单次分钟数和每人每天分钟数、今天已经打过的分钟；有没有正在打的另一通 | 无（不通过时回一条 `ended`，带 `realtime_off` / `realtime_used_up` / `realtime_busy` / `no_realtime_model` / `realtime_unavailable`） | 无 | `/speech/capabilities` 的 `realtime`、`realtime_minutes_left`（通话页接不通时说明原因） |
-| 开场上下文（只注入一次，通话中不再检索） | `realtime/context.py` `call_instructions`；提示词 `prompts/realtime_tutor.md` | 通话规则（说英语、短句、可被打断、只用 recast 纠错）；情景（标题、助手角色、学习者目标、目标表达）或自由聊；学习者等级和每轮句数上限；画像、记忆里的事实；选了情景时再按情景英文标题和学习者目标检索相关的往期对话摘要（Q60e），自由聊不带往期摘要 | 无 | 选了情景时 `embedding/memory`（检索用的一次向量化） | 记忆在 `/memory` 可查看、编辑、删除，删了下一通就不会再带 |
+| 开场上下文（只注入一次，通话中不再检索） | `realtime/context.py` `call_instructions`；提示词 `prompts/realtime_tutor.md` | 通话规则（说英语、短句、可被打断、只用 recast 纠错）；情景（标题、助手角色、学习者目标、目标表达）或自由聊；学习者等级和每轮句数上限；画像、记忆里的事实；选了情景时再按情景英文标题和学习者目标检索相关的往期对话摘要（Q60e），自由聊不带往期摘要；学习近况（ADR 0052 §1） | 无 | 选了情景时 `embedding/memory`（检索用的一次向量化） | 记忆在 `/memory` 可查看、编辑、删除，删了下一通就不会再带 |
 | 接通 | `providers/realtime_session.py` `open_session`（按写法选 `openai_realtime` 或 `gemini_live` 适配器）、`providers/realtime.py` `get_realtime` | 租户的 `realtime` 路由，按顺序试，只有接通失败才换下一家，通话中不换 | `speaking_sessions`（`mode = realtime`）和一次会话（`purpose = realtime`） | — | `/speaking` 的练过列表 |
 | 通话中 | `realtime/relay.py` `RealtimeCall` | 浏览器只能发音频、`interrupt`、`end`，其他消息丢弃；学习者音频超过实际时长的部分丢弃 | 每 15 秒写一次 `speaking_sessions.call_seconds`（重启也不丢已用分钟）；厂商每次回答记一条 `llm_usage`（task `realtime`，音频 token 计入 input / output，另记学习者音频秒数） | `realtime/realtime` | 字幕和剩余时间（通话页，任务 62）；设置页“用量” |
 | 通话转写（Q61e、Q61f） | `realtime/transcript.py` `Transcript`、`realtime/calls.py` `save_lines` | 厂商给的双方定稿字幕（学习者的字幕是厂商另一个转写模型做的，可能和助手听到的不一样）；学习者一句话的位置按厂商提交这段语音的时刻排 | 每次回答结束就把定稿的几句追加进通话的会话（LangGraph 状态，`additional_kwargs` 标 `voice_call`，被打断的助手回复只存已收到的部分、标 `interrupted`），挂断时存剩下的；后端重启最多丢正在说的一轮 | 无 | 通话详情（`/speaking/{id}` 的“通话转写”，被打断的标出来）；删除这次练习连同对话一起删 |

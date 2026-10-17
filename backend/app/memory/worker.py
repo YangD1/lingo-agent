@@ -58,6 +58,11 @@ CONTEXT_MESSAGES = 4
 # Facts shown to the model; beyond this it can still add but not edit the oldest.
 FACTS_SHOWN = 60
 RECOVER_WITHIN = timedelta(days=1)
+# A conversation left this long gets the rest of its summary written (ADR 0052 §2),
+# looked for this often among those active this far back.
+IDLE_AFTER = timedelta(minutes=30)
+SWEEP_EVERY = timedelta(minutes=10)
+SWEEP_WITHIN = timedelta(days=2)
 DEFAULT_LANGUAGE = "English"
 
 
@@ -85,6 +90,7 @@ class ReflectionWorker:
         self._slots = asyncio.Semaphore(concurrency)
         self._tasks: dict[uuid.UUID, asyncio.Task[None]] = {}
         self._pending: dict[uuid.UUID, _Job] = {}
+        self._sweeper: asyncio.Task[None] | None = None
 
     def schedule(
         self, conversation_id: uuid.UUID, *, language: str | None = None, finish: bool = False
@@ -132,6 +138,53 @@ class ReflectionWorker:
             self.schedule(conversation_id)
         return len(ids)
 
+    async def sweep_idle(self, now: datetime | None = None) -> int:
+        """Finish the summaries of conversations left a while ago with turns after
+        their summary (or none yet): without this, only starting another conversation
+        does it, and a learner going back to one conversation never does. A
+        conversation with nothing new costs a checkpoint read, no model call."""
+        if not self.enabled:
+            return 0
+        now = now or datetime.now(UTC)
+        summarized = (
+            select(Memory.id)
+            .where(
+                Memory.kind == "episode",
+                Memory.source_conversation_id == Conversation.id,
+                Memory.updated_at >= Conversation.updated_at,
+            )
+            .exists()
+        )
+        async with self._sessionmaker() as session:
+            ids = list(
+                await session.scalars(
+                    select(Conversation.id)
+                    .where(
+                        Conversation.updated_at >= now - SWEEP_WITHIN,
+                        Conversation.updated_at <= now - IDLE_AFTER,
+                        ~summarized,
+                    )
+                    .limit(200)
+                )
+            )
+        for conversation_id in ids:
+            self.schedule(conversation_id, finish=True)
+        return len(ids)
+
+    def start_sweeping(self) -> None:
+        """Run `sweep_idle` every SWEEP_EVERY until `stop`."""
+        if self.enabled and self._sweeper is None:
+            self._sweeper = asyncio.create_task(self._sweep_forever(), name="reflect-sweep")
+
+    async def _sweep_forever(self) -> None:
+        while True:
+            await asyncio.sleep(SWEEP_EVERY.total_seconds())
+            try:
+                if found := await self.sweep_idle():
+                    logger.info("finishing the summaries of %d idle conversations", found)
+            except Exception:
+                logger.exception("looking for idle conversations failed")
+
     def is_busy(self, conversation_id: uuid.UUID) -> bool:
         """Reflection on this conversation is queued or running (the learner-facing
         activity of its latest turn may still be coming)."""
@@ -143,6 +196,10 @@ class ReflectionWorker:
             await asyncio.gather(*self._tasks.values(), return_exceptions=True)
 
     async def stop(self) -> None:
+        if self._sweeper is not None:
+            self._sweeper.cancel()
+            await asyncio.gather(self._sweeper, return_exceptions=True)
+            self._sweeper = None
         for task in self._tasks.values():
             task.cancel()
         await self.wait_idle()

@@ -123,6 +123,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         enabled=settings.memory_reflection_enabled,
     )
     await app.state.reflection_worker.recover()
+    app.state.reflection_worker.start_sweeping()
     # After the reflection worker: a call's follow-up schedules its reflection.
     app.state.after_call = AfterCall(
         app.state.sessionmaker,
