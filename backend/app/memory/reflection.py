@@ -290,13 +290,19 @@ async def apply_reflection(
                 logger.info("reflection referred to unknown or repeated fact %r", op.id)
                 continue
             touched.add(memory_id)
+            # Neither rewrites nor deletes: the old fact stays, superseded (ADR 0053 §4).
             if op.action == "update":
-                await service.update_memory(
-                    session, user_id, memory_id, op.content or "", embedder=embedder
+                memory = await service.supersede_memory(
+                    session,
+                    user_id,
+                    memory_id,
+                    op.content or "",
+                    source_conversation_id=conversation_id,
+                    embedder=embedder,
                 )
-                updated.append(memory_id)
+                updated.append(memory.id)
             else:
-                await service.delete_memory(session, user_id, memory_id)
+                await service.retire_memory(session, user_id, memory_id)
                 deleted += 1
         except (ValueError, service.MemoryNotFoundError):
             # Empty or overlong content, or the learner deleted it meanwhile.

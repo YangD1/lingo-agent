@@ -65,9 +65,10 @@ async def test_turns_come_with_the_memories_and_kcs_they_refer_to(
     assert body["memories"] == {fact_id: {"kind": "fact", "content": "Has a sister."}}
     assert body["kcs"][KC]["name_en"] and body["kcs"][KC]["cefr"] == "A1"
     assert body["pending"] is False
-    # The second turn read the fact the first one wrote.
+    # The fact the first turn wrote waits for the next sitting (ADR 0053 §3): the
+    # conversation itself already says it.
     second_turn = await activity(client, conversation_id, turn=second)
-    assert second_turn["activities"][0]["summary"]["facts"] == [fact_id]
+    assert second_turn["activities"][0]["summary"]["facts"] == []
 
     # Deleted memories are no longer quoted; the activity itself stays.
     assert (await client.delete(f"/memories/{fact_id}")).status_code == 204

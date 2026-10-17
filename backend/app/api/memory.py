@@ -98,6 +98,10 @@ class MemoryOut(BaseModel):
     source_conversation_id: uuid.UUID | None
     # Title of the conversation it came from, if that still exists.
     source_title: str | None
+    # A fact the tutor's reflection replaced or dropped; the learner can restore it,
+    # and `superseded_by_id` names its replacement, if any (ADR 0053 §4).
+    status: Literal["active", "superseded"]
+    superseded_by_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
 
@@ -127,9 +131,14 @@ async def update_profile(body: ProfilePatch, user: CurrentUser, session: Session
 
 @router.get("/memories")
 async def list_memories(
-    user: CurrentUser, session: SessionDep, kind: Literal["fact", "episode"] | None = None
+    user: CurrentUser,
+    session: SessionDep,
+    kind: Literal["fact", "episode"] | None = None,
+    include_superseded: bool = False,
 ) -> list[MemoryOut]:
-    memories = await service.list_memories(session, user.id, kind)
+    memories = await service.list_memories(
+        session, user.id, kind, include_superseded=include_superseded
+    )
     return await _memories_out(session, memories)
 
 
@@ -167,6 +176,13 @@ async def edit_memory(
     return (await _memories_out(session, [memory]))[0]
 
 
+@router.post("/memories/{memory_id}/restore")
+async def restore_memory(memory_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> MemoryOut:
+    """Bring back a fact the tutor replaced or dropped; its replacement is kept."""
+    memory = await _valid(service.restore_memory(session, user.id, memory_id))
+    return (await _memories_out(session, [memory]))[0]
+
+
 @router.delete("/memories/{memory_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_memory(memory_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Response:
     try:
@@ -180,7 +196,8 @@ async def delete_memory(memory_id: uuid.UUID, user: CurrentUser, session: Sessio
 async def delete_memories(
     user: CurrentUser, session: SessionDep, kind: Literal["fact", "episode"] | None = None
 ) -> Deleted:
-    """Forget everything (or every memory of one kind). Really deleted."""
+    """Forget everything (or every memory of one kind), superseded ones too. Really
+    deleted."""
     return Deleted(deleted=await service.delete_memories(session, user.id, kind))
 
 
@@ -210,6 +227,8 @@ async def _memories_out(session: SessionDep, memories: list[Memory]) -> list[Mem
             content=m.content,
             source_conversation_id=m.source_conversation_id,
             source_title=titles.get(m.source_conversation_id) if m.source_conversation_id else None,
+            status=m.status,
+            superseded_by_id=m.superseded_by_id,
             created_at=m.created_at,
             updated_at=m.updated_at,
         )

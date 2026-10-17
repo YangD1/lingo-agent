@@ -65,7 +65,7 @@
 | 步骤名 | 类型 | 摘要字段 |
 |---|---|---|
 | `load_context` | step | `facts`、`episodes`（真正放进 prompt 的记忆 id）、`profile_items`（画像项数）、`practice_kc`（练习会话的语法点 id，普通对话为空）、`planning`（规划对话：读了入学测结果和建议候选）、`progress`（带了“现在学到哪”一节，ADR 0052 §1） |
-| `reflect_memory` | background | `added`、`updated`（记忆 id）、`deleted`（只计数）、`profile_fields`；挂在一批反思的最后一条学习者消息上 |
+| `reflect_memory` | background | `added`、`updated`（记忆 id；`updated` 是新写的那条，旧的标成被替代，ADR 0053 §4）、`deleted`（只计数，标成被替代、没真删）、`profile_fields`；挂在一批反思的最后一条学习者消息上 |
 | `grammar_tagging` | background | `mistakes`（`kc_id`、`error_type`、`severity`、`original`、`correction`）、`used_correctly`（KC id）；每条学习者消息一行。摘要里有错误原句的副本，所以学习者在 `/learner` 删掉一条证据时，这里对应的一项也去掉；“删除所有学习记录”时这些行全部删除 |
 | `vocab_collect` | background | `added`、`existing`（`word_id` + 拼写：新收进生词本的词、已有卡片没有改动的词）；挂在提问的那条学习者消息上，没有收到词的消息不记。接口另返回 `words_on_list`（仍在生词本里的收词），明细据此显示“已移出” |
 | `summarize` | background | `episode_id`；满 6 轮、开新会话、或会话闲置满 30 分钟（ADR 0052 §2）时写 |

@@ -21,7 +21,7 @@ from app.adaptive.exercise.worker import structured_call
 from app.adaptive.kc.catalog import GrammarCatalog
 from app.adaptive.rules import Rules
 from app.agents.exercise_graph import StructuredCall
-from app.db.models import Diagnosis, KCEvidence
+from app.db.models import Diagnosis, KCEvidence, Memory
 from app.memory.service import MAX_CONTENT_LENGTH, add_memory, get_profile, update_memory
 from app.providers.config import TenantProviderContext
 from app.providers.tenant import load_provider_context
@@ -115,10 +115,12 @@ async def _remember(
     if not causes:
         return None
     content = (MEMORY_PREFIX[language] + causes[0].hypothesis)[:MAX_CONTENT_LENGTH]
-    # A deleted memory leaves memory_id NULL on every diagnosis that pointed to it.
+    # A deleted memory leaves memory_id NULL on every diagnosis that pointed to it; one
+    # reflection superseded (ADR 0053 §4) is not edited out of sight either.
     last = await session.scalar(
         select(Diagnosis.memory_id)
-        .where(Diagnosis.user_id == user_id, Diagnosis.memory_id.is_not(None))
+        .join(Memory, Memory.id == Diagnosis.memory_id)
+        .where(Diagnosis.user_id == user_id, Memory.status == "active")
         .order_by(Diagnosis.created_at.desc())
         .limit(1)
     )

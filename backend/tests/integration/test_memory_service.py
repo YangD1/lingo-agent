@@ -4,7 +4,7 @@ from typing import Any
 
 import pytest
 from langchain_core.embeddings import Embeddings
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
@@ -191,6 +191,114 @@ async def add_episode(
 
 def contents(memories: Sequence[Memory]) -> list[str]:
     return [m.content for m in memories]
+
+
+async def fact(session: AsyncSession, user: User, tenant_id: uuid.UUID, content: str) -> Memory:
+    return await service.add_memory(
+        session, tenant_id=tenant_id, user_id=user.id, kind="fact", content=content
+    )
+
+
+async def test_reflection_rewrites_and_drops_keep_the_old_facts(
+    db_session: AsyncSession,
+) -> None:
+    """ADR 0053 §4: superseded facts stay for the learner, out of the tutor's sight."""
+    user, tenant_id = await new_user(db_session)
+    conversation = await new_conversation(db_session, user, tenant_id)
+    month = await fact(db_session, user, tenant_id, "Has an interview next month.")
+    jazz = await fact(db_session, user, tenant_id, "Likes jazz.")
+
+    week = await service.supersede_memory(
+        db_session,
+        user.id,
+        month.id,
+        "Has an interview next week.",
+        source_conversation_id=conversation,
+    )
+    await service.retire_memory(db_session, user.id, jazz.id)
+
+    active = await service.list_memories(db_session, user.id, "fact")
+    every = await service.list_memories(db_session, user.id, "fact", include_superseded=True)
+    assert [m.content for m in active] == ["Has an interview next week."]
+    assert [m.content for m in await service.facts_for_context(db_session, user.id)] == [
+        "Has an interview next week."
+    ]
+    by_id = {m.id: m for m in every}
+    assert (by_id[month.id].status, by_id[month.id].superseded_by_id) == ("superseded", week.id)
+    assert (by_id[jazz.id].status, by_id[jazz.id].superseded_by_id) == ("superseded", None)
+    assert week.source_conversation_id == conversation
+    # Only active facts can be rewritten or dropped again.
+    with pytest.raises(service.MemoryNotFoundError):
+        await service.retire_memory(db_session, user.id, month.id)
+
+    restored = await service.restore_memory(db_session, user.id, month.id)
+    assert (restored.status, restored.superseded_by_id) == ("active", None)
+    assert len(await service.list_memories(db_session, user.id, "fact")) == 2
+
+
+async def test_deleting_a_fact_takes_its_history_and_others_stay(
+    db_session: AsyncSession,
+) -> None:
+    user, tenant_id = await new_user(db_session)
+    other, other_tenant = await new_user(db_session, "b@example.com")
+    first = await fact(db_session, user, tenant_id, "Lives in Shanghai.")
+    second = await service.supersede_memory(
+        db_session, user.id, first.id, "Lives in Beijing.", source_conversation_id=None
+    )
+    third = await service.supersede_memory(
+        db_session, user.id, second.id, "Lives in Chengdu.", source_conversation_id=None
+    )
+    kept = await fact(db_session, user, tenant_id, "Has a cat.")
+    theirs = await fact(db_session, other, other_tenant, "Lives in Berlin.")
+
+    await service.delete_memory(db_session, user.id, third.id)
+
+    left = await service.list_memories(db_session, user.id, include_superseded=True)
+    assert [m.id for m in left] == [kept.id]
+    assert [m.id for m in await service.list_memories(db_session, other.id)] == [theirs.id]
+
+
+async def test_only_the_newest_superseded_facts_are_kept(db_session: AsyncSession) -> None:
+    user, tenant_id = await new_user(db_session)
+    rows = [
+        await fact(db_session, user, tenant_id, f"Fact {i}.")
+        for i in range(service.MAX_SUPERSEDED + 2)
+    ]
+    for row in rows:
+        await service.retire_memory(db_session, user.id, row.id)
+
+    left = await service.list_memories(db_session, user.id, include_superseded=True)
+    assert len(left) == service.MAX_SUPERSEDED
+    assert {m.id for m in left} == {m.id for m in rows[2:]}
+
+
+async def test_a_replacement_counts_within_the_sitting(db_session: AsyncSession) -> None:
+    """ADR 0053 §3: new facts wait for the next sitting, changes to old ones do not."""
+    user, tenant_id = await new_user(db_session)
+    conversation = await new_conversation(db_session, user, tenant_id)
+    old = await fact(db_session, user, tenant_id, "Has an interview next month.")
+    await db_session.commit()  # created_at is now() of the transaction
+    sitting = await db_session.scalar(select(func.now()))
+    await db_session.commit()
+    await service.supersede_memory(
+        db_session,
+        user.id,
+        old.id,
+        "Has an interview next week.",
+        source_conversation_id=conversation,
+    )
+    await db_session.commit()
+    await service.add_memory(
+        db_session,
+        tenant_id=tenant_id,
+        user_id=user.id,
+        kind="fact",
+        content="Finds the word book too easy.",
+        source_conversation_id=conversation,
+    )
+
+    shown = await service.facts_for_context(db_session, user.id, sitting_since=sitting)
+    assert [m.content for m in shown] == ["Has an interview next week."]
 
 
 async def test_relevant_episodes_rank_by_meaning_then_recency(db_session: AsyncSession) -> None:

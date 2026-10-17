@@ -206,9 +206,55 @@ async def test_delete_one_and_all(client: AsyncClient, db_session: AsyncSession)
     assert only_facts.json() == {"deleted": 1}
     assert [m["kind"] for m in (await client.get("/memories")).json()] == ["episode"]
 
+    lost = await add_fact(client, "Likes tea")
+    await service.retire_memory(db_session, user_id, uuid.UUID(lost["id"]))
     everything = await client.delete("/memories")
-    assert everything.json() == {"deleted": 1}
+    assert everything.json() == {"deleted": 2}  # superseded ones too
     assert (await client.get("/memories")).json() == []
+
+
+async def test_superseded_facts_are_listed_on_request_and_restored(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """ADR 0053 §4: what the tutor replaced or dropped can be seen and brought back."""
+    await login(client)
+    user_id, _ = await ids_of(db_session, "learner@example.com")
+    month = await add_fact(client, "Has an interview next month")
+    jazz = await add_fact(client, "Likes jazz")
+    week = await service.supersede_memory(
+        db_session,
+        user_id,
+        uuid.UUID(month["id"]),
+        "Has an interview next week",
+        source_conversation_id=None,
+    )
+    await service.retire_memory(db_session, user_id, uuid.UUID(jazz["id"]))
+
+    listed = (await client.get("/memories")).json()
+    assert [(m["content"], m["status"]) for m in listed] == [
+        ("Has an interview next week", "active")
+    ]
+    every = (await client.get("/memories", params={"include_superseded": True})).json()
+    by_id = {m["id"]: m for m in every}
+    assert by_id[month["id"]]["status"] == "superseded"
+    assert by_id[month["id"]]["superseded_by_id"] == str(week.id)
+    assert (by_id[jazz["id"]]["status"], by_id[jazz["id"]]["superseded_by_id"]) == (
+        "superseded",
+        None,
+    )
+
+    restored = await client.post(f"/memories/{jazz['id']}/restore")
+    assert restored.status_code == 200, restored.text
+    assert (restored.json()["status"], restored.json()["superseded_by_id"]) == ("active", None)
+    assert {m["content"] for m in (await client.get("/memories")).json()} == {
+        "Has an interview next week",
+        "Likes jazz",
+    }
+
+    # Deleting the current version takes the one it replaced; clearing takes all.
+    assert (await client.delete(f"/memories/{week.id}")).status_code == 204
+    every = (await client.get("/memories", params={"include_superseded": True})).json()
+    assert [m["content"] for m in every] == ["Likes jazz"]
 
 
 async def test_other_users_memories_are_invisible(client: AsyncClient) -> None:
@@ -221,6 +267,7 @@ async def test_other_users_memories_are_invisible(client: AsyncClient) -> None:
     for response in (
         await client.patch(f"/memories/{theirs['id']}", json={"content": "hijacked"}),
         await client.delete(f"/memories/{theirs['id']}"),
+        await client.post(f"/memories/{theirs['id']}/restore"),
     ):
         assert response.status_code == 404
         assert response.json()["detail"]["code"] == "memory_not_found"

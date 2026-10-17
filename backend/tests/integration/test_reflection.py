@@ -397,5 +397,10 @@ async def test_operations_only_touch_the_facts_the_model_was_shown(
     contents = {m.content for m in await service.list_memories(db_session, user.id, "fact")}
     assert {"Lives in Berlin.", "Has a cat."} <= contents
     assert "Likes jazz." not in contents and len(contents) == 7
+    # Rewritten and dropped facts are kept, superseded (ADR 0053 §4).
+    every = await service.list_memories(db_session, user.id, "fact", include_superseded=True)
+    old = {m.content: m for m in every if m.status == "superseded"}
+    assert set(old) == {"Lives in Shanghai.", "Likes jazz."}
+    assert old["Lives in Shanghai."].superseded_by_id == applied.updated[0] != rows[0].id
     profile = await service.get_profile(db_session, user.id)
     assert profile is not None and (profile.goal, profile.daily_minutes) == ("Pass IELTS", 30)

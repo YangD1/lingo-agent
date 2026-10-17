@@ -13,7 +13,7 @@ from typing import Any, Literal
 from sqlalchemy import CursorResult, delete, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import undefer
+from sqlalchemy.orm import aliased, undefer
 
 from app.db.models import Conversation, Memory, UserProfile
 from app.memory import retrieval
@@ -24,6 +24,9 @@ type MemoryKind = Literal["fact", "episode"]
 MAX_CONTENT_LENGTH = 1000
 # All facts go into the tutor's prompt, so they are capped (the newest win).
 MAX_FACTS_IN_CONTEXT = 40
+# Facts reflection replaced or dropped, kept per learner for restoring; older ones are
+# deleted (ADR 0053 §4).
+MAX_SUPERSEDED = 50
 # A learner back after this long starts a new sitting (ADR 0053 §3); a conversation
 # left this long gets its summary finished (ADR 0052 §2).
 SITTING_GAP = timedelta(minutes=30)
@@ -117,11 +120,17 @@ def clean_content(content: str) -> str:
 
 
 async def list_memories(
-    session: AsyncSession, user_id: uuid.UUID, kind: MemoryKind | None = None
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    kind: MemoryKind | None = None,
+    *,
+    include_superseded: bool = False,
 ) -> list[Memory]:
     query = select(Memory).where(Memory.user_id == user_id)
     if kind is not None:
         query = query.where(Memory.kind == kind)
+    if not include_superseded:
+        query = query.where(Memory.status == "active")
     rows = await session.scalars(query.order_by(Memory.updated_at.desc(), Memory.id))
     return list(rows)
 
@@ -216,9 +225,91 @@ async def upsert_episode(
     return memory
 
 
-async def delete_memory(session: AsyncSession, user_id: uuid.UUID, memory_id: uuid.UUID) -> None:
+async def supersede_memory(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    memory_id: uuid.UUID,
+    content: str,
+    *,
+    source_conversation_id: uuid.UUID | None,
+    embedder: MemoryEmbedder | None = None,
+) -> Memory:
+    """Reflection's rewrite of a fact: a new one takes its place and the old one is kept,
+    so the learner can see what changed and restore it (ADR 0053 §4)."""
+    content = clean_content(content)
+    vector = await embedder.embed(content) if embedder else None
+    old = await _active_fact(session, user_id, memory_id)
+    new = Memory(
+        tenant_id=old.tenant_id,
+        user_id=user_id,
+        kind="fact",
+        content=content,
+        source_conversation_id=source_conversation_id,
+    )
+    _set_embedding(new, vector, embedder)
+    session.add(new)
+    await session.flush()
+    old.status = "superseded"
+    old.superseded_by_id = new.id
+    await _prune_superseded(session, user_id)
+    await session.commit()
+    await session.refresh(new)
+    return new
+
+
+async def retire_memory(session: AsyncSession, user_id: uuid.UUID, memory_id: uuid.UUID) -> None:
+    """Reflection dropping a fact: kept as superseded, with nothing replacing it."""
+    memory = await _active_fact(session, user_id, memory_id)
+    memory.status = "superseded"
+    await _prune_superseded(session, user_id)
+    await session.commit()
+
+
+async def restore_memory(session: AsyncSession, user_id: uuid.UUID, memory_id: uuid.UUID) -> Memory:
+    """The learner brings a superseded fact back; whatever replaced it stays."""
     memory = await get_memory(session, user_id, memory_id)
-    await session.delete(memory)
+    memory.status = "active"
+    memory.superseded_by_id = None
+    await session.commit()
+    await session.refresh(memory)
+    return memory
+
+
+async def _active_fact(session: AsyncSession, user_id: uuid.UUID, memory_id: uuid.UUID) -> Memory:
+    memory = await get_memory(session, user_id, memory_id)
+    if memory.kind != "fact" or memory.status != "active":
+        raise MemoryNotFoundError
+    return memory
+
+
+async def _prune_superseded(session: AsyncSession, user_id: uuid.UUID) -> None:
+    keep = (
+        select(Memory.id)
+        .where(Memory.user_id == user_id, Memory.status == "superseded")
+        .order_by(Memory.updated_at.desc(), Memory.id)
+        .limit(MAX_SUPERSEDED)
+    )
+    await session.execute(
+        delete(Memory).where(
+            Memory.user_id == user_id, Memory.status == "superseded", Memory.id.not_in(keep)
+        )
+    )
+
+
+async def delete_memory(session: AsyncSession, user_id: uuid.UUID, memory_id: uuid.UUID) -> None:
+    """Really deleted, with the earlier versions it replaced: the learner asked to forget
+    it, not to bring back what it said before."""
+    memory = await get_memory(session, user_id, memory_id)
+    ids = frontier = {memory.id}
+    while frontier:
+        found = await session.scalars(
+            select(Memory.id).where(
+                Memory.user_id == user_id, Memory.superseded_by_id.in_(frontier)
+            )
+        )
+        frontier = set(found) - ids
+        ids = ids | frontier
+    await session.execute(delete(Memory).where(Memory.id.in_(ids)))
     await session.commit()
 
 
@@ -266,11 +357,20 @@ async def facts_for_context(
 ) -> list[Memory]:
     """The newest facts. With `sitting_since`, the ones reflection added after it wait
     for the next sitting, so the prompt prefix stays the same (ADR 0053 §3); the
-    learner's own additions (no source conversation) count at once."""
-    query = select(Memory).where(Memory.user_id == user_id, Memory.kind == "fact")
+    learner's own additions (no source conversation) and replacements count at once."""
+    query = select(Memory).where(
+        Memory.user_id == user_id, Memory.kind == "fact", Memory.status == "active"
+    )
     if sitting_since is not None:
+        # A replacement is a change to a fact already there, so it counts at once.
+        replaced = aliased(Memory)
+        replaces = select(replaced.id).where(replaced.superseded_by_id == Memory.id).exists()
         query = query.where(
-            or_(Memory.created_at <= sitting_since, Memory.source_conversation_id.is_(None))
+            or_(
+                Memory.created_at <= sitting_since,
+                Memory.source_conversation_id.is_(None),
+                replaces,
+            )
         )
     rows = await session.scalars(query.order_by(Memory.updated_at.desc(), Memory.id).limit(limit))
     return list(rows)
@@ -340,6 +440,7 @@ async def memories_missing_embeddings(
         select(Memory)
         .where(
             Memory.user_id == user_id,
+            Memory.status == "active",
             Memory.embedding_model.is_distinct_from(embedder.model_id),
         )
         .order_by(Memory.updated_at.desc())

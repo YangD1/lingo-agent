@@ -53,6 +53,8 @@ PRICE_CURRENCIES = ("CNY", "USD")
 ATTACHMENT_KINDS = ("image", "audio", "document")
 ATTACHMENT_STATUSES = ("processing", "ready", "failed")
 MEMORY_KINDS = ("fact", "episode")
+# A fact reflection changed or dropped is kept as `superseded` (ADR 0053 §4).
+MEMORY_STATUSES = ("active", "superseded")
 CEFR_LEVELS = ("A1", "A2", "B1", "B2", "C1", "C2")
 EXPLANATION_LANGUAGES = ("zh", "en")
 KC_KINDS = ("grammar", "word")
@@ -731,11 +733,14 @@ class Memory(TimestampMixin, Base):
 
     `fact`: something true about the learner, all injected into the tutor's prompt.
     `episode`: the running summary of one conversation, retrieved by relevance.
+    A fact reflection rewrote or dropped stays as `superseded` (pointing at its
+    replacement, if any) until the learner restores or deletes it (ADR 0053 §4).
     """
 
     __tablename__ = "memories"
     __table_args__ = (
         CheckConstraint(_in("kind", MEMORY_KINDS), name="kind"),
+        CheckConstraint(_in("status", MEMORY_STATUSES), name="status"),
         Index("ix_memories_user_id_kind_updated_at", "user_id", "kind", "updated_at"),
         # One running summary per conversation.
         Index(
@@ -760,6 +765,11 @@ class Memory(TimestampMixin, Base):
     # has few enough memories that an exact scan needs no ANN index.
     embedding: Mapped[list[float] | None] = deferred(mapped_column(Vector()))
     embedding_model: Mapped[str | None] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(20), default="active", server_default="active")
+    # The fact that replaced this one; NULL when reflection dropped it outright.
+    superseded_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("memories.id", ondelete="SET NULL"), index=True
+    )
 
 
 class KCEvidence(Base):
