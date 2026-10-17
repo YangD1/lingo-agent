@@ -403,6 +403,9 @@ class LLMUsage(Base):
     model: Mapped[str] = mapped_column(String(128))
     input_tokens: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     output_tokens: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Of `input_tokens`, those the vendor served from its prompt cache (ADR 0053 §1);
+    # NULL when it doesn't say.
+    cached_input_tokens: Mapped[int | None] = mapped_column(Integer)
     latency_ms: Mapped[int] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(10))
     # True when this model served the call because an earlier model in the chain failed.

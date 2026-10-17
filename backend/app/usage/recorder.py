@@ -28,6 +28,7 @@ from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages.ai import UsageMetadata
 from langchain_core.outputs import ChatGeneration, LLMResult
 
 from app.prompts import prompt_versions
@@ -77,6 +78,8 @@ class UsageRecord:
     section: str | None = None
     # `{prompt name: version}` the call used (ADR 0033 §2); None: none recognised.
     prompts: dict[str, str] | None = None
+    # Input tokens read from the vendor's prompt cache (ADR 0053 §1); None: not reported.
+    cached_input_tokens: int | None = None
 
 
 UsageSink = Callable[[UsageRecord], None]
@@ -101,14 +104,22 @@ def _as_uuid(value: Any) -> uuid.UUID | None:
         return None
 
 
-def _token_counts(response: LLMResult) -> tuple[int, int]:
+def _token_counts(response: LLMResult) -> tuple[int, int, int | None]:
+    """Input, output and cached input tokens of the call."""
     for generations in response.generations:
         for generation in generations:
             if isinstance(generation, ChatGeneration) and isinstance(generation.message, AIMessage):
                 usage = generation.message.usage_metadata
                 if usage:
-                    return usage["input_tokens"], usage["output_tokens"]
-    return 0, 0
+                    return usage["input_tokens"], usage["output_tokens"], _cached(usage)
+    return 0, 0, None
+
+
+def _cached(usage: UsageMetadata) -> int | None:
+    # langchain-openai prefixes the key with the service tier ("priority_cache_read").
+    details: Mapping[str, Any] = usage.get("input_token_details") or {}
+    reads = [v for k, v in details.items() if k.endswith("cache_read") and v is not None]
+    return sum(reads) if reads else None
 
 
 class UsageRecorder(BaseCallbackHandler):
@@ -162,8 +173,8 @@ class UsageRecorder(BaseCallbackHandler):
         tags: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
-        input_tokens, output_tokens = _token_counts(response)
-        self._finish(run_id, "ok", None, input_tokens, output_tokens)
+        input_tokens, output_tokens, cached = _token_counts(response)
+        self._finish(run_id, "ok", None, input_tokens, output_tokens, cached)
 
     def on_llm_error(
         self,
@@ -184,6 +195,7 @@ class UsageRecorder(BaseCallbackHandler):
         error_code: str | None,
         input_tokens: int,
         output_tokens: int,
+        cached_input_tokens: int | None = None,
     ) -> None:
         run = self._pending.pop(run_id, None)
         if run is None:  # not a chat-model run we saw start
@@ -206,6 +218,7 @@ class UsageRecorder(BaseCallbackHandler):
             billed_tenant_id=labels.billed_tenant_id,
             section=labels.section,
             prompts=run.prompts,
+            cached_input_tokens=cached_input_tokens,
         )
         try:
             self._sink(record)

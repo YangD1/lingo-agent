@@ -36,18 +36,23 @@ class ProviderDown(Exception):
     pass
 
 
-def usage(input_tokens: int, output_tokens: int) -> UsageMetadata:
-    return {
+def usage(input_tokens: int, output_tokens: int, cache_read: int | None = None) -> UsageMetadata:
+    found: UsageMetadata = {
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "total_tokens": input_tokens + output_tokens,
     }
+    if cache_read is not None:
+        # As langchain-openai reports `prompt_tokens_details.cached_tokens` on a tier.
+        found["input_token_details"] = {"priority_cache_read": cache_read}  # type: ignore[typeddict-unknown-key]
+    return found
 
 
 class MeteredChatModel(BaseChatModel):
     """Reports token usage like real providers do: on the message, or on the last chunk."""
 
     fail: bool = False
+    cache_read: int | None = None
 
     @property
     def _llm_type(self) -> str:
@@ -62,7 +67,7 @@ class MeteredChatModel(BaseChatModel):
     ) -> ChatResult:
         if self.fail:
             raise ProviderDown(f"upstream rejected: {messages[-1].content}")
-        message = AIMessage("reply", usage_metadata=usage(7, 3))
+        message = AIMessage("reply", usage_metadata=usage(7, 3, self.cache_read))
         return ChatResult(generations=[ChatGeneration(message=message)])
 
     async def _astream(
@@ -77,7 +82,8 @@ class MeteredChatModel(BaseChatModel):
         yield ChatGenerationChunk(message=AIMessageChunk(content="re"))
         yield ChatGenerationChunk(message=AIMessageChunk(content="ply"))
         # OpenAI's `stream_options.include_usage` sends usage in a final, empty chunk.
-        yield ChatGenerationChunk(message=AIMessageChunk(content="", usage_metadata=usage(11, 5)))
+        last = AIMessageChunk(content="", usage_metadata=usage(11, 5, self.cache_read))
+        yield ChatGenerationChunk(message=last)
 
 
 def metered(
@@ -118,6 +124,17 @@ async def test_stream_records_usage_from_final_chunk() -> None:
     assert "".join(str(c.content) for c in chunks) == "reply"
     [record] = records
     assert (record.input_tokens, record.output_tokens, record.status) == (11, 5, "ok")
+
+
+async def test_records_cache_reads_and_null_when_not_reported() -> None:
+    records: list[UsageRecord] = []
+    await metered(records).ainvoke([HumanMessage(PROMPT)])
+    cached = MeteredChatModel(cache_read=1024, callbacks=metered(records).callbacks)
+    await cached.ainvoke([HumanMessage(PROMPT)])
+    [_ async for _ in cached.astream([HumanMessage(PROMPT)])]
+
+    assert [r.cached_input_tokens for r in records] == [None, 1024, 1024]
+    assert [r.input_tokens for r in records] == [7, 7, 11]
 
 
 async def test_missing_or_invalid_ids_are_recorded_as_null() -> None:
