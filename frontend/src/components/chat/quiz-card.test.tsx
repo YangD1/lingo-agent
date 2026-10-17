@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { TutorCard } from "@/lib/cards";
 import { onLessonChanged } from "@/lib/course";
-import type { Item, PracticeSet } from "@/lib/practice";
+import { type Item, type PracticeSet, quizzesChanged } from "@/lib/practice";
 
 import zh from "../../../messages/zh-CN.json";
 import { QUIZ_POLL_MS, QuizCard, quizScore } from "./quiz-card";
@@ -38,6 +38,7 @@ const concept: Item = {
   content: { question: "为什么是 lives？", options: ["主语是单数", "过去时", "疑问句", "都不对"] },
   status: "ok",
   from_bank: false,
+  revealed: false,
   answer: null,
   result: null,
 };
@@ -282,7 +283,41 @@ describe("QuizCard", () => {
   });
 });
 
+describe("QuizCard, answers given away (task 95.3)", () => {
+  it("marks the item once a turn ends, and scores it wrong", async () => {
+    const user = userEvent.setup();
+    practice.fetchSet
+      .mockResolvedValueOnce(set({ items: [concept] }))
+      .mockResolvedValue(set({ items: [{ ...concept, revealed: true }] }));
+    practice.answerItem.mockResolvedValueOnce({
+      item: { ...done(concept, true), revealed: true },
+      set_done: true,
+    });
+    show("quiz");
+    await screen.findByTestId("practice-question");
+    expect(screen.queryByTestId("quiz-revealed")).not.toBeInTheDocument();
+
+    await act(async () => quizzesChanged());
+    expect(await screen.findByTestId("quiz-revealed")).toHaveTextContent(
+      "JOJO讲题时说出了这题的答案，这题不计分",
+    );
+
+    await user.click(screen.getByRole("button", { name: /主语是单数/ }));
+    await user.click(screen.getByTestId("practice-next"));
+    const summary = screen.getByTestId("quiz-summary");
+    expect(summary).toHaveTextContent("答对 0 / 1");
+    expect(summary).toHaveAttribute("data-passed", "false");
+    expect(summary.querySelector("[data-revealed]")).toHaveTextContent("讲过答案，不计分");
+  });
+});
+
 describe("quizScore", () => {
+  it("counts a given-away item as wrong", () => {
+    const given: Item = { ...done(concept, true), revealed: true };
+    expect(quizScore(set({ items: [given, done(explain, true)] }))).toEqual({ correct: 1, total: 2 });
+  });
+
+
   it("counts first answers over the items not reported", () => {
     const reported: Item = { ...concept, id: 9, status: "reported" };
     expect(quizScore(set({ items: [done(concept, true), done(explain, false), reported] }))).toEqual({

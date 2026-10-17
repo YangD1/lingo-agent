@@ -333,9 +333,10 @@ async def check_reply(
     activity: ActivitySink,
     conversation_id: uuid.UUID,
     reply: str,
-) -> None:
-    """`mark_revealed` once a tutor reply is out, recorded as a background step; a
-    failure is recorded, not raised, as the reply is already out."""
+) -> Step | None:
+    """`mark_revealed` once a tutor reply is written, recorded as a background step
+    and returned when it ran or failed; a failure is recorded, not raised, as the
+    reply is already out."""
     try:
         with timed() as t:
             async with sessionmaker() as session:
@@ -343,13 +344,16 @@ async def check_reply(
                 await session.commit()
     except Exception:
         logger.exception("checking a reply for quiz answers failed")
-        await activity.record(Step("quiz_reveal", status="failed", duration_ms=t.ms))
-        return
-    if marked is not None:
+        step = Step("quiz_reveal", status="failed", duration_ms=t.ms)
+    else:
+        if marked is None:
+            return None
         kc_id, items = marked
-        await activity.record(
-            Step("quiz_reveal", summary=AnswersRevealed(kc_id=kc_id, items=items), duration_ms=t.ms)
+        step = Step(
+            "quiz_reveal", summary=AnswersRevealed(kc_id=kc_id, items=items), duration_ms=t.ms
         )
+    await activity.record(step)
+    return step
 
 
 # --- results, for the tutor's context ---------------------------------------------------

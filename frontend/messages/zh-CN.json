@@ -347,7 +347,8 @@
         "close_workspace": "收起工作区",
         "set_workspace_auto_open": "调整工作区是否自动打开",
         "give_quiz": "出测验",
-        "withdraw_card": "撤回卡片"
+        "withdraw_card": "撤回卡片",
+        "quiz_reveal": "检查有没有泄答案"
       },
       "failed": "{step}失败了，这一轮先跳过。",
       "skipped": "{step}已跳过：还没有配置后台整理模型。",
@@ -377,6 +378,7 @@
       "practiceRead": "练习指引：{kc}（掌握度档位和最近的错句）",
       "cards": "展示了 {n} 张卡片",
       "cardsWithdrawn": "撤回了 {n} 张卡片",
+      "answersRevealed": "讲题时说出了 {n} 道没答的测验题的答案，这些题不计分",
       "planning": "参考了你的入学测结果",
       "handedTo": "交给了{coach}",
       "writingReviewed": "批改了你的作文",
@@ -559,6 +561,8 @@
         "right": "答对",
         "wrong": "答错",
         "ask": "让 {name} 讲评",
+        "revealed": "{name}讲题时说出了这题的答案，这题不计分：答对也按答错算。",
+        "revealedShort": "讲过答案，不计分",
         "askMessage": "我做完了，帮我看看。"
       },
       "withdrawn": {

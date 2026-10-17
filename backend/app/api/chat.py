@@ -722,11 +722,14 @@ async def _reply(
             continue
         if isinstance(event, TokenEvent):
             reply.append(event.text)
+        # The reply may have given away a quiz answer the tutor sees (task 95.3):
+        # marked before `done`, so the card shows it when it reloads on `done`.
+        if isinstance(event, DoneEvent) and tools is not None:
+            step = await check_reply(sessionmaker, activity, turn.conversation_id, "".join(reply))
+            if step is not None:
+                yield ServerSentEvent(event="activity", data=step.payload(activity.turn_id))
         data = dataclasses.asdict(event)
         yield ServerSentEvent(event=data.pop("event"), data=data)
-        # The reply may have given away a quiz answer the tutor sees (task 95.3).
-        if isinstance(event, DoneEvent) and tools is not None:
-            await check_reply(sessionmaker, activity, turn.conversation_id, "".join(reply))
         # After the reply is out, never before: memory work must not delay it. An
         # opening has nothing from the learner to reflect on.
         if isinstance(event, DoneEvent) and turn.text is not None:

@@ -60,6 +60,8 @@ class Item:
     # The key, once answered or reported.
     answer: dict[str, Any] | None
     result: Result | None
+    # A quiz item whose answer the tutor gave away: it counts as wrong (task 95.3).
+    revealed: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +204,7 @@ async def _items(
                 from_bank=item.bank_item_id is not None,
                 answer=item.answer if shown else None,
                 result=result,
+                revealed=item.revealed_at is not None,
             )
         )
     return out

@@ -60,6 +60,11 @@ describe("digest", () => {
     expect(d).toMatchObject({ cardsShown: 1, cardsWithdrawn: 1 });
   });
 
+  it("counts quiz answers a reply gave away (task 95.3)", () => {
+    const d = digest([step("quiz_reveal", { kc_id: "g.third", items: 2 })]);
+    expect(d).toMatchObject({ answersRevealed: 2, cardsShown: 0 });
+  });
+
   it("names the coach a turn was handed to", () => {
     expect(digest([]).handedTo).toBeNull();
     const d = digest([step("handoff", { coach: "writing_coach" }, { kind: "step" })]);

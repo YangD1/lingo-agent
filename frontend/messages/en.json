@@ -347,7 +347,8 @@
         "close_workspace": "Close the workspace",
         "set_workspace_auto_open": "Change when the workspace opens",
         "give_quiz": "Quiz",
-        "withdraw_card": "Take back a card"
+        "withdraw_card": "Take back a card",
+        "quiz_reveal": "Check for given-away answers"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -377,6 +378,7 @@
       "practiceRead": "Practice guidance: {kc} (how well you know it and your recent mistakes)",
       "cards": "showed {n, plural, one {# card} other {# cards}}",
       "cardsWithdrawn": "took back {n, plural, one {# card} other {# cards}}",
+      "answersRevealed": "gave away the answer to {n, plural, one {# unanswered quiz question} other {# unanswered quiz questions}}, which won't count",
       "planning": "went through your placement result",
       "handedTo": "handed to the {coach}",
       "writingReviewed": "reviewed your writing",
@@ -559,6 +561,8 @@
         "right": "Right",
         "wrong": "Wrong",
         "ask": "Ask {name} to go over it",
+        "revealed": "{name} gave away this question's answer while explaining it, so it doesn't count: it is scored as wrong even if you get it right.",
+        "revealedShort": "answer given away, not counted",
         "askMessage": "I'm done. Can you go over it with me?"
       },
       "withdrawn": {

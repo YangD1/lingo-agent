@@ -91,6 +91,8 @@ class ItemOut(_Out):
     from_bank: bool
     answer: dict[str, Any] | None
     result: ResultOut | None
+    # The tutor gave its answer away before it was answered; it counts as wrong.
+    revealed: bool
 
 
 class HowMadeOut(_Out):

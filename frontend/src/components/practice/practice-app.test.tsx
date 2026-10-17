@@ -38,6 +38,7 @@ const choice: Item = {
   content: { stem: "He ___ here.", options: ["live", "lives", "living", "is live"] },
   status: "ok",
   from_bank: true,
+  revealed: false,
   answer: null,
   result: null,
 };
@@ -48,6 +49,7 @@ const findFix: Item = {
   position: 1,
   format: "find_fix",
   from_bank: false,
+  revealed: false,
   content: { segments: ["He ", "go ", "to work."] },
 };
 
@@ -57,6 +59,7 @@ const translate: Item = {
   position: 2,
   format: "translate",
   from_bank: false,
+  revealed: false,
   content: { source: "她走路上班。" },
 };
 

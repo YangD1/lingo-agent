@@ -7,6 +7,7 @@ import { useId, useState } from "react";
 
 import {
   type Activity,
+  type AnswersRevealed,
   type CardShown,
   type ContextRead,
   digest,
@@ -52,6 +53,7 @@ const STEP_NAMES = [
   "reading_context",
   "workspace_context",
   "workspace_opened",
+  "quiz_reveal",
   ...TOOL_NAMES,
   ...CALL_TOOL_NAMES,
 ] as const;
@@ -94,6 +96,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
     d.wordsCollected > 0 && t("words", { n: d.wordsCollected }),
     d.cardsShown > 0 && t("cards", { n: d.cardsShown }),
     d.cardsWithdrawn > 0 && t("cardsWithdrawn", { n: d.cardsWithdrawn }),
+    d.answersRevealed > 0 && t("answersRevealed", { n: d.answersRevealed }),
     d.summaryUpdated && t("summaryUpdated"),
     d.failed.length + d.skipped.length > 0 && t("someFailed"),
     waiting && t("waiting"),
@@ -335,6 +338,8 @@ function Step({
     }
     case "summarize":
       return <p>{t("summaryUpdated")}</p>;
+    case "quiz_reveal":
+      return <p>{t("answersRevealed", { n: (a.summary as AnswersRevealed).items })}</p>;
     case "handoff": {
       const coach = (a.summary as Handoff).coach;
       const key = `coaches.${coach}` as Parameters<typeof t>[0];

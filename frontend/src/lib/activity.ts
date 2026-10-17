@@ -65,6 +65,8 @@ export type GrammarMistake = {
 };
 export type GrammarTags = { mistakes: GrammarMistake[]; used_correctly: string[] };
 export type SummaryUpdate = { episode_id: string | null };
+/** `quiz_reveal`: a reply gave away answers of an unanswered pass quiz (task 95.3). */
+export type AnswersRevealed = { kc_id: string; items: number };
 export type CollectedWord = { word_id: number; word: string };
 /** Words the learner asked about: put on their word list, or already had a card. */
 export type WordsCollected = { added: CollectedWord[]; existing: CollectedWord[] };
@@ -120,6 +122,8 @@ export type TurnDigest = {
   /** Cards the tutor showed with tool calls, and took back (ADR 0049). */
   cardsShown: number;
   cardsWithdrawn: number;
+  /** Pass-quiz items whose answer a reply gave away, so they count as wrong. */
+  answersRevealed: number;
   profileUpdated: boolean;
   mistakes: number;
   usedCorrectly: number;
@@ -146,6 +150,7 @@ export function digest(activities: Activity[]): TurnDigest {
     workspaceRead: false,
     cardsShown: 0,
     cardsWithdrawn: 0,
+    answersRevealed: 0,
     profileUpdated: false,
     mistakes: 0,
     usedCorrectly: 0,
@@ -193,6 +198,8 @@ export function digest(activities: Activity[]): TurnDigest {
       d.wordsCollected += (a.summary as WordsCollected).added?.length ?? 0;
     } else if (a.name === "summarize") {
       d.summaryUpdated = true;
+    } else if (a.name === "quiz_reveal") {
+      d.answersRevealed += (a.summary as AnswersRevealed).items ?? 0;
     }
   }
   return d;

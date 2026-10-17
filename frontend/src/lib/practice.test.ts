@@ -11,6 +11,7 @@ const item = (overrides: Partial<Item>): Item => ({
   content: {},
   status: "ok",
   from_bank: false,
+  revealed: false,
   answer: null,
   result: null,
   ...overrides,

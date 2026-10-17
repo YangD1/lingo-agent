@@ -79,9 +79,15 @@ async def test_a_reply_giving_an_answer_away_marks_that_item(
     conversation, (choice, _) = await quiz_with(client, db_session, script, "quiz")
     script.replies = ["第一题主语是 he 所以选 lives。"]
 
-    await send(client, conversation, "第一题怎么做")
+    _, events, _ = await send(client, conversation, "第一题怎么做")
 
     assert await revealed_ids(db_session) == [choice]
+    # Streamed before `done`, so the card reloads after the mark is written.
+    names = [data.get("name") if kind == "activity" else kind for kind, data in events]
+    assert names.index("quiz_reveal") < names.index("done")
+    (row,) = await quiz_sets(db_session)
+    shown = (await client.get(f"/practice/sets/{row.id}")).json()["items"]
+    assert [i["revealed"] for i in shown] == [True, False]
     (step,) = [a for a in await activity(client, conversation) if a["name"] == "quiz_reveal"]
     assert step["kind"] == "background"
     assert step["summary"] == {"kc_id": KC, "items": 1}

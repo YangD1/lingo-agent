@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import type { AiFeature } from "@/lib/ai-usage";
 import type { TutorCard } from "@/lib/cards";
+import { quizzesChanged } from "@/lib/practice";
 import { useShowActivity } from "@/lib/preferences";
 import type { Attachment, Conversation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -110,6 +111,7 @@ export function TutorPanel({
     onTurnFinished: () => {
       onTurnFinished?.();
       cards.reload(); // current statuses, and live numbers for link cards
+      quizzesChanged();
     },
     onActivity: activity.addLive,
     onCard: (card) => {

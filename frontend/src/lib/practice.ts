@@ -87,6 +87,9 @@ export type Item = {
   from_bank: boolean;
   answer: Key | null;
   result: Result | null;
+  /** A quiz item whose answer the tutor gave away before it was answered: it counts
+   * as wrong (task 95.3). */
+  revealed: boolean;
 };
 
 export type Mastery = { p_mastery: number | null; state: MasteryState | null; learned: boolean };
@@ -155,6 +158,19 @@ export type Answered = { item: Item; set_done: boolean };
 /** Continue the unfinished set (for this grammar point, with `kcId`), or start one. */
 export const startSet = (origin: Origin, kcId: string | null = null) =>
   api<PracticeSet>("/practice/sets", { method: "POST", json: { origin, kc_id: kcId } });
+
+const quizListeners = new Set<() => void>();
+
+/** A tutor turn ended: its reply may have given away a quiz answer (task 95.3), so
+ * the quiz cards reload their sets. */
+export function quizzesChanged() {
+  quizListeners.forEach((listener) => listener());
+}
+
+export function onQuizzesChanged(listener: () => void): () => void {
+  quizListeners.add(listener);
+  return () => void quizListeners.delete(listener);
+}
 
 export const fetchSet = (id: string) => api<PracticeSet>(`/practice/sets/${encodeURIComponent(id)}`);
 

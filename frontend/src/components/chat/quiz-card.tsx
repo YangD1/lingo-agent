@@ -21,6 +21,7 @@ import {
   firstOpenId,
   type Item,
   itemPlace,
+  onQuizzesChanged,
   type PracticeSet,
   reportItem,
 } from "@/lib/practice";
@@ -34,10 +35,12 @@ export const QUIZ_POLL_MS = 1500;
 /** Items that count: shown and not reported. */
 const counted = (set: PracticeSet) => set.items.filter((i) => i.status === "ok");
 
-/** Right first answers over the items that count, as the backend scores it. */
+/** Right first answers over the items that count, as the backend scores it: an item
+ * whose answer the tutor gave away counts as wrong (task 95.3). */
 export function quizScore(set: PracticeSet): { correct: number; total: number } {
   const items = counted(set);
-  return { correct: items.filter((i) => i.result?.correct).length, total: items.length };
+  const right = items.filter((i) => i.result?.correct && !i.revealed);
+  return { correct: right.length, total: items.length };
 }
 
 /** One line naming an item, for the summary. */
@@ -102,6 +105,22 @@ export function QuizCard({
     );
     return () => {
       live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per set
+  }, [setId]);
+
+  // A reply may have given an answer away (task 95.3): show the mark it left.
+  useEffect(() => {
+    let live = true;
+    const off = onQuizzesChanged(() => {
+      fetchSet(setId).then(
+        (next) => live && show(next),
+        () => undefined,
+      );
+    });
+    return () => {
+      live = false;
+      off();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per set
   }, [setId]);
@@ -179,6 +198,11 @@ export function QuizCard({
           {t("failed", { name })}
         </p>
       )}
+      {set && !empty && shown?.revealed && (
+        <p className="text-xs text-muted-foreground" data-testid="quiz-revealed">
+          {t("revealed", { name })}
+        </p>
+      )}
       {set && !empty && shown && (
         <PracticeItem
           key={shown.id}
@@ -252,8 +276,13 @@ function Summary({
       )}
       <ol className="flex flex-col gap-1">
         {counted(set).map((item) => (
-          <li key={item.id} className="flex items-start gap-1.5" data-correct={item.result?.correct}>
-            {item.result?.correct ? (
+          <li
+            key={item.id}
+            className="flex items-start gap-1.5"
+            data-correct={item.result?.correct}
+            data-revealed={item.revealed || undefined}
+          >
+            {item.result?.correct && !item.revealed ? (
               <CircleCheck aria-label={t("right")} className="mt-0.5 size-3.5 shrink-0 text-success" />
             ) : (
               <CircleX aria-label={t("wrong")} className="mt-0.5 size-3.5 shrink-0 text-destructive" />
@@ -261,6 +290,9 @@ function Summary({
             <span className={cn("min-w-0 truncate", !item.result?.correct && "text-muted-foreground")}>
               {questionText(item)}
             </span>
+            {item.revealed && (
+              <span className="shrink-0 text-xs text-muted-foreground">{t("revealedShort", { name })}</span>
+            )}
           </li>
         ))}
       </ol>
