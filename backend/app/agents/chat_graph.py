@@ -95,6 +95,9 @@ TOOLS_NODE = "tools"
 
 # Tool round trips per turn; the tutor's last call then has no tools and must answer.
 MAX_TOOL_ROUNDS = 2
+# Backstop per (sub)graph run (ADR 0013): LangGraph 1.x defaults to 10,007 steps. The tutor
+# takes 2 * MAX_TOOL_ROUNDS + 1; the outer graph a few.
+RECURSION_LIMIT = 2 * MAX_TOOL_ROUNDS + 6
 # Calls run per round; more get an error result.
 MAX_CALLS_PER_ROUND = 3
 TOOL_TIMEOUT_SECONDS = 15
@@ -337,7 +340,25 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
         logger.warning("tool calling refused (%s); replying without tools", type(exc).__name__)
         await report(runtime, Step("tools", "skipped"))
         reply = await _call(runtime, task, state, history, has_tools, False, config, cue)
+        bind = False
+    if not bind:
+        reply = _offered_none(reply)
     return {"messages": [reply]}
+
+
+def _offered_none(reply: BaseMessage) -> BaseMessage:
+    """Drop tool calls from a reply that was offered no tools. Some providers return them
+    anyway (Bailian's qwen-plus when streaming, after earlier rounds); run, they would
+    loop past MAX_TOOL_ROUNDS until the learner left."""
+    if not isinstance(reply, AIMessage) or not (
+        reply.tool_calls or reply.invalid_tool_calls or "tool_calls" in reply.additional_kwargs
+    ):
+        return reply
+    logger.warning("dropped %d tool calls from a reply offered no tools", len(reply.tool_calls))
+    kwargs = {k: v for k, v in reply.additional_kwargs.items() if k != "tool_calls"}
+    return reply.model_copy(
+        update={"tool_calls": [], "invalid_tool_calls": [], "additional_kwargs": kwargs}
+    )
 
 
 async def grammar_coach(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
@@ -516,11 +537,13 @@ async def _call(
         base=base,
         name=pick.name if (pick := runtime.context.providers.tutor) else None,
     )
-    messages = [SystemMessage(prompt), *history]
+    messages: list[BaseMessage] = [SystemMessage(prompt)]
     if not any(isinstance(m, HumanMessage) for m in history):
         # An opening: the learner hasn't written yet. Some providers need a user turn,
-        # so the cue goes in as one, for this call only.
+        # so the cue goes in as one, for this call only, before the opening's own tool
+        # rounds: last, it read as a new request and the tutor began again each round.
         messages.append(HumanMessage(opening_cue))
+    messages.extend(history)
     # astream, not ainvoke: if the learner disconnects, the run is cancelled, and only
     # astream reports that to callbacks (ainvoke's internal gather is cancelled before
     # on_llm_error runs), so llm_usage would miss a call the provider still bills for.

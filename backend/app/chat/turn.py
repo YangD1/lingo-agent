@@ -15,7 +15,7 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.activity.service import ActivitySink
-from app.agents.chat_graph import COACH_NODES, ChatContext, ChatGraph
+from app.agents.chat_graph import COACH_NODES, RECURSION_LIMIT, ChatContext, ChatGraph
 from app.agents.routing import Route
 from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
@@ -267,6 +267,7 @@ async def _run_graph(
             {"messages": [] if text is None else [HumanMessage(text, id=message_id)]},
             {
                 **thread_config(conversation_id),
+                "recursion_limit": RECURSION_LIMIT,
                 # llm_usage reads these; conversation_id comes from thread_id.
                 "metadata": {"user_id": str(user_id)}
                 | ({"usage_task": opening} if text is None else {}),

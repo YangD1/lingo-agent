@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents import chat_graph
 from app.db.models import Conversation, ExerciseSet
 from app.usage.recorder import UsageRecord
 from tests.integration.test_chat_send import connect, login, parse_sse, send
@@ -184,3 +185,38 @@ async def test_the_lesson_knows_how_the_pass_quiz_went(
     assert "- State: in progress, not passed yet" in prompt
     lesson = await db_session.scalar(select(Conversation).where(Conversation.purpose == "lesson"))
     assert lesson is not None and lesson.focus_kc_id == OPEN
+
+
+async def test_an_opening_stops_calling_tools_at_the_round_limit(
+    client: AsyncClient,
+    script: Script,  # noqa: F811
+) -> None:
+    await ready(client)
+    conversation = (await start(client, OPEN))["conversation"]["id"]
+    quiz = [tool_call("give_quiz", kc_id=OPEN, purpose="check", asked=False)]
+    # Bailian's qwen-plus streams tool calls even when none are offered (task 98.5).
+    script.replies = [quiz, quiz, quiz, quiz, "never reached"]
+
+    response = await client.post(f"/conversations/{conversation}/opening")
+    assert response.status_code == 200, response.text
+    assert [offered is not None for offered, _ in script.calls] == [True, True, False]
+    ran = [a for a in kinds(parse_sse(response.text), "activity") if a["name"] == "give_quiz"]
+    assert len(ran) == 2
+    # The cue opens the turn; after a tool round the model continues from the result.
+    assert [m.type for m in script.calls[1][1]] == ["system", "human", "ai", "tool"]
+
+
+async def test_the_recursion_limit_stops_a_loop_the_round_limit_misses(
+    client: AsyncClient,
+    script: Script,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """LangGraph 1.x would allow 10,007 steps (ADR 0013)."""
+    monkeypatch.setattr(chat_graph, "_offered_none", lambda reply: reply)
+    await ready(client)
+    conversation = (await start(client, OPEN))["conversation"]["id"]
+    script.replies = [[tool_call("give_quiz", kc_id=OPEN, purpose="check", asked=False)]] * 50
+
+    response = await client.post(f"/conversations/{conversation}/opening")
+    assert kinds(parse_sse(response.text), "error")
+    assert len(script.calls) <= chat_graph.RECURSION_LIMIT
