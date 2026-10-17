@@ -66,8 +66,8 @@
  },
  "reflect": {
   "metrics": {
-   "facts_found": [6, 7],
-   "nothing_forbidden": [6, 7],
+   "facts_found": [7, 7],
+   "nothing_forbidden": [8, 9],
    "outdated_fixed": [2, 2],
    "profile_right": [4, 4],
    "mistakes_found": [2, 2],
@@ -81,7 +81,7 @@
   ],
   "recorded": "2026-10-17",
   "prompts": {
-   "reflect": "ee7607f3"
+   "reflect": "a4a12726"
   }
  },
  "route": {

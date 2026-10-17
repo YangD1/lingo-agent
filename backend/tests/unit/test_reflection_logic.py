@@ -46,7 +46,8 @@ def test_input_shows_short_ids_and_both_message_groups() -> None:
         new=[HumanMessage("I moved to Berlin"), AIMessage("How exciting!")],
         language="Simplified Chinese",
     )
-    assert "Write facts in: Simplified Chinese" in text
+    # The prompt's examples are English; other languages are told not to copy them.
+    assert "Write facts in: Simplified Chinese (translate the examples" in text
     assert "m1: Works as a nurse.\nm2: Likes jazz." in text
     assert "## Current profile\n(empty)" in text
     assert text.index("Learner: Hi") < text.index("## New messages") < text.index("Berlin")

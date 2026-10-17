@@ -183,8 +183,10 @@ def reflection_input(
         for label, value in (profile_lines(profile) if profile else {}).items()
     )
     facts_text = "\n".join(f"{by_id[f.id]}: {f.content}" for f in facts)
+    # The instructions' examples are English; models tend to copy them verbatim.
+    translate = "" if language == "English" else " (translate the examples, never copy them)"
     return (
-        f"Write facts in: {language}\n\n"
+        f"Write facts in: {language}{translate}\n\n"
         f"## Current profile\n{profile_text or '(empty)'}\n\n"
         f"## Remembered facts\n{facts_text or '(none)'}\n\n"
         f"## Earlier messages (context only)\n{render_messages(earlier)}\n\n"

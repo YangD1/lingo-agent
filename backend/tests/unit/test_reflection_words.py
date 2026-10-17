@@ -41,6 +41,6 @@ def test_prompt_explains_which_words_to_collect() -> None:
 
 def test_prompt_asks_for_level_and_preference_signals() -> None:
     prompt = system_prompt()
-    assert "**Level signals**" in prompt
-    assert "**How they like to learn**" in prompt
-    assert "These are one-off requests" in prompt
+    assert "finds the current word book too easy" in prompt
+    assert "prefers to try exercises before hearing an explanation" in prompt
+    assert '"give me a quiz"' in prompt  # a one-off request, not a preference

@@ -172,6 +172,8 @@ cases:
   # --- grammar mistakes ------------------------------------------------------------
 
   - id: past-and-third-person
+    # The mistakes are tracked as evidence, never as facts.
+    expect_no_facts: true
     profile:
       native_language: Chinese
     new:
@@ -190,6 +192,8 @@ cases:
         words: work
 
   - id: articles-and-plurals
+    # The mistakes are tracked as evidence, never as facts.
+    expect_no_facts: true
     profile:
       native_language: Chinese
     new:

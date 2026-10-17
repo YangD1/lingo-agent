@@ -15,5 +15,6 @@ status). Write the new summary that replaces it:
   conversation", "again", "as last time"): you cannot know.
 - Facts about the learner as a person are kept elsewhere; mention them only if needed to
   make sense of the conversation.
-- At most 80 words, plain prose, in the language given in the input. Refer to the
-  learner as "the learner".
+- At most 80 words, plain prose, all in the language given in the input. Refer to the
+  two of them as "the learner" and "the tutor" in that language ("学习者" and "私教" in
+  Chinese), never in English inside text in another language.
