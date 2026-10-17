@@ -317,6 +317,9 @@ async def apply_reflection(
             touched.add(memory_id)
             # Neither rewrites nor deletes: the old fact stays, superseded (ADR 0053 §4).
             if op.action == "update":
+                if _normalized(op.content or "") == _normalized(remembered.get(memory_id, "")):
+                    continue  # unchanged: no history entry, no change to the prompt
+
                 memory = await service.supersede_memory(
                     session,
                     user_id,

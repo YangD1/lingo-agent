@@ -4,6 +4,34 @@
 
 ---
 
+## 2026-10-17 任务 90.10–90.16（D：热记忆、被替代、写入查重）完成，任务 90 结束
+
+**做了什么**
+- 90.10 拆分并经用户确认（Q90d–g 均按推荐），写 ADR 0053。查代码发现近况和摘要排在事实前面、每轮都变，只冻结事实拿不到前缀缓存，所以先重排。
+- 90.11 `llm_usage.cached_input_tokens`（迁移 `41b0efa0bbc6`），`usage.recorder._cached`。
+- 90.12 `conversations.sitting_started_at`（迁移 `67dd987117d0`）；`memory.service.start_sitting` / `facts_for_context(sitting_since=)`；`context.MAX_FACTS_TOKENS` 1200 + `estimated_tokens`；画像 → 事实 → 近况 → 摘要。
+- 90.13 `memories.status` / `superseded_by_id`（迁移 `3cf6bc990e25`）；`supersede_memory` / `retire_memory` / `restore_memory`，学习者删除带走历史，每人留 50 条；接口 `include_superseded`、`POST /memories/{id}/restore`；诊断跳过被替代的那条。
+- 90.14 记忆页：`lib/memory-history.ts`，每条“之前的说法”、底部“已被替代（N）”可恢复 / 删除。
+- 90.15 `retrieval.near_duplicate`（Jaccard ≥ 0.6 且共 3 个词），`apply_reflection` 新增前和全部有效事实比，像的按替代。
+- 90.16 全量测试、lint、Docker、百炼冒烟；修了“原文不变的 update”bug。
+
+**和拆分时不同的地方**
+- 拆分时说分段“不加列”，实际加了 `sitting_started_at`：消息在 checkpoint 里，没有按时间查的表。
+- 判重没用 embedding（没有真实模型定余弦阈值，“有猫 / 有狗”向量上也近）；中文短句改口（“下个月 → 下周”0.29）代码认不出，靠模型自己 `update`。都写进了 ADR 0053 §5。
+
+**未完成**
+- 无。任务 90 的 9 个提交（a0299ea 之后到本次）都没推送。
+
+**下一步**
+- 等用户定。可能的后续：百炼显式缓存参数（想要稳定命中时）；用量页展示缓存命中（现在只记录）。
+
+**踩坑**
+- 测试里 `created_at` 是 `now()`，取的是事务开始时间：`add_memory` 提交后 `refresh` 会开新事务，下一条插入的时间就早于中间发生的事。测试里先 `commit()` 结束空事务（`test_chat_memory.py`、`test_memory_service.py` 有注释）。
+- 百炼隐式缓存不保证命中：同一 4,013 token 请求连发三次都是 0；同一次冒烟里有时 94–97%。
+- 冒烟后端用 `fuser -k 8300/tcp` 停，后台任务会报 137，是正常的。
+
+---
+
 ## 2026-10-17 任务 90.9 收尾完成；90.8 提示词返工
 
 **做了什么**

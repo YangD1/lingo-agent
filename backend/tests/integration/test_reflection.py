@@ -380,6 +380,7 @@ async def test_operations_only_touch_the_facts_the_model_was_shown(
                 MemoryOp(action="delete", id="m2"),
                 MemoryOp(action="delete", id="m1"),  # already touched this turn
                 MemoryOp(action="delete", id="m9"),  # not shown: ignored
+                MemoryOp(action="update", id="m3", content="Has a cat"),  # unchanged
                 MemoryOp(action="add", content="has a cat"),  # duplicate of m3
                 MemoryOp(action="add", content="   "),  # empty
                 *[MemoryOp(action="add", content=f"New fact {i}.") for i in range(8)],
