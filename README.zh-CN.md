@@ -8,7 +8,7 @@
 
 **技术栈：** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **状态：P4 已完成（低配服务器部署除外）。** 助手能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级；能出经过 critic 检查的语法练习、批改写作、按你的等级改写新闻，还会诊断你反复出错的语法点的根因，并按你每天的时间排好今天的计划。语音方面，能用服务端的声音朗读、给你的跟读打分、按情景练口语、实时打电话，背单词也能听音辨词和拼写。企业级打磨（P4）也已完成：与成员共享模型和额度、自选助手、用量与成本看板、限流、提示词版本与评估回归，以及可一键灌入的演示账号和[演示脚本](docs/demo.md)。见[现在能做什么](#现在能做什么)和[路线图](docs/PLAN.md)。
+> **状态：P4 已完成（低配服务器部署除外）。** 助手能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级；能出经过 critic 检查的语法练习、批改写作、按你的等级改写新闻，还会诊断你反复出错的语法点的根因，并按你每天的时间排好今天的计划。语音方面，能用服务端的声音朗读、给你的跟读打分、按情景练口语、实时打电话，背单词也能听音辨词和拼写。企业级打磨（P4）也已完成：与成员共享模型和额度、自选助手、用量与成本看板、限流、提示词版本与评估回归，以及可一键灌入的演示账号和[演示脚本](docs/demo.md)。见[现在能做什么](#现在能做什么)。
 
 | | |
 |---|---|
@@ -59,7 +59,7 @@
 - **限流**：登录连续输错会被暂停一段时间（按 IP + 邮箱、IP、邮箱分别计数），注册和加入码按 IP 限次数，会调用模型的功能按用户限每分钟次数，防止被暴力猜密码或被脚本刷掉模型额度。超限时界面会提示还要等几秒。默认值可以在 `.env` 里改（`RATE_LIMIT_*`，见 `.env.example`）。
 - **中英文界面**。
 
-还没做（规划见 [docs/PLAN.md](docs/PLAN.md)）：低配服务器的部署覆盖与备份脚本（P4）。
+还没做：低配服务器的部署覆盖与备份脚本（P4）。
 
 ## 快速开始（Docker）
 
@@ -213,16 +213,11 @@ backend/evals/   评估集和录好的模型回复（make eval）
 backend/tests/   pytest（单元测试 + 连真实 Postgres 的集成测试）
 frontend/        Next.js App Router、shadcn/ui、next-intl；e2e/ 是 Playwright 测试
 config/          provider 预设和默认模型顺序（dev / prod）
-docs/            PLAN.md（设计）、PROGRESS.md（进度）、decisions/（ADR）、
-                 agent-tools.md（全部工具和后台步骤）
+docs/            decisions/（ADR）、agent-tools.md（全部工具和后台步骤）
 ```
 
 设计文档：
 
-- [docs/PLAN.md](docs/PLAN.md)：完整设计和路线图
-- [docs/plans/P1-mvp.md](docs/plans/P1-mvp.md)：P1 实施计划
-- [docs/plans/P2-adaptive-reading-writing.md](docs/plans/P2-adaptive-reading-writing.md)：P2 实施计划
-- [docs/plans/P3-voice.md](docs/plans/P3-voice.md)：P3 实施计划
 - [docs/decisions/](docs/decisions)：架构决策记录，比如 [provider 层](docs/decisions/0002-provider-layer.md)、[租户凭据](docs/decisions/0004-tenant-credentials.md)、[附件](docs/decisions/0008-multimodal-attachments.md)、[长期记忆](docs/decisions/0009-long-term-memory.md)、[学习者模型](docs/decisions/0010-learner-model.md)、[词库与 FSRS](docs/decisions/0011-vocabulary-and-fsrs.md)、[agent 工具与公示](docs/decisions/0013-agent-tools-and-disclosure.md)、[AI 用量标记](docs/decisions/0014-ai-usage-disclosure.md)、[确认卡](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)、[练习引擎](docs/decisions/0021-exercise-engine.md)、[语法图谱](docs/decisions/0022-grammar-graph-in-postgres.md)、[supervisor 与各 coach](docs/decisions/0023-supervisor-and-coaches.md)、[阅读来源与版权](docs/decisions/0024-reading-sources-and-copyright.md)、[定时任务与后台上限](docs/decisions/0025-scheduler-and-background-budget.md)、[每日计划](docs/decisions/0027-daily-plan.md)、[语音厂商](docs/decisions/0028-speech-providers-tts-pronunciation.md)、[口语练习](docs/decisions/0029-speaking-practice.md)、[实时语音](docs/decisions/0030-realtime-voice.md)、[主账号与额度](docs/decisions/0031-org-accounts-and-quotas.md)、[用量看板与单价](docs/decisions/0034-usage-dashboard-and-prices.md)、[限流](docs/decisions/0035-rate-limiting.md)
 
 ## 部署

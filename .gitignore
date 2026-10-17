@@ -31,3 +31,8 @@ models/
 .DS_Store
 .idea/
 .vscode/
+
+# local-only planning notes, session protocol and hooks (notes/ is its own git repo)
+notes/
+CLAUDE.local.md
+.claude/hooks/

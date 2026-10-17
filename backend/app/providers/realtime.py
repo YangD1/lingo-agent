@@ -56,7 +56,7 @@ class _Vendor:
     formats: tuple[str, str] = ("pcm16", "pcm16")
 
 
-# Checked 2026-10-10 (docs/plans/P3-voice.md §2.1); PCM16 mono both ways. Voices,
+# Checked 2026-10-10 (ADR 0030); PCM16 mono both ways. Voices,
 # transcription models and Qwen's format names are from the docs, not yet from a real
 # call: task 64's smoke test confirms them.
 _OPENAI = _Vendor("ga", 24_000, 24_000, voice="marin", transcription="gpt-transcribe")

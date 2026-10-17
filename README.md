@@ -8,7 +8,7 @@ An open-source AI English assistant agent. The goal: an assistant that remembers
 
 **Stack:** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **Status: P4 complete (except small-server deployment).** The assistant chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. It runs practice sets checked by a critic, reviews your writing, rewrites news for your level, diagnoses the root causes of your recurring grammar mistakes and drafts a daily study plan. By voice, it reads aloud with a server voice, scores your shadowing, practises speaking in scenarios, takes real-time calls and quizzes words by ear and by spelling. Enterprise polish (P4) is done too: sharing models and quotas with members, choosing your own assistant, a usage and cost dashboard, rate limits, versioned prompts with eval regression, and a seedable demo account with a [demo script](docs/demo.en.md). See [what works now](#what-works-now) and the [roadmap](docs/PLAN.md).
+> **Status: P4 complete (except small-server deployment).** The assistant chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. It runs practice sets checked by a critic, reviews your writing, rewrites news for your level, diagnoses the root causes of your recurring grammar mistakes and drafts a daily study plan. By voice, it reads aloud with a server voice, scores your shadowing, practises speaking in scenarios, takes real-time calls and quizzes words by ear and by spelling. Enterprise polish (P4) is done too: sharing models and quotas with members, choosing your own assistant, a usage and cost dashboard, rate limits, versioned prompts with eval regression, and a seedable demo account with a [demo script](docs/demo.en.md). See [what works now](#what-works-now).
 
 | | |
 |---|---|
@@ -59,7 +59,7 @@ An open-source AI English assistant agent. The goal: an assistant that remembers
 - **Rate limits.** Repeated wrong passwords pause logins for a while (counted per IP + email, per IP and per email), sign-ups and invite codes are limited per IP, and features that call models are limited per user per minute, against password guessing and scripts burning through model quota. When a limit is hit, the page says how many seconds to wait. Change the defaults in `.env` (`RATE_LIMIT_*`, see `.env.example`).
 - **English and Chinese UI.**
 
-Not built yet (see [docs/PLAN.md](docs/PLAN.md)): a deployment override and backup scripts for small servers (P4).
+Not built yet: a deployment override and backup scripts for small servers (P4).
 
 ## Quick start (Docker)
 
@@ -214,16 +214,11 @@ backend/evals/   evaluation sets with recorded model replies (make eval)
 backend/tests/   pytest (unit + integration against a real Postgres)
 frontend/        Next.js App Router, shadcn/ui, next-intl; e2e/ Playwright tests
 config/          provider presets and default model order (dev / prod)
-docs/            PLAN.md (design), PROGRESS.md (status), decisions/ (ADRs),
-                 agent-tools.md (every tool and background step)
+docs/            decisions/ (ADRs), agent-tools.md (every tool and background step)
 ```
 
 Design documents:
 
-- [docs/PLAN.md](docs/PLAN.md): the full design and roadmap
-- [docs/plans/P1-mvp.md](docs/plans/P1-mvp.md): the P1 implementation plan
-- [docs/plans/P2-adaptive-reading-writing.md](docs/plans/P2-adaptive-reading-writing.md): the P2 implementation plan
-- [docs/plans/P3-voice.md](docs/plans/P3-voice.md): the P3 implementation plan
 - [docs/decisions/](docs/decisions): architecture decision records, e.g. [provider layer](docs/decisions/0002-provider-layer.md), [tenant credentials](docs/decisions/0004-tenant-credentials.md), [attachments](docs/decisions/0008-multimodal-attachments.md), [long-term memory](docs/decisions/0009-long-term-memory.md), [learner model](docs/decisions/0010-learner-model.md), [vocabulary and FSRS](docs/decisions/0011-vocabulary-and-fsrs.md), [agent tools and disclosure](docs/decisions/0013-agent-tools-and-disclosure.md), [AI usage labels](docs/decisions/0014-ai-usage-disclosure.md), [confirmation cards](docs/decisions/0015-tutor-tools-and-confirmation-cards.md), [exercise engine](docs/decisions/0021-exercise-engine.md), [grammar graph](docs/decisions/0022-grammar-graph-in-postgres.md), [supervisor and coaches](docs/decisions/0023-supervisor-and-coaches.md), [reading sources and copyright](docs/decisions/0024-reading-sources-and-copyright.md), [scheduler and background budget](docs/decisions/0025-scheduler-and-background-budget.md), [daily plan](docs/decisions/0027-daily-plan.md), [speech providers](docs/decisions/0028-speech-providers-tts-pronunciation.md), [speaking practice](docs/decisions/0029-speaking-practice.md), [real-time voice](docs/decisions/0030-realtime-voice.md), [main accounts and quotas](docs/decisions/0031-org-accounts-and-quotas.md), [usage dashboard and prices](docs/decisions/0034-usage-dashboard-and-prices.md), [rate limiting](docs/decisions/0035-rate-limiting.md)
 
 ## Deploying
