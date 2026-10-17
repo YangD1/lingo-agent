@@ -7,6 +7,7 @@ does, and answers go through the practice API. The same tool call id gives the s
 set and card.
 """
 
+import re
 import uuid
 from collections import Counter
 from collections.abc import Collection, Iterable, Mapping
@@ -28,6 +29,7 @@ from app.adaptive.exercise.formats import (
     RewriteOwn,
     Transform,
     Translate,
+    normalize,
     parse_body,
 )
 from app.adaptive.exercise.planner import QuizPurpose
@@ -227,6 +229,62 @@ def _grammar_point(parsed: GiveQuiz, within: Collection[str] | None) -> GrammarK
         "Call give_quiz again now with the kc_id of the one closest to what you were "
         "teaching; do not write the questions yourself."
     )
+
+
+# --- answers given away in a reply (task 95.3) -----------------------------------------
+
+# Answers this short ("a", "an", "is") are everywhere in a reply; they count only when
+# the reply sets them off as the answer.
+_SHORT = 2
+_MARKED = ('"{}"', "'{}'", "**{}**", "`{}`", "「{}」", "“{}”")
+
+
+def _found(reply: str, answer: str) -> bool:
+    """Whether `answer` appears in `reply` (both normalized) as whole words."""
+    if not answer:
+        return False
+    if len(answer) <= _SHORT:
+        return any(mark.format(answer) in reply for mark in _MARKED)
+    # ASCII edges: Chinese characters are word characters to `\w`, and a reply often
+    # runs an English answer straight into Chinese ("答案是goes").
+    edge = "A-Za-z0-9'"
+    return re.search(rf"(?<![{edge}]){re.escape(answer)}(?![{edge}])", reply) is not None
+
+
+def _answers(body: ExerciseBody) -> tuple[tuple[str, ...], str]:
+    """What gives an item away, and the text the card already shows."""
+    match body:
+        case Choice4():
+            return (body.answer.correct,), body.content.stem
+        case Cloze():
+            return body.answer.accepted, f"{body.content.stem} {body.content.hint or ''}"
+        case FindFix():
+            return body.answer.accepted, body.content.sentence
+        case Transform():
+            return body.answer.accepted, body.content.source
+        case Translate():
+            return body.answer.accepted, body.content.source
+        case RewriteOwn():
+            return body.answer.accepted, body.content.original
+    return (), ""  # checks count for nothing, so nothing to give away
+
+
+def revealed(reply: str, items: Mapping[int, ExerciseBody]) -> list[int]:
+    """Ids of the unanswered pass-quiz items whose answer `reply` gives away: an
+    accepted answer quoted in it, unless the card already shows those words, or, for a
+    choice, every option is listed alike. String matching, no model (ADR 0051 §5)."""
+    text = normalize(reply)
+    out: list[int] = []
+    for item_id, body in items.items():
+        answers, shown = _answers(body)
+        shown = normalize(shown)
+        if isinstance(body, Choice4) and all(
+            _found(text, normalize(o)) for o in body.content.options
+        ):
+            continue
+        if any(_found(text, a) and not _found(shown, a) for a in map(normalize, answers)):
+            out.append(item_id)
+    return out
 
 
 # --- results, for the tutor's context ---------------------------------------------------
