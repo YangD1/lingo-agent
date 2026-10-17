@@ -189,6 +189,7 @@ async def test_reply_streams_as_tokens_then_done(
         "profile_items": 0,
         "practice_kc": None,
         "planning": False,
+        "progress": True,  # the course starts at lesson 1 even for a new learner
     }
 
 

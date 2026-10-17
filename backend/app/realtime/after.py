@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.agents.chat_graph import ChatGraph
 from app.chat.locks import ConversationLocks
 from app.db.models import Conversation, SpeakingSession
-from app.memory.worker import DEFAULT_LANGUAGE, ReflectionWorker
+from app.memory.worker import ReflectionWorker
 from app.providers.errors import NoModelConfiguredError
 from app.speaking import sessions
 
@@ -48,7 +48,7 @@ class AfterCall:
         self._locks = locks
         self._tasks: dict[uuid.UUID, asyncio.Task[None]] = {}
 
-    def schedule(self, session_id: uuid.UUID, *, language: str = DEFAULT_LANGUAGE) -> None:
+    def schedule(self, session_id: uuid.UUID, *, language: str | None = None) -> None:
         if session_id in self._tasks:
             return
         task = asyncio.create_task(self._run(session_id, language), name=f"after-{session_id}")
@@ -81,13 +81,13 @@ class AfterCall:
             task.cancel()
         await asyncio.gather(*self._tasks.values(), return_exceptions=True)
 
-    async def _run(self, session_id: uuid.UUID, language: str) -> None:
+    async def _run(self, session_id: uuid.UUID, language: str | None) -> None:
         try:
             await self._follow_up(session_id, language)
         except Exception:
             logger.exception("after realtime call %s", session_id)
 
-    async def _follow_up(self, session_id: uuid.UUID, language: str) -> None:
+    async def _follow_up(self, session_id: uuid.UUID, language: str | None) -> None:
         async with self._maker() as session:
             row = await session.get(SpeakingSession, session_id)
             if row is None or row.mode != "realtime" or row.ended_at is None:

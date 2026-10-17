@@ -667,6 +667,9 @@ class UserProfile(TimestampMixin, Base):
     cefr_level: Mapped[str | None] = mapped_column(String(2))
     # IANA name; "today" for word reviews is cut in this zone.
     timezone: Mapped[str | None] = mapped_column(String(64))
+    # The UI locale of the learner's latest chat request (ADR 0052 §3): background
+    # summaries with no request of their own are written in it. Not a profile field.
+    ui_locale: Mapped[str | None] = mapped_column(String(10))
     manual_fields: Mapped[list[str]] = mapped_column(
         ARRAY(String(50)), default=list, server_default="{}"
     )

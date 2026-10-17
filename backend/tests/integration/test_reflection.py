@@ -232,6 +232,44 @@ async def test_recover_picks_up_turns_missed_by_a_restart(
     assert "hospital" in reflector.prompts[0]
 
 
+async def test_work_without_a_request_uses_the_stored_locale(
+    client: AsyncClient, app: FastAPI, db_session: AsyncSession, reflector: FakeReflector
+) -> None:
+    """ADR 0052 §3: a restart's pass has no cookie, yet writes in the learner's UI
+    language, which the latest chat request left on the profile."""
+    await login(client)
+    await connect(client, "deepseek")
+    client.cookies.set("NEXT_LOCALE", "zh-CN")
+    app.state.reflection_worker.enabled = False  # as if the process died before reflecting
+    await send(client, await new_conversation(client), "I work at a hospital.")
+    app.state.reflection_worker.enabled = True
+    user, _ = await learner(db_session)
+    user_id = user.id
+    profile = await service.get_profile(db_session, user_id)
+    assert profile is not None and profile.ui_locale == "zh-CN"
+
+    await app.state.reflection_worker.recover()
+    await idle(app)
+    assert "Write facts in: Simplified Chinese" in reflector.prompts[0]
+
+    # Only known locales are kept; another one leaves the stored one alone.
+    client.cookies.set("NEXT_LOCALE", "fr")
+    await send(client, await new_conversation(client), "Bonjour")
+    db_session.expire_all()
+    profile = await service.get_profile(db_session, user_id)
+    assert profile is not None and profile.ui_locale == "zh-CN"
+
+
+async def test_no_locale_anywhere_falls_back_to_english(
+    client: AsyncClient, app: FastAPI, reflector: FakeReflector
+) -> None:
+    await login(client)
+    await connect(client, "deepseek")
+    await send(client, await new_conversation(client), "I work at a hospital.")
+    await idle(app)
+    assert "Write facts in: English" in reflector.prompts[0]
+
+
 # --- applying a reflection ----------------------------------------------------------------
 
 

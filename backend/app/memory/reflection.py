@@ -57,8 +57,13 @@ LOCALE_COOKIE = "NEXT_LOCALE"
 _LANGUAGE_BY_LOCALE = {"zh-CN": "Simplified Chinese", "en": "English"}
 
 
-def memory_language(locale: str | None) -> str:
-    return _LANGUAGE_BY_LOCALE.get(locale or "", "English")
+def memory_language(locale: str | None) -> str | None:
+    """None for no locale or an unknown one: the worker then uses the stored one."""
+    return _LANGUAGE_BY_LOCALE.get(locale or "")
+
+
+def known_locale(locale: str | None) -> str | None:
+    return locale if locale in _LANGUAGE_BY_LOCALE else None
 
 
 class MemoryOp(BaseModel):

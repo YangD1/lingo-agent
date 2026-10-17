@@ -11,7 +11,7 @@ import asyncio
 import logging
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
 from langchain_core.messages import BaseMessage, HumanMessage
@@ -36,7 +36,7 @@ from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.agents.chat_graph import ChatGraph
 from app.chat.service import thread_config
-from app.db.models import Conversation, Memory
+from app.db.models import Conversation, Memory, UserProfile
 from app.memory import reflection, service
 from app.memory.embedding import memory_embedder
 from app.memory.reflection import Applied, KnownFact
@@ -63,7 +63,9 @@ DEFAULT_LANGUAGE = "English"
 
 @dataclass
 class _Job:
-    language: str = DEFAULT_LANGUAGE
+    # From the request that scheduled it; None: the learner's stored UI locale, else
+    # DEFAULT_LANGUAGE (ADR 0052 §3).
+    language: str | None = None
     # Summarize whatever is new, even under SUMMARY_EVERY_TURNS (the learner moved on).
     finish: bool = False
 
@@ -85,13 +87,13 @@ class ReflectionWorker:
         self._pending: dict[uuid.UUID, _Job] = {}
 
     def schedule(
-        self, conversation_id: uuid.UUID, *, language: str = DEFAULT_LANGUAGE, finish: bool = False
+        self, conversation_id: uuid.UUID, *, language: str | None = None, finish: bool = False
     ) -> None:
         """Reflect on this conversation's new messages soon."""
         if not self.enabled:
             return
         job = self._pending.setdefault(conversation_id, _Job())
-        job.language = language
+        job.language = language or job.language
         job.finish = job.finish or finish
         if conversation_id not in self._tasks:
             task = asyncio.create_task(
@@ -100,7 +102,7 @@ class ReflectionWorker:
             self._tasks[conversation_id] = task
 
     async def finish_previous(
-        self, user_id: uuid.UUID, *, except_conversation_id: uuid.UUID, language: str
+        self, user_id: uuid.UUID, *, except_conversation_id: uuid.UUID, language: str | None
     ) -> None:
         """The learner started a new conversation: summarize the one they left."""
         if not self.enabled:
@@ -162,6 +164,11 @@ class ReflectionWorker:
             if conversation is None:
                 return  # deleted meanwhile
             ctx = await load_provider_context(session, conversation.tenant_id)
+            if job.language is None:
+                stored = await session.scalar(
+                    select(UserProfile.ui_locale).where(UserProfile.user_id == conversation.user_id)
+                )
+                job = replace(job, language=reflection.memory_language(stored) or DEFAULT_LANGUAGE)
         state = await self._graph.aget_state(thread_config(conversation_id))
         messages = [m for m in state.values.get("messages", []) if m.type in ("human", "ai")]
         if not messages:
@@ -197,7 +204,7 @@ class ReflectionWorker:
             facts=facts,
             earlier=earlier[-CONTEXT_MESSAGES:],
             new=new,
-            language=job.language,
+            language=job.language or DEFAULT_LANGUAGE,
         )
         applied: Applied | None = None
         items: list[ChatEvidence] = []
@@ -420,7 +427,7 @@ class ReflectionWorker:
                         ctx,
                         previous=previous or "",
                         messages=new,
-                        language=job.language,
+                        language=job.language or DEFAULT_LANGUAGE,
                         config=config,
                     )
                 )

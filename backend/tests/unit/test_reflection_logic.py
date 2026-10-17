@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from app.memory.reflection import (
     KnownFact,
     ProfileUpdate,
+    known_locale,
     memory_language,
     profile_changes,
     reflection_input,
@@ -70,4 +71,6 @@ def test_split_after_cursor_or_backlog() -> None:
 def test_memory_language_follows_ui_locale() -> None:
     assert memory_language("zh-CN") == "Simplified Chinese"
     assert memory_language("en") == "English"
-    assert memory_language(None) == memory_language("fr") == "English"
+    # Unknown or missing: None, so the worker falls back to the stored locale (ADR 0052 §3).
+    assert memory_language(None) is None and memory_language("fr") is None
+    assert (known_locale("zh-CN"), known_locale("fr"), known_locale(None)) == ("zh-CN", None, None)

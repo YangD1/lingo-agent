@@ -10,6 +10,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
 from sqlalchemy import CursorResult, delete, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
@@ -47,6 +48,21 @@ class MemoryNotFoundError(Exception):
 
 async def get_profile(session: AsyncSession, user_id: uuid.UUID) -> UserProfile | None:
     return await session.get(UserProfile, user_id)
+
+
+async def remember_locale(session: AsyncSession, user_id: uuid.UUID, locale: str) -> None:
+    """Keep the UI locale of this request for background work that has none (ADR 0052
+    §3); creates the profile on first use, writes only when it changed."""
+    table = UserProfile.__table__
+    await session.execute(
+        insert(UserProfile)
+        .values(user_id=user_id, interests=[], manual_fields=[], ui_locale=locale)
+        .on_conflict_do_update(
+            index_elements=[table.c.user_id],
+            set_={"ui_locale": locale},
+            where=table.c.ui_locale.is_distinct_from(locale),
+        )
+    )
 
 
 async def update_profile(

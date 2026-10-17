@@ -15,6 +15,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.activity.service import DatabaseActivity
 from app.adaptive.kc.catalog import CefrLevel, get_grammar_catalog
@@ -47,9 +48,10 @@ from app.chat.turn import (
 from app.chat.writing import DatabaseWriting
 from app.db.models import Attachment, Conversation, SpeakingSession, WorkspaceDoc
 from app.deps import ChatGraphDep, CurrentTenant, CurrentUser, SessionDep, per_user
+from app.memory import service as memory
 from app.memory.context import DatabaseLearner
 from app.memory.embedding import memory_embedder
-from app.memory.reflection import LOCALE_COOKIE, memory_language
+from app.memory.reflection import LOCALE_COOKIE, known_locale, memory_language
 from app.memory.worker import ReflectionWorker
 from app.providers.config import TenantProviderContext
 from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
@@ -201,6 +203,7 @@ async def create_conversation(
     if body.purpose == "planning":
         conversation = await service.unstarted_planning(session, graph, user.id)
     locale = body.locale or request.cookies.get(LOCALE_COOKIE)
+    await _remember_locale(session, user.id, request.cookies.get(LOCALE_COOKIE))
     if body.purpose == "daily":
         zone = await learner_zone(session, user.id, body.tz)
         conversation, created = await service.todays_daily(
@@ -434,6 +437,7 @@ async def start_turn(
     try:
         if conversation.purpose == "speaking":
             await _speaking_turn(session, conversation, text, attachments)
+        await _remember_locale(session, user.id, request.cookies.get(LOCALE_COOKIE))
         message_id = new_message_id()
         try:
             await begin_turn(
@@ -750,6 +754,13 @@ async def _learner_texts(graph: ChatGraphDep, turn: Turn) -> list[str]:
     state = await graph.aget_state(service.thread_config(turn.conversation_id))
     texts = [m.text for m in reversed(state.values.get("messages", [])) if m.type == "human"]
     return list(dict.fromkeys([*([turn.text] if turn.text else []), *texts]))
+
+
+async def _remember_locale(session: AsyncSession, user_id: uuid.UUID, cookie: str | None) -> None:
+    """Background summaries with no request of their own use it (ADR 0052 §3)."""
+    if (locale := known_locale(cookie)) is not None:
+        await memory.remember_locale(session, user_id, locale)
+        await session.commit()
 
 
 def _reflection(request: Request) -> ReflectionWorker:
