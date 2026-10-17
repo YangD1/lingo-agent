@@ -201,7 +201,10 @@ async def test_the_latest_quiz_lists_its_questions(
     await send(client, conversation, "解释下这几个题目的出题意义")
 
     prompt = system_text(script.calls[0][1])
-    assert "1 of 2 answered so far; its questions, as the card shows them:" in prompt
+    assert (
+        "1 of 2 answered so far; its questions, as the card shows them (the learner is still"
+        in prompt
+    )
     options = "options: 'he is one person' / 'past' / 'plural' / 'polite'"
     assert f"1. \"Why 'lives'?\"; {options}; they answered 'he is one person' (right)" in prompt
     assert (
@@ -211,7 +214,7 @@ async def test_the_latest_quiz_lists_its_questions(
     # The older quiz: its result in one line, its questions not listed.
     assert "all answered, 0 of 1 right; missed: \"Why 'lives'?\", answered 'past'" in prompt
     assert prompt.count("its questions, as the card shows them") == 1
-    assert "give the\n  answer only when they ask for it outright" in prompt
+    assert "don't give\n  the answer away" in prompt
 
 
 async def test_a_topic_finds_the_grammar_point(

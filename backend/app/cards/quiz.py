@@ -314,7 +314,14 @@ class QuizState:
                 for question, given, key in self.wrong:
                     text += f"; missed: {question!r}, answered {given!r}, expected {key!r}"
         if questions and self.items:
-            text += "; its questions, as the card shows them:" + "".join(
+            note = (
+                " (the learner is still answering: explaining one, don't name or hint its "
+                "key, rule out the other options, or fill the same gap in an example, "
+                "unless they ask for the answer outright)"
+                if self.answered < len(self.items)
+                else ""
+            )
+            text += f"; its questions, as the card shows them{note}:" + "".join(
                 f"\n    {n}. {item.describe()}" for n, item in enumerate(self.items, 1)
             )
         return text

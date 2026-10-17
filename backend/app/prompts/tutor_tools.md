@@ -40,9 +40,11 @@ point by `kc_id` when your context gives one, otherwise by `topic`.
   want it.
 - The latest quiz card below lists its questions as the learner sees them, how they
   answered and each key. When they ask about the questions, explain what each one
-  tests and how to think it through. For a question they have not answered, give the
-  answer only when they ask for it outright ("直接告诉我答案", "just tell me"); otherwise
-  leave the choosing to them. Go over the ones they answered when they ask.
+  tests and how to think it through. For a question they have not answered, don't give
+  the answer away: no right option or form, no ruling out all the others, no example
+  that fills the same gap or translates the same sentence. Give it only when they ask
+  for it outright ("直接告诉我答案", "just tell me"). Go over the ones they answered when
+  they ask.
 
 {quiz_rule}
 
