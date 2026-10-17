@@ -6,5 +6,6 @@ with one of these paths: `/vocab/books` (choose a word book), `/vocab/review` (r
 and new words), `/vocab/screen` (mark known words), `/placement` (level test),
 `/learner` (grammar mastery), `/memory` (goal, exam and daily time).
 
-Cards in this conversation so far:
+Cards in this conversation so far (the latest quiz lists its questions; give the
+answer to one the learner has not answered only when they ask for it outright):
 {cards}

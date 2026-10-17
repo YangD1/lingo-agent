@@ -499,9 +499,10 @@ _STATUS_TEXT = {
 }
 
 
-def describe(card: TutorCard, quiz: "QuizState | None" = None) -> str:
+def describe(card: TutorCard, quiz: "QuizState | None" = None, *, questions: bool = False) -> str:
     """One line about a card, for the model (tool results and the next turns' context);
-    a quiz card says how its set stands, given as `quiz`."""
+    a quiz card says how its set stands, given as `quiz`, and with `questions` lists
+    them (ADR 0051)."""
     p = card.params
     match card.kind:
         case "word_book":
@@ -536,7 +537,7 @@ def describe(card: TutorCard, quiz: "QuizState | None" = None) -> str:
             kc = get_grammar_catalog().get(p["kc_id"])
             kind = "understanding check" if p["purpose"] == "check" else "pass quiz"
             stands = (
-                quiz.describe(p["purpose"], get_rules().course.pass_score)
+                quiz.describe(p["purpose"], get_rules().course.pass_score, questions=questions)
                 if quiz
                 else "questions being written"
             )
@@ -549,9 +550,15 @@ def describe(card: TutorCard, quiz: "QuizState | None" = None) -> str:
 def render_context(
     cards: Sequence[TutorCard], quizzes: Mapping[uuid.UUID, QuizState] | None = None
 ) -> str:
+    """The cards, oldest first; the latest quiz card still standing lists its questions,
+    the others only how they stand, so earlier quizzes don't fill the prompt."""
     quizzes = quizzes or {}
+    listed = next(
+        (c for c in reversed(cards) if c.kind == "quiz" and c.status != "withdrawn"), None
+    )
     return "\n".join(
-        f"- [card {c.tool_call_id}] {describe(c, quizzes.get(s) if (s := _quiz_set(c)) else None)}"
+        f"- [card {c.tool_call_id}] "
+        + describe(c, quizzes.get(s) if (s := _quiz_set(c)) else None, questions=c is listed)
         for c in cards
     )
 

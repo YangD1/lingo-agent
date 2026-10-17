@@ -10,7 +10,7 @@ set and card.
 import uuid
 from collections import Counter
 from collections.abc import Collection, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 from typing import Any, Protocol
 
@@ -52,7 +52,7 @@ class StartQuiz(Protocol):
     ) -> QuizStart: ...
 
 
-# Answers quoted per wrong item, so a long answer does not fill the prompt.
+# Answers quoted per item, so a long answer does not fill the prompt.
 _QUOTE = 160
 # Grammar points offered back when a topic matches several (ADR 0046 §1).
 _CANDIDATES = 5
@@ -242,31 +242,81 @@ def _given(response: Mapping[str, Any]) -> str:
     return text if len(text) <= _QUOTE else text[:_QUOTE] + "…"
 
 
+def _choices(body: ExerciseBody) -> str:
+    """What the card shows beside the question: options, a hint, numbered pieces."""
+    match body:
+        case Choice4() | ConceptChoice():
+            return "options: " + " / ".join(repr(o) for o in body.content.options)
+        case Cloze() if body.content.hint:
+            return f"hint: {body.content.hint!r}"
+        case FindFix():
+            return "pieces: " + " ".join(
+                f"[{i}] {piece!r}" for i, piece in enumerate(body.content.segments)
+            )
+    return ""
+
+
+@dataclass(frozen=True, slots=True)
+class QuizItem:
+    question: str
+    choices: str
+    key: str
+    # The learner's first answer and whether it was right; None while unanswered.
+    given: str | None = None
+    correct: bool | None = None
+
+    def describe(self) -> str:
+        text = repr(self.question)
+        if self.choices:
+            text += f"; {self.choices}"
+        if self.given is None:
+            return f"{text}; not answered yet; key (say it only if they ask): {self.key!r}"
+        mark = "right" if self.correct else "wrong"
+        return f"{text}; they answered {self.given!r} ({mark}); key: {self.key!r}"
+
+
 @dataclass(frozen=True, slots=True)
 class QuizState:
     status: str
     total: int
     answered: int
     correct: int
-    # Wrong first answers: question, the learner's answer, the key.
-    wrong: tuple[tuple[str, str, str], ...]
+    # The set's questions in the order shown, with each first answer.
+    items: tuple[QuizItem, ...] = ()
 
-    def describe(self, purpose: str, pass_score: float) -> str:
-        if self.status == "generating":
+    @property
+    def wrong(self) -> tuple[tuple[str, str, str], ...]:
+        """Wrong first answers: question, the learner's answer, the key."""
+        return tuple(
+            (i.question, i.given, i.key)
+            for i in self.items
+            if i.given is not None and not i.correct
+        )
+
+    def describe(self, purpose: str, pass_score: float, *, questions: bool = False) -> str:
+        """How the set stands; with `questions`, every question on its own line
+        (ADR 0051), otherwise just the missed ones once all are answered."""
+        if self.status == "generating" and not self.items:
             return "questions still being written"
         if self.status == "failed":
             return (
                 "could not be made; if the learner still wants it, call give_quiz again "
                 "with fresh true"
             )
-        if self.answered < self.total:
-            return f"{self.answered} of {self.total} answered so far"
-        text = f"all answered, {self.correct} of {self.total} right"
-        if purpose == "quiz" and self.total:
-            met = self.correct / self.total >= pass_score
-            text += f" (score {'meets' if met else 'is below'} the pass mark)"
-        for question, given, key in self.wrong:
-            text += f"; missed: {question!r}, answered {given!r}, expected {key!r}"
+        if self.answered < self.total or self.status == "generating":
+            text = f"{self.answered} of {self.total} answered so far"
+        else:
+            text = f"all answered, {self.correct} of {self.total} right"
+            if purpose == "quiz" and self.total:
+                met = self.correct / self.total >= pass_score
+                text += f" (score {'meets' if met else 'is below'} the pass mark)"
+            if not questions:
+                for question, given, key in self.wrong:
+                    text += f"; missed: {question!r}, answered {given!r}, expected {key!r}"
+        if questions and self.items:
+            text += "; its questions, as the card shows them:" + "".join(
+                f"\n    {n}. {item.describe()}" for n, item in enumerate(self.items, 1)
+            )
         return text
 
 
@@ -296,20 +346,20 @@ async def quiz_states(
     total: Counter[uuid.UUID] = Counter()
     answered: Counter[uuid.UUID] = Counter()
     correct: Counter[uuid.UUID] = Counter()
-    wrong: dict[uuid.UUID, list[tuple[str, str, str]]] = {i: [] for i in statuses}
+    items: dict[uuid.UUID, list[QuizItem]] = {i: [] for i in statuses}
     for item, attempt in first.values():
         total[item.set_id] += 1
-        if attempt is None:
-            continue
-        answered[item.set_id] += 1
-        if attempt.correct:
-            correct[item.set_id] += 1
-        else:
-            body = parse_body(item.format, item.content, item.answer)
-            wrong[item.set_id].append((_question(body), _given(attempt.response), _key(body)))
+        body = parse_body(item.format, item.content, item.answer)
+        shown = QuizItem(_question(body), _choices(body), _key(body))
+        if attempt is not None:
+            answered[item.set_id] += 1
+            if attempt.correct:
+                correct[item.set_id] += 1
+            shown = replace(shown, given=_given(attempt.response), correct=attempt.correct)
+        items[item.set_id].append(shown)
     return {
         set_id: QuizState(
-            status, total[set_id], answered[set_id], correct[set_id], tuple(wrong[set_id])
+            status, total[set_id], answered[set_id], correct[set_id], tuple(items[set_id])
         )
         for set_id, status in statuses.items()
     }

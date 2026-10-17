@@ -115,8 +115,9 @@ async def test_asked_again_the_unfinished_quiz_comes_back(
     assert unknown.startswith("Error: no grammar point matches"), unknown
 
 
-async def answer(db: AsyncSession, set_id: uuid.UUID, rights: list[bool]) -> None:
-    """Fill the set with checks answered right or wrong, and finish it."""
+async def answer(db: AsyncSession, set_id: uuid.UUID, rights: list[bool | None]) -> None:
+    """Fill the set with checks answered right, wrong or (None) not yet; finish it
+    when all are answered."""
     row = await db.get(ExerciseSet, set_id)
     assert row is not None
     user_id = row.user_id
@@ -135,6 +136,8 @@ async def answer(db: AsyncSession, set_id: uuid.UUID, rights: list[bool]) -> Non
         )
         db.add(item)
         await db.flush()
+        if right is None:
+            continue
         choice = body.answer.correct if right else "past"
         db.add(
             Attempt(
@@ -145,7 +148,7 @@ async def answer(db: AsyncSession, set_id: uuid.UUID, rights: list[bool]) -> Non
                 latency_ms=1000,
             )
         )
-    row.status = "done"
+    row.status = "in_progress" if None in rights else "done"
     await db.commit()
 
 
@@ -172,7 +175,43 @@ async def test_the_next_turn_sees_the_results(
     await send(client, conversation, "Done!")
     prompt = system_text(script.calls[0][1])
     assert "all answered, 1 of 2 right" in prompt
-    assert "answered 'past', expected 'he is one person'" in prompt
+    assert "they answered 'past' (wrong); key: 'he is one person'" in prompt
+
+
+async def test_the_latest_quiz_lists_its_questions(
+    client: AsyncClient, db_session: AsyncSession, script: Script
+) -> None:
+    """Task 95: the tutor sees the questions of the latest quiz, answered or not, so it
+    can explain them; earlier quizzes stay one line."""
+    conversation = await ready(client)
+    script.replies = [[tool_call("give_quiz", kc_id=KC, purpose="check", asked=True)], "Go."]
+    await send(client, conversation, "Check me.")
+    (older,) = await quiz_sets(db_session)
+    await answer(db_session, older.id, [False])
+    script.replies = [
+        [tool_call("give_quiz", kc_id=KC, purpose="quiz", asked=True, fresh=True)],
+        "Go.",
+    ]
+    await send(client, conversation, "Now the real quiz.")
+    (newer,) = [r for r in await quiz_sets(db_session) if r.id != older.id]
+    await answer(db_session, newer.id, [True, None])
+    script.calls.clear()
+    script.replies = ["The first one tests -s."]
+
+    await send(client, conversation, "解释下这几个题目的出题意义")
+
+    prompt = system_text(script.calls[0][1])
+    assert "1 of 2 answered so far; its questions, as the card shows them:" in prompt
+    options = "options: 'he is one person' / 'past' / 'plural' / 'polite'"
+    assert f"1. \"Why 'lives'?\"; {options}; they answered 'he is one person' (right)" in prompt
+    assert (
+        f"2. \"Why 'lives'?\"; {options}; not answered yet; "
+        "key (say it only if they ask): 'he is one person'"
+    ) in prompt
+    # The older quiz: its result in one line, its questions not listed.
+    assert "all answered, 0 of 1 right; missed: \"Why 'lives'?\", answered 'past'" in prompt
+    assert prompt.count("its questions, as the card shows them") == 1
+    assert "give the\n  answer only when they ask for it outright" in prompt
 
 
 async def test_a_topic_finds_the_grammar_point(

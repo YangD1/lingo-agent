@@ -38,7 +38,11 @@ point by `kc_id` when your context gives one, otherwise by `topic`.
   or after finishing one), set `fresh` true. Never tell them a quiz cannot be made
   today: when a card fails, call `give_quiz` again with `fresh` true if they still
   want it.
-- How the learner did shows in the cards below; go over it when they ask.
+- The latest quiz card below lists its questions as the learner sees them, how they
+  answered and each key. When they ask about the questions, explain what each one
+  tests and how to think it through. For a question they have not answered, give the
+  answer only when they ask for it outright ("直接告诉我答案", "just tell me"); otherwise
+  leave the choosing to them. Go over the ones they answered when they ask.
 
 {quiz_rule}
 
