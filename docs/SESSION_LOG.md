@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-10-17 交接：任务 96 已确认，下一个会话从 96.1 开始
+
+**做了什么**
+- 任务 95.1–95.2 完成并提交（1dcffae、cec160d）：私教看得到最近一张测验卡的全部题目和正确答案（ADR 0051）。
+- 查了 qwen-plus 要题不出卡（dd687ea，见 PROGRESS 任务 96）：没说语法点的“出点题给我测试吧”0/3，说了语法点 9/9。
+- 用户确认顺序：**96 → 95.3 → 90**。
+
+**未完成 / 下一步**
+- **96.1**：`app/cards/quiz.py` 的 `give_quiz` 处理（`GiveQuiz` 在 `app/cards/tools.py:170` 附近）：`kc_id`、`topic` 都没给时，用 `adaptive/course.py` 的 `load(...)` 得到 `Course.current` 作为语法点；没有当前课就返回错误让私教问学习者；工具结果写明选了哪个。注意课程对话 `CardScope` 的范围限制、`asked=false` 主动出题的规则不变。`tutor_tools.md` 测验一节把 “If they name no grammar point, use the one you were just talking about” 改成：没在聊哪个语法点时两个都不填。测试加在 `tests/integration/test_quiz_tools.py`（现有“invalid arguments: give kc_id or topic”的断言要改）。
+- **96.2**：ADR 0046 补一条（或写 ADR 0052）、`agent-tools.md` 的 `give_quiz` 行；百炼冒烟“出点题给我测试吧”×3（方法见记忆 real-model-smoke-backend，新账号无课程进度时也要有当前课，确认 `Course.current` 在新账号下非空）；全量 pytest、lint、Docker 重建后端。
+- **95.3**（用户已同意）：回复结束后字符串匹配没答的过关测验题的正确答案，命中的题标“私教讲过答案”，之后作答不计过关分（`adaptive/course.py` `quiz_scores`）、不记证据（`adaptive/exercise/answer.py` 约 365 行 `counted`），卡片标注。需要新列（`exercises` 加 `revealed_at` 之类）→ 迁移。开工前先把子任务和测试层写进看板给用户确认。
+- **90**：长期记忆，开工前请用户补充跨会话具体哪里不好。
+- 任务 86–96 本地未推送。
+
+**踩坑**
+- 冒烟后端里工具被拒的原因：`checkpoint_writes` 的 blob 用 `position('Error:' in encode(blob,'escape'))` 截取，psql 正则写 `{0,300}` 会报 invalid repetition count。
+
+---
+
 ## 2026-10-17 任务 95.1–95.2 完成：私教看得到测验卡里的题
 
 **做了什么**
