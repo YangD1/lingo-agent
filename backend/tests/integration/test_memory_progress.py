@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
+from app.advice.candidates import Candidate, Example
 from app.db.models import (
     Article,
     ExerciseSet,
@@ -198,3 +199,47 @@ def test_the_section_stays_short() -> None:
     )
 
     assert len(render_progress(progress)) <= 900
+
+
+async def test_free_chat_gets_the_engines_next_steps(db_session: AsyncSession) -> None:
+    """ADR 0054 §4: a new learner is told to take the placement test and choose a book,
+    each with the card for it; other conversations don't get them."""
+    me, _ = await _learner(db_session)
+
+    progress = await load_progress(
+        db_session, me, rules=RULES, catalog=CATALOG, now=NOW, suggest=True
+    )
+    plain = await load_progress(db_session, me, rules=RULES, catalog=CATALOG, now=NOW)
+
+    assert 0 < len(progress.suggestions) <= 2
+    assert not any(c.snoozed for c in progress.suggestions)
+    assert not plain.suggestions
+    text = render_progress(progress)
+    assert "- Suggested next by the learning engine, best first" in text
+    assert "card: `suggest_link` with `placement`" in text
+    assert "Suggested next" not in render_progress(plain)
+
+
+def test_a_grammar_suggestion_names_its_practice_card() -> None:
+    kc = CATALOG.get(KC)
+    assert kc is not None
+    progress = Progress(
+        today=NOW.date(),
+        suggestions=[
+            Candidate(
+                id="grammar_practice:x",
+                kind="grammar_practice",
+                score=1.0,
+                count=3,
+                kc=kc,
+                p_mastery=0.2,
+                examples=(Example("He go home.", "He goes home."),),
+            )
+        ],
+    )
+
+    text = render_progress(progress)
+
+    assert f"card: `suggest_practice` with `{KC}`" in text
+    # The mistake sits under its suggestion.
+    assert '\n    - mistake: "He go home." -> "He goes home."' in text

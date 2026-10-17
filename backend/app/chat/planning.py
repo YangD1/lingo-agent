@@ -29,8 +29,8 @@ from app.adaptive.daily_plan.card import PlanTarget
 from app.adaptive.daily_plan.service import PlanView
 from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
 from app.adaptive.rules import get_rules
-from app.advice.candidates import Candidate, Kind, candidates
-from app.advice.describe import describe
+from app.advice.candidates import Candidate, candidates
+from app.advice.describe import CARD_LINKS, describe
 from app.cards.tools import CardScope, LinkKind
 from app.chat.recent import RecentStudy, load_recent, render_recent
 from app.db.models import KCEvidence, KCMastery, PlacementSession
@@ -42,15 +42,6 @@ type PlanningPurpose = Literal["planning", "daily"]
 
 # Grammar points the latest test found weak, weakest first.
 MISSED_SHOWN = 5
-
-# The page each advice candidate leads to, as a link card.
-_LINKS: dict[Kind, LinkKind] = {
-    "vocab_review": "vocab_review",
-    "vocab_learn": "vocab_review",
-    "vocab_screen": "vocab_screen",
-    "placement": "placement",
-    "choose_book": "word_books",
-}
 
 
 @dataclass(frozen=True)
@@ -79,7 +70,7 @@ class PlanningBrief:
         """The practice and link cards the tutor may show, and the plan it may replace."""
         kc_ids = {m.kc.id for m in self.missed}
         kc_ids |= {c.kc.id for c in self.candidates if c.kc is not None}
-        links: set[LinkKind] = {_LINKS[c.kind] for c in self.candidates if c.kind in _LINKS}
+        links: set[LinkKind] = {CARD_LINKS[c.kind] for c in self.candidates if c.kind in CARD_LINKS}
         links.add("learner")  # the placement result's skill estimates are shown there
         links.add("speaking")  # a speaking practice is always open (Q59g)
         target = None

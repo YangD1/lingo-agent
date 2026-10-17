@@ -61,7 +61,8 @@ class DatabaseLearner:
     whose own summary is left out (its messages are already in the prompt). None: no
     conversation yet (a realtime call is set up before its conversation exists).
     `progress_days` False leaves the last days out of the progress section: the daily
-    conversation's brief has them already."""
+    conversation's brief has them already. `suggestions` adds the learning engine's
+    next steps to it, for free chat (ADR 0054 §4)."""
 
     def __init__(
         self,
@@ -71,12 +72,14 @@ class DatabaseLearner:
         embedder: MemoryEmbedder | None,
         *,
         progress_days: bool = True,
+        suggestions: bool = False,
     ) -> None:
         self._sessionmaker = sessionmaker
         self._user_id = user_id
         self._conversation_id = conversation_id
         self._embedder = embedder
         self._progress_days = progress_days
+        self._suggestions = suggestions
 
     async def load(self, query: str) -> LearnerContext:
         async with self._sessionmaker() as session:
@@ -113,7 +116,11 @@ class DatabaseLearner:
         try:
             async with self._sessionmaker() as session:
                 found = await load_progress(
-                    session, self._user_id, rules=get_rules(), catalog=get_grammar_catalog()
+                    session,
+                    self._user_id,
+                    rules=get_rules(),
+                    catalog=get_grammar_catalog(),
+                    suggest=self._suggestions,
                 )
                 await session.commit()  # stale mastery rows may have been rebuilt
         except Exception:

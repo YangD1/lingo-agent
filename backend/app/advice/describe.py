@@ -4,7 +4,22 @@ The dashboard's and the planning conversation's prompts list what the learning e
 suggests; the tutor talks about these and may only offer cards within them.
 """
 
-from app.advice.candidates import Candidate
+from typing import TYPE_CHECKING
+
+from app.advice.candidates import Candidate, Kind
+
+if TYPE_CHECKING:  # cards.tools imports the memory modules that import this one
+    from app.cards.tools import LinkKind
+
+# The page each advice candidate leads to, as a link card; grammar_practice is a
+# practice card instead.
+CARD_LINKS: "dict[Kind, LinkKind]" = {
+    "vocab_review": "vocab_review",
+    "vocab_learn": "vocab_review",
+    "vocab_screen": "vocab_screen",
+    "placement": "placement",
+    "choose_book": "word_books",
+}
 
 # Per mistake example given to the model.
 MAX_EXAMPLE_CHARS = 200
@@ -63,3 +78,10 @@ def describe(c: Candidate) -> str:
                 fixed = f" -> {_quote(e.correction)}" if e.correction else ""
                 what += f"\n  - mistake: {_quote(e.original)}{fixed}"
             return what
+
+
+def card_for(c: Candidate) -> str:
+    """The tool call that puts a candidate on a card, for the tutor's prompt."""
+    if c.kc is not None:
+        return f"`suggest_practice` with `{c.kc.id}`"
+    return f"`suggest_link` with `{CARD_LINKS[c.kind]}`"

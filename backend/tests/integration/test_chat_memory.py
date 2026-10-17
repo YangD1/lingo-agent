@@ -134,7 +134,7 @@ async def test_facts_reflection_adds_wait_for_the_next_sitting(
     await send(client, conversation, "Next one")
     prompt = recorder.prompts[-1]
     assert "Prefers examples about cooking" in prompt
-    assert "job interview" not in prompt and "word book" not in prompt
+    assert "job interview" not in prompt and "word book too easy" not in prompt
 
     # Back after a break: a new sitting brings in what reflection wrote meanwhile.
     await db_session.execute(

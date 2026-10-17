@@ -713,6 +713,8 @@ async def _reply(
             memory_embedder(turn.providers),
             # The daily brief counts the last days already (ADR 0041 §3).
             progress_days=not (planning is not None and turn.planning == "daily"),
+            # "You decide" in free chat needs a next step (ADR 0054 §4).
+            suggestions=turn.free_chat,
         ),
         activity=activity,
         route=route,
