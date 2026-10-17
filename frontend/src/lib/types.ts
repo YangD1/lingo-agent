@@ -243,6 +243,10 @@ export type Memory = {
   content: string;
   source_conversation_id: string | null;
   source_title: string | null;
+  /** A fact the tutor rewrote or dropped; restorable (ADR 0053 §4). */
+  status: "active" | "superseded";
+  /** What replaced it; null when the tutor dropped it outright. */
+  superseded_by_id: string | null;
   created_at: string;
   updated_at: string;
 };

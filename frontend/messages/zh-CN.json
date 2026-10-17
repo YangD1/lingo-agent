@@ -765,14 +765,21 @@
     },
     "fact": {
       "title": "助手记住的事",
-      "description": "从对话中记下的关于你的信息，每次新对话都会用到。不对的可以直接编辑或删除。",
+      "description": "从对话中记下的关于你的信息，每次新对话都会用到。不对的可以直接编辑或删除；助手改写或删掉的旧说法留在最下面，可以恢复。",
       "addLabel": "告诉助手一件要记住的事",
       "addPlaceholder": "例如：我十月底有一场面试。",
       "add": "记住这条",
       "empty": "还没有。你在聊天中提到关于自己的信息时，助手会记下来。",
       "clear": "忘掉全部事实",
       "confirmDelete": "删除这条记忆？删除后无法恢复。",
-      "confirmClear": "删除全部记住的事实？删除后无法恢复。"
+      "confirmClear": "删除全部记住的事实？删除后无法恢复。",
+      "earlier": "之前的说法（{count}）",
+      "supersededTitle": "已被替代（{count}）",
+      "supersededHint": "助手根据后来的对话改写或删掉的，不会再用。觉得旧的说得对，可以恢复。",
+      "replacedWith": "已改成：{content}",
+      "dropped": "助手删掉了这条",
+      "restore": "恢复",
+      "confirmDeleteOld": "彻底删除这条旧说法？删除后无法恢复。"
     },
     "episode": {
       "title": "会话摘要",

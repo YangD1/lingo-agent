@@ -765,14 +765,21 @@
     },
     "fact": {
       "title": "Things the assistant remembers",
-      "description": "Facts picked up from your conversations and used in every new one. Edit or delete anything that is wrong.",
+      "description": "Facts picked up from your conversations and used in every new one. Edit or delete anything that is wrong; what the assistant rewrote or dropped stays at the bottom and can be restored.",
       "addLabel": "Tell the assistant something to remember",
       "addPlaceholder": "e.g. I have a job interview in late October.",
       "add": "Remember this",
       "empty": "Nothing yet. The assistant remembers things you mention about yourself in chat.",
       "clear": "Forget all facts",
       "confirmDelete": "Delete this memory? This can't be undone.",
-      "confirmClear": "Delete every remembered fact? This can't be undone."
+      "confirmClear": "Delete every remembered fact? This can't be undone.",
+      "earlier": "Earlier versions ({count})",
+      "supersededTitle": "Replaced ({count})",
+      "supersededHint": "Rewritten or dropped by the assistant after later conversations, and no longer used. Restore one if the old version was right.",
+      "replacedWith": "Now: {content}",
+      "dropped": "The assistant dropped this",
+      "restore": "Restore",
+      "confirmDeleteOld": "Delete this old version for good? This can't be undone."
     },
     "episode": {
       "title": "Conversation summaries",
