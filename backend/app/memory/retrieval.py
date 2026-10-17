@@ -24,6 +24,10 @@ RECENCY_BONUS = 0.3
 RECENCY_HALF_LIFE_DAYS = 14.0
 # Word overlap (Jaccard) at which a summary repeats one already picked.
 DUPLICATE_OVERLAP = 0.6
+# A new fact this close to a remembered one replaces it (ADR 0053 §5). Short facts share
+# little: "Has a cat" / "Has a dog" overlap 0.5 on two words, so a few must be shared.
+FACT_DUPLICATE_OVERLAP = 0.6
+FACT_DUPLICATE_SHARED = 3
 
 _WORD = re.compile(r"[a-z0-9]+(?:'[a-z]+)?")
 _HAN = re.compile(r"[㐀-䶿一-鿿豈-﫿]+")
@@ -71,6 +75,19 @@ def bm25(query: Sequence[str], docs: Sequence[Sequence[str]]) -> list[float]:
 
 def overlap(a: set[str], b: set[str]) -> float:
     return len(a & b) / len(a | b) if a or b else 1.0
+
+
+def near_duplicate[K: Hashable](text: str, facts: Sequence[tuple[K, str]]) -> K | None:
+    """The fact `text` most likely restates, if any is close enough to replace."""
+    words = set(tokens(text))
+    best: tuple[float, K] | None = None
+    for key, fact in facts:
+        other = set(tokens(fact))
+        score = overlap(words, other)
+        if len(words & other) >= FACT_DUPLICATE_SHARED and score >= FACT_DUPLICATE_OVERLAP:
+            if best is None or score > best[0]:
+                best = (score, key)
+    return best[1] if best else None
 
 
 def pick[K: Hashable](

@@ -2,7 +2,9 @@
 
 from datetime import UTC, datetime, timedelta
 
-from app.memory.retrieval import Candidate, bm25, overlap, pick, tokens
+import pytest
+
+from app.memory.retrieval import Candidate, bm25, near_duplicate, overlap, pick, tokens
 
 NOW = datetime(2026, 10, 17, 12, tzinfo=UTC)
 
@@ -84,3 +86,43 @@ def test_overlap() -> None:
     assert overlap({"a", "b"}, {"a", "b"}) == 1.0
     assert overlap({"a", "b"}, {"c"}) == 0.0
     assert overlap(set(), set()) == 1.0
+
+
+# ADR 0053 §5: measured pairs. Word overlap cannot tell a changed fact from a different
+# one, so the bar is high: rewordings are caught, different facts never are, and a
+# change like 下个月 -> 下周 is left to the model's own update.
+@pytest.mark.parametrize(
+    ("new", "old"),
+    [
+        ("Has a job interview next month in Shanghai.", "Has a job interview next month."),
+        ("Works as a nurse in a hospital.", "Works as a nurse."),
+        ("Has a job interview next week.", "Has a job interview next month."),
+        ("喜欢先做题，再听讲解。", "喜欢先做题再听讲解。"),  # noqa: RUF001 (Chinese punctuation)
+        ("觉得 Oxford 3000 词书太简单了。", "觉得 Oxford 3000 词书太简单。"),
+        ("正在准备雅思考试。", "在准备雅思考试。"),
+    ],
+)
+def test_a_rewording_replaces_the_fact_it_restates(new: str, old: str) -> None:
+    assert near_duplicate(new, [("other", "Likes jazz."), ("old", old)]) == "old"
+
+
+@pytest.mark.parametrize(
+    ("new", "old"),
+    [
+        ("Has a dog.", "Has a cat."),
+        ("有一只狗。", "有一只猫。"),
+        ("Likes hiking.", "Likes jazz."),
+        ("喜欢看新闻。", "喜欢看电影。"),
+        ("Is preparing for a job interview.", "Is preparing for IELTS."),
+        ("在准备考研。", "在准备雅思考试。"),
+        ("Works night shifts.", "Works as a nurse."),
+        ("下周有面试。", "下个月有面试。"),  # a change, but too few shared pairs
+    ],
+)
+def test_a_different_fact_is_added_beside(new: str, old: str) -> None:
+    assert near_duplicate(new, [("old", old)]) is None
+
+
+def test_the_closest_of_several_is_replaced() -> None:
+    facts = [("far", "Works as a nurse."), ("near", "Works as a nurse in a hospital.")]
+    assert near_duplicate("Works as a nurse in a big hospital.", facts) == "near"

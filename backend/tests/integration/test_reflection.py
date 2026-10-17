@@ -404,3 +404,43 @@ async def test_operations_only_touch_the_facts_the_model_was_shown(
     assert old["Lives in Shanghai."].superseded_by_id == applied.updated[0] != rows[0].id
     profile = await service.get_profile(db_session, user.id)
     assert profile is not None and (profile.goal, profile.daily_minutes) == ("Pass IELTS", 30)
+
+
+async def test_a_reworded_fact_replaces_one_the_model_was_not_shown(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """ADR 0053 §5: an older fact beyond what the model saw is replaced, not doubled."""
+    await login(client)
+    user, tenant_id = await learner(db_session)
+    conversation = Conversation(tenant_id=tenant_id, user_id=user.id)
+    db_session.add(conversation)
+    await db_session.commit()
+    hidden = await service.add_memory(
+        db_session, tenant_id=tenant_id, user_id=user.id, kind="fact", content="在准备雅思考试。"
+    )
+    shown = await service.add_memory(
+        db_session, tenant_id=tenant_id, user_id=user.id, kind="fact", content="有一只猫。"
+    )
+
+    applied = await reflection.apply_reflection(
+        db_session,
+        Reflection(
+            memory_ops=[
+                MemoryOp(action="add", content="正在准备雅思考试。"),
+                MemoryOp(action="add", content="正在准备雅思考试了。"),  # rewords the new one
+                MemoryOp(action="add", content="有一只狗。"),  # a different fact
+            ]
+        ),
+        tenant_id=tenant_id,
+        user_id=user.id,
+        conversation_id=conversation.id,
+        facts=[KnownFact(shown.id, shown.content)],
+        embedder=None,
+    )
+
+    assert (len(applied.added), len(applied.updated)) == (1, 1)
+    active = {m.content for m in await service.list_memories(db_session, user.id, "fact")}
+    assert active == {"正在准备雅思考试。", "有一只猫。", "有一只狗。"}
+    every = await service.list_memories(db_session, user.id, "fact", include_superseded=True)
+    old = next(m for m in every if m.id == hidden.id)
+    assert (old.status, old.superseded_by_id) == ("superseded", applied.updated[0])

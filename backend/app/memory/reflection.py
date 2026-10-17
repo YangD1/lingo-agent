@@ -23,7 +23,7 @@ from app.adaptive.evidence import ChatEvidence
 from app.adaptive.kc.catalog import ErrorType, GrammarCatalog, get_grammar_catalog
 from app.adaptive.rules import Severity
 from app.db.models import UserProfile
-from app.memory import service
+from app.memory import retrieval, service
 from app.memory.context import profile_lines
 from app.memory.embedding import MemoryEmbedder
 from app.prompts import load_prompt
@@ -259,9 +259,13 @@ async def apply_reflection(
     facts: Sequence[KnownFact],
     embedder: MemoryEmbedder | None,
 ) -> Applied:
-    """Carry out the operations; `facts` must be the list the model was shown."""
+    """Carry out the operations; `facts` must be the list the model was shown.
+
+    A new fact that rewords a remembered one, shown to the model or not, replaces it
+    instead of being added beside it (ADR 0053 §5)."""
     ids = fact_ids(facts)
-    known = {_normalized(f.content) for f in facts}
+    remembered = {m.id: m.content for m in await service.list_memories(session, user_id, "fact")}
+    known = {_normalized(c) for c in remembered.values()} | {_normalized(f.content) for f in facts}
     added: list[uuid.UUID] = []
     updated: list[uuid.UUID] = []
     deleted = 0
@@ -269,20 +273,41 @@ async def apply_reflection(
     for op in reflection.memory_ops:
         try:
             if op.action == "add":
+                content = op.content or ""
+                if _normalized(content) in known:
+                    continue
+                target = retrieval.near_duplicate(content, list(remembered.items()))
+                if target is not None:
+                    if target in touched:  # already changed this turn
+                        continue
+                    known.add(_normalized(content))
+                    memory = await service.supersede_memory(
+                        session,
+                        user_id,
+                        target,
+                        content,
+                        source_conversation_id=conversation_id,
+                        embedder=embedder,
+                    )
+                    del remembered[target]
+                    remembered[memory.id] = memory.content
+                    touched.update((target, memory.id))
+                    updated.append(memory.id)
+                    continue
                 if len(added) >= MAX_ADDS_PER_TURN or len(facts) + len(added) >= MAX_FACTS:
                     continue
-                if _normalized(op.content or "") in known:
-                    continue
-                known.add(_normalized(op.content or ""))
+                known.add(_normalized(content))
                 memory = await service.add_memory(
                     session,
                     tenant_id=tenant_id,
                     user_id=user_id,
                     kind="fact",
-                    content=op.content or "",
+                    content=content,
                     source_conversation_id=conversation_id,
                     embedder=embedder,
                 )
+                remembered[memory.id] = memory.content
+                touched.add(memory.id)  # a later rewording of it is left out
                 added.append(memory.id)
                 continue
             memory_id = ids.get(op.id or "")
@@ -300,10 +325,13 @@ async def apply_reflection(
                     source_conversation_id=conversation_id,
                     embedder=embedder,
                 )
+                remembered[memory.id] = memory.content
+                touched.add(memory.id)
                 updated.append(memory.id)
             else:
                 await service.retire_memory(session, user_id, memory_id)
                 deleted += 1
+            remembered.pop(memory_id, None)
         except (ValueError, service.MemoryNotFoundError):
             # Empty or overlong content, or the learner deleted it meanwhile.
             await session.rollback()
