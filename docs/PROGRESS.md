@@ -1252,8 +1252,9 @@
     - 完成：没有放进调度器，改成 `ReflectionWorker.sweep_idle` + `start_sweeping`（进程内每 10 分钟，`main.py` 在 `recover` 之后启动，`stop` 时取消）：调度器任务拿不到进程内的 worker，而且每 10 分钟会在后台任务页和 `scheduler_runs` 刷出很多记录。条件：2 天内有更新、闲置满 30 分钟、没有晚于会话最后更新的摘要；按 `finish=True` 交给 worker。ADR 0052 §2、`agent-tools.md`（活动表、反思摘要行、实时语音开场带近况）已同步。测试：pytest 新增 1 个（刚说完不扫、太久不扫、闲置时写满 2 轮的摘要、写过不再扫、有新一轮又扫），`test_reflection.py` 10 个全过，mypy 干净
   - [x] 90.6 B 写摘要时给卡片结果、改提示词：把这段会话的卡片和测验进度（复用 `cards.service.render_context`）一起交给写摘要的模型；提示词要求写清测验结果和没做完的事，不写它判断不了的话（“第一次对话”）；按输入量更新 `features.yaml` 里 `reflect` 的估计。测试：pytest（摘要输入里有卡片结果；提示词装配）
     - 完成：`reflection.summary_input` 多一节“Cards in this conversation, as they stand now”，worker 读最近 10 张卡；`render_context` 加 `questions` 开关，摘要不列题面和答案；`reflect_summary.md` 要求测验结果以卡片为准、不写跨会话的话。`features.yaml` 没改（理由写进 ADR 0052 后果）。评估集没有摘要用例，不受影响。测试：pytest 新增 1 个（做完的测验卡在摘要输入里是“all answered, 1 of 2 right”、不带题面），reflection / quiz / chat_tools / unit 共 1254 个过，lint 干净
-  - [~] 90.7 C 挑摘要：纯函数做 BM25（中文按 2 字组、英文按词，标题加权、越新越加分）和近似重复过滤；没配 embedding 时用 BM25 挑，配了时向量结果也过一遍去重，空位按时间补。每人的摘要最多几百条，在进程里算，不建索引。测试：pytest 单测（打分、去重、中英混合）+ 集成测试（`relevant_episodes` 三条一样的只留一条）
-  - [ ] 90.8 E 抽取提示词：`prompts/reflect.md` 要求记下水平和偏好信号（“觉得某本词书太简单”“喜欢先做题再听讲”），并给正反例；不记一次性的请求（“出题给我”）。测试：pytest 提示词装配；评估集如果有反思用例就加 2–3 条回放用例，没有就不新建
+  - [x] 90.7 C 挑摘要：纯函数做 BM25（中文按 2 字组、英文按词，标题加权、越新越加分）和近似重复过滤；没配 embedding 时用 BM25 挑，配了时向量结果也过一遍去重，空位按时间补。每人的摘要最多几百条，在进程里算，不建索引。测试：pytest 单测（打分、去重、中英混合）+ 集成测试（`relevant_episodes` 三条一样的只留一条）
+    - 完成：`memory/retrieval.py`（`tokens` 英文词 + 中文 2 字组、`bm25` k1 1.2 / b 0.75、会话标题算两遍、14 天半衰的最多 30% 新近加成、Jaccard ≥ 0.6 算重复）；`service.relevant_episodes` 取最新 500 条连同会话标题，配了 embedding 时向量最近的排前（多取 3 倍给去重留余地），没配时 BM25，空位按时间补，条数不超过上限时仍不调 embedding。`agent-tools.md` 同步。测试：pytest 单测 6 个（分词、打分、标题和新近、去重、embedding 结果也去重）+ 集成 1 个（三条“出题测试主语加动词”只留一条；问火箭新闻找回更早的那条），`test_memory_service.py` 15 个过，ruff、mypy 干净
+  - [~] 90.8 E 抽取提示词：`prompts/reflect.md` 要求记下水平和偏好信号（“觉得某本词书太简单”“喜欢先做题再听讲”），并给正反例；不记一次性的请求（“出题给我”）。测试：pytest 提示词装配；评估集如果有反思用例就加 2–3 条回放用例，没有就不新建
   - [ ] 90.9 A–E 收尾：全量 pytest、Vitest、chat 相关 E2E 回归，lint；Docker 重建；用百炼 key 冒烟（临时账号，两个会话，第二个会话里问“我上次学到哪了”）
   - [ ] 90.10 D（热记忆的 token 上限和会话内固定、旧记忆标成“被替代”而不是删、写入前查近似重复让模型选更新还是新增）：要迁移、另写 ADR，等 C、E 做完后再拆、再确认。注意它和 ADR 0009 §4 冲突的地方：学习者删掉的记忆下一轮就不能再用，所以“固定”只能固定新增，删除和修改要马上生效
   - Q90a（已确认，按推荐）近况放进所有会话，包括实时语音；每日 / 计划会话里已经有的 7 天计数不重复写

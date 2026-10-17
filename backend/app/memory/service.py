@@ -7,6 +7,7 @@ a missing one. Embeddings are computed before touching the database, so no trans
 
 import uuid
 from collections.abc import Mapping, Sequence
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from sqlalchemy import CursorResult, delete, select
@@ -14,7 +15,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
-from app.db.models import Memory, UserProfile
+from app.db.models import Conversation, Memory, UserProfile
+from app.memory import retrieval
 from app.memory.embedding import MemoryEmbedder
 
 type MemoryKind = Literal["fact", "episode"]
@@ -22,6 +24,8 @@ type MemoryKind = Literal["fact", "episode"]
 MAX_CONTENT_LENGTH = 1000
 # All facts go into the tutor's prompt, so they are capped (the newest win).
 MAX_FACTS_IN_CONTEXT = 40
+# The newest summaries considered for a turn; older ones are left out.
+MAX_EPISODES_SCORED = 500
 # Fields the learner and reflection may set; `manual_fields` itself is bookkeeping.
 PROFILE_FIELDS: frozenset[str] = frozenset(
     {
@@ -258,38 +262,51 @@ async def relevant_episodes(
     embedder: MemoryEmbedder | None,
     limit: int = 3,
     exclude_conversation_id: uuid.UUID | None = None,
+    now: datetime | None = None,
 ) -> list[Memory]:
-    """Summaries of other conversations, most related to `query` first.
+    """Summaries of other conversations, most related to `query` first, none
+    repeating another (ADR 0052 §4).
 
     With an embedding model: nearest by cosine distance among vectors from that same
-    model, then topped up with the most recent ones (rows embedded by another model, or
-    not at all). Without one, or when there are no more than `limit` anyway: the most
-    recent.
+    model. Without one: BM25 over the words (`retrieval.pick`). Either way topped up
+    with the most recent. When there are no more than `limit` anyway, no embedding
+    call is made.
     """
     base = select(Memory).where(Memory.user_id == user_id, Memory.kind == "episode")
     if exclude_conversation_id is not None:
         base = base.where(Memory.source_conversation_id.is_distinct_from(exclude_conversation_id))
-    recent = list(
-        await session.scalars(base.order_by(Memory.updated_at.desc(), Memory.id).limit(limit + 1))
+    rows = await session.execute(
+        base.add_columns(Conversation.title)
+        .outerjoin(Conversation, Conversation.id == Memory.source_conversation_id)
+        .order_by(Memory.updated_at.desc(), Memory.id)
+        .limit(MAX_EPISODES_SCORED)
     )
-    if len(recent) <= limit:
-        return recent  # all of them anyway: skip the embedding call and its latency
-    picked: list[Memory] = []
-    vector = await embedder.embed(query) if embedder and query.strip() else None
-    if embedder is not None and vector is not None:
-        nearest = await session.scalars(
-            base.where(Memory.embedding_model == embedder.model_id)
-            .order_by(Memory.embedding.cosine_distance(vector))
-            .limit(limit)
-        )
-        picked = list(nearest)
-    if len(picked) < limit:
-        rest = base.where(Memory.id.not_in([m.id for m in picked])) if picked else base
-        newest = await session.scalars(
-            rest.order_by(Memory.updated_at.desc(), Memory.id).limit(limit - len(picked))
-        )
-        picked.extend(newest)
-    return picked
+    found = [(memory, title or "") for memory, title in rows.all()]
+    by_id = {memory.id: memory for memory, _ in found}
+    first: list[uuid.UUID] = []
+    if len(found) > limit and embedder is not None and query.strip():
+        vector = await embedder.embed(query)
+        if vector is not None:
+            first = list(
+                await session.scalars(
+                    base.with_only_columns(Memory.id)
+                    .where(Memory.embedding_model == embedder.model_id)
+                    .order_by(Memory.embedding.cosine_distance(vector))
+                    .limit(limit * 3)  # room for the repeats left out
+                )
+            )
+    candidates = [
+        retrieval.Candidate(memory.id, memory.content, title, memory.updated_at)
+        for memory, title in found
+    ]
+    picked = retrieval.pick(
+        query if len(found) > limit else "",
+        candidates,
+        limit,
+        now=now or datetime.now(UTC),
+        first=first,
+    )
+    return [by_id[key] for key in picked]
 
 
 async def memories_missing_embeddings(

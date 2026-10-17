@@ -235,6 +235,32 @@ async def test_relevant_episodes_without_embeddings_are_the_most_recent(
     assert contents(found) == ["third", "second"]
 
 
+async def test_repeating_episodes_take_one_place_and_words_find_older_ones(
+    db_session: AsyncSession,
+) -> None:
+    """ADR 0052 §4, with summaries like the ones that crowded out everything else."""
+    user, tenant_id = await new_user(db_session)
+    for text in (
+        "练习 must 和 have to 表示必须, 学会了 breakfast",
+        "读了一篇 SpaceX 火箭发射的新闻, 讲了 lifted off",
+        "学习者要求出题测试主语加动词, 测试尚未完成",
+        "学习者要求出题测试主语加动词, 测试尚未完成, 待跟进",
+        "学习者要求出题测试自己的主语加动词, 测试尚未完成",
+    ):
+        await add_episode(db_session, user, tenant_id, text, None)
+
+    found = await service.relevant_episodes(db_session, user.id, "", embedder=None, limit=3)
+    assert contents(found) == [
+        "学习者要求出题测试自己的主语加动词, 测试尚未完成",
+        "读了一篇 SpaceX 火箭发射的新闻, 讲了 lifted off",
+        "练习 must 和 have to 表示必须, 学会了 breakfast",
+    ]
+    found = await service.relevant_episodes(
+        db_session, user.id, "上次那篇火箭新闻我还没读完", embedder=None, limit=1
+    )
+    assert contents(found) == ["读了一篇 SpaceX 火箭发射的新闻, 讲了 lifted off"]
+
+
 async def test_few_episodes_are_returned_without_an_embedding_call(
     db_session: AsyncSession,
 ) -> None:
