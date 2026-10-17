@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Conversation, TenantMember, User
+from app.db.models import Conversation, ExerciseSet, TenantMember, TutorCard, User
 from app.memory import reflection, service
 from app.memory.reflection import EpisodeSummary, KnownFact, MemoryOp, ProfileUpdate, Reflection
 from app.memory.worker import (
@@ -30,6 +30,7 @@ from tests.integration.test_chat_send import (
     new_conversation,
     send,
 )
+from tests.integration.test_quiz_tools import KC, answer
 
 
 class FakeReflector:
@@ -243,6 +244,49 @@ async def test_a_conversation_left_idle_gets_the_rest_of_its_summary(
     await send(client, left, "Turn 2")
     await idle(app)
     assert await worker.sweep_idle(datetime.now(UTC) + IDLE_AFTER) == 1
+
+
+async def test_the_summary_sees_how_the_cards_stand(
+    client: AsyncClient, app: FastAPI, db_session: AsyncSession, reflector: FakeReflector
+) -> None:
+    """ADR 0052 §3: a quiz answered on its card is summed up with its score, not as
+    still waiting; its questions stay out (the summary needs the result only)."""
+    await login(client)
+    await connect(client, "deepseek")
+    first = await new_conversation(client)
+    await send(client, first, "Quiz me")
+    await idle(app)
+    user, _ = await learner(db_session)
+    quiz = ExerciseSet(
+        user_id=user.id,
+        origin="quiz",
+        quiz_purpose="quiz",
+        status="ready",
+        kc_plan=[],
+        focus_kc_id=KC,
+    )
+    db_session.add(quiz)
+    await db_session.flush()
+    db_session.add(
+        TutorCard(
+            user_id=user.id,
+            conversation_id=uuid.UUID(first),
+            turn_id="t1",
+            tool_call_id="call_quiz",
+            kind="quiz",
+            params={"set_id": str(quiz.id), "kc_id": KC, "purpose": "quiz"},
+            status="info",
+        )
+    )
+    await answer(db_session, quiz.id, [True, False])
+
+    await new_conversation(client)  # moving on: the summary is written
+    await idle(app)
+
+    [prompt] = reflector.summary_prompts
+    cards = prompt.split("## Cards in this conversation, as they stand now")[1]
+    assert "[card call_quiz]" in cards and "all answered, 1 of 2 right" in cards
+    assert "key" not in cards  # no questions listed
 
 
 async def test_disabled_reflection_makes_no_calls(

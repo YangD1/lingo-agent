@@ -221,20 +221,30 @@ async def summarize(
     messages: Sequence[BaseMessage],
     language: str,
     config: RunnableConfig,
+    cards: str = "",
 ) -> str:
-    transcript = render_messages(messages)
-    if len(transcript) > MAX_SUMMARY_INPUT_CHARS:  # keep the most recent part
-        transcript = "[…]\n" + transcript[-MAX_SUMMARY_INPUT_CHARS:]
-    prompt = (
-        f"Write the summary in: {language}\n\n"
-        f"## Previous summary\n{previous or '(none)'}\n\n"
-        f"## Messages since then\n{transcript}"
-    )
+    """`cards`: the conversation's cards as they stand now (ADR 0052 §3), so a quiz
+    answered on its card is not summed up as still waiting."""
+    prompt = summary_input(previous=previous, messages=messages, language=language, cards=cards)
     llm = get_structured_llm(ctx, REFLECT_TASK, EpisodeSummary)
     result = await llm.ainvoke(
         [SystemMessage(load_prompt("reflect_summary")), HumanMessage(prompt)], config=config
     )
     return result.summary
+
+
+def summary_input(
+    *, previous: str, messages: Sequence[BaseMessage], language: str, cards: str
+) -> str:
+    transcript = render_messages(messages)
+    if len(transcript) > MAX_SUMMARY_INPUT_CHARS:  # keep the most recent part
+        transcript = "[…]\n" + transcript[-MAX_SUMMARY_INPUT_CHARS:]
+    return (
+        f"Write the summary in: {language}\n\n"
+        f"## Previous summary\n{previous or '(none)'}\n\n"
+        f"## Messages since then\n{transcript}\n\n"
+        f"## Cards in this conversation, as they stand now\n{cards or '(none)'}"
+    )
 
 
 async def apply_reflection(

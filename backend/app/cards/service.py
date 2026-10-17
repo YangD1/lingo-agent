@@ -548,13 +548,19 @@ def describe(card: TutorCard, quiz: "QuizState | None" = None, *, questions: boo
 
 
 def render_context(
-    cards: Sequence[TutorCard], quizzes: Mapping[uuid.UUID, QuizState] | None = None
+    cards: Sequence[TutorCard],
+    quizzes: Mapping[uuid.UUID, QuizState] | None = None,
+    *,
+    questions: bool = True,
 ) -> str:
     """The cards, oldest first; the latest quiz card still standing lists its questions,
-    the others only how they stand, so earlier quizzes don't fill the prompt."""
+    the others only how they stand, so earlier quizzes don't fill the prompt. Without
+    `questions`, none lists them (the conversation summary, ADR 0052 §3)."""
     quizzes = quizzes or {}
-    listed = next(
-        (c for c in reversed(cards) if c.kind == "quiz" and c.status != "withdrawn"), None
+    listed = (
+        next((c for c in reversed(cards) if c.kind == "quiz" and c.status != "withdrawn"), None)
+        if questions
+        else None
     )
     return "\n".join(
         f"- [card {c.tool_call_id}] "

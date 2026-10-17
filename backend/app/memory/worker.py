@@ -35,6 +35,7 @@ from app.adaptive.evidence import ChatEvidence, record_chat_evidence
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.agents.chat_graph import ChatGraph
+from app.cards import service as cards
 from app.chat.service import thread_config
 from app.db.models import Conversation, Memory, UserProfile
 from app.memory import reflection, service
@@ -475,6 +476,12 @@ class ReflectionWorker:
                     Memory.source_conversation_id == conversation.id,
                 )
             )
+            shown = await cards.conversation_cards(
+                session, conversation.id, limit=cards.CONTEXT_CARDS
+            )
+            card_text = cards.render_context(
+                shown, await cards.quiz_context(session, shown), questions=False
+            )
         episode_id: uuid.UUID | None = None
         status: ActivityStatus
         with timed() as watch:
@@ -486,6 +493,7 @@ class ReflectionWorker:
                         messages=new,
                         language=job.language or DEFAULT_LANGUAGE,
                         config=config,
+                        cards=card_text,
                     )
                 )
             except NoModelConfiguredError:
