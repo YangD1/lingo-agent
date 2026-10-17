@@ -6,6 +6,7 @@ import re
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 import anyio
@@ -27,6 +28,7 @@ from app.chat.service import REPLY_PART_SEPARATOR, thread_config
 from app.chat.speaking import SpeakingSource
 from app.chat.writing import WritingSource
 from app.db.models import Attachment, Conversation
+from app.memory import service as memory
 from app.memory.context import LearnerSource
 from app.providers.config import TenantProviderContext
 from app.workspace.context import WorkspaceSource
@@ -133,6 +135,7 @@ async def begin_turn(
     if attachments:
         assert message_id is not None
         await link_to_message(session, attachments, message_id)
+    memory.start_sitting(conversation, datetime.now(UTC))
     conversation.updated_at = func.now()
     await session.commit()
 

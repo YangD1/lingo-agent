@@ -29,7 +29,7 @@ from app.agents.routing import Route
 from app.cards.tools import ToolOutcome
 from app.chat.practice import Mistake, PracticeFocus
 from app.db.urls import to_psycopg_conninfo
-from app.memory.context import MAX_FACTS_CHARS, LearnerContext
+from app.memory.context import MAX_FACTS_TOKENS, LearnerContext
 from app.prompts import load_prompt
 from app.providers import llm
 from app.providers.config import TenantProviderContext
@@ -242,7 +242,7 @@ class LongMemories:
     episode = uuid.uuid4()
 
     async def load(self, query: str) -> LearnerContext:
-        fact = "x" * (MAX_FACTS_CHARS // 2)
+        fact = "x" * (MAX_FACTS_TOKENS * 4 // 2)  # 4 Latin characters a token
         return LearnerContext(
             profile={"Occupation": "nurse", "Goal": "IELTS"},
             facts=[fact] * 3,

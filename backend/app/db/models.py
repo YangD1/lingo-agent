@@ -299,6 +299,9 @@ class Conversation(TimestampMixin, Base):
     # A speaking conversation's scenario (ADR 0029 §1); NULL for free talk. No FK: the
     # scenarios are a file, checked when the row is written.
     scenario_id: Mapped[str | None] = mapped_column(String(40))
+    # When the learner came back after SITTING_GAP (or first wrote): facts reflection
+    # writes after this wait for the next sitting (ADR 0053 §3). NULL: no turn yet.
+    sitting_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ProviderConnection(TimestampMixin, Base):

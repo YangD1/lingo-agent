@@ -7,10 +7,10 @@ a missing one. Embeddings are computed before touching the database, so no trans
 
 import uuid
 from collections.abc import Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
-from sqlalchemy import CursorResult, delete, select
+from sqlalchemy import CursorResult, delete, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
@@ -24,6 +24,9 @@ type MemoryKind = Literal["fact", "episode"]
 MAX_CONTENT_LENGTH = 1000
 # All facts go into the tutor's prompt, so they are capped (the newest win).
 MAX_FACTS_IN_CONTEXT = 40
+# A learner back after this long starts a new sitting (ADR 0053 §3); a conversation
+# left this long gets its summary finished (ADR 0052 §2).
+SITTING_GAP = timedelta(minutes=30)
 # The newest summaries considered for a turn; older ones are left out.
 MAX_EPISODES_SCORED = 500
 # Fields the learner and reflection may set; `manual_fields` itself is bookkeeping.
@@ -242,15 +245,34 @@ def _set_embedding(
 # --- reading for the tutor ----------------------------------------------------------------
 
 
-async def facts_for_context(
-    session: AsyncSession, user_id: uuid.UUID, *, limit: int = MAX_FACTS_IN_CONTEXT
-) -> list[Memory]:
-    rows = await session.scalars(
-        select(Memory)
-        .where(Memory.user_id == user_id, Memory.kind == "fact")
-        .order_by(Memory.updated_at.desc(), Memory.id)
-        .limit(limit)
+def start_sitting(conversation: Conversation, now: datetime) -> None:
+    """Begin a new sitting when the learner comes back after SITTING_GAP."""
+    if conversation.sitting_started_at is None or now - conversation.updated_at >= SITTING_GAP:
+        conversation.sitting_started_at = now
+
+
+async def sitting_started_at(session: AsyncSession, conversation_id: uuid.UUID) -> datetime | None:
+    return await session.scalar(
+        select(Conversation.sitting_started_at).where(Conversation.id == conversation_id)
     )
+
+
+async def facts_for_context(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    limit: int = MAX_FACTS_IN_CONTEXT,
+    sitting_since: datetime | None = None,
+) -> list[Memory]:
+    """The newest facts. With `sitting_since`, the ones reflection added after it wait
+    for the next sitting, so the prompt prefix stays the same (ADR 0053 §3); the
+    learner's own additions (no source conversation) count at once."""
+    query = select(Memory).where(Memory.user_id == user_id, Memory.kind == "fact")
+    if sitting_since is not None:
+        query = query.where(
+            or_(Memory.created_at <= sitting_since, Memory.source_conversation_id.is_(None))
+        )
+    rows = await session.scalars(query.order_by(Memory.updated_at.desc(), Memory.id).limit(limit))
     return list(rows)
 
 

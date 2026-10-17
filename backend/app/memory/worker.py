@@ -61,7 +61,7 @@ FACTS_SHOWN = 60
 RECOVER_WITHIN = timedelta(days=1)
 # A conversation left this long gets the rest of its summary written (ADR 0052 §2),
 # looked for this often among those active this far back.
-IDLE_AFTER = timedelta(minutes=30)
+IDLE_AFTER = service.SITTING_GAP
 SWEEP_EVERY = timedelta(minutes=10)
 SWEEP_WITHIN = timedelta(days=2)
 DEFAULT_LANGUAGE = "English"

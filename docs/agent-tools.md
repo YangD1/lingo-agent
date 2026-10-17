@@ -140,7 +140,7 @@
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
-| 读取学习者上下文 | `agents/chat_graph.py` `load_context` | 画像、事实记忆、相关的会话摘要（配了 embedding 按向量，没配按 BM25 关键词；几乎一样的只取一条，空位按时间补，ADR 0052 §4） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` | `embedding/memory`（有配置时用于检索摘要） | 回复下“JOJO做了什么”；`/memory` 页面查看、修改、删除 |
+| 读取学习者上下文 | `agents/chat_graph.py` `load_context` | 画像、事实记忆（最新的约 1200 token；这一段会话开始后反思新记的下一段才带，学习者自己删改加的下一轮生效，ADR 0053 §3）、相关的会话摘要（配了 embedding 按向量，没配按 BM25 关键词；几乎一样的只取一条，空位按时间补，ADR 0052 §4） | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` | `embedding/memory`（有配置时用于检索摘要） | 回复下“JOJO做了什么”；`/memory` 页面查看、修改、删除 |
 | 读取学习近况（所有会话，含实时语音的开场） | `memory/progress.py` `load_progress`，由 `memory/context.py` `DatabaseLearner` 在 `load_context` 里调用；提示词 `prompts/learner_context.md` | 语法课程当前课和已过课数、最近 3 组测验的题数 / 作答 / 答对（讲过答案的按答错）、当前词书进度、最近 2 篇阅读的标题（外部来源，标明是资料）、最近 7 天学了几天（每日会话的简报里已有，那里不重复） | 无（只放进本次 prompt，不进 checkpoint；课程计算可能顺带重建过期的掌握度行）；活动 `load_context` 的 `progress` | 无（全部由代码统计，ADR 0052 §1） | 回复下“JOJO做了什么”：“看了学习近况”；数据来源分别在课程页、测验卡、背单词、阅读页 |
 | 读取练习指引（只在练习会话） | `chat/practice.py` `DatabasePractice`，在 `load_context` 里 | 会话的 `focus_kc_id`；该语法点的目录信息、掌握度档位（不给模型数字）、最近 2 条对话错误原句 → 改正 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `practice_kc` | 无 | 对话顶部“语法练习：…”和“查看依据”；`/learner` 删除证据后下一轮就不再使用 |
 | 选择由谁回复（supervisor） | `agents/chat_graph.py` `supervisor`；会话层面的路由在开跑前由 `agents/routing.py` `route_for` 定 | 会话是不是口语会话（`purpose = speaking`，ADR 0029 §2）、是不是课程对话（`purpose = lesson`，有语法点也由 tutor 带工具回复，ADR 0044 §5）、有没有练习语法点（`focus_kc_id`）、有没有文章（`article_id`，Q43h） | 无 | 无（ADR 0023 §3） | 不单独显示：口语会话由 speaking_coach 回复，练习会话由 grammar_coach 回复，阅读会话由 reading_coach 回复，其余（含规划、今天的学习）由 tutor 回复，会话本身已经说明了这一点（Q37b）。文章被删后阅读会话回到 tutor |

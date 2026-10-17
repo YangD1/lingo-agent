@@ -1,5 +1,6 @@
 """The tutor sees the learner's memories through the real send-message endpoint."""
 
+import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -10,10 +11,10 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessageChunk, BaseMessage
 from langchain_core.outputs import ChatGenerationChunk, ChatResult
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import ExerciseSet, TenantMember, User
+from app.db.models import Conversation, ExerciseSet, Memory, TenantMember, User
 from app.memory import context as learner_context
 from app.memory import service
 from app.providers import llm
@@ -93,6 +94,59 @@ async def test_new_conversation_uses_memories_and_forgets_deleted_ones(
     await service.delete_memory(db_session, user.id, fact.id)
     await send(client, await new_conversation(client), "Help me practise")
     assert "job interview" not in recorder.prompts[-1]
+
+
+async def test_facts_reflection_adds_wait_for_the_next_sitting(
+    client: AsyncClient, db_session: AsyncSession, recorder: PromptRecorder
+) -> None:
+    """ADR 0053 §3: the prompt prefix stays put within a sitting, but what the learner
+    deletes or adds on the memory page applies at once."""
+    await login(client)
+    await connect(client, "deepseek")
+    user = await db_session.scalar(select(User).where(User.email == "learner@example.com"))
+    assert user is not None
+    tenant_id = await db_session.scalar(
+        select(TenantMember.tenant_id).where(TenantMember.user_id == user.id)
+    )
+    assert tenant_id is not None
+    conversation = await new_conversation(client)
+    conversation_id = uuid.UUID(conversation)
+
+    async def remember(content: str, *, by_reflection: bool) -> Memory:
+        # created_at is now() of the transaction: end the one the last refresh opened.
+        await db_session.commit()
+        return await service.add_memory(
+            db_session,
+            tenant_id=tenant_id,
+            user_id=user.id,
+            kind="fact",
+            content=content,
+            source_conversation_id=conversation_id if by_reflection else None,
+        )
+
+    old = await remember("Has a job interview next month", by_reflection=True)
+    await send(client, conversation, "Hi")
+    assert "job interview" in recorder.prompts[-1]
+
+    await remember("Finds the word book too easy", by_reflection=True)
+    await remember("Prefers examples about cooking", by_reflection=False)
+    await service.delete_memory(db_session, user.id, old.id)
+    await send(client, conversation, "Next one")
+    prompt = recorder.prompts[-1]
+    assert "Prefers examples about cooking" in prompt
+    assert "job interview" not in prompt and "word book" not in prompt
+
+    # Back after a break: a new sitting brings in what reflection wrote meanwhile.
+    await db_session.execute(
+        update(Conversation)
+        .where(Conversation.id == conversation_id)
+        .values(updated_at=func.now() - service.SITTING_GAP)
+    )
+    await db_session.commit()
+    await send(client, conversation, "I'm back")
+    assert "Finds the word book too easy" in recorder.prompts[-1]
+    await send(client, conversation, "And again")
+    assert "Finds the word book too easy" in recorder.prompts[-1]
 
 
 async def test_switching_the_chat_language_applies_from_the_next_reply(

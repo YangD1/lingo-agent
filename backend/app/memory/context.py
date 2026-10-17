@@ -23,9 +23,9 @@ from app.memory.progress import load_progress, render_progress
 
 logger = logging.getLogger(__name__)
 
-# Character budgets (a rough proxy for tokens) so a long memory list can't crowd out
-# the conversation itself.
-MAX_FACTS_CHARS = 3000
+# Facts are budgeted in estimated tokens (ADR 0053 §3), so Chinese and English facts
+# get about the same share; summaries are clipped by characters.
+MAX_FACTS_TOKENS = 1200
 MAX_EPISODE_CHARS = 600
 EPISODES_IN_CONTEXT = 3
 
@@ -81,7 +81,12 @@ class DatabaseLearner:
     async def load(self, query: str) -> LearnerContext:
         async with self._sessionmaker() as session:
             profile = await service.get_profile(session, self._user_id)
-            facts = await service.facts_for_context(session, self._user_id)
+            since = (
+                await service.sitting_started_at(session, self._conversation_id)
+                if self._conversation_id
+                else None
+            )
+            facts = await service.facts_for_context(session, self._user_id, sitting_since=since)
             episodes = await service.relevant_episodes(
                 session,
                 self._user_id,
@@ -139,11 +144,13 @@ def render_learner_context(context: LearnerContext) -> str:
     if context.profile:
         lines = [f"- {label}: {value}" for label, value in context.profile.items()]
         sections.append("### Profile\n" + "\n".join(lines))
-    if context.progress:
-        sections.append("### Where they are now (counted by the app)\n" + context.progress)
+    # What stays the same within a sitting comes first, so the prompt keeps a common
+    # prefix the vendor can cache (ADR 0053 §2); progress changes with every answer.
     if shown := facts_shown(context.facts):
         lines = [f"- {fact}" for fact in context.facts[:shown]]
         sections.append("### Things they have told you\n" + "\n".join(lines))
+    if context.progress:
+        sections.append("### Where they are now (counted by the app)\n" + context.progress)
     if context.episodes:
         lines = [f"- {_clip(e, MAX_EPISODE_CHARS)}" for e in context.episodes]
         sections.append("### Earlier conversations\n" + "\n".join(lines))
@@ -151,13 +158,31 @@ def render_learner_context(context: LearnerContext) -> str:
 
 
 def facts_shown(facts: Sequence[str]) -> int:
-    """How many facts fit MAX_FACTS_CHARS. Newest come first, so the oldest are dropped."""
+    """How many facts fit MAX_FACTS_TOKENS. Newest come first, so the oldest are dropped."""
     used = 0
     for count, fact in enumerate(facts):
-        used += len(fact)
-        if used > MAX_FACTS_CHARS:
+        used += estimated_tokens(fact)
+        if used > MAX_FACTS_TOKENS:
             return count
     return len(facts)
+
+
+def estimated_tokens(text: str) -> int:
+    """A token per CJK character, one per 4 other characters: only for budgeting."""
+    wide = sum(1 for ch in text if _is_wide(ch))
+    return wide + -(-(len(text) - wide) // 4)
+
+
+def _is_wide(ch: str) -> bool:
+    code = ord(ch)
+    return (
+        0x3040 <= code <= 0x30FF  # kana
+        or 0x3400 <= code <= 0x9FFF  # CJK ideographs
+        or 0xAC00 <= code <= 0xD7AF  # hangul
+        or 0xF900 <= code <= 0xFAFF
+        or 0xFF00 <= code <= 0xFFEF  # full-width forms and punctuation
+        or 0x3000 <= code <= 0x303F  # CJK punctuation
+    )
 
 
 def _clip(text: str, limit: int) -> str:
