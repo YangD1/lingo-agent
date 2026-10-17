@@ -6,11 +6,11 @@ page). Arguments come from public catalogs only; ids of the learner, the convers
 or the turn are never arguments - the code running the tools already knows them.
 """
 
-from collections.abc import Collection, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 
 from app.adaptive.daily_plan.algorithm import PlanChoice
 from app.adaptive.daily_plan.card import PlanTarget, card_params
@@ -165,7 +165,8 @@ class SuggestLesson(_Args):
     point, starting or continuing its lesson conversation. Use it when the learner asks
     about a grammar point that is not this conversation's lesson, or wants to learn one
     properly. When that lesson is locked, the card opens the earliest lesson it waits
-    for; the result says which."""
+    for; the result says which. The card only shows the way: the learner opens the lesson
+    when they choose."""
 
     model_config = ConfigDict(title="suggest_lesson")
 
@@ -175,14 +176,9 @@ class SuggestLesson(_Args):
     topic: str | None = Field(
         default=None,
         max_length=100,
-        description="Otherwise the grammar point's name, e.g. 'present perfect'.",
+        description="Otherwise the grammar point's name, e.g. 'present perfect'. Leave both "
+        "out for the learner's next lesson in their course.",
     )
-
-    @model_validator(mode="after")
-    def _named(self) -> "SuggestLesson":
-        if not (self.kc_id or (self.topic and self.topic.strip())):
-            raise ValueError("give kc_id or topic")
-        return self
 
 
 class GiveQuiz(_Args):
@@ -384,9 +380,11 @@ def resolve_kc(
     *,
     unmatched: str,
     several: str = "the one meant.",
+    pick: Callable[[list[GrammarKC]], GrammarKC | None] | None = None,
 ) -> GrammarKC:
     """A call's grammar point, by id or by name (ADR 0046 §1); `unmatched` says what to
-    do when no name matches, `several` which candidate to pick. Raises ToolCallError."""
+    do when no name matches, `several` which candidate to pick, unless `pick` picks one
+    of the best-scoring ones itself. Raises ToolCallError."""
     catalog = get_grammar_catalog()
     kc = catalog.get(kc_id) if kc_id else None
     if kc is not None:
@@ -400,6 +398,9 @@ def resolve_kc(
         return matches[0].kc
     if not matches:
         raise ToolCallError(f"no grammar point matches {query!r}; {unmatched}")
+    best = [m.kc for m in matches if m.score == matches[0].score]
+    if pick is not None and (picked := pick(best)):
+        return picked
     listed = "; ".join(f"{m.kc.id} ({m.kc.name_en})" for m in matches[:_CANDIDATES])
     raise ToolCallError(
         f"{query!r} matches several grammar points: {listed}. "

@@ -1,10 +1,8 @@
 """suggest_lesson (ADR 0054 §1): a card that opens the course's lesson on a grammar
 point; a locked lesson gives way to the earliest open one it waits for."""
 
-import pytest
 from httpx import AsyncClient
 
-from app.cards.tools import ToolCallError, parse_args
 from tests.integration.test_chat_send import send
 from tests.integration.test_chat_tools import (  # noqa: F401 (fixtures)
     Script,
@@ -96,6 +94,50 @@ async def test_refused_lesson_cards(
     assert "no grammar point matches" in unknown
 
 
-def test_a_lesson_card_needs_a_grammar_point() -> None:
-    with pytest.raises(ToolCallError, match="give kc_id or topic"):
-        parse_args("suggest_lesson", {"topic": "  "})
+async def test_naming_no_lesson_shows_the_next_one(
+    client: AsyncClient,
+    script: Script,  # noqa: F811
+) -> None:
+    """qwen-plus calls suggest_lesson without arguments (task 98.5)."""
+    await ready(client)
+    lesson = (await start(client, OPEN))["conversation"]["id"]
+    script.replies = [
+        [tool_call("suggest_lesson")],
+        "Lesson 2 is next.",
+        [tool_call("suggest_lesson")],
+        "Start here.",
+    ]
+
+    _, events, _ = await send(client, lesson, "What comes after this?")
+    (card,) = kinds(events, "card")
+    assert card["params"] == {"kc_id": SECOND, "number": 2}
+
+    free = (await client.post("/conversations")).json()["id"]
+    _, events, _ = await send(client, free, "你决定吧")
+    (card,) = kinds(events, "card")
+    assert card["params"] == {"kc_id": OPEN, "number": 1}
+    for result in results(script):
+        assert "No grammar point was named" in result.text
+        # The card only shows the way (task 98.5: the tutor said they were in the lesson).
+        assert "when they choose" in result.text and "don't start teaching it here" in result.text
+
+
+async def test_a_name_taught_over_several_lessons_opens_the_first(
+    client: AsyncClient,
+    script: Script,  # noqa: F811
+) -> None:
+    await ready(client)
+    course = (await client.get("/course")).json()["lessons"]
+    first = min(
+        (lesson for lesson in course if lesson["kc_id"].startswith("g.present_perfect")),
+        key=lambda lesson: lesson["number"],
+    )
+    conversation = (await start(client, SECOND))["conversation"]["id"]
+    script.replies = [[tool_call("suggest_lesson", topic="present perfect")], "Later."]
+
+    _, events, _ = await send(client, conversation, "我想学现在完成时")
+
+    (card,) = kinds(events, "card")
+    assert card["params"]["asked_kc_id"] == first["kc_id"]
+    (result,) = results(script)
+    assert "is taught over several lessons; this is the first of them" in result.text
