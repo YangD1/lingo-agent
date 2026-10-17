@@ -11,12 +11,13 @@ import uuid
 from collections import Counter
 from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, replace
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.adaptive import course
 from app.adaptive.exercise.formats import (
     Choice4,
     Cloze,
@@ -93,7 +94,8 @@ class QuizTools:
         parsed = parse_args("give_quiz", args)
         assert isinstance(parsed, GiveQuiz)
         within = scope.kc_ids if scope is not None else None
-        kc = _grammar_point(parsed, within)
+        named = bool(parsed.kc_id or (parsed.topic and parsed.topic.strip()))
+        kc = _grammar_point(parsed, within) if named else await self._current(parsed, within)
         async with self._sessionmaker() as session:
             earlier = await session.scalar(
                 select(TutorCard.params).where(
@@ -125,6 +127,11 @@ class QuizTools:
                 f"Quiz card shown: {what} on {kc.name_en}. Its questions are being written "
                 "and checked."
             )
+        if not named:
+            shown += (
+                f" No grammar point was named, so the card tests their current lesson, "
+                f"{kc.name_en}: tell them so."
+            )
         return QuizResult(
             f"{shown} The learner answers them in the card, and you will see the results "
             "in your context. Do not ask the questions or give answers in your reply: "
@@ -139,6 +146,27 @@ class QuizTools:
                 },
             ),
         )
+
+    async def _current(self, parsed: GiveQuiz, within: Collection[str] | None) -> GrammarKC:
+        """The learner's current lesson, for a call naming no point (task 96). Raises
+        ToolCallError."""
+        if not parsed.asked:
+            raise ToolCallError(
+                "name the grammar point (kc_id or topic) of a quiz the learner did not ask for"
+            )
+        catalog = get_grammar_catalog()
+        async with self._sessionmaker() as session:
+            found = await course.load(
+                session, self._user_id, rules=get_rules(), catalog=catalog, now=datetime.now(UTC)
+            )
+            await session.commit()  # stale mastery rows may have been rebuilt
+        kc = catalog.get(found.current) if found.current else None
+        if kc is None or (within is not None and kc.id not in within):
+            raise ToolCallError(
+                "no grammar point named and none to take from the learner's course here; "
+                "ask in your reply which grammar point they want to be tested on"
+            )
+        return kc
 
     async def _check_unasked(self, parsed: GiveQuiz, kc: GrammarKC) -> None:
         """A quiz the learner did not ask for (ADR 0046 §3). Raises ToolCallError."""

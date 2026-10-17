@@ -8,9 +8,9 @@ or the turn are never arguments - the code running the tools already knows them.
 
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol, Self, get_args
+from typing import Any, Literal, Protocol, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
 
 from app.adaptive.daily_plan.algorithm import PlanChoice
 from app.adaptive.daily_plan.card import PlanTarget, card_params
@@ -173,7 +173,9 @@ class GiveQuiz(_Args):
     topic: str | None = Field(
         default=None,
         max_length=100,
-        description="Otherwise the grammar point's name, e.g. 'present perfect for / since'.",
+        description="Otherwise the grammar point's name, e.g. 'present perfect for / since'. "
+        "Leave both out when the learner asks for a test on no point in particular: the "
+        "app takes their current lesson.",
     )
     purpose: Literal["check", "quiz"]
     asked: bool = Field(
@@ -185,12 +187,6 @@ class GiveQuiz(_Args):
         description="True when the learner wants new questions (another set, again, "
         "different ones). Otherwise their unfinished quiz on the point comes back.",
     )
-
-    @model_validator(mode="after")
-    def _names_a_point(self) -> Self:
-        if not self.kc_id and not (self.topic and self.topic.strip()):
-            raise ValueError("give kc_id or topic")
-        return self
 
 
 class OpenWorkspace(_Args):

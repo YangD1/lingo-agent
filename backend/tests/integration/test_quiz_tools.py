@@ -2,6 +2,7 @@
 the set's results reach the tutor's context on later turns."""
 
 import uuid
+from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -10,6 +11,7 @@ from httpx import AsyncClient
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adaptive import course
 from app.adaptive.exercise.formats import parse_body
 from app.adaptive.rules import get_rules
 from app.agents.chat_graph import quiz_rule
@@ -243,7 +245,6 @@ async def test_an_unclear_topic_lists_candidates(
         [
             tool_call("give_quiz", topic="present perfect", purpose="quiz", asked=True),
             tool_call("give_quiz", topic="photosynthesis", purpose="quiz", asked=True),
-            tool_call("give_quiz", purpose="quiz", asked=True),
         ],
         "Which part of the present perfect?",
     ]
@@ -252,11 +253,61 @@ async def test_an_unclear_topic_lists_candidates(
 
     assert kinds(events, "card") == []
     assert await quiz_sets(db_session) == []
-    several, none, neither = (m.text for m in results(script, call=-1)[-3:])
+    several, none = (m.text for m in results(script, call=-1)[-2:])
     assert "matches several grammar points" in several
     assert "g.present_perfect_for_since" in several
     assert "no grammar point matches" in none
-    assert "give kc_id or topic" in neither
+
+
+async def test_no_grammar_point_tests_the_current_lesson(
+    client: AsyncClient, db_session: AsyncSession, script: Script
+) -> None:
+    """Task 96: "出点题给我测试吧" names no point; a new learner has a current lesson too."""
+    conversation = await ready(client)
+    current = (await client.get("/course")).json()["current"]
+    assert current
+    script.replies = [[tool_call("give_quiz", purpose="quiz", asked=True)], "Try the card."]
+
+    _, events, _ = await send(client, conversation, "出点题给我测试吧")
+
+    (card,) = kinds(events, "card")
+    assert card["params"]["kc_id"] == current
+    (row,) = await quiz_sets(db_session)
+    assert row.focus_kc_id == current
+    (result,) = results(script)
+    assert "No grammar point was named, so the card tests their current lesson" in result.text
+    prompt = system_text(script.calls[0][1])
+    assert "give\n  neither `kc_id` nor `topic` and the card tests their current lesson" in prompt
+
+
+async def test_no_grammar_point_and_no_current_lesson_asks_the_learner(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    script: Script,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    conversation = await ready(client)
+    real = course.load
+
+    async def finished(*args: object, **kwargs: object) -> course.Course:
+        return replace(await real(*args, **kwargs), current=None)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(course, "load", finished)
+    script.replies = [
+        [
+            tool_call("give_quiz", purpose="quiz", asked=True),
+            tool_call("give_quiz", purpose="check", asked=False),
+        ],
+        "Which grammar point?",
+    ]
+
+    _, events, _ = await send(client, conversation, "Test me.")
+
+    assert kinds(events, "card") == []
+    assert await quiz_sets(db_session) == []
+    none, unasked = (m.text for m in results(script, call=-1)[-2:])
+    assert "ask in your reply which grammar point" in none
+    assert "name the grammar point" in unasked
 
 
 def unasked(kc_id: str = KC, purpose: str = "check") -> dict[str, object]:
