@@ -112,6 +112,8 @@ PLAN_CUE = "plan_opening"
 DAILY_CUE = "daily_opening"
 PRACTICE_CUE = "practice_opening"
 WORKSPACE_CONTEXT = "workspace_context"
+# An ordinary conversation's section: question, "you decide" or chat (ADR 0054 §3).
+FREE_CHAT = "free_chat"
 # Vendors answer a request with tools they can't take with one of these.
 _REFUSED_STATUSES = frozenset({400, 404, 422})
 
@@ -243,6 +245,8 @@ async def _load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict
             "language": DEFAULT_CHAT_LANGUAGE,
         }
     context = context or LearnerContext()
+    # Set only for a learner's message in free chat (Turn.free_chat).
+    free_chat = runtime.context.classify
     read = ContextRead(
         facts=list(context.fact_ids[: facts_shown(context.facts)]),
         episodes=list(context.episode_ids),
@@ -261,6 +265,8 @@ async def _load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict
             if brief
             else render_lesson(taught)
             if taught
+            else load_prompt(FREE_CHAT)
+            if free_chat
             else ""
         ),
         "cards": cards,
