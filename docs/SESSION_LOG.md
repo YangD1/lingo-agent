@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-10-17 任务 96 完成：没说语法点的要题测当前课
+
+**做了什么**
+- 96.1（4ff1f96）`cards/quiz.py` `QuizTools._current`：`give_quiz` 的 `kc_id`、`topic` 都没给时用 `course.load(...).current`，工具结果写明“测当前课 X”；没有当前课、不在本对话卡片范围、或 `asked=false` 时拒绝。`cards/tools.py` `GiveQuiz` 去掉“二者至少给一个”的校验；`tutor_tools.md` 写明没在聊语法点时两个都不填、别先反问。`test_quiz_tools.py` 加 2 条。
+- 96.2 ADR 0046 §1 补充、`agent-tools.md`、PLAN 同步；百炼 qwen-plus 新账号 3 个新对话“出点题给我测试吧” 3/3 出卡（之前 0/3），都走新路径；pytest 2079 全过、lint 干净；Docker 已重建后端；冒烟库已删。
+
+**未完成 / 下一步**
+- **95.3**（用户已同意）：回复结束后字符串匹配没答的过关测验题的正确答案，命中的题标“私教讲过答案”，之后作答不计过关分（`adaptive/course.py` `quiz_scores`）、不记证据（`adaptive/exercise/answer.py` 约 365 行 `counted`），卡片标注。需要迁移。开工前先把子任务和测试层写进看板给用户确认。
+- **90**：长期记忆，开工前请用户补充跨会话哪里不好。
+- 任务 86–96 本地未推送。
+
+**踩坑**
+- `mypy app tests` 有 100 多条测试文件里的旧错误；`make lint` 只查 `app evals`，以它为准。
+
+---
+
 ## 2026-10-17 交接：任务 96 已确认，下一个会话从 96.1 开始
 
 **做了什么**
