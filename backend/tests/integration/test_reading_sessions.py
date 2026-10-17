@@ -1,14 +1,19 @@
 """Reading an article: the session, quiz answers and reading ability, due words (43.2)."""
 
+import asyncio
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
+from langchain_core.messages import BaseMessage
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.exercise_graph import ModelReply
 from app.agents.reading_graph import build_reading_graph
 from app.db.models import (
     ArticleVersion,
@@ -51,8 +56,18 @@ async def key(db_session: AsyncSession, version_id: str) -> list[int]:
 
 
 async def test_open_starts_the_version_and_picks_up_again(
-    client: AsyncClient, app: FastAPI, db_session: AsyncSession
+    client: AsyncClient, app: FastAPI, db_session: AsyncSession, models: FakeModels
 ) -> None:
+    # Held until the first answer is in: the fake writer can finish before the
+    # endpoint reads the version back (task 97).
+    gate = asyncio.Event()
+    rewrite = models.rewrite
+
+    async def held(messages: Sequence[BaseMessage], schema: type[BaseModel]) -> ModelReply:
+        await gate.wait()
+        return await rewrite(messages, schema)
+
+    models.rewrite = held  # type: ignore[method-assign]
     await login(client)
     article_id = await add_article(db_session)
     response = await client.post(f"/reading/articles/{article_id}/session")
@@ -62,6 +77,7 @@ async def test_open_starts_the_version_and_picks_up_again(
     assert (body["level"], body["original_reason"], body["results"]) == ("A2", None, None)
     assert body["article"]["body"] == "One comet.\n\nTwo comets."
 
+    gate.set()
     await app.state.reading_worker.wait_idle()
     again = await client.post(f"/reading/articles/{article_id}/session")
     assert again.json()["id"] == body["id"]

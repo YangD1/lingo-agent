@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-10-17 任务 97（CI 后端 pytest 偶发卡住）完成
+
+**做了什么**
+- 任务 80 的子任务早就都做完了，看板上的任务本身补标 `[x]`。
+- 97.1 `backend/pyproject.toml` 加 `timeout = 120`、`timeout_method = "thread"`（dev 依赖 pytest-timeout 2.4.0）。用探针测试确认过：卡住的测试在 xdist 下报 `worker 'gwN' crashed while running '<测试名>'`，worker 被替换，其余测试照常跑完。
+- 97.2 `test_reading_sessions.py::test_open_starts_the_version_and_picks_up_again`：CI 上拿到的是 `ready`，原因是假模型在接口读回版本之前就生成完了。现在测试里让假改写先等一个 `gate`，断言 `generating` 之后再放行。产品代码没改。
+- pytest 2150 全过，`make lint` 干净；推送任务 90、97、98、99，等 CI。
+
+**未完成**
+- 13 分钟那次卡住的根因还没找到：本地没复现。下次再卡住，CI 日志会直接报出测试名和各线程栈，到时候再查。
+
+**下一步**
+- 等用户定（剩任务 71 部署）。
+
+**踩坑**
+- `timeout_method = "thread"` 会 `os._exit` 结束整个进程。串行跑（`PYTEST_WORKERS=0`）时一卡住整轮就停了，只有 xdist 下才会替换 worker 接着跑。
+
+---
+
 ## 2026-10-17 任务 99（98.5 冒烟小毛病）完成
 
 **做了什么**
