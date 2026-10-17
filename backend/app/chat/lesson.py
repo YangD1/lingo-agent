@@ -179,6 +179,9 @@ def render_lesson(brief: LessonBrief) -> str:
     else:
         lines.append("- Pass quizzes taken: none yet")
     if brief.next is not None:
-        lines.append(f"- Next lesson once passed: {brief.next.kc.name_en}")
+        lines.append(
+            f"- Next lesson once passed: {brief.next.kc.name_en} (grammar point id"
+            f" {brief.next.kc.id})"
+        )
     # replace, not format: the learner's sentences may contain braces.
     return load_prompt("lesson").replace("{lesson}", "\n".join(lines))

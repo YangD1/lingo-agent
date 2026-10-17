@@ -65,17 +65,26 @@ export type TutorCard = {
     | "workspace_edit"
     | "workspace_closed"
     | "workspace_auto"
-    | "quiz";
+    | "quiz"
+    | "lesson";
   /** word_book: book_id, daily_new; learning_goal: goal, target_exam, daily_minutes;
    * practice: kc_id; link: kind; writing: submission_id (writing_coach's review);
    * daily_plan: PlanCardParams (lib/plan.ts); workspace: doc_id, kind, title;
    * workspace_edit: doc_id, edit_id, title, count (ADR 0043 §6);
    * workspace_closed: doc_id, title; workspace_auto: on (ADR 0045 §2–3);
-   * quiz: set_id, kc_id, purpose (check | quiz, ADR 0044 §4). */
+   * quiz: set_id, kc_id, purpose (check | quiz, ADR 0044 §4);
+   * lesson: kc_id, number, and when the lesson asked for is locked, asked_kc_id and
+   * asked_number (ADR 0054 §1). */
   params: Record<string, unknown>;
   status: CardStatus;
-  /** pass_score: quiz cards, the share right a pass quiz needs. */
-  display: { book?: Named; kc?: Named & { cefr: string }; pass_score?: number };
+  /** pass_score: quiz cards, the share right a pass quiz needs; asked_kc: a lesson card's
+   * locked lesson, which the lesson it opens comes before. */
+  display: {
+    book?: Named;
+    kc?: Named & { cefr: string };
+    asked_kc?: Named & { cefr: string };
+    pass_score?: number;
+  };
   /** Link cards, from the list only: current numbers for the page. */
   live?: Record<string, unknown> | null;
   created_at: string | null;

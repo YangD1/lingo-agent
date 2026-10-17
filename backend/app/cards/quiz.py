@@ -37,9 +37,8 @@ from app.adaptive.exercise.formats import (
 from app.adaptive.exercise.planner import QuizPurpose
 from app.adaptive.exercise.worker import QuizStart
 from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
-from app.adaptive.kc.search import find_kcs, is_clear
 from app.adaptive.rules import get_rules
-from app.cards.tools import CardDraft, CardScope, GiveQuiz, ToolCallError, parse_args
+from app.cards.tools import CardDraft, CardScope, GiveQuiz, ToolCallError, parse_args, resolve_kc
 from app.db.models import Attempt, Exercise, ExerciseSet, TutorCard
 
 logger = logging.getLogger(__name__)
@@ -61,8 +60,6 @@ class StartQuiz(Protocol):
 
 # Answers quoted per item, so a long answer does not fill the prompt.
 _QUOTE = 160
-# Grammar points offered back when a topic matches several (ADR 0046 §1).
-_CANDIDATES = 5
 
 
 @dataclass(frozen=True)
@@ -211,27 +208,14 @@ class QuizTools:
 
 def _grammar_point(parsed: GiveQuiz, within: Collection[str] | None) -> GrammarKC:
     """The call's KC, by id or by name (ADR 0046 §1). Raises ToolCallError."""
-    catalog = get_grammar_catalog()
-    kc = catalog.get(parsed.kc_id) if parsed.kc_id else None
-    if kc is not None:
-        if within is not None and kc.id not in within:
-            raise ToolCallError(f"kc_id {kc.id!r} is not a grammar point of this conversation")
-        return kc
-    # Models write a name into kc_id, or an id without its prefix: search for it.
-    topic = parsed.topic or (parsed.kc_id or "").removeprefix("g.").replace("_", " ")
-    matches = find_kcs(catalog, topic, within)
-    if is_clear(matches):
-        return matches[0].kc
-    if not matches:
-        raise ToolCallError(
-            f"no grammar point matches {topic!r}; try another name in English, or "
-            "ask the questions in your reply if the test is not on one grammar point"
-        )
-    listed = "; ".join(f"{m.kc.id} ({m.kc.name_en})" for m in matches[:_CANDIDATES])
-    raise ToolCallError(
-        f"{topic!r} matches several grammar points: {listed}. "
-        "Call give_quiz again now with the kc_id of the one closest to what you were "
-        "teaching; do not write the questions yourself."
+    return resolve_kc(
+        "give_quiz",
+        parsed.kc_id,
+        parsed.topic,
+        within,
+        unmatched="try another name in English, or ask the questions in your reply if the "
+        "test is not on one grammar point",
+        several="the one closest to what you were teaching; do not write the questions yourself.",
     )
 
 

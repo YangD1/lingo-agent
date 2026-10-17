@@ -10,6 +10,13 @@ import type { TutorCard } from "@/lib/cards";
 import zh from "../../../messages/zh-CN.json";
 import { TutorCards } from "./tutor-cards";
 
+const api = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api")>()),
+  api,
+}));
+const push = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("@/lib/ai-usage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ai-usage")>()),
   loadEstimates: () => new Promise(() => {}),
@@ -267,5 +274,53 @@ describe("TutorCards", () => {
     expect(items).toHaveTextContent("做一组语法练习：第三人称单数");
     expect(items).toHaveTextContent("预计 10 分钟");
     expect(screen.getByRole("button", { name: "撤销" })).toBeInTheDocument();
+  });
+
+  it("opens a lesson of the course, saying which locked lesson it comes before", async () => {
+    api.mockReset().mockResolvedValueOnce({ conversation: { id: "c9" } });
+    push.mockReset();
+    show([
+      card({
+        kind: "lesson",
+        status: "info",
+        params: { kc_id: "g.word_order_svo", number: 1, asked_kc_id: "g.pp", asked_number: 51 },
+        display: {
+          kc: { id: "g.word_order_svo", name_en: "Word order", name_zh: "语序", cefr: "A1" },
+          asked_kc: { id: "g.pp", name_en: "Present perfect", name_zh: "现在完成时", cefr: "A2" },
+        },
+      }),
+    ]);
+    expect(screen.getByText("第 1 课：语序")).toBeInTheDocument();
+    expect(screen.getByTestId("lesson-card-first")).toHaveTextContent(
+      "第 51 课「现在完成时」还没解锁，先从这一课学起。",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "去这一课" }));
+
+    expect(api).toHaveBeenCalledWith("/course/lessons/g.word_order_svo", {
+      method: "POST",
+      json: { locale: "zh-CN" },
+    });
+    expect(push).toHaveBeenCalledWith("/chat?c=c9");
+  });
+
+  it("shows why a lesson could not be opened", async () => {
+    api.mockReset().mockRejectedValueOnce(new ApiError(409, "lesson_locked", "locked"));
+    push.mockReset();
+    show([
+      card({
+        kind: "lesson",
+        status: "info",
+        params: { kc_id: "g.be_present", number: 2 },
+        display: { kc: { id: "g.be_present", name_en: "be", name_zh: "be 动词", cefr: "A1" } },
+      }),
+    ]);
+    expect(screen.queryByTestId("lesson-card-first")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "去这一课" }));
+
+    expect(push).not.toHaveBeenCalled();
+    expect(await screen.findByRole("button", { name: "去这一课" })).toBeEnabled();
+    expect(screen.getByRole("alert")).not.toBeEmptyDOMElement();
   });
 });

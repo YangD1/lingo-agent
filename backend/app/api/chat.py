@@ -26,6 +26,7 @@ from app.api.vocab import TimeZone
 from app.attachments import service as attachment_service
 from app.attachments.context import DatabaseAttachments
 from app.attachments.service import AttachmentNotFoundError, AttachmentStateError
+from app.cards.lesson import LessonCards
 from app.cards.quiz import QuizTools, check_reply
 from app.cards.runtime import DatabaseTutorTools
 from app.chat import service, translate
@@ -675,6 +676,11 @@ async def _reply(
                     start=request.app.state.practice_worker.start_quiz,
                     proactive=(turn.providers.tutor is None or turn.providers.tutor.quiz_proactive),
                     lesson=lesson is not None,
+                ),
+                lessons=LessonCards(
+                    sessionmaker,
+                    user_id=user.id,
+                    lesson_kc_id=turn.focus_kc_id if lesson is not None else None,
                 ),
                 stop_quiz=request.app.state.practice_worker.cancel,
             )

@@ -334,7 +334,8 @@ features:
         timing: now
         default: {input_tokens: 3500, output_tokens: 200}
 
-  # Starting a lesson of the grammar course (ADR 0044 §5): the tutor speaks first, then
+  # Starting a lesson of the grammar course (ADR 0044 §5), from the course page, the
+  # lesson bar's next lesson or a lesson card (ADR 0054 §1): the tutor speaks first, then
   # usually calls give_quiz for an understanding check (quiz_card); each turn after is
   # chat_message's, with the lesson's material in the prompt.
   lesson_start:

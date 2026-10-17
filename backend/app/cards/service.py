@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adaptive.daily_plan.algorithm import PlanChoice, PlanInputs
 from app.adaptive.daily_plan.card import PlanTarget, card_params, describe_params
 from app.adaptive.daily_plan.service import local_day
-from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.cards.quiz import QuizState, quiz_states
 from app.cards.tools import CardDraft
@@ -467,11 +467,15 @@ def card_json(card: TutorCard) -> dict[str, Any]:
     display: dict[str, Any] = {}
     if card.kind == "word_book" and (book := get_book(card.params["book_id"])):
         display["book"] = {"id": book.id, "name_en": book.name_en, "name_zh": book.name_zh}
-    kc_id = card.params.get("kc_id") if card.kind in ("practice", "quiz") else None
+    kc_id = card.params.get("kc_id") if card.kind in ("practice", "quiz", "lesson") else None
     if card.kind == "daily_plan":
         kc_id = next((i["ref"] for i in card.params["items"] if i["kind"] == "practice"), None)
     if kc_id is not None and (kc := get_grammar_catalog().get(kc_id)):
-        display["kc"] = {"id": kc.id, "name_en": kc.name_en, "name_zh": kc.name_zh, "cefr": kc.cefr}
+        display["kc"] = _kc(kc)
+    if card.kind == "lesson":
+        # A locked lesson's card opens a lesson it waits for (ADR 0054 §1).
+        if asked := get_grammar_catalog().get(card.params.get("asked_kc_id", "")):
+            display["asked_kc"] = _kc(asked)
     if card.kind == "quiz":
         # The card says whether a pass quiz's score meets the mark (ADR 0044 §4).
         display["pass_score"] = get_rules().course.pass_score
@@ -487,6 +491,10 @@ def card_json(card: TutorCard) -> dict[str, Any]:
         "undone_at": card.undone_at.isoformat() if card.undone_at else None,
         "withdrawn_reason": card.withdrawn_reason,
     }
+
+
+def _kc(kc: GrammarKC) -> dict[str, Any]:
+    return {"id": kc.id, "name_en": kc.name_en, "name_zh": kc.name_zh, "cefr": kc.cefr}
 
 
 _STATUS_TEXT = {
@@ -515,6 +523,11 @@ def describe(card: TutorCard, quiz: "QuizState | None" = None, *, questions: boo
         case "practice":
             kc = get_grammar_catalog().get(p["kc_id"])
             what = f"practise {kc.name_en if kc else p['kc_id']}"
+        case "lesson":
+            kc = get_grammar_catalog().get(p["kc_id"])
+            what = f"open lesson {p['number']}, {kc.name_en if kc else p['kc_id']}"
+            if (asked := get_grammar_catalog().get(p.get("asked_kc_id", ""))) is not None:
+                what += f", before the locked lesson {p['asked_number']}, {asked.name_en}"
         case "writing":
             what = "open the line-by-line review of the learner's writing"
         case "daily_plan":

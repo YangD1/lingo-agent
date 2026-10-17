@@ -448,6 +448,11 @@
       "practice": {
         "title": "练习 {kc}"
       },
+      "lesson": {
+        "title": "第 {n} 课：{kc}",
+        "first": "第 {n} 课「{kc}」还没解锁，先从这一课学起。",
+        "action": "去这一课"
+      },
       "link": {
         "vocab_review": {
           "title": "复习和学新词",

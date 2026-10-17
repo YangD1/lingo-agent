@@ -6,6 +6,7 @@ import {
   Compass,
   FilePen,
   Flag,
+  GraduationCap,
   PanelRight,
   PanelRightClose,
   PenLine,
@@ -17,15 +18,19 @@ import { useLocale, useTranslations } from "next-intl";
 import Link from "next/link";
 import { type ReactNode, useState } from "react";
 
+import { AiBadge } from "@/components/ai-badge";
 import { PlanEditor, roundMinutes, useItemLabel } from "@/components/plan/plan-editor";
 import { PracticeChoices } from "@/components/practice/practice-choices";
+import { useOpenConversation } from "@/components/chat/conversation-opener";
 import { QuizCard } from "@/components/chat/quiz-card";
+import { useDescribeError } from "@/components/settings/use-describe-error";
 import { useWorkspaceOpener } from "@/components/workspace/opener";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ErrorText } from "@/components/ui/error-text";
 import { type ApiErrorLike, useErrorMessage } from "@/i18n/errors";
 import { ApiError } from "@/lib/api";
 import { type CardAction, LINK_HREFS, type LinkKind, type TutorCard } from "@/lib/cards";
+import { startLesson } from "@/lib/course";
 import type { PlanCardParams, PlanChoice } from "@/lib/plan";
 import { kcName } from "@/lib/learner";
 import { cn } from "@/lib/utils";
@@ -74,6 +79,7 @@ const ICONS = {
   workspace_edit: FilePen,
   workspace_closed: PanelRightClose,
   workspace_auto: Settings2,
+  lesson: GraduationCap,
 };
 
 function CardItem({
@@ -149,6 +155,7 @@ function CardItem({
           <Decision card={card} onDecide={onDecide} />
         )}
         {card.kind === "practice" && <Practice card={card} />}
+        {card.kind === "lesson" && <LessonCard card={card} />}
         {card.kind === "link" && <LinkCard card={card} />}
         {card.kind === "writing" && <WritingCard card={card} />}
         {card.kind === "daily_plan" && <DailyPlanCard card={card} onDecide={onDecide} />}
@@ -366,6 +373,49 @@ function Practice({ card }: { card: TutorCard }) {
     <>
       <p className="text-sm font-semibold">{t("practice.title", { kc: name })}</p>
       <PracticeChoices kcId={kcId} origin="card" />
+    </>
+  );
+}
+
+/** A lesson of the course (ADR 0054 §1): starts or continues its conversation. */
+function LessonCard({ card }: { card: TutorCard }) {
+  const t = useTranslations("chat.cards.lesson");
+  const locale = useLocale();
+  const openConversation = useOpenConversation();
+  const describe = useDescribeError();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const kcId = String(card.params.kc_id);
+  const name = card.display.kc ? kcName(card.display.kc, locale) : kcId;
+  const asked = card.display.asked_kc;
+
+  async function open() {
+    setBusy(true);
+    setError(null);
+    try {
+      const { conversation } = await startLesson(kcId, locale);
+      openConversation(conversation);
+    } catch (e) {
+      setError(describe(e));
+    }
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <p className="text-sm font-semibold">{t("title", { n: Number(card.params.number), kc: name })}</p>
+      {asked && (
+        <p className="text-muted-foreground" data-testid="lesson-card-first">
+          {t("first", { n: Number(card.params.asked_number), kc: kcName(asked, locale) })}
+        </p>
+      )}
+      <span className="inline-flex items-center gap-1.5">
+        <Button size="sm" disabled={busy} onClick={() => void open()}>
+          {t("action")}
+        </Button>
+        <AiBadge feature="lesson_start" />
+      </span>
+      {error && <ErrorText size="xs">{error}</ErrorText>}
     </>
   );
 }

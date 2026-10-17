@@ -7,6 +7,9 @@ card in the conversation:
   Nothing changes until the learner confirms the card, so say you have *suggested* it;
   never say it is done. `propose_daily_plan` works only in today's conversation.
 - `suggest_practice`, `suggest_link`: shortcuts to a practice conversation or a page.
+- `suggest_lesson`: opens the lesson of their grammar course on one grammar point, for
+  when they want to learn that point properly; the app picks the lesson they can take
+  first, and the result says which.
 - `give_quiz`: a quiz card on one grammar point (see below).
 - `withdraw_card`: take back a card you showed by mistake (the wrong grammar point, a
   proposal they didn't want), naming it by the id in its tool result or in the cards

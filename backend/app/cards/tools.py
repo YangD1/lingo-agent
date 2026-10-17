@@ -10,11 +10,12 @@ from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, model_validator
 
 from app.adaptive.daily_plan.algorithm import PlanChoice
 from app.adaptive.daily_plan.card import PlanTarget, card_params
-from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
+from app.adaptive.kc.search import find_kcs, is_clear
 from app.adaptive.rules import get_rules
 from app.memory.reflection import EXAM_TAGS
 from app.services.vocab.books import BOOKS, get_book
@@ -22,7 +23,9 @@ from app.services.vocab.books import BOOKS, get_book
 # "writing" is put by writing_coach, not by a tool (task 38.5); "workspace",
 # "workspace_edit", "workspace_closed" and "workspace_auto" by the workspace tools
 # (app/workspace/tools.py, ADR 0043 §6, ADR 0045), "workspace" also by writing_coach;
-# "quiz" by give_quiz after its set is created (app/cards/quiz.py, ADR 0044 §4).
+# "quiz" by give_quiz after its set is created (app/cards/quiz.py, ADR 0044 §4);
+# "lesson" by suggest_lesson once the course says which lesson (app/cards/lesson.py,
+# ADR 0054 §1).
 CardKind = Literal[
     "word_book",
     "learning_goal",
@@ -35,6 +38,7 @@ CardKind = Literal[
     "quiz",
     "workspace_closed",
     "workspace_auto",
+    "lesson",
 ]
 LinkKind = Literal[
     "vocab_review",
@@ -156,6 +160,31 @@ class SuggestLink(_Args):
     kind: LinkKind
 
 
+class SuggestLesson(_Args):
+    """Show a card that opens the lesson of the learner's grammar course on one grammar
+    point, starting or continuing its lesson conversation. Use it when the learner asks
+    about a grammar point that is not this conversation's lesson, or wants to learn one
+    properly. When that lesson is locked, the card opens the earliest lesson it waits
+    for; the result says which."""
+
+    model_config = ConfigDict(title="suggest_lesson")
+
+    kc_id: str | None = Field(
+        default=None, description="Grammar point id, when your context gives one."
+    )
+    topic: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Otherwise the grammar point's name, e.g. 'present perfect'.",
+    )
+
+    @model_validator(mode="after")
+    def _named(self) -> "SuggestLesson":
+        if not (self.kc_id or (self.topic and self.topic.strip())):
+            raise ValueError("give kc_id or topic")
+        return self
+
+
 class GiveQuiz(_Args):
     """Give the learner a quiz card on one grammar point, answered right in the chat.
     check: two questions on whether they understood the rule you just explained (no
@@ -275,6 +304,7 @@ TOOL_SCHEMAS: tuple[type[_Args], ...] = (
     ProposeDailyPlan,
     SuggestPractice,
     SuggestLink,
+    SuggestLesson,
     GiveQuiz,
     OpenWorkspace,
     ProposeEdit,
@@ -288,6 +318,8 @@ WORKSPACE_TOOL_NAMES = frozenset(
 )
 # Run by app/cards/quiz.py: it starts generating a set, then shows its card.
 QUIZ_TOOL_NAMES = frozenset({"give_quiz"})
+# Run by app/cards/lesson.py: it reads the learner's course first.
+LESSON_TOOL_NAME = "suggest_lesson"
 # Changes a card already shown instead of showing one (ADR 0049).
 WITHDRAW_TOOL_NAME = "withdraw_card"
 TOOL_NAMES: frozenset[str] = frozenset(str(t.model_config.get("title")) for t in TOOL_SCHEMAS)
@@ -338,6 +370,41 @@ def parse_args(name: str, args: Mapping[str, Any]) -> BaseModel:
             }
         )
         raise ToolCallError(f"invalid arguments: {', '.join(fields)}") from exc
+
+
+# Grammar points offered back when a topic matches several (ADR 0046 §1).
+_CANDIDATES = 5
+
+
+def resolve_kc(
+    tool: str,
+    kc_id: str | None,
+    topic: str | None,
+    within: Collection[str] | None = None,
+    *,
+    unmatched: str,
+    several: str = "the one meant.",
+) -> GrammarKC:
+    """A call's grammar point, by id or by name (ADR 0046 §1); `unmatched` says what to
+    do when no name matches, `several` which candidate to pick. Raises ToolCallError."""
+    catalog = get_grammar_catalog()
+    kc = catalog.get(kc_id) if kc_id else None
+    if kc is not None:
+        if within is not None and kc.id not in within:
+            raise ToolCallError(f"kc_id {kc.id!r} is not a grammar point of this conversation")
+        return kc
+    # Models write a name into kc_id, or an id without its prefix: search for it.
+    query = topic or (kc_id or "").removeprefix("g.").replace("_", " ")
+    matches = find_kcs(catalog, query, within)
+    if is_clear(matches):
+        return matches[0].kc
+    if not matches:
+        raise ToolCallError(f"no grammar point matches {query!r}; {unmatched}")
+    listed = "; ".join(f"{m.kc.id} ({m.kc.name_en})" for m in matches[:_CANDIDATES])
+    raise ToolCallError(
+        f"{query!r} matches several grammar points: {listed}. "
+        f"Call {tool} again now with the kc_id of {several}"
+    )
 
 
 def draft_card(name: str, args: Mapping[str, Any], scope: CardScope | None = None) -> CardDraft:

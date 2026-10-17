@@ -105,6 +105,8 @@ QUIZ_ME = re.compile(r"测验|quiz me", re.IGNORECASE)
 LESSON_POINT = re.compile(r"grammar point id ([\w.]+)\)")
 # Free chat asking for questions: no id in the context, so the point goes by name (ADR 0046).
 TEST_ME = re.compile(r"出点题")
+# Asked in a lesson about another grammar point: the card to its lesson (ADR 0054 §1).
+OTHER_POINT = re.compile(r"be 动词")
 # Asks for questions, then changes their mind in the same message: the tutor gives the
 # quiz card, then takes it back in the same turn (ADR 0049), naming it as its result does.
 CHANGED_MIND = re.compile(r"又不想做了")
@@ -632,6 +634,8 @@ def tutor_tool_call(
         return "propose_edit", edit
     if "propose_daily_plan" in names and SHORT_ON_TIME.search(said):
         return "propose_daily_plan", PROPOSED_PLAN
+    if "suggest_lesson" in names and OTHER_POINT.search(said):
+        return "suggest_lesson", {"kc_id": "g.be_present"}
     if (
         "give_quiz" in names
         and QUIZ_ME.search(said)

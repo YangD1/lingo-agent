@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-10-17 任务 98 拆分确认，98.1（课程卡片 `suggest_lesson`）完成
+
+**做了什么**
+- 用户提出课程会话 / 常规会话分开引导。查代码：两种会话的上下文都已经有（加载 p90 < 0.1 s），缺的是规则和工具。拆成 98.1–98.5，Q98a–d 用户按推荐确认，写 ADR 0054。
+- 98.1：`suggest_lesson` 工具 + `lesson` 卡片（迁移 `8d4ebcf8f132`）；`cards/lesson.py`；`resolve_kc` 从 `quiz.py` 抽到 `cards/tools.py`；`lesson.md` 越界规则；前端 `LessonCard`、`conversation-opener.ts`。
+
+**未完成**
+- 98.2（课程开场按状态：`prompts/lesson_opening.md` + `agents/chat_graph.py` `tutor()` 选 cue 的地方）、98.3（普通对话意图规则 + `tutor_system.md` 结尾规则）、98.4（普通对话“学到哪”加引擎建议：`memory/progress.py` `render_progress` + `advice/candidates.py`）、98.5 收尾。开发库还没跑新迁移（98.5 重建 Docker 时会自动迁移）。
+
+**下一步**
+- 98.2。
+
+**踩坑**
+- 聊天页里 `router.push("/chat?c=…")` 不会换对话：`ChatApp` 的状态不跟 props。课程顶栏“下一课”一直有这个 bug，E2E 因为按钮文字“下一课：第 2 课”含“第 2 课”而误过。现在用 `ConversationOpenerContext` 原地切换；断言要写“第 2 课：”。
+- 一轮最多 3 个并行工具调用，测试里第 4 个会被拒（“at most 3 tool calls”）。
+- zsh 下 `ls 不存在的通配*` 会中断整行，后面设置的 PATH 不生效，pnpm 进 nvm 死循环；分开写。
+
+---
+
 ## 2026-10-17 任务 90.10–90.16（D：热记忆、被替代、写入查重）完成，任务 90 结束
 
 **做了什么**

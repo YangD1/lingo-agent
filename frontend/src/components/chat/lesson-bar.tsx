@@ -2,11 +2,11 @@
 
 import { GraduationCap } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
+import { useOpenConversation } from "@/components/chat/conversation-opener";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
@@ -15,7 +15,6 @@ import { CefrTag, Tag, isCefrLevel } from "@/components/ui/tag";
 import type { TutorCard } from "@/lib/cards";
 import {
   type Course,
-  courseChatHref,
   fetchCourse,
   onLessonChanged,
   startLesson,
@@ -42,7 +41,7 @@ export function LessonBar({
   const t = useTranslations("chat.lesson");
   const tCourse = useTranslations("course");
   const locale = useLocale();
-  const router = useRouter();
+  const openConversation = useOpenConversation();
   const describe = useDescribeError();
   const [course, setCourse] = useState<Course | null>(null);
   const [busy, setBusy] = useState(false);
@@ -81,12 +80,12 @@ export function LessonBar({
     run(async () => {
       const { conversation, card } = await testOut(kc.id, locale);
       if (conversation.id === conversationId) onCard(card);
-      else router.push(courseChatHref(conversation.id));
+      else openConversation(conversation);
     });
   const goNext = (kcId: string) =>
     run(async () => {
       const { conversation } = await startLesson(kcId, locale);
-      router.push(courseChatHref(conversation.id));
+      openConversation(conversation);
     });
 
   return (

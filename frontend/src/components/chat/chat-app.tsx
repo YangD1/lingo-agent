@@ -34,6 +34,7 @@ import {
 
 import { ConversationList } from "./conversation-list";
 import { PlacementBanner } from "./placement-banner";
+import { ConversationOpenerContext } from "./conversation-opener";
 import { LessonBar } from "./lesson-bar";
 import { PracticeBar } from "./practice-bar";
 import type { ComposerHandle } from "./composer";
@@ -152,6 +153,11 @@ export function ChatApp({
     setActiveId(id);
     setDocId(null); // documents belong to their conversation
     setUrl(id);
+  };
+  // A conversation made elsewhere on the page (a lesson card, the next lesson).
+  const openConversation = (c: Conversation) => {
+    setConversations((all) => [c, ...all.filter((o) => o.id !== c.id)]);
+    select(c.id);
   };
 
   // The workspace (ADR 0043): the document open beside the chat, and how it sits there.
@@ -279,153 +285,155 @@ export function ChatApp({
   const tabs = isOpen && layout === "tabs";
 
   return (
-    <WorkspaceOpenerContext value={{ open: openDoc, openFrom }}>
-      <ConversationList
-        {...list}
-        className={cn("hidden md:flex", isOpen && "md:hidden")}
-        onSelect={select}
-        onNew={() => select(null)}
-      />
-      <div className="relative flex min-w-0 flex-1 flex-col">
-        {tabs && (
-          <div className="flex shrink-0 items-center justify-center border-b px-3 py-2">
-            <Segmented
-              label={t("workspace.tabs")}
-              value={tab}
-              onChange={setTab}
-              className="w-full max-w-xs [&>*]:flex-1"
-              options={[
-                { value: "chat", label: t("workspace.tabChat") },
-                { value: "workspace", label: t("workspace.tabWorkspace") },
-              ]}
-            />
-          </div>
-        )}
-        {/* One tree whatever the layout, so the conversation (and a reply streaming into
-            it) stays mounted while the workspace opens, closes or changes layout. The group
-            sets its own inline display, so the phone tab hides a wrapper around it. */}
-        <div className={cn("flex min-h-0 flex-1 flex-col", tabs && tab === "workspace" && "hidden")}>
-          <Group
-            id="chat-workspace"
-            className="min-h-0 flex-1"
-            defaultLayout={panels.defaultLayout}
-            onLayoutChanged={panels.onLayoutChanged}
-          >
-            <Panel
-              id="chat-column"
-              panelRef={chatPanel}
-              minSize={split ? 360 : undefined}
-              defaultSize={split ? 420 : undefined}
-              collapsible={split}
-              collapsedSize={0}
-              onResize={(size) => split && setFullscreen(size.inPixels === 0)}
-              className="flex min-w-0 flex-col"
-            >
-              <header className="flex h-14 shrink-0 items-center gap-1.5 border-b px-2 md:h-12 md:px-5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("md:hidden", isOpen && "md:inline-flex")}
-                  aria-label={t("openConversations")}
-                  aria-haspopup="dialog"
-                  onClick={() => setDrawerOpen(true)}
-                >
-                  <Menu className="size-5" />
-                </Button>
-                <h1 className="truncate text-base font-semibold md:text-[15px]">
-                  {active ? active.title || t("untitled") : t("newChat")}
-                </h1>
-                {!isOpen && latestDoc && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto shrink-0 text-muted-foreground"
-                    onClick={() => openDoc(latestDoc.id)}
-                  >
-                    <PanelRight />
-                    {t("workspace.open", { n: workspace.docs.length })}
-                  </Button>
-                )}
-              </header>
-              <TutorPanel
-                className="min-h-0 flex-1"
-                conversationId={activeId}
-                onConversationCreated={(c) => {
-                  setActiveId(c.id);
-                  setUrl(c.id, "replace");
-                  setConversations((all) => [c, ...all.filter((o) => o.id !== c.id)]);
-                }}
-                onTurnFinished={() => {
-                  refresh();
-                  // The turn may have moved the lesson's mastery.
-                  if (active?.purpose === "lesson") lessonChanged();
-                }}
-                // A practice or planning conversation with nothing in it yet (Q19a, ADR 0015 §6).
-                autoOpen={Boolean(active?.focus_kc || active?.purpose === "planning")}
-                header={({ addCard }) =>
-                  active?.purpose === "lesson" && active.focus_kc ? (
-                    <LessonBar conversationId={active.id} kc={active.focus_kc} onCard={addCard} />
-                  ) : active?.focus_kc ? (
-                    <PracticeBar kc={active.focus_kc} />
-                  ) : active?.article_id ? (
-                    <ReadingBar articleId={active.article_id} />
-                  ) : (
-                    <PlacementBanner />
-                  )
-                }
-                sendFeature={active?.article_id ? "reading_coach" : undefined}
-                error={practiceError}
-                onCardShown={onCardShown}
-                workspaceDocId={docId}
-                openInWorkspace={openPasted}
-                composerRef={composer}
-              />
-            </Panel>
-            {split && (
-              <>
-                <Separator
-                  className="w-px bg-border outline-none transition-colors hover:bg-ring data-[separator=active]:bg-ring focus-visible:bg-ring"
-                  aria-label={t("workspace.resize")}
-                />
-                <Panel id="workspace-column" minSize={480} className="flex min-w-0 flex-col">
-                  {pane}
-                </Panel>
-              </>
-            )}
-          </Group>
-        </div>
-        {isOpen && layout === "overlay" && <div className="absolute inset-0 z-20 flex flex-col">{pane}</div>}
-        {tabs && tab === "workspace" && <div className="flex min-h-0 flex-1 flex-col">{pane}</div>}
-      </div>
-      {/* Phones: the list is a drawer, and the way back to the other pages (no tab bar here). */}
-      <Sheet
-        side="left"
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        title={t("conversations")}
-        hideTitle
-        className="bg-[color-mix(in_oklab,var(--sidebar)_60%,var(--background))]"
-      >
+    <ConversationOpenerContext value={openConversation}>
+      <WorkspaceOpenerContext value={{ open: openDoc, openFrom }}>
         <ConversationList
           {...list}
-          className="min-h-0 w-full flex-1 border-r-0 bg-transparent"
-          onSelect={(id) => {
-            setDrawerOpen(false);
-            select(id);
-          }}
-          onNew={() => {
-            setDrawerOpen(false);
-            select(null);
-          }}
+          className={cn("hidden md:flex", isOpen && "md:hidden")}
+          onSelect={select}
+          onNew={() => select(null)}
         />
-        <Link
-          href="/dashboard"
-          className="flex h-12 shrink-0 items-center gap-2.5 border-t px-5 text-sm text-muted-foreground hover:text-foreground"
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          {tabs && (
+            <div className="flex shrink-0 items-center justify-center border-b px-3 py-2">
+              <Segmented
+                label={t("workspace.tabs")}
+                value={tab}
+                onChange={setTab}
+                className="w-full max-w-xs [&>*]:flex-1"
+                options={[
+                  { value: "chat", label: t("workspace.tabChat") },
+                  { value: "workspace", label: t("workspace.tabWorkspace") },
+                ]}
+              />
+            </div>
+          )}
+          {/* One tree whatever the layout, so the conversation (and a reply streaming into
+              it) stays mounted while the workspace opens, closes or changes layout. The group
+              sets its own inline display, so the phone tab hides a wrapper around it. */}
+          <div className={cn("flex min-h-0 flex-1 flex-col", tabs && tab === "workspace" && "hidden")}>
+            <Group
+              id="chat-workspace"
+              className="min-h-0 flex-1"
+              defaultLayout={panels.defaultLayout}
+              onLayoutChanged={panels.onLayoutChanged}
+            >
+              <Panel
+                id="chat-column"
+                panelRef={chatPanel}
+                minSize={split ? 360 : undefined}
+                defaultSize={split ? 420 : undefined}
+                collapsible={split}
+                collapsedSize={0}
+                onResize={(size) => split && setFullscreen(size.inPixels === 0)}
+                className="flex min-w-0 flex-col"
+              >
+                <header className="flex h-14 shrink-0 items-center gap-1.5 border-b px-2 md:h-12 md:px-5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("md:hidden", isOpen && "md:inline-flex")}
+                    aria-label={t("openConversations")}
+                    aria-haspopup="dialog"
+                    onClick={() => setDrawerOpen(true)}
+                  >
+                    <Menu className="size-5" />
+                  </Button>
+                  <h1 className="truncate text-base font-semibold md:text-[15px]">
+                    {active ? active.title || t("untitled") : t("newChat")}
+                  </h1>
+                  {!isOpen && latestDoc && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto shrink-0 text-muted-foreground"
+                      onClick={() => openDoc(latestDoc.id)}
+                    >
+                      <PanelRight />
+                      {t("workspace.open", { n: workspace.docs.length })}
+                    </Button>
+                  )}
+                </header>
+                <TutorPanel
+                  className="min-h-0 flex-1"
+                  conversationId={activeId}
+                  onConversationCreated={(c) => {
+                    setActiveId(c.id);
+                    setUrl(c.id, "replace");
+                    setConversations((all) => [c, ...all.filter((o) => o.id !== c.id)]);
+                  }}
+                  onTurnFinished={() => {
+                    refresh();
+                    // The turn may have moved the lesson's mastery.
+                    if (active?.purpose === "lesson") lessonChanged();
+                  }}
+                  // A practice or planning conversation with nothing in it yet (Q19a, ADR 0015 §6).
+                  autoOpen={Boolean(active?.focus_kc || active?.purpose === "planning")}
+                  header={({ addCard }) =>
+                    active?.purpose === "lesson" && active.focus_kc ? (
+                      <LessonBar conversationId={active.id} kc={active.focus_kc} onCard={addCard} />
+                    ) : active?.focus_kc ? (
+                      <PracticeBar kc={active.focus_kc} />
+                    ) : active?.article_id ? (
+                      <ReadingBar articleId={active.article_id} />
+                    ) : (
+                      <PlacementBanner />
+                    )
+                  }
+                  sendFeature={active?.article_id ? "reading_coach" : undefined}
+                  error={practiceError}
+                  onCardShown={onCardShown}
+                  workspaceDocId={docId}
+                  openInWorkspace={openPasted}
+                  composerRef={composer}
+                />
+              </Panel>
+              {split && (
+                <>
+                  <Separator
+                    className="w-px bg-border outline-none transition-colors hover:bg-ring data-[separator=active]:bg-ring focus-visible:bg-ring"
+                    aria-label={t("workspace.resize")}
+                  />
+                  <Panel id="workspace-column" minSize={480} className="flex min-w-0 flex-col">
+                    {pane}
+                  </Panel>
+                </>
+              )}
+            </Group>
+          </div>
+          {isOpen && layout === "overlay" && <div className="absolute inset-0 z-20 flex flex-col">{pane}</div>}
+          {tabs && tab === "workspace" && <div className="flex min-h-0 flex-1 flex-col">{pane}</div>}
+        </div>
+        {/* Phones: the list is a drawer, and the way back to the other pages (no tab bar here). */}
+        <Sheet
+          side="left"
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          title={t("conversations")}
+          hideTitle
+          className="bg-[color-mix(in_oklab,var(--sidebar)_60%,var(--background))]"
         >
-          <LayoutGridIcon aria-hidden className="size-[18px]" />
-          {tNav("dashboard")}
-        </Link>
-      </Sheet>
-    </WorkspaceOpenerContext>
+          <ConversationList
+            {...list}
+            className="min-h-0 w-full flex-1 border-r-0 bg-transparent"
+            onSelect={(id) => {
+              setDrawerOpen(false);
+              select(id);
+            }}
+            onNew={() => {
+              setDrawerOpen(false);
+              select(null);
+            }}
+          />
+          <Link
+            href="/dashboard"
+            className="flex h-12 shrink-0 items-center gap-2.5 border-t px-5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <LayoutGridIcon aria-hidden className="size-[18px]" />
+            {tNav("dashboard")}
+          </Link>
+        </Sheet>
+      </WorkspaceOpenerContext>
+    </ConversationOpenerContext>
   );
 }

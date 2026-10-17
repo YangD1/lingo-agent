@@ -14,8 +14,10 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.cards import service
+from app.cards.lesson import LessonCards
 from app.cards.quiz import QuizTools
 from app.cards.tools import (
+    LESSON_TOOL_NAME,
     QUIZ_TOOL_NAMES,
     WITHDRAW_TOOL_NAME,
     WORKSPACE_TOOL_NAMES,
@@ -42,6 +44,7 @@ class DatabaseTutorTools:
         scope: Callable[[], Awaitable[CardScope]] | None = None,
         workspace: WorkspaceTools | None = None,
         quiz: QuizTools | None = None,
+        lessons: LessonCards | None = None,
         stop_quiz: Callable[[uuid.UUID], None] | None = None,
     ) -> None:
         self._sessionmaker = sessionmaker
@@ -51,6 +54,7 @@ class DatabaseTutorTools:
         self._scope = scope
         self._workspace = workspace
         self._quiz = quiz
+        self._lessons = lessons
         # Stops generating a withdrawn quiz card's set (PracticeWorker.cancel).
         self._stop_quiz = stop_quiz
         # One turn's calls run in parallel; put_card's same-proposal check is a read
@@ -64,6 +68,8 @@ class DatabaseTutorTools:
             return await self._run_quiz(args, call_id)
         if name == WITHDRAW_TOOL_NAME:
             return await self._withdraw(args)
+        if name == LESSON_TOOL_NAME:
+            return await self._run_lesson(args, call_id)
         try:
             draft = draft_card(name, args, await self._scope() if self._scope else None)
         except ToolCallError as exc:
@@ -101,6 +107,18 @@ class DatabaseTutorTools:
             )
         except ToolCallError as exc:
             logger.info("tool call give_quiz refused: %s", exc)
+            return ToolOutcome(f"Error: {exc}. No card was shown.", ok=False)
+        outcome, handle = await self._put_card(result.draft, call_id)
+        return ToolOutcome(f"(card {handle}) {result.content}", ok=True, card=outcome.card)
+
+    async def _run_lesson(self, args: Mapping[str, Any], call_id: str) -> ToolOutcome:
+        """suggest_lesson asks the course which lesson to open (ADR 0054 §1)."""
+        if self._lessons is None:
+            return ToolOutcome("Error: lesson cards are not available here.", ok=False)
+        try:
+            result = await self._lessons.run(args)
+        except ToolCallError as exc:
+            logger.info("tool call suggest_lesson refused: %s", exc)
             return ToolOutcome(f"Error: {exc}. No card was shown.", ok=False)
         outcome, handle = await self._put_card(result.draft, call_id)
         return ToolOutcome(f"(card {handle}) {result.content}", ok=True, card=outcome.card)

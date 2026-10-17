@@ -448,6 +448,11 @@
       "practice": {
         "title": "Practise {kc}"
       },
+      "lesson": {
+        "title": "Lesson {n}: {kc}",
+        "first": "Lesson {n}, {kc}, is still locked: start from this lesson.",
+        "action": "Go to this lesson"
+      },
       "link": {
         "vocab_review": {
           "title": "Review and learn words",

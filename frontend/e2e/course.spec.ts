@@ -56,7 +56,7 @@ test("course: first lesson, pass quiz in the chat, then the next lesson", async 
   const lessonChat = page.url();
   await bar.getByRole("button", { name: "下一课：第 2 课" }).click();
   await expect(page).not.toHaveURL(lessonChat);
-  await expect(bar).toContainText("第 2 课");
+  await expect(bar).toContainText("第 2 课：");
 
   // Back on the course page: lesson 1 passed, lesson 2 open and current.
   await page.goto("/course");
@@ -92,4 +92,28 @@ test("course: testing out of a locked lesson opens its quiz, without the tutor's
   await expect(card.getByTestId("practice-item")).toBeVisible({ timeout: 30_000 });
   await page.waitForTimeout(1_000); // time enough for an opening to have started
   await expect(replies(page)).toHaveCount(0);
+});
+
+// Asked about another grammar point in a lesson, the tutor shows that point's lesson on a
+// card, which opens it (ADR 0054 §1).
+test("course: another grammar point's lesson opens from a card in the lesson", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await useFakeModel(page);
+  await page.goto("/course");
+  await page.getByTestId("course-current").getByRole("button", { name: "开始" }).click();
+  await expect(page).toHaveURL(/\/chat\?c=/);
+  const bar = page.getByTestId("lesson-bar");
+  await expect(bar).toContainText("第 1 课");
+  await expect(replies(page).first()).not.toHaveAttribute("data-status", "streaming", { timeout: 15_000 });
+
+  await input(page).fill("be 动词怎么用？");
+  await input(page).press("Enter");
+  const card = page.locator("[data-testid=tutor-card][data-kind=lesson]");
+  await expect(card).toContainText("第 2 课");
+  await expect(replies(page).last()).not.toHaveAttribute("data-status", "streaming", { timeout: 15_000 });
+  const lessonChat = page.url();
+  await card.getByRole("button", { name: "去这一课" }).click();
+
+  await expect(page).not.toHaveURL(lessonChat);
+  await expect(bar).toContainText("第 2 课：");
 });
