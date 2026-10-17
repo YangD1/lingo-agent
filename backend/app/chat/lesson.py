@@ -185,3 +185,13 @@ def render_lesson(brief: LessonBrief) -> str:
         )
     # replace, not format: the learner's sentences may contain braces.
     return load_prompt("lesson").replace("{lesson}", "\n".join(lines))
+
+
+def lesson_opening_cue(brief: LessonBrief | None) -> str:
+    """How the tutor opens the lesson, by its state (ADR 0054 §2): code decides whether
+    it is new, retried after a failed pass quiz, or a review."""
+    if brief is not None and brief.lesson.state in ("passed", "review"):
+        return load_prompt("lesson_opening_review")
+    if brief is not None and brief.quizzes:
+        return load_prompt("lesson_opening_retry")
+    return load_prompt("lesson_opening")

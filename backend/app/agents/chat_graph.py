@@ -58,7 +58,7 @@ from app.agents.messages import StampedMessagesState
 from app.agents.routing import Route, classify, worth_classifying
 from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
-from app.chat.lesson import LessonBrief, LessonSource, render_lesson
+from app.chat.lesson import LessonBrief, LessonSource, lesson_opening_cue, render_lesson
 from app.chat.planning import PlanningBrief, PlanningSource, render_planning
 from app.chat.practice import PracticeSource, render_practice
 from app.chat.reading import ReadingSource, render_reading
@@ -111,7 +111,6 @@ SPEAKING_USAGE_TASK = "speaking"
 PLAN_CUE = "plan_opening"
 DAILY_CUE = "daily_opening"
 PRACTICE_CUE = "practice_opening"
-LESSON_CUE = "lesson_opening"
 WORKSPACE_CONTEXT = "workspace_context"
 # Vendors answer a request with tools they can't take with one of these.
 _REFUSED_STATUSES = frozenset({400, 404, 422})
@@ -269,6 +268,15 @@ async def _load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict
     }
 
 
+async def _lesson_brief(lesson: LessonSource) -> LessonBrief | None:
+    """Loaded once per turn already (load_context); a failure opens it as a new lesson."""
+    try:
+        return await lesson.load()
+    except Exception:
+        logger.exception("loading the lesson failed")
+        return None
+
+
 async def _cards(tools: TutorTools | None) -> str:
     if tools is None:
         return ""
@@ -310,13 +318,10 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
             "metadata": {**config.get("metadata", {}), "usage_task": TOOLS_USAGE_TASK},
         }
     planning = runtime.context.planning
-    cue = load_prompt(
-        LESSON_CUE
-        if runtime.context.lesson
-        else DAILY_CUE
-        if planning and planning.purpose == "daily"
-        else PLAN_CUE
-    )
+    if runtime.context.lesson:
+        cue = lesson_opening_cue(await _lesson_brief(runtime.context.lesson))
+    else:
+        cue = load_prompt(DAILY_CUE if planning and planning.purpose == "daily" else PLAN_CUE)
     try:
         reply = await _call(runtime, task, state, history, has_tools, bind, config, cue)
     except Exception as exc:
