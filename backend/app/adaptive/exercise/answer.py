@@ -362,8 +362,9 @@ async def answer(
     session.add(attempt)
     await session.flush()
 
-    # Understanding checks write no evidence (ADR 0044 §3).
-    counted = bool(SPECS[body.format].evidence)
+    # Understanding checks write no evidence (ADR 0044 §3), nor does an item whose
+    # answer the tutor gave away (task 95.3).
+    counted = bool(SPECS[body.format].evidence) and item.revealed_at is None
     if not counted:
         marks = ()
     given = _given(body, response)
@@ -380,7 +381,7 @@ async def answer(
                 mistake=None if mark.correct else ("wrong_choice", "medium", given, expected),
             )
         )
-    for other in others:
+    for other in others if item.revealed_at is None else ():
         session.add(
             _evidence(
                 attempt,

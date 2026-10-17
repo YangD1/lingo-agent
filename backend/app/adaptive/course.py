@@ -177,8 +177,9 @@ async def quiz_scores(
     sets = {set_id: cast(str, kc_id) for set_id, kc_id in (await session.execute(latest)).all()}
     if not sets:
         return {}
+    # An item whose answer the tutor gave away counts as wrong (task 95.3).
     rows = await session.execute(
-        select(Exercise.set_id, Exercise.id, Attempt.correct)
+        select(Exercise.set_id, Exercise.id, Attempt.correct & Exercise.revealed_at.is_(None))
         .outerjoin(Attempt, Attempt.exercise_id == Exercise.id)
         .where(Exercise.set_id.in_(sets), Exercise.status == "ok")
         .order_by(Exercise.set_id, Exercise.id, Attempt.id)

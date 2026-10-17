@@ -7,6 +7,7 @@ does, and answers go through the practice API. The same tool call id gives the s
 set and card.
 """
 
+import logging
 import re
 import uuid
 from collections import Counter
@@ -15,9 +16,10 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.activity.service import ActivitySink, AnswersRevealed, Step, timed
 from app.adaptive import course
 from app.adaptive.exercise.formats import (
     Choice4,
@@ -39,6 +41,8 @@ from app.adaptive.kc.search import find_kcs, is_clear
 from app.adaptive.rules import get_rules
 from app.cards.tools import CardDraft, CardScope, GiveQuiz, ToolCallError, parse_args
 from app.db.models import Attempt, Exercise, ExerciseSet, TutorCard
+
+logger = logging.getLogger(__name__)
 
 
 class StartQuiz(Protocol):
@@ -287,6 +291,67 @@ def revealed(reply: str, items: Mapping[int, ExerciseBody]) -> list[int]:
     return out
 
 
+async def mark_revealed(
+    session: AsyncSession, conversation_id: uuid.UUID, reply: str
+) -> tuple[str, int] | None:
+    """After a reply: mark the items of the conversation's latest pass quiz whose
+    answer the reply gave away (the only quiz whose questions the tutor sees, ADR 0051).
+    The KC and how many were marked, or None; does not commit."""
+    card = await session.scalar(
+        select(TutorCard)
+        .where(
+            TutorCard.conversation_id == conversation_id,
+            TutorCard.kind == "quiz",
+            TutorCard.status != "withdrawn",
+        )
+        .order_by(TutorCard.created_at.desc(), TutorCard.id.desc())
+        .limit(1)
+    )
+    if card is None or card.params["purpose"] != "quiz":
+        return None
+    answered = select(Attempt.id).where(Attempt.exercise_id == Exercise.id).exists()
+    items = await session.scalars(
+        select(Exercise).where(
+            Exercise.set_id == uuid.UUID(card.params["set_id"]),
+            Exercise.status == "ok",
+            Exercise.revealed_at.is_(None),
+            ~answered,
+        )
+    )
+    bodies = {i.id: parse_body(i.format, i.content, i.answer) for i in items}
+    found = revealed(reply, bodies)
+    if not found:
+        return None
+    await session.execute(
+        update(Exercise).where(Exercise.id.in_(found)).values(revealed_at=func.now())
+    )
+    return card.params["kc_id"], len(found)
+
+
+async def check_reply(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    activity: ActivitySink,
+    conversation_id: uuid.UUID,
+    reply: str,
+) -> None:
+    """`mark_revealed` once a tutor reply is out, recorded as a background step; a
+    failure is recorded, not raised, as the reply is already out."""
+    try:
+        with timed() as t:
+            async with sessionmaker() as session:
+                marked = await mark_revealed(session, conversation_id, reply)
+                await session.commit()
+    except Exception:
+        logger.exception("checking a reply for quiz answers failed")
+        await activity.record(Step("quiz_reveal", status="failed", duration_ms=t.ms))
+        return
+    if marked is not None:
+        kc_id, items = marked
+        await activity.record(
+            Step("quiz_reveal", summary=AnswersRevealed(kc_id=kc_id, items=items), duration_ms=t.ms)
+        )
+
+
 # --- results, for the tutor's context ---------------------------------------------------
 
 
@@ -350,11 +415,15 @@ class QuizItem:
     # The learner's first answer and whether it was right; None while unanswered.
     given: str | None = None
     correct: bool | None = None
+    # The tutor gave the answer away before it was answered (task 95.3).
+    revealed: bool = False
 
     def describe(self) -> str:
         text = repr(self.question)
         if self.choices:
             text += f"; {self.choices}"
+        if self.revealed:
+            text += "; you gave its answer away, so it counts as wrong whatever they answer"
         if self.given is None:
             return f"{text}; not answered yet; key (say it only if they ask): {self.key!r}"
         mark = "right" if self.correct else "wrong"
@@ -443,10 +512,12 @@ async def quiz_states(
     for item, attempt in first.values():
         total[item.set_id] += 1
         body = parse_body(item.format, item.content, item.answer)
-        shown = QuizItem(_question(body), _choices(body), _key(body))
+        shown = QuizItem(
+            _question(body), _choices(body), _key(body), revealed=item.revealed_at is not None
+        )
         if attempt is not None:
             answered[item.set_id] += 1
-            if attempt.correct:
+            if attempt.correct and not shown.revealed:
                 correct[item.set_id] += 1
             shown = replace(shown, given=_given(attempt.response), correct=attempt.correct)
         items[item.set_id].append(shown)

@@ -100,6 +100,14 @@ class SummaryUpdate(Summary):
     episode_id: uuid.UUID | None = None
 
 
+class AnswersRevealed(Summary):
+    """`quiz_reveal`: the tutor's reply gave away answers of an unanswered pass quiz,
+    so those items count as wrong (task 95.3)."""
+
+    kc_id: str
+    items: int
+
+
 class CardShown(Summary):
     """A tool call of the tutor (ADR 0015): the card it put in the conversation, if
     any. The card itself shows its current status."""
@@ -164,6 +172,7 @@ STEPS: dict[str, StepSpec] = {
     "grammar_tagging": StepSpec("background", GrammarTags),
     "vocab_collect": StepSpec("background", WordsCollected),
     "summarize": StepSpec("background", SummaryUpdate),
+    "quiz_reveal": StepSpec("background", AnswersRevealed),
     "tools": StepSpec("step", ToolsUnavailable),
     "handoff": StepSpec("step", Handoff),
     "writing_review": StepSpec("step", WritingReviewed),

@@ -25,7 +25,7 @@ from app.api.vocab import TimeZone
 from app.attachments import service as attachment_service
 from app.attachments.context import DatabaseAttachments
 from app.attachments.service import AttachmentNotFoundError, AttachmentStateError
-from app.cards.quiz import QuizTools
+from app.cards.quiz import QuizTools, check_reply
 from app.cards.runtime import DatabaseTutorTools
 from app.chat import service, translate
 from app.chat.lesson import DatabaseLesson
@@ -39,6 +39,7 @@ from app.chat.turn import (
     OPENING_TURN_ID,
     CardEvent,
     DoneEvent,
+    TokenEvent,
     begin_turn,
     new_message_id,
     stream_reply,
@@ -685,6 +686,8 @@ async def _reply(
                         turn.providers.tutor is None or turn.providers.tutor.workspace_auto_open
                     ),
                 )
+    activity = DatabaseActivity(sessionmaker, user.id, turn.conversation_id, turn.message_id)
+    reply: list[str] = []
     async for event in stream_reply(
         graph,
         conversation_id=turn.conversation_id,
@@ -696,7 +699,7 @@ async def _reply(
         learner=DatabaseLearner(
             sessionmaker, user.id, turn.conversation_id, memory_embedder(turn.providers)
         ),
-        activity=DatabaseActivity(sessionmaker, user.id, turn.conversation_id, turn.message_id),
+        activity=activity,
         route=route,
         classify=turn.free_chat,
         writing=writing,
@@ -717,8 +720,13 @@ async def _reply(
         if isinstance(event, CardEvent):  # the card itself, like GET .../cards items
             yield ServerSentEvent(event=event.event, data=event.card)
             continue
+        if isinstance(event, TokenEvent):
+            reply.append(event.text)
         data = dataclasses.asdict(event)
         yield ServerSentEvent(event=data.pop("event"), data=data)
+        # The reply may have given away a quiz answer the tutor sees (task 95.3).
+        if isinstance(event, DoneEvent) and tools is not None:
+            await check_reply(sessionmaker, activity, turn.conversation_id, "".join(reply))
         # After the reply is out, never before: memory work must not delay it. An
         # opening has nothing from the learner to reflect on.
         if isinstance(event, DoneEvent) and turn.text is not None:

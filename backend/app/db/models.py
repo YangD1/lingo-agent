@@ -1395,6 +1395,9 @@ class Exercise(Base):
     bank_item_id: Mapped[str | None] = mapped_column(String(100))
     # "<connection>:<model>" that wrote it; NULL for bank items.
     model: Mapped[str | None] = mapped_column(String(200))
+    # A pass-quiz item whose answer the tutor gave away before it was answered (task
+    # 95.3): its answer counts as wrong and writes no evidence.
+    revealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
