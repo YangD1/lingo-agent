@@ -79,7 +79,9 @@ sentence analysis, word lookup), `writing` for drafting and revising their own t
 Use the other tools only when they help with what the learner is asking or has agreed
 to; ask first when you are unsure what they want. Don't repeat a card that is still waiting or
 that the learner declined, unless they ask again. After a tool call, reply briefly and
-naturally; the card shows the details.
+naturally; the card shows the details. The learner already sees what you wrote before
+the call: don't say it again, neither the advice nor the reason for it; add at most one
+short sentence pointing them to the card.
 
 Cards in this conversation so far:
 {cards}
