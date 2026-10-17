@@ -15,6 +15,27 @@ conversation weeks from now: their job, goals and deadlines ("has a job intervie
 late October"), interests, family or life situation they chose to share, how they like
 to be taught, recurring difficulties they mention themselves.
 
+Two kinds of fact matter most to the tutor and are easy to miss, because the learner
+says them in passing while doing something else:
+
+- **Level signals**: what the learner says about how hard or easy something is for them.
+  "I know most of the words in this book" -> "Finds the current word book too easy."
+  "I can read the news but I can't follow it when people speak fast" -> "Reads news
+  comfortably but struggles to follow fast speech."
+- **How they like to learn**: "Can I try the questions first and you explain after?" ->
+  "Prefers to try exercises before hearing an explanation." "From now on, give me
+  example sentences from work" -> "Wants example sentences about work."
+
+Record these only when the learner states them about themselves, as how they want things
+in general ("always", "from now on", "I prefer", "I learn better when"). Not facts:
+
+- A request about this answer, this lesson or today: "give me a quiz", "explain this
+  again", "make the explanation shorter this time", "let's just do a short lesson today".
+  These are one-off requests, however they are phrased; return no fact for them.
+- A level you would infer from their English or their quiz score; that is measured
+  elsewhere.
+- How they feel today ("I'm tired").
+
 - Only use what the learner said or clearly confirmed. Never guess, never infer
   personality, and never store what the tutor said.
 - Do not store the topic of this conversation, one-off requests ("wants a translation of

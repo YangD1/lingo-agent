@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-10-17 任务 90.1–90.8 完成：长期记忆跨会话 A、B、C、E
+
+**做了什么**
+- 上一个会话做完 90.1–90.7（最后一个提交 192cd93），在 90.8 开头因截图累积超过请求上限中断，没写交接；本条补上。
+- 90.8：`prompts/reflect.md` 事实一节加“水平信号”“学习方式偏好”正例，反例写明“这次 / 今天”的请求、推出来的水平、当天状态都不记。`evals/datasets/reflect.yaml` 加 3 条用例；在一次性 `lingo_smoke` 库的临时账号上用百炼 qwen-plus 重录 `cassettes/reflect.json` 和 `baselines.json`（库已删）；`evals/README.md` 录制说明已更新。单测 `test_reflection_words.py` 加提示词装配断言。
+
+**未完成 / 下一步**
+- **90.9 收尾**：全量 pytest、Vitest、chat 相关 E2E、`make lint`；Docker 重建（先后端再前端，一次一个重活）；百炼冒烟：临时账号两个会话，第二个会话问“我上次学到哪了”（方法见记忆 real-model-smoke-backend）。
+- **90.10 D**：热记忆 token 上限 / 会话内固定 / 旧记忆标“被替代” / 写入前查近似重复，要迁移和新 ADR，先拆再确认；注意 ADR 0009 §4（删掉的记忆下一轮就不能用）。
+- 任务 90 本地未推送。
+
+**踩坑**
+- `make eval-live` 读 `DATABASE_URL`；要用冒烟库时同时给 `DATABASE_URL=.../lingo_smoke` 和冒烟后端用的 `CREDENTIALS_ENCRYPTION_KEYS`（`run_backend.py` 里的 e2e 值），否则解不开连接的 key。
+- 录制只要调用都成功就会写文件，**门槛没达到也会覆盖录制和基线**；先不加 `--record` 跑，提示词定了再录。
+- 截图多了会让请求超过 32MB，整个会话作废；看图前按记忆 screenshot-downscale 缩小，不要一次读太多。
+
+---
+
 ## 2026-10-17 任务 95.3 完成：讲过答案的过关题按答错算，任务 95 收尾
 
 **做了什么**

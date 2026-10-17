@@ -66,22 +66,22 @@
  },
  "reflect": {
   "metrics": {
-   "facts_found": [4, 5],
-   "nothing_forbidden": [4, 5],
+   "facts_found": [6, 7],
+   "nothing_forbidden": [6, 7],
    "outdated_fixed": [2, 2],
    "profile_right": [4, 4],
    "mistakes_found": [2, 2],
-   "no_false_mistakes": [12, 14],
-   "words_found": [3, 3],
-   "ids_valid": [18, 19],
-   "no_unchanged": [17, 19]
+   "no_false_mistakes": [16, 17],
+   "words_found": [4, 4],
+   "ids_valid": [21, 22],
+   "no_unchanged": [20, 22]
   },
   "models": [
    "qwen-plus"
   ],
-  "recorded": "2026-10-13",
+  "recorded": "2026-10-17",
   "prompts": {
-   "reflect": "2ea50fae"
+   "reflect": "ee7607f3"
   }
  },
  "route": {

@@ -37,3 +37,10 @@ def test_at_most_a_few_words_per_pass() -> None:
 
 def test_prompt_explains_which_words_to_collect() -> None:
     assert "## Words to learn (`vocab_candidates`)" in system_prompt()
+
+
+def test_prompt_asks_for_level_and_preference_signals() -> None:
+    prompt = system_prompt()
+    assert "**Level signals**" in prompt
+    assert "**How they like to learn**" in prompt
+    assert "These are one-off requests" in prompt

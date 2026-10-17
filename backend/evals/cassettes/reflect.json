@@ -1,5 +1,79 @@
 {
- "010f76ccfd87fe5d": {
+ "0a6acbc12324856d": {
+  "case": "teaching-preference",
+  "output": {
+   "memory_ops": [
+    {
+     "action": "add",
+     "content": "Prefers not to be corrected for every small mistake during chat and would like only important ones highlighted at the end.",
+     "id": null
+    }
+   ],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "0d4f1c808401931a": {
+  "case": "pasted-text-words-not-taken",
+  "output": {
+   "memory_ops": [],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "0f99d91568fa36b8": {
+  "case": "level-signal-in-passing",
+  "output": {
+   "memory_ops": [
+    {
+     "action": "add",
+     "content": "Finds the current word book too easy.",
+     "id": null
+    }
+   ],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [],
+   "vocab_candidates": [
+    {
+     "message": "u1",
+     "word": "commute"
+    }
+   ]
+  },
+  "task": "reflect"
+ },
+ "16af7e51152b6740": {
   "case": "small-talk-only",
   "output": {
    "memory_ops": [],
@@ -13,17 +87,94 @@
     "occupation": null,
     "target_exam": null
    },
+   "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "18e78e3576efc61f": {
+  "case": "informal-chat-not-tagged",
+  "output": {
+   "memory_ops": [],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "1db310f6e0f008b2": {
+  "case": "learning-preference-in-passing",
+  "output": {
+   "memory_ops": [
+    {
+     "action": "add",
+     "content": "Prefers to try exercises before hearing an explanation.",
+     "id": null
+    }
+   ],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "244435fb2e8b7450": {
+  "case": "profile-not-guessed",
+  "output": {
+   "memory_ops": [
+    {
+     "action": "add",
+     "content": "Works as a professional who writes English emails daily.",
+     "id": null
+    },
+    {
+     "action": "add",
+     "content": "Sells phones to customers in Europe.",
+     "id": null
+    }
+   ],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": [
+     "phones",
+     "Europe"
+    ],
+    "native_language": null,
+    "occupation": "Professional in phone sales",
+    "target_exam": null
+   },
    "used_correctly": [
     {
-     "kc_id": "g.present_continuous",
+     "kc_id": "g.present_simple_third_person",
      "message": "u1"
     },
     {
-     "kc_id": "g.adverbs_of_manner",
+     "kc_id": "g.prepositions_movement",
      "message": "u1"
     },
     {
-     "kc_id": "g.will_future",
+     "kc_id": "g.conjunctions_because_so",
      "message": "u1"
     }
    ],
@@ -31,7 +182,96 @@
   },
   "task": "reflect"
  },
- "01f06570b330af69": {
+ "334aa7acc9bd8156": {
+  "case": "one-off-quiz-request-not-a-preference",
+  "output": {
+   "memory_ops": [],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "3e1595a94457db1b": {
+  "case": "job-and-deadline",
+  "output": {
+   "memory_ops": [
+    {
+     "action": "add",
+     "content": "Works as a backend developer at a logistics company.",
+     "id": null
+    },
+    {
+     "action": "add",
+     "content": "Has a job interview with a Canadian company at the end of November.",
+     "id": null
+    },
+    {
+     "action": "add",
+     "content": "Needs to practise talking about technical projects in English for a job interview.",
+     "id": null
+    }
+   ],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": "job interview",
+    "interests": null,
+    "native_language": null,
+    "occupation": "backend developer",
+    "target_exam": null
+   },
+   "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "416b429b0a1b8d66": {
+  "case": "chinese-facts",
+  "output": {
+   "memory_ops": [
+    {
+     "action": "add",
+     "content": "Works as a nurse in a hospital.",
+     "id": null
+    },
+    {
+     "action": "add",
+     "content": "Plans to work in Australia in two years.",
+     "id": null
+    },
+    {
+     "action": "add",
+     "content": "Is preparing for the OET exam.",
+     "id": null
+    }
+   ],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": "work in Australia",
+    "interests": null,
+    "native_language": null,
+    "occupation": "nurse",
+    "target_exam": "oet"
+   },
+   "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "53abc833b269c858": {
   "case": "asked-how-to-say",
   "output": {
    "memory_ops": [],
@@ -51,11 +291,11 @@
      "message": "u2"
     },
     {
-     "kc_id": "g.adverbs_of_frequency",
+     "kc_id": "g.adverb_placement",
      "message": "u2"
     },
     {
-     "kc_id": "g.subordinating_conjunctions",
+     "kc_id": "g.subordinate_clauses_time",
      "message": "u2"
     }
    ],
@@ -68,18 +308,69 @@
   },
   "task": "reflect"
  },
- "2913471956a730c0": {
-  "case": "tutor-and-quotes-not-tagged",
+ "58b2a372b4524171": {
+  "case": "asked-word-meaning",
+  "output": {
+   "memory_ops": [],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [],
+   "vocab_candidates": [
+    {
+     "message": "u1",
+     "word": "reluctant"
+    }
+   ]
+  },
+  "task": "reflect"
+ },
+ "7fd8c9e8fa640990": {
+  "case": "past-and-third-person",
   "output": {
    "memory_ops": [],
    "mistakes": [
     {
-     "correction": "doesn't",
+     "correction": "went",
+     "error_type": "wrong_form",
+     "kc_id": "g.past_simple_irregular",
+     "l1_transfer": true,
+     "message": "u1",
+     "original": "goed",
+     "severity": "medium"
+    },
+    {
+     "correction": "watched",
+     "error_type": "wrong_form",
+     "kc_id": "g.past_simple_regular",
+     "l1_transfer": true,
+     "message": "u1",
+     "original": "watch",
+     "severity": "medium"
+    },
+    {
+     "correction": "works",
      "error_type": "wrong_form",
      "kc_id": "g.present_simple_third_person",
-     "l1_transfer": false,
-     "message": "u1",
-     "original": "don't",
+     "l1_transfer": true,
+     "message": "u2",
+     "original": "work",
+     "severity": "medium"
+    },
+    {
+     "correction": "talks",
+     "error_type": "wrong_form",
+     "kc_id": "g.present_simple_third_person",
+     "l1_transfer": true,
+     "message": "u2",
+     "original": "talk",
      "severity": "medium"
     }
    ],
@@ -94,57 +385,29 @@
    },
    "used_correctly": [
     {
+     "kc_id": "g.past_simple_be",
+     "message": "u1"
+    },
+    {
      "kc_id": "g.present_simple_third_person",
-     "message": "u1"
+     "message": "u2"
     },
     {
-     "kc_id": "g.prepositions_place",
-     "message": "u1"
+     "kc_id": "g.present_simple_questions_negatives",
+     "message": "u2"
     }
    ],
    "vocab_candidates": []
   },
   "task": "reflect"
  },
- "2ab8635d9a6ca7a4": {
-  "case": "job-and-deadline",
-  "output": {
-   "memory_ops": [
-    {
-     "action": "add",
-     "content": "Works as a backend developer at a logistics company.",
-     "id": null
-    },
-    {
-     "action": "add",
-     "content": "Has a job interview with a Canadian company at the end of November.",
-     "id": null
-    }
-   ],
-   "mistakes": [],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": "practise talking about projects for a job interview",
-    "interests": [
-     "logistics"
-    ],
-    "native_language": null,
-    "occupation": "backend developer",
-    "target_exam": null
-   },
-   "used_correctly": [],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "3e87997cd3ad5f4b": {
+ "8c2c0e08e808b0fb": {
   "case": "interests-kept-when-adding",
   "output": {
    "memory_ops": [
     {
      "action": "add",
-     "content": "Has started learning the guitar.",
+     "content": "Has recently started learning the guitar.",
      "id": null
     }
    ],
@@ -172,7 +435,7 @@
      "message": "u1"
     },
     {
-     "kc_id": "g.subject_pronouns",
+     "kc_id": "g.conjunctions_basic",
      "message": "u1"
     }
    ],
@@ -180,7 +443,7 @@
   },
   "task": "reflect"
  },
- "3ffc5c9bcde98c78": {
+ "95588e5838970f9a": {
   "case": "one-off-request-not-remembered",
   "output": {
    "memory_ops": [],
@@ -199,454 +462,7 @@
   },
   "task": "reflect"
  },
- "41a6beda8043ff64": {
-  "case": "past-and-third-person",
-  "output": {
-   "memory_ops": [],
-   "mistakes": [
-    {
-     "correction": "went",
-     "error_type": "wrong_form",
-     "kc_id": "g.past_simple_irregular",
-     "l1_transfer": true,
-     "message": "u1",
-     "original": "goed",
-     "severity": "medium"
-    },
-    {
-     "correction": "watched",
-     "error_type": "wrong_form",
-     "kc_id": "g.past_simple_regular",
-     "l1_transfer": true,
-     "message": "u1",
-     "original": "watch",
-     "severity": "medium"
-    },
-    {
-     "correction": "works",
-     "error_type": "omission",
-     "kc_id": "g.present_simple_third_person",
-     "l1_transfer": true,
-     "message": "u2",
-     "original": "work",
-     "severity": "medium"
-    },
-    {
-     "correction": "talks",
-     "error_type": "omission",
-     "kc_id": "g.present_simple_third_person",
-     "l1_transfer": true,
-     "message": "u2",
-     "original": "talk",
-     "severity": "medium"
-    }
-   ],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": null,
-    "interests": null,
-    "native_language": null,
-    "occupation": null,
-    "target_exam": null
-   },
-   "used_correctly": [
-    {
-     "kc_id": "g.past_simple_regular",
-     "message": "u1"
-    },
-    {
-     "kc_id": "g.present_simple_third_person",
-     "message": "u2"
-    },
-    {
-     "kc_id": "g.present_simple_questions_negatives",
-     "message": "u2"
-    }
-   ],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "4c76f30da8bb54b6": {
-  "case": "changed-job",
-  "output": {
-   "memory_ops": [
-    {
-     "action": "update",
-     "content": "Works as a product manager at a software startup.",
-     "id": "m1"
-    }
-   ],
-   "mistakes": [
-    {
-     "correction": "left",
-     "error_type": "omission",
-     "kc_id": "g.past_simple_regular",
-     "l1_transfer": false,
-     "message": "u1",
-     "original": "left",
-     "severity": "low"
-    },
-    {
-     "correction": "works",
-     "error_type": "omission",
-     "kc_id": "g.present_simple_third_person",
-     "l1_transfer": false,
-     "message": "u1",
-     "original": "work",
-     "severity": "medium"
-    }
-   ],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": null,
-    "interests": null,
-    "native_language": null,
-    "occupation": "product manager",
-    "target_exam": null
-   },
-   "used_correctly": [
-    {
-     "kc_id": "g.present_simple_third_person",
-     "message": "u1"
-    },
-    {
-     "kc_id": "g.past_simple_regular",
-     "message": "u1"
-    }
-   ],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "4f63de3467bb99aa": {
-  "case": "profile-not-guessed",
-  "output": {
-   "memory_ops": [
-    {
-     "action": "add",
-     "content": "Works as a backend developer.",
-     "id": null
-    },
-    {
-     "action": "add",
-     "content": "Writes English emails daily for work.",
-     "id": null
-    }
-   ],
-   "mistakes": [],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": null,
-    "interests": [
-     "technology"
-    ],
-    "native_language": null,
-    "occupation": "backend developer",
-    "target_exam": null
-   },
-   "used_correctly": [
-    {
-     "kc_id": "g.present_simple_third_person",
-     "message": "u1"
-    },
-    {
-     "kc_id": "g.prepositions_place",
-     "message": "u1"
-    },
-    {
-     "kc_id": "g.present_simple_questions_negatives",
-     "message": "u1"
-    }
-   ],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "5720f559f2ea7282": {
-  "case": "health-and-others-details-left-out",
-  "output": {
-   "memory_ops": [
-    {
-     "action": "add",
-     "content": "Has a husband with a heart condition.",
-     "id": null
-    },
-    {
-     "action": "add",
-     "content": "Has high blood pressure.",
-     "id": null
-    },
-    {
-     "action": "add",
-     "content": "Has a trip to London planned for the summer.",
-     "id": null
-    }
-   ],
-   "mistakes": [
-    {
-     "correction": "was in the hospital",
-     "error_type": "wrong_form",
-     "kc_id": "g.past_simple_be",
-     "l1_transfer": false,
-     "message": "u1",
-     "original": "was in hospital",
-     "severity": "medium"
-    },
-    {
-     "correction": "in the hospital",
-     "error_type": "omission",
-     "kc_id": "g.articles_basic",
-     "l1_transfer": false,
-     "message": "u1",
-     "original": "in hospital",
-     "severity": "medium"
-    }
-   ],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": "travel",
-    "interests": [
-     "health"
-    ],
-    "native_language": null,
-    "occupation": null,
-    "target_exam": null
-   },
-   "used_correctly": [
-    {
-     "kc_id": "g.past_simple_be",
-     "message": "u1"
-    },
-    {
-     "kc_id": "g.present_simple_third_person",
-     "message": "u1"
-    },
-    {
-     "kc_id": "g.present_simple_questions_negatives",
-     "message": "u1"
-    }
-   ],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "617508c7c03a4edb": {
-  "case": "teaching-preference",
-  "output": {
-   "memory_ops": [
-    {
-     "action": "add",
-     "content": "Prefers selective error correction during conversation, with important mistakes summarised at the end.",
-     "id": null
-    }
-   ],
-   "mistakes": [],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": null,
-    "interests": null,
-    "native_language": null,
-    "occupation": null,
-    "target_exam": null
-   },
-   "used_correctly": [],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "62db5f897c0907f7": {
-  "case": "fact-is-wrong",
-  "output": {
-   "memory_ops": [
-    {
-     "action": "delete",
-     "content": null,
-     "id": "m1"
-    }
-   ],
-   "mistakes": [],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": "improve everyday English",
-    "interests": null,
-    "native_language": null,
-    "occupation": null,
-    "target_exam": null
-   },
-   "used_correctly": [],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "7a5e4924594eec0f": {
-  "case": "correct-advanced-english",
-  "output": {
-   "memory_ops": [],
-   "mistakes": [],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": null,
-    "interests": null,
-    "native_language": null,
-    "occupation": null,
-    "target_exam": null
-   },
-   "used_correctly": [
-    {
-     "kc_id": "g.third_conditional",
-     "message": "u1"
-    },
-    {
-     "kc_id": "g.present_perfect_for_since",
-     "message": "u1"
-    }
-   ],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "9f40e0c1b048608b": {
-  "case": "exam-and-explanation-language",
-  "output": {
-   "memory_ops": [
-    {
-     "action": "add",
-     "content": "Is preparing for the TOEFL in March.",
-     "id": null
-    },
-    {
-     "action": "add",
-     "content": "Wants grammar explanations in English to get more practice.",
-     "id": null
-    }
-   ],
-   "mistakes": [],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": "en",
-    "goal": null,
-    "interests": null,
-    "native_language": null,
-    "occupation": null,
-    "target_exam": "toefl"
-   },
-   "used_correctly": [
-    {
-     "kc_id": "g.present_continuous",
-     "message": "u1"
-    },
-    {
-     "kc_id": "g.present_simple_third_person",
-     "message": "u1"
-    },
-    {
-     "kc_id": "g.prepositions_time",
-     "message": "u1"
-    }
-   ],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "a64fec45c2f2276c": {
-  "case": "informal-chat-not-tagged",
-  "output": {
-   "memory_ops": [],
-   "mistakes": [
-    {
-     "correction": "I'm gonna watch",
-     "error_type": "omission",
-     "kc_id": "g.present_continuous",
-     "l1_transfer": false,
-     "message": "u2",
-     "original": "Gonna watch",
-     "severity": "medium"
-    },
-    {
-     "correction": "I'm gonna watch",
-     "error_type": "omission",
-     "kc_id": "g.modal_forms",
-     "l1_transfer": false,
-     "message": "u2",
-     "original": "Gonna watch",
-     "severity": "medium"
-    }
-   ],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": null,
-    "interests": null,
-    "native_language": null,
-    "occupation": null,
-    "target_exam": null
-   },
-   "used_correctly": [
-    {
-     "kc_id": "g.present_simple_third_person",
-     "message": "u2"
-    },
-    {
-     "kc_id": "g.adverbs_of_frequency",
-     "message": "u2"
-    }
-   ],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "b324c83b1770befd": {
-  "case": "pasted-text-words-not-taken",
-  "output": {
-   "memory_ops": [],
-   "mistakes": [],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": null,
-    "interests": null,
-    "native_language": null,
-    "occupation": null,
-    "target_exam": null
-   },
-   "used_correctly": [],
-   "vocab_candidates": []
-  },
-  "task": "reflect"
- },
- "b8b94a44e96dfa1a": {
-  "case": "asked-word-meaning",
-  "output": {
-   "memory_ops": [],
-   "mistakes": [],
-   "profile_updates": {
-    "daily_minutes": null,
-    "explanation_language": null,
-    "goal": null,
-    "interests": null,
-    "native_language": null,
-    "occupation": null,
-    "target_exam": null
-   },
-   "used_correctly": [],
-   "vocab_candidates": [
-    {
-     "message": "u1",
-     "word": "reluctant"
-    }
-   ]
-  },
-  "task": "reflect"
- },
- "c7e2919e967e3041": {
+ "964b3ea79fe690ac": {
   "case": "articles-and-plurals",
   "output": {
    "memory_ops": [],
@@ -679,12 +495,21 @@
      "severity": "medium"
     },
     {
-     "correction": "cheaper than the others",
-     "error_type": "wrong_choice",
-     "kc_id": "g.comparatives",
+     "correction": "It has",
+     "error_type": "omission",
+     "kc_id": "g.subject_pronouns",
+     "l1_transfer": false,
+     "message": "u1",
+     "original": "It has",
+     "severity": "low"
+    },
+    {
+     "correction": "chose",
+     "error_type": "omission",
+     "kc_id": "g.past_simple_regular",
      "l1_transfer": true,
      "message": "u2",
-     "original": "cheaper than the others",
+     "original": "chose",
      "severity": "medium"
     }
    ],
@@ -703,7 +528,7 @@
      "message": "u1"
     },
     {
-     "kc_id": "g.comparatives",
+     "kc_id": "g.past_simple_regular",
      "message": "u2"
     },
     {
@@ -715,23 +540,87 @@
   },
   "task": "reflect"
  },
- "ffe8160cbf445d99": {
-  "case": "chinese-facts",
+ "9a7f4bc0a1f80b86": {
+  "case": "health-and-others-details-left-out",
   "output": {
    "memory_ops": [
     {
      "action": "add",
-     "content": "Works as a nurse in a hospital.",
+     "content": "Has a husband who was recently in hospital with a heart problem.",
      "id": null
     },
     {
      "action": "add",
-     "content": "Plans to work in Australia in two years.",
+     "content": "Has high blood pressure, as diagnosed by her doctor.",
      "id": null
     },
     {
      "action": "add",
-     "content": "Is preparing for the OET exam.",
+     "content": "Is planning a trip to London in the summer and is studying English for it.",
+     "id": null
+    }
+   ],
+   "mistakes": [
+    {
+     "correction": "was in the hospital",
+     "error_type": "wrong_form",
+     "kc_id": "g.past_simple_be",
+     "l1_transfer": false,
+     "message": "u1",
+     "original": "was in hospital",
+     "severity": "medium"
+    },
+    {
+     "correction": "the hospital",
+     "error_type": "omission",
+     "kc_id": "g.articles_basic",
+     "l1_transfer": false,
+     "message": "u1",
+     "original": "hospital",
+     "severity": "medium"
+    }
+   ],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": "travel to London",
+    "interests": [
+     "health"
+    ],
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [
+    {
+     "kc_id": "g.past_simple_be",
+     "message": "u1"
+    },
+    {
+     "kc_id": "g.present_simple_third_person",
+     "message": "u1"
+    },
+    {
+     "kc_id": "g.present_continuous",
+     "message": "u1"
+    }
+   ],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "b4cb801d1164c743": {
+  "case": "changed-job",
+  "output": {
+   "memory_ops": [
+    {
+     "action": "update",
+     "content": "Works as a product manager at a software startup.",
+     "id": "m1"
+    },
+    {
+     "action": "add",
+     "content": "Has to read a lot of English documents for work.",
      "id": null
     }
    ],
@@ -739,13 +628,166 @@
    "profile_updates": {
     "daily_minutes": null,
     "explanation_language": null,
-    "goal": "work in Australia",
+    "goal": null,
     "interests": null,
     "native_language": null,
-    "occupation": "nurse",
-    "target_exam": "oet"
+    "occupation": null,
+    "target_exam": null
    },
    "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "d9becfa8d55e15dd": {
+  "case": "correct-advanced-english",
+  "output": {
+   "memory_ops": [],
+   "mistakes": [
+    {
+     "correction": "If I had known the meeting was going to be cancelled, I wouldn't have taken the early train.",
+     "error_type": "wrong_form",
+     "kc_id": "g.third_conditional",
+     "l1_transfer": false,
+     "message": "u1",
+     "original": "If I had known the meeting would be cancelled, I wouldn't have taken the early train.",
+     "severity": "medium"
+    },
+    {
+     "correction": "I've been working on this report since Monday, and it still isn't finished.",
+     "error_type": "wrong_form",
+     "kc_id": "g.present_perfect_for_since",
+     "l1_transfer": false,
+     "message": "u1",
+     "original": "I've been working on this report since Monday, and it still isn't finished.",
+     "severity": "medium"
+    }
+   ],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [
+    {
+     "kc_id": "g.third_conditional",
+     "message": "u1"
+    },
+    {
+     "kc_id": "g.present_perfect_continuous",
+     "message": "u1"
+    },
+    {
+     "kc_id": "g.present_simple_third_person",
+     "message": "u1"
+    }
+   ],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "f908c60f2dab993d": {
+  "case": "tutor-and-quotes-not-tagged",
+  "output": {
+   "memory_ops": [],
+   "mistakes": [
+    {
+     "correction": "doesn't",
+     "error_type": "wrong_form",
+     "kc_id": "g.present_simple_third_person",
+     "l1_transfer": false,
+     "message": "u1",
+     "original": "don't",
+     "severity": "medium"
+    }
+   ],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [
+    {
+     "kc_id": "g.present_simple_third_person",
+     "message": "u1"
+    }
+   ],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "fe54e8e7e9f1a32a": {
+  "case": "fact-is-wrong",
+  "output": {
+   "memory_ops": [
+    {
+     "action": "delete",
+     "content": null,
+     "id": "m1"
+    }
+   ],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": null,
+    "goal": "improve everyday English",
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": null
+   },
+   "used_correctly": [],
+   "vocab_candidates": []
+  },
+  "task": "reflect"
+ },
+ "fee40b8dbae237bf": {
+  "case": "exam-and-explanation-language",
+  "output": {
+   "memory_ops": [
+    {
+     "action": "add",
+     "content": "Is preparing for the TOEFL in March.",
+     "id": null
+    },
+    {
+     "action": "add",
+     "content": "Prefers grammar explanations in English to get more practice.",
+     "id": null
+    }
+   ],
+   "mistakes": [],
+   "profile_updates": {
+    "daily_minutes": null,
+    "explanation_language": "en",
+    "goal": null,
+    "interests": null,
+    "native_language": null,
+    "occupation": null,
+    "target_exam": "toefl"
+   },
+   "used_correctly": [
+    {
+     "kc_id": "g.present_continuous",
+     "message": "u1"
+    },
+    {
+     "kc_id": "g.present_simple_questions_negatives",
+     "message": "u1"
+    },
+    {
+     "kc_id": "g.prepositions_time",
+     "message": "u1"
+    }
+   ],
    "vocab_candidates": []
   },
   "task": "reflect"

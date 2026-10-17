@@ -92,6 +92,38 @@ cases:
       - [护士]
       - [澳大利亚, OET]
 
+  - id: level-signal-in-passing
+    new:
+      - tutor: Here are today's 10 words from your word book. Ready to start?
+      - learner: |
+          Sure. To be honest I already know most of the words in this book, they feel
+          too easy for me. Anyway, what does "commute" mean?
+      - tutor: '"Commute" means to travel regularly between home and work.'
+    expect_facts:
+      - [easy, too simple, already know, knows most]
+    expect_words: [commute]
+    clean_messages: [u1]
+
+  - id: learning-preference-in-passing
+    new:
+      - tutor: Let me explain the present perfect first, then we'll practise.
+      - learner: |
+          Could we do it the other way? I learn better when I try the questions first
+          and you explain after. Can you give me a quiz on it?
+    expect_facts:
+      - [first, before]
+    forbid_facts: [present perfect, quiz on]
+    clean_messages: [u1]
+
+  - id: one-off-quiz-request-not-a-preference
+    new:
+      - learner: Can you give me a quiz on the past tense? And make the explanation shorter this time.
+      - tutor: Sure, here's a short quiz. I'll keep the explanation brief.
+      - learner: OK thanks, I got 4 out of 5.
+    expect_no_facts: true
+    forbid_facts: [quiz, short, past tense]
+    clean_messages: [u1, u2]
+
   # --- outdated facts --------------------------------------------------------------
 
   - id: changed-job
