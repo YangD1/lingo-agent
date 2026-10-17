@@ -98,16 +98,7 @@ async def load_recent(
 
     reviews = (ReviewLog.user_id == user_id, ReviewLog.reviewed_at >= since)
     chat = chat_turns(user_id)
-    days = union(
-        select(local_day(ReviewLog.reviewed_at, tz).label("day")).where(
-            ReviewLog.user_id == user_id
-        ),
-        select(local_day(LLMUsage.created_at, tz).label("day")).where(*chat),
-    ).subquery()
-    studied = await session.scalar(
-        select(func.count()).where(days.c.day >= since.astimezone(tz).date())
-    )
-    last = await session.scalar(select(func.max(days.c.day)).where(days.c.day < today))
+    studied, last = await study_days(session, user_id, tz=tz, now=now)
     attempts = await session.execute(
         select(func.count(), func.count().filter(Attempt.correct)).where(
             Attempt.user_id == user_id, Attempt.created_at >= since
@@ -116,7 +107,7 @@ async def load_recent(
     practice, practice_correct = attempts.one()
     return RecentStudy(
         today=today,
-        studied_days=studied or 0,
+        studied_days=studied,
         last_before_today=last,
         reviews=await count(*reviews),
         forgotten=await count(*reviews, ReviewLog.rating == _AGAIN),
@@ -142,6 +133,27 @@ async def load_recent(
         mistakes=await _mistakes(session, user_id, catalog, since),
         diagnosis=await _diagnosis(session, user_id, since),
     )
+
+
+async def study_days(
+    session: AsyncSession, user_id: uuid.UUID, *, tz: ZoneInfo, now: datetime
+) -> tuple[int, date | None]:
+    """Days with a review or a chat turn among the last RECENT_DAYS, and the latest
+    such day before today (any time back)."""
+    today_start, _ = day_bounds(now, tz)
+    since = today_start - timedelta(days=RECENT_DAYS - 1)
+    days = union(
+        select(local_day(ReviewLog.reviewed_at, tz).label("day")).where(
+            ReviewLog.user_id == user_id
+        ),
+        select(local_day(LLMUsage.created_at, tz).label("day")).where(*chat_turns(user_id)),
+    ).subquery()
+    studied = await session.scalar(
+        select(func.count()).where(days.c.day >= since.astimezone(tz).date())
+    )
+    today = now.astimezone(tz).date()
+    last = await session.scalar(select(func.max(days.c.day)).where(days.c.day < today))
+    return studied or 0, last
 
 
 async def _mistakes(

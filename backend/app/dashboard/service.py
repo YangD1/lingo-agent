@@ -164,7 +164,7 @@ def streak(studied: list[date], today: date) -> int:
     return count
 
 
-async def _book_split(session: AsyncSession, user_id: uuid.UUID, rules: Rules) -> BookSplit | None:
+async def book_split(session: AsyncSession, user_id: uuid.UUID, rules: Rules) -> BookSplit | None:
     plan = await current(session, user_id)
     book = get_book(plan.book_id) if plan else None
     if book is None:
@@ -292,7 +292,7 @@ async def dashboard(
             reviews_due=counts.reviews_due,
             new_left=counts.new_left,
         ),
-        book=await _book_split(session, user_id, rules),
+        book=await book_split(session, user_id, rules),
         grammar=_grammar(overview),
         skills=[_skill_point(skill, rules) for skill in overview.skills],
         errors=await _errors(session, user_id, catalog, now),
