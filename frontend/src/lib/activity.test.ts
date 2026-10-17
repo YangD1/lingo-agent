@@ -52,6 +52,16 @@ describe("digest", () => {
     expect(d).toMatchObject({ planned: true, cardsShown: 2, failed: ["suggest_practice"] });
   });
 
+  it("notes the progress section was read", () => {
+    const quiet = digest([
+      step("load_context", { facts: [], episodes: [], profile_items: 0 }),
+    ]);
+    const read = digest([
+      step("load_context", { facts: [], episodes: [], profile_items: 0, progress: true }),
+    ]);
+    expect([quiet.progressRead, read.progressRead]).toEqual([false, true]);
+  });
+
   it("counts cards taken back apart from the cards shown", () => {
     const d = digest([
       step("give_quiz", { card_id: "k1", card_kind: "quiz" }, { kind: "tool", call_id: "c1" }),

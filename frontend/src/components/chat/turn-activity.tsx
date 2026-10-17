@@ -82,6 +82,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
   const parts = [
     d.practiced && t("practice"),
     d.planned && t("planning"),
+    d.progressRead && t("progress"),
     d.handedTo && t("handedTo", { coach: coachName(d.handedTo) }),
     d.writingReviewed && t("writingReviewed"),
     d.articleRead && t("readArticle"),
@@ -233,6 +234,7 @@ function Step({
           {ids.length > 0 && <ul className={LIST}>{ids.map(memory)}</ul>}
           {s.practice_kc && <p>{t("practiceRead", { kc: kcName(s.practice_kc) })}</p>}
           {s.planning && <p>{t("planningRead")}</p>}
+          {s.progress && <p>{t("progressRead")}</p>}
         </section>
       );
     }

@@ -13,11 +13,14 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import TenantMember, User
+from app.db.models import ExerciseSet, TenantMember, User
+from app.memory import context as learner_context
 from app.memory import service
 from app.providers import llm
 from app.providers.config import ResolvedModel
 from tests.integration.test_chat_send import connect, login, new_conversation, send
+from tests.integration.test_chat_tools import activity
+from tests.integration.test_quiz_tools import KC, answer
 
 
 class PromptRecorder(BaseChatModel):
@@ -127,4 +130,62 @@ async def test_other_learners_memories_never_leak(
     await connect(client, "deepseek")
     await send(client, await new_conversation(client), "Hello")
     assert "Secret hobby" not in recorder.prompts[-1]
-    assert "About this learner" not in recorder.prompts[-1]
+    assert "Things they have told you" not in recorder.prompts[-1]
+
+
+async def test_every_conversation_knows_where_the_learner_is_now(
+    client: AsyncClient, db_session: AsyncSession, recorder: PromptRecorder
+) -> None:
+    """ADR 0052 §1: a quiz done in another conversation shows in a new plain one."""
+    await login(client)
+    await connect(client, "deepseek")
+    user = await db_session.scalar(select(User).where(User.email == "learner@example.com"))
+    assert user is not None
+    quiz = ExerciseSet(
+        user_id=user.id,
+        origin="quiz",
+        quiz_purpose="quiz",
+        status="ready",
+        kc_plan=[],
+        focus_kc_id=KC,
+    )
+    db_session.add(quiz)
+    await db_session.flush()
+    await answer(db_session, quiz.id, [True, False])
+
+    conversation = await new_conversation(client)
+    status, events, _ = await send(client, conversation, "Where was I?")
+
+    assert status == 200 and events[-1][0] == "done"
+    prompt = recorder.prompts[-1]
+    assert "### Where they are now (counted by the app)" in prompt
+    assert f"`{KC}`, pass quiz, finished: 1 of 2 right" in prompt
+    assert "- Grammar course: on lesson" in prompt and "- Days studied in the last 7" in prompt
+    [read] = [a for a in await activity(client, conversation) if a["name"] == "load_context"]
+    assert read["summary"]["progress"] is True
+
+
+async def test_progress_failing_keeps_the_memories_and_the_reply(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    recorder: PromptRecorder,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def broken(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("course down")
+
+    monkeypatch.setattr(learner_context, "load_progress", broken)
+    await login(client)
+    await connect(client, "deepseek")
+    user = await db_session.scalar(select(User).where(User.email == "learner@example.com"))
+    assert user is not None
+    await service.update_profile(db_session, user.id, {"occupation": "nurse"}, by_learner=True)
+
+    conversation = await new_conversation(client)
+    status, events, _ = await send(client, conversation, "Hi")
+
+    assert status == 200 and events[-1][0] == "done"
+    assert "Occupation: nurse" in recorder.prompts[-1]
+    assert "### Where they are now" not in recorder.prompts[-1]
+    [read] = [a for a in await activity(client, conversation) if a["name"] == "load_context"]
+    assert (read["status"], read["summary"]["progress"]) == ("ok", False)

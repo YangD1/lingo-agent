@@ -5,6 +5,7 @@ untracked channel, so the checkpoint never holds a copy, and a memory the learne
 deletes is gone from the very next turn.
 """
 
+import logging
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -12,10 +13,15 @@ from typing import Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.rules import get_rules
 from app.db.models import UserProfile
 from app.memory import service
 from app.memory.embedding import MemoryEmbedder
 from app.memory.language import DEFAULT_CHAT_LANGUAGE, ChatLanguage, chat_language
+from app.memory.progress import load_progress, render_progress
+
+logger = logging.getLogger(__name__)
 
 # Character budgets (a rough proxy for tokens) so a long memory list can't crowd out
 # the conversation itself.
@@ -36,9 +42,12 @@ class LearnerContext:
     episode_ids: Sequence[uuid.UUID] = ()
     # The language the tutor mainly talks in (ADR 0017 §1); by level until they choose.
     chat_language: ChatLanguage = DEFAULT_CHAT_LANGUAGE
+    # Where they stand now, counted by code (ADR 0052 §1), already rendered; empty
+    # when it could not be read.
+    progress: str = ""
 
     def is_empty(self) -> bool:
-        return not (self.profile or self.facts or self.episodes)
+        return not (self.profile or self.facts or self.episodes or self.progress)
 
 
 class LearnerSource(Protocol):
@@ -50,7 +59,9 @@ class LearnerSource(Protocol):
 class DatabaseLearner:
     """LearnerSource over one learner's rows; `conversation_id` is the current one,
     whose own summary is left out (its messages are already in the prompt). None: no
-    conversation yet (a realtime call is set up before its conversation exists)."""
+    conversation yet (a realtime call is set up before its conversation exists).
+    `progress_days` False leaves the last days out of the progress section: the daily
+    conversation's brief has them already."""
 
     def __init__(
         self,
@@ -58,11 +69,14 @@ class DatabaseLearner:
         user_id: uuid.UUID,
         conversation_id: uuid.UUID | None,
         embedder: MemoryEmbedder | None,
+        *,
+        progress_days: bool = True,
     ) -> None:
         self._sessionmaker = sessionmaker
         self._user_id = user_id
         self._conversation_id = conversation_id
         self._embedder = embedder
+        self._progress_days = progress_days
 
     async def load(self, query: str) -> LearnerContext:
         async with self._sessionmaker() as session:
@@ -86,7 +100,21 @@ class DatabaseLearner:
                 profile.chat_language if profile else None,
                 profile.cefr_level if profile else None,
             ),
+            progress=await self._progress(),
         )
+
+    async def _progress(self) -> str:
+        """Its own session: a failed query must not cost the memories (or the turn)."""
+        try:
+            async with self._sessionmaker() as session:
+                found = await load_progress(
+                    session, self._user_id, rules=get_rules(), catalog=get_grammar_catalog()
+                )
+                await session.commit()  # stale mastery rows may have been rebuilt
+        except Exception:
+            logger.exception("loading the learner's progress failed")
+            return ""
+        return render_progress(found, days=self._progress_days)
 
 
 def profile_lines(profile: UserProfile) -> dict[str, str]:
@@ -111,6 +139,8 @@ def render_learner_context(context: LearnerContext) -> str:
     if context.profile:
         lines = [f"- {label}: {value}" for label, value in context.profile.items()]
         sections.append("### Profile\n" + "\n".join(lines))
+    if context.progress:
+        sections.append("### Where they are now (counted by the app)\n" + context.progress)
     if shown := facts_shown(context.facts):
         lines = [f"- {fact}" for fact in context.facts[:shown]]
         sections.append("### Things they have told you\n" + "\n".join(lines))

@@ -49,6 +49,18 @@ describe("TurnActivity", () => {
     expect(screen.getByText(/doesn't support tools/)).toBeInTheDocument();
   });
 
+  it("says the tutor checked where the learner is now", () => {
+    show({
+      activities: [
+        step("load_context", { facts: [], episodes: [], profile_items: 0, progress: true }),
+      ],
+    });
+    const line = screen.getByRole("button", { expanded: false });
+    expect(line).toHaveTextContent("checked where you are now");
+    fireEvent.click(line);
+    expect(screen.getByText(/counted by the app/)).toBeInTheDocument();
+  });
+
   it("says when a turn was handed to the writing coach", () => {
     show({ activities: [step("handoff", { coach: "writing_coach" }, { kind: "step" })] });
     const line = screen.getByRole("button", { expanded: false });

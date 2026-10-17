@@ -40,6 +40,8 @@ class ContextRead(Summary):
     practice_kc: str | None = None
     # A planning conversation: the placement result and advice candidates were read.
     planning: bool = False
+    # The progress section (ADR 0052 §1) was in the prompt.
+    progress: bool = False
 
 
 class MemoryChanges(Summary):

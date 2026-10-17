@@ -20,6 +20,8 @@ export type ContextRead = {
   practice_kc?: string | null;
   /** A planning conversation: the placement result and advice candidates were read. */
   planning?: boolean;
+  /** Where the learner stands now, counted by the app (ADR 0052 §1), was read. */
+  progress?: boolean;
 };
 /** The supervisor gave a free-chat turn to another coach (ADR 0023 §3). */
 export type Handoff = { coach: string };
@@ -111,6 +113,8 @@ export type TurnDigest = {
   practiced: boolean;
   /** The tutor was given a planning conversation's brief. */
   planned: boolean;
+  /** The tutor was given the learner's progress, counted by the app. */
+  progressRead: boolean;
   /** The coach a free-chat turn was handed to, if any. */
   handedTo: string | null;
   /** The learner's text was reviewed (writing_coach). */
@@ -144,6 +148,7 @@ export function digest(activities: Activity[]): TurnDigest {
     memoriesDeleted: 0,
     practiced: false,
     planned: false,
+    progressRead: false,
     handedTo: null,
     writingReviewed: false,
     articleRead: false,
@@ -169,6 +174,7 @@ export function digest(activities: Activity[]): TurnDigest {
       d.memoriesRead += (s.facts?.length ?? 0) + (s.episodes?.length ?? 0);
       d.practiced ||= Boolean(s.practice_kc);
       d.planned ||= Boolean(s.planning);
+      d.progressRead ||= Boolean(s.progress);
     } else if (a.name === "handoff") {
       d.handedTo = (a.summary as Handoff).coach;
     } else if (a.name === "writing_review") {

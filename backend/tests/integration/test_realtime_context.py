@@ -69,7 +69,7 @@ async def test_free_talk_brings_profile_and_facts_but_no_episodes(
     assert "Talked about pets" not in text
 
 
-async def test_a_new_learner_gets_the_default_level_and_no_learner_section(
+async def test_a_new_learner_gets_the_default_level_and_only_their_progress(
     client: AsyncClient, db_session: AsyncSession, app: FastAPI
 ) -> None:
     user_id, _ = await learner(client, db_session)
@@ -77,4 +77,5 @@ async def test_a_new_learner_gets_the_default_level_and_no_learner_section(
     text = await call_instructions(app.state.sessionmaker, user_id, None, None)
 
     assert "The learner's level: A2." in text
-    assert "About this learner" not in text
+    assert "### Where they are now" in text and "- Grammar course: on lesson 1 of" in text
+    assert "### Profile" not in text and "Things they have told you" not in text

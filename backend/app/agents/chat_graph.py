@@ -250,6 +250,7 @@ async def _load_context(state: ChatState, runtime: Runtime[ChatContext]) -> dict
         profile_items=len(context.profile),
         practice_kc=focus.kc.id if focus else taught.lesson.kc.id if taught else None,
         planning=brief is not None,
+        progress=bool(context.progress),
     )
     await report(runtime, Step(LOAD_CONTEXT_NODE, summary=read, duration_ms=watch.ms))
     return {

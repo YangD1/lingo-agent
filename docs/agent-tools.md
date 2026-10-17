@@ -64,7 +64,7 @@
 
 | 步骤名 | 类型 | 摘要字段 |
 |---|---|---|
-| `load_context` | step | `facts`、`episodes`（真正放进 prompt 的记忆 id）、`profile_items`（画像项数）、`practice_kc`（练习会话的语法点 id，普通对话为空）、`planning`（规划对话：读了入学测结果和建议候选） |
+| `load_context` | step | `facts`、`episodes`（真正放进 prompt 的记忆 id）、`profile_items`（画像项数）、`practice_kc`（练习会话的语法点 id，普通对话为空）、`planning`（规划对话：读了入学测结果和建议候选）、`progress`（带了“现在学到哪”一节，ADR 0052 §1） |
 | `reflect_memory` | background | `added`、`updated`（记忆 id）、`deleted`（只计数）、`profile_fields`；挂在一批反思的最后一条学习者消息上 |
 | `grammar_tagging` | background | `mistakes`（`kc_id`、`error_type`、`severity`、`original`、`correction`）、`used_correctly`（KC id）；每条学习者消息一行。摘要里有错误原句的副本，所以学习者在 `/learner` 删掉一条证据时，这里对应的一项也去掉；“删除所有学习记录”时这些行全部删除 |
 | `vocab_collect` | background | `added`、`existing`（`word_id` + 拼写：新收进生词本的词、已有卡片没有改动的词）；挂在提问的那条学习者消息上，没有收到词的消息不记。接口另返回 `words_on_list`（仍在生词本里的收词），明细据此显示“已移出” |
@@ -141,6 +141,7 @@
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
 | 读取学习者上下文 | `agents/chat_graph.py` `load_context` | 画像、事实记忆、相关的会话摘要 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` | `embedding/memory`（有配置时用于检索摘要） | 回复下“JOJO做了什么”；`/memory` 页面查看、修改、删除 |
+| 读取学习近况（所有会话，含实时语音的开场） | `memory/progress.py` `load_progress`，由 `memory/context.py` `DatabaseLearner` 在 `load_context` 里调用；提示词 `prompts/learner_context.md` | 语法课程当前课和已过课数、最近 3 组测验的题数 / 作答 / 答对（讲过答案的按答错）、当前词书进度、最近 2 篇阅读的标题（外部来源，标明是资料）、最近 7 天学了几天（每日会话的简报里已有，那里不重复） | 无（只放进本次 prompt，不进 checkpoint；课程计算可能顺带重建过期的掌握度行）；活动 `load_context` 的 `progress` | 无（全部由代码统计，ADR 0052 §1） | 回复下“JOJO做了什么”：“看了学习近况”；数据来源分别在课程页、测验卡、背单词、阅读页 |
 | 读取练习指引（只在练习会话） | `chat/practice.py` `DatabasePractice`，在 `load_context` 里 | 会话的 `focus_kc_id`；该语法点的目录信息、掌握度档位（不给模型数字）、最近 2 条对话错误原句 → 改正 | 无（只放进本次 prompt，不进 checkpoint）；活动 `load_context` 的 `practice_kc` | 无 | 对话顶部“语法练习：…”和“查看依据”；`/learner` 删除证据后下一轮就不再使用 |
 | 选择由谁回复（supervisor） | `agents/chat_graph.py` `supervisor`；会话层面的路由在开跑前由 `agents/routing.py` `route_for` 定 | 会话是不是口语会话（`purpose = speaking`，ADR 0029 §2）、是不是课程对话（`purpose = lesson`，有语法点也由 tutor 带工具回复，ADR 0044 §5）、有没有练习语法点（`focus_kc_id`）、有没有文章（`article_id`，Q43h） | 无 | 无（ADR 0023 §3） | 不单独显示：口语会话由 speaking_coach 回复，练习会话由 grammar_coach 回复，阅读会话由 reading_coach 回复，其余（含规划、今天的学习）由 tutor 回复，会话本身已经说明了这一点（Q37b）。文章被删后阅读会话回到 tutor |
 | 自由对话分类（只在自由对话，任务 38.4） | `agents/routing.py` `worth_classifying` → `classify`，在 `supervisor` 里；提示词 `prompts/route.md` | 学习者这条消息（打字的部分，不含附件）和助手上一条回复的末尾 600 字符 | 只在转给别的 coach 时记活动 `handoff`（`coach`）；留在 tutor 不记 | 消息不少于 60 个英文单词时调 `llm/route`（结构化输出，最多等 8 秒）；更短的不调（Q38a）。没配模型、出错、超时都留在 tutor | 回复下“JOJO做了什么”：“交给了写作教练” |

@@ -697,7 +697,12 @@ async def _reply(
         message_id=turn.message_id,
         attachments=DatabaseAttachments(sessionmaker, turn.conversation_id),
         learner=DatabaseLearner(
-            sessionmaker, user.id, turn.conversation_id, memory_embedder(turn.providers)
+            sessionmaker,
+            user.id,
+            turn.conversation_id,
+            memory_embedder(turn.providers),
+            # The daily brief counts the last days already (ADR 0041 §3).
+            progress_days=not (planning is not None and turn.planning == "daily"),
         ),
         activity=activity,
         route=route,

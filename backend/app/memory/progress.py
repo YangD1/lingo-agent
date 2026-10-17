@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adaptive import course
 from app.adaptive.kc.catalog import GrammarCatalog, GrammarKC
 from app.adaptive.rules import Rules
-from app.cards.quiz import quiz_states
 from app.chat.recent import RECENT_DAYS, study_days
 from app.dashboard.service import book_split
 from app.db.models import Article, ExerciseSet, ReadingSession
@@ -119,6 +118,9 @@ async def _quizzes(
 ) -> list[QuizResult]:
     """The latest quizzes that have questions; failed ones (withdrawn included) are
     left out, as are those still being written with nothing to answer yet."""
+    # Late: the cards reach the exercise worker, which reaches back to memory.
+    from app.cards.quiz import quiz_states
+
     rows = list(
         await session.execute(
             select(ExerciseSet.id, ExerciseSet.focus_kc_id, ExerciseSet.quiz_purpose)

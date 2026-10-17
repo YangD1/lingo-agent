@@ -104,6 +104,9 @@ async def test_the_tutor_answers_with_todays_brief_and_cards_within_it(
     assert "Take the placement test: never taken" in prompt
     assert "mention it once in your first reply, with its reason" in prompt
     assert 'said "not now" to this' not in prompt
+    # The progress section is there, without the days the brief already counts.
+    assert "### Where they are now" in prompt and "- Grammar course: on lesson" in prompt
+    assert "Days studied in the last" not in prompt
     # No opening cue: the learner's own message is the last one.
     assert isinstance(messages[-1], HumanMessage)
     assert messages[-1].text == "What should I study today?"
