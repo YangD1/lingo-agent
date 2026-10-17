@@ -1,6 +1,6 @@
 # 0009 · 长期记忆：存储、抽取与读取
 
-- **状态**：已采纳（2026-09-29，`docs/plans/P1-mvp.md` Q2–Q4 按推荐确认）；**§1–§4 的摘要写入时机、没配 embedding 时的摘要挑选、摘要输入和语言、读取时的“现在学到哪”一节由 ADR 0052 修订**
+- **状态**：已采纳（2026-09-29，`docs/plans/P1-mvp.md` Q2–Q4 按推荐确认）；**§1–§4 的摘要写入时机、没配 embedding 时的摘要挑选、摘要输入和语言、读取时的“现在学到哪”一节由 ADR 0052 修订；§1 事实上限、§1 §3 反思的改和删（改为“被替代”）、§4 事实在一段会话里固定由 ADR 0053 修订**
 - **日期**：2026-09-29
 - **影响**：新增 `user_profile`、`memories` 表，`conversations` 加 `reflected_message_id`；主图加 `load_context` 节点；新增 LLM 路由任务 `reflect`（记忆抽取和会话摘要共用）。PLAN 第二节“长期记忆”一行（LangGraph Store + LangMem）以本 ADR 为准。
 
