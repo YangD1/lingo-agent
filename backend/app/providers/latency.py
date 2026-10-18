@@ -8,13 +8,16 @@ to the whole call. Without `min_samples` recent successful calls, the configured
 is used.
 
 Each process keeps the last `window` successful calls per (tenant, connection, model,
-task) in memory: fed by every usage record, seeded from `llm_usage` at start-up.
+task), and per (model, task) over all tenants, in memory: fed by every usage record,
+seeded from `llm_usage` at start-up. A tenant's own calls are used once there are
+enough of them; until then everyone's on the same model and task (every learner is a
+tenant, and would otherwise wait for a fixed timeout through their first sets).
 """
 
 import math
 import uuid
 from collections import deque
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
@@ -31,7 +34,7 @@ class StallRule:
     factor: float = 3.0
     floor: float = 20.0
     ceiling: float = 120.0
-    min_samples: int = 20
+    min_samples: int = 10
     window: int = 200
 
 
@@ -40,6 +43,10 @@ class LatencyKey(NamedTuple):
     connection: str
     model: str
     task: str
+
+    @property
+    def shared(self) -> tuple[str, str]:
+        return self.model, self.task
 
 
 def p95(samples: Sequence[float]) -> float:
@@ -61,13 +68,14 @@ class LatencyStats:
 
     def __init__(self, rule: StallRule | None = None) -> None:
         self.rule = rule or StallRule()
-        self._total: dict[LatencyKey, deque[int]] = {}
-        self._first_chunk: dict[LatencyKey, deque[int]] = {}
+        self._total: dict[Hashable, deque[int]] = {}
+        self._first_chunk: dict[Hashable, deque[int]] = {}
 
     def observe(self, key: LatencyKey, latency_ms: int, first_chunk_ms: int | None) -> None:
-        self._push(self._total, key, latency_ms)
-        if first_chunk_ms is not None:
-            self._push(self._first_chunk, key, first_chunk_ms)
+        for k in (key, key.shared):
+            self._push(self._total, k, latency_ms)
+            if first_chunk_ms is not None:
+                self._push(self._first_chunk, k, first_chunk_ms)
 
     def observe_record(self, record: UsageRecord) -> None:
         """A usage sink: only successful chat-model calls say how long a model takes."""
@@ -77,14 +85,16 @@ class LatencyStats:
         self.observe(key, record.latency_ms, record.first_chunk_ms)
 
     def threshold(self, key: LatencyKey, *, streamed: bool, configured: float) -> float:
-        samples = (self._first_chunk if streamed else self._total).get(key, ())
+        store = self._first_chunk if streamed else self._total
+        own = store.get(key, ())
+        samples = own if len(own) >= self.rule.min_samples else store.get(key.shared, ())
         return stall_threshold(list(samples), configured, self.rule)
 
     def clear(self) -> None:
         self._total.clear()
         self._first_chunk.clear()
 
-    def _push(self, store: dict[LatencyKey, deque[int]], key: LatencyKey, value: int) -> None:
+    def _push(self, store: dict[Hashable, deque[int]], key: Hashable, value: int) -> None:
         samples = store.get(key)
         if samples is None:
             samples = store[key] = deque(maxlen=self.rule.window)

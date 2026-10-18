@@ -7,6 +7,7 @@ from app.usage.recorder import UsageRecord
 
 KEY = LatencyKey(uuid.UUID(int=1), "sub2api", "gpt-6.1", "exercise_critic")
 RULE = StallRule(factor=3, floor=20, ceiling=120, min_samples=20, window=200)
+OTHER_TENANT = KEY._replace(tenant_id=uuid.UUID(int=2), connection="their-sub2api")
 
 
 def record(**overrides: object) -> UsageRecord:
@@ -69,14 +70,37 @@ def test_streamed_calls_use_the_first_chunk_times() -> None:
     assert stats.threshold(KEY, streamed=True, configured=120) == 20
 
 
-def test_other_keys_have_their_own_samples() -> None:
+def test_other_models_and_tasks_have_their_own_samples() -> None:
     stats = LatencyStats(RULE)
     for _ in range(20):
         stats.observe(KEY, 6000, None)
-    other = KEY._replace(model="deepseek-v4.1")
-    assert stats.threshold(other, streamed=False, configured=120) == 120
+    for other in (KEY._replace(model="deepseek-v4.1"), KEY._replace(task="exercise_generate")):
+        assert stats.threshold(other, streamed=False, configured=120) == 120
     # Not streamed: no first-chunk samples.
     assert stats.threshold(KEY, streamed=True, configured=120) == 120
+
+
+def test_a_new_tenant_uses_everyones_calls_on_the_same_model_and_task() -> None:
+    stats = LatencyStats(RULE)
+    for _ in range(20):
+        stats.observe(OTHER_TENANT, 6000, None)
+    assert stats.threshold(KEY, streamed=False, configured=120) == 20
+
+
+def test_a_tenant_with_enough_calls_of_its_own_uses_them() -> None:
+    stats = LatencyStats(RULE)
+    for _ in range(40):
+        stats.observe(OTHER_TENANT, 6000, None)
+    for _ in range(20):
+        stats.observe(KEY, 30_000, None)
+    assert stats.threshold(KEY, streamed=False, configured=120) == 90
+    # Short of its own, a tenant gets the shared samples, which hold its calls too.
+    assert (
+        stats.threshold(
+            OTHER_TENANT._replace(tenant_id=uuid.UUID(int=3)), streamed=False, configured=120
+        )
+        == 90
+    )
 
 
 def test_only_the_last_window_counts() -> None:
