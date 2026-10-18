@@ -33,6 +33,8 @@ features:
         default: {input_tokens: 5400, output_tokens: 150}
       # Only when the tutor used a tool: its reply after the tool results (ADR 0015 §7).
       # Opening, closing the workspace and turning its auto-open off are tools too (ADR 0045).
+      # So is load_skill (ADR 0055 §6): reading a built-in skill before the tutor writes
+      # its own questions adds one such reply, with the skill text in its input.
       - task: chat_tools
         route: chat
         timing: now
