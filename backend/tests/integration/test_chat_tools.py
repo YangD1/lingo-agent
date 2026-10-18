@@ -242,7 +242,7 @@ async def test_the_tutor_is_told_to_practise_out_loud_when_asked_for_no_card(
     practice in the chat, without an apology."""
     conversation = await ready(client)
     script.replies = ["Sure."]
-    await send(client, conversation, "口头考我，不用卡片")
+    await send(client, conversation, "口头考我 不用卡片")
 
     prompt = system_text(script.calls[-1][1])
     assert "want no card" in prompt and "don't call `give_quiz`: practise out loud" in prompt
