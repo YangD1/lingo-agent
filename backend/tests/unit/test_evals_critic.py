@@ -47,7 +47,8 @@ def opposite(ratings: dict[str, str]) -> dict[str, str]:
 
 def ideal(item: Item) -> tuple[bool, bool, bool, dict[str, str]]:
     flaw = item.case.flaw
-    ratings = opposite(item.case.ratings) if flaw == "misrated" else item.case.ratings
+    # Rates the item as it is: those planned far from that, at the other end.
+    ratings = opposite(item.case.ratings) if item.case.rated else item.case.ratings
     return (
         flaw not in ("wrong_key", "two_right"),
         flaw != "off_target",
@@ -109,7 +110,19 @@ async def test_an_ideal_critic_meets_every_threshold() -> None:
     assert all(r.passed for r in report.results)
     assert {task for _, task, _ in critic.calls} == {CRITIC_TASK}
     by_name = {m.name: m for m in report.metrics}
-    assert by_name["rejects:misrated"].hits == by_name["rejects:misrated"].total == 3
+    assert by_name["rated_from_item"].hits == by_name["rated_from_item"].total == 3
+
+
+async def test_a_critic_that_echoes_the_target_fails_rated_from_item_but_passes_the_items() -> None:
+    """ADR 0055 §4: a rating far from the target is no reason to reject; rating an item
+    from its target instead of from the item is what the set catches."""
+    report = await evaluate(CriticEval(), ScriptedCritic(rubber_stamp), DATASET)
+    by_name = {m.name: m for m in report.metrics}
+    assert by_name["rated_from_item"].hits == 0
+    planned_far = [
+        r for r in report.results if r.case_id.endswith(("planned-hard", "planned-easy"))
+    ]
+    assert len(planned_far) == 3 and all(r.checks["good_passed"] for r in planned_far)
 
 
 async def test_a_rubber_stamp_critic_fails_the_bad_items() -> None:

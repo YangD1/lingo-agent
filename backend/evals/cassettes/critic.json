@@ -1,6 +1,6 @@
 {
  "059f8717e0463e7c": {
-  "case": "cloze-hard-rated-easy",
+  "case": "good-cloze-hard-planned-easy",
   "output": {
    "reviews": [
     {
@@ -1008,7 +1008,7 @@
   "task": "exercise_critic"
  },
  "966061696c5b6b2c": {
-  "case": "choice4-easy-rated-hard",
+  "case": "good-choice4-easy-planned-hard",
   "output": {
    "reviews": [
     {
@@ -1257,7 +1257,7 @@
   "task": "exercise_critic"
  },
  "beeed6dc6e50f5f0": {
-  "case": "transform-easy-rated-hard",
+  "case": "good-transform-easy-planned-hard",
   "output": {
    "reviews": [
     {

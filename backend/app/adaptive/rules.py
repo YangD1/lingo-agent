@@ -258,7 +258,6 @@ class PracticeRules(_Strict):
     mistake_half: float = Field(gt=0)
     max_items_per_kc: int = Field(ge=1)
     production_from_p: Probability
-    critic_max_gap: float = Field(gt=0)
     bank_repeat_days: int = Field(ge=0)
     min_items: int = Field(ge=1)
     prefetch_max_hours: float = Field(gt=0)

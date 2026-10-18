@@ -6,6 +6,7 @@ This module writes the per-set part. Each item is introduced by its position, wh
 models echo back so drafts and reviews are matched to their slot in code.
 """
 
+import itertools
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -75,6 +76,36 @@ def target_offset(brief: ItemBrief, rules: Rules) -> float:
     return round(min(max(wanted, low), high), 1)
 
 
+def target_levels(brief: ItemBrief, rules: Rules) -> dict[str, str]:
+    """One rubric level per dimension whose offsets add up closest to `target_offset`;
+    of equally close ones, the first in rules.yaml order."""
+    dims = rules.difficulty.dimensions
+    wanted = target_offset(brief, rules)
+    best = min(
+        itertools.product(*(d.levels.items() for d in dims.values())),
+        key=lambda combo: abs(sum(spec.offset for _, spec in combo) - wanted),
+    )
+    return {name: level for name, (level, _) in zip(dims, best, strict=True)}
+
+
+def difficulty_target(brief: ItemBrief, rules: Rules) -> str:
+    """The generator's difficulty target in words (ADR 0055 §4): what to aim for on each
+    rubric dimension, saying so when the target is past what the rubric can reach, so the
+    model does not try to go further."""
+    low, high = _offset_range(rules)
+    wanted = brief.item.target_difficulty - rules.difficulty.cefr_anchor[brief.kc.cefr]
+    dims = rules.difficulty.dimensions
+    aims = "; ".join(
+        f"{name}: {dims[name].levels[level].description.rstrip('.')}"
+        for name, level in target_levels(brief, rules).items()
+    )
+    if wanted <= low:
+        return f"The easiest item this grammar point allows - that is already the target. {aims}."
+    if wanted >= high:
+        return f"The hardest item this grammar point allows - that is already the target. {aims}."
+    return f"Aim for: {aims}."
+
+
 def _brief(brief: ItemBrief, rules: Rules) -> dict[str, object]:
     kc = brief.kc
     out: dict[str, object] = {
@@ -88,7 +119,7 @@ def _brief(brief: ItemBrief, rules: Rules) -> dict[str, object]:
             "description": kc.description,
             "common_errors": list(kc.common_errors),
         },
-        "target_offset_sum": target_offset(brief, rules),
+        "difficulty": difficulty_target(brief, rules),
     }
     if brief.own_sentence is not None:
         out["learner_sentence"] = {
@@ -162,7 +193,6 @@ def generate_messages(
             "About the learner (use where it fits naturally):\n"
             + "\n".join(f"- {line}" for line in personal)
         )
-    parts.append("Difficulty rubric:\n" + rubric(rules))
     if bank is not None and (examples := _examples(briefs, bank)):
         parts.append(
             "Example items from the reviewed bank (four-option gap fills; level and style "

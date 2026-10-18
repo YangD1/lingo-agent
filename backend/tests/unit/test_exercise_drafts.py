@@ -100,11 +100,10 @@ def draft(fmt: Format, position: int = 0, **changes: Any) -> drafts.Draft:
         "position": position,
         "format": fmt,
         "explanation": "Third person singular takes -s.",
-        "ratings": ratings(),
         **DRAFTS[fmt],
         **changes,
     }
-    return drafts.draft_model(RULES).model_validate(data)  # type: ignore[return-value]
+    return drafts.Draft.model_validate(data)
 
 
 def review(position: int = 0, **changes: Any) -> drafts.Review:
@@ -159,8 +158,7 @@ def test_each_position_shows_its_format_fields_as_required() -> None:
         "options",
         "correct",
         "explanation",
-        "ratings",
-    }
+    }  # no ratings: the generator no longer rates its items (ADR 0055 §4)
     assert concept["required"][:3] == ["question", "options", "correct"]
     assert concept["properties"]["options"]["type"] == "array"
     cloze = defs["Draft_cloze"]
@@ -268,10 +266,7 @@ def test_validation_errors_name_the_draft_field() -> None:
 
 def judge(fmt: Format, **changes: Any) -> drafts.Verdict:
     body = drafts.to_body(draft(fmt), brief(fmt), random.Random(0))
-    generator, _ = drafts.difficulty(
-        KC, drafts.ratings_model(RULES).model_validate(ratings()), RULES
-    )
-    return drafts.judge(body, KC, generator, review(**changes), RULES)
+    return drafts.judge(body, KC, brief(fmt).item.target_difficulty, review(**changes), RULES)
 
 
 def test_an_item_the_critic_solves_and_likes_passes() -> None:
@@ -314,11 +309,11 @@ def test_critic_answers_matching_the_key_pass() -> None:
     assert judge("find_fix", own_answer="goes", own_segment=1).ok
 
 
-def test_difficulty_ratings_far_apart_fail_and_the_critic_rating_is_kept() -> None:
+def test_a_critic_rating_far_from_the_target_passes_and_is_kept_with_the_gap() -> None:
     verdict = judge("translate", own_answer="x", ratings=ratings(HARD))
-    assert not verdict.ok
-    assert "difficulty ratings disagree" in verdict.reasons[0]
+    assert verdict.ok  # ADR 0055 §4: no rejection for difficulty
     assert verdict.ratings == HARD
+    assert verdict.gap == pytest.approx(verdict.difficulty - (-2.5), abs=0.01)
 
 
 def test_by_position_keeps_the_first_of_the_wanted() -> None:
@@ -548,3 +543,51 @@ def test_self_checks_reach_neither_the_item_nor_the_critic() -> None:
     _, human = messages.critic_messages(items, LEARNER, RULES)
     assert "other_fillings" not in text(human) and "a habit" not in text(human)
     assert "error_kind" not in text(human)
+
+
+# --- the difficulty target in words (ADR 0055 §4) ---
+
+
+def test_the_target_picks_the_rubric_levels_closest_to_it() -> None:
+    anchor = RULES.difficulty.cefr_anchor["A1"]
+    dims = RULES.difficulty.dimensions
+    for offset in (-1.0, -0.4, 0.0, 0.3, 0.8):
+        levels = messages.target_levels(brief("cloze", target=anchor + offset), RULES)
+        reached = sum(dims[name].levels[level].offset for name, level in levels.items())
+        assert set(levels) == set(dims)
+        assert abs(reached - offset) <= 0.1, offset
+
+
+def test_a_target_below_what_the_rubric_reaches_says_it_is_the_easiest() -> None:
+    anchor = RULES.difficulty.cefr_anchor["A1"]
+    text_ = messages.difficulty_target(brief("cloze", target=anchor - 3), RULES)
+    assert text_.startswith("The easiest item this grammar point allows")
+    assert "One short clause" in text_  # every dimension at its easiest level
+    assert "A word in the item points straight to the answer" in text_
+    hard = messages.difficulty_target(brief("cloze", target=anchor + 3), RULES)
+    assert hard.startswith("The hardest item")
+    middle = messages.difficulty_target(brief("cloze", target=anchor), RULES)
+    assert middle.startswith("Aim for: ") and "easiest" not in middle
+
+
+def test_the_generator_gets_the_target_in_words_and_no_rubric_to_rate_on() -> None:
+    _, human = messages.generate_messages([brief("cloze")], LEARNER, RULES)
+    body = text(human)
+    sent = json.loads(body.split("Items to write:\n")[1].split("\n\n")[0])
+    assert sent[0]["difficulty"] == messages.difficulty_target(brief("cloze"), RULES)
+    assert "target_offset_sum" not in body and "Difficulty rubric" not in body
+    model = drafts.generated_set_model(RULES, [brief("cloze")])
+    assert "ratings" not in model.model_json_schema()["$defs"]["Draft_cloze"]["properties"]
+
+
+def test_the_critic_still_rates_on_the_rubric_and_its_rating_is_the_difficulty() -> None:
+    items = [(brief("cloze"), drafts.to_body(draft("cloze"), brief("cloze"), random.Random(0)))]
+    _, human = messages.critic_messages(items, LEARNER, RULES)
+    assert "Difficulty rubric" in text(human)
+    verdict = judge("cloze", own_answer="drinks", ratings=ratings(HARD))
+    assert (
+        verdict.difficulty
+        == drafts.difficulty(KC, drafts.ratings_model(RULES).model_validate(ratings(HARD)), RULES)[
+            0
+        ]
+    )

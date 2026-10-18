@@ -25,7 +25,7 @@ from evals.dataset import Case
 from evals.models import EvalModel
 from evals.report import CaseResult
 
-type Flaw = Literal["wrong_key", "two_right", "off_target", "unnatural", "factual", "misrated"]
+type Flaw = Literal["wrong_key", "two_right", "off_target", "unnatural", "factual"]
 
 # One item per review, as the first item of a set.
 POSITION = 1
@@ -39,6 +39,9 @@ class CriticCase(BaseModel):
     kc: str
     level: CefrLevel | None = None
     ratings: dict[str, str]
+    # A good item planned far from how hard it is: the side the critic's rating must
+    # land on, compared with the target (ADR 0055 §4: it passes all the same).
+    rated: Literal["easier", "harder"] | None = None
     format: Format
     content: dict[str, Any]
     answer: dict[str, Any]
@@ -47,6 +50,8 @@ class CriticCase(BaseModel):
     def _flaw_iff_bad(self) -> "CriticCase":
         if (self.flaw is None) != (self.expect == "pass"):
             raise ValueError("a bad item names its flaw; a good one has none")
+        if self.rated is not None and self.expect != "pass":
+            raise ValueError("only a good item says how it should be rated")
         return self
 
 
@@ -57,7 +62,7 @@ class Item:
     case: CriticCase
     kc: GrammarKC
     body: ExerciseBody
-    generator_difficulty: float
+    target_difficulty: float
 
 
 def make_item(data: Mapping[str, Any], rules: Rules, catalog: GrammarCatalog) -> Item:
@@ -73,7 +78,7 @@ def make_item(data: Mapping[str, Any], rules: Rules, catalog: GrammarCatalog) ->
         case=case,
         kc=kc,
         body=body,
-        generator_difficulty=prior_difficulty(kc.cefr, case.ratings, rules),
+        target_difficulty=prior_difficulty(kc.cefr, case.ratings, rules),
     )
 
 
@@ -88,7 +93,7 @@ class CriticEval:
         item = make_item(case.data, self.rules, self.catalog)
         brief = ItemBrief(
             POSITION,
-            PlannedItem(item.kc.id, item.case.format, item.generator_difficulty, "weak"),
+            PlannedItem(item.kc.id, item.case.format, item.target_difficulty, "weak"),
             item.kc,
         )
         learner = LearnerInputs(
@@ -106,12 +111,11 @@ class CriticEval:
             critic_messages([(brief, item.body)], learner, self.rules),
         )
         review = drafts.by_position(drafts.reviews_in(report), [POSITION]).get(POSITION)
+        verdict: drafts.Verdict | None = None
         if review is None:
             passed, detail = False, "the critic returned no review for the item"
         else:
-            verdict = drafts.judge(
-                item.body, item.kc, item.generator_difficulty, review, self.rules
-            )
+            verdict = drafts.judge(item.body, item.kc, item.target_difficulty, review, self.rules)
             passed = verdict.ok
             detail = "passed" if verdict.ok else "; ".join(verdict.reasons)
             changed = {
@@ -122,7 +126,11 @@ class CriticEval:
             if changed:
                 detail += f"\ncritic rated differently: {changed}"
         if item.case.flaw is None:
-            return CaseResult(case.id, {"good_passed": passed}, detail)
+            checks = {"good_passed": passed}
+            if item.case.rated is not None:
+                gap = verdict.gap if verdict is not None else 0.0
+                checks["rated_from_item"] = gap < 0 if item.case.rated == "easier" else gap > 0
+            return CaseResult(case.id, checks, detail)
         rejected = not passed
         checks = {"bad_rejected": rejected, f"rejects:{item.case.flaw}": rejected}
         return CaseResult(case.id, checks, detail)

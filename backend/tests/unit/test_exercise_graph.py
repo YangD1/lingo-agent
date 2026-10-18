@@ -186,7 +186,6 @@ class FakeModels:
                 data["correct"] = "none of them"
             items[f"item_{a['position']}"] = {
                 "explanation": "Because.",
-                "ratings": {k: {"level": v, "reason": "r"} for k, v in MIDDLE.items()},
                 **data,
             }
         schema.model_validate(items)
@@ -451,7 +450,9 @@ async def test_dropped_slots_leave_a_gap() -> None:
     assert [i.kc_id for i in result.items] == KCS[1:]
 
 
-async def test_difficulty_disagreement_is_a_rejection() -> None:
+async def test_a_critic_rating_far_from_the_target_is_kept_not_rejected() -> None:
+    """ADR 0055 §4: the critic's rating is the item's difficulty; how far it is from the
+    planned target is recorded for evaluation only."""
     models = FakeModels()
     original = models.critique
 
@@ -459,7 +460,7 @@ async def test_difficulty_disagreement_is_a_rejection() -> None:
         reply = await original(messages, schema)
         data = reply.output.model_dump()
         for review in data["reviews"]:
-            if review["position"] == 3 and models.rounds_of(3) == 1:
+            if review["position"] == 3:
                 review["ratings"] = {k: {"level": v, "reason": "r"} for k, v in HARD.items()}
         return ModelReply(schema.model_validate(data), reply.model)
 
@@ -467,8 +468,15 @@ async def test_difficulty_disagreement_is_a_rejection() -> None:
 
     result, _ = await run(models)
 
-    assert models.generated == [list(range(6)), [3]]
-    assert "difficulty ratings disagree" in result.rejected[0].critic["reasons"][0]  # type: ignore[index]
+    assert models.generated == [list(range(6))]
+    assert result.rejected == []
+    (item,) = [i for i in result.items if i.position == 3]
+    assert item.ratings == HARD
+    assert item.critic is not None
+    assert item.critic["difficulty_gap"] == pytest.approx(
+        item.difficulty - item.critic["target_difficulty"], abs=0.01
+    )
+    assert "generator_ratings" not in item.critic
 
 
 async def test_reviews_run_side_by_side_up_to_the_limit() -> None:

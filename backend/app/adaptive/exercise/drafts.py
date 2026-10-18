@@ -6,8 +6,10 @@ position whose type lists only that format's fields (task 86.9). Code then assem
 each draft into its format's model in `formats.py`, so an item reaches the learner only
 after `formats.py` has validated it and the critic has passed it.
 
-The generator rates each item on the difficulty rubric of `rules.yaml`; the critic
-rates it again without seeing that rating. The critic answers the closed formats
+The critic rates each item on the difficulty rubric of `rules.yaml`, and that rating is
+the item's difficulty; the generator only aims at a target described in words, and no
+item is rejected for landing away from it (ADR 0055 §4, revising Q33a). The critic
+answers the closed formats
 (choice4, cloze, find_fix) without the answer key, and code compares its answer with
 the key, so "the answer is right and the only one" is checked by a second solver, not
 taken on the critic's word.
@@ -147,10 +149,6 @@ class Draft(_Model):
     explanation: str = Field(description="Why the answer is right, for after the learner answers")
 
 
-def draft_model(rules: Rules) -> type[BaseModel]:
-    return _rated_draft(ratings_model(rules))
-
-
 def generated_set_model(rules: Rules, briefs: Sequence[ItemBrief]) -> type[BaseModel]:
     """The generator's output: one draft per position asked for, under `item_<position>`,
     each with only its format's fields. Its schema marks the fields a format needs as
@@ -158,10 +156,9 @@ def generated_set_model(rules: Rules, briefs: Sequence[ItemBrief]) -> type[BaseM
     that draft goes back for a rewrite saying what is missing instead of failing the
     whole call: with one flat schema for every format, DeepSeek-V4-Flash left out a
     concept_choice's `options` and `correct` in every round (task 86.9)."""
-    ratings = ratings_model(rules)
     fields: dict[str, Any] = {
         f"item_{b.position}": (
-            _item_model(b.item.format, ratings) | None,
+            _item_model(b.item.format) | None,
             Field(None, description=f"The {b.item.format} item at position {b.position}"),
         )
         for b in briefs
@@ -176,7 +173,7 @@ def generated_set_model(rules: Rules, briefs: Sequence[ItemBrief]) -> type[BaseM
 
 
 @cache
-def _item_model(fmt: Format, ratings: type[BaseModel]) -> type[BaseModel]:
+def _item_model(fmt: Format) -> type[BaseModel]:
     required = REQUIRED[fmt]
     wanted = {*required, *OPTIONAL.get(fmt, ())}
     fields: dict[str, Any] = {
@@ -194,7 +191,6 @@ def _item_model(fmt: Format, ratings: type[BaseModel]) -> type[BaseModel]:
         ),
         **fields,
         explanation=(str, Field(description=_described("explanation"))),
-        ratings=(ratings, ...),
     )
 
 
@@ -219,20 +215,14 @@ def drafts_in(output: BaseModel, briefs: Sequence[ItemBrief]) -> list[Draft]:
         item: BaseModel | None = getattr(output, f"item_{b.position}", None)
         if item is None:
             continue
-        ratings: type[BaseModel] = type(cast(Any, item).ratings)
         data = {**item.model_dump(), "position": b.position, "format": b.item.format}
-        found.append(cast(Draft, _rated_draft(ratings).model_validate(data)))
+        found.append(Draft.model_validate(data))
     return found
 
 
-@cache
-def _rated_draft(ratings: type[BaseModel]) -> type[BaseModel]:
-    return create_model("RatedDraft", __base__=Draft, ratings=(ratings, ...))
-
-
-def ratings_of(item: "Draft | Review") -> BaseModel:
-    """The rubric ratings of a draft or review made with this module's schemas."""
-    return cast(BaseModel, cast(Any, item).ratings)
+def ratings_of(review: "Review") -> BaseModel:
+    """The rubric ratings of a review made with `review_model`."""
+    return cast(BaseModel, cast(Any, review).ratings)
 
 
 class DraftError(ValueError):
@@ -394,6 +384,8 @@ class Verdict:
     # The critic's rubric difficulty and levels, which the item keeps.
     difficulty: float
     ratings: Mapping[str, str]
+    # The critic's difficulty minus the planned target, kept for evaluation only.
+    gap: float
 
 
 def _solved(body: ExerciseBody, review: Review) -> str | None:
@@ -417,12 +409,13 @@ def _solved(body: ExerciseBody, review: Review) -> str | None:
 def judge(
     body: ExerciseBody,
     kc: GrammarKC,
-    generator_difficulty: float,
+    target_difficulty: float,
     review: Review,
     rules: Rules,
 ) -> Verdict:
-    """Pass only when the critic finds nothing wrong, solves a closed item as the key
-    does, and rates its difficulty close to the generator's rating (Q33a)."""
+    """Pass only when the critic finds nothing wrong and solves a closed item as the key
+    does. Its difficulty rating becomes the item's; how far it is from the target is
+    recorded, never a reason to reject (ADR 0055 §4)."""
     critic_difficulty, levels = difficulty(kc, ratings_of(review), rules)
     reasons: list[str] = []
     for ok, name in (
@@ -436,13 +429,8 @@ def judge(
         reasons.extend(p.strip() for p in review.problems if p.strip())
     if (unsolved := _solved(body, review)) is not None:
         reasons.append(unsolved)
-    gap = abs(critic_difficulty - generator_difficulty)
-    if gap > rules.practice.critic_max_gap:
-        reasons.append(
-            f"difficulty ratings disagree: generator {generator_difficulty:+.1f}, "
-            f"critic {critic_difficulty:+.1f}"
-        )
-    return Verdict(not reasons, tuple(reasons), critic_difficulty, levels)
+    gap = round(critic_difficulty - target_difficulty, 2)
+    return Verdict(not reasons, tuple(reasons), critic_difficulty, levels, gap)
 
 
 def by_position[T: Draft | Review](items: Sequence[T], wanted: Sequence[int]) -> dict[int, T]:

@@ -149,8 +149,6 @@ class ExerciseContext:
 class _Candidate(TypedDict):
     body: ExerciseBody
     draft: dict[str, Any]
-    difficulty: float
-    ratings: dict[str, str]
     model: str | None
 
 
@@ -245,21 +243,14 @@ def _candidate(
         _rejected_unreviewed(brief, rounds, "no draft was written for this position")
         return None, Rejected({}, ["no draft was written for this position"])
     draft = found[0]
-    shown = draft.model_dump(exclude={"position", "ratings"}, exclude_none=True)
+    shown = draft.model_dump(exclude={"position"}, exclude_none=True)
     rng = random.Random(ctx.seed * 1000 + brief.position * 10 + rounds)
     try:
         body = drafts.to_body(draft, brief, rng)
-        value, levels = drafts.difficulty(brief.kc, drafts.ratings_of(draft), ctx.rules)
-    except ValueError as exc:  # DraftError, or a rating prior_difficulty rejects
+    except drafts.DraftError as exc:
         _rejected_unreviewed(brief, rounds, str(exc))
         return None, Rejected(shown, [f"invalid item: {exc}"])
-    candidate: _Candidate = {
-        "body": body,
-        "draft": shown,
-        "difficulty": value,
-        "ratings": levels,
-        "model": model,
-    }
+    candidate: _Candidate = {"body": body, "draft": shown, "model": model}
     return candidate, None
 
 
@@ -281,7 +272,8 @@ async def _review(
         # Not reviewed is not rejected: the item is fine as far as anyone knows, so it
         # is written again rather than kept as a critic decision.
         return None, Rejected(candidate["draft"], ["the reviewer skipped it"])
-    verdict = drafts.judge(candidate["body"], brief.kc, candidate["difficulty"], review, ctx.rules)
+    target = brief.item.target_difficulty
+    verdict = drafts.judge(candidate["body"], brief.kc, target, review, ctx.rules)
     record = {
         "verdict": "pass" if verdict.ok else "fail",
         "reasons": list(verdict.reasons),
@@ -289,8 +281,8 @@ async def _review(
         "own_answer": review.own_answer,
         "own_segment": review.own_segment,
         "ratings": dict(verdict.ratings),
-        "generator_ratings": candidate["ratings"],
-        "generator_difficulty": candidate["difficulty"],
+        "target_difficulty": target,
+        "difficulty_gap": verdict.gap,
         "round": rounds,
         "model": reply.model,
     }

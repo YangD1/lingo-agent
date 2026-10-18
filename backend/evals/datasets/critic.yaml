@@ -5,10 +5,12 @@
 #   expect   reject | pass
 #   flaw     reject only: wrong_key (the key is wrong), two_right (more than one right
 #            answer), off_target (does not test `kc`), unnatural (unnatural English or an
-#            unclear instruction), factual (a factual error), misrated (the generator's
-#            difficulty ratings are far off)
+#            unclear instruction), factual (a factual error). Difficulty is not a flaw:
+#            the critic's rating becomes the item's (ADR 0055 §4)
 #   kc       grammar KC id; the learner's level is the KC's unless `level` is given
-#   ratings  the generator's rubric ratings (`judge` compares the critic's with them)
+#   ratings  the rubric levels the item was planned at: its target difficulty
+#   rated    pass only, for an item planned far from how hard it is: easier | harder,
+#            the side of the target the critic's rating must land on
 #   format, content, answer   as in `app/adaptive/exercise/formats.py`; rewrite_own
 #            takes `evidence_id: 1` when it is left out
 #
@@ -326,9 +328,9 @@ cases:
 
   # --- bad: the generator's difficulty ratings are far off ---
 
-  - id: choice4-easy-rated-hard
-    expect: reject
-    flaw: misrated
+  - id: good-choice4-easy-planned-hard
+    expect: pass
+    rated: easier
     kc: g.be_present
     ratings: {vocabulary: above_target, syntax: complex, cues: none, distractors: several_plausible}
     format: choice4
@@ -339,9 +341,9 @@ cases:
       correct: am
       explanation: '"I" takes "am".'
 
-  - id: cloze-hard-rated-easy
-    expect: reject
-    flaw: misrated
+  - id: good-cloze-hard-planned-easy
+    expect: pass
+    rated: harder
     kc: g.past_perfect
     ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
     format: cloze
@@ -355,9 +357,9 @@ cases:
       accepted: [had resolved, had already resolved]
       explanation: The board's decision came before the auditors arrived, so use the past perfect.
 
-  - id: transform-easy-rated-hard
-    expect: reject
-    flaw: misrated
+  - id: good-transform-easy-planned-hard
+    expect: pass
+    rated: easier
     kc: g.reported_statements
     ratings: {vocabulary: above_target, syntax: complex, cues: none, distractors: several_plausible}
     format: transform

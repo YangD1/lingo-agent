@@ -10,10 +10,10 @@ For every item:
 - `explanation`: two or three sentences on why the answer is right, in the language you
   are told to use; for `choice4` and `find_fix`, also why the tempting wrong answer is
   wrong.
-- Difficulty: rate the item on each rubric dimension, with a short reason. Aim for the
-  given `target_offset_sum`: the offsets of your chosen levels should add up to about
-  that. For formats without options, `distractors` means how tempting the typical wrong
-  answers are.
+- Difficulty: each item's `difficulty` says what to aim for. For formats without
+  options, `distractors` means how tempting the typical wrong answers are. When it says
+  the item is already the easiest (or hardest) the grammar point allows, just write a
+  clear item at that end; do not strain to go further.
 - Vary the situations and sentences across the set. Example items from the reviewed
   bank, when given, show the level and style for a grammar point: write new sentences,
   never copy them.

@@ -37,6 +37,7 @@
 - `drafts.judge` 不再比较两边的评档，也不再因为分差拒题；分差照样算出来，写进 `exercises.critic`，留作评估。题目难度仍取 critic 的评档（原来就是这样）。
 - 出题模型不再自评 4 个维度（schema 去掉 `ratings`），只拿到一句文字目标（比如“比较容易：提示明确、句子简单”）。目标被限制到 rubric 下限时，提示词写明“这已经是这个语法点能出的最简单”，不再让它去凑一个达不到的数字。
 - `practice.critic_max_gap` 从 `rules.yaml` 去掉，规则升版本（预生成的组按 Q33e 重出）。
+- 落地（任务 100.6）：文字目标由代码按 rubric 挑出各维度离目标最近的一组档位，写成“各维度要什么样”，`exercises.critic` 记 `target_difficulty` 和 `difficulty_gap`（critic 的难度减目标），不再记出题模型的评档。critic 评估集原来的 3 条 `misrated` 用例（难度标反、期望拒题）改成期望通过的好题，新指标 `rated_from_item` 检查 critic 的评档落在目标的哪一侧，即它是看题评的、不是照着目标评的；回放基线随之更新（`good-choice4-since` 原来只因分歧被拒，现在通过）。
 - **不留“明显太难才拒”的兜底**（用户 2026-10-17 确认）：critic 的评档已经决定题目难度，Elo 按这个难度记账；拿“太难”拒题会把 critic 按学习者水平拒 B2 题的问题带回来。
 
 ### 5. critic 改成清单、只审题

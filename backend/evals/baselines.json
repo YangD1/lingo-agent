@@ -1,10 +1,10 @@
 {
  "critic": {
   "metrics": {
-   "bad_rejected": [24, 26],
-   "good_passed": [18, 18],
+   "bad_rejected": [21, 23],
+   "good_passed": [21, 21],
+   "rated_from_item": [3, 3],
    "rejects:factual": [3, 4],
-   "rejects:misrated": [3, 3],
    "rejects:off_target": [4, 4],
    "rejects:two_right": [4, 5],
    "rejects:unnatural": [4, 4],

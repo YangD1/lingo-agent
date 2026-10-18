@@ -473,7 +473,6 @@ def tool_arguments(name: str, messages: list[dict[str, Any]]) -> dict[str, Any]:
         return {
             f"item_{a['position']}": {
                 "explanation": "The subject is third person singular, so the verb takes -s.",
-                "ratings": rated(),
                 **PRACTICE_DRAFTS[a["format"]],
             }
             for a in asked
