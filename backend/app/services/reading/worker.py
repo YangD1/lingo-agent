@@ -36,6 +36,7 @@ from app.agents.reading_graph import (
 )
 from app.db.models import ArticleVersion
 from app.providers.config import TenantProviderContext
+from app.providers.resilience import RetryBudget
 from app.providers.tenant import load_provider_context
 from app.services.news import feeds
 from app.services.reading import messages, versions
@@ -47,6 +48,9 @@ REWRITE_TASK = "article_rewrite"
 QUESTIONS_TASK = "reading_questions"
 CRITIC_TASK = "reading_critic"
 CRITIC_ROUTE = "exercise_critic"
+# Retries one article's calls share on a resilient route (ADR 0056); the critic's route
+# is one, and has no SDK retries of its own.
+ARTICLE_RETRIES = 6
 
 # Builds the three model calls for a tenant; tests pass fakes.
 type CallFactory = Callable[
@@ -61,10 +65,12 @@ def _as(config: RunnableConfig, usage_task: str) -> RunnableConfig:
 def model_calls(
     ctx: TenantProviderContext, config: RunnableConfig
 ) -> tuple[StructuredCall, StructuredCall, StructuredCall]:
+    """One article's calls, sharing one retry budget."""
+    budget = RetryBudget(ARTICLE_RETRIES)
     return (
-        structured_call(ctx, config, REWRITE_TASK),
-        structured_call(ctx, _as(config, QUESTIONS_TASK), REWRITE_TASK),
-        structured_call(ctx, _as(config, CRITIC_TASK), CRITIC_ROUTE),
+        structured_call(ctx, config, REWRITE_TASK, budget),
+        structured_call(ctx, _as(config, QUESTIONS_TASK), REWRITE_TASK, budget),
+        structured_call(ctx, _as(config, CRITIC_TASK), CRITIC_ROUTE, budget),
     )
 
 

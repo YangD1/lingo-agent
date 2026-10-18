@@ -55,3 +55,8 @@
 - 块间隔用和第一块相同的门槛。sub2api 实测（2026-10-18，出题式的工具调用，带不带思考各一次）：第一块 1–2 秒，最大块间隔不到 1 秒。厂商如果先发一块再静默思考，可能被误判卡住，会在 `llm_usage` 里显出成串的 `stalled`。
 - 执行器在 `providers/resilience.py`，入口 `stream_structured` / `invoke_structured`；没开 `resilient` 的任务照旧走 `astream_structured` / `get_structured_llm`。非流式的调用也用流式发，这样才能按第一块判断卡住；中途卡住时整个请求重发，因为调用方还没用到任何内容。流式调用只在第一块之前重试，之后卡住抛 `CallStalledError`，由调用方决定怎么续（出题见 ADR 0048 补充）。
 - 同一个模型可重试的失败（卡住也算）满 2 次就换下一个，换的这一次也占一次预算；不可重试的失败照旧直接换下一个、不占预算。`Retry-After` 超过 30 秒不等，直接换下一个。
+
+## 补充：借用开启路由的调用也要带预算（2026-10-18，任务 103.0）
+- 开了 `resilient` 的路由在 `build_chat_model` 里关掉 SDK 重试（§5），重试只由这一层做；但调用方不传 `RetryBudget` 时走旧路径，既没 SDK 重试也没这一层。阅读的审题借用 `exercise_critic` 路由、又没传预算，任务 101 之后审题失败一次就丢掉全部未审的题（文章照样标成 ready）。
+- 修复：阅读每篇文章建一个 `RetryBudget(6)`（`services/reading/worker.py` `ARTICLE_RETRIES`），改写、补题、审题三次调用共用；改写、补题的路由 `article_rewrite` 还没开 `resilient`，照旧走 SDK 重试，任务 103.2 再开。
+- 规则：借用开了 `resilient` 的路由时必须传预算。
