@@ -229,8 +229,10 @@ def shown(body: ExerciseBody) -> dict[str, object]:
 
 
 def critic_messages(
-    items: Sequence[tuple[ItemBrief, ExerciseBody]], learner: LearnerInputs, rules: Rules
+    items: Sequence[tuple[ItemBrief, ExerciseBody]], rules: Rules
 ) -> list[BaseMessage]:
+    """Only the items and the rubric: no learner level, so the critic judges the item,
+    never whether it suits this learner (ADR 0055 §5)."""
     reviewed = [
         {
             "position": brief.position,
@@ -244,7 +246,6 @@ def critic_messages(
         for brief, body in items
     ]
     parts = [
-        f"Learner's level (CEFR): {learner.level or rules.practice.default_level}",
         "Difficulty rubric:\n" + rubric(rules),
         "Items to review:\n" + _json(reviewed),
     ]

@@ -4,10 +4,11 @@
 # Each case is one item, reviewed alone, as the critic node would see it:
 #   expect   reject | pass
 #   flaw     reject only: wrong_key (the key is wrong), two_right (more than one right
-#            answer), off_target (does not test `kc`), unnatural (unnatural English or an
+#            answer), off_target (does not test `kc`), gives_away (the instruction or
+#            hint gives the tested form away), unnatural (unnatural English or an
 #            unclear instruction), factual (a factual error). Difficulty is not a flaw:
 #            the critic's rating becomes the item's (ADR 0055 §4)
-#   kc       grammar KC id; the learner's level is the KC's unless `level` is given
+#   kc       grammar KC id
 #   ratings  the rubric levels the item was planned at: its target difficulty
 #   rated    pass only, for an item planned far from how hard it is: easier | harder,
 #            the side of the target the critic's rating must land on
@@ -352,9 +353,9 @@ cases:
         By the time the auditors, whose arrival had been postponed twice because of a
         strike that paralysed the regional rail network, finally reached the
         headquarters, the board ___ quietly to restructure the subsidiary.
-      hint: resolve
+      hint: resolve, 2 words
     answer:
-      accepted: [had resolved, had already resolved]
+      accepted: [had resolved]
       explanation: The board's decision came before the auditors arrived, so use the past perfect.
 
   - id: good-transform-easy-planned-hard
@@ -369,6 +370,48 @@ cases:
     answer:
       accepted: ["She said that she was tired."]
       explanation: In reported speech "am" moves back to "was".
+
+  - id: translate-instruction-gives-going-to
+    expect: reject
+    flaw: gives_away
+    kc: g.going_to_future
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: translate
+    content:
+      source: 我打算明年学开车。
+      instruction: Use "be going to".
+    answer:
+      accepted:
+        - I'm going to learn to drive next year.
+        - I am going to learn to drive next year.
+        - I'm going to learn how to drive next year.
+      explanation: "已经打算好的事用 be going to + 动词原形。"
+
+  - id: transform-opening-gives-passive
+    expect: reject
+    flaw: gives_away
+    kc: g.passive_basic
+    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
+    format: transform
+    content:
+      instruction: Rewrite the sentence. Start with "The office is cleaned".
+      source: Someone cleans the office every day.
+    answer:
+      accepted: ["The office is cleaned every day."]
+      explanation: The object becomes the subject; use is + past participle.
+
+  - id: cloze-hint-gives-past-perfect
+    expect: reject
+    flaw: gives_away
+    kc: g.past_perfect
+    ratings: {vocabulary: below_target, syntax: moderate, cues: partial, distractors: weak}
+    format: cloze
+    content:
+      stem: When we got to the cinema, the film ___, so we missed the start.
+      hint: had started
+    answer:
+      accepted: [had started]
+      explanation: The film started before we got there, so use the past perfect.
 
   # --- good items ---
 
@@ -438,7 +481,8 @@ cases:
     ratings: {vocabulary: below_target, syntax: simple, cues: partial, distractors: weak}
     format: cloze
     content:
-      stem: The shop opens ___ 9 o'clock.
+      stem: The train leaves ___ exactly 7:15, so don't be late.
+      hint: at, on or in
     answer:
       accepted: [at]
       explanation: Use "at" with clock times.
@@ -473,11 +517,11 @@ cases:
     ratings: {vocabulary: at_target, syntax: moderate, cues: none, distractors: one_plausible}
     format: find_fix
     content:
-      segments: ["She is ", "a ", "honest woman ", "who helps everyone."]
+      segments: ["He waited for ", "a ", "hour ", "at the station."]
     answer:
       wrong_segment: 1
       accepted: ["an "]
-      explanation: '"Honest" starts with a vowel sound, so use "an".'
+      explanation: '"Hour" starts with a vowel sound, so use "an".'
 
   - id: good-transform-passive
     expect: pass
@@ -530,21 +574,6 @@ cases:
     answer:
       accepted: ["Have you ever been to Beijing?", "Have you been to Beijing?"]
       explanation: "问经历用 Have you (ever) been to ...?"
-
-  - id: good-translate-going-to
-    expect: pass
-    kc: g.going_to_future
-    ratings: {vocabulary: below_target, syntax: simple, cues: explicit, distractors: weak}
-    format: translate
-    content:
-      source: 我打算明年学开车。
-      instruction: Use "be going to".
-    answer:
-      accepted:
-        - I'm going to learn to drive next year.
-        - I am going to learn to drive next year.
-        - I'm going to learn how to drive next year.
-      explanation: "已经打算好的事用 be going to + 动词原形。"
 
   - id: good-translate-first-conditional
     expect: pass

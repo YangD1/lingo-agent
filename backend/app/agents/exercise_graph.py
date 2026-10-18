@@ -262,7 +262,7 @@ async def _review(
     ctx = run.ctx
     reply = await run.call(
         ctx.critique,
-        critic_messages([(brief, candidate["body"])], ctx.learner, ctx.rules),
+        critic_messages([(brief, candidate["body"])], ctx.rules),
         drafts.critic_report_model(ctx.rules),
     )
     review = drafts.by_position(drafts.reviews_in(reply.output), [brief.position]).get(

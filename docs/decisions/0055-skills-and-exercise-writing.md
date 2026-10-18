@@ -47,6 +47,7 @@
   3. 考没考到这个点，其中单列一项：指令或提示有没有把要考的形式给出来；
   4. 英语自不自然、有没有事实错误。
 - 仍然按 rubric 评难度（用于定难度，不用于拒题）。审题输入 token 是出题的 4 倍，精简提示词时一并查清一次 5.5k 的来源。
+- 落地（任务 100.7a、100.7）：5.5k 的来源不在提示词，而是 langchain-openai 见到 `gpt-6*` 模型且请求带 tools 时自动改走 Responses API，sub2api 那条通道同一份审题请求多算约 4.3k 输入、缓存为 0；`openai_compatible` 连接现在默认走 Chat Completions（连接参数 `use_responses_api: true` 可打开）。审题结果按清单分成 `answer_ok`、`one_answer`、`tests_kc`、`form_hidden`、`content_ok` 五项，每项失败各有拒因；`critic_messages` 不再收学习者信息，消息里只有 rubric 和题目。评估回放在 pytest 里跑（CI 也跑），critic 评估集在 100.7 就用 sub2api 重录了：`good-translate-going-to` 的指令给出了要考的形式，改成坏题（新拒因 `gives_away`）；3 条好题按 skill 的标准其实不止一个答案（无 hint 的介词、过去式也能填的过去完成时、把 a 改成 the 也通的 find_fix），换成只有一个答案的写法。坏题加了 2 条 `gives_away`（transform 的开头带出被动、cloze 的 hint 就是答案），连跑两遍坏题 26/26、好题 20/20。
 
 ### 6. 对话里的 `load_skill`
 - 系统提示在稳定前缀（ADR 0053 §1，利于缓存）里列出 skill 的名字和描述。私教要自己出题、出检查问题时调 `load_skill(name)`，读 `SKILL.md`；工具结果里列出可再读的部分。

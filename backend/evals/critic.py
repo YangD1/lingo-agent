@@ -15,17 +15,17 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from app.adaptive.elo import prior_difficulty
 from app.adaptive.exercise import drafts
 from app.adaptive.exercise.formats import ExerciseBody, Format, parse_body
-from app.adaptive.exercise.inputs import ItemBrief, LearnerInputs
+from app.adaptive.exercise.inputs import ItemBrief
 from app.adaptive.exercise.messages import critic_messages
 from app.adaptive.exercise.planner import PlannedItem
 from app.adaptive.exercise.worker import CRITIC_TASK
-from app.adaptive.kc.catalog import CefrLevel, GrammarCatalog, GrammarKC, get_grammar_catalog
+from app.adaptive.kc.catalog import GrammarCatalog, GrammarKC, get_grammar_catalog
 from app.adaptive.rules import Rules, get_rules
 from evals.dataset import Case
 from evals.models import EvalModel
 from evals.report import CaseResult
 
-type Flaw = Literal["wrong_key", "two_right", "off_target", "unnatural", "factual"]
+type Flaw = Literal["wrong_key", "two_right", "off_target", "gives_away", "unnatural", "factual"]
 
 # One item per review, as the first item of a set.
 POSITION = 1
@@ -37,7 +37,6 @@ class CriticCase(BaseModel):
     expect: Literal["reject", "pass"]
     flaw: Flaw | None = None
     kc: str
-    level: CefrLevel | None = None
     ratings: dict[str, str]
     # A good item planned far from how hard it is: the side the critic's rating must
     # land on, compared with the target (ADR 0055 §4: it passes all the same).
@@ -96,19 +95,11 @@ class CriticEval:
             PlannedItem(item.kc.id, item.case.format, item.target_difficulty, "weak"),
             item.kc,
         )
-        learner = LearnerInputs(
-            level=item.case.level or item.kc.cefr,
-            ability=0.0,
-            states={},
-            own_sentences={},
-            profile={},
-            facts=(),
-        )
         report = await model.structured(
             case.id,
             CRITIC_TASK,
             drafts.critic_report_model(self.rules),
-            critic_messages([(brief, item.body)], learner, self.rules),
+            critic_messages([(brief, item.body)], self.rules),
         )
         review = drafts.by_position(drafts.reviews_in(report), [POSITION]).get(POSITION)
         verdict: drafts.Verdict | None = None

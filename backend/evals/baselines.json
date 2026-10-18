@@ -1,21 +1,22 @@
 {
  "critic": {
   "metrics": {
-   "bad_rejected": [21, 23],
-   "good_passed": [21, 21],
+   "bad_rejected": [26, 26],
+   "good_passed": [20, 20],
    "rated_from_item": [3, 3],
-   "rejects:factual": [3, 4],
+   "rejects:factual": [4, 4],
+   "rejects:gives_away": [3, 3],
    "rejects:off_target": [4, 4],
-   "rejects:two_right": [4, 5],
+   "rejects:two_right": [5, 5],
    "rejects:unnatural": [4, 4],
    "rejects:wrong_key": [6, 6]
   },
   "models": [
-   "gpt-5.5"
+   "gpt-6.1-sol"
   ],
-  "recorded": "2026-10-02",
+  "recorded": "2026-10-18",
   "prompts": {
-   "exercise_critic": "cf5f3b70"
+   "exercise_critic": "0645be5e"
   }
  },
  "diagnosis": {

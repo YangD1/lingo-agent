@@ -347,12 +347,20 @@ class Review(_Model):
         None, description="find_fix: index of the piece you think is wrong"
     )
     answer_ok: bool = Field(
-        description="Exactly one right answer for closed formats; for open formats the "
-        "reference answers are right and the task has a clear right way to do it"
+        description="1. The item has a right answer, and for open formats the reference "
+        "answers are right"
     )
-    tests_kc: bool = Field(description="Answering needs the grammar point it is meant to test")
+    one_answer: bool = Field(
+        description="2. Reading the whole sentence, only one answer fits: no second "
+        "option, no other grammatical filling, only one wrong piece; for open formats, "
+        "one clear way to do the task"
+    )
+    tests_kc: bool = Field(description="3. Answering needs the grammar point it is meant to test")
+    form_hidden: bool = Field(
+        description="3a. The instruction and hint do not give away the form being tested"
+    )
     content_ok: bool = Field(
-        description="Natural English, clear instructions, no factual or cultural errors"
+        description="4. Natural English, a clear instruction, no factual or cultural errors"
     )
     problems: list[str] = Field(
         default_factory=list, description="What is wrong, one short sentence each"
@@ -419,8 +427,10 @@ def judge(
     critic_difficulty, levels = difficulty(kc, ratings_of(review), rules)
     reasons: list[str] = []
     for ok, name in (
-        (review.answer_ok, "answer is not right or not the only one"),
+        (review.answer_ok, "answer is not right"),
+        (review.one_answer, "more than one answer fits"),
         (review.tests_kc, "does not test the grammar point"),
+        (review.form_hidden, "the instruction or hint gives the tested form away"),
         (review.content_ok, "unnatural, unclear or factually wrong"),
     ):
         if not ok:

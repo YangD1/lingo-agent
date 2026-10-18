@@ -20,8 +20,11 @@ DATASET = load_dataset("critic")
 RULES = get_rules()
 ITEMS = {c.id: make_item(c.data, RULES, get_grammar_catalog()) for c in DATASET.cases}
 
-# What a review says about an item: (answer_ok, tests_kc, content_ok, ratings).
-Opinion = Callable[[Item], tuple[bool, bool, bool, dict[str, str]]]
+# What a review says about an item: its checklist answers and its ratings.
+Opinion = Callable[[Item], tuple[dict[str, bool], dict[str, str]]]
+
+
+CHECKS = ("answer_ok", "one_answer", "tests_kc", "form_hidden", "content_ok")
 
 
 def key_answer(item: Item) -> tuple[str, int | None]:
@@ -45,20 +48,22 @@ def opposite(ratings: dict[str, str]) -> dict[str, str]:
     return out
 
 
-def ideal(item: Item) -> tuple[bool, bool, bool, dict[str, str]]:
+def ideal(item: Item) -> tuple[dict[str, bool], dict[str, str]]:
     flaw = item.case.flaw
     # Rates the item as it is: those planned far from that, at the other end.
     ratings = opposite(item.case.ratings) if item.case.rated else item.case.ratings
-    return (
-        flaw not in ("wrong_key", "two_right"),
-        flaw != "off_target",
-        flaw not in ("unnatural", "factual"),
-        ratings,
-    )
+    checks = {
+        "answer_ok": flaw != "wrong_key",
+        "one_answer": flaw != "two_right",
+        "tests_kc": flaw != "off_target",
+        "form_hidden": flaw != "gives_away",
+        "content_ok": flaw not in ("unnatural", "factual"),
+    }
+    return checks, ratings
 
 
-def rubber_stamp(item: Item) -> tuple[bool, bool, bool, dict[str, str]]:
-    return True, True, True, item.case.ratings
+def rubber_stamp(item: Item) -> tuple[dict[str, bool], dict[str, str]]:
+    return dict.fromkeys(CHECKS, True), item.case.ratings
 
 
 class ScriptedCritic:
@@ -74,16 +79,14 @@ class ScriptedCritic:
     ) -> T:
         self.calls.append((case_id, task, len(messages)))
         item = ITEMS[case_id]
-        answer_ok, tests_kc, content_ok, ratings = self.opinion(item)
+        checks, ratings = self.opinion(item)
         own_answer, own_segment = key_answer(item)
         review: dict[str, Any] = {
             "position": POSITION,
             "own_answer": own_answer,
             "own_segment": own_segment,
-            "answer_ok": answer_ok,
-            "tests_kc": tests_kc,
-            "content_ok": content_ok,
-            "problems": [] if answer_ok and tests_kc and content_ok else ["scripted"],
+            **checks,
+            "problems": [] if all(checks.values()) else ["scripted"],
             "ratings": {k: {"level": v, "reason": "scripted"} for k, v in ratings.items()},
         }
         return schema.model_validate({"reviews": [] if case_id in self.skip else [review]})

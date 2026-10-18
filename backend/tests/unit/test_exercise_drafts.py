@@ -111,7 +111,9 @@ def review(position: int = 0, **changes: Any) -> drafts.Review:
         "position": position,
         "own_answer": "works",
         "answer_ok": True,
+        "one_answer": True,
         "tests_kc": True,
+        "form_hidden": True,
         "content_ok": True,
         "ratings": ratings(),
         **changes,
@@ -278,7 +280,19 @@ def test_an_item_the_critic_solves_and_likes_passes() -> None:
 def test_failed_checks_carry_the_critic_problems() -> None:
     verdict = judge("choice4", answer_ok=False, problems=["'is work' also fits?", " "])
     assert not verdict.ok
-    assert verdict.reasons == ("answer is not right or not the only one", "'is work' also fits?")
+    assert verdict.reasons == ("answer is not right", "'is work' also fits?")
+
+
+@pytest.mark.parametrize(
+    ("check", "reason"),
+    [
+        ("one_answer", "more than one answer fits"),
+        ("form_hidden", "the instruction or hint gives the tested form away"),
+    ],
+)
+def test_each_checklist_item_fails_on_its_own(check: str, reason: str) -> None:
+    verdict = judge("cloze", own_answer="drinks", **{check: False})
+    assert not verdict.ok and verdict.reasons == (reason,)
 
 
 def test_problems_alone_do_not_fail_an_item() -> None:
@@ -359,7 +373,7 @@ def test_critic_sees_no_closed_key_but_open_references() -> None:
         (brief(fmt, i), drafts.to_body(draft(fmt, i), brief(fmt, i), random.Random(0)))
         for i, fmt in enumerate(["choice4", "cloze", "find_fix", "rewrite_own"])
     ]
-    _, human = messages.critic_messages(items, LEARNER, RULES)
+    _, human = messages.critic_messages(items, RULES)
     body = text(human)
     assert "drinks" not in body  # the cloze key
     assert "wrong_segment" not in body and "goes " not in body  # the find_fix key
@@ -367,6 +381,15 @@ def test_critic_sees_no_closed_key_but_open_references() -> None:
     assert "She likes tea." in body  # rewrite_own's reference answer
     assert "evidence_id" not in body and "42" not in body
     assert "Mochi" not in body and "nurse" not in body  # the critic gets no personal context
+
+
+def test_critic_judges_the_item_not_the_learner() -> None:
+    # ADR 0055 §5: no learner level, so a B2 item is not rejected as too hard for A2.
+    items = [(brief("cloze"), drafts.to_body(draft("cloze"), brief("cloze"), random.Random(0)))]
+    system, human = messages.critic_messages(items, RULES)
+    assert "Learner's level" not in text(human) and "CEFR" not in text(human)
+    assert "Be strict" not in text(system)
+    assert "Difficulty rubric:" in text(human)
 
 
 # --- understanding checks (ADR 0044 §3) ---
@@ -402,7 +425,7 @@ def test_check_instructions_only_reach_sets_that_have_checks() -> None:
         (brief(fmt, i), drafts.to_body(draft(fmt, i), brief(fmt, i), random.Random(0)))
         for i, fmt in enumerate(["concept_choice", "explain"])
     ]
-    system, human = messages.critic_messages(items, LEARNER, RULES)
+    system, human = messages.critic_messages(items, RULES)
     assert "Understanding checks" in text(system)
     body = text(human)
     assert "主语是 he / she / it" in body  # explain's key points: the critic checks them
@@ -540,7 +563,7 @@ def test_self_checks_reach_neither_the_item_nor_the_critic() -> None:
     for _, body in items:
         dumped = json.dumps(body.model_dump(), ensure_ascii=False)
         assert "other_fillings" not in dumped and "error_kind" not in dumped
-    _, human = messages.critic_messages(items, LEARNER, RULES)
+    _, human = messages.critic_messages(items, RULES)
     assert "other_fillings" not in text(human) and "a habit" not in text(human)
     assert "error_kind" not in text(human)
 
@@ -582,7 +605,7 @@ def test_the_generator_gets_the_target_in_words_and_no_rubric_to_rate_on() -> No
 
 def test_the_critic_still_rates_on_the_rubric_and_its_rating_is_the_difficulty() -> None:
     items = [(brief("cloze"), drafts.to_body(draft("cloze"), brief("cloze"), random.Random(0)))]
-    _, human = messages.critic_messages(items, LEARNER, RULES)
+    _, human = messages.critic_messages(items, RULES)
     assert "Difficulty rubric" in text(human)
     verdict = judge("cloze", own_answer="drinks", ratings=ratings(HARD))
     assert (
