@@ -213,6 +213,9 @@ async def test_usage_summary_per_day_and_model(
             "fallbacks": 0,
             "avg_latency_ms": 100,
             "member": None,
+            "retries": 0,
+            "stalls": 0,
+            "cancels": 0,
         },
         {
             "day": today,
@@ -226,6 +229,9 @@ async def test_usage_summary_per_day_and_model(
             "fallbacks": 1,
             "avg_latency_ms": 200,
             "member": None,
+            "retries": 0,
+            "stalls": 0,
+            "cancels": 0,
         },
         {
             "day": yesterday,
@@ -239,8 +245,35 @@ async def test_usage_summary_per_day_and_model(
             "fallbacks": 0,
             "avg_latency_ms": 100,
             "member": None,
+            "retries": 0,
+            "stalls": 0,
+            "cancels": 0,
         },
     ]
+
+
+async def test_stalls_and_cancels_are_not_errors(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """A stalled call retried, then one the learner stopped: no error in either view, but
+    both counted apart, since the vendor may bill them (ADR 0014)."""
+    await register(client, "owner@example.com")
+    tenant_id = await tenant_of(db_session, "owner@example.com")
+    await add_usage(
+        db_session,
+        record(tenant_id, status="stalled", output_tokens=0),
+        record(tenant_id, attempt=2),
+        record(tenant_id, status="error", attempt=3),
+        record(tenant_id, status="cancelled"),
+        at=datetime.now(UTC),
+    )
+
+    rows = (await client.get("/tenant/usage")).json()["rows"]
+    total = (await client.get("/tenant/usage/dashboard")).json()["total"]
+
+    counts = ("calls", "errors", "retries", "stalls", "cancels")
+    assert [tuple(r[k] for k in counts) for r in rows] == [(4, 1, 2, 1, 1)]
+    assert tuple(total[k] for k in counts) == (4, 1, 2, 1, 1)
 
 
 async def test_usage_is_tenant_scoped(client: AsyncClient, db_session: AsyncSession) -> None:

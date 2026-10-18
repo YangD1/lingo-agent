@@ -25,6 +25,9 @@ const row = (overrides: Partial<UsageRow>): UsageRow => ({
   characters: 0,
   errors: 0,
   fallbacks: 0,
+  retries: 0,
+  stalls: 0,
+  cancels: 0,
   avg_latency_ms: 100,
   member: null,
   ...overrides,
@@ -62,5 +65,22 @@ describe("UsageDetails", () => {
 
     expect(within(table).getByRole("row", { name: /Total/ })).toHaveTextContent("700");
     expect(within(table).getAllByRole("row")).toHaveLength(3); // head, Alex's row, total
+  });
+
+  it("adds retry and stall columns only when some call needs them", async () => {
+    api.mockResolvedValue({ days: 7, rows: [row({})] } satisfies Usage);
+    const { unmount } = show();
+    const quiet = await screen.findByRole("table", { name: "Details (per day and model)" });
+    expect(within(quiet).queryByRole("columnheader", { name: "Retries" })).not.toBeInTheDocument();
+    expect(within(quiet).queryByRole("columnheader", { name: "Stalled" })).not.toBeInTheDocument();
+    unmount();
+
+    api.mockResolvedValue({ days: 7, rows: [row({ calls: 3, retries: 1, stalls: 1, cancels: 1 })] } satisfies Usage);
+    show();
+    const table = await screen.findByRole("table", { name: "Details (per day and model)" });
+    expect(within(table).getByRole("columnheader", { name: "Retries" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "Stalled" })).toBeInTheDocument();
+    expect(within(table).getByTitle("1 of them stopped by the learner")).toHaveTextContent("3");
+    expect(screen.getByText(/may bill stalled/)).toBeInTheDocument();
   });
 });

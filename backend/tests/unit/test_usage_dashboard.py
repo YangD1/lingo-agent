@@ -22,6 +22,9 @@ def row(**overrides: object) -> UsageRow:
         "audio_minutes": 0.0,
         "errors": 0,
         "fallbacks": 0,
+        "retries": 0,
+        "stalls": 0,
+        "cancels": 0,
     }
     fields.update(overrides)
     return UsageRow(**fields)  # type: ignore[arg-type]
@@ -73,7 +76,7 @@ def test_every_day_in_range_gets_an_entry() -> None:
 def test_groups_sum_and_sort_by_calls() -> None:
     board = build_dashboard(
         [
-            row(task="reflect", background=True, calls=3, errors=1),
+            row(task="reflect", background=True, calls=3, errors=1, retries=2, stalls=1),
             row(task="chat", calls=2, fallbacks=1),
             row(task="chat", model="deepseek-chat", connection="deepseek", calls=4),
             row(task="tts", member="Alex", calls=5, input_tokens=0, characters=900),
@@ -84,6 +87,7 @@ def test_groups_sum_and_sort_by_calls() -> None:
     )
     assert board.total.calls == 14
     assert (board.total.errors, board.total.fallbacks, board.total.characters) == (1, 1, 900)
+    assert (board.total.retries, board.total.stalls, board.total.cancels) == (2, 1, 0)
     assert [(t.task, t.background, t.tally.calls) for t in board.tasks] == [
         ("chat", False, 6),
         ("tts", False, 5),

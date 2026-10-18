@@ -35,6 +35,9 @@ class UsageRowOut(BaseModel):
     errors: int
     fallbacks: int
     avg_latency_ms: int
+    retries: int
+    stalls: int
+    cancels: int
     # None: this account's own calls; else a member's on its connections (ADR 0031 §8).
     member: str | None
 
@@ -64,8 +67,12 @@ class TallyOut(BaseModel):
     output_tokens: int
     characters: int
     audio_minutes: float
+    # Only real failures; stalled and cancelled calls are counted apart.
     errors: int
     fallbacks: int
+    retries: int
+    stalls: int
+    cancels: int
     # None: nothing in it was priced (ADR 0034 §3).
     cost: float | None
     # Some usage in it had no price, so `cost` leaves it out.

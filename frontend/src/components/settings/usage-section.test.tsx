@@ -27,6 +27,9 @@ const tally = (overrides: Partial<UsageTally> = {}): UsageTally => ({
   audio_minutes: 0,
   errors: 0,
   fallbacks: 0,
+  retries: 0,
+  stalls: 0,
+  cancels: 0,
   cost: null,
   cost_partial: false,
   ...overrides,
@@ -95,6 +98,31 @@ describe("UsageSection", () => {
     expect(reflect).toHaveAttribute("title", "Used by: Assistant chat, Speaking practice");
     // Only one account: no member grouping.
     expect(screen.queryByRole("radio", { name: "By member" })).not.toBeInTheDocument();
+    // Nothing retried or stalled: no columns or note for it.
+    expect(within(uses).queryByRole("columnheader", { name: "Retries" })).not.toBeInTheDocument();
+    expect(within(uses).queryByRole("columnheader", { name: "Stalled" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/may bill stalled/)).not.toBeInTheDocument();
+  });
+
+  it("shows retries and stalls apart from errors, and stopped calls only as a hint", async () => {
+    respond(
+      board({
+        total: tally({ calls: 10, errors: 1, retries: 3, stalls: 2, cancels: 1 }),
+        tasks: [{ task: "exercise_critic", background: false, ...tally({ calls: 10, errors: 1, retries: 3, stalls: 2, cancels: 1 }) }],
+      }),
+    );
+    show();
+
+    const totals = await screen.findByLabelText("Totals");
+    expect(totals).toHaveTextContent("Error rate10%");
+    expect(totals).toHaveTextContent("Retries3");
+    expect(totals).toHaveTextContent("Stalled2");
+    const uses = screen.getByRole("table", { name: "By use" });
+    expect(within(uses).getByRole("columnheader", { name: "Retries" })).toBeInTheDocument();
+    expect(within(uses).getByRole("columnheader", { name: "Stalled" })).toBeInTheDocument();
+    expect(within(uses).queryByRole("columnheader", { name: /stopped/i })).not.toBeInTheDocument();
+    expect(within(uses).getByTitle("1 of them stopped by the learner")).toHaveTextContent("10");
+    expect(screen.getByText(/may bill stalled and stopped calls/)).toBeInTheDocument();
   });
 
   it("shows costs once priced, marking partial ones", async () => {

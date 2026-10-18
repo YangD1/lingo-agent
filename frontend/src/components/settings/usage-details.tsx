@@ -11,7 +11,18 @@ import { cn } from "@/lib/utils";
 
 import { useDescribeError } from "./use-describe-error";
 
-const NUMERIC = ["calls", "input_tokens", "output_tokens", "characters", "errors", "fallbacks"] as const;
+const NUMERIC = [
+  "calls",
+  "input_tokens",
+  "output_tokens",
+  "characters",
+  "errors",
+  "retries",
+  "stalls",
+  "fallbacks",
+] as const;
+// Shown only once something in the range needs them.
+const SPARSE: readonly (typeof NUMERIC)[number][] = ["characters", "retries", "stalls"];
 
 /** Per day and model, one account at a time (`GET /tenant/usage`, ADR 0005). Loaded when
  * shown; `reload` bumps with the dashboard's refresh. */
@@ -45,8 +56,7 @@ export function UsageDetails({ days, reload }: { days: number; reload: number })
   const shownWhose = whose !== null && members.includes(whose) ? whose : null;
   const rows = (usage?.rows ?? []).filter((r) => r.member === shownWhose);
   const total = (key: (typeof NUMERIC)[number]) => rows.reduce((sum, r) => sum + r[key], 0);
-  // Read-aloud's column only once something was read aloud.
-  const columns = NUMERIC.filter((key) => key !== "characters" || total("characters") > 0);
+  const columns = NUMERIC.filter((key) => !SPARSE.includes(key) || total(key) > 0);
   const n = (value: number) => format.number(value);
 
   return (
@@ -90,6 +100,8 @@ export function UsageDetails({ days, reload }: { days: number; reload: number })
                     <td
                       key={key}
                       className={cn("px-3 py-2 text-right", key === "errors" && r.errors > 0 && "text-destructive")}
+                      // Stopped calls aren't failures: only a hint on the call count.
+                      title={key === "calls" && r.cancels > 0 ? t("cancelsHint", { count: r.cancels }) : undefined}
                     >
                       {n(r[key])}
                     </td>
@@ -113,6 +125,9 @@ export function UsageDetails({ days, reload }: { days: number; reload: number })
             </tfoot>
           </table>
         </div>
+      )}
+      {rows.some((r) => r.retries + r.stalls + r.cancels > 0) && (
+        <p className="text-xs text-muted-foreground">{t("stallFootnote")}</p>
       )}
     </div>
   );

@@ -20,9 +20,15 @@ class UsageSummaryRow:
     output_tokens: int
     # Read-aloud is billed by characters (ADR 0028 §3); 0 for every other call.
     characters: int
+    # Only real failures; stalled and cancelled calls are counted apart (ADR 0014).
     errors: int
     fallbacks: int
     avg_latency_ms: int
+    # Retries of an earlier call (`attempt > 1`), calls cut off for sending nothing, and
+    # calls the learner stopped (ADR 0056 §5).
+    retries: int = 0
+    stalls: int = 0
+    cancels: int = 0
     # None: the tenant's own calls; else the member (display name or email) whose calls
     # ran on this tenant's connections and count against their quota (ADR 0031 §8).
     member: str | None = None
@@ -45,10 +51,13 @@ async def summarize_usage(
             func.coalesce(func.sum(LLMUsage.input_tokens), 0),
             func.coalesce(func.sum(LLMUsage.output_tokens), 0),
             func.coalesce(func.sum(LLMUsage.characters), 0),
-            func.count(case((LLMUsage.status != "ok", 1))),
+            func.count(case((LLMUsage.status == "error", 1))),
             func.count(case((LLMUsage.is_fallback, 1))),
             func.coalesce(func.avg(LLMUsage.latency_ms), 0),
             member,
+            func.count(case((LLMUsage.attempt > 1, 1))),
+            func.count(case((LLMUsage.status == "stalled", 1))),
+            func.count(case((LLMUsage.status == "cancelled", 1))),
         )
         .outerjoin(User, User.id == LLMUsage.user_id)
         .where(or_(own, LLMUsage.billed_tenant_id == tenant_id), LLMUsage.created_at >= since)
@@ -68,6 +77,9 @@ async def summarize_usage(
             fallbacks=row[8],
             avg_latency_ms=round(row[9]),
             member=row[10],
+            retries=row[11],
+            stalls=row[12],
+            cancels=row[13],
         )
         for row in await session.execute(stmt)
     ]

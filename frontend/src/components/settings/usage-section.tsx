@@ -168,6 +168,8 @@ export function UsageSection() {
                 value={percent(total.errors, total.calls)}
                 tone={total.errors > 0 ? "bad" : undefined}
               />
+              {total.retries > 0 && <Stat label={t("retries")} value={n(total.retries)} />}
+              {total.stalls > 0 && <Stat label={t("stalls")} value={n(total.stalls)} />}
               <Stat label={t("fallbackRate")} value={percent(total.fallbacks, total.calls)} />
               {board.priced && total.cost !== null && (
                 <Stat
@@ -221,6 +223,8 @@ export function UsageSection() {
                         <th className="px-3 py-2 text-right font-medium">{t("audio_minutes")}</th>
                       )}
                       <th className="px-3 py-2 text-right font-medium">{t("errors")}</th>
+                      {total.retries > 0 && <th className="px-3 py-2 text-right font-medium">{t("retries")}</th>}
+                      {total.stalls > 0 && <th className="px-3 py-2 text-right font-medium">{t("stalls")}</th>}
                       {board.priced && <th className="px-3 py-2 text-right font-medium">{t("cost")}</th>}
                     </tr>
                   </thead>
@@ -231,7 +235,13 @@ export function UsageSection() {
                           {r.name}
                           {r.background && <Tag className="ml-1.5">{t("background")}</Tag>}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono">{n(r.tally.calls)}</td>
+                        <td
+                          className="px-3 py-2 text-right font-mono"
+                          // Stopped calls aren't failures: only a hint on the call count.
+                          title={r.tally.cancels > 0 ? t("cancelsHint", { count: r.tally.cancels }) : undefined}
+                        >
+                          {n(r.tally.calls)}
+                        </td>
                         <td className="px-3 py-2 text-right font-mono">
                           {n(r.tally.input_tokens + r.tally.output_tokens)}
                         </td>
@@ -246,6 +256,10 @@ export function UsageSection() {
                         >
                           {n(r.tally.errors)}
                         </td>
+                        {total.retries > 0 && (
+                          <td className="px-3 py-2 text-right font-mono">{n(r.tally.retries)}</td>
+                        )}
+                        {total.stalls > 0 && <td className="px-3 py-2 text-right font-mono">{n(r.tally.stalls)}</td>}
                         {board.priced && <td className="px-3 py-2 text-right font-mono">{cost(r.tally)}</td>}
                       </tr>
                     ))}
@@ -253,6 +267,9 @@ export function UsageSection() {
                 </table>
               </div>
               {board.priced && <p className="text-xs text-muted-foreground">{t("costFootnote")}</p>}
+              {total.retries + total.stalls + total.cancels > 0 && (
+                <p className="text-xs text-muted-foreground">{t("stallFootnote")}</p>
+              )}
             </div>
 
             <details className="group" onToggle={(e) => setDetails(e.currentTarget.open)}>

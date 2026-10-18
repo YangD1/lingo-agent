@@ -64,8 +64,15 @@ class Tally:
     output_tokens: int = 0
     characters: int = 0
     audio_minutes: float = 0.0
+    # Only real failures; a stalled or cancelled call isn't one (ADR 0014).
     errors: int = 0
     fallbacks: int = 0
+    # Calls that were a retry of an earlier one (`attempt > 1`, ADR 0056 §5).
+    retries: int = 0
+    # Calls cut off for sending nothing, and calls the learner stopped: the vendor may
+    # bill both all the same.
+    stalls: int = 0
+    cancels: int = 0
     # None until some call in it was priced.
     cost: float | None = None
     # Some calls in it had usage without a price.
@@ -79,6 +86,9 @@ class Tally:
         self.audio_minutes += row.audio_minutes
         self.errors += row.errors
         self.fallbacks += row.fallbacks
+        self.retries += row.retries
+        self.stalls += row.stalls
+        self.cancels += row.cancels
         if cost is None:
             self.cost_partial = self.cost_partial or row.has_usage
         else:
@@ -139,6 +149,9 @@ class UsageRow:
     audio_minutes: float
     errors: int
     fallbacks: int
+    retries: int
+    stalls: int
+    cancels: int
 
     @property
     def has_usage(self) -> bool:
@@ -163,8 +176,11 @@ async def _rows(session: AsyncSession, tenant_id: uuid.UUID, since: datetime) ->
             func.coalesce(func.sum(LLMUsage.output_tokens), 0),
             func.coalesce(func.sum(LLMUsage.characters), 0),
             func.coalesce(func.sum(LLMUsage.audio_seconds), 0.0),
-            func.count(case((LLMUsage.status != "ok", 1))),
+            func.count(case((LLMUsage.status == "error", 1))),
             func.count(case((LLMUsage.is_fallback, 1))),
+            func.count(case((LLMUsage.attempt > 1, 1))),
+            func.count(case((LLMUsage.status == "stalled", 1))),
+            func.count(case((LLMUsage.status == "cancelled", 1))),
         )
         .outerjoin(User, User.id == LLMUsage.user_id)
         .where(or_(own, LLMUsage.billed_tenant_id == tenant_id), LLMUsage.created_at >= since)
@@ -185,6 +201,9 @@ async def _rows(session: AsyncSession, tenant_id: uuid.UUID, since: datetime) ->
             audio_minutes=float(r[10]) / 60,
             errors=r[11],
             fallbacks=r[12],
+            retries=r[13],
+            stalls=r[14],
+            cancels=r[15],
         )
         for r in await session.execute(stmt)
     ]

@@ -155,8 +155,15 @@ export type UsageRow = {
   output_tokens: number;
   /** Read-aloud is billed by characters; 0 for other calls. */
   characters: number;
+  /** Only real failures; stalled and cancelled calls are counted apart (ADR 0014). */
   errors: number;
   fallbacks: number;
+  /** Retries of an earlier call (ADR 0056 §5). */
+  retries: number;
+  /** Cut off for sending nothing; the vendor may bill them all the same. */
+  stalls: number;
+  /** Stopped by the learner; not a failure. */
+  cancels: number;
   avg_latency_ms: number;
   /** null: this account's own calls; else a member's on its connections (ADR 0031 §8). */
   member: string | null;
@@ -170,8 +177,15 @@ export type UsageTally = {
   output_tokens: number;
   characters: number;
   audio_minutes: number;
+  /** Only real failures; stalled and cancelled calls are counted apart (ADR 0014). */
   errors: number;
   fallbacks: number;
+  /** Retries of an earlier call (ADR 0056 §5). */
+  retries: number;
+  /** Cut off for sending nothing; the vendor may bill them all the same. */
+  stalls: number;
+  /** Stopped by the learner; not a failure. */
+  cancels: number;
   /** In the tenant's currency; null: nothing in it was priced (ADR 0034 §3). */
   cost: number | null;
   /** Some usage in it had no price, so `cost` leaves it out. */
