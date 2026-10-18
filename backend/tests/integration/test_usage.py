@@ -21,6 +21,7 @@ from app.db.models import (
 from app.db.session import create_sessionmaker
 from app.deps import require_tenant_manager
 from app.org.quotas import Limit, Quotas
+from app.providers.latency import LatencyKey, LatencyStats, StallRule, seed_latency_stats
 from app.usage.recorder import UsageRecord
 from app.usage.writer import UsageWriter
 
@@ -744,3 +745,62 @@ async def test_my_usage_shows_a_members_quota_left(
     assert text["month"] == 450
     assert text["quota"] == {"daily": 1000, "monthly": 5000, "day": 400, "month": 400, "left": 600}
     assert by_capability(body)["tts"]["quota"]["left"] is None
+
+
+# --- latency stats (ADR 0056 §1) ----------------------------------------------------------
+
+
+async def test_latency_stats_are_seeded_from_recent_successful_calls(
+    db_session: AsyncSession,
+) -> None:
+    tenant_id = await make_tenant(db_session)
+    now = datetime.now(UTC)
+    rows = [
+        LLMUsage(
+            tenant_id=tenant_id,
+            task="exercise_critic",
+            connection_name="sub2api",
+            model="gpt-6.1",
+            latency_ms=10_000,
+            first_chunk_ms=3_000,
+            status="ok",
+        )
+        for _ in range(2)
+    ]
+    # Not counted: a failure, an old call, another section.
+    rows += [
+        LLMUsage(
+            tenant_id=tenant_id,
+            task="exercise_critic",
+            connection_name="sub2api",
+            model="gpt-6.1",
+            latency_ms=500_000,
+            status="stalled",
+        ),
+        LLMUsage(
+            tenant_id=tenant_id,
+            task="exercise_critic",
+            connection_name="sub2api",
+            model="gpt-6.1",
+            latency_ms=500_000,
+            status="ok",
+            created_at=now - timedelta(days=8),
+        ),
+        LLMUsage(
+            tenant_id=tenant_id,
+            task="exercise_critic",
+            connection_name="sub2api",
+            model="gpt-6.1",
+            latency_ms=500_000,
+            status="ok",
+            section="tts",
+        ),
+    ]
+    db_session.add_all(rows)
+    await db_session.commit()
+
+    stats = LatencyStats(StallRule(min_samples=2))
+    assert await seed_latency_stats(db_session, stats) == 2
+    key = LatencyKey(tenant_id, "sub2api", "gpt-6.1", "exercise_critic")
+    assert stats.threshold(key, streamed=False, configured=120) == 30
+    assert stats.threshold(key, streamed=True, configured=120) == 20

@@ -57,6 +57,7 @@ from app.db.session import create_engine, create_sessionmaker
 from app.memory.worker import ReflectionWorker
 from app.observability import setup_tracing, shutdown_tracing
 from app.placement.service import PlacementRuntime
+from app.providers.latency import get_latency_stats, seed_latency_stats
 from app.providers.llm import get_providers_config
 from app.ratelimit import RateLimiter
 from app.realtime.after import AfterCall
@@ -69,7 +70,7 @@ from app.services.speech.worker import WordAudioWorker
 from app.settings import Settings, get_settings
 from app.skills import get_skills
 from app.speaking.scenarios import get_scenarios
-from app.usage.recorder import set_usage_sink
+from app.usage.recorder import UsageRecord, set_usage_sink
 from app.usage.writer import UsageWriter
 from app.writing.worker import WritingWorker
 
@@ -151,7 +152,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning("%d article rewrites were running at the last shutdown", interrupted)
     usage_writer = UsageWriter(app.state.sessionmaker)
     usage_writer.start()
-    set_usage_sink(usage_writer.submit)
+    # How long each model usually takes, to tell a stalled call (ADR 0056 §1).
+    latency = get_latency_stats()
+    async with app.state.sessionmaker() as session:
+        await seed_latency_stats(session, latency)
+
+    def record_usage(record: UsageRecord) -> None:
+        latency.observe_record(record)
+        usage_writer.submit(record)
+
+    set_usage_sink(record_usage)
     # After the usage sink: resumed jobs call the vendor at once.
     app.state.word_audio_worker = WordAudioWorker(app.state.sessionmaker)
     resumed = await app.state.word_audio_worker.recover()
