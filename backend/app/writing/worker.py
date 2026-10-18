@@ -20,6 +20,7 @@ from app.agents.exercise_graph import StructuredCall
 from app.db.models import WritingSubmission
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
+from app.providers.resilience import RetryBudget
 from app.providers.tenant import load_provider_context
 from app.writing import service
 from app.writing.review import TASK
@@ -29,9 +30,12 @@ logger = logging.getLogger(__name__)
 # Builds the review call for a tenant; tests pass a fake.
 type CallFactory = Callable[[TenantProviderContext, RunnableConfig], StructuredCall]
 
+# Retries of one review on a resilient route (ADR 0056, task 103.2).
+REVIEW_RETRIES = 3
+
 
 def review_call(ctx: TenantProviderContext, config: RunnableConfig) -> StructuredCall:
-    return structured_call(ctx, config, TASK)
+    return structured_call(ctx, config, TASK, RetryBudget(REVIEW_RETRIES))
 
 
 class WritingWorker:

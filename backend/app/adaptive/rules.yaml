@@ -374,6 +374,11 @@ reading:
   # this many articles published in the last `prerewrite_days` days.
   prerewrite_per_feed: 2
   prerewrite_days: 3
+  # An article the learner opened and is waiting for (not one rewritten ahead): its
+  # calls are cut off this many seconds after the start (task 103.2). A failed rewrite
+  # shows "retry"; a critique or rewrite of questions cut off drops the questions left
+  # unchecked, as any failed call there does. An article takes about 30-40 s.
+  wait_budget_seconds: 180
 
 # Grammar graph queries (ADR 0022 §3): what diagnosing a weak KC looks at around it.
 graph:

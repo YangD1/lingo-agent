@@ -124,10 +124,9 @@ llm:
   task_params:
     exercise_generate: {timeout: 120, resilient: true}
     exercise_critic: {timeout: 120, resilient: true}
-    article_rewrite: {timeout: 120}
-    reading_questions: {timeout: 120}
-    reading_critic: {timeout: 120}
-    writing_review: {timeout: 120}
+    # Reading's questions and critique route on article_rewrite / exercise_critic.
+    article_rewrite: {timeout: 120, resilient: true}
+    writing_review: {timeout: 120, resilient: true}
     diagnose: {timeout: 120}
     exercise_grade: {timeout: 60}
     reflect: {timeout: 60}

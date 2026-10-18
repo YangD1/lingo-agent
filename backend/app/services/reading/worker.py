@@ -15,10 +15,12 @@ import asyncio
 import logging
 import secrets
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
+from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
+from pydantic import BaseModel
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -26,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.adaptive.exercise.worker import structured_call
 from app.adaptive.kc.catalog import CefrLevel
 from app.adaptive.rules import get_rules
-from app.agents.exercise_graph import StructuredCall
+from app.agents.exercise_graph import ModelReply, StructuredCall
 from app.agents.reading_graph import (
     ReadingContext,
     ReadingGraph,
@@ -60,6 +62,16 @@ type CallFactory = Callable[
 
 def _as(config: RunnableConfig, usage_task: str) -> RunnableConfig:
     return {**config, "metadata": {**config.get("metadata", {}), "usage_task": usage_task}}
+
+
+def _until(call: StructuredCall, deadline: float) -> StructuredCall:
+    """`call`, cut off with TimeoutError at event-loop time `deadline`."""
+
+    async def bounded(messages: Sequence[BaseMessage], schema: type[BaseModel]) -> ModelReply:
+        async with asyncio.timeout_at(deadline):
+            return await call(messages, schema)
+
+    return bounded
 
 
 def model_calls(
@@ -256,6 +268,11 @@ class ReadingWorker:
             metadata["user_id"] = str(user_id)
         config: RunnableConfig = {"metadata": metadata, "tags": ["reading"]}
         rewrite, questions, critique = self._calls(provider_ctx, config)
+        if not background:
+            deadline = asyncio.get_running_loop().time() + rules.reading.wait_budget_seconds
+            rewrite, questions, critique = (
+                _until(call, deadline) for call in (rewrite, questions, critique)
+            )
 
         async def save(result: RewriteResult) -> None:
             async with self._sessionmaker() as session:

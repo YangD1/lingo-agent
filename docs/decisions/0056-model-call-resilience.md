@@ -60,3 +60,9 @@
 - 开了 `resilient` 的路由在 `build_chat_model` 里关掉 SDK 重试（§5），重试只由这一层做；但调用方不传 `RetryBudget` 时走旧路径，既没 SDK 重试也没这一层。阅读的审题借用 `exercise_critic` 路由、又没传预算，任务 101 之后审题失败一次就丢掉全部未审的题（文章照样标成 ready）。
 - 修复：阅读每篇文章建一个 `RetryBudget(6)`（`services/reading/worker.py` `ARTICLE_RETRIES`），改写、补题、审题三次调用共用；改写、补题的路由 `article_rewrite` 还没开 `resilient`，照旧走 SDK 重试，任务 103.2 再开。
 - 规则：借用开了 `resilient` 的路由时必须传预算。
+
+## 补充：阅读改写和写作批改开启（2026-10-18，任务 103.2，用户定）
+- `article_rewrite`、`writing_review` 开 `resilient`（阅读的补题也走 `article_rewrite` 路由）。YAML 里 `reading_questions`、`reading_critic` 两项删掉：调用按路由任务取参数，这两个名字只用来记用量，原来的设置从没生效。
+- 阅读：一篇共用 6 次（103.0）。学习者打开、正在等的那篇从开始算 `reading.wait_budget_seconds: 180` 秒封顶，每次调用套 `asyncio.timeout_at`：改写被截断时版本失败、错误码 `timed_out`（页面照常显示“重试”）；审题、补题被截断和调用失败一样处理，文章照样能读。后台预生成不封顶，只受次数限制。正常一篇约 30–40 s，碰不到上限。
+- 写作：一篇批改 3 次，不另设时间上限；聊天里的写作教练本来只等 90 s，之后批改在后台接着跑。
+- 原来 240 s 的超时，是 120 s 超时之后 SDK 又悄悄重发了一次，用量里只记一行；开启以后由这一层按模型平时的速度判断卡住，每次重发都记账。

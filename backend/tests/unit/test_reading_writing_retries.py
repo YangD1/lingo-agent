@@ -1,12 +1,14 @@
-"""One article's model calls share a retry budget (task 103.0, ADR 0056): the critic's
-route is resilient, which leaves it no SDK retries, so without the budget a failed
-critique dropped every question."""
+"""Reading and writing calls retried from a budget (ADR 0056). One article's calls share
+one (task 103.0): the critic's route is resilient, which leaves it no SDK retries, so
+without the budget a failed critique dropped every question. A writing review has its
+own (task 103.2)."""
 
 import pytest
 
 from app.providers import resilience
 from app.providers.llm import RoutedModel
 from app.services.reading import worker
+from app.writing import worker as writing_worker
 from tests.unit.test_resilience import (
     CTX,
     EXPECTED,
@@ -46,3 +48,19 @@ async def test_the_calls_share_one_budget(monkeypatch: pytest.MonkeyPatch) -> No
     with pytest.raises(Exception, match="500"):
         await critique(["q"], Items)
     assert scripted(critic).calls == ["500"]
+
+
+async def test_a_failed_review_is_sent_again_up_to_its_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    review = routed("w", "500", "500", "500", "ok", records=[])
+    chains(monkeypatch, writing_review=review)
+
+    with pytest.raises(Exception, match="500"):
+        await writing_worker.review_call(CTX, {})(["q"], Items)
+    # Two failures on one model hand over; with no other model, the call fails.
+    assert scripted(review).calls == ["500", "500"]
+
+    again = routed("w", "500", "ok", records=[])
+    chains(monkeypatch, writing_review=again)
+    assert (await writing_worker.review_call(CTX, {})(["q"], Items)).output == EXPECTED

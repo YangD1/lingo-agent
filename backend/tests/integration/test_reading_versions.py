@@ -10,9 +10,11 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adaptive.rules import get_rules
 from app.agents.reading_graph import build_reading_graph
 from app.db.models import Article, ArticleVersion, Feed, Tenant, UserProfile, Word
 from app.services.news.sources import sync_builtin_feeds
+from app.services.reading import worker as reading_worker
 from app.services.reading.worker import ReadingWorker
 from tests.unit.test_reading_graph import FakeModels
 
@@ -139,6 +141,55 @@ async def test_failed_version_is_written_again_when_opened(
     await app.state.reading_worker.wait_idle()
     ready = (await client.get(f"/reading/versions/{version_id}")).json()
     assert (ready["status"], ready["error_code"]) == ("ready", None)
+
+
+async def hang(*args: object) -> None:
+    await asyncio.sleep(3600)
+
+
+@pytest.fixture
+def short_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An on-demand article's wait budget of a twentieth of a second (task 103.2)."""
+    rules = get_rules()
+    short = rules.model_copy(
+        update={"reading": rules.reading.model_copy(update={"wait_budget_seconds": 0.05})}
+    )
+    monkeypatch.setattr(reading_worker, "get_rules", lambda: short)
+
+
+@pytest.mark.usefixtures("short_wait")
+async def test_a_rewrite_past_the_wait_budget_fails(
+    client: AsyncClient,
+    app: FastAPI,
+    db_session: AsyncSession,
+    models: FakeModels,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await login(client)
+    article_id = await add_article(db_session)
+    monkeypatch.setattr(models, "rewrite", hang)
+    version_id = (await client.post(f"/reading/articles/{article_id}/version")).json()["id"]
+    await app.state.reading_worker.wait_idle()
+    failed = (await client.get(f"/reading/versions/{version_id}")).json()
+    assert (failed["status"], failed["error_code"]) == ("failed", "timed_out")
+
+
+@pytest.mark.usefixtures("short_wait")
+async def test_a_critique_past_the_wait_budget_drops_the_questions(
+    client: AsyncClient,
+    app: FastAPI,
+    db_session: AsyncSession,
+    models: FakeModels,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await login(client)
+    article_id = await add_article(db_session)
+    monkeypatch.setattr(models, "critique", hang)
+    version_id = (await client.post(f"/reading/articles/{article_id}/version")).json()["id"]
+    await app.state.reading_worker.wait_idle()
+    ready = (await client.get(f"/reading/versions/{version_id}")).json()
+    assert (ready["status"], ready["questions"]) == ("ready", [])
+    assert ready["paragraphs"]
 
 
 async def test_without_a_model_the_version_fails(

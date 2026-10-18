@@ -5,6 +5,7 @@ import pytest
 import yaml
 
 from app.providers.config import (
+    RESILIENT_PARAM,
     RouteSpec,
     load_providers_config,
     resolve_route,
@@ -200,9 +201,11 @@ def test_params_left_at_the_deployment_defaults_are_marked() -> None:
 def test_shipped_configs_give_slow_tasks_a_longer_timeout() -> None:
     for name in ("providers.dev.yaml", "providers.prod.yaml"):
         config = load_providers_config(REPO_ROOT / "config" / name)
-        timeouts = {t: p["timeout"] for t, p in config.llm.task_params.items()}
-        for task in ("exercise_generate", "exercise_critic", "reading_critic", "writing_review"):
-            assert timeouts[task] > config.defaults["timeout"], (name, task)
+        params = config.llm.task_params
+        for task in ("exercise_generate", "exercise_critic", "article_rewrite", "writing_review"):
+            assert params[task]["timeout"] > config.defaults["timeout"], (name, task)
+            # ADR 0056; task 103.2 for the last two.
+            assert params[task][RESILIENT_PARAM] is True, (name, task)
 
 
 def test_keyless_connection_is_usable() -> None:

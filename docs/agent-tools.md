@@ -280,9 +280,9 @@
 
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
-| 取版本 / 开始改写 | `api/reading.py` `POST /reading/articles/{id}/version` → `services/reading/worker.py` `ReadingWorker.request`；轮询 `GET /reading/versions/{id}` | 文章（要对这个租户可见）、学习者等级 | `article_versions`（`generating`；租户 + 文章 + 等级唯一，并发只写一次；失败的再次打开时重试；重启时还在写的标 `failed/interrupted`） | 无 | 阅读页（生成中显示阶段，失败可重试） |
+| 取版本 / 开始改写 | `api/reading.py` `POST /reading/articles/{id}/version` → `services/reading/worker.py` `ReadingWorker.request`；轮询 `GET /reading/versions/{id}` | 文章（要对这个租户可见）、学习者等级 | `article_versions`（`generating`；租户 + 文章 + 等级唯一，并发只写一次；失败的再次打开时重试；重启时还在写的标 `failed/interrupted`）；学习者打开的那篇从开始算 `reading.wait_budget_seconds`（180）秒封顶：改写被截断记 `failed/timed_out`，审题或补题被截断按调用失败处理（任务 103.2）；后台预生成不封顶 | 无 | 阅读页（生成中显示阶段，失败可重试） |
 | 改写 + 出题 | `agents/reading_graph.py` `rewrite`，提示词 `prompts/article_rewrite.md`；检查 `services/reading/drafts.py` | 文章标题和正文（最多 3,000 词，按段截断）、目标等级和字数范围；不含学习者信息 | 无（先给审题）；字数超出范围 25% 以上重写一次，再不行版本失败 | `llm/article_rewrite`（默认路由） | — |
-| 审理解题 | 同上 `critic`，提示词 `prompts/reading_critic.md`，判定 `drafts.rejection` | 改写稿、题目和四个选项（不含答案和依据句） | 通过的题进 `article_versions.questions`；被拒的进 `rejected`（含审题的作答和理由）；审题调用失败时一道题都不留。一篇文章的三次调用共用 6 次重试（ADR 0056 补充，任务 103.0），审题的路由出错或卡住时原样重发 | `llm/exercise_critic` 路由，`llm_usage` 记为 `reading_critic` | 阅读页的理解题 |
+| 审理解题 | 同上 `critic`，提示词 `prompts/reading_critic.md`，判定 `drafts.rejection` | 改写稿、题目和四个选项（不含答案和依据句） | 通过的题进 `article_versions.questions`；被拒的进 `rejected`（含审题的作答和理由）；审题调用失败时一道题都不留。一篇文章的三次调用共用 6 次重试（ADR 0056 补充，任务 103.0、103.2），出错或卡住时原样重发 | `llm/exercise_critic` 路由，`llm_usage` 记为 `reading_critic` | 阅读页的理解题 |
 | 重写被拒的题（一轮） | 同上 `questions`，提示词 `prompts/reading_questions.md` | 改写稿、保留的题、被拒的题和理由 | 无（再给审题）；还不过就不出 | `llm/article_rewrite` 路由，记为 `reading_questions` | — |
 | 阅读记录 | `api/reading.py` `POST /reading/articles/{id}/session` → `services/reading/sessions.py` `open_session`（任务 43.2，Q43a） | 文章、学习者等级、有没有答过题 | `reading_sessions`（每人每篇一条：版本、等级、开始 / 最近打开时间；答过题后版本不再随等级换）；有阅读记录的文章不被 90 天清理删掉 | 无（取版本时可能触发上面的改写） | 阅读页；随账号删除 |
 | 理解题判分 | `POST /reading/sessions/{id}/answers` → `sessions.answer`（代码判，不调模型，Q43b） | 版本的答案（不下发给页面，判完才返回正确选项和依据句） | `reading_sessions.answers`（只记第一次作答）；`skill_estimates.reading`（每题一步 Elo，题目难度 = 版本等级的锚点，猜中下限 0.25；不记语法证据） | 无 | 阅读页的结果；看板和 `/learner` 的阅读能力刻度（Q43c）；`/learner` “删除所有学习记录”一起删除 |
@@ -296,7 +296,7 @@
 | 步骤 | 代码 | 读 | 写 | 模型任务 | 学习者在哪里能看到 / 撤销 |
 |---|---|---|---|---|---|
 | 提交 | `api/writing.py` `POST /writing`（202，前端轮询 `GET /writing/{id}`）→ `writing/service.py` `create`（长度 20–800 个英文单词、最多 6000 字符，不合格直接拒绝，不调模型）→ `writing/worker.py` `WritingWorker.submit` | 学习者的文字和题目 | `writing_submissions`（`pending`；重启时还在 `pending` 的标 `failed/interrupted`） | 无 | 写作页（任务 39）；`DELETE /writing/{id}` 删除记录、连带证据并重放掌握度（收进生词本的词留在生词本，在那里删） |
-| 批改 | `writing/service.py` `review`；提示词 `prompts/writing_review.md`，校验 `writing/review.py` `check` | 按句编号的原文、题目、画像等级（没有时按 A2）和讲解语言、语法点清单；不含其他个人信息 | `writing_submissions`：逐句修改（只保留语法点在清单里、错误片段确实在这句里的错误）、四维评分和理由（只展示，不进掌握度）、总评、模型名；`kc_evidence`（`source=writing`、产出、带 `writing_id`；同一篇里同一语法点只计一次）；重放 `kc_mastery`（学会后再错记 Again）。失败时只记 `failed` 和错误码 | `llm/writing_review` | 写作页逐句对照和评分；`/learner` 的证据（可删除）；删除这条写作记录连带删除它的证据 |
+| 批改 | `writing/service.py` `review`；提示词 `prompts/writing_review.md`，校验 `writing/review.py` `check` | 按句编号的原文、题目、画像等级（没有时按 A2）和讲解语言、语法点清单；不含其他个人信息 | `writing_submissions`：逐句修改（只保留语法点在清单里、错误片段确实在这句里的错误）、四维评分和理由（只展示，不进掌握度）、总评、模型名；`kc_evidence`（`source=writing`、产出、带 `writing_id`；同一篇里同一语法点只计一次）；重放 `kc_mastery`（学会后再错记 Again）。失败时只记 `failed` 和错误码；出错或卡住时原样重发，一篇最多 3 次（ADR 0056，任务 103.2） | `llm/writing_review` | 写作页逐句对照和评分；`/learner` 的证据（可删除）；删除这条写作记录连带删除它的证据 |
 | 固定题目 | `api/writing.py` `GET /writing/prompts`，题目在 `writing/prompts.yaml`（每级 4 条，Q38d） | 画像等级（没有时按 A2） | 无 | 无 | 写作页选题 |
 | 收生词 | `writing/service.py` `collect_words`（同反思的规则：单个英文单词，最多 5 个，词库里查得到的才收） | 批改给出的生词候选 | `user_cards`（`source=auto`，已有卡片的不动）；`writing_submissions.words` | 无 | 写作页显示收进了哪些词；生词本里可删除 |
 

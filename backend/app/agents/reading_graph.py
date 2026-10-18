@@ -115,7 +115,10 @@ def start_state(rules: Rules) -> ReadingState:
 
 
 def _error_code(exc: Exception) -> str:
-    return exc.code if isinstance(exc, NoModelConfiguredError) else "generation_failed"
+    if isinstance(exc, NoModelConfiguredError):
+        return exc.code
+    # Stalled past every retry, or the learner's wait budget ran out (task 103.2).
+    return "timed_out" if isinstance(exc, TimeoutError) else "generation_failed"
 
 
 async def _report(ctx: ReadingContext, stage: Stage) -> None:

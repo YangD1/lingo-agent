@@ -320,6 +320,7 @@ class ReadingRules(_Strict):
     glossary_max: int = Field(ge=0, le=50)
     prerewrite_per_feed: int = Field(ge=0)
     prerewrite_days: int = Field(ge=1)
+    wait_budget_seconds: float = Field(gt=0)
 
     @model_validator(mode="after")
     def _check(self) -> Self:
