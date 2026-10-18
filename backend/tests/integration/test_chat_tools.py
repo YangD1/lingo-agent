@@ -235,6 +235,21 @@ async def test_the_next_turn_knows_what_became_of_a_card(
     assert any(isinstance(m, ToolMessage) for m in script.calls[-1][1])
 
 
+async def test_the_tutor_is_told_to_practise_out_loud_when_asked_for_no_card(
+    client: AsyncClient, script: Script
+) -> None:
+    """Task 101.4g (ADR 0046): closed questions stay on cards; "no cards" gets open
+    practice in the chat, without an apology."""
+    conversation = await ready(client)
+    script.replies = ["Sure."]
+    await send(client, conversation, "口头考我，不用卡片")
+
+    prompt = system_text(script.calls[-1][1])
+    assert "want no card" in prompt and "don't call `give_quiz`: practise out loud" in prompt
+    assert "No questions with a set answer" in prompt
+    assert "apologise or talk about cards" in prompt
+
+
 async def test_a_refused_call_goes_back_to_the_model_without_a_card(
     client: AsyncClient, script: Script
 ) -> None:
