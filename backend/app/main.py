@@ -67,6 +67,7 @@ from app.services.news.sources import sync_builtin_feeds
 from app.services.reading.worker import ReadingWorker
 from app.services.speech.worker import WordAudioWorker
 from app.settings import Settings, get_settings
+from app.skills import get_skills
 from app.speaking.scenarios import get_scenarios
 from app.usage.recorder import set_usage_sink
 from app.usage.writer import UsageWriter
@@ -92,6 +93,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     get_rules()  # refuse to start with invalid adaptive rules
     get_item_bank()  # refuse to start with a broken placement item bank
     get_scenarios()  # refuse to start with a broken speaking scenario file
+    get_skills()  # refuse to start with a badly formed built-in skill
     tracer_provider = setup_tracing(settings)
     init_state(app, settings)
     async with app.state.sessionmaker() as session:
