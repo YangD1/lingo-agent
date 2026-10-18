@@ -36,6 +36,7 @@ os.environ["CREDENTIALS_ENCRYPTION_KEYS"] = "test:" + "A" * 43 + "="
 # Ignore the developer's repo-root .env: its values (e.g. PROVIDER_ALLOW_PRIVATE_NETWORKS,
 # APP_ENV, PROVIDERS_CONFIG) would otherwise change what the tests see.
 from app.settings import Settings  # noqa: E402
+from tests.hang_report import pytest_configure, pytest_runtest_protocol  # noqa: E402, F401
 
 Settings.model_config["env_file"] = None
 

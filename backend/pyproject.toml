@@ -91,6 +91,7 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests", "evals"]
 # A test stuck past this dumps every thread's stack and ends its xdist worker, which
-# then reports the test by name (task 97: CI once hung 13 minutes with no output).
+# then reports the test by name (task 97: CI once hung 13 minutes with no output);
+# tests/hang_report.py writes where it was stuck a little earlier (task 105).
 timeout = 120
 timeout_method = "thread"

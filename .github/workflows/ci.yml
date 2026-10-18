@@ -51,6 +51,11 @@ jobs:
       # head on the empty database before any test runs.
       # One database per xdist worker (lingo_test_gw0, ...), created next to lingo_test.
       - run: uv run pytest -n 4
+      # Where a test stuck past the timeout was stuck (task 105): the worker's own
+      # stderr is lost when pytest-timeout ends it.
+      - name: Stuck tests
+        if: failure()
+        run: cat .pytest-hangs/*.txt 2>/dev/null || echo "no stuck test"
       # Scores of the replayed evaluation sets (ADR 0033 §3); pytest already checked them.
       - name: Evaluation scores
         if: always()
