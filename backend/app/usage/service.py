@@ -45,7 +45,7 @@ async def summarize_usage(
             func.coalesce(func.sum(LLMUsage.input_tokens), 0),
             func.coalesce(func.sum(LLMUsage.output_tokens), 0),
             func.coalesce(func.sum(LLMUsage.characters), 0),
-            func.count(case((LLMUsage.status == "error", 1))),
+            func.count(case((LLMUsage.status != "ok", 1))),
             func.count(case((LLMUsage.is_fallback, 1))),
             func.coalesce(func.avg(LLMUsage.latency_ms), 0),
             member,

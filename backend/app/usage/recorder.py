@@ -10,6 +10,10 @@ LangGraph copies `configurable["thread_id"]` into metadata by itself, so a graph
 keyed by conversation id gets `conversation_id` for free. Missing ids are fine
 (background jobs have neither); the row is still written with NULLs.
 
+A retry sets `attempt` (2 for the first retry, ...; ADR 0056 §5). A call cancelled
+because the vendor stalled is cancelled with `STALLED` as the message, so it is
+recorded as `stalled`, not `cancelled`.
+
 A run may also set `usage_task` to record the call under another task than the one
 that routed it, e.g. a practice opening served by the chat model but not counted as a
 learner's chat turn. Work nobody is waiting for that counts against the tenant's daily
@@ -19,6 +23,7 @@ Only metadata is recorded - never prompts, completions or exception messages. Wh
 prompt templates a call used, and their versions, is metadata (ADR 0033 §2).
 """
 
+import asyncio
 import logging
 import time
 import uuid
@@ -29,7 +34,7 @@ from typing import Any
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.messages.ai import UsageMetadata
-from langchain_core.outputs import ChatGeneration, LLMResult
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, GenerationChunk, LLMResult
 
 from app.prompts import prompt_versions
 
@@ -38,6 +43,9 @@ logger = logging.getLogger(__name__)
 # Runs that never report back (should not happen: astream catches BaseException) must
 # not grow a shared, long-lived recorder without bound.
 _MAX_PENDING_RUNS = 10_000
+
+# The cancel message of a call stopped because the vendor sent nothing for too long.
+STALLED = "lingo:stalled"
 
 
 @dataclass(frozen=True)
@@ -66,7 +74,7 @@ class UsageRecord:
     input_tokens: int
     output_tokens: int
     latency_ms: int
-    status: str  # "ok" | "error"
+    status: str  # "ok" | "error" | "cancelled" | "stalled"
     is_fallback: bool
     error_code: str | None
     audio_seconds: float | None = None
@@ -80,12 +88,15 @@ class UsageRecord:
     prompts: dict[str, str] | None = None
     # Input tokens read from the vendor's prompt cache (ADR 0053 §1); None: not reported.
     cached_input_tokens: int | None = None
+    # Streamed calls: when the first chunk arrived (ADR 0056 §5).
+    first_chunk_ms: int | None = None
+    attempt: int = 1
 
 
 UsageSink = Callable[[UsageRecord], None]
 
 
-@dataclass(frozen=True)
+@dataclass
 class _PendingRun:
     started: float
     user_id: uuid.UUID | None
@@ -93,6 +104,8 @@ class _PendingRun:
     task: str | None
     background: bool
     prompts: dict[str, str] | None
+    attempt: int
+    first_chunk: float | None = None
 
 
 def _as_uuid(value: Any) -> uuid.UUID | None:
@@ -102,6 +115,10 @@ def _as_uuid(value: Any) -> uuid.UUID | None:
         return uuid.UUID(str(value))
     except ValueError:
         return None
+
+
+def _attempt(value: Any) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else 1
 
 
 def _token_counts(response: LLMResult) -> tuple[int, int, int | None]:
@@ -162,7 +179,22 @@ class UsageRecorder(BaseCallbackHandler):
             task=str(meta["usage_task"])[:64] if meta.get("usage_task") else None,
             background=meta.get("background") is True,
             prompts=prompt_versions("\n".join(m.text for batch in messages for m in batch)),
+            attempt=_attempt(meta.get("attempt")),
         )
+
+    def on_llm_new_token(
+        self,
+        token: str | list[str | dict[str, Any]],
+        *,
+        chunk: GenerationChunk | ChatGenerationChunk | None = None,
+        run_id: uuid.UUID,
+        parent_run_id: uuid.UUID | None = None,
+        tags: list[str] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        run = self._pending.get(run_id)
+        if run is not None and run.first_chunk is None:
+            run.first_chunk = time.monotonic()
 
     def on_llm_end(
         self,
@@ -186,7 +218,7 @@ class UsageRecorder(BaseCallbackHandler):
         **kwargs: Any,
     ) -> None:
         # The class name only: messages can echo request content.
-        self._finish(run_id, "error", type(error).__name__[:64], 0, 0)
+        self._finish(run_id, _status(error), type(error).__name__[:64], 0, 0)
 
     def _finish(
         self,
@@ -201,6 +233,7 @@ class UsageRecorder(BaseCallbackHandler):
         if run is None:  # not a chat-model run we saw start
             return
         labels = self.labels
+        first_chunk = run.first_chunk
         record = UsageRecord(
             tenant_id=labels.tenant_id,
             user_id=run.user_id,
@@ -219,11 +252,19 @@ class UsageRecorder(BaseCallbackHandler):
             section=labels.section,
             prompts=run.prompts,
             cached_input_tokens=cached_input_tokens,
+            first_chunk_ms=None if first_chunk is None else int((first_chunk - run.started) * 1000),
+            attempt=run.attempt,
         )
         try:
             self._sink(record)
         except Exception:  # usage accounting must never break a model call
             logger.exception("failed to submit usage record")
+
+
+def _status(error: BaseException) -> str:
+    if isinstance(error, asyncio.CancelledError):
+        return "stalled" if error.args == (STALLED,) else "cancelled"
+    return "error"
 
 
 # --- process-wide sink --------------------------------------------------------------------

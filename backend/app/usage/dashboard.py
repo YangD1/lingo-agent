@@ -163,7 +163,7 @@ async def _rows(session: AsyncSession, tenant_id: uuid.UUID, since: datetime) ->
             func.coalesce(func.sum(LLMUsage.output_tokens), 0),
             func.coalesce(func.sum(LLMUsage.characters), 0),
             func.coalesce(func.sum(LLMUsage.audio_seconds), 0.0),
-            func.count(case((LLMUsage.status == "error", 1))),
+            func.count(case((LLMUsage.status != "ok", 1))),
             func.count(case((LLMUsage.is_fallback, 1))),
         )
         .outerjoin(User, User.id == LLMUsage.user_id)

@@ -96,7 +96,7 @@ async def test_disconnect_under_anyio_cancellation_stops_the_model(
     await asyncio.sleep(1.2)  # long enough for an orphaned stream to finish
     assert outcome == ["aborted:CancelledError"]
     # The provider billed for the partial reply, so the call must still be metered.
-    assert [(r.status, r.error_code) for r in records] == [("error", "CancelledError")]
+    assert [(r.status, r.error_code) for r in records] == [("cancelled", "CancelledError")]
 
 
 async def test_completed_turn_ends_with_done(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -47,7 +47,9 @@ PROVIDER_KINDS = (
     "gemini",
 )
 ROUTE_SECTIONS = ("llm", "embedding", "asr", "tts", "pronunciation", "realtime")
-USAGE_STATUSES = ("ok", "error")
+# "cancelled": the caller stopped waiting; "stalled": cancelled because the vendor sent
+# nothing for too long (ADR 0056 §5). Both may still be billed.
+USAGE_STATUSES = ("ok", "error", "cancelled", "stalled")
 # Only shown next to costs, never converted (ADR 0034 §3).
 PRICE_CURRENCIES = ("CNY", "USD")
 ATTACHMENT_KINDS = ("image", "audio", "document")
@@ -413,6 +415,11 @@ class LLMUsage(Base):
     # NULL when it doesn't say.
     cached_input_tokens: Mapped[int | None] = mapped_column(Integer)
     latency_ms: Mapped[int] = mapped_column(Integer)
+    # When the first streamed chunk arrived; NULL for calls not streamed or that sent
+    # nothing (ADR 0056 §5).
+    first_chunk_ms: Mapped[int | None] = mapped_column(Integer)
+    # 1 for the first try of a request, 2 for its first retry, ... (ADR 0056 §5).
+    attempt: Mapped[int] = mapped_column(SmallInteger, default=1, server_default="1")
     status: Mapped[str] = mapped_column(String(10))
     # True when this model served the call because an earlier model in the chain failed.
     is_fallback: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

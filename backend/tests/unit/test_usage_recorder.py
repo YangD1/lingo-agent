@@ -245,7 +245,51 @@ async def test_cancelled_stream_is_recorded_under_anyio_cancellation() -> None:
         async for _ in model.astream([HumanMessage(PROMPT)]):
             pass
 
-    assert [(r.status, r.error_code) for r in records] == [("error", "CancelledError")]
+    assert [(r.status, r.error_code) for r in records] == [("cancelled", "CancelledError")]
+    # The first chunk came before the stall.
+    assert records[0].first_chunk_ms is not None
+
+
+async def test_a_call_cancelled_as_stalled_is_recorded_as_stalled() -> None:
+    """ADR 0056 §5: the retry layer cancels a stalled call with `STALLED`."""
+    records: list[UsageRecord] = []
+    labels = UsageLabels(TENANT, "chat", "openai", "m1")
+    model = StallingChatModel(callbacks=[UsageRecorder(labels, records.append)])
+
+    async def consume() -> None:
+        async for _ in model.astream([HumanMessage(PROMPT)], config={"metadata": {"attempt": 2}}):
+            pass
+
+    task = asyncio.create_task(consume())
+    await asyncio.sleep(0.05)
+    task.cancel(usage_recorder.STALLED)
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    [record] = records
+    assert (record.status, record.error_code, record.attempt) == ("stalled", "CancelledError", 2)
+
+
+async def test_streamed_calls_record_when_the_first_chunk_came() -> None:
+    records: list[UsageRecord] = []
+    async for _ in metered(records).astream([HumanMessage(PROMPT)]):
+        pass
+    await metered(records).ainvoke([HumanMessage(PROMPT)])
+
+    streamed, invoked = records
+    assert streamed.first_chunk_ms is not None
+    assert 0 <= streamed.first_chunk_ms <= streamed.latency_ms
+    # Not streamed: no chunks to time.
+    assert invoked.first_chunk_ms is None
+
+
+@pytest.mark.parametrize(("given", "recorded"), [(None, 1), (3, 3), (0, 1), ("2", 1), (True, 1)])
+async def test_records_which_attempt_the_call_was(given: object, recorded: int) -> None:
+    records: list[UsageRecord] = []
+    meta = {} if given is None else {"attempt": given}
+    await metered(records).ainvoke([HumanMessage(PROMPT)], config={"metadata": meta})
+
+    assert records[0].attempt == recorded
 
 
 async def test_fallback_chain_records_failure_and_backup() -> None:
