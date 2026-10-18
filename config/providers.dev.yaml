@@ -119,9 +119,11 @@ llm:
   # Per task, whatever its route (task 49.3): structured calls that write or review
   # a whole set, article or essay took 25-85 s on a reasoning model (gpt-6.1-sol,
   # 2026-10-09), past the 30 s default. A tenant's connection timeout still wins.
+  # `resilient`: stalls are found by the model's usual speed and retried within the
+  # caller's budget, instead of a fixed 120 s timeout and a hidden SDK retry (ADR 0056).
   task_params:
-    exercise_generate: {timeout: 120}
-    exercise_critic: {timeout: 120}
+    exercise_generate: {timeout: 120, resilient: true}
+    exercise_critic: {timeout: 120, resilient: true}
     article_rewrite: {timeout: 120}
     reading_questions: {timeout: 120}
     reading_critic: {timeout: 120}

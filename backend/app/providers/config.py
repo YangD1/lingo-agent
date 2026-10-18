@@ -49,6 +49,8 @@ SPEECH_URL_PARAMS: frozenset[str] = frozenset({"tts_url"})
 # How hard a chat model thinks before answering (task 89.2): turned into each vendor's
 # own parameter by the chat model builder, never passed through as is.
 REASONING_PARAM = "reasoning"
+# Task param: calls on the task go through the retry layer (ADR 0056 §6).
+RESILIENT_PARAM = "resilient"
 # Every param that belongs on a connection and must never reach an SDK constructor.
 NON_SDK_PARAMS: frozenset[str] = REALTIME_PARAMS | SPEECH_URL_PARAMS
 # Sections a deployment may leave out entirely.
@@ -311,7 +313,11 @@ class ResolvedModel:
 def sdk_params(params: Mapping[str, Any]) -> dict[str, Any]:
     """A model's params for an SDK constructor: without the ones only realtime or a
     speech endpoint reads, and without `reasoning`, which only a chat model translates."""
-    return {k: v for k, v in params.items() if k not in NON_SDK_PARAMS and k != REASONING_PARAM}
+    return {
+        k: v
+        for k, v in params.items()
+        if k not in NON_SDK_PARAMS and k not in (REASONING_PARAM, RESILIENT_PARAM)
+    }
 
 
 def load_providers_config(path: Path) -> ProvidersConfig:

@@ -25,6 +25,7 @@ from app.providers.cache import TTLCache
 from app.providers.clients import GuardedChatAnthropic, UsageOnceChatOpenAI
 from app.providers.config import (
     REASONING_PARAM,
+    RESILIENT_PARAM,
     ProvidersConfig,
     ResolvedModel,
     TenantProviderContext,
@@ -42,11 +43,24 @@ logger = logging.getLogger(__name__)
 # ChatOpenAI refuses to start without a key; keyless OpenAI-compatible servers ignore it.
 _KEYLESS_PLACEHOLDER = "not-needed"
 
+
+@dataclass(frozen=True, slots=True)
+class RoutedModel:
+    """A chain's model and what it was built from (its connection, name and params)."""
+
+    model: BaseChatModel
+    resolved: ResolvedModel
+
+
+@dataclass(frozen=True, slots=True)
+class _Chain:
+    models: tuple[BaseChatModel, ...]
+    routed: tuple[RoutedModel, ...]
+
+
 # Keyed by (tenant, task, context version): editing a connection or route changes the
 # version, so stale models are never served; TTL bounds how long evicted tenants linger.
-_models: TTLCache[tuple[object, ...], tuple[BaseChatModel, ...]] = TTLCache(
-    maxsize=256, ttl_seconds=600
-)
+_models: TTLCache[tuple[object, ...], _Chain] = TTLCache(maxsize=256, ttl_seconds=600)
 
 
 @lru_cache
@@ -86,6 +100,12 @@ def build_chat_model(
         "tags": [f"task:{task}", f"connection:{resolved.connection}", f"kind:{resolved.kind}"],
         "callbacks": callbacks,
     }
+    if resolved.params.get(RESILIENT_PARAM):
+        # The retry layer retries, and tells a stalled stream itself (ADR 0056 §5): no
+        # hidden SDK retry it can't count or cancel.
+        kwargs["max_retries"] = 0
+        if resolved.kind in ("openai", "openai_compatible"):
+            kwargs["stream_chunk_timeout"] = None
     if resolved.api_key is not None:
         kwargs["api_key"] = resolved.api_key.get_secret_value()
     elif resolved.kind == "openai_compatible":
@@ -122,29 +142,43 @@ def build_chat_model(
 
 def get_chat_models(ctx: TenantProviderContext, task: str) -> tuple[BaseChatModel, ...]:
     """All usable models for a task, primary first. Raises NoModelConfiguredError."""
+    return _chain(ctx, task).models
+
+
+def get_routed_models(ctx: TenantProviderContext, task: str) -> tuple[RoutedModel, ...]:
+    """Like get_chat_models, with what each model was built from."""
+    return _chain(ctx, task).routed
+
+
+def _chain(ctx: TenantProviderContext, task: str) -> _Chain:
     resolved = resolve_route(get_providers_config(), ctx, "llm", task)
-    return _models.get_or_create(
-        (ctx.tenant_id, task, ctx.version),
-        lambda: tuple(
-            build_chat_model(
-                r,
-                task,
-                callbacks=[
-                    make_recorder(
-                        UsageLabels(
-                            ctx.tenant_id,
-                            task,
-                            r.connection,
-                            r.model,
-                            is_fallback=i > 0,
-                            billed_tenant_id=r.billed_tenant_id,
+
+    def build() -> _Chain:
+        routed = tuple(
+            RoutedModel(
+                build_chat_model(
+                    r,
+                    task,
+                    callbacks=[
+                        make_recorder(
+                            UsageLabels(
+                                ctx.tenant_id,
+                                task,
+                                r.connection,
+                                r.model,
+                                is_fallback=i > 0,
+                                billed_tenant_id=r.billed_tenant_id,
+                            )
                         )
-                    )
-                ],
+                    ],
+                ),
+                r,
             )
             for i, r in enumerate(resolved)
-        ),
-    )
+        )
+        return _Chain(tuple(r.model for r in routed), routed)
+
+    return _models.get_or_create((ctx.tenant_id, task, ctx.version), build)
 
 
 def chain_with_fallbacks[I, O](runnables: list[Runnable[I, O]]) -> Runnable[I, O]:
@@ -227,16 +261,35 @@ async def astream_structured[T: BaseModel](
             logger.warning("%s: streamed structured call failed, next model", task, exc_info=True)
 
 
+def stream_tool_call[T: BaseModel](
+    model: BaseChatModel,
+    schema: type[T],
+    messages: LanguageModelInput,
+    config: RunnableConfig | None,
+) -> AsyncIterator[BaseMessage]:
+    """The model's raw chunks for `schema` as a forced tool call."""
+    bound = model.bind_tools([schema], tool_choice=schema.__name__)
+    return bound.astream(messages, config=config)
+
+
 async def _stream_one[T: BaseModel](
     model: BaseChatModel,
     schema: type[T],
     messages: LanguageModelInput,
     config: RunnableConfig | None,
 ) -> AsyncIterator[StructuredPart[T]]:
-    bound = model.bind_tools([schema], tool_choice=schema.__name__)
+    async for part in structured_parts(stream_tool_call(model, schema, messages, config), schema):
+        yield part
+
+
+async def structured_parts[T: BaseModel](
+    chunks: AsyncIterator[Any], schema: type[T]
+) -> AsyncIterator[StructuredPart[T]]:
+    """A forced tool call's chunks as parts: each time the arguments grow, then a last
+    part with the checked output. Raises StructuredOutputMissingError without one."""
     message: AIMessageChunk | None = None
     written = 0
-    async for chunk in bound.astream(messages, config=config):
+    async for chunk in chunks:
         if not isinstance(chunk, AIMessageChunk):
             continue
         message = chunk if message is None else message + chunk
