@@ -22,6 +22,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agents.chat_graph import ChatGraph
+from app.background import wait_tasks
 from app.chat.locks import ConversationLocks
 from app.db.models import Conversation, SpeakingSession
 from app.memory.worker import ReflectionWorker
@@ -73,13 +74,12 @@ class AfterCall:
 
     async def wait_idle(self) -> None:
         """Wait for all scheduled work (tests)."""
-        while self._tasks:
-            await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        await wait_tasks(self._tasks.values())
 
     async def stop(self) -> None:
         for task in list(self._tasks.values()):
             task.cancel()
-        await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        await wait_tasks(self._tasks.values())
 
     async def _run(self, session_id: uuid.UUID, language: str | None) -> None:
         try:

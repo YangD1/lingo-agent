@@ -23,6 +23,7 @@ from app.adaptive.diagnosis.service import CallFactory, Trigger, run_diagnosis
 from app.adaptive.exercise.inputs import counted_mistakes
 from app.adaptive.kc.catalog import GrammarCatalog, get_grammar_catalog
 from app.adaptive.rules import Rules, get_rules
+from app.background import wait_tasks
 from app.db.models import Diagnosis, TenantMember
 from app.providers.errors import NoModelConfiguredError
 from app.scheduler import budget
@@ -177,8 +178,7 @@ class DiagnosisWorker:
 
     async def wait_idle(self) -> None:
         """Wait for running diagnoses (tests; shutdown uses `stop`)."""
-        while self._tasks:
-            await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        await wait_tasks(self._tasks.values())
 
     async def stop(self) -> None:
         for task in self._tasks.values():

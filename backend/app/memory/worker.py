@@ -35,6 +35,7 @@ from app.adaptive.evidence import ChatEvidence, record_chat_evidence
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.agents.chat_graph import ChatGraph
+from app.background import wait_tasks
 from app.cards import service as cards
 from app.chat.service import thread_config
 from app.db.models import Conversation, Memory, UserProfile
@@ -193,8 +194,7 @@ class ReflectionWorker:
 
     async def wait_idle(self) -> None:
         """Wait for all scheduled work (tests; shutdown uses `stop`)."""
-        while self._tasks:
-            await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        await wait_tasks(self._tasks.values())
 
     async def stop(self) -> None:
         if self._sweeper is not None:

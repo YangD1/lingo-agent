@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.adaptive.exercise.worker import structured_call
 from app.agents.exercise_graph import StructuredCall
+from app.background import wait_tasks
 from app.db.models import WritingSubmission
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
@@ -81,8 +82,7 @@ class WritingWorker:
 
     async def wait_idle(self) -> None:
         """Wait for all running reviews (tests; shutdown uses `stop`)."""
-        while self._tasks:
-            await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        await wait_tasks(self._tasks.values())
 
     async def stop(self) -> None:
         for task in self._tasks.values():

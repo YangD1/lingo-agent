@@ -51,6 +51,7 @@ from app.agents.exercise_graph import (
     Written,
     start_state,
 )
+from app.background import wait_tasks
 from app.db.models import ExerciseSet
 from app.providers.config import TenantProviderContext
 from app.providers.llm import astream_structured, get_structured_llm
@@ -314,8 +315,7 @@ class PracticeWorker:
 
     async def wait_idle(self) -> None:
         """Wait for all running generation (tests; shutdown uses `stop`)."""
-        while self._tasks:
-            await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        await wait_tasks(self._tasks.values())
 
     async def stop(self) -> None:
         for task in self._tasks.values():

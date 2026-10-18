@@ -19,6 +19,7 @@ from collections.abc import Callable
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.background import wait_tasks
 from app.db.models import WordAudioJob
 from app.providers.config import TenantProviderContext, own_only
 from app.providers.errors import NoModelConfiguredError
@@ -71,8 +72,7 @@ class WordAudioWorker:
 
     async def wait_idle(self) -> None:
         """Wait for all running jobs (tests; shutdown uses `stop`)."""
-        while self._tasks:
-            await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        await wait_tasks(self._tasks.values())
 
     async def stop(self) -> None:
         # Jobs stay `running`: the next start carries on from their cursor.

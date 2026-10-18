@@ -18,6 +18,7 @@ from sqlalchemy import CursorResult, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import undefer
 
+from app.background import wait_tasks
 from app.db.models import Attachment
 from app.providers.config import TenantProviderContext
 from app.providers.tenant import load_provider_context
@@ -89,8 +90,7 @@ class AttachmentProcessor:
 
     async def wait_idle(self) -> None:
         """Wait for every scheduled attachment (tests; shutdown uses `stop`)."""
-        while self._tasks:
-            await asyncio.gather(*self._tasks, return_exceptions=True)
+        await wait_tasks(self._tasks)
 
     async def stop(self) -> None:
         """Cancel in-flight work; each task marks its attachment as interrupted."""

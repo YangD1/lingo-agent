@@ -36,6 +36,7 @@ from app.agents.reading_graph import (
     Stage,
     start_state,
 )
+from app.background import wait_tasks
 from app.db.models import ArticleVersion
 from app.providers.config import TenantProviderContext
 from app.providers.resilience import RetryBudget
@@ -158,8 +159,7 @@ class ReadingWorker:
 
     async def wait_idle(self) -> None:
         """Wait for all running rewrites (tests; shutdown uses `stop`)."""
-        while self._tasks:
-            await asyncio.gather(*self._tasks.values(), return_exceptions=True)
+        await wait_tasks(self._tasks.values())
 
     async def stop(self) -> None:
         for task in self._tasks.values():
