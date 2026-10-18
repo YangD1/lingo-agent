@@ -95,6 +95,12 @@ def build_chat_model(
         return GuardedChatAnthropic(model=resolved.model, **kwargs).with_http_client(http_client)
 
     if resolved.kind in ("openai", "openai_compatible"):
+        if resolved.kind == "openai_compatible":
+            # ChatOpenAI switches to the Responses API by itself (e.g. a gpt-6* model with
+            # tools, which is every structured-output call); compatible servers are
+            # Chat Completions servers - sub2api's /responses bills ~4.3k extra input
+            # tokens and never hits its cache (task 100.7a). A tenant can set it to true.
+            kwargs = {"use_responses_api": False, **kwargs}
         # openai_compatible is just the OpenAI client pointed at another base_url.
         return UsageOnceChatOpenAI(
             model=resolved.model,

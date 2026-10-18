@@ -213,6 +213,29 @@ def test_keyless_openai_compatible_gets_placeholder_key() -> None:
     assert model.openai_api_key is not None
 
 
+def _uses_responses_api(model: BaseChatModel) -> bool:
+    """Whether a structured-output (tool-calling) call would go to /responses."""
+    assert isinstance(model, ChatOpenAI)
+    tool = {"type": "function", "function": {"name": "Report", "parameters": {}}}
+    return model._use_responses_api({"tools": [tool]})
+
+
+def test_openai_compatible_stays_on_chat_completions_by_default() -> None:
+    # ChatOpenAI on its own would pick the Responses API for a gpt-6* model with tools.
+    model = llm.build_chat_model(resolved("openai_compatible", "relay", "gpt-6.1-sol"), task="t")
+    assert _uses_responses_api(model) is False
+
+
+def test_openai_compatible_can_opt_into_responses_api() -> None:
+    spec = resolved("openai_compatible", "relay", "gpt-6.1-sol", use_responses_api=True)
+    assert _uses_responses_api(llm.build_chat_model(spec, task="t")) is True
+
+
+def test_official_openai_keeps_langchain_default() -> None:
+    model = llm.build_chat_model(resolved("openai", "openai", "gpt-6.1-sol"), task="t")
+    assert _uses_responses_api(model) is True
+
+
 @pytest.mark.parametrize("kind", ["deepseek", "anthropic", "openai"])
 def test_api_key_not_in_repr_or_serialization(kind: str) -> None:
     model = llm.build_chat_model(resolved(kind, kind, "m"), task="chat")
