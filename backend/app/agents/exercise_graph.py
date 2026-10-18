@@ -12,8 +12,14 @@ rejected or invalid slots are written again with the reasons in the next round, 
 most `practice.max_regenerations` more rounds.
 
 A set the learner is waiting for has a time budget (`practice.wait_budget_seconds`,
-task 49.3): no round starts that, at the pace of the last one, would end past it; the
-bank fills the open slots instead. A set generated ahead has none.
+task 49.3): no round starts that, at the pace of the last one, would end past it, and
+when it runs out the model calls still going are cancelled (ADR 0048, task 101.4e);
+the bank fills the open slots instead. A set generated ahead has none.
+
+The set's calls share one `RetryBudget` (ADR 0056): the provider layer retries a call
+that stalls before its first part from it, and when the generate call stalls after
+some drafts, `_round` keeps those and asks again for the rest only, from the same
+budget, without using up a rewrite round.
 
 `fill` gives the slots still open (rounds used up, out of time, or a model failed) an
 item from the placement bank, drops what the bank cannot fill, and fails the set when
@@ -48,6 +54,7 @@ from app.adaptive.kc.catalog import GrammarCatalog
 from app.adaptive.placement.items import ItemBank
 from app.adaptive.rules import Rules
 from app.providers.errors import NoModelConfiguredError
+from app.providers.resilience import CallStalledError, RetryBudget
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +151,9 @@ class ExerciseContext:
     min_items: int | None = None
     use_bank: bool = True
     clock: Callable[[], float] = time.monotonic
+    # Retries the set's calls share (ADR 0056 §4); None: a stalled generate call is not
+    # asked again.
+    retries: RetryBudget | None = None
 
 
 class _Candidate(TypedDict):
@@ -212,6 +222,8 @@ class _Run:
     # Set when generating failed, or a call shows no model can serve this tenant: no
     # round starts after this one.
     stop: bool = False
+    # Event-loop time the learner's wait budget runs out at; None: no budget.
+    deadline: float | None = None
 
     def failed(self, exc: Exception, *, generating: bool) -> None:
         self.error = self.error or _error_code(exc)
@@ -221,8 +233,18 @@ class _Run:
     async def call(
         self, call: StructuredCall, messages: Sequence[BaseMessage], schema: type[BaseModel]
     ) -> ModelReply:
-        async with self.calls:
-            return await call(messages, schema)
+        scope = asyncio.timeout_at(self.deadline)
+        try:
+            async with scope, self.calls:
+                return await call(messages, schema)
+        except TimeoutError:
+            if scope.expired():
+                raise _OutOfTimeError from None
+            raise
+
+
+class _OutOfTimeError(Exception):
+    """The learner's wait budget ran out while a model call was still going."""
 
 
 def _candidate(
@@ -306,6 +328,10 @@ async def _settle(run: _Run, brief: ItemBrief, raw: Any, model: str | None, roun
     if candidate is not None:
         try:
             item, problem = await _review(run, brief, candidate, rounds + 1)
+        except _OutOfTimeError:
+            # Not the model's fault: the bank fills the slot.
+            run.closed.add(brief.position)
+            return
         except Exception as exc:
             logger.warning("exercise slot %d: review failed", brief.position, exc_info=True)
             run.failed(exc, generating=False)
@@ -329,30 +355,66 @@ async def _round(run: _Run, wanted: Sequence[ItemBrief], rounds: int) -> None:
     ones published, while the rest are still being written (ADR 0048 §1)."""
     ctx = run.ctx
     by_key = {f"item_{b.position}": b for b in wanted}
-    feedback = {b.position: run.feedback[b.position] for b in wanted if b.position in run.feedback}
     settling: list[asyncio.Task[None]] = []
     taken: set[str] = set()
+
+    async def write(briefs: Sequence[ItemBrief]) -> None:
+        feedback = {
+            b.position: run.feedback[b.position] for b in briefs if b.position in run.feedback
+        }
+        scope = asyncio.timeout_at(run.deadline)
+        try:
+            async with scope:
+                async for written in ctx.generate(
+                    generate_messages(
+                        briefs, ctx.learner, ctx.rules, feedback or None, bank=ctx.bank
+                    ),
+                    drafts.generated_set_model(ctx.rules, briefs),
+                ):
+                    keys = [k for k in written.args if k in by_key]
+                    # The last key may still be written, until the call ends.
+                    for key in keys if written.done else keys[:-1]:
+                        if key not in taken:
+                            taken.add(key)
+                            settling.append(
+                                asyncio.create_task(
+                                    _settle(
+                                        run, by_key[key], written.args[key], written.model, rounds
+                                    )
+                                )
+                            )
+        except TimeoutError:
+            if scope.expired():
+                raise _OutOfTimeError from None
+            raise
+
     try:
-        async for written in ctx.generate(
-            generate_messages(wanted, ctx.learner, ctx.rules, feedback or None, bank=ctx.bank),
-            drafts.generated_set_model(ctx.rules, wanted),
-        ):
-            keys = [k for k in written.args if k in by_key]
-            # The last key may still be written, until the call ends.
-            for key in keys if written.done else keys[:-1]:
-                if key not in taken:
-                    taken.add(key)
-                    settling.append(
-                        asyncio.create_task(
-                            _settle(run, by_key[key], written.args[key], written.model, rounds)
-                        )
-                    )
+        pending = list(wanted)
+        while True:
+            try:
+                await write(pending)
+                break
+            except CallStalledError:
+                # The drafts written so far are reviewed; only the rest is asked again.
+                pending = [b for b in pending if f"item_{b.position}" not in taken]
+                if not pending or ctx.retries is None or not ctx.retries.take():
+                    raise
+                logger.warning(
+                    "exercise generation stalled after %d drafts: asking again for %d",
+                    len(taken),
+                    len(pending),
+                )
         for key, brief in by_key.items():
             if key not in taken:
                 _rejected_unreviewed(brief, rounds, "no draft was written for this position")
                 run.feedback[brief.position] = Rejected(
                     {}, ["no draft was written for this position"]
                 )
+    except _OutOfTimeError:
+        logger.warning(
+            "exercise set out of time: %d drafts written, bank fills the rest", len(taken)
+        )
+        run.stop = True
     except Exception as exc:
         # The drafts already written are still reviewed; the rest go to the bank.
         logger.warning("exercise generation call failed", exc_info=True)
@@ -366,6 +428,8 @@ async def produce(state: ExerciseState, runtime: Runtime[ExerciseContext]) -> di
     the slots not accepted are written again with the reasons."""
     ctx = runtime.context
     run = _Run(ctx, asyncio.Semaphore(ctx.rules.practice.parallel_calls))
+    if ctx.wait_budget is not None:
+        run.deadline = asyncio.get_running_loop().time() + ctx.wait_budget
     started_at = ctx.clock()
     wanted = list(ctx.briefs)
     rounds = 0

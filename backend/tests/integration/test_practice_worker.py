@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.adaptive.exercise import answer as answering
 from app.adaptive.exercise.formats import CHECK_FORMATS, ChoiceResponse
 from app.adaptive.exercise.planner import PRODUCTION, RECOGNITION
-from app.adaptive.exercise.worker import PracticeWorker, QuizStart
+from app.adaptive.exercise.worker import SET_RETRIES, PracticeWorker, QuizStart
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.agents.exercise_graph import (
@@ -32,6 +32,7 @@ from app.db.models import Exercise, ExerciseSet, Tenant, TenantMember
 from app.db.session import create_sessionmaker
 from app.providers.config import TenantProviderContext
 from app.providers.errors import NoModelConfiguredError
+from app.providers.resilience import RetryBudget
 from app.scheduler import prefs
 from tests.unit.test_exercise_graph import KCS, FakeModels
 
@@ -72,9 +73,10 @@ def worker(
     configs: list[RunnableConfig] | None = None,
 ) -> PracticeWorker:
     def calls(
-        ctx: TenantProviderContext, config: RunnableConfig
+        ctx: TenantProviderContext, config: RunnableConfig, retries: RetryBudget
     ) -> tuple[StructuredCall, StructuredCall]:
         assert config["metadata"]["user_id"]  # llm_usage knows whose calls these are
+        assert retries.retries == SET_RETRIES  # one budget for the whole set (ADR 0056 §4)
         if configs is not None:
             configs.append(config)
         return models.generate, models.critique
@@ -218,7 +220,7 @@ async def test_an_unexpected_error_fails_the_set(
     user_id, tenant_id = await learner(maker)
 
     def broken(
-        ctx: TenantProviderContext, config: RunnableConfig
+        ctx: TenantProviderContext, config: RunnableConfig, retries: RetryBudget
     ) -> tuple[StreamedCall, StructuredCall]:
         raise RuntimeError("bug")
 
@@ -296,7 +298,7 @@ async def test_only_a_set_the_learner_waits_for_has_a_time_budget(
     practice = PracticeWorker(
         maker,
         Spy(),  # type: ignore[arg-type]
-        calls=lambda ctx, config: (models.generate, models.critique),
+        calls=lambda ctx, config, retries: (models.generate, models.critique),
         clock=Clock(),
     )
 

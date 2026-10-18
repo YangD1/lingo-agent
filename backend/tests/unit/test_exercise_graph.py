@@ -29,6 +29,7 @@ from app.agents.exercise_graph import (
     start_state,
 )
 from app.providers.errors import NoModelConfiguredError
+from app.providers.resilience import CallStalledError, RetryBudget
 
 CATALOG, RULES, BANK = get_grammar_catalog(), get_rules(), get_item_bank()
 NOW = datetime(2026, 10, 2, 12, tzinfo=UTC)
@@ -144,6 +145,14 @@ class FakeModels:
     # Seconds the generate call takes per draft.
     write_seconds: float = 0
     critic_error: Exception | None = None
+    # The first `stalls` generate calls stall after `stall_after` drafts (ADR 0056).
+    stall_after: int | None = None
+    stalls: int = 1
+    # Generate calls hang after this many drafts, until cancelled.
+    hang_after: int | None = None
+    # Positions whose review hangs until cancelled; seconds every review takes.
+    critic_hang: set[int] = field(default_factory=set)
+    critic_seconds: float = 0
     generated: list[list[int]] = field(default_factory=list)
     reviewed: list[list[int]] = field(default_factory=list)
     # By position, the prompts of its generate calls.
@@ -193,9 +202,14 @@ class FakeModels:
         self.writing = True
         try:
             written: dict[str, Any] = {}
+            stalling = self.stall_after is not None and len(self.generated) <= self.stalls
             for n, (key, value) in enumerate(items.items()):
                 if n == self.cut_after:
                     raise RuntimeError("connection reset")
+                if stalling and n == self.stall_after:
+                    raise CallStalledError(30, n)
+                if n == self.hang_after:
+                    await asyncio.sleep(3600)
                 written[key] = value
                 yield Written(dict(written), "fake:writer")
                 await asyncio.sleep(self.write_seconds)
@@ -208,7 +222,9 @@ class FakeModels:
     ) -> ModelReply:
         items = section(messages, "Items to review:\n")
         self.reviewed_while_writing += self.writing
-        await self._busy(0.002)
+        await self._busy(0.002 + self.critic_seconds)
+        if any(i["position"] in self.critic_hang for i in items):
+            await asyncio.sleep(3600)
         if self.critic_error is not None:
             raise self.critic_error
         (rounds,) = {self.rounds_of(i["position"]) - 1 for i in items}
@@ -243,6 +259,7 @@ async def run(
     tick: float = 0.0,
     min_items: int | None = None,
     on_publish: Callable[[MadeItem], Awaitable[None]] | None = None,
+    retries: RetryBudget | None = None,
 ) -> tuple[SetResult, list[Stage]]:
     """`tick`: seconds the fake clock moves on each time it is read."""
     now = [0.0]
@@ -284,6 +301,7 @@ async def run(
         wait_budget=wait_budget,
         min_items=min_items,
         clock=clock,
+        retries=retries,
     )
     await GRAPH.ainvoke(start_state(planned, RULES), context=ctx)
     (result,) = saved
@@ -391,6 +409,79 @@ async def test_a_waiting_learner_gets_no_round_past_the_budget(
     assert len(result.rejected) == rounds
     assert result.error_code is None and result.from_bank == 1
     assert result.items[0].bank_item_id is not None and stages[-1] == "filling"
+
+
+# --- stalls and the wait budget (ADR 0056, ADR 0048 §4) ------------------------------------
+
+
+async def test_a_generate_call_stalled_midway_asks_again_for_the_rest_only() -> None:
+    models = FakeModels(stall_after=2)
+    retries = RetryBudget(10)
+
+    result, stages = await run(models, n=4, retries=retries, min_items=1)
+
+    # The draft followed by another is whole and kept; the last one may be cut off.
+    assert models.generated == [[0, 1, 2, 3], [1, 2, 3]]
+    assert result.error_code is None and result.from_bank == 0
+    assert [i.position for i in result.items] == [0, 1, 2, 3]
+    assert retries.used == 1
+    # Not a rewrite round.
+    assert "rewriting" not in stages
+
+
+async def test_stalls_stop_asking_again_when_the_budget_is_spent() -> None:
+    models = FakeModels(stall_after=2, stalls=10)
+    retries = RetryBudget(2)
+
+    result, _ = await run(models, n=5, retries=retries, min_items=1)
+
+    # One whole draft per call: the first call and the two retries.
+    assert models.generated == [[0, 1, 2, 3, 4], [1, 2, 3, 4], [2, 3, 4]]
+    assert retries.used == 2
+    assert [i.bank_item_id is None for i in result.items] == [True, True, True, False, False]
+
+
+@pytest.mark.parametrize("retries", [None, RetryBudget(0)])
+async def test_without_retries_a_stall_leaves_the_rest_to_the_bank(
+    retries: RetryBudget | None,
+) -> None:
+    models = FakeModels(stall_after=2)
+
+    result, _ = await run(models, n=4, retries=retries, min_items=1)
+
+    assert models.generated == [[0, 1, 2, 3]]
+    assert [i.bank_item_id is None for i in result.items] == [True, False, False, False]
+
+
+async def test_a_waiting_learners_set_is_cut_at_the_budget() -> None:
+    """A generate call that hangs midway: the learner gets the drafts that passed and
+    the bank for the rest, at the budget (task 101.4e)."""
+    models = FakeModels(hang_after=3)
+
+    result, _ = await asyncio.wait_for(run(models, n=4, wait_budget=0.3, min_items=1), 5)
+
+    assert [i.bank_item_id is None for i in result.items] == [True, True, False, False]
+    assert result.error_code is None
+    assert models.generated == [[0, 1, 2, 3]]
+
+
+async def test_a_review_still_going_at_the_budget_leaves_its_slot_to_the_bank() -> None:
+    models = FakeModels(critic_hang={1})
+
+    result, _ = await asyncio.wait_for(run(models, n=3, wait_budget=0.3, min_items=1), 5)
+
+    assert [i.bank_item_id is None for i in result.items] == [True, False, True]
+    assert result.error_code is None
+    # Published items stay; the cut one was never published.
+    assert sorted(models.published) == [0, 2]
+
+
+async def test_a_set_generated_ahead_is_not_cut() -> None:
+    models = FakeModels(critic_seconds=0.2)
+
+    result, _ = await run(models, n=3, wait_budget=None)
+
+    assert result.from_bank == 0 and len(result.items) == 3
 
 
 async def test_a_failing_model_leaves_the_set_to_the_bank() -> None:

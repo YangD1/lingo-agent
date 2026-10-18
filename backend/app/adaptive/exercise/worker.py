@@ -54,6 +54,7 @@ from app.agents.exercise_graph import (
 from app.db.models import ExerciseSet
 from app.providers.config import TenantProviderContext
 from app.providers.llm import astream_structured, get_structured_llm
+from app.providers.resilience import RetryBudget, invoke_structured, stream_structured
 from app.providers.tenant import load_provider_context
 from app.scheduler import budget, prefs
 
@@ -64,8 +65,12 @@ CRITIC_TASK = "exercise_critic"
 
 # Builds the two model calls for a tenant, generate (streamed) and critic; tests pass
 # fakes.
+# Retries a practice set's calls share: stalls and vendor errors are sent again, but
+# never more than this for the whole set (ADR 0056 §4).
+SET_RETRIES = 10
+
 type CallFactory = Callable[
-    [TenantProviderContext, RunnableConfig], tuple[StreamedCall, StructuredCall]
+    [TenantProviderContext, RunnableConfig, RetryBudget], tuple[StreamedCall, StructuredCall]
 ]
 
 
@@ -105,9 +110,13 @@ class _AnsweredBy(BaseCallbackHandler):
 
 
 def structured_call(
-    ctx: TenantProviderContext, config: RunnableConfig, task: str
+    ctx: TenantProviderContext,
+    config: RunnableConfig,
+    task: str,
+    budget: RetryBudget | None = None,
 ) -> StructuredCall:
-    """A structured call on `task`'s route that notes which model answered."""
+    """A structured call on `task`'s route that notes which model answered. With a
+    `budget`, a resilient task's stalls and errors are retried from it (ADR 0056)."""
 
     async def invoke(messages: Sequence[BaseMessage], schema: type[BaseModel]) -> ModelReply:
         answered = _AnsweredBy()
@@ -116,14 +125,23 @@ def structured_call(
             "callbacks": [answered],
             "tags": [*config.get("tags", []), task],
         }
-        output = await get_structured_llm(ctx, task, schema).ainvoke(messages, config=run)
+        if budget is None:
+            output = await get_structured_llm(ctx, task, schema).ainvoke(messages, config=run)
+        else:
+            output = await invoke_structured(ctx, task, schema, messages, config=run, budget=budget)
         return ModelReply(output, answered.model)
 
     return invoke
 
 
-def streamed_call(ctx: TenantProviderContext, config: RunnableConfig, task: str) -> StreamedCall:
-    """A streamed structured call on `task`'s route that notes which model writes."""
+def streamed_call(
+    ctx: TenantProviderContext,
+    config: RunnableConfig,
+    task: str,
+    budget: RetryBudget | None = None,
+) -> StreamedCall:
+    """A streamed structured call on `task`'s route that notes which model writes; with
+    a `budget`, retried as `structured_call` until its first part."""
 
     async def stream(
         messages: Sequence[BaseMessage], schema: type[BaseModel]
@@ -134,16 +152,24 @@ def streamed_call(ctx: TenantProviderContext, config: RunnableConfig, task: str)
             "callbacks": [answered],
             "tags": [*config.get("tags", []), task],
         }
-        async for part in astream_structured(ctx, task, schema, messages, config=run):
+        parts = (
+            astream_structured(ctx, task, schema, messages, config=run)
+            if budget is None
+            else stream_structured(ctx, task, schema, messages, config=run, budget=budget)
+        )
+        async for part in parts:
             yield Written(part.args, answered.writing, part.done)
 
     return stream
 
 
 def model_calls(
-    ctx: TenantProviderContext, config: RunnableConfig
+    ctx: TenantProviderContext, config: RunnableConfig, budget: RetryBudget
 ) -> tuple[StreamedCall, StructuredCall]:
-    return streamed_call(ctx, config, GENERATE_TASK), structured_call(ctx, config, CRITIC_TASK)
+    return (
+        streamed_call(ctx, config, GENERATE_TASK, budget),
+        structured_call(ctx, config, CRITIC_TASK, budget),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -462,7 +488,8 @@ class PracticeWorker:
             "metadata": {"user_id": str(user_id), "background": background},
             "tags": ["practice", "quiz"] if quiz else ["practice"],
         }
-        generate, critique = self._calls(provider_ctx, config)
+        retries = RetryBudget(SET_RETRIES)
+        generate, critique = self._calls(provider_ctx, config, retries)
 
         async def save(result: SetResult) -> None:
             async with self._sessionmaker() as session:
@@ -508,5 +535,6 @@ class PracticeWorker:
                 else rules.course.check_min_items
             ),
             use_bank=quiz != "check",
+            retries=retries,
         )
         await self._graph.ainvoke(start_state(briefs, rules), context=ctx)
