@@ -28,9 +28,11 @@ features:
   # its input box carries this badge.
   chat_message:
     calls:
+      # Measured 2026-10-18 (task 100.9, gpt-6.1-sol over Chat Completions): a turn about
+      # 4500 tokens in; a reply after tool results 3700, 5300 when it read a skill.
       - task: chat
         timing: now
-        default: {input_tokens: 5400, output_tokens: 150}
+        default: {input_tokens: 4500, output_tokens: 150}
       # Only when the tutor used a tool: its reply after the tool results (ADR 0015 §7).
       # Opening, closing the workspace and turning its auto-open off are tools too (ADR 0045).
       # So is load_skill (ADR 0055 §6): reading a built-in skill before the tutor writes
@@ -38,7 +40,7 @@ features:
       - task: chat_tools
         route: chat
         timing: now
-        default: {input_tokens: 3000, output_tokens: 150}
+        default: {input_tokens: 4200, output_tokens: 150}
       # Only in free chat, for a message of 60+ English words (Q38a): is it a piece of
       # writing for writing_coach? The reply waits for it (ADR 0023 §3).
       - task: route
@@ -216,22 +218,23 @@ features:
   practice_set:
     calls:
       # One streamed call writes the set; each question is reviewed on its own as soon
-      # as it is written (ADR 0048). Measured 2026-10-16 (gpt-6-sol, low): a review
-      # about 1200 tokens in, 150 out.
+      # as it is written (ADR 0048). Measured 2026-10-18 (task 100.9, gpt-6.1-sol, 7 sets):
+      # writing about 5600 tokens in (with the exercise-writing parts), 1100 out; a
+      # review 1500 in, 200 out.
       - task: exercise_generate
         timing: now
-        default: {input_tokens: 6800, output_tokens: 1500}
+        default: {input_tokens: 5600, output_tokens: 1100}
       - task: exercise_critic
         timing: now
         per: item
-        default: {input_tokens: 1200, output_tokens: 150}
+        default: {input_tokens: 1500, output_tokens: 200}
       - task: exercise_generate
         timing: background
-        default: {input_tokens: 6800, output_tokens: 1500}
+        default: {input_tokens: 5600, output_tokens: 1100}
       - task: exercise_critic
         timing: background
         per: item
-        default: {input_tokens: 1200, output_tokens: 150}
+        default: {input_tokens: 1500, output_tokens: 200}
 
   # Grading an answer the code cannot (ADR 0021 §6): open formats, and find_fix with a
   # fix not in the item's list. One call per such answer, only the first time an item
@@ -251,15 +254,15 @@ features:
   # its own (ADR 0046 §3), unless the learner turned that off in the tutor settings.
   quiz_card:
     calls:
-      # As practice_set (ADR 0048). Measured 2026-10-16 (gpt-6-sol, low, 5 questions):
-      # writing 3500 tokens in, 1000 out.
+      # As practice_set (ADR 0048). Measured 2026-10-18 (task 100.9, gpt-6.1-sol, 3 pass
+      # quizzes of 5 questions): writing 4900 tokens in, 850 out; a review as practice_set.
       - task: exercise_generate
         timing: now
-        default: {input_tokens: 3500, output_tokens: 1000}
+        default: {input_tokens: 4900, output_tokens: 850}
       - task: exercise_critic
         timing: now
         per: item
-        default: {input_tokens: 1200, output_tokens: 150}
+        default: {input_tokens: 1500, output_tokens: 200}
       - task: exercise_grade
         timing: now
         default: {input_tokens: 11900, output_tokens: 150}
