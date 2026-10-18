@@ -8,10 +8,11 @@ import pytest
 from langchain_core.messages import BaseMessage
 
 from app.adaptive.exercise import drafts, messages
-from app.adaptive.exercise.formats import Format
+from app.adaptive.exercise.formats import FORMATS, Format
 from app.adaptive.exercise.inputs import ItemBrief, LearnerInputs, OwnSentence
 from app.adaptive.exercise.planner import PlannedItem
 from app.adaptive.kc.catalog import get_grammar_catalog
+from app.adaptive.placement.items import Item, ItemBank
 from app.adaptive.rules import get_rules
 
 CATALOG, RULES = get_grammar_catalog(), get_rules()
@@ -404,3 +405,72 @@ def test_check_instructions_only_reach_sets_that_have_checks() -> None:
     body = text(human)
     assert "主语是 he / she / it" in body  # explain's key points: the critic checks them
     assert "correct" not in body  # the concept question's key stays hidden
+
+
+# --- the exercise-writing skill (ADR 0055 §2) ---
+
+
+def test_only_the_guides_of_the_set_formats_are_spliced_in() -> None:
+    system, _ = messages.generate_messages(
+        [brief("cloze", 0), brief("transform", 1), brief("cloze", 2)], LEARNER, RULES
+    )
+    body = text(system)
+    assert "Never give the tested form away" in body  # the skill's general rules
+    assert body.index("# cloze:") < body.index("# transform:")  # catalog order, once each
+    assert body.count("# cloze:") == 1
+    for other in ("# choice4:", "# find_fix:", "# translate:", "# rewrite_own:"):
+        assert other not in body
+    assert "Understanding checks" not in body
+
+
+def test_check_formats_get_the_understanding_checks_part_first() -> None:
+    system, _ = messages.generate_messages(
+        [brief("explain", 0), brief("choice4", 1)], LEARNER, RULES
+    )
+    body = text(system)
+    assert (
+        body.index("# Understanding checks") < body.index("# choice4:") < body.index("# explain:")
+    )
+
+
+def test_every_format_has_a_guide() -> None:
+    for fmt in FORMATS:
+        assert messages.writing_guide([fmt]).count(f"# {fmt}:") == 1, fmt
+
+
+def bank_item(item_id: str, kc: str, difficulty: float) -> Item:
+    return Item(
+        id=item_id,
+        kc=kc,
+        cefr="A1",
+        stem=f"Stem of {item_id} ___.",
+        answer="works",
+        distractors=("work", "working", "worked"),
+        ratings={},
+        difficulty=difficulty,
+    )
+
+
+def test_bank_items_on_the_set_grammar_points_are_examples_closest_first() -> None:
+    bank = ItemBank(
+        format="choice4",
+        items=(
+            bank_item("p.far", KC_ID, 1.0),
+            bank_item("p.near", KC_ID, -2.4),
+            bank_item("p.mid", KC_ID, -1.5),
+            bank_item("p.other", "g.be_present", -2.5),
+        ),
+    )
+    _, human = messages.generate_messages([brief("cloze", target=-2.5)], LEARNER, RULES, bank=bank)
+    body = text(human)
+    assert "Example items from the reviewed bank" in body
+    assert body.index("Stem of p.near") < body.index("Stem of p.mid")
+    assert "-> works (wrong: work, working, worked)" in body
+    assert "p.far" not in body and "p.other" not in body
+
+
+def test_no_examples_without_bank_items_on_the_grammar_point() -> None:
+    other = ItemBank(format="choice4", items=(bank_item("p.other", "g.be_present", -2.5),))
+    for bank in (None, other):
+        _, human = messages.generate_messages([brief("cloze")], LEARNER, RULES, bank=bank)
+        assert "Example items" not in text(human)

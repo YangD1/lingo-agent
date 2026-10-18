@@ -342,7 +342,7 @@ async def _round(run: _Run, wanted: Sequence[ItemBrief], rounds: int) -> None:
     taken: set[str] = set()
     try:
         async for written in ctx.generate(
-            generate_messages(wanted, ctx.learner, ctx.rules, feedback or None),
+            generate_messages(wanted, ctx.learner, ctx.rules, feedback or None, bank=ctx.bank),
             drafts.generated_set_model(ctx.rules, wanted),
         ):
             keys = [k for k in written.args if k in by_key]

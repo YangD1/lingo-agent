@@ -1,6 +1,6 @@
 import re
 
-from app.prompts import load_prompt, prompt_names, prompt_version, prompt_versions
+from app.prompts import load_prompt, prompt_texts, prompt_version, prompt_versions
 
 
 def test_version_is_a_hash_of_the_text() -> None:
@@ -8,12 +8,15 @@ def test_version_is_a_hash_of_the_text() -> None:
     assert prompt_version("route") != prompt_version("translate")
 
 
-def test_every_prompt_is_recognised_with_its_placeholders_filled() -> None:
-    for name in prompt_names():
-        filled = re.sub(r"\{[a-z_]+\}", "Learner said: I goed home.", load_prompt(name))
+def test_every_prompt_and_skill_part_is_recognised_with_its_placeholders_filled() -> None:
+    versions = dict(prompt_versions("\n\n".join(text for _, text in prompt_texts())) or {})
+    names = [name for name, _ in prompt_texts()]
+    assert any(name.startswith("skill:exercise-writing/") for name in names)
+    for name, text in prompt_texts():
+        filled = re.sub(r"\{[a-z_]+\}", "Learner said: I goed home.", text)
         found = prompt_versions(f"Before.\n\n{filled}\n\nAfter.") or {}
         # Only itself: no prompt's fingerprint sits inside another prompt.
-        assert found == {name: prompt_version(name)}, name
+        assert found == {name: versions[name]}, name
 
 
 def test_text_without_a_prompt_is_none() -> None:
