@@ -9,6 +9,7 @@ import {
   type Activity,
   type AnswersRevealed,
   type CardShown,
+  type SkillLoaded,
   type ContextRead,
   digest,
   type GrammarTags,
@@ -60,6 +61,13 @@ const STEP_NAMES = [
 type StepName = (typeof STEP_NAMES)[number];
 const isStep = (name: string): name is StepName => (STEP_NAMES as readonly string[]).includes(name);
 
+type ActivityT = ReturnType<typeof useTranslations<"chat.activity">>;
+/** A built-in skill's name for the learner; one from a newer backend keeps its id. */
+function skillName(t: ActivityT, skill: string): string {
+  const key = `skills.${skill}` as Parameters<ActivityT>[0];
+  return t.has(key) ? t(key) : skill;
+}
+
 /**
  * "What {name} did" under a reply: one line, expandable (ADR 0013 §3). The name leads to
  * where the learner renames the assistant and changes its looks (ADR 0040 §3).
@@ -97,6 +105,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
     d.wordsCollected > 0 && t("words", { n: d.wordsCollected }),
     d.cardsShown > 0 && t("cards", { n: d.cardsShown }),
     d.cardsWithdrawn > 0 && t("cardsWithdrawn", { n: d.cardsWithdrawn }),
+    ...d.skillsRead.map((skill) => t("readSkill", { skill: skillName(t, skill) })),
     d.answersRevealed > 0 && t("answersRevealed", { n: d.answersRevealed }),
     d.summaryUpdated && t("summaryUpdated"),
     d.failed.length + d.skipped.length > 0 && t("someFailed"),
@@ -188,6 +197,11 @@ function Step({
   }
   if (a.name === "end_session") return <p>{t("endSuggested")}</p>;
   if (a.name === "add_to_vocab" && a.status !== "ok") return <p>{t("callToolFailed", { step })}</p>;
+  if (a.name === "load_skill") {
+    if (a.status !== "ok") return <p>{t("skillFailed")}</p>;
+    const s = a.summary as SkillLoaded;
+    return <p>{t(s.part ? "skillPartRead" : "skillRead", { skill: skillName(t, s.skill) })}</p>;
+  }
   if (a.kind === "tool" && a.name !== "add_to_vocab") {
     if (a.status !== "ok") return <p>{t("toolFailed", { step })}</p>;
     const kind = (a.summary as CardShown).card_kind ?? "";

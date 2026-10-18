@@ -348,6 +348,7 @@
         "set_workspace_auto_open": "调整工作区是否自动打开",
         "give_quiz": "出测验",
         "withdraw_card": "撤回卡片",
+        "load_skill": "读出题技能",
         "quiz_reveal": "检查有没有泄答案"
       },
       "failed": "{step}失败了，这一轮先跳过。",
@@ -393,6 +394,13 @@
       "readArticle": "读了这篇文章",
       "cardShown": "展示了卡片：{card}",
       "cardWithdrawn": "撤回了卡片：{card}",
+      "readSkill": "读了{skill}",
+      "skillRead": "读了{skill}：先看怎么出好题，再自己出题",
+      "skillPartRead": "读了{skill}里一种题型的细节",
+      "skillFailed": "想读的技能不存在，已把原因告诉助手。",
+      "skills": {
+        "exercise-writing": "出题技能"
+      },
       "toolFailed": "有一张卡片没能展示（{step}），已把原因告诉助手。",
       "toolsUnavailable": "当前模型不支持工具调用，助手改用链接代替卡片回答。",
       "cardKinds": {

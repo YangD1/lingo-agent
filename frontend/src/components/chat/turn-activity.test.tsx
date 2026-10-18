@@ -49,6 +49,23 @@ describe("TurnActivity", () => {
     expect(screen.getByText(/doesn't support tools/)).toBeInTheDocument();
   });
 
+  it("says the tutor read the question-writing skill, without counting a card (ADR 0055 §6)", () => {
+    show({
+      activities: [
+        step("load_skill", { skill: "exercise-writing", part: null }, { kind: "tool", call_id: "c1" }),
+        step("load_skill", { skill: "exercise-writing", part: "cloze" }, { kind: "tool", call_id: "c2" }),
+        step("load_skill", {}, { kind: "tool", call_id: "c3", status: "failed" }),
+      ],
+    });
+    const line = screen.getByRole("button", { expanded: false });
+    expect(line).toHaveTextContent("read the question-writing skill");
+    expect(line).not.toHaveTextContent("card");
+    fireEvent.click(line);
+    expect(screen.getByText(/^Read the question-writing skill: how to write/)).toBeInTheDocument();
+    expect(screen.getByText(/one question type in the question-writing skill/)).toBeInTheDocument();
+    expect(screen.getByText(/skill that doesn't exist/)).toBeInTheDocument();
+  });
+
   it("says the tutor checked where the learner is now", () => {
     show({
       activities: [

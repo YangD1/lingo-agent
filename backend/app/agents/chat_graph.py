@@ -40,6 +40,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.runtime import Runtime
 from langgraph.types import Command
+from pydantic import BaseModel
 
 from app.activity.service import (
     STEPS,
@@ -49,6 +50,7 @@ from app.activity.service import (
     ContextRead,
     Handoff,
     ReadingContextRead,
+    SkillLoaded,
     Step,
     WorkspaceContextRead,
     timed,
@@ -74,6 +76,15 @@ from app.memory.language import DEFAULT_CHAT_LANGUAGE, ChatLanguage
 from app.prompts import load_prompt
 from app.providers.config import TenantProviderContext, TutorPick
 from app.providers.llm import get_llm, get_llm_with_tools
+from app.skills.tool import (
+    LOAD_SKILL,
+    LoadSkill,
+    SkillKey,
+    read_earlier,
+    read_skill,
+    skill_key,
+    skills_section,
+)
 from app.tutor.prompt import tutor_name
 from app.workspace.context import WorkspaceSource, render_workspace
 
@@ -95,11 +106,16 @@ TOOLS_NODE = "tools"
 
 # Tool round trips per turn; the tutor's last call then has no tools and must answer.
 MAX_TOOL_ROUNDS = 2
+# Rounds that only read skills are counted apart (ADR 0055 §6): reading one must not cost
+# the tutor its chance to show a card. Past these, they count as ordinary rounds.
+MAX_SKILL_ROUNDS = 2
 # Backstop per (sub)graph run (ADR 0013): LangGraph 1.x defaults to 10,007 steps. The tutor
-# takes 2 * MAX_TOOL_ROUNDS + 1; the outer graph a few.
-RECURSION_LIMIT = 2 * MAX_TOOL_ROUNDS + 6
-# Calls run per round; more get an error result.
+# takes 2 * (MAX_TOOL_ROUNDS + MAX_SKILL_ROUNDS) + 1; the outer graph a few.
+RECURSION_LIMIT = 2 * (MAX_TOOL_ROUNDS + MAX_SKILL_ROUNDS) + 6
+# Card tool calls run per round; more get an error result. load_skill calls aren't counted.
 MAX_CALLS_PER_ROUND = 3
+# What the tutor is offered: the card tools and load_skill.
+TUTOR_TOOL_SCHEMAS: tuple[type[BaseModel], ...] = (*TOOL_SCHEMAS, LoadSkill)
 TOOL_TIMEOUT_SECONDS = 15
 # The tutor's calls after tool results: recorded apart from "chat", which the dashboard
 # counts as the learner's turns (ADR 0015 §7).
@@ -312,6 +328,7 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
     # The system prompt is prepended per call rather than stored in the thread, so
     # prompt edits apply to existing conversations too.
     history, has_images = await _with_attachments(state["messages"], runtime.context.attachments)
+    history = skills_read_earlier(history)
     # A turn that brings images is answered by a model configured to see them.
     task = "vision" if has_images else "chat"
     has_tools = runtime.context.tools is not None
@@ -321,7 +338,7 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
     # A config passed to the model replaces the run's metadata instead of merging, so
     # start from the run's own (it carries user_id for llm_usage).
     config = get_config()
-    if rounds:  # a call after tool results is not a new learner turn
+    if _turn_rounds(state["messages"]):  # a call after tool results is not a new learner turn
         config = {
             **config,
             "metadata": {**config.get("metadata", {}), "usage_task": TOOLS_USAGE_TASK},
@@ -513,7 +530,7 @@ async def _call(
     base: str = "tutor_system",
 ) -> BaseMessage:
     llm: Runnable[Any, BaseMessage] = (
-        get_llm_with_tools(runtime.context.providers, task, TOOL_SCHEMAS)
+        get_llm_with_tools(runtime.context.providers, task, TUTOR_TOOL_SCHEMAS)
         if bind
         else get_llm(runtime.context.providers, task)
     )
@@ -536,6 +553,7 @@ async def _call(
         language=state.get("language") or DEFAULT_CHAT_LANGUAGE,
         base=base,
         name=pick.name if (pick := runtime.context.providers.tutor) else None,
+        skills=skills_section() if has_tools else "",
     )
     messages: list[BaseMessage] = [SystemMessage(prompt)]
     if not any(isinstance(m, HumanMessage) for m in history):
@@ -574,15 +592,64 @@ def quiz_rule(tutor: TutorPick | None, *, lesson: bool) -> str:
     return load_prompt("tutor_quiz_proactive" if proactive else "tutor_quiz_on_request")
 
 
-def tool_rounds(messages: Sequence[BaseMessage]) -> int:
-    """Tool round trips so far in the current turn (since the last learner message)."""
-    rounds = 0
+def _turn_rounds(messages: Sequence[BaseMessage]) -> list[AIMessage]:
+    """The replies with tool calls in the current turn (since the last learner message)."""
+    rounds: list[AIMessage] = []
     for message in reversed(messages):
         if isinstance(message, HumanMessage):
             break
         if isinstance(message, AIMessage) and message.tool_calls:
-            rounds += 1
+            rounds.append(message)
     return rounds
+
+
+def _only_skills(reply: AIMessage) -> bool:
+    return all(call["name"] == LOAD_SKILL for call in reply.tool_calls)
+
+
+def tool_rounds(messages: Sequence[BaseMessage]) -> int:
+    """Tool round trips so far in the current turn that count against MAX_TOOL_ROUNDS:
+    rounds that only read skills are free up to MAX_SKILL_ROUNDS."""
+    rounds = _turn_rounds(messages)
+    skill_rounds = sum(_only_skills(r) for r in rounds)
+    return len(rounds) - skill_rounds + max(0, skill_rounds - MAX_SKILL_ROUNDS)
+
+
+def _skill_calls(messages: Sequence[BaseMessage]) -> dict[str, SkillKey]:
+    """load_skill calls by tool call id, with the (skill, part) each asked for."""
+    calls: dict[str, SkillKey] = {}
+    for message in messages:
+        if isinstance(message, AIMessage):
+            for call in message.tool_calls:
+                if call["name"] == LOAD_SKILL and call.get("id"):
+                    key = skill_key(call["args"])
+                    if key is not None:
+                        calls[str(call["id"])] = key
+    return calls
+
+
+def skills_read_earlier(messages: Sequence[BaseMessage]) -> list[BaseMessage]:
+    """Skills read in earlier turns stay out of later ones (ADR 0055 §6): their results
+    become a line saying so, for this call only (the checkpoint keeps them), so each turn's
+    input doesn't keep growing."""
+    last_human = _last_human(messages)
+    calls = _skill_calls(messages[:last_human])
+    kept: list[BaseMessage] = []
+    for i, message in enumerate(messages):
+        if (
+            i < last_human
+            and isinstance(message, ToolMessage)
+            and message.status == "success"
+            and (key := calls.get(message.tool_call_id)) is not None
+        ):
+            message = message.model_copy(update={"content": read_earlier(key)})
+        kept.append(message)
+    return kept
+
+
+def _last_human(messages: Sequence[BaseMessage]) -> int:
+    """Index of the learner's latest message, -1 before they write."""
+    return max((i for i, m in enumerate(messages) if isinstance(m, HumanMessage)), default=-1)
 
 
 def after_tutor(state: ChatState) -> str:
@@ -595,10 +662,54 @@ async def run_tools(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str
     result, never the turn's (ADR 0013 §1)."""
     last = state["messages"][-1]
     assert isinstance(last, AIMessage)
-    results = await asyncio.gather(
-        *(_run_call(runtime, call, i) for i, call in enumerate(last.tool_calls))
-    )
+    # Skills this turn has read, each read once (ADR 0055 §6); a repeat in this same
+    # round counts as read by the first call asking for it.
+    read = _read_this_turn(state)
+    runs = []
+    index = 0
+    for call in last.tool_calls:
+        if call["name"] == LOAD_SKILL:
+            runs.append(_run_skill(runtime, call, frozenset(read)))
+            if (key := skill_key(call["args"])) is not None:
+                read.add(key)
+        else:
+            runs.append(_run_call(runtime, call, index))
+            index += 1
+    results = await asyncio.gather(*runs)
     return {"messages": list(results)}
+
+
+def _read_this_turn(state: ChatState) -> set[SkillKey]:
+    """What load_skill read since the learner last wrote."""
+    messages = state["messages"]
+    last_human = _last_human(messages)
+    turn = messages[last_human + 1 :]
+    calls = _skill_calls(turn)
+    return {
+        calls[m.tool_call_id]
+        for m in turn
+        if isinstance(m, ToolMessage) and m.status == "success" and m.tool_call_id in calls
+    }
+
+
+async def _run_skill(
+    runtime: Runtime[ChatContext], call: ToolCall, already: frozenset[SkillKey]
+) -> ToolMessage:
+    call_id = call.get("id") or f"call-{uuid.uuid4().hex}"
+    with timed() as watch:
+        outcome = read_skill(call["args"], already)
+    if outcome.read is not None:
+        skill, part = outcome.read
+        summary = SkillLoaded(skill=skill, part=part)
+        await report(runtime, Step(LOAD_SKILL, "ok", summary, watch.ms, call_id=call_id))
+    elif not outcome.ok:  # a repeat records nothing: nothing new was read
+        await report(runtime, Step(LOAD_SKILL, "failed", duration_ms=watch.ms, call_id=call_id))
+    return ToolMessage(
+        outcome.content,
+        tool_call_id=call_id,
+        name=LOAD_SKILL,
+        status="success" if outcome.ok else "error",
+    )
 
 
 async def _run_call(runtime: Runtime[ChatContext], call: ToolCall, index: int) -> ToolMessage:
@@ -646,11 +757,15 @@ def system_prompt(
     base: str = "tutor_system",
     name: str | None = None,
     workspace: str = "",
+    skills: str = "",
 ) -> str:
-    """The tutor's instructions, the name the learner gave it, and which language to talk
-    in, then what it knows about the learner, then (in a practice or planning
-    conversation) what this conversation is for, then what its tools can do."""
+    """The tutor's instructions, the name the learner gave it, which language to talk in
+    and the skills it can read (the part that stays the same, ADR 0053 §1), then what it
+    knows about the learner, then (in a practice or planning conversation) what this
+    conversation is for, then what its tools can do."""
     sections = [load_prompt(base), *tutor_name(name), load_prompt(f"language_{language}")]
+    if skills:
+        sections.append(skills)
     if learner_context:
         # replace, not format: memories may contain braces.
         sections.append(

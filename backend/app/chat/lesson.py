@@ -29,10 +29,14 @@ from app.cards.tools import CardScope
 from app.chat.practice import Mistake, _quote
 from app.db.models import ExerciseSet, KCEvidence
 from app.prompts import load_prompt
+from app.skills import load_reference
 
 # The learner's own mistakes on the point in conversation, newest first.
 MISTAKES_SHOWN = 3
 MISTAKE_DAYS = 30
+# The part of a skill a lesson's prompt always carries (ADR 0055 §6).
+CHECKS_SKILL = "exercise-writing"
+CHECKS_PART = "understanding-checks"
 
 _STATES: dict[LessonState, str] = {
     "passed": "passed",
@@ -183,8 +187,14 @@ def render_lesson(brief: LessonBrief) -> str:
             f"- Next lesson once passed: {brief.next.kc.name_en} (grammar point id"
             f" {brief.next.kc.id})"
         )
-    # replace, not format: the learner's sentences may contain braces.
-    return load_prompt("lesson").replace("{lesson}", "\n".join(lines))
+    # replace, not format: the learner's sentences may contain braces. A lesson always
+    # has checks, so their part of the skill is spliced in rather than left for the tutor
+    # to read (ADR 0055 §6).
+    return (
+        load_prompt("lesson")
+        .replace("{checks}", load_reference(CHECKS_SKILL, CHECKS_PART))
+        .replace("{lesson}", "\n".join(lines))
+    )
 
 
 def lesson_opening_cue(brief: LessonBrief | None) -> str:

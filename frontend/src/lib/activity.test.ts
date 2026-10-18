@@ -70,6 +70,15 @@ describe("digest", () => {
     expect(d).toMatchObject({ cardsShown: 1, cardsWithdrawn: 1 });
   });
 
+  it("names each skill read once and counts no card for it (ADR 0055 §6)", () => {
+    const d = digest([
+      step("load_skill", { skill: "exercise-writing", part: null }, { kind: "tool", call_id: "c1" }),
+      step("load_skill", { skill: "exercise-writing", part: "cloze" }, { kind: "tool", call_id: "c2" }),
+      step("load_skill", {}, { kind: "tool", call_id: "c3", status: "failed" }),
+    ]);
+    expect(d).toMatchObject({ skillsRead: ["exercise-writing"], cardsShown: 0, failed: ["load_skill"] });
+  });
+
   it("counts quiz answers a reply gave away (task 95.3)", () => {
     const d = digest([step("quiz_reveal", { kc_id: "g.third", items: 2 })]);
     expect(d).toMatchObject({ answersRevealed: 2, cardsShown: 0 });

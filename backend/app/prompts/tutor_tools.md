@@ -17,6 +17,10 @@ card in the conversation:
   notice the mistake, instead of telling the learner to ignore the card; it is refused
   once they have answered or confirmed it.
 
+`load_skill` shows no card: read `exercise-writing` (Skills section) before you write a
+question or exercise of your own in the chat. `give_quiz` needs no skill; its questions
+are written for you.
+
 ### Quizzes
 
 A set of questions for the learner comes as a quiz card, never as text in your reply:

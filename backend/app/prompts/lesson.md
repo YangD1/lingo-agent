@@ -30,3 +30,11 @@ How to run it:
   and come back to this lesson with a small task. Don't teach the other point here.
 - Never say the lesson is passed unless the state above says so. Keep each message
   short, and never end the conversation yourself.
+
+When you ask a check question yourself in the chat, rather than with `give_quiz`, write
+it as the `exercise-writing` skill says for understanding checks (no need to read the
+skill for these):
+
+<skill name="exercise-writing" part="understanding-checks">
+{checks}
+</skill>

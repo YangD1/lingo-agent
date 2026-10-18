@@ -348,6 +348,7 @@
         "set_workspace_auto_open": "Change when the workspace opens",
         "give_quiz": "Quiz",
         "withdraw_card": "Take back a card",
+        "load_skill": "Read a skill",
         "quiz_reveal": "Check for given-away answers"
       },
       "failed": "{step} failed; this turn was skipped.",
@@ -393,6 +394,13 @@
       "readArticle": "read the article",
       "cardShown": "Showed a card: {card}",
       "cardWithdrawn": "Took back a card: {card}",
+      "readSkill": "read the {skill}",
+      "skillRead": "Read the {skill}: how to write a good question, before writing its own",
+      "skillPartRead": "Read the details of one question type in the {skill}",
+      "skillFailed": "Tried to read a skill that doesn't exist; told the assistant why.",
+      "skills": {
+        "exercise-writing": "question-writing skill"
+      },
       "toolFailed": "A card couldn't be shown ({step}); the assistant was told why.",
       "toolsUnavailable": "The model doesn't support tools, so the assistant answered with links instead of cards.",
       "cardKinds": {

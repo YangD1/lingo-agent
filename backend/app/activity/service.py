@@ -118,6 +118,15 @@ class CardShown(Summary):
     card_kind: str | None = None
 
 
+class SkillLoaded(Summary):
+    """`load_skill`: the tutor read a built-in skill (ADR 0055 §6), or one of its parts.
+    Only names of built-in skills and parts are recorded; a call naming anything else
+    is `failed` with no summary."""
+
+    skill: str
+    part: str | None = None
+
+
 class ToolsUnavailable(Summary):
     """`tools`: the model refused tool calls, so the turn was answered without them."""
 
@@ -193,6 +202,8 @@ STEPS: dict[str, StepSpec] = {
     "set_workspace_auto_open": StepSpec("tool", CardShown),
     "give_quiz": StepSpec("tool", CardShown),
     "withdraw_card": StepSpec("tool", CardShown),
+    # Reads a built-in skill and shows no card (app/skills/tool.py).
+    "load_skill": StepSpec("tool", SkillLoaded),
     # A realtime call's tools (app/realtime/tools.py); `add_to_vocab` as `vocab_collect`.
     "lookup_word": StepSpec("tool", WordLookedUp),
     "add_to_vocab": StepSpec("tool", WordsCollected),

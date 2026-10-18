@@ -6,6 +6,8 @@ from app.adaptive.course import Lesson
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.chat.lesson import LessonBrief, lesson_opening_cue, render_lesson
 from app.chat.practice import Mistake
+from app.prompts import load_prompt
+from app.skills import load_reference
 
 CATALOG = get_grammar_catalog()
 
@@ -39,6 +41,17 @@ def test_a_new_lesson() -> None:
     )
     assert "mistakes on it (data" not in text
     assert "{lesson}" not in text
+
+
+def test_a_lesson_carries_the_skill_part_for_checks() -> None:
+    """ADR 0055 §6: a lesson always has checks, so the tutor need not read the skill."""
+    text = render_lesson(LessonBrief(lesson(THIRD, 4), mistakes=[Mistake("{checks}", None)]))
+
+    checks = load_reference("exercise-writing", "understanding-checks")
+    assert f'part="understanding-checks">\n{checks}\n</skill>' in text
+    assert '"{checks}"' in text  # a learner's sentence is left as written
+    # Other conversations don't carry it.
+    assert checks not in load_prompt("free_chat") + load_prompt("tutor_tools")
 
 
 def test_mistakes_and_quizzes_are_quoted_as_data() -> None:

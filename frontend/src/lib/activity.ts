@@ -35,6 +35,8 @@ export type WorkspaceContextRead = { doc_id: string; version: number; words: num
 export type WorkspaceOpened = { doc_id: string };
 /** A tool call of the tutor (ADR 0015): the card it showed, if any. */
 export type CardShown = { card_id: string | null; card_kind: string | null };
+/** `load_skill`: the tutor read a built-in skill, or one of its parts (ADR 0055 §6). */
+export type SkillLoaded = { skill: string; part?: string | null };
 /** `lookup_word` on a realtime call: the entry found, or what was looked up in vain. */
 export type WordLookedUp = { word: string; word_id?: number | null };
 /** Activity names of a realtime call's tools (backend app/realtime/tools.py, Q61a–c). */
@@ -51,6 +53,7 @@ export const TOOL_NAMES = [
   "close_workspace",
   "set_workspace_auto_open",
   "withdraw_card",
+  "load_skill",
 ] as const;
 export type MemoryChanges = {
   added: string[];
@@ -126,6 +129,8 @@ export type TurnDigest = {
   /** Cards the tutor showed with tool calls, and took back (ADR 0049). */
   cardsShown: number;
   cardsWithdrawn: number;
+  /** Built-in skills the tutor read (ADR 0055 §6), each named once. */
+  skillsRead: string[];
   /** Pass-quiz items whose answer a reply gave away, so they count as wrong. */
   answersRevealed: number;
   profileUpdated: boolean;
@@ -155,6 +160,7 @@ export function digest(activities: Activity[]): TurnDigest {
     workspaceRead: false,
     cardsShown: 0,
     cardsWithdrawn: 0,
+    skillsRead: [],
     answersRevealed: 0,
     profileUpdated: false,
     mistakes: 0,
@@ -189,6 +195,9 @@ export function digest(activities: Activity[]): TurnDigest {
       d.wordsCollected += (a.summary as WordsCollected).added?.length ?? 0;
     } else if (a.name === "withdraw_card") {
       if ((a.summary as CardShown).card_id) d.cardsWithdrawn += 1;
+    } else if (a.name === "load_skill") {
+      const { skill } = a.summary as SkillLoaded;
+      if (skill && !d.skillsRead.includes(skill)) d.skillsRead.push(skill);
     } else if (a.kind === "tool") {
       if ((a.summary as CardShown).card_id) d.cardsShown += 1;
     } else if (a.name === "reflect_memory") {
