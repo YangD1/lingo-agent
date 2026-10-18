@@ -219,7 +219,18 @@ async def test_text_can_be_corrected_until_sent(
     assert (await client.get(f"/attachments/{created['id']}")).json()["sent"] is True
 
 
-async def test_text_cannot_be_set_while_processing(client: AsyncClient) -> None:
+async def test_text_cannot_be_set_while_processing(client: AsyncClient, app: FastAPI) -> None:
+    # Held until the PATCH is answered: a real text file can be read before it arrives
+    # (CI run 39147971700).
+    release = asyncio.Event()
+
+    async def held(job: ProcessingJob) -> ProcessingResult:
+        await release.wait()
+        return ProcessingResult("x")
+
+    app.state.attachment_processor = AttachmentProcessor(
+        app.state.sessionmaker, {"text/plain": held}
+    )
     await login(client)
     conversation = await new_conversation(client)
     created = await uploaded(client, conversation["id"], b"x", "a.txt")
@@ -228,6 +239,8 @@ async def test_text_cannot_be_set_while_processing(client: AsyncClient) -> None:
 
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "attachment_not_ready"
+    release.set()
+    await processor_of(app).wait_idle()
 
 
 async def test_unsent_attachment_can_be_deleted(client: AsyncClient) -> None:
