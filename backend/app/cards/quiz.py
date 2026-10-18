@@ -38,7 +38,15 @@ from app.adaptive.exercise.planner import QuizPurpose
 from app.adaptive.exercise.worker import QuizStart
 from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
 from app.adaptive.rules import get_rules
-from app.cards.tools import CardDraft, CardScope, GiveQuiz, ToolCallError, parse_args, resolve_kc
+from app.cards.tools import (
+    AmbiguousKC,
+    CardDraft,
+    CardScope,
+    GiveQuiz,
+    ToolCallError,
+    parse_args,
+    resolve_kc,
+)
 from app.db.models import Attempt, Exercise, ExerciseSet, TutorCard
 
 logger = logging.getLogger(__name__)
@@ -79,6 +87,7 @@ class QuizTools:
         start: StartQuiz,
         proactive: bool = True,
         lesson: bool = False,
+        focus_kc_id: str | None = None,
     ) -> None:
         self._sessionmaker = sessionmaker
         # The learner lets the tutor give quizzes nobody asked for (ADR 0046 §4); in a
@@ -89,6 +98,9 @@ class QuizTools:
         self._tenant_id = tenant_id
         self._conversation_id = conversation_id
         self._start = start
+        # The grammar point this conversation is about (a lesson's, or the one the
+        # learner asked the tutor about), if any.
+        self._focus_kc_id = focus_kc_id
 
     async def run(
         self, args: Mapping[str, Any], call_id: str, scope: CardScope | None
@@ -98,7 +110,14 @@ class QuizTools:
         assert isinstance(parsed, GiveQuiz)
         within = scope.kc_ids if scope is not None else None
         named = bool(parsed.kc_id or (parsed.topic and parsed.topic.strip()))
-        kc = _grammar_point(parsed, within) if named else await self._current(parsed, within)
+        picked = ""
+        if not named:
+            kc = await self._current(parsed, within)
+        else:
+            try:
+                kc = _grammar_point(parsed, within)
+            except AmbiguousKC as several:
+                kc, picked = await self._pick(several)
         async with self._sessionmaker() as session:
             earlier = await session.scalar(
                 select(TutorCard.params).where(
@@ -130,6 +149,8 @@ class QuizTools:
                 f"Quiz card shown: {what} on {kc.name_en}. Its questions are being written "
                 "and checked."
             )
+        if picked:
+            shown += picked
         if not named:
             shown += (
                 f" No grammar point was named, so the card tests their current lesson, "
@@ -148,6 +169,46 @@ class QuizTools:
                     "proactive": not parsed.asked,
                 },
             ),
+        )
+
+    async def _pick(self, several: AmbiguousKC) -> tuple[GrammarKC, str]:
+        """Of the grammar points a name matches equally well, the one to test, and a note
+        for the tutor saying why (task 102): the one this conversation has been on, else
+        the learner's current lesson, else the first in the course they have not passed."""
+        best = {kc.id: kc for kc in several.best}
+        async with self._sessionmaker() as session:
+            recent: Iterable[str | None] = await session.scalars(
+                select(TutorCard.params["kc_id"].as_string())
+                .where(TutorCard.conversation_id == self._conversation_id)
+                .order_by(TutorCard.created_at.desc())
+            )
+            talked = [self._focus_kc_id, *recent]
+            kc_id = next((k for k in talked if k in best), None)
+            why = "the one this conversation has been on"
+            if kc_id is None:
+                found = await course.load(
+                    session,
+                    self._user_id,
+                    rules=get_rules(),
+                    catalog=get_grammar_catalog(),
+                    now=datetime.now(UTC),
+                )
+                await session.commit()  # stale mastery rows may have been rebuilt
+                lessons = [lesson for lesson in found.lessons if lesson.kc.id in best]
+                if found.current in best:
+                    kc_id, why = found.current, "their current lesson"
+                elif open_ := [x for x in lessons if x.state not in ("passed", "review")]:
+                    kc_id, why = open_[0].kc.id, "the first of them they have not passed yet"
+                elif lessons:
+                    kc_id, why = lessons[0].kc.id, "the most basic of them"
+                else:  # every catalog KC is in the course
+                    kc_id, why = several.best[0].id, "the most basic of them"
+        kc = best[kc_id]
+        others = "; ".join(f"{k.id} ({k.name_en})" for k in several.close if k.id != kc.id)
+        return kc, (
+            f" The name matched several grammar points, so the card tests {why}. Tell the "
+            f"learner in a sentence which point it tests. Close to it: {others}; if they "
+            "meant one of these, withdraw this card and call give_quiz with its kc_id."
         )
 
     async def _current(self, parsed: GiveQuiz, within: Collection[str] | None) -> GrammarKC:
@@ -215,7 +276,6 @@ def _grammar_point(parsed: GiveQuiz, within: Collection[str] | None) -> GrammarK
         within,
         unmatched="try another name in English, or ask the questions in your reply if the "
         "test is not on one grammar point",
-        several="the one closest to what you were teaching; do not write the questions yourself.",
     )
 
 

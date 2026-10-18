@@ -676,6 +676,7 @@ async def _reply(
                     start=request.app.state.practice_worker.start_quiz,
                     proactive=(turn.providers.tutor is None or turn.providers.tutor.quiz_proactive),
                     lesson=lesson is not None,
+                    focus_kc_id=turn.focus_kc_id,
                 ),
                 lessons=LessonCards(
                     sessionmaker,

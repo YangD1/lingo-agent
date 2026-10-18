@@ -327,6 +327,17 @@ class ToolCallError(Exception):
     to show and specific enough to correct the call."""
 
 
+class AmbiguousKC(ToolCallError):
+    """A name that matches several grammar points equally well: `best` holds those, in
+    catalog order; `close` the ones offered back, best first. A tool that can pick one
+    itself catches it (task 102)."""
+
+    def __init__(self, message: str, best: list[GrammarKC], close: list[GrammarKC]) -> None:
+        super().__init__(message)
+        self.best = best
+        self.close = close
+
+
 @dataclass(frozen=True)
 class CardDraft:
     kind: CardKind
@@ -402,9 +413,11 @@ def resolve_kc(
     if pick is not None and (picked := pick(best)):
         return picked
     listed = "; ".join(f"{m.kc.id} ({m.kc.name_en})" for m in matches[:_CANDIDATES])
-    raise ToolCallError(
+    raise AmbiguousKC(
         f"{query!r} matches several grammar points: {listed}. "
-        f"Call {tool} again now with the kc_id of {several}"
+        f"Call {tool} again now with the kc_id of {several}",
+        best,
+        [m.kc for m in matches[:_CANDIDATES]],
     )
 
 

@@ -2,6 +2,7 @@
 the set's results reach the tutor's context on later turns."""
 
 import uuid
+from collections.abc import Collection
 from dataclasses import replace
 from datetime import timedelta
 
@@ -237,26 +238,103 @@ async def test_a_topic_finds_the_grammar_point(
     assert row.focus_kc_id == "g.word_order_svo"
 
 
-async def test_an_unclear_topic_lists_candidates(
-    client: AsyncClient, db_session: AsyncSession, script: Script
+PERFECT = "present perfect"
+
+
+def patch_course(
+    monkeypatch: pytest.MonkeyPatch, *, current: str | None = None, passed: Collection[str] = ()
 ) -> None:
+    """The learner's course with `current` as the current lesson and `passed` passed."""
+    real = course.load
+
+    async def load(*args: object, **kwargs: object) -> course.Course:
+        found = await real(*args, **kwargs)  # type: ignore[arg-type]
+        lessons = [
+            replace(lesson, state="passed") if lesson.kc.id in passed else lesson
+            for lesson in found.lessons
+        ]
+        return replace(found, current=current, lessons=lessons)
+
+    monkeypatch.setattr(course, "load", load)
+
+
+async def perfect_lessons(client: AsyncClient) -> list[str]:
+    """The present perfect lessons "present perfect" matches, in course order."""
+    lessons = (await client.get("/course")).json()["lessons"]
+    return [x["kc_id"] for x in lessons if x["kc_id"].startswith("g.present_perfect_")]
+
+
+async def quiz_on(client: AsyncClient, script: Script, conversation: str, **args: object) -> str:
+    """The KC of the card one give_quiz call shows."""
+    script.replies = [[tool_call("give_quiz", purpose="quiz", asked=True, **args)], "Try it."]
+    _, events, _ = await send(client, conversation, "Test me on the present perfect.")
+    (card,) = kinds(events, "card")
+    return str(card["params"]["kc_id"])
+
+
+async def test_a_broad_topic_tests_the_first_point_not_passed(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    script: Script,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Task 102: a name matching several points shows a card at once, no second call."""
     conversation = await ready(client)
+    first, second, *_ = await perfect_lessons(client)
+    patch_course(monkeypatch, passed={first})
     script.replies = [
         [
-            tool_call("give_quiz", topic="present perfect", purpose="quiz", asked=True),
+            tool_call("give_quiz", topic=PERFECT, purpose="quiz", asked=True),
             tool_call("give_quiz", topic="photosynthesis", purpose="quiz", asked=True),
         ],
-        "Which part of the present perfect?",
+        "Try the card.",
     ]
 
     _, events, _ = await send(client, conversation, "Test me on the present perfect.")
 
-    assert kinds(events, "card") == []
-    assert await quiz_sets(db_session) == []
-    several, none = (m.text for m in results(script, call=-1)[-2:])
-    assert "matches several grammar points" in several
-    assert "g.present_perfect_for_since" in several
+    (card,) = kinds(events, "card")
+    assert card["params"]["kc_id"] == second
+    (row,) = await quiz_sets(db_session)
+    assert row.focus_kc_id == second
+    shown, none = (m.text for m in results(script, call=-1)[-2:])
+    assert "the first of them they have not passed yet" in shown, shown
+    assert first in shown.split("Close to it:")[1] and "withdraw this card" in shown
     assert "no grammar point matches" in none
+
+
+async def test_a_broad_topic_all_passed_tests_the_most_basic(
+    client: AsyncClient, script: Script, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conversation = await ready(client)
+    lessons = await perfect_lessons(client)
+    patch_course(monkeypatch, passed=set(lessons))
+
+    assert await quiz_on(client, script, conversation, topic=PERFECT) == lessons[0]
+    assert "the most basic of them" in results(script, call=-1)[-1].text
+
+
+async def test_a_broad_topic_tests_the_current_lesson(
+    client: AsyncClient, script: Script, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conversation = await ready(client)
+    current = (await perfect_lessons(client))[-1]
+    patch_course(monkeypatch, current=current)
+
+    assert await quiz_on(client, script, conversation, topic=PERFECT) == current
+    assert "their current lesson" in results(script, call=-1)[-1].text
+
+
+async def test_a_broad_topic_tests_the_point_the_conversation_is_on(
+    client: AsyncClient, script: Script, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conversation = await ready(client)
+    lessons = await perfect_lessons(client)
+    patch_course(monkeypatch, current=lessons[-1])
+    earlier = lessons[1]
+    assert await quiz_on(client, script, conversation, kc_id=earlier) == earlier
+
+    assert await quiz_on(client, script, conversation, topic=PERFECT, fresh=True) == earlier
+    assert "the one this conversation has been on" in results(script, call=-1)[-1].text
 
 
 async def test_no_grammar_point_tests_the_current_lesson(
