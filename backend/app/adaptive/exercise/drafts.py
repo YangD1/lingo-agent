@@ -83,31 +83,41 @@ def difficulty(kc: GrammarKC, ratings: BaseModel, rules: Rules) -> tuple[float, 
 # --- the generator ---
 
 
+# The kinds of error a find_fix item may plant (ADR 0055 §3): a missing word has no single
+# wrong piece, so it is not one of them.
+ERROR_KINDS = ("form", "word_choice")
+
+
 class Draft(_Model):
+    """Fields in the order a format's schema lists them: the self-check fields
+    (`other_fillings`, `error_kind`) come before the key, so the model thinks before it
+    writes the answer (ADR 0055 §3). They are for writing the item only: neither the
+    learner nor the critic sees them."""
+
     position: int = Field(description="The position of the item this draft is for")
     format: Format
-    stem: str | None = Field(
-        None, description="choice4, cloze: the sentence with exactly one ___ for the gap"
-    )
-    options: list[str] | None = Field(
-        None, description="choice4, concept_choice: the four options, the correct one included"
-    )
-    correct: str | None = Field(
-        None, description="choice4, concept_choice: the correct option, as written"
-    )
     question: str | None = Field(
         None, description="concept_choice, explain: the question about the rule"
     )
-    key_points: list[str] | None = Field(
-        None, description="explain: 1-4 points a good answer covers, as short phrases"
+    stem: str | None = Field(
+        None, description="choice4, cloze: the sentence with exactly one ___ for the gap"
     )
     hint: str | None = Field(None, description="cloze: e.g. the base form of the verb, or null")
+    options: list[str] | None = Field(
+        None, description="choice4, concept_choice: the four options, the correct one included"
+    )
     segments: list[str] | None = Field(
         None,
         description="find_fix: the sentence in 3-6 consecutive pieces that join into it "
         "exactly (pieces carry their own spaces and punctuation); one piece is wrong",
     )
-    wrong_segment: int | None = Field(None, description="find_fix: index of the wrong piece")
+    error_kind: str | None = Field(
+        None,
+        description="find_fix: the kind of error planted, before you mark it: form (a wrong "
+        "ending, tense, word order or pronoun) or word_choice (the wrong word of a pair). "
+        "Never a missing word",
+        json_schema_extra={"enum": list(ERROR_KINDS)},
+    )
     instruction: str | None = Field(
         None, description="transform, translate, rewrite_own: what the learner is to do"
     )
@@ -115,6 +125,19 @@ class Draft(_Model):
         None,
         description="transform: the English sentence to change; translate: the sentence "
         "in the learner's language",
+    )
+    other_fillings: list[str] | None = Field(
+        None,
+        description="choice4, cloze: before you write the answer, what else a learner might "
+        "put in the gap and what in the sentence rules it out, one short line each "
+        '(e.g. "am not: Look! shows it is happening")',
+    )
+    correct: str | None = Field(
+        None, description="choice4, concept_choice: the correct option, as written"
+    )
+    wrong_segment: int | None = Field(None, description="find_fix: index of the wrong piece")
+    key_points: list[str] | None = Field(
+        None, description="explain: 1-4 points a good answer covers, as short phrases"
     )
     accepted: list[str] | None = Field(
         None,
@@ -155,9 +178,14 @@ def generated_set_model(rules: Rules, briefs: Sequence[ItemBrief]) -> type[BaseM
 @cache
 def _item_model(fmt: Format, ratings: type[BaseModel]) -> type[BaseModel]:
     required = REQUIRED[fmt]
+    wanted = {*required, *OPTIONAL.get(fmt, ())}
     fields: dict[str, Any] = {
-        name: (Draft.model_fields[name].annotation, Field(None, description=_described(name)))
-        for name in (*required, *OPTIONAL.get(fmt, ()))
+        name: (
+            info.annotation,
+            Field(None, description=info.description, json_schema_extra=info.json_schema_extra),
+        )
+        for name, info in Draft.model_fields.items()
+        if name in wanted
     }
     return create_model(
         f"Draft_{fmt}",
@@ -214,9 +242,9 @@ class DraftError(ValueError):
 # The draft fields each format is assembled from, besides `explanation`: the generator
 # is told them per item, in its brief and in the schema (task 86.9).
 REQUIRED: Mapping[Format, tuple[str, ...]] = {
-    "choice4": ("stem", "options", "correct"),
-    "cloze": ("stem", "accepted"),
-    "find_fix": ("segments", "wrong_segment", "accepted"),
+    "choice4": ("stem", "options", "other_fillings", "correct"),
+    "cloze": ("stem", "other_fillings", "accepted"),
+    "find_fix": ("segments", "error_kind", "wrong_segment", "accepted"),
     "transform": ("instruction", "source", "accepted"),
     "translate": ("source", "accepted"),
     "rewrite_own": ("instruction", "accepted"),
@@ -265,6 +293,12 @@ def to_body(draft: Draft, brief: ItemBrief, rng: random.Random) -> ExerciseBody:
         raise DraftError(f"format is {draft.format}, planned {fmt}")
     if missing := _missing(draft, fmt):
         raise DraftError("; ".join(f"`{f}` is missing: {fmt} needs {_wanted(f)}" for f in missing))
+    if fmt == "find_fix" and draft.error_kind not in ERROR_KINDS:
+        raise DraftError(
+            f"`error_kind` is {draft.error_kind!r}: find_fix only plants an error of form or "
+            "word_choice; for a missing word write a new find_fix sentence with a wrong word "
+            "instead"
+        )
     content: dict[str, Any]
     answer: dict[str, Any] = {"explanation": draft.explanation}
     match fmt:

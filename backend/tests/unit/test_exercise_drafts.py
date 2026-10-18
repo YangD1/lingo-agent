@@ -45,11 +45,18 @@ DRAFTS: dict[Format, dict[str, Any]] = {
     "choice4": {
         "stem": "My brother ___ in a hospital.",
         "options": ["works", "work", "working", "is work"],
+        "other_fillings": ["work: my brother is one person"],
         "correct": "works",
     },
-    "cloze": {"stem": "She ___ coffee every morning.", "hint": "drink", "accepted": ["drinks"]},
+    "cloze": {
+        "stem": "She ___ coffee every morning.",
+        "hint": "drink",
+        "other_fillings": ["drank: a habit"],
+        "accepted": ["drinks"],
+    },
     "find_fix": {
         "segments": ["He ", "go ", "to work ", "by bus."],
+        "error_kind": "form",
         "wrong_segment": 1,
         "accepted": ["goes "],
     },
@@ -474,3 +481,70 @@ def test_no_examples_without_bank_items_on_the_grammar_point() -> None:
     for bank in (None, other):
         _, human = messages.generate_messages([brief("cloze")], LEARNER, RULES, bank=bank)
         assert "Example items" not in text(human)
+
+
+# --- self-check fields (ADR 0055 §3) ---
+
+
+def test_self_check_fields_come_before_the_key_in_the_schema() -> None:
+    model = drafts.generated_set_model(
+        RULES, [brief("choice4", 0), brief("cloze", 1), brief("find_fix", 2)]
+    )
+    defs = model.model_json_schema()["$defs"]
+    assert list(defs["Draft_choice4"]["properties"])[:4] == [
+        "stem",
+        "options",
+        "other_fillings",
+        "correct",
+    ]
+    assert list(defs["Draft_cloze"]["properties"])[:4] == [
+        "stem",
+        "hint",
+        "other_fillings",
+        "accepted",
+    ]
+    find_fix = defs["Draft_find_fix"]
+    assert list(find_fix["properties"])[:3] == ["segments", "error_kind", "wrong_segment"]
+    assert find_fix["properties"]["error_kind"]["enum"] == ["form", "word_choice"]
+    assert {"other_fillings", "error_kind"} <= {
+        *defs["Draft_choice4"]["required"],
+        *defs["Draft_cloze"]["required"],
+        *find_fix["required"],
+    }
+
+
+def test_drafts_without_their_self_check_go_back_for_a_rewrite() -> None:
+    for fmt, name in (("choice4", "other_fillings"), ("cloze", "other_fillings")):
+        with pytest.raises(drafts.DraftError, match=f"`{name}` is missing"):
+            drafts.to_body(draft(fmt, **{name: []}), brief(fmt), random.Random(0))
+
+
+@pytest.mark.parametrize("kind", [None, "missing_word", "Form"])
+def test_find_fix_with_another_error_kind_goes_back_for_a_rewrite(kind: str | None) -> None:
+    with pytest.raises(drafts.DraftError, match="error_kind"):
+        drafts.to_body(draft("find_fix", error_kind=kind), brief("find_fix"), random.Random(0))
+
+
+def test_an_off_list_error_kind_still_parses_so_only_that_item_is_rewritten() -> None:
+    briefs = [brief("find_fix", 0), brief("cloze", 1)]
+    data = {
+        "item_0": {**DRAFTS["find_fix"], "error_kind": "missing_word"},
+        "item_1": DRAFTS["cloze"],
+    }
+    data = {k: {**v, "explanation": "x", "ratings": ratings()} for k, v in data.items()}
+    output = drafts.generated_set_model(RULES, briefs).model_validate(data)
+    found = drafts.drafts_in(output, briefs)
+    assert [d.error_kind for d in found] == ["missing_word", None]
+
+
+def test_self_checks_reach_neither_the_item_nor_the_critic() -> None:
+    items = [
+        (brief(fmt, i), drafts.to_body(draft(fmt, i), brief(fmt, i), random.Random(0)))
+        for i, fmt in enumerate(["choice4", "cloze", "find_fix"])
+    ]
+    for _, body in items:
+        dumped = json.dumps(body.model_dump(), ensure_ascii=False)
+        assert "other_fillings" not in dumped and "error_kind" not in dumped
+    _, human = messages.critic_messages(items, LEARNER, RULES)
+    assert "other_fillings" not in text(human) and "a habit" not in text(human)
+    assert "error_kind" not in text(human)

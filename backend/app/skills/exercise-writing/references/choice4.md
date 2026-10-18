@@ -1,7 +1,10 @@
 # choice4: four options, one gap
 
-Fields: `stem` with exactly one `___`, four distinct `options`, and `correct` (one of
-the options, written exactly the same).
+Fields: `stem` with exactly one `___`, four distinct `options`, `other_fillings`, and
+`correct` (one of the options, written exactly the same). In `other_fillings`, before
+you write `correct`, go through the wrong options and anything else a learner might
+put in the gap, and say what in the sentence rules each one out. If you cannot say it
+for one of them, change the sentence.
 
 - The wrong options are mistakes a learner without the rule really makes (see the
   grammar point's common errors), and each one is clearly wrong in this sentence - not

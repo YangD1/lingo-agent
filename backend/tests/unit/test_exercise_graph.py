@@ -60,10 +60,21 @@ DRAFTS: dict[Format, dict[str, Any]] = {
     "choice4": {
         "stem": "My brother ___ in a hospital.",
         "options": ["works", "work", "working", "is work"],
+        "other_fillings": ["work: my brother is one person"],
         "correct": "works",
     },
-    "cloze": {"stem": "She ___ coffee.", "hint": "drink", "accepted": ["drinks"]},
-    "find_fix": {"segments": ["He ", "go ", "to work."], "wrong_segment": 1, "accepted": ["goes "]},
+    "cloze": {
+        "stem": "She ___ coffee.",
+        "hint": "drink",
+        "other_fillings": ["drank: a habit"],
+        "accepted": ["drinks"],
+    },
+    "find_fix": {
+        "segments": ["He ", "go ", "to work."],
+        "error_kind": "form",
+        "wrong_segment": 1,
+        "accepted": ["goes "],
+    },
     "transform": {
         "instruction": "Use 'my sister'.",
         "source": "I play tennis.",

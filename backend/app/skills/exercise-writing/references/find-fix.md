@@ -1,9 +1,10 @@
 # find_fix: find the wrong piece and fix it
 
 Fields: `segments`, the sentence in 3-6 consecutive pieces that join into it exactly
-(each piece carries its own spaces and punctuation); exactly one piece has an error on
-the grammar point, at `wrong_segment` (0-based); `accepted` lists the right
-replacements for that piece. Every other piece is correct.
+(each piece carries its own spaces and punctuation); `error_kind`, the kind of error
+you planted (`form` or `word_choice`), written before you mark it; exactly one piece
+has an error on the grammar point, at `wrong_segment` (0-based); `accepted` lists the
+right replacements for that piece. Every other piece is correct.
 
 - Only errors of **form or word choice**: a wrong ending, a wrong tense, a wrong
   pronoun, the wrong word of a pair (bored / boring). The wrong piece contains the

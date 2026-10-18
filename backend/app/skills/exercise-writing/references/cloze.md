@@ -1,7 +1,11 @@
 # cloze: one gap to fill
 
 Fields: `stem` with exactly one `___`, an optional `hint` (usually the base form to put
-in the right form), and `accepted`: every filling that is right, nothing else.
+in the right form), `other_fillings`, and `accepted`: every filling that is right,
+nothing else. In `other_fillings`, before you write `accepted`, list what else a
+learner might write in the gap (a negative, another tense, a contraction, another
+number of words) and what in the sentence or hint rules it out. Anything you cannot
+rule out is either another accepted answer or a reason to change the sentence.
 
 - The context must rule out every other grammatical filling. Read the whole sentence
   with your answer in it, then ask: could a negative fit? A different tense? A
