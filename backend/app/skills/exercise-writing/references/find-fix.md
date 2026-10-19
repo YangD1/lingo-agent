@@ -14,6 +14,10 @@ right replacements for that piece. Every other piece is correct.
 - Cut the sentence so the error sits inside one piece, with its neighbours correct on
   their own. Do not split the tested form across two pieces.
 - Plant exactly one error; check that every other piece is right as it stands.
+- The error is in the grammar, never only in the spelling. "runing", "siting",
+  "studing" have the right form with a spelling slip (a doubled consonant, y to ie):
+  they test spelling rules, not the grammar point. Pick a verb whose form has no
+  spelling change, or plant a wrong form ("is read" for "is reading").
 
 Good (third person -s):
 - segments: "My brother ", "work ", "in a bank ", "near our house."
@@ -24,3 +28,9 @@ Bad:
 - segments: "He ", "eating ", "now."
 - Why it fails: the error is a missing "is", which could go into either of the first
   two pieces.
+
+Bad (present continuous):
+- segments: "I ", "am runing ", "now."
+- Why it fails: "am" + -ing is already right; only the doubled n is missing, so the
+  item tests spelling.
+  Better: "She ", "is read ", "a book in the garden now.", accepted "is reading ".

@@ -12,6 +12,12 @@ null; `accepted` lists good translations, best first.
   translation is natural and correct, the question does not test the point: rule it
   out in the source, or say in the instruction what meaning to keep (who does what,
   what the speaker arranged - never the form), or pick another sentence.
+- Common ways around the point: for -ed / -ing, words like 有趣 / 好玩 translate as
+  "fun" or "good"; use a feeling whose English has no everyday word outside the pair
+  (无聊, 累, 吓人, 失望), best with both the thing and the person in the sentence. For
+  the passive, a source that names the doer ("是我爸爸拍的") reads just as well in the
+  active; leave the doer out and make the thing the topic ("我的自行车昨天被偷了"),
+  with an instruction to start with it if needed.
 - The instruction may say what kind of meaning to express ("talk about the music in
   this particular film") but must not give the tested word or form ("use boring",
   "use has").
@@ -24,6 +30,20 @@ Good (-ed / -ing adjectives):
 - instruction: null
 - accepted: "This film is so boring that I'm almost falling asleep.", ...
 - Why it works: the film causes the feeling, so the learner must choose boring.
+
+Bad (-ed / -ing adjectives):
+- source: "这本书很有趣。" accepted: "This book is very interesting."
+- Why it fails: "This book is fun." / "... really good." are natural and need no
+  -ed / -ing choice.
+  Better: "这个讲座太无聊了，大家都觉得很无聊。", accepted "The talk was so boring
+  that everyone was bored.", "The lecture was really boring, and everyone was
+  bored.", ...
+
+Bad (passive):
+- source: "这些照片是我爸爸昨天拍的。"
+- Why it fails: "My dad took these photos yesterday." is just as natural.
+  Better: source "我的自行车昨天被偷了。", instruction "Start with My bike.",
+  accepted "My bike was stolen yesterday.", "My bike got stolen yesterday."
 
 Bad (causative have / get):
 - source: "我昨天找人修了自行车。" accepted: "I had my bike repaired yesterday."

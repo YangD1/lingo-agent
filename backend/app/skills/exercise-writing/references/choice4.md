@@ -14,6 +14,11 @@ for one of them, change the sentence.
   different meaning) gives the answer away.
 - Before fixing `correct`, try each wrong option in the sentence. If one could be right
   in some reading, change the context.
+- For the passive, no wrong option may make a right sentence of another kind: an
+  adjective ("are clean", "is closed") or a verb that works without a doer ("broke",
+  "opened", "sold"). Use a verb that needs one (steal, build, invite, write) or a "by"
+  phrase, and make the wrong options form mistakes ("are cleaning", "cleaned", "is
+  cleaned").
 
 Good (modal perfect):
 - stem: "I feel sick now. I ___ so much cake at the party."
@@ -28,3 +33,10 @@ Bad:
 - options: "shouldn't have eaten", "didn't eat", "ate", "shouldn't eat"
 - Why it fails: without context "didn't eat" and "ate" are also fine sentences, and
   "shouldn't eat" is fine as advice. Nothing in the sentence asks for a regret.
+
+Bad (passive):
+- stem: "These rooms ___ every day, so they always look nice."
+- options: "cleaned", "is cleaned", "are cleaned", "are clean"
+- Why it fails: "These rooms are clean every day" is also right.
+  Better: "These rooms ___ by the hotel staff every morning.", options "are cleaned",
+  "are cleaning", "cleaned", "is cleaned".

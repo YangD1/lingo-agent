@@ -143,8 +143,9 @@ class Draft(_Model):
     )
     accepted: list[str] | None = Field(
         None,
-        description="cloze: every right filling; find_fix: every right replacement for the "
-        "wrong piece; transform, translate, rewrite_own: right full answers, best first",
+        description="cloze: the one right filling, in each spelling (contraction, full "
+        "form); find_fix: every right replacement for the wrong piece; transform, "
+        "translate, rewrite_own: right full answers, best first",
     )
     explanation: str = Field(description="Why the answer is right, for after the learner answers")
 

@@ -16,6 +16,10 @@ rewrites, best first.
   how to use it (its position, its form). If choosing that word is the point (ever /
   never, much / far, since / for), or the source already has the tested form so the
   learner only adds the word, the item tests nothing: describe the meaning instead.
+- For a contrast between two tenses (present perfect / past simple, past simple / past
+  continuous), the learner must be able to pick the wrong one of the pair. Start from
+  one of the two and ask for a change that needs the other; moving a present simple to
+  "yesterday" only tests the past simple.
 
 Good (adverbs of frequency):
 - source: "You are happy. (always)"
@@ -33,6 +37,13 @@ Bad (present perfect for experience):
   Better: source "This is my first time on a plane.", instruction "Say the same thing,
   starting with I.", accepted "I have never been on a plane before.", "I've never
   flown before."
+
+Bad (present perfect / past simple):
+- source: "I walk to school every day." instruction: "Make it about yesterday."
+- Why it fails: only the past simple can be right; nothing tempts the present perfect.
+  Better: source "I have seen that film.", instruction "Add that it was last
+  Saturday.", accepted "I saw that film last Saturday.", "I saw it last Saturday."
+  ("I have seen that film last Saturday" is the mistake the item catches.)
 
 Bad (modifiers of comparatives):
 - source: "This phone is more expensive than that one." instruction: "Use much to
