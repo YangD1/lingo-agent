@@ -72,10 +72,14 @@ export async function answerOne(page: Page): Promise<void> {
   } else {
     await page.keyboard.press("1");
   }
+  // `allTextContents` doesn't wait: after the last answer the progress line is gone, and
+  // `textContent` would wait for it until the test timed out (task 108). A short fixed
+  // interval, since the default backs off to 1 s, which adds up over some 60 answers.
   await expect(async () => {
     const done = await page.getByTestId("placement-result").isVisible();
-    expect(done || (await progress.textContent()) !== before).toBe(true);
-  }).toPass();
+    const [now] = await progress.allTextContents();
+    expect(done || now !== before).toBe(true);
+  }).toPass({ intervals: [50] });
 }
 
 /**
