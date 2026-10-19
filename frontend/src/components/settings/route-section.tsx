@@ -398,6 +398,12 @@ export function RouteSection({
             {!compact && shown.some((m) => reasoningOptions[m]) && (
               <p className="text-xs text-muted-foreground">{t("reasoningHint")}</p>
             )}
+            {/* Measured in task 107.1: low halves the wait for the first exercise. */}
+            {!compact &&
+              (task === "exercise_generate" || task === "exercise_critic") &&
+              shown.some((m) => reasoningOptions[m]?.includes("low")) && (
+                <p className="text-xs text-muted-foreground">{t("reasoningExerciseHint")}</p>
+              )}
             <div className="flex gap-2">
               <Button
                 size="sm"

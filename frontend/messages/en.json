@@ -1301,6 +1301,7 @@
         "high": "High"
       },
       "reasoningHint": "Reasoning models think before they answer: the more they think, the later the first word appears. Each model lists only the levels it takes (some only switch thinking on or off); models without a list stay at their default. Default sends nothing.",
+      "reasoningExerciseHint": "For writing and reviewing exercises, Low is usually enough: in our tests the first exercise arrived about twice as fast, and reviews caught bad exercises as well as at the default level.",
       "reasoningSaved": "{ref}: reasoning set to {level}."
     },
     "usage": {

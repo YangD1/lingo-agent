@@ -134,6 +134,7 @@ describe("RouteSection", () => {
     expect(await screen.findByText("Exercise writer")).toBeInTheDocument();
     // Only the models that take a level have the choice.
     expect(screen.queryByRole("combobox", { name: "Reasoning for relay:other" })).toBeNull();
+    expect(screen.getByText(/Low is usually enough/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("combobox", { name: "Reasoning for relay:chat-model" }));
     const options = await screen.findAllByRole("option");
     expect(options.map((o) => o.textContent)).toEqual(["Default", "Off", "Low", "Medium", "High"]);
@@ -184,6 +185,32 @@ describe("RouteSection", () => {
     expect(savedReasoning({ "relay:gpt": "high", "gone:m": "low" }, options, ["relay:gpt"])).toEqual({
       "relay:gpt": "high",
     });
+  });
+
+  it("suggests Low only on the exercise routes, and only for models that take it", async () => {
+    const chat = route({
+      task: "chat",
+      effective: ["relay:chat-model"],
+      effective_source: "auto",
+      reasoning_options: { "relay:chat-model": ["low", "medium", "high"] },
+    });
+    const critic = route({
+      task: "exercise_critic",
+      effective: ["qwen:qwen-plus"],
+      effective_source: "default",
+      reasoning_options: { "qwen:qwen-plus": ["off", "on"] },
+    });
+    api.mockImplementation(async (path: string) =>
+      path === "/tenant/routes" ? [chat, ...ROUTES.slice(1), critic] : undefined,
+    );
+    const { unmount } = show("chat", [RELAY]);
+    expect(await screen.findByRole("combobox", { name: /^Reasoning for/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Low is usually enough/)).not.toBeInTheDocument();
+    unmount();
+
+    show("exercise_critic", [RELAY]);
+    expect(await screen.findByRole("combobox", { name: /^Reasoning for/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Low is usually enough/)).not.toBeInTheDocument();
   });
 
   it("offers reasoning only on chat model routes", async () => {
