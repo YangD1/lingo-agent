@@ -13,6 +13,10 @@ right replacements for that piece. Every other piece is correct.
   so the wrong piece is not unique. Use `cloze` or `transform` for missing words.
 - Cut the sentence so the error sits inside one piece, with its neighbours correct on
   their own. Do not split the tested form across two pieces.
+- When the error is a clash between two words (a tense and a time phrase, "There
+  are" and "a dog"), changing either word fixes it. Put both
+  in the same piece: "have played football yesterday ", not "have played " and
+  "yesterday.".
 - Plant exactly one error; check that every other piece is right as it stands.
 - The error is in the grammar, never only in the spelling. "runing", "siting",
   "studing" have the right form with a spelling slip (a doubled consonant, y to ie):

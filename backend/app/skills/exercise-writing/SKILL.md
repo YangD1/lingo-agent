@@ -60,7 +60,9 @@ what the learner has to change. It must not be the changed form itself.
 ## Natural English
 
 Short sentences people really say or write, in a situation a learner recognises. No
-trick questions, no rare words, nothing culturally specific, nothing private.
+trick questions, no rare words, nothing culturally specific, nothing private. An
+instruction or source in the learner's language must read naturally too (the right
+measure word: 一个鸡蛋, not 一只蛋).
 
 The details for each format are in this skill's references: `choice4`, `cloze`,
 `find-fix`, `transform`, `translate`, `rewrite-own`, and for questions that check
