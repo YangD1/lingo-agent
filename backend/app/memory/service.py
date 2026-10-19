@@ -431,6 +431,21 @@ async def relevant_episodes(
     return [by_id[key] for key in picked]
 
 
+async def episodes_by_ids(
+    session: AsyncSession, user_id: uuid.UUID, ids: Sequence[uuid.UUID]
+) -> list[Memory]:
+    """These summaries in this order, without the ones deleted since (ADR 0053 §3)."""
+    if not ids:
+        return []
+    found = await session.scalars(
+        select(Memory).where(
+            Memory.user_id == user_id, Memory.kind == "episode", Memory.id.in_(ids)
+        )
+    )
+    by_id = {memory.id: memory for memory in found}
+    return [by_id[key] for key in ids if key in by_id]
+
+
 async def memories_missing_embeddings(
     session: AsyncSession, user_id: uuid.UUID, embedder: MemoryEmbedder, *, limit: int = 20
 ) -> Sequence[Memory]:

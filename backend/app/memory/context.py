@@ -7,8 +7,10 @@ deletes is gone from the very next turn.
 
 import logging
 import uuid
+from collections import OrderedDict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -30,6 +32,21 @@ MAX_EPISODE_CHARS = 600
 EPISODES_IN_CONTEXT = 3
 
 _LANGUAGES = {"zh": "Chinese", "en": "English"}
+
+
+@dataclass(frozen=True)
+class _Pinned:
+    """What a sitting's first turn picked (ADR 0053 §3): the summaries, by id, and the
+    rendered progress. Kept for the sitting, so the prompt prefix stays the same."""
+
+    episode_ids: tuple[uuid.UUID, ...]
+    progress: str
+
+
+# (conversation, sitting start) -> what its first turn picked. In memory only: after a
+# restart, or on another worker, the next turn picks again (one cache miss).
+_PINNED: OrderedDict[tuple[uuid.UUID, datetime], _Pinned] = OrderedDict()
+MAX_PINNED = 1000
 
 
 @dataclass(frozen=True)
@@ -90,14 +107,28 @@ class DatabaseLearner:
                 else None
             )
             facts = await service.facts_for_context(session, self._user_id, sitting_since=since)
-            episodes = await service.relevant_episodes(
-                session,
-                self._user_id,
-                query,
-                embedder=self._embedder,
-                limit=EPISODES_IN_CONTEXT,
-                exclude_conversation_id=self._conversation_id,
-            )
+            key = (self._conversation_id, since) if self._conversation_id and since else None
+            pinned = _PINNED.get(key) if key else None
+            if pinned is not None:
+                # Re-read by id: a summary the learner deleted is gone at once.
+                episodes = await service.episodes_by_ids(session, self._user_id, pinned.episode_ids)
+            else:
+                episodes = await service.relevant_episodes(
+                    session,
+                    self._user_id,
+                    query,
+                    embedder=self._embedder,
+                    limit=EPISODES_IN_CONTEXT,
+                    exclude_conversation_id=self._conversation_id,
+                )
+        progress: str | None
+        if pinned is not None:
+            progress = pinned.progress
+        else:
+            progress = await self._progress()
+            # A failed read is not pinned: the next turn tries again.
+            if key is not None and progress is not None:
+                _pin(key, _Pinned(tuple(m.id for m in episodes), progress))
         return LearnerContext(
             profile=profile_lines(profile) if profile else {},
             facts=[m.content for m in facts],
@@ -108,11 +139,12 @@ class DatabaseLearner:
                 profile.chat_language if profile else None,
                 profile.cefr_level if profile else None,
             ),
-            progress=await self._progress(),
+            progress=progress or "",
         )
 
-    async def _progress(self) -> str:
-        """Its own session: a failed query must not cost the memories (or the turn)."""
+    async def _progress(self) -> str | None:
+        """Its own session: a failed query must not cost the memories (or the turn).
+        None when it failed."""
         try:
             async with self._sessionmaker() as session:
                 found = await load_progress(
@@ -125,8 +157,14 @@ class DatabaseLearner:
                 await session.commit()  # stale mastery rows may have been rebuilt
         except Exception:
             logger.exception("loading the learner's progress failed")
-            return ""
+            return None
         return render_progress(found, days=self._progress_days)
+
+
+def _pin(key: tuple[uuid.UUID, datetime], pinned: _Pinned) -> None:
+    _PINNED[key] = pinned
+    while len(_PINNED) > MAX_PINNED:
+        _PINNED.popitem(last=False)
 
 
 def profile_lines(profile: UserProfile) -> dict[str, str]:

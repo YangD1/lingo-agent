@@ -149,6 +149,70 @@ async def test_facts_reflection_adds_wait_for_the_next_sitting(
     assert "Finds the word book too easy" in recorder.prompts[-1]
 
 
+async def test_progress_and_summaries_stay_put_within_a_sitting(
+    client: AsyncClient, db_session: AsyncSession, recorder: PromptRecorder
+) -> None:
+    """Task 107.4: what a sitting's first turn picked stays for the sitting, so the
+    vendor's prompt cache holds; a summary the learner deletes still goes at once."""
+    await login(client)
+    await connect(client, "deepseek")
+    user = await db_session.scalar(select(User).where(User.email == "learner@example.com"))
+    assert user is not None
+    tenant_id = await db_session.scalar(
+        select(TenantMember.tenant_id).where(TenantMember.user_id == user.id)
+    )
+    assert tenant_id is not None
+
+    async def summary(content: str) -> Memory:
+        other = uuid.UUID(await new_conversation(client))
+        return await service.upsert_episode(
+            db_session, tenant_id=tenant_id, user_id=user.id, conversation_id=other, content=content
+        )
+
+    trip = await summary("Talked about a trip to Kyoto.")
+    await summary("Practised ordering food.")
+    conversation = await new_conversation(client)
+    await send(client, conversation, "Hi")
+    first = recorder.prompts[-1]
+    assert "trip to Kyoto" in first and "ordering food" in first
+    quiz_line = f"`{KC}`, pass quiz, finished: 1 of 2 right"
+    assert quiz_line not in first
+
+    # Meanwhile: a quiz done elsewhere, a new summary, and the learner deletes one.
+    quiz = ExerciseSet(
+        user_id=user.id,
+        origin="quiz",
+        quiz_purpose="quiz",
+        status="ready",
+        kc_plan=[],
+        focus_kc_id=KC,
+    )
+    db_session.add(quiz)
+    await db_session.flush()
+    await answer(db_session, quiz.id, [True, False])
+    await summary("Read an article about bees.")
+    await service.delete_memory(db_session, user.id, trip.id)
+
+    await send(client, conversation, "Next one")
+    prompt = recorder.prompts[-1]
+    assert quiz_line not in prompt and "about bees" not in prompt
+    assert "trip to Kyoto" not in prompt and "ordering food" in prompt
+    # Everything before the summaries is as it was on the first turn.
+    cut = first.index("### Where they are now")
+    assert prompt[: first.index("### Earlier conversations")].startswith(first[:cut])
+
+    # Back after a break: the new sitting reads everything again.
+    await db_session.execute(
+        update(Conversation)
+        .where(Conversation.id == uuid.UUID(conversation))
+        .values(updated_at=func.now() - service.SITTING_GAP)
+    )
+    await db_session.commit()
+    await send(client, conversation, "I'm back")
+    prompt = recorder.prompts[-1]
+    assert quiz_line in prompt and "about bees" in prompt
+
+
 async def test_switching_the_chat_language_applies_from_the_next_reply(
     client: AsyncClient, recorder: PromptRecorder
 ) -> None:
