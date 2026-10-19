@@ -451,6 +451,19 @@ cases:
       correct: mustn't
       explanation: '"Mustn''t" means it is not allowed; "don''t have to" means it is not necessary.'
 
+  # An emphatic "he did put" is a stretch nothing here calls for (task 110.3).
+  - id: good-choice4-reported-question-order
+    expect: pass
+    kc: g.reported_questions_commands
+    ratings: {vocabulary: below_target, syntax: complex, cues: partial, distractors: several_plausible}
+    format: choice4
+    content:
+      stem: I couldn't find my bag, so I asked Tom where ___ it.
+      options: [he had put, he did put, had he put, did he put]
+    answer:
+      correct: he had put
+      explanation: 'A reported question keeps statement order: "where he had put it".'
+
   - id: good-cloze-comparative
     expect: pass
     kc: g.comparatives

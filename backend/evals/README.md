@@ -6,7 +6,7 @@ P2 的最小评估集（计划 Q13、任务 36）：检查把关学习者所见�
 
 | 名字 | 数据集 | 走的代码 | 门槛 |
 |---|---|---|---|
-| `critic` | `datasets/critic.yaml`：坏题 26 条（答案键错、不止一个对、不考目标语法点、英文不自然或指令不清、事实错误、难度标错）、好题 18 条，六种题型都有 | `critic_messages` → `exercise_critic` → `drafts.judge`，一题一次调用 | `bad_rejected` ≥ 90%、`good_passed` ≥ 90% |
+| `critic` | `datasets/critic.yaml`：坏题 26 条（答案键错、不止一个对、不考目标语法点、英文不自然或指令不清、事实错误、难度标错）、好题 21 条，六种题型都有 | `critic_messages` → `exercise_critic` → `drafts.judge`，一题一次调用 | `bad_rejected` ≥ 90%、`good_passed` ≥ 90% |
 | `grader` | `datasets/grader.yaml`：31 条代码判不了、会交给模型的答案（开放题不在参考答案里、find_fix 选对位置但改法不在列表里），应判对 / 应判错都有，部分带应找出的其他错误 | `grade_messages` → `exercise_grade` → `grader.verdict` | `verdict_right` ≥ 90% |
 | `diagnosis` | `datasets/diagnosis.yaml`：12 条（任务 46.6）。8 条有真规律：前置语法点是根因（过去分词 → 现在完成时、过去完成时 → 第三条件句、三单 → 主谓一致）、易混语法点互相顶替（will / going to、be / do、used to / 一般现在时），一条两个目标各有根因，一条错句里夹着让模型引用不存在证据的“指令”；3 条没有规律（零散错误、只是把语法点说明重复一遍不算根因）；一条英文讲解 | `diagnose_messages` → `diagnose` → `checks.check`，邻域按 `graph.neighborhood` 的规则从语法目录拼出，不需要数据库 | `root_found` ≥ 75%、`no_cause_without_pattern` ≥ 60%、`citations_hold` ≥ 90% |
 | `speaking_summary` | `datasets/speaking_summary.yaml`：6 条（任务 64.3，Q64w）。4 条实时通话（转写在停顿处切句：“Like playing football.”、“visit my grandmother …”，句里夹真错误 goed / have went / was fail），一条句子被切得很碎但没有错；2 条级联口语（只差引号、大小写的“错误”，真错误 don't / a orange / comes）；一条英文讲解。2026-10-12 用 qwen-plus 录制 | `summary_messages`（通话加 `speaking_summary_call` 说明）→ `speaking_summary` → `check`（引用原话、改动不只是标点大小写、通话里只补被切掉部分的不算） | `real_mistakes_found` ≥ 75%、`transcript_left_alone` ≥ 80% |
@@ -44,6 +44,7 @@ make eval ARGS='--update-baseline'                      # 改了评估器以后�
 
 ## 当前录制（经 OpenAI 兼容中转）
 
+- critic（2026-10-19 重录，gpt-6.1-sol 默认推理，任务 110.3：one_answer 不把要特殊语境才成立的读法（强调的 did、刻意的倒装）算第二个答案；新增好题 `good-choice4-reported-question-order`，冒烟里 “he did put” 就是这样被拒的）：坏题拒 26/26，好题过 21/21；录制前另跑一次也是 26/26、21/21。
 - critic（2026-10-19 重录，gpt-6.1-sol 默认推理，任务 107.3 去掉难度评分里的 `reason` 之后）：坏题拒 26/26，好题过 19/20；录制前后又跑了两次，好题 19/20、20/20，坏题都 26/26。没过的好题每次不同（`good-find-fix-agreement` 被认为把 list 改成 lists 也行；`good-cloze-hard-planned-easy`），都卡在检查项上，不在评分上，按波动看。审题输出平均 733 → 418 字符。
 - critic（2026-10-02，gpt-5.5）：坏题拒 24/26，好题过 18/18。漏过的两条是已知弱点：`translate-yangtze-longest`（事实错误，三次运行都没拒）、`choice4-a-or-the`（a / the 都对，三次只拒一次）。
 - 批改（2026-10-02，gpt-5.5）：判对 31/31，其他错误 4/4 找到，对的答案没有被挑出多余错误。

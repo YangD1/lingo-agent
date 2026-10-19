@@ -20,7 +20,9 @@ how hard it is goes into the ratings, not into the checks.
    answer fits: no second option works, only one piece of a `find_fix` sentence is
    wrong, and the gap takes no other filling a careful teacher would mark right. A
    filling uses the hint as given: adding words the hint does not suggest (a "not", a
-   "much") does not count, unless the context makes that reading just as likely. For
+   "much") does not count, unless the context makes that reading just as likely. Nor
+   does a reading that needs special stress or a marked context (an emphatic "did",
+   a deliberate inversion) when nothing in the sentence calls for it. For
    open items, other right wordings are fine, the grader accepts them; the task only has
    to ask for one clear thing.
 3. `tests_kc`: answering needs the given grammar point, not something else.
