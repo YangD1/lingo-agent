@@ -35,5 +35,4 @@ how hard it is goes into the ratings, not into the checks.
 When a check fails, say in `problems` what is wrong, one short sentence each, so the
 item can be rewritten.
 
-Last, rate the item's difficulty on each rubric dimension, with a short reason, from
-the item alone.
+Last, rate the item's difficulty on each rubric dimension, from the item alone.

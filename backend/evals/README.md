@@ -44,6 +44,7 @@ make eval ARGS='--update-baseline'                      # 改了评估器以后�
 
 ## 当前录制（经 OpenAI 兼容中转）
 
+- critic（2026-10-19 重录，gpt-6.1-sol 默认推理，任务 107.3 去掉难度评分里的 `reason` 之后）：坏题拒 26/26，好题过 19/20；录制前后又跑了两次，好题 19/20、20/20，坏题都 26/26。没过的好题每次不同（`good-find-fix-agreement` 被认为把 list 改成 lists 也行；`good-cloze-hard-planned-easy`），都卡在检查项上，不在评分上，按波动看。审题输出平均 733 → 418 字符。
 - critic（2026-10-02，gpt-5.5）：坏题拒 24/26，好题过 18/18。漏过的两条是已知弱点：`translate-yangtze-longest`（事实错误，三次运行都没拒）、`choice4-a-or-the`（a / the 都对，三次只拒一次）。
 - 批改（2026-10-02，gpt-5.5）：判对 31/31，其他错误 4/4 找到，对的答案没有被挑出多余错误。
 - 2026-10-02 那次实测修了 critic 提示词：说明 `rewrite_own` 的原句是学习者自己写的。之前 critic 会因为“your sentence”没有上下文而拒掉好题。

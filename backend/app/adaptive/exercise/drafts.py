@@ -44,8 +44,8 @@ class _Model(BaseModel):
 
 
 class Rating(_Model):
+    # Level only: a reason after it can't change it, and nothing read it (task 107.3).
     level: str
-    reason: str = Field(description="One short sentence on why this level")
 
 
 @cache

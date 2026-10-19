@@ -2,7 +2,7 @@
  "critic": {
   "metrics": {
    "bad_rejected": [26, 26],
-   "good_passed": [20, 20],
+   "good_passed": [19, 20],
    "rated_from_item": [3, 3],
    "rejects:factual": [4, 4],
    "rejects:gives_away": [3, 3],
@@ -14,9 +14,9 @@
   "models": [
    "gpt-6.1-sol"
   ],
-  "recorded": "2026-10-18",
+  "recorded": "2026-10-19",
   "prompts": {
-   "exercise_critic": "0645be5e"
+   "exercise_critic": "7a46629d"
   }
  },
  "diagnosis": {
