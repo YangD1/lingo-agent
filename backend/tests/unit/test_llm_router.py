@@ -414,11 +414,34 @@ async def test_structured_stream_gives_the_args_as_they_are_written(
         {"first": "apple"},
         {"first": "apple", "second": "pear"},
     ]
+    assert [p.closed for p in parts if not p.done] == [
+        frozenset(),
+        {"first"},
+        {"first", "second"},
+    ]
     assert parts[-1] == llm.StructuredPart(
         {"first": "apple", "second": "pear"}, Items(first="apple", second="pear"), done=True
     )
     # The schema is forced as a tool call.
     assert model.bound == [([Items], "Items")]
+
+
+@pytest.mark.parametrize(
+    ("raw", "closed"),
+    [
+        ("", set()),
+        ('{"item_0": {"a": "x", "b": [1, 2]', set()),
+        ('{"item_0": {"a": "x", "b": [1, 2]}', {"item_0"}),
+        ('{"item_0": {"a": "x"}, "item_1": {"a": "y', {"item_0"}),
+        # Brackets, commas and quotes inside strings don't count.
+        ('{"item_0": {"a": "} , ] \\" {"}, "item_1": "{,', {"item_0"}),
+        ('{"n": 3, "flag": tru', {"n"}),
+        ('{"n": 3, "flag": true}', {"n", "flag"}),
+        ('{"s": "done"', {"s"}),
+    ],
+)
+def test_closed_fields_are_the_ones_written_to_the_end(raw: str, closed: set[str]) -> None:
+    assert llm.closed_fields(raw) == closed
 
 
 async def test_structured_stream_args_that_do_not_fit_end_without_output(

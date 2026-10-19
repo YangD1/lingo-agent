@@ -228,6 +228,8 @@ class StructuredPart[T: BaseModel]:
     # (the caller may still use the parts it can).
     output: T | None = None
     done: bool = False
+    # Before the last part: the fields of `args` already written to the end.
+    closed: frozenset[str] = frozenset()
 
 
 async def astream_structured[T: BaseModel](
@@ -296,7 +298,8 @@ async def structured_parts[T: BaseModel](
         size = sum(len(c.get("args") or "") for c in message.tool_call_chunks)
         if size > written and message.tool_calls:
             written = size
-            yield StructuredPart(dict(message.tool_calls[0]["args"]))
+            raw = message.tool_call_chunks[0].get("args") or ""
+            yield StructuredPart(dict(message.tool_calls[0]["args"]), closed=closed_fields(raw))
     if message is None or not message.tool_calls:
         raise StructuredOutputMissingError(f"the model returned no {schema.__name__}")
     args = dict(message.tool_calls[0]["args"])
@@ -305,6 +308,47 @@ async def structured_parts[T: BaseModel](
     except ValidationError:
         output = None
     yield StructuredPart(args, output, done=True)
+
+
+def closed_fields(raw: str) -> frozenset[str]:
+    """The top-level fields of a JSON object, cut off anywhere, whose values are written
+    to the end (a later comma, or the value's own closing quote or bracket)."""
+    closed: set[str] = set()
+    depth = 0
+    in_string = escaped = reading_key = after_colon = False
+    key: str | None = None
+    chars: list[str] = []
+    for ch in raw:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+                if reading_key:
+                    key, reading_key = "".join(chars), False
+                elif depth == 1 and key is not None:
+                    closed.add(key)
+            elif reading_key:
+                chars.append(ch)
+        elif ch == '"':
+            in_string = True
+            if depth == 1 and not after_colon:
+                reading_key, chars = True, []
+        elif ch in "{[":
+            depth += 1
+        elif ch in "}]":
+            depth -= 1
+            if depth <= 1 and key is not None:
+                closed.add(key)
+        elif depth == 1 and ch == ":":
+            after_colon = True
+        elif depth == 1 and ch == ",":
+            if key is not None:
+                closed.add(key)
+            after_colon = False
+    return frozenset(closed)
 
 
 def get_structured_llm[T: BaseModel](

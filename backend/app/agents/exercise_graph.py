@@ -3,9 +3,9 @@
     START -> produce -> fill -> save -> END
 
 `produce` runs rounds. Each round is one streamed `generate` call writing every slot
-still open; as soon as a slot's draft is written (the next one starts, or the call
-ends), code turns it into its format's item (`drafts.to_body`) and `critic` reviews it
-on its own, while the rest are still written (at most `practice.parallel_calls` reviews
+still open; as soon as a slot's draft is written to the end (its JSON closes), code
+turns it into its format's item (`drafts.to_body`) and `critic` reviews it on its own,
+while the rest are still written (at most `practice.parallel_calls` reviews
 at a time); `drafts.judge` decides. An accepted item is handed to
 `ExerciseContext.publish` at once, so the learner can start before the set is done. The
 rejected or invalid slots are written again with the reasons in the next round, at
@@ -87,6 +87,9 @@ class Written:
     model: str | None = None
     # The call has ended: the last field is whole too.
     done: bool = False
+    # The fields written to the end; None when the caller can't tell (then each field
+    # but the last counts as written).
+    closed: frozenset[str] | None = None
 
 
 # A streamed structured call: messages and the output schema in, what is written so far
@@ -351,7 +354,7 @@ async def _settle(run: _Run, brief: ItemBrief, raw: Any, model: str | None, roun
 
 async def _round(run: _Run, wanted: Sequence[ItemBrief], rounds: int) -> None:
     """One streamed generate call for the slots still open; each draft goes to review as
-    soon as the next one starts (or the call ends), so items are reviewed, and passed
+    soon as it is written to the end, so items are reviewed, and passed
     ones published, while the rest are still being written (ADR 0048 §1)."""
     ctx = run.ctx
     by_key = {f"item_{b.position}": b for b in wanted}
@@ -372,8 +375,13 @@ async def _round(run: _Run, wanted: Sequence[ItemBrief], rounds: int) -> None:
                     drafts.generated_set_model(ctx.rules, briefs),
                 ):
                     keys = [k for k in written.args if k in by_key]
-                    # The last key may still be written, until the call ends.
-                    for key in keys if written.done else keys[:-1]:
+                    if written.done:
+                        ready = keys
+                    elif written.closed is None:
+                        ready = keys[:-1]  # the last key may still be written
+                    else:
+                        ready = [k for k in keys if k in written.closed]
+                    for key in ready:
                         if key not in taken:
                             taken.add(key)
                             settling.append(

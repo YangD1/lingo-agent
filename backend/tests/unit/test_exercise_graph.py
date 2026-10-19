@@ -165,6 +165,10 @@ class FakeModels:
     # A generate call is streaming; reviews made meanwhile.
     writing: bool = False
     reviewed_while_writing: int = 0
+    # The writer says which drafts are written to the end (as the provider layer does),
+    # and waits after the first one until a review has started.
+    closes: bool = False
+    review_started: asyncio.Event = field(default_factory=asyncio.Event)
 
     async def _busy(self, seconds: float = 0) -> None:
         self.running += 1
@@ -211,7 +215,10 @@ class FakeModels:
                 if n == self.hang_after:
                     await asyncio.sleep(3600)
                 written[key] = value
-                yield Written(dict(written), "fake:writer")
+                closed = frozenset(written) if self.closes else None
+                yield Written(dict(written), "fake:writer", closed=closed)
+                if self.closes and n == 0:
+                    await asyncio.wait_for(self.review_started.wait(), 1)
                 await asyncio.sleep(self.write_seconds)
             yield Written(dict(written), "fake:writer", done=True)
         finally:
@@ -222,6 +229,7 @@ class FakeModels:
     ) -> ModelReply:
         items = section(messages, "Items to review:\n")
         self.reviewed_while_writing += self.writing
+        self.review_started.set()
         await self._busy(0.002 + self.critic_seconds)
         if any(i["position"] in self.critic_hang for i in items):
             await asyncio.sleep(3600)
@@ -343,6 +351,16 @@ async def test_items_are_reviewed_and_published_while_the_set_is_written() -> No
 
     assert models.reviewed_while_writing >= 1
     assert published_while_writing and published_while_writing[0] == 0
+    assert len(result.items) == 6
+
+
+async def test_a_draft_is_reviewed_once_written_before_the_next_one_starts() -> None:
+    # Task 107.2: not held back until the next draft's key appears.
+    models = FakeModels(closes=True)
+
+    result, _ = await run(models)
+
+    assert models.reviewed[0] == [0]
     assert len(result.items) == 6
 
 

@@ -159,7 +159,7 @@ def streamed_call(
             else stream_structured(ctx, task, schema, messages, config=run, budget=budget)
         )
         async for part in parts:
-            yield Written(part.args, answered.writing, part.done)
+            yield Written(part.args, answered.writing, part.done, part.closed)
 
     return stream
 
