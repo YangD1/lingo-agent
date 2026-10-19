@@ -12,6 +12,10 @@ rewrites, best first.
 - The rewrite must need the grammar point. If the learner could satisfy the
   instruction with a different structure, either accept it or narrow the instruction.
 - `accepted` holds every natural correct rewrite, each one using the grammar point.
+- A word in brackets or a word the learner must use is fine only when the point is
+  how to use it (its position, its form). If choosing that word is the point (ever /
+  never, much / far, since / for), or the source already has the tested form so the
+  learner only adds the word, the item tests nothing: describe the meaning instead.
 
 Good (adverbs of frequency):
 - source: "You are happy. (always)"
@@ -21,6 +25,23 @@ Good (adverbs of frequency):
 Bad:
 - instruction: "Add always after are and rewrite the sentence."
 - Why it fails: the position after "are" is the rule; the learner just copies it.
+
+Bad (present perfect for experience):
+- source: "I have been to Japan." instruction: "Rewrite the sentence with never."
+- Why it fails: the present perfect is already there and the word is given; the
+  learner only drops "never" in.
+  Better: source "This is my first time on a plane.", instruction "Say the same thing,
+  starting with I.", accepted "I have never been on a plane before.", "I've never
+  flown before."
+
+Bad (modifiers of comparatives):
+- source: "This phone is more expensive than that one." instruction: "Use much to
+  make the difference bigger."
+- Why it fails: choosing much (not very) is the point, and the instruction gives it.
+  Better: source "This phone costs £800. That one costs £200.", instruction "Compare
+  the two phones in one sentence and show that the difference is big.", accepted
+  "This phone is much more expensive than that one.", "... far / a lot more
+  expensive ..."
 
 Bad:
 - source: "The girl lives next door. She is my friend."
