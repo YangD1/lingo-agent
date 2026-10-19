@@ -85,7 +85,11 @@ async def test_writer_flushes_after_the_interval(
     writer.start()
     try:
         writer.submit(record(tenant_id))
-        await asyncio.sleep(0.3)
+        # Polled, not one fixed sleep: under a loaded parallel run 0.3 s was too short.
+        for _ in range(100):  # the batch is not full: only the interval flushes it
+            if await usage_count(db_session) == 1:
+                break
+            await asyncio.sleep(0.02)
         assert await usage_count(db_session) == 1
     finally:
         await writer.stop()

@@ -220,21 +220,23 @@ features:
       # One streamed call writes the set; each question is reviewed on its own as soon
       # as it is written (ADR 0048). Measured 2026-10-18 (task 100.9, gpt-6.1-sol, 7 sets):
       # writing about 5600 tokens in (with the exercise-writing parts), 1100 out; a
-      # review 1500 in, 200 out.
+      # review 1500 in, 200 out. Task 107 (2026-10-19): the writing guide grew to about
+      # 6000 in; reviews rate levels without reasons, 1400 in, about 100 out at reasoning
+      # low (150 kept for models thinking at their default).
       - task: exercise_generate
         timing: now
-        default: {input_tokens: 5600, output_tokens: 1100}
+        default: {input_tokens: 6000, output_tokens: 1100}
       - task: exercise_critic
         timing: now
         per: item
-        default: {input_tokens: 1500, output_tokens: 200}
+        default: {input_tokens: 1400, output_tokens: 150}
       - task: exercise_generate
         timing: background
-        default: {input_tokens: 5600, output_tokens: 1100}
+        default: {input_tokens: 6000, output_tokens: 1100}
       - task: exercise_critic
         timing: background
         per: item
-        default: {input_tokens: 1500, output_tokens: 200}
+        default: {input_tokens: 1400, output_tokens: 150}
 
   # Grading an answer the code cannot (ADR 0021 §6): open formats, and find_fix with a
   # fix not in the item's list. One call per such answer, only the first time an item
@@ -255,14 +257,15 @@ features:
   quiz_card:
     calls:
       # As practice_set (ADR 0048). Measured 2026-10-18 (task 100.9, gpt-6.1-sol, 3 pass
-      # quizzes of 5 questions): writing 4900 tokens in, 850 out; a review as practice_set.
+      # quizzes of 5 questions): writing 4900 tokens in (5100 since task 107), 850 out; a
+      # review as practice_set.
       - task: exercise_generate
         timing: now
-        default: {input_tokens: 4900, output_tokens: 850}
+        default: {input_tokens: 5100, output_tokens: 850}
       - task: exercise_critic
         timing: now
         per: item
-        default: {input_tokens: 1500, output_tokens: 200}
+        default: {input_tokens: 1400, output_tokens: 150}
       - task: exercise_grade
         timing: now
         default: {input_tokens: 11900, output_tokens: 150}
