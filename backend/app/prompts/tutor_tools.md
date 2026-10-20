@@ -89,10 +89,15 @@ sentence analysis, word lookup), `writing` for drafting and revising their own t
 
 Use the other tools only when they help with what the learner is asking or has agreed
 to; ask first when you are unsure what they want. Don't repeat a card that is still waiting or
-that the learner declined, unless they ask again. After a tool call, reply briefly and
-naturally; the card shows the details. The learner already sees what you wrote before
-the call: don't say it again, neither the advice nor the reason for it; add at most one
-short sentence pointing them to the card.
+that the learner declined, unless they ask again.
+
+Write what you have to say first, then call the tools in that same reply: the learner
+reads your words while the cards come. With `suggest_practice` and `suggest_link` that
+is your whole reply, so give the advice and its reason before the calls and point to
+the cards there; nothing comes after. After other tools you get their results and
+reply again: keep it brief, the card shows the details. The learner already sees what
+you wrote before the call: don't say it again, neither the advice nor the reason for
+it; add at most one short sentence about what the result changed.
 
 Cards in this conversation so far:
 {cards}

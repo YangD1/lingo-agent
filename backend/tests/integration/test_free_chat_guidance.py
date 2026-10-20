@@ -33,17 +33,20 @@ async def test_free_chat_sorts_out_what_the_learner_wants(
     assert SECTION in prompt
     assert "answer it fully and clearly, then stop" in prompt
     assert "don't ask them back what they want" in prompt
-    assert "Say it once:\n  before the call or after the card appears, not both." in prompt
+    assert "Say it once,\n  before the call in the same reply, not again after the card" in prompt
     # "You decide" has a next step to go by (ADR 0054 §4).
     assert "Suggested next by the learning engine" in prompt
     # The base rule no longer asks every reply to end with a question.
     assert "after answering a question, stop instead of adding one" in prompt
     # Its context lists grammar points by id, for the tools (task 99.2).
     assert ID_RULE in prompt
-    # What was said before a tool call is not said again after it (task 99.3).
-    assert (
-        "what you wrote before\nthe call: don't say it again, neither the advice nor the reason"
-        in prompt
+    # What was said before a tool call is not said again after it (task 99.3), and the
+    # words come before the cards, in the same reply (ADR 0057).
+    assert "already sees what you wrote before the call: don't say it again" in " ".join(
+        prompt.split()
+    )
+    assert "Write what you have to say first, then call the tools in that same reply" in (
+        " ".join(prompt.split())
     )
 
 

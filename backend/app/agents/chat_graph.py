@@ -117,6 +117,9 @@ MAX_CALLS_PER_ROUND = 3
 # What the tutor is offered: the card tools and load_skill.
 TUTOR_TOOL_SCHEMAS: tuple[type[BaseModel], ...] = (*TOOL_SCHEMAS, LoadSkill)
 TOOL_TIMEOUT_SECONDS = 15
+# Cards whose results the tutor need not pass on: a reply that wrote its text and showed
+# only these ends with the tools (ADR 0057).
+SHORTCUT_TOOLS = frozenset({"suggest_link", "suggest_practice"})
 # The tutor's calls after tool results: recorded apart from "chat", which the dashboard
 # counts as the learner's turns (ADR 0015 §7).
 TOOLS_USAGE_TASK = "chat_tools"
@@ -657,6 +660,28 @@ def after_tutor(state: ChatState) -> str:
     return TOOLS_NODE if isinstance(last, AIMessage) and last.tool_calls else END
 
 
+def after_tools(state: ChatState) -> str:
+    """Done when the tutor wrote its reply and only showed shortcut cards that worked
+    (ADR 0057): their results say nothing new, so another call would only add a line.
+    Anything else goes back to the tutor: a failed call to put right, a result to pass
+    on, or a reply with no text yet."""
+    messages = state["messages"]
+    i = len(messages)
+    while i > 0 and isinstance(messages[i - 1], ToolMessage):
+        i -= 1
+    called = messages[i - 1] if i > 0 else None
+    results = messages[i:]
+    if (
+        isinstance(called, AIMessage)
+        and called.text.strip()
+        and called.tool_calls
+        and all(call["name"] in SHORTCUT_TOOLS for call in called.tool_calls)
+        and all(isinstance(r, ToolMessage) and r.status == "success" for r in results)
+    ):
+        return END
+    return TUTOR_NODE
+
+
 async def run_tools(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, Any]:
     """Run the last reply's tool calls concurrently; a failure becomes that call's
     result, never the turn's (ADR 0013 §1)."""
@@ -843,7 +868,7 @@ def _tutor_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatState, Chat
     builder.add_node(TOOLS_NODE, run_tools)
     builder.add_edge(START, TUTOR_NODE)
     builder.add_conditional_edges(TUTOR_NODE, after_tutor, [TOOLS_NODE, END])
-    builder.add_edge(TOOLS_NODE, TUTOR_NODE)
+    builder.add_conditional_edges(TOOLS_NODE, after_tools, [TUTOR_NODE, END])
     return builder.compile(checkpointer=False)
 
 

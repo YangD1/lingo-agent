@@ -34,9 +34,12 @@ def tool_call(name: str, **args: Any) -> dict[str, Any]:
 
 @dataclass
 class Script:
-    """What the fake model answers, call by call: a text, or a list of tool calls."""
+    """What the fake model answers, call by call: a text, a list of tool calls, or a
+    text and then tool calls in the same reply."""
 
-    replies: list[str | list[dict[str, Any]]] = field(default_factory=list)
+    replies: list[str | list[dict[str, Any]] | tuple[str, list[dict[str, Any]]]] = field(
+        default_factory=list
+    )
     # Each call: the tools it was offered (None = none bound) and the messages it got.
     calls: list[tuple[list[str] | None, list[BaseMessage]]] = field(default_factory=list)
     refuse_tools: bool = False
@@ -86,6 +89,9 @@ class ToolFake(BaseChatModel):
         if isinstance(reply, str):
             yield ChatGenerationChunk(message=AIMessageChunk(content=reply, usage_metadata=usage))  # type: ignore[arg-type]
             return
+        if isinstance(reply, tuple):  # the words stream first, the calls come after
+            said, reply = reply
+            yield ChatGenerationChunk(message=AIMessageChunk(content=said))
         chunks = [
             {"name": c["name"], "args": json.dumps(c["args"]), "id": c["id"], "index": i}
             for i, c in enumerate(reply)
@@ -264,6 +270,85 @@ async def test_a_refused_call_goes_back_to_the_model_without_a_card(
     (row,) = [a for a in await activity(client, conversation) if a["kind"] == "tool"]
     assert (row["status"], row["summary"]) == ("failed", {})
     assert await cards(client, conversation) == []
+
+
+async def test_words_then_shortcut_cards_are_the_whole_reply(
+    client: AsyncClient, script: Script, usage_records: list[UsageRecord]
+) -> None:
+    conversation = await ready(client)
+    said = "Review your due words first, then screen the new book."
+    links = [tool_call("suggest_link", kind=k) for k in ("vocab_review", "vocab_screen")]
+    script.replies = [(said, links), "Never asked for."]
+
+    _, events, _ = await send(client, conversation, "What should I do?")
+
+    # One call (ADR 0057): the words stream before the cards, nothing after them.
+    assert len(script.calls) == 1 and script.replies == ["Never asked for."]
+    assert [k for k, _ in events if k in ("token", "card")] == ["token", "card", "card"]
+    assert "".join(e["text"] for e in kinds(events, "token")) == said
+    assert [r.task for r in usage_records] == ["chat"]
+    (done,) = kinds(events, "done")
+    messages = await history(client, conversation)
+    assert [(m["role"], m["content"]) for m in messages] == [
+        ("user", "What should I do?"),
+        ("assistant", said),
+    ]
+    assert done["message_id"] == messages[-1]["id"]
+
+    # The turn ended on the tool results; the next one goes on from them.
+    script.replies = ["Good luck!"]
+    _, events, _ = await send(client, conversation, "Thanks")
+    assert "".join(e["text"] for e in kinds(events, "token")) == "Good luck!"
+    sent = script.calls[-1][1]
+    assert [type(m).__name__ for m in sent[1:]] == [
+        "HumanMessage",
+        "AIMessage",
+        "ToolMessage",
+        "ToolMessage",
+        "HumanMessage",
+    ]
+    assert [m["content"] for m in await history(client, conversation)][-2:] == [
+        "Thanks",
+        "Good luck!",
+    ]
+
+
+@pytest.mark.parametrize(
+    "calls",
+    [
+        # Refused: the tutor puts it right.
+        [tool_call("suggest_practice", kc_id="g.made_up")],
+        # A result to pass on.
+        [
+            tool_call("suggest_link", kind="placement"),
+            tool_call("propose_word_book", book_id="cet4"),
+        ],
+        # Over the per-round cap.
+        [tool_call("suggest_link", kind="vocab_review")] * (MAX_CALLS_PER_ROUND + 1),
+    ],
+    ids=["refused", "proposal", "capped"],
+)
+async def test_other_cards_after_words_still_get_a_reply(
+    client: AsyncClient, script: Script, calls: list[dict[str, Any]]
+) -> None:
+    conversation = await ready(client)
+    calls = [{**c, "id": f"call_{i}"} for i, c in enumerate(calls)]
+    script.replies = [("Let me set that up.", calls), "Done."]
+
+    _, events, _ = await send(client, conversation, "Set me up")
+
+    assert len(script.calls) == 2
+    assert "".join(e["text"] for e in kinds(events, "token")).endswith("Done.")
+
+
+async def test_cards_with_no_words_yet_get_a_reply(client: AsyncClient, script: Script) -> None:
+    conversation = await ready(client)
+    script.replies = [[tool_call("suggest_link", kind="vocab_review")], "Start with these."]
+
+    _, events, _ = await send(client, conversation, "What now?")
+
+    assert len(script.calls) == 2
+    assert "".join(e["text"] for e in kinds(events, "token")) == "Start with these."
 
 
 async def test_tool_rounds_and_calls_are_capped(client: AsyncClient, script: Script) -> None:

@@ -25,6 +25,8 @@ P1 实测反馈：做完入学测后应该有学习建议，并且能直接进�
   - 每个调用写一条 `tool` 类活动（ADR 0013 §3）。
 - **身份只从运行时取**：`ChatContext` 新增 `tools: TutorToolDeps`（用户 id、会话 id、轮次 id、sessionmaker），由接口层绑定。工具参数的 schema 里没有任何 id 字段；需要的都从 `Runtime.context` 取。
 
+> **2026-10-20 补充（ADR 0057）**：回复先写文字、同一条回复里只给成功的 `suggest_link` / `suggest_practice` 时，`tools` 之后直接结束，不再回到 `tutor`；其余情况照旧。
+
 ### 2. 什么时候绑定工具
 - 绑定：普通对话，以及学习规划对话（§6）里走 `chat` 路由的轮次。和 `get_structured_llm` 一样，先在链上每个模型上分别 `bind_tools`，再串成 fallback 链。
 - 不绑定：
