@@ -196,3 +196,39 @@ test("with the daily opening switched off, the pet wears no clip and waits", asy
   await expect(window.locator('li[data-role="assistant"]')).toHaveCount(0);
   expect(await (await page.request.get("/api/conversations")).json()).toEqual([]);
 });
+
+test("a reply goes on when the window closes: the pet writes it, then leads back (ADR 0058)", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail("pet-writing"));
+  await useFakeModel(page);
+  expect((await page.request.put("/api/tutor", { data: { daily_opening: false } })).ok()).toBe(true);
+  await page.goto("/learner");
+
+  const button = pet(page).getByTestId("tutor-pet-button");
+  await button.click();
+  const window = page.getByTestId("pet-chat");
+  const input = window.getByRole("textbox", { name: /输入消息/ });
+  await input.fill("tell me a long story");
+  await input.press("Enter");
+  const reply = window.locator('li[data-role="assistant"]');
+  await expect(reply).toContainText("word0");
+
+  // Closed mid-reply: not stopped. The pet writes it meanwhile.
+  await page.keyboard.press("Escape");
+  await expect(window).toBeHidden();
+  await expect(pet(page).locator('canvas[data-state="writing"]')).toHaveCount(1);
+  await expect(pet(page).getByRole("img", { name: "JOJO，你的助手：正在写一条回复" })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("pet-writing.png") });
+
+  // Written: an envelope, and a bubble with the way back to its window.
+  await expect(bubble(page)).toContainText("回复写好了", { timeout: 15_000 });
+  await expect(pet(page).locator("canvas[data-letter]")).toHaveCount(1);
+  await page.screenshot({ path: test.info().outputPath("pet-letter.png") });
+  await bubble(page).getByTestId("pet-bubble-action").click();
+  await expect(window).toBeVisible();
+  await expect(reply).toHaveCount(1);
+  await expect(reply).toContainText("word39");
+  await expect(window.getByText("已停止")).toHaveCount(0);
+  await expect(pet(page).locator("canvas[data-letter]")).toHaveCount(0);
+});

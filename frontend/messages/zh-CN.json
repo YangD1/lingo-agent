@@ -2719,6 +2719,7 @@
   },
   "tutorPet": {
     "label": "{name}，你的助手",
+    "writing": "{name}，你的助手：正在写一条回复",
     "collapse": "收起桌宠",
     "expand": "展开桌宠 {name}",
     "open": "和 {name} 聊天",
@@ -2864,6 +2865,12 @@
       "planLeft": "今天的计划还差 {n} 项，加油！",
       "afterReview": "复习完啦！还有 {n} 个新词，接着学？",
       "planDone": "今天的计划全部完成，太棒了！"
+    },
+    "reply": {
+      "done": "回复写好了，回去看看？",
+      "failed": "这条回复没写成，回去重试？",
+      "back": "回去看",
+      "retry": "回去重试"
     }
   },
   "setup": {

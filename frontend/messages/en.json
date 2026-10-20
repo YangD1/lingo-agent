@@ -2719,6 +2719,7 @@
   },
   "tutorPet": {
     "label": "{name}, your assistant",
+    "writing": "{name}, your assistant: writing a reply",
     "collapse": "Collapse the desk pet",
     "expand": "Show {name}, your desk pet",
     "open": "Chat with {name}",
@@ -2864,6 +2865,12 @@
       "planLeft": "{n} things left on today's plan. Keep going!",
       "afterReview": "All reviewed! {n} new words left. Keep going?",
       "planDone": "Today's plan is all done. Brilliant!"
+    },
+    "reply": {
+      "done": "Your reply is ready. Go back to it?",
+      "failed": "That reply didn't go through. Go back and try again?",
+      "back": "Go back",
+      "retry": "Go back"
     }
   },
   "setup": {

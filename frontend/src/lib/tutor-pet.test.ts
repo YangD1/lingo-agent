@@ -45,6 +45,18 @@ describe("the desk pet's state", () => {
     expect(petState()).toBe("happy");
   });
 
+  it("writes a reply in the background under thinking, over happy (ADR 0058 §2)", () => {
+    const write = petHold("writing");
+    expect(petState()).toBe("writing");
+    const think = petHold("thinking");
+    expect(petState()).toBe("thinking");
+    think();
+    petHappy();
+    expect(petState()).toBe("writing");
+    write();
+    expect(petState()).toBe("happy");
+  });
+
   it("holds while anyone holds", () => {
     const one = petHold("listening");
     const two = petHold("listening");

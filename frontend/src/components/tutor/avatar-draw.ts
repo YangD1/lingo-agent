@@ -96,6 +96,8 @@ export type DrawOptions = {
   speakerMark: boolean;
   /** The AI hair clip: opening the pet now has the tutor speak first (ADR 0041 §4). */
   clip?: boolean;
+  /** An envelope held up: a reply the learner went away from is written (ADR 0058 §3). */
+  letter?: boolean;
 };
 
 type Ctx = CanvasRenderingContext2D;
@@ -137,6 +139,8 @@ export function drawAvatar(ctx: Ctx, pose: Pose, options: DrawOptions) {
   ctx.restore();
 
   drawNeckwear(ctx, pose, outfit);
+  if (pose.write > 0.01) drawNotepad(ctx, pose, p, small);
+  if (options.letter) drawLetter(ctx, p);
   ctx.restore();
 
   if (!small) {
@@ -542,6 +546,77 @@ function drawNeckwear(ctx: Ctx, pose: Pose, outfit: Outfit) {
     case "cat":
       return;
   }
+}
+
+const PAPER = "#fffaf0";
+const PAPER_LINE = "#c9bfae";
+const PENCIL = "#e7b95c";
+
+/**
+ * A notepad held in the front paws, the pencil going along its lines (ADR 0058 §2). The
+ * written lines fill in one after another and start again; still, two of them are there.
+ */
+function drawNotepad(ctx: Ctx, pose: Pose, p: Palette, small: boolean) {
+  ctx.save();
+  ctx.globalAlpha = pose.write;
+  ctx.translate(50, 92);
+  ctx.rotate(-0.06);
+  paint(ctx, PAPER, () => ctx.roundRect(-17, -9, 34, 18, 3));
+  // Three lines, written left to right in turn over `CYCLE` seconds.
+  const CYCLE = 3;
+  const phase = pose.time > 0 ? (pose.time % CYCLE) / CYCLE : 0.67;
+  const written = phase * 3;
+  let tip = { x: -12, y: -4 };
+  for (let i = 0; i < 3; i++) {
+    const done = Math.min(Math.max(written - i, 0), 1);
+    if (done <= 0) break;
+    const y = -4 + i * 4.5;
+    const end = -12 + 24 * done;
+    if (!small) {
+      // A wavy line, like handwriting.
+      stroke(ctx, PAPER_LINE, 1.3, () => {
+        ctx.moveTo(-12, y);
+        for (let x = -12; x <= end; x += 2) ctx.lineTo(x, y + Math.sin(x * 1.3) * 0.8);
+      });
+    } else {
+      stroke(ctx, PAPER_LINE, 1.6, () => {
+        ctx.moveTo(-12, y);
+        ctx.lineTo(end, y);
+      });
+    }
+    tip = { x: end, y };
+  }
+  // The pencil, its tip on the line being written, in the right paw.
+  ctx.save();
+  ctx.translate(tip.x, tip.y);
+  ctx.rotate(-0.7);
+  paint(ctx, PENCIL, () => ctx.roundRect(-1.6, -15, 3.2, 13, 1), 1.4);
+  paint(ctx, OUTLINE, () => {
+    ctx.moveTo(-1.6, -2);
+    ctx.lineTo(0, 1);
+    ctx.lineTo(1.6, -2);
+  }, 0);
+  paint(ctx, p.light, () => ctx.ellipse(0, -10, 4.5, 4, 0, 0, Math.PI * 2));
+  ctx.restore();
+  // The left paw holds the pad.
+  paint(ctx, p.light, () => ctx.ellipse(-17, 3, 4.5, 4, 0, 0, Math.PI * 2));
+  ctx.restore();
+}
+
+/** An envelope held up by the right paw, with a red seal (ADR 0058 §3). */
+function drawLetter(ctx: Ctx, p: Palette) {
+  ctx.save();
+  ctx.translate(80, 70);
+  ctx.rotate(0.18);
+  paint(ctx, PAPER, () => ctx.roundRect(-11, -7.5, 22, 15, 2));
+  stroke(ctx, OUTLINE, 1.4, () => {
+    ctx.moveTo(-10, -6.5);
+    ctx.lineTo(0, 1);
+    ctx.lineTo(10, -6.5);
+  });
+  paint(ctx, BLUSH, () => ctx.arc(0, 1, 2.4, 0, Math.PI * 2), 0);
+  paint(ctx, p.light, () => ctx.ellipse(-9, 7, 4.5, 4, 0, 0, Math.PI * 2));
+  ctx.restore();
 }
 
 function drawDots(ctx: Ctx, pose: Pose, ink: string) {

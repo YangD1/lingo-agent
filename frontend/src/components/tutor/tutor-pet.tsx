@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { callsOf, loadEstimates } from "@/lib/ai-usage";
+import { dismissRunNotice, type RunNotice, useBackgroundRunning, useRunNotice } from "@/lib/chat-runs";
 import type { PetAction } from "@/lib/pet-actions";
 import { type Nudge, usePetAdvice } from "@/lib/pet-nudges";
 import { type PetPlace, usePetPlace } from "@/lib/preferences";
@@ -15,7 +16,7 @@ import { usePetState } from "@/lib/tutor-pet";
 import { cn } from "@/lib/utils";
 
 import { type BubbleContent, PetBubble } from "./pet-bubble";
-import { PetChat } from "./pet-chat";
+import { PetChat, petChatConversationId } from "./pet-chat";
 import { usePetNudges } from "./use-pet-nudges";
 import { TutorAvatar } from "./tutor-avatar";
 
@@ -32,6 +33,9 @@ const WIDE = "(min-width: 768px)";
 export const ASK_LINGER_MS = 20_000;
 /** How long a reminder stays untouched. */
 export const NUDGE_LINGER_MS = 12_000;
+/** How long "your reply is written" stays untouched (ADR 0058 §3). */
+export const REPLY_LINGER_MS = 30_000;
+const REPLY_KEY = "reply:";
 /** Once asleep this long, the pet is drawn still: no frames while it dozes (Q66o). */
 export const DOZE_SETTLE_MS = 2000;
 
@@ -157,6 +161,10 @@ type Drag = {
  * While opening it would have the tutor speak first today (ADR 0041), it wears an AI hair
  * clip, and its name says so, with the tokens it takes; the clip comes off once today's
  * conversation has begun.
+ *
+ * A reply the learner went away from is still written (ADR 0058): meanwhile the pet writes
+ * on a notepad (a ring round the button when collapsed); once written, it hops, holds up
+ * an envelope and says so, with the way back to that conversation.
  */
 export function TutorPet() {
   const tutor = useTutor();
@@ -168,6 +176,7 @@ export function TutorPet() {
   const tActions = useTranslations("tutorPet.actions");
   const tBubble = useTranslations("tutorPet.bubble");
   const tNudge = useTranslations("tutorPet.nudge");
+  const tReply = useTranslations("tutorPet.reply");
   const box = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   // A drag ends with a click on what was pressed: that click is not a tap.
@@ -182,7 +191,15 @@ export function TutorPet() {
     setDraft(undefined);
   }, []);
   const [bubble, setBubble] = useState<BubbleContent | null>(null);
-  const endBubble = useCallback(() => setBubble(null), []);
+  const notice = useRunNotice();
+  const writing = useBackgroundRunning();
+  const endBubble = useCallback(() => {
+    setBubble((shown) => {
+      // Closed or followed: that reply's notice is done with.
+      if (shown?.key.startsWith(REPLY_KEY)) dismissRunNotice(Number(shown.key.slice(REPLY_KEY.length)));
+      return null;
+    });
+  }, []);
   const { advice, plan } = usePetAdvice(!!tutor?.pet);
   const format = useFormatter();
   const today = useToday(!!tutor?.pet && tutor.daily_opening !== false);
@@ -196,12 +213,37 @@ export function TutorPet() {
     setWasOnChatPage(onChatPage);
     if (onChatPage) setChatOpen(false);
   }
-  // Another page: what the bubble said was about the last one.
+  // Another page: what the bubble said was about the last one; not a written reply, which
+  // was about another page anyway.
   const [lastPath, setLastPath] = useState(pathname);
   if (pathname !== lastPath) {
     setLastPath(pathname);
-    setBubble(null);
+    if (!bubble?.key.startsWith(REPLY_KEY)) setBubble(null);
   }
+  // A reply written while nobody looked: say so; looked at since, take it back.
+  const [shownNotice, setShownNotice] = useState<RunNotice | null>(null);
+  if (notice !== shownNotice) {
+    setShownNotice(notice);
+    if (notice) {
+      setBubble(replyBubble(notice));
+    } else if (bubble?.key.startsWith(REPLY_KEY)) {
+      setBubble(null);
+    }
+  }
+  function replyBubble(done: RunNotice): BubbleContent {
+    const label = tReply(done.ok ? "back" : "retry");
+    const inWindow = done.conversationId === petChatConversationId();
+    return {
+      key: `${REPLY_KEY}${done.at}`,
+      text: tReply(done.ok ? "done" : "failed"),
+      action: inWindow
+        ? { label, onClick: () => setChatOpen(true) }
+        : { label, href: `/chat?c=${encodeURIComponent(done.conversationId)}` },
+      dismiss: tBubble("later"),
+      lingerMs: REPLY_LINGER_MS,
+    };
+  }
+  const letter = !!bubble?.key.startsWith(REPLY_KEY) && notice?.ok === true;
   // Flashcards opened over the page (ADR 0038), maybe from the window or the bubble: both
   // make way. The overlay's host takes the link's click before they could hear of it.
   const reviewing = useSearchParams()?.has("review") ?? false;
@@ -352,7 +394,7 @@ export function TutorPet() {
   };
   // A tap opens the chat window; on the chat page it only puts the cursor in the input box.
   const onTap = () => {
-    setBubble(null);
+    endBubble();
     if (!onChatPage) {
       if (chatOpen) return closeChat();
       return setChatOpen(true);
@@ -426,6 +468,15 @@ export function TutorPet() {
             clip={clip}
             label=""
           />
+          {/* A reply is being written in the background (ADR 0058 §2): too small to show
+              the notepad, a ring goes round instead. */}
+          {writing && (
+            <span
+              data-testid="tutor-pet-ring"
+              aria-hidden
+              className="pointer-events-none absolute inset-0.5 rounded-full border-2 border-brand/25 border-t-brand motion-safe:animate-spin"
+            />
+          )}
           {/* Something to say once opened (ADR 0039 §3). */}
           {bubble && (
             <span
@@ -459,7 +510,8 @@ export function TutorPet() {
               state={state}
               size={size}
               clip={clip}
-              label={t("label", { name })}
+              letter={letter}
+              label={writing ? t("writing", { name }) : t("label", { name })}
               className="drop-shadow-md"
             />
           </button>

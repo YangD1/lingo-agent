@@ -113,8 +113,19 @@ describe("states", () => {
     expect(woken.sleep).toBeLessThan(0.01);
   });
 
-  it("draws asleep when still, everything else at rest", () => {
+  it("writing looks down over its notepad (ADR 0058 §2), and puts it away after", () => {
+    const settled = run(1000, "writing").at(-1)!;
+    expect(settled.write).toBeCloseTo(1, 2);
+    expect(settled.lookY).toBeGreaterThan(0.95);
+    expect(settled.dip).toBeGreaterThan(2.4);
+    expect(settled.think).toBeLessThan(0.01);
+    const done = run(2000, (t) => (t < 1000 ? "writing" : "idle")).at(-1)!;
+    expect(done.write).toBeLessThan(0.01);
+  });
+
+  it("draws asleep or writing when still, everything else at rest", () => {
     expect(stillPose("sleeping")).toMatchObject({ eyes: 0, sleep: 1 });
+    expect(stillPose("writing")).toMatchObject({ write: 1, lookY: 1 });
     expect(stillPose("speaking")).toBe(REST_POSE);
   });
 

@@ -4,6 +4,8 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Advice } from "@/lib/advice";
+import { resetRuns, runNotice, trackRun } from "@/lib/chat-runs";
+import type { ChatEvent } from "@/lib/sse";
 import { SETTLE_MS } from "@/lib/pet-nudges";
 import { DEFAULT_PET_PLACE, parsePetPlace } from "@/lib/preferences";
 import { DEFAULT_TUTOR, type Tutor } from "@/lib/tutor";
@@ -26,9 +28,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 // The window has its own tests: here, a command said in it, and what it opens with.
+const petWindow = vi.hoisted(() => ({ conversation: null as string | null }));
 vi.mock("./pet-chat", async () => {
   const { petAction } = await import("@/lib/pet-actions");
   return {
+    petChatConversationId: () => petWindow.conversation,
     PetChat: ({
       side,
       onClose,
@@ -84,12 +88,14 @@ vi.mock("./tutor-avatar", () => ({
     animate,
     state,
     clip,
+    letter,
   }: {
     label: string;
     size: number;
     animate: boolean;
     state?: string;
     clip?: boolean;
+    letter?: boolean;
   }) => (
     <span
       role={label ? "img" : undefined}
@@ -99,6 +105,7 @@ vi.mock("./tutor-avatar", () => ({
       data-animate={String(animate)}
       data-state={state}
       data-clip={clip || undefined}
+      data-letter={letter || undefined}
     />
   ),
 }));
@@ -115,6 +122,7 @@ function show() {
 }
 
 beforeEach(() => {
+  resetRuns();
   nav.pathname = "/dashboard";
   nav.search = "";
   advice.current = null;
@@ -420,6 +428,82 @@ describe("TutorPet chat", () => {
     } finally {
       input.remove();
     }
+  });
+});
+
+describe("TutorPet and replies written in the background (ADR 0058)", () => {
+  beforeEach(() => {
+    resetRuns();
+    resetPet();
+    petWindow.conversation = null;
+  });
+
+  /** A reply to `id` with nobody watching, ended (as `last`) when `finish` is called. */
+  function backgroundReply(id: string, last: ChatEvent = { event: "done", message_id: "m", turn_id: "u", usage: {} }) {
+    let finish: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (finish = resolve));
+    const ended = trackRun(
+      id,
+      "reply",
+      new AbortController(),
+      { event: "token", text: "Hi" },
+      (async function* () {
+        await gate;
+        yield last;
+      })(),
+      null,
+    );
+    return { finish: () => act(async () => { finish(); await ended; }) };
+  }
+
+  it("writes while it is written, then holds up an envelope and leads back to it", async () => {
+    const view = show();
+    const reply = backgroundReply("c1");
+    const avatar = await screen.findByRole("img", { name: "Max, your assistant: writing a reply" });
+    expect(avatar).toHaveAttribute("data-state", "writing");
+
+    await reply.finish();
+    const bubble = screen.getByTestId("pet-bubble");
+    expect(bubble).toHaveAttribute("data-key", expect.stringMatching(/^reply:/));
+    expect(screen.getByRole("status")).toHaveTextContent("Your reply is ready");
+    expect(screen.getByTestId("pet-bubble-action")).toHaveAttribute("href", "/chat?c=c1");
+    expect(screen.getByRole("img", { name: "Max, your assistant" })).toHaveAttribute("data-letter");
+
+    // About another page anyway: a page change keeps it.
+    nav.pathname = "/learner";
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <TutorPet />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByTestId("pet-bubble")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Later" }));
+    expect(screen.queryByTestId("pet-bubble")).toBeNull();
+    expect(runNotice()).toBeNull();
+  });
+
+  it("reopens its window for the window's own conversation; says so when it failed", async () => {
+    petWindow.conversation = "c2";
+    show();
+    await backgroundReply("c2", { event: "error", code: "llm_unavailable", message: "down" }).finish();
+    expect(screen.getByRole("status")).toHaveTextContent("That reply didn't go through");
+    expect(screen.getByRole("img", { name: "Max, your assistant" })).not.toHaveAttribute("data-letter");
+
+    await userEvent.click(screen.getByTestId("pet-bubble-action"));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByTestId("pet-bubble")).toBeNull();
+  });
+
+  it("collapsed, has a ring round it while one is written", async () => {
+    show();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse the desk pet" }));
+    expect(screen.queryByTestId("tutor-pet-ring")).toBeNull();
+    const reply = backgroundReply("c1");
+    expect(await screen.findByTestId("tutor-pet-ring")).toBeInTheDocument();
+    await reply.finish();
+    expect(screen.queryByTestId("tutor-pet-ring")).toBeNull();
+    expect(screen.getByTestId("tutor-pet-dot")).toBeInTheDocument();
   });
 });
 

@@ -6,6 +6,7 @@ import type { ApiErrorLike } from "@/i18n/errors";
 import type { Activity } from "@/lib/activity";
 import { api, ApiError, isAbortError } from "@/lib/api";
 import type { TutorCard } from "@/lib/cards";
+import { type RunWatcher, stopRun, trackRun, unwatchRun, watchRun } from "@/lib/chat-runs";
 import { type ChatEvent, OPENING_TURN_ID, streamChat, streamOpening } from "@/lib/sse";
 import type { Attachment, Conversation, HistoryMessage } from "@/lib/types";
 import { usePetHold } from "@/lib/tutor-pet";
@@ -59,6 +60,25 @@ const createPlain = () => api<Conversation>("/conversations", { method: "POST" }
 let keySeq = 0;
 const nextKey = () => `m${++keySeq}`;
 
+/** This view watching one conversation's reply (`lib/chat-runs.ts`), until it leaves. */
+type Watch = { id: string; watcher: RunWatcher; unwatch: () => void; left: Promise<void> };
+
+const toMessages = (history: HistoryMessage[]): ChatMessage[] =>
+  history.map((m, i) => ({
+    key: nextKey(),
+    id: m.id ?? undefined,
+    role: m.role,
+    content: m.content,
+    attachments: m.attachments,
+    createdAt: m.created_at ?? undefined,
+    turnId:
+      m.role === "assistant" && history[i - 1]?.role === "user"
+        ? (history[i - 1].id ?? undefined)
+        : m.role === "assistant" && i === 0
+          ? OPENING_TURN_ID // a practice or planning opening
+          : undefined,
+  }));
+
 export function useChatSession(conversationId: string | null, options: Options) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,7 +88,10 @@ export function useChatSession(conversationId: string | null, options: Options) 
   // The conversation whose history was loaded last: until it is the current one,
   // `messages` may still be another conversation's.
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  // A send or opening the backend has not taken yet: the stop button aborts it. Once taken,
+  // the reply is the app's (ADR 0058 §1): leaving goes on with it, stop goes to `stopRun`.
   const abortRef = useRef<AbortController | null>(null);
+  const watchRef = useRef<Watch | null>(null);
   // An in-flight creation, so two early uploads don't create two conversations.
   const creatingRef = useRef<Promise<string> | null>(null);
   // A conversation we just created mid-send already has its messages on screen.
@@ -78,53 +101,6 @@ export function useChatSession(conversationId: string | null, options: Options) 
     optionsRef.current = options;
   });
 
-  useEffect(() => {
-    // We just created this conversation mid-send: its turn is streaming, don't touch it.
-    if (conversationId !== null && conversationId === createdIdRef.current) {
-      createdIdRef.current = null; // skip once; switching back later reloads history
-      return;
-    }
-    abortRef.current?.abort();
-    creatingRef.current = null;
-    setError(null);
-    if (conversationId === null) {
-      // Switching to a new chat clears the screen, like the rest of this reset.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMessages([]);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    api<HistoryMessage[]>(`/conversations/${conversationId}/messages`)
-      .then((history) => {
-        if (!cancelled) {
-          setMessages(
-            history.map((m, i) => ({
-              key: nextKey(),
-              id: m.id ?? undefined,
-              role: m.role,
-              content: m.content,
-              attachments: m.attachments,
-              createdAt: m.created_at ?? undefined,
-              turnId:
-                m.role === "assistant" && history[i - 1]?.role === "user"
-                  ? (history[i - 1].id ?? undefined)
-                  : m.role === "assistant" && i === 0
-                    ? OPENING_TURN_ID // a practice or planning opening
-                    : undefined,
-            })),
-          );
-          setLoadedFor(conversationId);
-        }
-      })
-      .catch((e: unknown) => !cancelled && setError(toApiErrorLike(e)))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [conversationId]);
-
-  useEffect(() => () => abortRef.current?.abort(), []);
 
   const updateLast = useCallback(
     (patch: (message: ChatMessage) => ChatMessage) =>
@@ -134,10 +110,11 @@ export function useChatSession(conversationId: string | null, options: Options) 
 
   /** Apply one event of the reply being streamed into the last message. */
   const apply = useCallback(
-    (event: ChatEvent, id: string) => {
+    (event: ChatEvent, id: string, replay = false) => {
       if (event.event === "token") {
         updateLast((m) => ({ ...m, content: m.content + event.text }));
-        optionsRef.current.onToken?.(event.text);
+        // Not read aloud again when coming back to a reply already under way.
+        if (!replay) optionsRef.current.onToken?.(event.text);
       } else if (event.event === "activity") {
         updateLast((m) => ({ ...m, turnId: event.turn_id }));
         optionsRef.current.onActivity?.(event);
@@ -175,6 +152,127 @@ export function useChatSession(conversationId: string | null, options: Options) 
           : { ...m, status: "error", error: toApiErrorLike(e) },
       ),
     [updateLast],
+  );
+
+  /** Stops watching the reply on screen, if any: it goes on being written (ADR 0058 §1). */
+  const leave = useCallback(() => {
+    const watch = watchRef.current;
+    watchRef.current = null;
+    watch?.unwatch();
+  }, []);
+
+  /** A watcher of `id`'s reply for this view: its events go on screen, its end finishes it. */
+  const watchFor = useCallback(
+    (id: string) => {
+      let gone = () => {};
+      const left = new Promise<void>((resolve) => (gone = resolve));
+      const watcher: RunWatcher = {
+        event: (event) => apply(event, id),
+        end: (thrown) => {
+          if (watchRef.current?.watcher === watcher) watchRef.current = null;
+          gone();
+          // Stopped or cut off mid-reply: the backend keeps the learner's message only.
+          if (thrown !== undefined) markInterrupted(thrown);
+          setStreaming(false);
+          optionsRef.current.onTurnFinished();
+        },
+      };
+      const watch: Watch = {
+        id,
+        watcher,
+        left,
+        unwatch: () => {
+          unwatchRun(id, watcher);
+          gone();
+        },
+      };
+      return { watch, found: watchRun(id, watcher).found };
+    },
+    [apply, markInterrupted],
+  );
+
+  /** Hands a reply the backend took to the app; resolves once it ended or we left it. */
+  const follow = useCallback(
+    async (
+      id: string,
+      kind: "reply" | "opening",
+      controller: AbortController,
+      first: ChatEvent,
+      stream: AsyncGenerator<ChatEvent, void, undefined>,
+    ) => {
+      if (abortRef.current === controller) abortRef.current = null;
+      const { watch } = watchFor(id); // nothing running yet: only registers below
+      watchRef.current = watch;
+      await Promise.race([trackRun(id, kind, controller, first, stream, watch.watcher), watch.left]);
+    },
+    [watchFor],
+  );
+
+  useEffect(() => {
+    // We just created this conversation mid-send: its turn is streaming, don't touch it.
+    if (conversationId !== null && conversationId === createdIdRef.current) {
+      createdIdRef.current = null; // skip once; switching back later reloads history
+      return;
+    }
+    // Leaving: a reply not yet taken is dropped, one being written goes on without us.
+    abortRef.current?.abort();
+    leave();
+    creatingRef.current = null;
+    setError(null);
+    if (conversationId === null) {
+      // Switching to a new chat clears the screen, like the rest of this reset.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMessages([]);
+      setStreaming(false);
+      return;
+    }
+    setStreaming(false);
+    const id = conversationId;
+    let cancelled = false;
+    const load = async (): Promise<void> => {
+      const since = Date.now();
+      const history = await api<HistoryMessage[]>(`/conversations/${id}/messages`);
+      if (cancelled) return;
+      // A reply still being written here (sent before we left): shown so far, then on.
+      const { watch, found } = watchFor(id);
+      if (found?.running) {
+        watchRef.current = watch;
+        setMessages([
+          ...toMessages(history),
+          {
+            key: nextKey(),
+            createdAt: new Date().toISOString(),
+            role: "assistant",
+            content: "",
+            status: "streaming",
+            turnId: found.kind === "opening" ? OPENING_TURN_ID : undefined,
+          },
+        ]);
+        setStreaming(true);
+        for (const event of found.events) apply(event, id, true);
+      } else if (found && found.endedAt >= since) {
+        return load(); // it ended while the history was on its way: that may lack it
+      } else {
+        setMessages(toMessages(history));
+      }
+      setLoadedFor(id);
+    };
+    setLoading(true);
+    load()
+      .catch((e: unknown) => !cancelled && setError(toApiErrorLike(e)))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+    // `apply`, `leave` and `watchFor` are stable.
+  }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+      leave();
+    },
+    [], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   /**
@@ -231,17 +329,12 @@ export function useChatSession(conversationId: string | null, options: Options) 
           attachmentIds: attachments.map((a) => a.id),
           workspaceDocId: optionsRef.current.workspaceDocId,
         });
-        let step = await stream.next(); // 404/409 throw here, before any reply
+        const step = await stream.next(); // 404/409 throw here, before any reply
         accepted = true;
         if (created) optionsRef.current.onConversationCreated(created);
-        for (; !step.done; step = await stream.next()) apply(step.value, id);
+        if (!step.done) await follow(id, "reply", controller, step.value, stream);
         return true;
       } catch (e) {
-        if (accepted) {
-          // The backend keeps the learner's message, not the partial reply.
-          markInterrupted(e);
-          return true;
-        }
         setMessages((all) => all.slice(0, -2));
         if (created) createdIdRef.current = null;
         if (created && optionsRef.current.discardRefused !== false) {
@@ -252,11 +345,10 @@ export function useChatSession(conversationId: string | null, options: Options) 
         return false;
       } finally {
         if (abortRef.current === controller) abortRef.current = null;
-        setStreaming(false);
-        if (accepted) optionsRef.current.onTurnFinished();
+        if (!accepted) setStreaming(false);
       }
     },
-    [conversationId, apply, markInterrupted],
+    [conversationId, follow],
   );
 
   /**
@@ -285,24 +377,22 @@ export function useChatSession(conversationId: string | null, options: Options) 
     let accepted = false;
     try {
       const stream = streamOpening(id, { signal: controller.signal });
-      let step = await stream.next(); // 409 throws here, before any reply
+      const step = await stream.next(); // 409 throws here, before any reply
       accepted = true;
-      for (; !step.done; step = await stream.next()) apply(step.value, id);
+      if (!step.done) await follow(id, "opening", controller, step.value, stream);
     } catch (e) {
-      if (accepted) {
-        markInterrupted(e);
-      } else {
-        setMessages((all) => all.slice(0, -1));
-        if (!isAbortError(e)) setError(toApiErrorLike(e));
-      }
+      setMessages((all) => all.slice(0, -1));
+      if (!isAbortError(e)) setError(toApiErrorLike(e));
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
-      setStreaming(false);
-      if (accepted) optionsRef.current.onTurnFinished();
+      if (!accepted) setStreaming(false);
     }
-  }, [conversationId, apply, markInterrupted]);
+  }, [conversationId, follow]);
 
-  const stop = useCallback(() => abortRef.current?.abort(), []);
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+    if (watchRef.current) stopRun(watchRef.current.id);
+  }, []);
 
   // Waiting on the tutor's first words: the desk pet thinks (ADR 0032 §4a).
   const last = messages.at(-1);

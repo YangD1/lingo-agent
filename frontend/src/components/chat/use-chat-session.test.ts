@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api";
+import { resetRuns, runNotice } from "@/lib/chat-runs";
 import type { ChatEvent } from "@/lib/sse";
 import { petState, resetPet } from "@/lib/tutor-pet";
 
@@ -36,12 +37,96 @@ function setup(conversationId: string | null = null) {
 }
 
 beforeEach(() => {
+  resetRuns();
+  resetPet();
   api.mockReset();
   streamChat.mockReset();
   streamOpening.mockReset();
 });
 
+/** A reply that waits at `gate` after its first words: "So" now, " far" once released. */
+function gatedReply() {
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  let signal: AbortSignal | undefined;
+  streamChat.mockImplementation((_id: string, _text: string, options: { signal?: AbortSignal }) => {
+    signal = options.signal;
+    return (async function* () {
+      yield { event: "token", text: "So" } as ChatEvent;
+      await gate;
+      yield { event: "token", text: " far" } as ChatEvent;
+      yield { event: "done", message_id: "m1", turn_id: "u1", usage: {} } as ChatEvent;
+    })();
+  });
+  return { release, signal: () => signal };
+}
+
 describe("useChatSession", () => {
+  it("goes on writing a reply when the learner leaves, and shows it on coming back (ADR 0058)", async () => {
+    api.mockResolvedValue([]);
+    const reply = gatedReply();
+    const { result, rerender, onTurnFinished } = setup("c1");
+    await waitFor(() => expect(result.current.readyFor).toBe("c1"));
+
+    let sending: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      sending = result.current.send("Hello");
+    });
+    await waitFor(() => expect(result.current.messages.at(-1)?.content).toBe("So"));
+
+    // Away to another conversation: not aborted, and the pet writes it.
+    rerender({ id: "c2" });
+    await waitFor(() => expect(result.current.readyFor).toBe("c2"));
+    expect(reply.signal()?.aborted).toBe(false);
+    expect(await sending).toBe(true); // the send is over for this view
+    expect(result.current.streaming).toBe(false);
+    expect(petState()).toBe("writing");
+
+    // Back: the history has the learner's message, the reply goes on from what came.
+    api.mockResolvedValue([{ id: "u1", role: "user", content: "Hello", attachments: [] }]);
+    rerender({ id: "c1" });
+    await waitFor(() => expect(result.current.readyFor).toBe("c1"));
+    expect(result.current.messages.map((m) => [m.role, m.content, m.status])).toEqual([
+      ["user", "Hello", undefined],
+      ["assistant", "So", "streaming"],
+    ]);
+    expect(result.current.streaming).toBe(true);
+    expect(petState()).toBe("idle"); // watched again
+
+    await act(async () => reply.release());
+    await waitFor(() => expect(result.current.streaming).toBe(false));
+    expect(result.current.messages.at(-1)).toMatchObject({ content: "So far", id: "m1", status: undefined });
+    expect(runNotice()).toBeNull(); // seen here, no bubble
+    expect(onTurnFinished).toHaveBeenCalledOnce();
+  });
+
+  it("leaves a notice when a reply ends with nobody looking", async () => {
+    api.mockResolvedValue([]);
+    const reply = gatedReply();
+    const { result, unmount } = setup("c1");
+    await waitFor(() => expect(result.current.readyFor).toBe("c1"));
+    act(() => {
+      void result.current.send("Hello");
+    });
+    await waitFor(() => expect(result.current.messages.at(-1)?.content).toBe("So"));
+
+    unmount(); // the window closed
+    expect(reply.signal()?.aborted).toBe(false);
+    await act(async () => reply.release());
+    await waitFor(() => expect(runNotice()).toMatchObject({ conversationId: "c1", ok: true }));
+    expect(petState()).toBe("happy");
+
+    // Opening it again counts as seen; the history has the reply by now.
+    api.mockResolvedValue([
+      { id: "u1", role: "user", content: "Hello", attachments: [] },
+      { id: "m1", role: "assistant", content: "So far", attachments: [] },
+    ]);
+    const again = setup("c1");
+    await waitFor(() => expect(again.result.current.readyFor).toBe("c1"));
+    expect(runNotice()).toBeNull();
+    expect(again.result.current.messages.map((m) => m.content)).toEqual(["Hello", "So far"]);
+  });
+
   it("creates the conversation lazily and streams the reply", async () => {
     api.mockResolvedValueOnce(CONVERSATION);
     const read = {

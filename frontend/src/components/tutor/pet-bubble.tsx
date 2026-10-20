@@ -13,8 +13,9 @@ export type BubbleContent = {
   /** Which one: the pet's records of what it said, and tests. */
   key: string;
   text: string;
-  /** The way in: a plain link, so flashcards open in place (ADR 0038). */
-  action?: { href: string; label: string };
+  /** The way in: a plain link, so flashcards open in place (ADR 0038); or, to reopen the
+   * pet's own window, a button. */
+  action?: { href: string; label: string } | { onClick: () => void; label: string };
   /** "No thanks" / "Later"; left out, only the close button. */
   dismiss?: string;
   /** A quieter way out under the buttons ("Ask the tutor instead"). */
@@ -76,16 +77,29 @@ export function PetBubble({
       </p>
       {(content.action || content.dismiss) && (
         <div className="mt-2.5 flex flex-wrap gap-2">
-          {content.action && (
-            <Link
-              href={content.action.href}
-              onClick={() => onEnd("action")}
-              className={buttonVariants({ size: "sm" })}
-              data-testid="pet-bubble-action"
-            >
-              {content.action.label}
-            </Link>
-          )}
+          {content.action &&
+            ("href" in content.action ? (
+              <Link
+                href={content.action.href}
+                onClick={() => onEnd("action")}
+                className={buttonVariants({ size: "sm" })}
+                data-testid="pet-bubble-action"
+              >
+                {content.action.label}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (content.action && "onClick" in content.action) content.action.onClick();
+                  onEnd("action");
+                }}
+                className={buttonVariants({ size: "sm" })}
+                data-testid="pet-bubble-action"
+              >
+                {content.action.label}
+              </button>
+            ))}
           {content.dismiss && (
             <button
               type="button"

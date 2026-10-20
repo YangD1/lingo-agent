@@ -10,7 +10,8 @@ import { subscribeVoiceActive, voiceActive } from "@/lib/voice-level";
  * and nothing here needs one to be on the page.
  *
  * The pet's state, strongest first: listening (recording), speaking (the tutor's voice
- * playing), thinking (waiting on the reply), happy (one hop), sleeping (left alone for
+ * playing), thinking (waiting on the reply), writing (a reply nobody is looking at is
+ * being written, ADR 0058 §2), happy (one hop), sleeping (left alone for
  * `SLEEP_AFTER_MS`), else idle.
  */
 
@@ -19,9 +20,9 @@ export const SLEEP_AFTER_MS = 3 * 60_000;
 /** How often an idle page checks whether it is time to doze. */
 const SLEEP_CHECK_MS = 10_000;
 
-type Hold = "listening" | "thinking";
+type Hold = "listening" | "thinking" | "writing";
 
-const holds: Record<Hold, number> = { listening: 0, thinking: 0 };
+const holds: Record<Hold, number> = { listening: 0, thinking: 0, writing: 0 };
 let happy = false;
 let happyTimer: ReturnType<typeof setTimeout> | undefined;
 let asleep = false;
@@ -34,7 +35,8 @@ function notify() {
 
 /**
  * Marks something going on until the returned function is called (once; more calls do
- * nothing): a recording (`listening`), or a wait for the tutor's first words (`thinking`).
+ * nothing): a recording (`listening`), a wait for the tutor's first words (`thinking`), or
+ * a reply written in the background (`writing`).
  */
 export function petHold(kind: Hold): () => void {
   holds[kind]++;
@@ -113,6 +115,7 @@ export function petState(): AvatarState {
   if (holds.listening > 0) return "listening";
   if (voiceActive()) return "speaking";
   if (holds.thinking > 0) return "thinking";
+  if (holds.writing > 0) return "writing";
   if (happy) return "happy";
   return asleep ? "sleeping" : "idle";
 }
@@ -170,7 +173,7 @@ export function usePetState(): AvatarState {
 
 /** Back to nothing going on (tests). */
 export function resetPet() {
-  holds.listening = holds.thinking = 0;
+  holds.listening = holds.thinking = holds.writing = 0;
   clearTimeout(happyTimer);
   happy = asleep = false;
   lastActive = Date.now();

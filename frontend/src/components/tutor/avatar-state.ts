@@ -5,9 +5,17 @@
 
 /**
  * What the tutor is doing: waiting, hearing the learner, waiting on the reply, talking, glad,
- * or dozing after the learner has left it alone for a while (ADR 0032 §4a).
+ * dozing after the learner has left it alone for a while (ADR 0032 §4a), or writing a reply
+ * the learner went away from (ADR 0058 §2).
  */
-export type AvatarState = "idle" | "listening" | "thinking" | "speaking" | "happy" | "sleeping";
+export type AvatarState =
+  | "idle"
+  | "listening"
+  | "thinking"
+  | "speaking"
+  | "happy"
+  | "sleeping"
+  | "writing";
 
 export type Pose = {
   /** Seconds since the animator started: for what loops (breath, tail, dots, waves). */
@@ -33,6 +41,8 @@ export type Pose = {
   sparkle: number;
   /** 0..1: dozing, eyes shut and the z's rising. */
   sleep: number;
+  /** 0..1: head down over a notepad, the pencil going. */
+  write: number;
   /** 0..1 through the happy hop and sparkles; 1 once they are over. */
   joy: number;
 };
@@ -52,17 +62,31 @@ export const REST_POSE: Pose = {
   think: 0,
   sparkle: 0,
   sleep: 0,
+  write: 0,
   joy: 1,
 };
 
-/** The still pose for `state`: asleep is drawn asleep, everything else at rest. */
+/** The still pose for `state`: asleep is drawn asleep, writing over its notepad, everything
+ * else at rest. */
 export function stillPose(state: AvatarState): Pose {
-  return state === "sleeping" ? { ...REST_POSE, ...TARGETS.sleeping } : REST_POSE;
+  return state === "sleeping" || state === "writing"
+    ? { ...REST_POSE, ...TARGETS[state] }
+    : REST_POSE;
 }
 
 type Target = Pick<
   Pose,
-  "tilt" | "dip" | "eyes" | "smile" | "lookX" | "lookY" | "listen" | "think" | "sparkle" | "sleep"
+  | "tilt"
+  | "dip"
+  | "eyes"
+  | "smile"
+  | "lookX"
+  | "lookY"
+  | "listen"
+  | "think"
+  | "sparkle"
+  | "sleep"
+  | "write"
 >;
 
 const IDLE: Target = {
@@ -76,6 +100,7 @@ const IDLE: Target = {
   think: 0,
   sparkle: 0,
   sleep: 0,
+  write: 0,
 };
 
 const TARGETS: Record<Exclude<AvatarState, "happy">, Target> = {
@@ -84,6 +109,7 @@ const TARGETS: Record<Exclude<AvatarState, "happy">, Target> = {
   thinking: { ...IDLE, tilt: -0.08, eyes: 0.9, lookX: 0.6, lookY: -0.8, think: 1 },
   speaking: IDLE,
   sleeping: { ...IDLE, tilt: 0.1, dip: 2, eyes: 0, lookY: 0.4, sleep: 1 },
+  writing: { ...IDLE, tilt: 0.06, dip: 2.5, eyes: 0.8, lookX: -0.2, lookY: 1, write: 1 },
 };
 
 // Changes of state ease over about this long, so the cat never jumps.

@@ -143,6 +143,12 @@ function useResize(side: "left" | "right") {
   return { box, style, resizing, grip, onKeyDown };
 }
 
+/** The conversation the window is on today, if any: the desk pet reopens the window to go
+ * back to it (ADR 0058 §3). */
+export function petChatConversationId(): string | null {
+  return keptToday()?.conversation?.id ?? null;
+}
+
 /** Forgets the kept conversation (tests). */
 export function resetPetChat() {
   kept = null;
