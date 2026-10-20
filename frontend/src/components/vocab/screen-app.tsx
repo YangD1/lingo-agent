@@ -63,6 +63,15 @@ export function ScreenApp() {
     setState({ ...state, known });
   }
 
+  /** Marks the whole batch known, or swaps known and not known. */
+  function markAll(invert: boolean) {
+    if (state.kind !== "batch") return;
+    const known = new Set(
+      state.words.map((w) => w.id).filter((id) => !invert || !state.known.has(id)),
+    );
+    setState({ ...state, known });
+  }
+
   async function submit() {
     if (state.kind !== "batch") return;
     setBusy(true);
@@ -148,7 +157,19 @@ export function ScreenApp() {
                   b: (chunks) => <b className="font-semibold">{chunks}</b>,
                 })}
               </span>
-              <Button className="ml-auto" disabled={busy} onClick={() => void submit()}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto"
+                disabled={busy || state.known.size === state.words.length}
+                onClick={() => markAll(false)}
+              >
+                {t("selectAll")}
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => markAll(true)}>
+                {t("invert")}
+              </Button>
+              <Button disabled={busy} onClick={() => void submit()}>
                 {t("submit")}
               </Button>
             </div>

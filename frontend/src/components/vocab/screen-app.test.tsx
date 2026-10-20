@@ -65,6 +65,34 @@ describe("ScreenApp", () => {
     );
   });
 
+  it("marks the whole batch known, or swaps known and not known", async () => {
+    api
+      .mockResolvedValueOnce({ words: [word(1, "apple"), word(2, "abide"), word(3, "abyss")] })
+      .mockResolvedValueOnce({ known: 1, shown: 3, skipped_ahead: false });
+    show();
+
+    await userEvent.click(await screen.findByRole("button", { name: "apple" }));
+    await userEvent.click(screen.getByRole("button", { name: "abide" }));
+    await userEvent.click(screen.getByRole("button", { name: "Invert" }));
+    expect(screen.getByTestId("screen-count")).toHaveTextContent("1 of 3 marked known");
+    expect(screen.getByRole("button", { name: "abyss" })).toHaveAttribute("aria-pressed", "true");
+
+    const all = screen.getByRole("button", { name: "Select all" });
+    await userEvent.click(all);
+    expect(screen.getByTestId("screen-count")).toHaveTextContent("3 of 3 marked known");
+    expect(all).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Invert" }));
+    expect(screen.getByTestId("screen-count")).toHaveTextContent("0 of 3 marked known");
+    await userEvent.click(screen.getByRole("button", { name: "Invert" }));
+    await userEvent.click(screen.getByRole("button", { name: "apple" })); // untick one
+
+    await userEvent.click(screen.getByRole("button", { name: "Done, next" }));
+    expect(api).toHaveBeenCalledWith("/vocab/screen", {
+      method: "POST",
+      json: { shown: [1, 2, 3], known: [2, 3] },
+    });
+  });
+
   it("says so when most were known and the next batch skips ahead", async () => {
     api
       .mockResolvedValueOnce({ words: [word(1, "apple")] })

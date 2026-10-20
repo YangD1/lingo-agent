@@ -996,6 +996,8 @@
       "noBook": "Choose a word book first.",
       "finished": "You've been through every word in this book.",
       "count": "<b>{known}</b> of {total} marked known",
+      "selectAll": "Select all",
+      "invert": "Invert",
       "submit": "Done, next",
       "result": "You knew {known} of {shown}.",
       "skipped": "Most of them, so the next batch skips ahead to rarer words.",

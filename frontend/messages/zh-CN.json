@@ -996,6 +996,8 @@
       "noBook": "请先选一本词书。",
       "finished": "这本书的词你都看过了。",
       "count": "已标记认识 <b>{known}</b> / {total}",
+      "selectAll": "全选",
+      "invert": "反选",
       "submit": "好了，提交",
       "result": "这批 {shown} 个词里你认识 {known} 个。",
       "skipped": "认识得很多，下一批会往后跳到更少用的词。",
