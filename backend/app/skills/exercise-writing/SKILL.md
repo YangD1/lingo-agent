@@ -45,7 +45,9 @@ what the learner has to change. It must not be the changed form itself.
   piece to point at: do not use `find_fix` for it. Use `cloze` (the gap is where the
   word goes) or `transform`.
 - A contrast between two forms (bored / boring, past simple / present perfect) suits
-  `choice4` or `cloze`, with a context that makes only one of them right.
+  `choice4` or `cloze`, with a context that makes only one of them right. So does an
+  article choice; in `transform` it is easy to give the article away (see that
+  reference).
 
 ## One right answer
 
