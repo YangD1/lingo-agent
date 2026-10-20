@@ -2,7 +2,7 @@
 
 from app.adaptive.kc.catalog import get_grammar_catalog
 from app.advice.candidates import Candidate, Example
-from app.advice.describe import describe
+from app.advice.describe import card_for, describe
 from app.services.vocab.books import get_book
 
 KC = get_grammar_catalog().get("g.present_simple_third_person")
@@ -36,6 +36,15 @@ def test_each_kind_with_its_evidence() -> None:
     )
     learn = Candidate("vocab_learn", "vocab_learn", 0.3, count=5, book=get_book("cet4"))
     assert describe(learn) == "Learn today's new words from CET-4: 5 left today"
+
+
+def test_new_words_lead_to_the_page_for_new_words_only() -> None:
+    # Not vocab_review: the tutor reads "learn new words" and picks vocab_learn (task 114).
+    learn = Candidate("vocab_learn", "vocab_learn", 0.3, count=5)
+    assert card_for(learn) == "`suggest_link` with `vocab_learn`"
+    assert card_for(Candidate("choose_book", "choose_book", 0.6)) == (
+        "`suggest_link` with `word_books`"
+    )
 
 
 def test_a_snoozed_test_is_offered_only_when_asked() -> None:

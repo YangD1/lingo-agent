@@ -102,6 +102,8 @@ async def test_the_tutor_answers_with_todays_brief_and_cards_within_it(
     assert "today's study, from the dashboard" in prompt
     assert "What the learning engine suggests now" in prompt
     assert "Take the placement test: never taken" in prompt
+    # Each page suggestion names its card: no guessing a page out of scope (task 114).
+    assert "never taken; card: `suggest_link` with `placement`" in prompt
     assert "mention it once in your first reply, with its reason" in prompt
     assert 'said "not now" to this' not in prompt
     # The progress section is there, without the days the brief already counts.

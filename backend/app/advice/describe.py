@@ -15,7 +15,7 @@ if TYPE_CHECKING:  # cards.tools imports the memory modules that import this one
 # practice card instead.
 CARD_LINKS: "dict[Kind, LinkKind]" = {
     "vocab_review": "vocab_review",
-    "vocab_learn": "vocab_review",
+    "vocab_learn": "vocab_learn",
     "vocab_screen": "vocab_screen",
     "placement": "placement",
     "choose_book": "word_books",

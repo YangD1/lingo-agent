@@ -30,7 +30,7 @@ from app.adaptive.daily_plan.service import PlanView
 from app.adaptive.kc.catalog import GrammarKC, get_grammar_catalog
 from app.adaptive.rules import get_rules
 from app.advice.candidates import Candidate, candidates
-from app.advice.describe import CARD_LINKS, describe
+from app.advice.describe import CARD_LINKS, card_for, describe
 from app.cards.tools import CardScope, LinkKind
 from app.chat.recent import RecentStudy, load_recent, render_recent
 from app.db.models import KCEvidence, KCMastery, PlacementSession
@@ -257,6 +257,8 @@ def render_planning(brief: PlanningBrief) -> str:
         what = describe(c)
         if c.kc is not None:
             what = f"`{c.kc.id}`: {what}"
+        elif c.kind in CARD_LINKS:  # named, or the tutor guesses a page out of scope
+            what = f"{what}; card: {card_for(c)}"
         lines.append(f"- {what}")
     if not brief.candidates:
         lines.append("- Nothing pressing.")

@@ -450,13 +450,23 @@ def draft_card(name: str, args: Mapping[str, Any], scope: CardScope | None = Non
             if get_grammar_catalog().get(kc_id) is None:
                 raise ToolCallError(f"unknown kc_id {kc_id!r}")
             if scope.kc_ids is not None and kc_id not in scope.kc_ids:
-                raise ToolCallError(f"kc_id {kc_id!r} is not among the suggested grammar points")
+                raise ToolCallError(
+                    f"kc_id {kc_id!r} is not among the suggested grammar points "
+                    f"({_listed(scope.kc_ids)})"
+                )
             return CardDraft("practice", {"kc_id": kc_id})
         case SuggestLink(kind=kind):
             if scope.links is not None and kind not in scope.links:
-                raise ToolCallError(f"link {kind!r} is not among the suggestions")
+                raise ToolCallError(
+                    f"link {kind!r} is not among the suggestions ({_listed(scope.links)})"
+                )
             return CardDraft("link", {"kind": kind})
     raise ToolCallError(f"unknown tool {name!r}")  # pragma: no cover
+
+
+def _listed(allowed: Collection[str]) -> str:
+    """What may go on a card here, so a refused call is put right in one more round."""
+    return "allowed: " + ", ".join(sorted(allowed)) if allowed else "none allowed here"
 
 
 # --- what the graph sees ------------------------------------------------------------------

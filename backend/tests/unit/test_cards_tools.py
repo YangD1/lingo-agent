@@ -70,8 +70,13 @@ def test_suggestions_and_their_scope() -> None:
     scope = CardScope(kc_ids={"g.other"}, links={"vocab_review"})
     with pytest.raises(ToolCallError, match="not among"):
         draft_card("suggest_practice", {"kc_id": KC}, scope)
-    with pytest.raises(ToolCallError, match="not among"):
+    with pytest.raises(ToolCallError, match=r"not among .*\(allowed: g\.other\)"):
+        draft_card("suggest_practice", {"kc_id": KC}, scope)
+    # The refusal says what is allowed, so the tutor puts it right in one round.
+    with pytest.raises(ToolCallError, match=r"not among the suggestions \(allowed: vocab_review\)"):
         draft_card("suggest_link", {"kind": "placement"}, scope)
+    with pytest.raises(ToolCallError, match="none allowed here"):
+        draft_card("suggest_link", {"kind": "placement"}, CardScope(links=set()))
     with pytest.raises(ToolCallError, match="unknown tool"):
         draft_card("delete_everything", {})
 
