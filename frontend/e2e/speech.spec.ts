@@ -345,6 +345,7 @@ test("a qwen3-tts-flash route reads replies, played at the learner's speed", asy
   await chat(page, "apples");
   const reply = page.locator('li[data-role="assistant"]').last();
   await expect(reply.locator('[data-slot="message"]')).toContainText("You said");
+  await expect(reply.getByTestId("ai-badge-read_aloud")).toBeVisible();
   await reply.getByRole("button", { name: "朗读", exact: true }).click();
   await expect.poll(async () => (await played(page)).length).toBe(2);
   expect(await rates(page)).toEqual([0.8, 0.8]);
@@ -421,6 +422,7 @@ test("a deployment generates a book's word pronunciations, and reading a word pl
   await page.getByTestId("book-oxford3000").getByRole("button", { name: "学这本" }).click();
   await page.getByRole("link", { name: "开始" }).click();
   await expect(page.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+  await expect(page.getByTestId("ai-badge-read_aloud")).toBeVisible();
   await page.getByRole("button", { name: "朗读", exact: true }).click();
 
   await expect.poll(() => cached).toEqual(["1"]);

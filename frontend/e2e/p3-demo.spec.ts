@@ -116,6 +116,8 @@ test("P3 demo: read aloud and shadowed, today's speaking, a call, words by ear",
   await input.press("Enter");
   await expect(messages(page).nth(1)).toContainText(SENTENCE);
   const reply = page.locator('li[data-role="assistant"]').last();
+  // Until the page knows the server reads, the browser does (src/lib/speech.ts).
+  await expect(reply.getByTestId("ai-badge-read_aloud")).toBeVisible();
   const read = reply.getByRole("button", { name: "朗读", exact: true });
   await read.click();
   await expect.poll(async () => (await played(page)).length).toBeGreaterThan(0);
