@@ -223,17 +223,18 @@ features:
       # review 1500 in, 200 out. Task 107 (2026-10-19): the writing guide grew to about
       # 6000 in; reviews rate levels without reasons, 1400 in, about 100 out at reasoning
       # low (150 kept for models thinking at their default). Task 109 (2026-10-19): more
-      # failure examples in the guide, about 7000 in.
+      # failure examples in the guide, about 7000 in. Tasks 110–113 (2026-10-20): about
+      # 7500 in.
       - task: exercise_generate
         timing: now
-        default: {input_tokens: 7000, output_tokens: 1100}
+        default: {input_tokens: 7500, output_tokens: 1100}
       - task: exercise_critic
         timing: now
         per: item
         default: {input_tokens: 1400, output_tokens: 150}
       - task: exercise_generate
         timing: background
-        default: {input_tokens: 7000, output_tokens: 1100}
+        default: {input_tokens: 7500, output_tokens: 1100}
       - task: exercise_critic
         timing: background
         per: item
@@ -259,10 +260,10 @@ features:
     calls:
       # As practice_set (ADR 0048). Measured 2026-10-18 (task 100.9, gpt-6.1-sol, 3 pass
       # quizzes of 5 questions): writing 4900 tokens in (5100 since task 107, 6400 since
-      # task 109), 850 out; a review as practice_set.
+      # task 109, 7000 since task 113), 850 out; a review as practice_set.
       - task: exercise_generate
         timing: now
-        default: {input_tokens: 6400, output_tokens: 850}
+        default: {input_tokens: 7000, output_tokens: 850}
       - task: exercise_critic
         timing: now
         per: item
