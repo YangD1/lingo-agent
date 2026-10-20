@@ -2,6 +2,7 @@
 
 import { LayoutGridIcon, Menu, PanelRight } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Group, Panel, Separator, useDefaultLayout, usePanelRef } from "react-resizable-panels";
@@ -144,6 +145,19 @@ export function ChatApp({
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // A link to another conversation from elsewhere on the page (the desk pet's bubble, ADR
+  // 0058 §3) keeps this page mounted and only changes the address: follow it. `setUrl`
+  // keeps the address on `activeId`, so our own changes find nothing to follow.
+  const linkedId = useSearchParams()?.get("c") ?? null;
+  const [followedId, setFollowedId] = useState(linkedId);
+  if (linkedId !== followedId) {
+    setFollowedId(linkedId);
+    if (linkedId && linkedId !== activeId) {
+      setActiveId(linkedId);
+      setDocId(searchParam("w"));
+    }
+  }
 
   const active =
     conversations.find((c) => c.id === activeId) ??

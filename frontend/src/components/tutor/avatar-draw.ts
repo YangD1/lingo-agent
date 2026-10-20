@@ -549,57 +549,67 @@ function drawNeckwear(ctx: Ctx, pose: Pose, outfit: Outfit) {
 }
 
 const PAPER = "#fffaf0";
-const PAPER_LINE = "#c9bfae";
+const PAD_BACK = "#c9a47b";
 const PENCIL = "#e7b95c";
+const ERASER = "#e79a9a";
 
 /**
- * A notepad held in the front paws, the pencil going along its lines (ADR 0058 §2). The
- * written lines fill in one after another and start again; still, two of them are there.
+ * Writing in a notepad held up against the chest (ADR 0058 §2), the way one does: its
+ * cardboard back to us, leaning towards the cat, the left arm holding it. The writing paw
+ * is behind it; the pencil's end shows over the top, going along a line and back.
  */
 function drawNotepad(ctx: Ctx, pose: Pose, p: Palette, small: boolean) {
   ctx.save();
   ctx.globalAlpha = pose.write;
-  ctx.translate(50, 92);
-  ctx.rotate(-0.06);
-  paint(ctx, PAPER, () => ctx.roundRect(-17, -9, 34, 18, 3));
-  // Three lines, written left to right in turn over `CYCLE` seconds.
-  const CYCLE = 3;
-  const phase = pose.time > 0 ? (pose.time % CYCLE) / CYCLE : 0.67;
-  const written = phase * 3;
-  let tip = { x: -12, y: -4 };
-  for (let i = 0; i < 3; i++) {
-    const done = Math.min(Math.max(written - i, 0), 1);
-    if (done <= 0) break;
-    const y = -4 + i * 4.5;
-    const end = -12 + 24 * done;
-    if (!small) {
-      // A wavy line, like handwriting.
-      stroke(ctx, PAPER_LINE, 1.3, () => {
-        ctx.moveTo(-12, y);
-        for (let x = -12; x <= end; x += 2) ctx.lineTo(x, y + Math.sin(x * 1.3) * 0.8);
-      });
-    } else {
-      stroke(ctx, PAPER_LINE, 1.6, () => {
-        ctx.moveTo(-12, y);
-        ctx.lineTo(end, y);
-      });
-    }
-    tip = { x: end, y };
-  }
-  // The pencil, its tip on the line being written, in the right paw.
+  const arm = (from: [number, number], to: [number, number]) => {
+    const path = () => {
+      ctx.moveTo(...from);
+      ctx.quadraticCurveTo(from[0], to[1], ...to);
+    };
+    stroke(ctx, OUTLINE, 7 + 2 * LINE, path);
+    stroke(ctx, p.fur, 7, path);
+  };
+  // The writing arm goes behind the pad.
+  arm([71, 76], [62, 86]);
+
+  // The pencil: along a line in about a second, then back for the next, with a little shake.
+  const t = pose.time;
+  const moving = t > 0;
+  const shake = moving ? Math.sin(t * 2 * Math.PI * 7) : 0;
+  const x = 42 + 14 * (moving ? t % 1 : 0.5) + shake * 0.5;
+  const y = 84 + (moving ? Math.floor(t) % 3 : 1) * 0.8 + Math.abs(shake) * 0.6;
   ctx.save();
-  ctx.translate(tip.x, tip.y);
-  ctx.rotate(-0.7);
-  paint(ctx, PENCIL, () => ctx.roundRect(-1.6, -15, 3.2, 13, 1), 1.4);
-  paint(ctx, OUTLINE, () => {
-    ctx.moveTo(-1.6, -2);
-    ctx.lineTo(0, 1);
-    ctx.lineTo(1.6, -2);
-  }, 0);
-  paint(ctx, p.light, () => ctx.ellipse(0, -10, 4.5, 4, 0, 0, Math.PI * 2));
+  ctx.translate(x, y);
+  ctx.rotate(0.35);
+  paint(ctx, PENCIL, () => ctx.roundRect(-1.7, -19, 3.4, 19, 0.8), 1.4);
+  paint(ctx, ERASER, () => ctx.roundRect(-1.7, -22, 3.4, 3.5, 1.2), 1.4);
   ctx.restore();
-  // The left paw holds the pad.
-  paint(ctx, p.light, () => ctx.ellipse(-17, 3, 4.5, 4, 0, 0, Math.PI * 2));
+
+  // The pad's back, narrower at the top as it leans away, the pages' edge showing above it.
+  paint(ctx, PAPER, () => {
+    ctx.moveTo(37, 74);
+    ctx.lineTo(38, 72);
+    ctx.lineTo(62, 72);
+    ctx.lineTo(63, 74);
+  }, 1.4);
+  paint(ctx, PAD_BACK, () => {
+    ctx.moveTo(32, 99);
+    ctx.lineTo(36, 74);
+    ctx.lineTo(64, 74);
+    ctx.lineTo(68, 99);
+    ctx.closePath();
+  });
+  if (!small) {
+    // The spiral binding along the top.
+    for (let i = 0; i < 6; i++) {
+      const rx = 39.5 + i * 4.2;
+      stroke(ctx, OUTLINE, 1.3, () => ctx.ellipse(rx, 74, 1.2, 2.4, 0, 0, Math.PI * 2));
+    }
+  }
+
+  // The holding arm, its paw over the pad's edge.
+  arm([29, 76], [34, 88]);
+  paint(ctx, p.light, () => ctx.ellipse(35, 88, 4.2, 4.6, 0.2, 0, Math.PI * 2));
   ctx.restore();
 }
 

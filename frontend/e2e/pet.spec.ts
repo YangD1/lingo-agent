@@ -232,3 +232,37 @@ test("a reply goes on when the window closes: the pet writes it, then leads back
   await expect(window.getByText("已停止")).toHaveCount(0);
   await expect(pet(page).locator("canvas[data-letter]")).toHaveCount(0);
 });
+
+test("a reply left on the chat page for another conversation: the bubble leads back to it (ADR 0058)", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail("pet-back"));
+  await useFakeModel(page);
+  await page.goto("/chat");
+  const input = page.getByRole("textbox", { name: /输入消息/ });
+  const messages = page.getByRole("list", { name: "消息" }).locator(':scope > li > [data-slot="message"]');
+  const conversations = page.getByRole("navigation", { name: "会话列表" }).locator("li");
+
+  await input.fill("first topic");
+  await input.press("Enter");
+  await expect(messages.nth(1)).toContainText("first topic");
+  await page.getByRole("button", { name: "新对话" }).click();
+  await input.fill("tell me a long story");
+  await input.press("Enter");
+  await expect(messages.nth(1)).toContainText("word0");
+  await expect(page).toHaveURL(/\?c=/);
+  const story = new URL(page.url()).searchParams.get("c");
+
+  // Off to the other conversation straight away: the story is written meanwhile.
+  await conversations.filter({ hasText: "first topic" }).getByRole("button").first().click();
+  await expect(messages.first()).toHaveText("first topic");
+  await expect(pet(page).locator('canvas[data-state="writing"]')).toHaveCount(1);
+  await pet(page).locator("canvas").screenshot({ path: test.info().outputPath("pet-writing-canvas.png") });
+
+  await expect(bubble(page)).toContainText("回复写好了", { timeout: 15_000 });
+  await bubble(page).getByRole("link", { name: "回去看" }).click();
+  await expect(page).toHaveURL(new RegExp(`\\?c=${story}`));
+  await expect(messages.first()).toHaveText("tell me a long story");
+  await expect(messages.nth(1)).toContainText("word39");
+  await expect(bubble(page)).toHaveCount(0);
+});

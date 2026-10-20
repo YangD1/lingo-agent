@@ -18,6 +18,13 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   api,
 }));
 
+// The address as Next's router reports it (null outside a router, as in the other tests).
+const nav = vi.hoisted(() => ({ params: null as URLSearchParams | null }));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useSearchParams: () => nav.params,
+}));
+
 // The conversation itself has its own tests: here, what the page hands it.
 type PanelProps = ComponentProps<typeof TutorPanel>;
 const panel = vi.hoisted(() => ({
@@ -126,6 +133,7 @@ afterEach(() => {
   api.mockReset();
   panel.props = null;
   panel.workspace = null;
+  nav.params = null;
 });
 
 describe("ChatApp workspace (ADR 0043)", () => {
@@ -251,5 +259,23 @@ describe("ChatApp workspace (ADR 0043)", () => {
     await screen.findByTestId("workspace");
     await userEvent.click(screen.getAllByRole("button", { name: "New chat" })[0]);
     expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
+  });
+});
+
+describe("ChatApp address", () => {
+  it("follows a link to another conversation made from elsewhere on the page (ADR 0058 §3)", async () => {
+    nav.params = new URLSearchParams("c=c1");
+    const { rerender } = show("/chat?c=c1");
+    await waitFor(() => expect(panel.props?.conversationId).toBe("c1"));
+
+    // The pet's bubble links to `/chat?c=c2`: Next keeps the page and changes the address.
+    window.history.pushState(null, "", "/chat?c=c2");
+    nav.params = new URLSearchParams("c=c2");
+    rerender(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <ChatApp initialId="c2" initialDocId={null} />
+      </NextIntlClientProvider>,
+    );
+    expect(panel.props?.conversationId).toBe("c2");
   });
 });
