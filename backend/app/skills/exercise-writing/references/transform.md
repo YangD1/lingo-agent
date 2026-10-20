@@ -56,6 +56,20 @@ Bad (articles with specific reference):
   clause beginning with The advice."
 - Why it fails: the instruction gives "The", and what is left is a relative clause.
 
+Bad (adverb placement, very much):
+- source: "I like this song. (very much)" instruction: "Rewrite with the words in
+  brackets and keep the meaning."
+- Why it fails: choosing "very much" over "very" is part of the point, and the
+  brackets make that choice; adding it also changes the meaning the instruction says
+  to keep.
+  Better, for the position: source "I met my friend at the station. (yesterday)",
+  instruction "Rewrite the sentence with the word in brackets.", accepted "I met my
+  friend at the station yesterday.", "Yesterday I met my friend at the station."
+  ("I met yesterday my friend" is the mistake the item catches.)
+  Better, for very much: source "I like this song.", instruction "Say that you like it
+  a lot, without using a lot.", accepted "I like this song very much.", "I really like
+  this song."
+
 Bad (modifiers of comparatives):
 - source: "This phone is more expensive than that one." instruction: "Use much to
   make the difference bigger."
