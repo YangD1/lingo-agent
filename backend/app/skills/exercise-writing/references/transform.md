@@ -24,7 +24,9 @@ rewrites, best first.
   article. The source must not already hold it, the instruction must not open the
   answer with it ("Begin with The advice"), and joining two sentences is the wrong
   task: the work becomes the relative clause. Ask for a change that moves the article
-  decision instead, such as a possessive into an of-phrase.
+  decision instead, such as a possessive into an of-phrase - only where the of-phrase
+  is what people say (the history of Paris, the price of oil), never with a person
+  ("the name of Mary").
 
 Good (adverbs of frequency):
 - source: "You are happy. (always)"

@@ -10,7 +10,15 @@ right replacements for that piece. Every other piece is correct.
   pronoun, the wrong word of a pair (bored / boring). The wrong piece contains the
   wrong word.
 - Never a **missing** word: "He eating now" can be fixed in "He " or in "eating ",
-  so the wrong piece is not unique. Use `cloze` or `transform` for missing words.
+  so the wrong piece is not unique. Use `cloze` or `transform` for missing words
+  (for a missing article, see the next point).
+- Articles: put the whole noun phrase (the article's place, the noun, and the phrase or
+  clause that makes it specific) in one piece at the start of the sentence, so a
+  missing "the" can only go there, and plant that missing "the": "Education I got at
+  that school " for "The education I got at that school ". Do not plant "a" before an
+  uncountable noun ("a advice" is fixed by "the advice" and by "advice"), nor a / the
+  where both readings work ("Please return a book I lent you" can be about one of
+  several).
 - Cut the sentence so the error sits inside one piece, with its neighbours correct on
   their own. Do not split the tested form across two pieces.
 - When the error is a clash between two words (a tense and a time phrase, "There
