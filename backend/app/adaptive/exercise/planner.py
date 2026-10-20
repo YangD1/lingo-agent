@@ -80,10 +80,11 @@ def target_difficulty(ability: float, fmt: Format, rules: Rules) -> float:
     return ability - math.log(q / (1 - q))
 
 
-def _tiers(state: KCState, rules: Rules) -> list[list[Format]]:
+def _tiers(state: KCState, rules: Rules, avoid: frozenset[str]) -> list[list[Format]]:
     """This KC's formats in order of preference (Q32d): recognition before production
     while it is weak, the other way round once it is not; within each, formats not yet
-    passed first. Formats of one tier are equally good."""
+    passed first. Formats of one tier are equally good; the KC's `avoid_formats` are
+    left out."""
     first, second = (
         (RECOGNITION, PRODUCTION)
         if state.p_mastery < rules.practice.production_from_p
@@ -91,7 +92,9 @@ def _tiers(state: KCState, rules: Rules) -> list[list[Format]]:
     )
     tiers: list[list[Format]] = []
     for group in (first, second):
-        usable = [f for f in group if f != "rewrite_own" or state.has_own_sentence]
+        usable = [
+            f for f in group if f not in avoid and (f != "rewrite_own" or state.has_own_sentence)
+        ]
         tiers.append([f for f in usable if f not in state.formats_passed])
         tiers.append([f for f in usable if f in state.formats_passed])
     return [tier for tier in tiers if tier]
@@ -104,13 +107,16 @@ def _allocate(
     used: Counter[Format],
     rules: Rules,
     rng: random.Random,
+    avoid: Mapping[str, frozenset[str]],
 ) -> int:
     """Hand out up to `count` items round-robin in priority order; returns how many.
 
     Each KC takes from its best tier the format the set uses least so far (`used`,
     shared across calls), so the set varies its formats and can be interleaved.
     """
-    tiers = {p.kc_id: _tiers(states[p.kc_id], rules) for p in picks}
+    tiers = {
+        p.kc_id: _tiers(states[p.kc_id], rules, avoid.get(p.kc_id, frozenset())) for p in picks
+    }
     given = 0
     while given < count:
         progressed = False
@@ -270,6 +276,7 @@ def plan(
         catalog, states, learner_level=learner_level, now=now, rules=rules, boost=boost, focus=focus
     )
     weak, learned, known = ranked.weak, ranked.review(now), ranked.states
+    avoid = {kc.id: frozenset(kc.avoid_formats) for kc in catalog.kcs if kc.avoid_formats}
 
     size = practice.set_size
     used: Counter[Format] = Counter()
@@ -280,7 +287,7 @@ def plan(
             raise ValueError(f"unknown KC {focus}")
         role: Role = "review" if known[focus].learned else "weak"
         focus_picks = [_Pick(focus, role)]
-        taken = _allocate(focus_picks, practice.max_items_per_kc, known, used, rules, rng)
+        taken = _allocate(focus_picks, practice.max_items_per_kc, known, used, rules, rng, avoid)
         weak = [k for k in weak if k != focus]
         learned = [k for k in learned if k != focus]
         size -= taken
@@ -289,14 +296,14 @@ def plan(
         want_review = max(0, min(want_review, size))
     # Spread weak items over enough KCs to vary them: about two items per KC.
     weak_picks = [_Pick(k, "weak") for k in weak[: max(1, math.ceil((size - want_review) / 2))]]
-    got_weak = _allocate(weak_picks, size - want_review, known, used, rules, rng)
+    got_weak = _allocate(weak_picks, size - want_review, known, used, rules, rng, avoid)
     # Too few weak items: learned KCs fill the rest, and the other way round.
     review_count = size - got_weak
     review_picks = [_Pick(k, "review") for k in learned[:review_count]]
-    got_review = _allocate(review_picks, review_count, known, used, rules, rng)
+    got_review = _allocate(review_picks, review_count, known, used, rules, rng, avoid)
     if got_weak + got_review < size:  # still short: more weak KCs
         extra = [_Pick(k, "weak") for k in weak[len(weak_picks) :]]
-        _allocate(extra, size - got_weak - got_review, known, used, rules, rng)
+        _allocate(extra, size - got_weak - got_review, known, used, rules, rng, avoid)
         weak_picks += extra
 
     items = [
@@ -318,12 +325,14 @@ def plan_quiz(
     ability: float,
     rules: Rules,
     seed: int,
+    avoid: frozenset[str] = frozenset(),
 ) -> list[PlannedItem]:
     """A quiz card's items on one KC (ADR 0044 §4). An understanding check asks about
     the rule (CHECK_FORMATS); a pass quiz has `course.quiz_items` items, recognition
     first, then `course.quiz_production` production ones (rewrite_own first when the
     learner has a sentence of their own). Within each part, formats not yet passed
-    come first and none repeats while another is left."""
+    come first and none repeats while another is left. The KC's `avoid_formats` are
+    never used."""
     rng = random.Random(seed)
     if purpose == "check":
         formats: list[Format] = list(CHECK_FORMATS)
@@ -331,14 +340,17 @@ def plan_quiz(
         course = rules.course
 
         def take(group: tuple[Format, ...], count: int, first: list[Format]) -> list[Format]:
-            fresh = [f for f in group if f not in state.formats_passed and f not in first]
-            passed = [f for f in group if f in state.formats_passed and f not in first]
+            group = tuple(f for f in group if f not in avoid and f not in first)
+            fresh = [f for f in group if f not in state.formats_passed]
+            passed = [f for f in group if f in state.formats_passed]
             rng.shuffle(fresh)
             rng.shuffle(passed)
             order = [*first, *fresh, *passed]
             return [order[i % len(order)] for i in range(count)]
 
-        own: list[Format] = ["rewrite_own"] if state.has_own_sentence else []
+        own: list[Format] = (
+            ["rewrite_own"] if state.has_own_sentence and "rewrite_own" not in avoid else []
+        )
         formats = [
             *take(RECOGNITION, course.quiz_items - course.quiz_production, []),
             *take(tuple(f for f in PRODUCTION if f != "rewrite_own"), course.quiz_production, own),

@@ -465,6 +465,7 @@ class PracticeWorker:
                     ability=learner.ability,
                     rules=rules,
                     seed=seed,
+                    avoid=frozenset(kc.avoid_formats),
                 )
                 wider: Sequence[str] = ()
             else:

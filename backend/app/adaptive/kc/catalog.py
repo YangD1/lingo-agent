@@ -55,6 +55,10 @@ class GrammarKC(BaseModel):
     # its owner (see `_confusable_owner`); the catalog makes it symmetric.
     confusable_with: tuple[str, ...] = ()
     common_errors: tuple[str, ...] = ()
+    # Exercise formats the planner never gives this KC (ADR 0021 §2): ones that keep
+    # failing review for it. Names are exercise formats (checked by the planner's tests;
+    # this module cannot import them).
+    avoid_formats: tuple[str, ...] = ()
 
 
 class GrammarCatalog(BaseModel):

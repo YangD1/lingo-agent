@@ -207,6 +207,33 @@ def test_unknown_focus_kc_is_an_error() -> None:
         run(focus="g.no_such_kc")
 
 
+def test_avoided_formats_name_real_formats() -> None:
+    assert all(set(kc.avoid_formats) <= set(FORMATS) for kc in CATALOG.kcs)
+    articles = CATALOG.get("g.articles_specific")
+    assert articles is not None and articles.avoid_formats
+    # What is left must still be enough to pass the mastery gate, rewrite_own aside
+    # (it needs a sentence of the learner's own).
+    gate = RULES.mastery_gate.min_formats
+    for kc in CATALOG.kcs:
+        left = (set(RECOGNITION) | set(PRODUCTION)) - {"rewrite_own", *kc.avoid_formats}
+        assert len(left) >= gate, kc.id
+
+
+@pytest.mark.parametrize("seed", range(10))
+def test_a_kc_never_gets_its_avoided_formats(seed: int) -> None:
+    kcs: list[dict[str, Any]] = [
+        {"id": f"g.k{i}", "name_en": "K", "name_zh": "K", "cefr": "A1", "description": "x"}
+        for i in range(3)
+    ]
+    kcs[0]["avoid_formats"] = ["find_fix", "transform"]
+    catalog = GrammarCatalog.model_validate({"kcs": kcs})
+    # Weak and strong, so it would get both recognition and production formats.
+    for p in (0.1, 0.9):
+        items = run({"g.k0": KCState(p_mastery=p)}, seed=seed, catalog=catalog, focus="g.k0")
+        mine = [i.format for i in items if i.kc_id == "g.k0"]
+        assert mine and not {"find_fix", "transform"} & set(mine)
+
+
 # --- ADR 0033 §6 ------------------------------------------------------------------------
 
 
@@ -269,3 +296,27 @@ def test_a_pass_quiz_rewrites_the_learners_own_sentence_and_prefers_new_formats(
         seed=3,
     )
     assert [i.format for i in plain][-2:] == ["transform", "translate"]
+
+
+def test_a_pass_quiz_leaves_out_avoided_formats() -> None:
+    course = RULES.course
+    avoid = frozenset({"find_fix", "transform"})
+    state = KCState(0.3, has_own_sentence=True)
+    for seed in range(20):
+        items = plan_quiz(
+            A1[0], state, purpose="quiz", ability=0.0, rules=RULES, seed=seed, avoid=avoid
+        )
+        formats = [i.format for i in items]
+        assert len(formats) == course.quiz_items
+        assert not avoid & set(formats)
+        assert set(formats[: course.quiz_items - course.quiz_production]) == {"choice4", "cloze"}
+    no_own = plan_quiz(
+        A1[0],
+        state,
+        purpose="quiz",
+        ability=0.0,
+        rules=RULES,
+        seed=1,
+        avoid=avoid | {"rewrite_own"},
+    )
+    assert "rewrite_own" not in {i.format for i in no_own}

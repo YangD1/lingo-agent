@@ -7,7 +7,8 @@
 # Fields: id (g.<snake_case>), name_en, name_zh, cefr (A1-C2), description (one English
 # sentence, shown to the reflection model), prerequisites (KC ids at the same or a lower
 # level), confusable_with (KCs learners use in place of this one; see below),
-# common_errors (short hints for tagging, not stored anywhere).
+# common_errors (short hints for tagging, not stored anywhere), avoid_formats (exercise
+# formats the planner never gives the KC, ADR 0021 §2).
 #
 # confusable_with (ADR 0022) only lists pairs learners actually swap, at most three per KC,
 # no more than two levels apart and never a pair already linked as prerequisites. Each pair
@@ -1015,6 +1016,9 @@ kcs:
     common_errors:
       - zero article before a noun made specific by an of-phrase or clause
       - the before a noun mentioned for the first time
+    # Reviews kept failing these (task 111): rewrites gave "the" away or turned into
+    # relative clauses, and a planted a / the could be fixed two ways.
+    avoid_formats: [transform, find_fix]
 
   - id: g.would_rather_had_better
     name_en: "would rather / had better / it's time"
