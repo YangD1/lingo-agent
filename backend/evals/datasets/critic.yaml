@@ -464,6 +464,43 @@ cases:
       correct: he had put
       explanation: 'A reported question keeps statement order: "where he had put it".'
 
+  # A noun made specific by what follows takes "the"; leaving it out is the mistake the
+  # KC is about, not a second answer (task 112).
+  - id: good-choice4-the-advice-you-gave
+    expect: pass
+    kc: g.articles_specific
+    ratings: {vocabulary: at_target, syntax: moderate, cues: partial, distractors: one_plausible}
+    format: choice4
+    content:
+      stem: Thank you for your help; ___ advice you gave me yesterday was really useful.
+      options: [不填冠词, an, the, a]
+    answer:
+      correct: the
+      explanation: '"You gave me yesterday" points to one piece of advice, so it takes "the".'
+
+  - id: good-choice4-the-information-you-sent
+    expect: pass
+    kc: g.articles_specific
+    ratings: {vocabulary: at_target, syntax: moderate, cues: partial, distractors: one_plausible}
+    format: choice4
+    content:
+      stem: ___ information you sent me last week helped me finish the report.
+      options: [The, 不填冠词, A, An]
+    answer:
+      correct: The
+      explanation: '"You sent me last week" points to that information, so it takes "the".'
+
+  - id: good-cloze-the-history-of
+    expect: pass
+    kc: g.articles_specific
+    ratings: {vocabulary: at_target, syntax: moderate, cues: partial, distractors: weak}
+    format: cloze
+    content:
+      stem: I'm reading a book about ___ history of the town where I grew up.
+    answer:
+      accepted: [the]
+      explanation: '"Of the town" makes "history" specific, so it takes "the".'
+
   - id: good-cloze-comparative
     expect: pass
     kc: g.comparatives

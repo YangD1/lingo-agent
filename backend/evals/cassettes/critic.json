@@ -1,6 +1,6 @@
 {
- "017de8955634bc0e": {
-  "case": "good-choice4-irregular-past",
+ "0b5932dc327c2ca8": {
+  "case": "good-transform-question",
   "output": {
    "reviews": [
     {
@@ -8,187 +8,15 @@
      "content_ok": true,
      "form_hidden": true,
      "one_answer": true,
-     "own_answer": "had",
+     "own_answer": "Does she live in Shanghai?",
      "own_segment": null,
      "position": 1,
      "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "at_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "105d19869b57d13c": {
-  "case": "choice4-sun-rises-in-the-west",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": false,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "rises",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The sun rises in the east, not the west; change 'west' to 'east'."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "at_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "12144a9bea260cd2": {
-  "case": "good-choice4-since",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "has lived",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "several_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "160625813257a285": {
-  "case": "choice4-a-or-the",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": false,
-     "own_answer": "a",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "Both \"a\" and \"the\" fit: the sentence does not establish whether the dog is unspecified or already known."
-     ],
      "ratings": {
       "cues": {
        "level": "none"
       },
       "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "at_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "186a79464ad826e7": {
-  "case": "good-translate-first-conditional",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "If it rains tomorrow, we will stay at home.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "moderate"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "1a288b114497e092": {
-  "case": "translate-unnatural-reference",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": false,
-     "content_ok": true,
-     "form_hidden": false,
-     "one_answer": true,
-     "own_answer": "I am going to learn to drive next year.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The reference answer is ungrammatical; a correct translation is 'I am going to learn to drive next year.'",
-      "The instruction supplies 'be going to', giving away the construction being tested."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
        "level": "weak"
       },
       "syntax": {
@@ -204,209 +32,7 @@
   },
   "task": "exercise_critic"
  },
- "1dd9d77260af55c4": {
-  "case": "rewrite-own-wrong-key",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": false,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "Yesterday I bought a new phone.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The reference answer incorrectly uses the present perfect with 'yesterday'; it should be 'Yesterday I bought a new phone.'"
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "1ee5decef1025125": {
-  "case": "good-transform-easy-planned-hard",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "She said that she was tired.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "moderate"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "23117e2248819fca": {
-  "case": "good-rewrite-own-irregular-past",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "Yesterday I bought a new phone.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "264e37d257f650a6": {
-  "case": "transform-mouse-heavier",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": false,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "A mouse is heavier than an elephant.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The source reverses the animals' real-world weights, producing the factually false comparison that a mouse is heavier than an elephant."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "partial"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "moderate"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "302256604771af10": {
-  "case": "choice4-wrong-key",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "went",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "several_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "4017bce6f598fbc1": {
-  "case": "good-rewrite-own-an",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "I want to be an engineer.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "above_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "42ed50eccd281ae9": {
+ "0c6c9fe18d8adce5": {
   "case": "good-choice4-mustnt",
   "output": {
    "reviews": [
@@ -439,19 +65,58 @@
   },
   "task": "exercise_critic"
  },
- "494dbea7df5cdef2": {
-  "case": "good-transform-question",
+ "0ec0d24ab43dea21": {
+  "case": "transform-unclear-instruction",
   "output": {
    "reviews": [
     {
      "answer_ok": true,
+     "content_ok": false,
+     "form_hidden": true,
+     "one_answer": false,
+     "own_answer": "If I had enough money, I could buy a car.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "“Do it” does not specify a transformation, so the task does not ask for one clear thing.",
+      "Nothing in the instruction requires the learner to use the second conditional.",
+      "Replace the vague instruction with a clear direction, such as “Rewrite this as an unreal present condition.”"
+     ],
+     "ratings": {
+      "cues": {
+       "level": "none"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "moderate"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": false
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "14395a8ec99b8c52": {
+  "case": "rewrite-own-wrong-key",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": false,
      "content_ok": true,
      "form_hidden": true,
      "one_answer": true,
-     "own_answer": "Does she live in Shanghai?",
+     "own_answer": "Yesterday I bought a new phone.",
      "own_segment": null,
      "position": 1,
-     "problems": [],
+     "problems": [
+      "The reference answer incorrectly uses the present perfect with 'Yesterday'; it should be 'Yesterday I bought a new phone.'"
+     ],
      "ratings": {
       "cues": {
        "level": "explicit"
@@ -472,7 +137,110 @@
   },
   "task": "exercise_critic"
  },
- "4e05ee7400398e59": {
+ "18428299d9553f99": {
+  "case": "choice4-gerund-or-infinitive",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": false,
+     "own_answer": "learning; to learn",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "Both “learning” and “to learn” are grammatical after “started” in this sentence."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "none"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "1e9ae75712b076c1": {
+  "case": "good-choice4-easy-planned-hard",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "am",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "several_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "2596fdac7cb90074": {
+  "case": "translate-wrong-key",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": false,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "I called my mother yesterday.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "The reference answer uses present-tense 'call' instead of past-tense 'called' despite 'yesterday'."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "2c4e78df1fa0ff50": {
   "case": "good-transform-passive",
   "output": {
    "reviews": [
@@ -505,75 +273,7 @@
   },
   "task": "exercise_critic"
  },
- "56611bbd60b45e12": {
-  "case": "cloze-at-or-on-the-weekend",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": false,
-     "own_answer": "at",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "Both “at the weekend” (British English) and “on the weekend” (American English) are correct."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "at_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "5b1101ebae0fde73": {
-  "case": "good-translate-experience",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "Have you ever been to Beijing?",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "64d414f22af71c7f": {
+ "2c57a10cf72e5cb1": {
   "case": "choice4-unnatural-stem",
   "output": {
    "reviews": [
@@ -586,7 +286,7 @@
      "own_segment": null,
      "position": 1,
      "problems": [
-      "“The headache of the tooth” and “the doctor of teeth” are unnatural; use “a toothache” and “a dentist.”"
+      "“The headache of the tooth” and “the doctor of teeth” are unnatural English; use “a toothache” and “a dentist.”"
      ],
      "ratings": {
       "cues": {
@@ -599,108 +299,6 @@
        "level": "moderate"
       },
       "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "711bda62e6cd82c0": {
-  "case": "good-cloze-comparative",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "bigger",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "7397c2e57e898418": {
-  "case": "transform-opening-gives-passive",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": false,
-     "one_answer": true,
-     "own_answer": "The office is cleaned every day.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The supplied opening means the learner can complete the task without forming the passive.",
-      "The instruction gives away the full tested form, \"is cleaned\"."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": false
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "783408273fb8d3a8": {
-  "case": "good-find-fix-an",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "an",
-     "own_segment": 1,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
        "level": "at_target"
       }
      },
@@ -710,8 +308,8 @@
   },
   "task": "exercise_critic"
  },
- "8dc26ff3fbb0e1db": {
-  "case": "good-rewrite-own-third-person",
+ "323f4abf9c18617a": {
+  "case": "good-choice4-the-information-you-sent",
   "output": {
    "reviews": [
     {
@@ -719,45 +317,10 @@
      "content_ok": true,
      "form_hidden": true,
      "one_answer": true,
-     "own_answer": "My father works in a hospital.",
+     "own_answer": "The",
      "own_segment": null,
      "position": 1,
      "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "at_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "a50b0e3a589cfce3": {
-  "case": "find-fix-irregular-past-as-past-continuous",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "rang.",
-     "own_segment": 3,
-     "position": 1,
-     "problems": [
-      "The correction tests the irregular past simple of 'ring', not formation or use of the past continuous."
-     ],
      "ratings": {
       "cues": {
        "level": "explicit"
@@ -772,221 +335,14 @@
        "level": "below_target"
       }
      },
-     "tests_kc": false
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "a6828ca53b9b31f5": {
-  "case": "good-cloze-hard-planned-easy",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "had resolved",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "complex"
-      },
-      "vocabulary": {
-       "level": "above_target"
-      }
-     },
      "tests_kc": true
     }
    ]
   },
   "task": "exercise_critic"
  },
- "a80ced5a8ab939c3": {
-  "case": "good-find-fix-irregular-past",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "bought",
-     "own_segment": 2,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "a9dc683889578cca": {
-  "case": "choice4-gerund-or-infinitive",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": false,
-     "own_answer": "learning / to learn",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "Both 'learning' and 'to learn' are grammatical after 'started' in this sentence."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "none"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "ae0e9214b5043295": {
-  "case": "translate-instruction-gives-going-to",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": false,
-     "one_answer": true,
-     "own_answer": "I'm going to learn to drive next year.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The instruction gives away the tested form by explicitly requiring \"be going to\"."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "b2fd72869e443e1e": {
-  "case": "transform-unclear-instruction",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": false,
-     "form_hidden": true,
-     "one_answer": false,
-     "own_answer": "If I had enough money, I could buy a car.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The instruction 'Do it' does not specify a transformation, so the task has no clear goal.",
-      "Nothing in the learner-facing task requires a second conditional."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "partial"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "moderate"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": false
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "b972aa32bc61501f": {
-  "case": "cloze-hint-gives-past-perfect",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": false,
-     "one_answer": true,
-     "own_answer": "had started",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The hint supplies the complete answer, so the learner can copy it without applying the past perfect."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "moderate"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": false
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "ba820342aa94c041": {
-  "case": "translate-yangtze-longest",
+ "32cded3795d55a5d": {
+  "case": "transform-mouse-heavier",
   "output": {
    "reviews": [
     {
@@ -994,11 +350,11 @@
      "content_ok": false,
      "form_hidden": true,
      "one_answer": true,
-     "own_answer": "The Yangtze River is the longest river in the world.",
+     "own_answer": "A mouse is heavier than an elephant.",
      "own_segment": null,
      "position": 1,
      "problems": [
-      "The source sentence is factually incorrect: the Yangtze is the longest river in Asia, not in the world."
+      "The source reverses real-world animal weights, leading to the factually false claim that a mouse is heavier than an elephant."
      ],
      "ratings": {
       "cues": {
@@ -1008,142 +364,6 @@
        "level": "weak"
       },
       "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "at_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "bd251a8084afc079": {
-  "case": "choice4-perfect-or-past",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": false,
-     "own_answer": "has lived",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "Both 'has lived' and 'lived' fit: the sentence does not establish whether she still lives in London or whether the five-year period has ended."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "partial"
-      },
-      "distractors": {
-       "level": "several_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "beefcd8af47d545e": {
-  "case": "find-fix-wrong-segment",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "and drives ",
-     "own_segment": 3,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "moderate"
-      },
-      "vocabulary": {
-       "level": "at_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "c657afdcedc2bf2a": {
-  "case": "good-find-fix-agreement",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "is",
-     "own_segment": 1,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "none"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "c78b17d6a9edd48b": {
-  "case": "find-fix-two-wrong-pieces",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": false,
-     "own_answer": "children",
-     "own_segment": 1,
-     "position": 1,
-     "problems": [
-      "Two pieces are wrong: segment 1 needs 'children' and segment 3 needs 'women', so a single correction cannot fix the sentence."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "several_plausible"
-      },
-      "syntax": {
        "level": "moderate"
       },
       "vocabulary": {
@@ -1156,7 +376,7 @@
   },
   "task": "exercise_critic"
  },
- "cc464348eac71d88": {
+ "3ab204ca0e383dea": {
   "case": "good-cloze-present-continuous",
   "output": {
    "reviews": [
@@ -1189,7 +409,410 @@
   },
   "task": "exercise_critic"
  },
- "d167d415623dc419": {
+ "3b709eef475d5bde": {
+  "case": "find-fix-two-wrong-pieces",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": false,
+     "own_answer": "children; women",
+     "own_segment": 1,
+     "position": 1,
+     "problems": [
+      "Two pieces are wrong: segment 1 needs 'children' and segment 3 needs 'women', so there is no single piece to fix."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "several_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "437b6e2ad7cdf2ed": {
+  "case": "good-cloze-at-oclock",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "at",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "several_plausible"
+      },
+      "syntax": {
+       "level": "moderate"
+      },
+      "vocabulary": {
+       "level": "at_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "49264faa9d3aaa47": {
+  "case": "good-cloze-hard-planned-easy",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "had resolved",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "complex"
+      },
+      "vocabulary": {
+       "level": "above_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "50b97d1259356bc3": {
+  "case": "transform-opening-gives-passive",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": false,
+     "one_answer": true,
+     "own_answer": "The office is cleaned every day.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "The supplied opening already contains the complete passive construction, so the learner can finish by copying the remaining time phrase without forming the passive."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": false
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "5369f475ebdbaf14": {
+  "case": "good-choice4-the-advice-you-gave",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "the",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "complex"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "57a7ec1f9f4a9dac": {
+  "case": "good-transform-easy-planned-hard",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "She said that she was tired.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "moderate"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "5a20e52230118d40": {
+  "case": "cloze-wrong-key",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "since",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "5df99ce4cd18ffac": {
+  "case": "good-find-fix-agreement",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "is",
+     "own_segment": 1,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "partial"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "60c70b311bbaa4dc": {
+  "case": "good-transform-reported",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "Tom said that he was busy that day.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "moderate"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "6648db3a04c3576b": {
+  "case": "good-rewrite-own-third-person",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "My father works in a hospital.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "at_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "6f3ca2122c605f0b": {
+  "case": "choice4-tests-preposition-not-perfect",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": false,
+     "own_answer": "to",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "“In” also fits: “Have you ever been in Japan?” is grammatical and natural.",
+      "The item tests a preposition after “been,” not forming the present perfect for experience."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "partial"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": false
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "70eaff581109a473": {
+  "case": "good-rewrite-own-irregular-past",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "Yesterday I bought a new phone.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "73a2446e36ae0904": {
   "case": "good-choice4-reported-question-order",
   "output": {
    "reviews": [
@@ -1210,7 +833,7 @@
        "level": "several_plausible"
       },
       "syntax": {
-       "level": "complex"
+       "level": "moderate"
       },
       "vocabulary": {
        "level": "below_target"
@@ -1222,7 +845,313 @@
   },
   "task": "exercise_critic"
  },
- "d5107874ca51c864": {
+ "749ca270ae8d7b61": {
+  "case": "choice4-wrong-key",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "went",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "several_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "797960fc93f2c584": {
+  "case": "good-translate-experience",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "Have you ever been to Beijing?",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "7e6d1be612e662c5": {
+  "case": "good-choice4-since",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "has lived",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "several_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "87f1b32ee95acb87": {
+  "case": "translate-instruction-gives-going-to",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": false,
+     "one_answer": true,
+     "own_answer": "I'm going to learn to drive next year.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "The instruction supplies \"be going to\", giving away the construction being tested."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "885ebf01cb8d72b2": {
+  "case": "good-rewrite-own-an",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "I want to be an engineer.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "at_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "90c820d03de48144": {
+  "case": "transform-wrong-key",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": false,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "The meal was cooked by the chef.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "The reference answer changes the past tense to the present; it should be 'The meal was cooked by the chef.'"
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "9b0dff84e503684a": {
+  "case": "translate-unnatural-reference",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": false,
+     "content_ok": true,
+     "form_hidden": false,
+     "one_answer": true,
+     "own_answer": "I am going to learn to drive next year.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "The reference answer is ungrammatical; it should be \"I am going to learn to drive next year.\"",
+      "The instruction supplies \"be going to\", giving away the construction being tested."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "a3ad6dbce804956f": {
+  "case": "good-choice4-irregular-past",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "had",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "at_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "a5b0d662c726d72e": {
+  "case": "translate-yangtze-longest",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": false,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "The Yangtze River is the longest river in the world.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "The claim is factually incorrect: the Yangtze is the longest river in Asia, not in the world."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "above_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "ad2f6ebafcde60c4": {
   "case": "cloze-superlative-as-comparative",
   "output": {
    "reviews": [
@@ -1230,13 +1159,220 @@
      "answer_ok": true,
      "content_ok": true,
      "form_hidden": true,
-     "one_answer": false,
+     "one_answer": true,
      "own_answer": "tallest",
      "own_segment": null,
      "position": 1,
      "problems": [
-      "The sentence also permits 'tall' when identifying a particular student.",
-      "The expected answer 'tallest' tests superlatives, not comparatives."
+      "The sentence tests the superlative 'tallest', not a comparative with -er or more followed by than."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": false
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "b667313b2468e8c4": {
+  "case": "find-fix-irregular-past-as-past-continuous",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "rang.",
+     "own_segment": 3,
+     "position": 1,
+     "problems": [
+      "The correction tests the irregular past simple form of “ring,” not the past continuous."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "partial"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "moderate"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": false
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "b830fbd910f4cdd5": {
+  "case": "cloze-hint-gives-past-perfect",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": false,
+     "one_answer": true,
+     "own_answer": "had started",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "The hint supplies the complete answer, so the learner can copy it without using the past perfect."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "complex"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": false
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "b9305ec4faf0d0c1": {
+  "case": "good-cloze-the-history-of",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "the",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "several_plausible"
+      },
+      "syntax": {
+       "level": "moderate"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "bf733cbd68576361": {
+  "case": "choice4-a-or-the",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": false,
+     "own_answer": "a",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "Both 'a dog' and 'the dog' are grammatical; no context rules out a dog already known to the speaker and listener."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "none"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "c2e2cb9d66d9b4da": {
+  "case": "cloze-unnatural-collocation",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": false,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "is making",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "An electric fire is a heater, not a cooking appliance; use 'electric rice cooker' instead."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "above_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "c48e00ca726856f8": {
+  "case": "cloze-edison-telephone",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": false,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "invented",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "The invention of the telephone in 1876 is conventionally credited to Alexander Graham Bell, not Thomas Edison."
      ],
      "ratings": {
       "cues": {
@@ -1252,13 +1388,180 @@
        "level": "below_target"
       }
      },
-     "tests_kc": false
+     "tests_kc": true
     }
    ]
   },
   "task": "exercise_critic"
  },
- "d6eb804f5e7bab55": {
+ "c6d17dbc7ad4ad4f": {
+  "case": "good-find-fix-irregular-past",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "bought",
+     "own_segment": 2,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "ca331da7edcac896": {
+  "case": "good-cloze-comparative",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "bigger",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "cdfd299052c65781": {
+  "case": "good-find-fix-an",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "an",
+     "own_segment": 1,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "one_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "at_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "d1895ea8aac42a6d": {
+  "case": "good-translate-first-conditional",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "If it rains tomorrow, we will stay at home.",
+     "own_segment": null,
+     "position": 1,
+     "problems": [],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "weak"
+      },
+      "syntax": {
+       "level": "moderate"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "d85269cd54e02a1e": {
+  "case": "choice4-perfect-or-past",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": false,
+     "own_answer": "has lived",
+     "own_segment": null,
+     "position": 1,
+     "problems": [
+      "Both 'has lived' (continuing residence) and 'lived' (a finished period of residence) fit because the sentence does not specify whether she still lives in London."
+     ],
+     "ratings": {
+      "cues": {
+       "level": "partial"
+      },
+      "distractors": {
+       "level": "several_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "below_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "e693232e849cf685": {
   "case": "transform-negative-as-reported-speech",
   "output": {
    "reviews": [
@@ -1293,260 +1596,21 @@
   },
   "task": "exercise_critic"
  },
- "dfcc75ee0ff78d87": {
-  "case": "cloze-edison-telephone",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": false,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "invented",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The historical attribution is incorrect: Alexander Graham Bell, not Thomas Edison, is credited with inventing the telephone in 1876."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "e1c43dc4cfea779a": {
-  "case": "transform-wrong-key",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": false,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "The meal was cooked by the chef.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The reference answer changes the original past tense to the present; it should be 'The meal was cooked by the chef.'"
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "e5fd76a7e129e1de": {
-  "case": "choice4-tests-preposition-not-perfect",
+ "ecb61d6fee59a9fe": {
+  "case": "cloze-at-or-on-the-weekend",
   "output": {
    "reviews": [
     {
      "answer_ok": true,
      "content_ok": true,
-     "form_hidden": false,
+     "form_hidden": true,
      "one_answer": false,
-     "own_answer": "to",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "Both 'to' and 'in' produce grammatical, natural questions.",
-      "The gap tests a preposition rather than forming the present perfect for experience.",
-      "The stem already supplies the complete tested form 'Have you ever been'."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "partial"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": false
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "e80e41a2d69fa203": {
-  "case": "cloze-wrong-key",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "since",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "one_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "e8ced051296c787c": {
-  "case": "good-choice4-easy-planned-hard",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "am",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "several_plausible"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "eaceb6ea9d9135fb": {
-  "case": "translate-wrong-key",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": false,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "I called my mother yesterday.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [
-      "The reference answer uses present-tense 'call' instead of past-tense 'called' for the finished action yesterday."
-     ],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "weak"
-      },
-      "syntax": {
-       "level": "simple"
-      },
-      "vocabulary": {
-       "level": "below_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "ebe76722b6f429f5": {
-  "case": "good-cloze-at-oclock",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
      "own_answer": "at",
      "own_segment": null,
      "position": 1,
-     "problems": [],
-     "ratings": {
-      "cues": {
-       "level": "explicit"
-      },
-      "distractors": {
-       "level": "several_plausible"
-      },
-      "syntax": {
-       "level": "moderate"
-      },
-      "vocabulary": {
-       "level": "above_target"
-      }
-     },
-     "tests_kc": true
-    }
-   ]
-  },
-  "task": "exercise_critic"
- },
- "ee543b02274bcdd3": {
-  "case": "good-transform-reported",
-  "output": {
-   "reviews": [
-    {
-     "answer_ok": true,
-     "content_ok": true,
-     "form_hidden": true,
-     "one_answer": true,
-     "own_answer": "Tom said that he was busy that day.",
-     "own_segment": null,
-     "position": 1,
-     "problems": [],
+     "problems": [
+      "Both 'at the weekend' (British English) and 'on the weekend' (American English) are correct."
+     ],
      "ratings": {
       "cues": {
        "level": "explicit"
@@ -1555,10 +1619,10 @@
        "level": "weak"
       },
       "syntax": {
-       "level": "moderate"
+       "level": "simple"
       },
       "vocabulary": {
-       "level": "below_target"
+       "level": "at_target"
       }
      },
      "tests_kc": true
@@ -1567,8 +1631,8 @@
   },
   "task": "exercise_critic"
  },
- "eeaab8282d07d4aa": {
-  "case": "cloze-unnatural-collocation",
+ "f0bb651aaf185652": {
+  "case": "choice4-sun-rises-in-the-west",
   "output": {
    "reviews": [
     {
@@ -1576,12 +1640,45 @@
      "content_ok": false,
      "form_hidden": true,
      "one_answer": true,
-     "own_answer": "is making",
+     "own_answer": "rises",
      "own_segment": null,
      "position": 1,
      "problems": [
-      "Cooking rice 'in the big electric fire' is unnatural; use 'in the rice cooker' or 'on the stove'."
+      "The sun rises in the east, not the west."
      ],
+     "ratings": {
+      "cues": {
+       "level": "explicit"
+      },
+      "distractors": {
+       "level": "several_plausible"
+      },
+      "syntax": {
+       "level": "simple"
+      },
+      "vocabulary": {
+       "level": "at_target"
+      }
+     },
+     "tests_kc": true
+    }
+   ]
+  },
+  "task": "exercise_critic"
+ },
+ "f2b8e74b8b5127be": {
+  "case": "find-fix-wrong-segment",
+  "output": {
+   "reviews": [
+    {
+     "answer_ok": true,
+     "content_ok": true,
+     "form_hidden": true,
+     "one_answer": true,
+     "own_answer": "and drives ",
+     "own_segment": 3,
+     "position": 1,
+     "problems": [],
      "ratings": {
       "cues": {
        "level": "explicit"
@@ -1590,10 +1687,10 @@
        "level": "one_plausible"
       },
       "syntax": {
-       "level": "simple"
+       "level": "moderate"
       },
       "vocabulary": {
-       "level": "above_target"
+       "level": "at_target"
       }
      },
      "tests_kc": true
