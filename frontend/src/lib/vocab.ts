@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import { api } from "@/lib/api";
+import { elapsedMs } from "@/lib/elapsed";
 
 /** A dictionary entry (backend/app/api/vocab.py WordOut). */
 export type Word = {
@@ -134,7 +135,7 @@ export const rate = (
 ) =>
   api<Card>("/vocab/reviews", {
     method: "POST",
-    json: { word_id: wordId, rating, duration_ms: durationMs, format },
+    json: { word_id: wordId, rating, duration_ms: elapsedMs(durationMs), format },
   });
 
 export const fetchScreenBatch = () => api<{ words: Word[] }>("/vocab/screen");

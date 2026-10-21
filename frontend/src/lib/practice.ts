@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { elapsedMs } from "@/lib/elapsed";
 import type { CefrLevel, MasteryState } from "@/lib/learner";
 
 /** backend/app/api/practice.py; formats from adaptive/exercise/formats.py. */
@@ -179,7 +180,7 @@ export const fetchRecentSets = () => api<SetBrief[]>("/practice/sets");
 export const answerItem = (id: number, reply: Reply, latencyMs: number) =>
   api<Answered>(`/practice/exercises/${id}/answer`, {
     method: "POST",
-    json: { ...reply, latency_ms: Math.max(0, Math.round(latencyMs)) },
+    json: { ...reply, latency_ms: elapsedMs(latencyMs) },
   });
 
 export const reportItem = (id: number) =>
