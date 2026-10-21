@@ -17,7 +17,15 @@ from app.deps import CurrentTenant, CurrentUser, SessionDep, per_user
 from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
 from app.providers.tenant import load_provider_context
 from app.services.speech.shadowing import mispronounced_words
-from app.services.vocab import distractors, examples, mine, placement_known, progress, screening
+from app.services.vocab import (
+    distractors,
+    examples,
+    known,
+    mine,
+    placement_known,
+    progress,
+    screening,
+)
 from app.services.vocab.examples import forms_of
 from app.services.vocab.mine import MatchKind
 from app.services.vocab.queue import QueueItem, daily_queue, today_counts
@@ -528,3 +536,37 @@ async def delete_mine(word_id: int, user: CurrentUser, session: SessionDep) -> R
     if not await mine.remove(session, user.id, word_id):
         raise api_error(status.HTTP_404_NOT_FOUND, "word_not_found", "word not on your list")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/cards/{word_id}/known", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_known(word_id: int, user: CurrentUser, session: SessionDep) -> Response:
+    """Stop reviewing a word (the card's 熟记 button); idempotent."""
+    try:
+        await known.mark(session, user.id, word_id)
+    except known.WordNotFoundError:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "word_not_found", "the dictionary has no such word"
+        ) from None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/cards/{word_id}/known", status_code=status.HTTP_204_NO_CONTENT)
+async def unmark_known(word_id: int, user: CurrentUser, session: SessionDep) -> Response:
+    """Review a known word again, from where it left off; idempotent."""
+    await known.unmark(session, user.id, word_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/known")
+async def get_known(
+    user: CurrentUser,
+    session: SessionDep,
+    q: Annotated[str, Query(max_length=100)] = "",
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> MinePage:
+    """Every known word, most recently marked first; `source` says how it got there."""
+    words, total = await known.list_known(session, user.id, q=q, limit=limit, offset=offset)
+    return MinePage(
+        words=await _cards(session, user.id, [(w.word, w.card) for w in words]), total=total
+    )

@@ -32,7 +32,7 @@ class Match:
 BY_FREQUENCY = (Word.frq.asc().nulls_last(), Word.bnc.asc().nulls_last(), Word.id)
 
 
-def _escape_like(text: str) -> str:
+def escape_like(text: str) -> str:
     return re.sub(r"([\\%_])", r"\\\1", text)
 
 
@@ -73,7 +73,7 @@ async def suggest(session: AsyncSession, prefix: str) -> list[Word]:
     return list(
         await session.scalars(
             select(Word)
-            .where(Word.word.ilike(f"{_escape_like(prefix)}%", escape="\\"))
+            .where(Word.word.ilike(f"{escape_like(prefix)}%", escape="\\"))
             .order_by(*BY_FREQUENCY)
             .limit(SUGGESTIONS)
         )
