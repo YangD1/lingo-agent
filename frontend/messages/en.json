@@ -1413,7 +1413,26 @@
       "title": "Display",
       "description": "Applies to this browser only.",
       "showActivity": "Show what the assistant did under its replies",
-      "showActivityHint": "Memories read and saved, grammar mistakes marked. Hiding it changes the display only: everything is still recorded, and the Memory page still shows it all."
+      "showActivityHint": "Memories read and saved, grammar mistakes marked. Hiding it changes the display only: everything is still recorded, and the Memory page still shows it all.",
+      "font": "Font",
+      "fonts": {
+        "sans": {
+          "name": "Default: Inter + Source Han Sans",
+          "hint": "A clear sans-serif, with every weight in English and Chinese."
+        },
+        "wenkai": {
+          "name": "LXGW WenKai",
+          "hint": "One handwritten-style kai face for English and Chinese. Bold looks lighter."
+        },
+        "serif": {
+          "name": "Serif: Source Serif + Source Han Serif",
+          "hint": "Bookish, good for long reads."
+        },
+        "system": {
+          "name": "System fonts",
+          "hint": "Your device's own fonts. Nothing to download, fastest on a slow network."
+        }
+      }
     },
     "toc": {
       "title": "On this page",

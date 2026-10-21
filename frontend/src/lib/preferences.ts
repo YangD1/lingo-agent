@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 
+import { applyFont, FONT_KEY, type FontChoice, parseFontChoice } from "@/lib/font-choice";
 import { REVIEW_CHOICES, type ReviewChoice } from "@/lib/vocab";
 
 /**
@@ -73,6 +74,19 @@ export function useReviewChoice(): [ReviewChoice, (choice: ReviewChoice) => void
   const [value, set] = useStored(REVIEW_FORMAT_KEY);
   const choice = REVIEW_CHOICES.find((c) => c === value) ?? "recognize";
   return [choice, set];
+}
+
+/** The text font (ADR 0060). Changing it applies at once; the boot script reapplies it on load. */
+export function useFontChoice(): [FontChoice, (choice: FontChoice) => void] {
+  const [value, set] = useStored(FONT_KEY);
+  const setChoice = useCallback(
+    (choice: FontChoice) => {
+      applyFont(choice);
+      set(choice);
+    },
+    [set],
+  );
+  return [parseFontChoice(value), setChoice];
 }
 
 /**

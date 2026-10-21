@@ -1,6 +1,6 @@
 # 0059 · 全站字体换成霞鹜文楷（中英文同一套）
 
-- **状态**：已采纳（2026-10-21，任务 118；用户定：普通版 Regular + Medium，semibold / bold 显示成 Medium，等宽保留 Geist Mono）
+- **状态**：已采纳（2026-10-21，任务 118；用户定：普通版 Regular + Medium，semibold / bold 显示成 Medium，等宽保留 Geist Mono）。**已被 ADR 0060 修订**：霞鹜文楷改为可选字体之一，默认 Inter + 思源黑体；脚本改名 `build-fonts.py`，`wenkai.css` 改为 `public/fonts/wenkai/font.css`。
 - **日期**：2026-10-21
 - **影响**：**替换 ADR 0019 的“字体自托管”一条**（Figtree + 中文系统字体 → 霞鹜文楷）。Geist Mono 不变。只改前端。
 

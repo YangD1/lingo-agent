@@ -2,7 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "../components/brand/lingo-cat.css";
-@import "./wenkai.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -57,11 +56,26 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: "LXGW WenKai", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+  --font-sans: var(--app-font);
   --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  --font-heading: "LXGW WenKai", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", system-ui, sans-serif;
+  --font-heading: var(--app-font);
   --radius-2xl: calc(var(--radius) + 8px);
 }
+
+/* Text font, picked per browser in settings (ADR 0060; lib/font-choice.ts). The font
+   files come from public/fonts/<choice>/font.css, linked by the boot script in layout.tsx;
+   the system Chinese fonts back up anything a sliced font does not carry. */
+:root {
+  --cjk-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC";
+  --font-stack-sans: "Inter", "Noto Sans SC", var(--cjk-sans), system-ui, sans-serif;
+  --font-stack-wenkai: "LXGW WenKai", var(--cjk-sans), system-ui, sans-serif;
+  --font-stack-serif: "Source Serif 4", "Noto Serif", "Noto Serif SC", "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+  --font-stack-system: system-ui, -apple-system, "Segoe UI", var(--cjk-sans), sans-serif;
+  --app-font: var(--font-stack-sans);
+}
+:root[data-font="wenkai"] { --app-font: var(--font-stack-wenkai); }
+:root[data-font="serif"] { --app-font: var(--font-stack-serif); }
+:root[data-font="system"] { --app-font: var(--font-stack-system); }
 
 /* Design tokens from docs/design/lingo-agent-design/tokens.css (Claude Design, task 26).
    Light comments say what each token is for; .dark mirrors the same roles.
