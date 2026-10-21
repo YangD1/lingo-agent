@@ -60,6 +60,53 @@ test("choose a book, screen known words, review, and see the progress", async ({
   await expect(book.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
 });
 
+test("mark a card known to skip it, undo, then add it back from known words (task 120)", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail());
+  await page.goto("/vocab");
+  await page.getByTestId(`book-${OXFORD}`).getByRole("button", { name: "学这本" }).click();
+  await page.getByRole("link", { name: "开始" }).click();
+  const deck = page.getByTestId("review-deck");
+  await expect(deck.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+
+  // Skipped without a rating; the toast's undo, inside the dialog, brings it back.
+  await deck.getByTestId("review-known").click();
+  await expect(deck.getByRole("heading", { name: "go", exact: true })).toBeVisible();
+  await expect(deck.getByText("已标为熟记，不再复习")).toBeVisible();
+  await expect(deck.getByText("要加回来：背单词 → 已熟记的词")).toBeVisible();
+  await expect(page.getByTestId("review-progress")).toHaveText("已复习 0 · 还剩 6");
+  await deck.getByRole("button", { name: "撤销" }).click();
+  await expect(deck.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+  await expect(page.getByTestId("review-progress")).toHaveText("已复习 0 · 还剩 7");
+
+  await deck.getByTestId("review-known").click();
+  await expect(deck.getByRole("heading", { name: "go", exact: true })).toBeVisible();
+  await page.getByTestId("review-close").click();
+  await expect(deck).toHaveCount(0);
+  await expect(page.getByTestId("today-counts")).toHaveText(
+    "待复习 0 个 · 新词还剩 6 个（今天已开始 0 / 15）",
+  );
+  // Reopened, the round shows no stale toast and doesn't bring the word up.
+  await page.getByRole("link", { name: "开始" }).click();
+  await expect(deck.getByRole("heading", { name: "go", exact: true })).toBeVisible();
+  await expect(deck.getByText("已标为熟记，不再复习")).toHaveCount(0);
+  await page.getByTestId("review-close").click();
+
+  await page.getByRole("link", { name: "已熟记的词" }).click();
+  await expect(page).toHaveURL(/\/vocab\/known$/);
+  const row = page.getByTestId("known-the");
+  await expect(row).toContainText("词书");
+  await row.getByRole("button", { name: "加回复习" }).click();
+  await expect(page.getByRole("status")).toHaveText("“the”已加回，会作为新词再学。");
+  await expect(row).toHaveCount(0);
+  await expect(page.getByText("还没有熟记的词")).toBeVisible();
+
+  await page.getByRole("link", { name: "回到背单词" }).click();
+  await page.getByRole("link", { name: "开始" }).click();
+  await expect(deck.getByRole("heading", { name: "the", exact: true })).toBeVisible();
+});
+
 test("reviewed words come back to be heard and picked, or spelled (task 63)", async ({ page }) => {
   await register(page, uniqueEmail());
   const chosen = await page.request.put("/api/vocab/book", { data: { book_id: OXFORD } });

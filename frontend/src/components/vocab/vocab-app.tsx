@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Minus, Play, Plus, Sparkles } from "lucide-react";
+import { Bookmark, CircleCheck, Minus, Play, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
@@ -140,6 +140,13 @@ export function VocabApp() {
                 >
                   <Bookmark />
                   {t("today.mine")}
+                </Link>
+                <Link
+                  href="/vocab/known"
+                  className={buttonVariants({ size: "sm", variant: "outline" })}
+                >
+                  <CircleCheck />
+                  {t("today.known")}
                 </Link>
               </div>
             </CardContent>

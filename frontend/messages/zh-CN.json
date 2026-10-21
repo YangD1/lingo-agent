@@ -971,7 +971,8 @@
       "screen": "熟词筛选",
       "mine": "我的生词本",
       "countsMain": "待复习 {reviews} 个 · 新词还剩 {left} 个",
-      "countsStarted": "（今天已开始 {started} / {limit}）"
+      "countsStarted": "（今天已开始 {started} / {limit}）",
+      "known": "已熟记的词"
     },
     "books": {
       "title": "词书",
@@ -1113,6 +1114,26 @@
         "suspended": "已暂停"
       },
       "due": "下次复习 {when}"
+    },
+    "known": {
+      "title": "已熟记的词",
+      "description": "背单词时标了熟记的、熟词筛选里勾掉的、按定级测试标掉的词，都不再复习。加回去会接着原来的进度。",
+      "searchLabel": "搜索单词",
+      "searchPlaceholder": "按开头搜索，比如 rel",
+      "addBack": "加回复习",
+      "addedBackReview": "“{word}”已加回，马上会出现在复习里。",
+      "addedBackNew": "“{word}”已加回，会作为新词再学。",
+      "empty": "还没有熟记的词",
+      "emptyHint": "背单词时点卡片右上角的“熟记”，这个词就不再复习，会出现在这里。",
+      "noMatch": "没有以“{q}”开头的熟记词。",
+      "more": "显示更多（还有 {left} 个）",
+      "back": "回到背单词",
+      "sources": {
+        "book": "词书",
+        "manual": "生词本",
+        "placement": "定级测试"
+      },
+      "lastReview": "上次复习 {when}"
     },
     "placementKnown": {
       "offer": "当前词书里有 {count} 个常用词，按你的词汇量有 90% 以上的把握认识。",

@@ -674,7 +674,8 @@ export function ReviewDeck({
               )}
             </p>
           )}
-          <Toaster id={DECK_TOASTER} position="bottom-center" />
+          {/* At the top, over the progress bar: at the bottom it would cover the card's buttons. */}
+          <Toaster id={DECK_TOASTER} position="top-center" />
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>

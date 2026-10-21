@@ -971,7 +971,8 @@
       "screen": "Screen known words",
       "mine": "My words",
       "countsMain": "{reviews} to review · {left} new words left",
-      "countsStarted": " (started {started} of {limit} today)"
+      "countsStarted": " (started {started} of {limit} today)",
+      "known": "Known words"
     },
     "books": {
       "title": "Word books",
@@ -1113,6 +1114,26 @@
         "suspended": "Paused"
       },
       "due": "next review {when}"
+    },
+    "known": {
+      "title": "Known words",
+      "description": "Words you marked known on a card, ticked in screening, or marked from the placement test are no longer reviewed. Adding one back picks up where it left off.",
+      "searchLabel": "Search words",
+      "searchPlaceholder": "Search by how it starts, e.g. rel",
+      "addBack": "Review again",
+      "addedBackReview": "“{word}” is back and will come up in review now.",
+      "addedBackNew": "“{word}” is back and will be learned as a new word.",
+      "empty": "No known words yet",
+      "emptyHint": "Tap “Known” at the top right of a flashcard and the word stops coming up; it shows here.",
+      "noMatch": "No known words start with “{q}”.",
+      "more": "Show more ({left} left)",
+      "back": "Back to vocabulary",
+      "sources": {
+        "book": "Word book",
+        "manual": "My words",
+        "placement": "Placement test"
+      },
+      "lastReview": "last reviewed {when}"
     },
     "placementKnown": {
       "offer": "The current book has {count} common words you know with over 90% likelihood, given your vocabulary size.",
