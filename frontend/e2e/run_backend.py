@@ -24,7 +24,11 @@ DB_NAME = os.environ.get("E2E_DB", "lingo_e2e")
 # point E2E_WORDS_CSV at a full local ecdict.csv when there is one.
 WORDS_CSV = Path(
     os.environ.get("E2E_WORDS_CSV")
-    or Path(__file__).parents[2] / "backend" / "tests" / "fixtures" / "ecdict_sample.csv"
+    or Path(__file__).parents[2]
+    / "backend"
+    / "tests"
+    / "fixtures"
+    / "ecdict_sample.csv"
 )
 # Two Tatoeba sentences for "go" (one by an inflected form, one in traditional Chinese
 # that the import simplifies), in the export layout import_tatoeba reads.
@@ -34,6 +38,18 @@ TATOEBA = {
     "cmn_sentences.tsv.bz2": "10\tcmn\t我昨天坐公交车去上学。\n11\tcmn\t我們現在一起回家吧。\n",
     "cmn-eng_links.tsv.bz2": "10\t1\n11\t2\n",
 }
+# A Simple English Wiktionary page for "go" (ADR 0062): two senses open, one folded.
+SIMPLE_WIKTIONARY = """<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.11/">
+<page><title>go</title><ns>0</ns><revision><text>== Verb ==
+# {{intransitive}} If you '''go''' somewhere, you move there.
+#: ''I '''go''' to school by bus.''
+# If a machine '''goes''', it works.
+#: ''The old car still '''goes'''.''
+== Noun ==
+# {{countable}} A '''go''' is a try at doing something.
+#: ''Let me have a '''go'''.''
+</text></revision></page>
+</mediawiki>"""
 # Articles of the built-in NASA feed (no feeds are fetched here): one to rewrite and
 # answer questions on, and one that is only a summary, read at its source (Q43e).
 ROVER_BODY = "\n\n".join(
@@ -92,6 +108,15 @@ async def import_sentences() -> None:
         await import_dir(os.environ["DATABASE_URL"], Path(directory))
 
 
+async def import_senses() -> None:
+    from app.services.vocab.import_simplewiktionary import import_file
+
+    with tempfile.TemporaryDirectory() as directory:
+        dump = Path(directory) / "simplewiktionary.xml.bz2"
+        dump.write_bytes(bz2.compress(SIMPLE_WIKTIONARY.encode()))
+        await import_file(os.environ["DATABASE_URL"], dump)
+
+
 async def seed_articles() -> None:
     from datetime import UTC, datetime, timedelta
 
@@ -136,6 +161,7 @@ def main() -> None:
     migrate()
     asyncio.run(import_csv(os.environ["DATABASE_URL"], WORDS_CSV))
     asyncio.run(import_sentences())
+    asyncio.run(import_senses())
     asyncio.run(seed_articles())
     os.execvp(
         sys.executable,

@@ -1039,6 +1039,36 @@
         "showAll": "显示全部 {count} 条",
         "source": "来源：ECDICT"
       },
+      "senses": {
+        "more": "{count} 条英文义项",
+        "source": "来源：Simple English Wiktionary（CC BY-SA）",
+        "labels": {
+          "countable": "可数",
+          "uncountable": "不可数",
+          "transitive": "及物",
+          "intransitive": "不及物",
+          "plural_only": "只用复数",
+          "usually_plural": "常用复数",
+          "singular": "单数",
+          "usually_passive": "常用被动",
+          "informal": "非正式",
+          "formal": "正式",
+          "slang": "俚语",
+          "colloquial": "口语",
+          "vulgar": "粗俗",
+          "offensive": "冒犯",
+          "derogatory": "贬义",
+          "old": "旧用法",
+          "obsolete": "已废弃",
+          "rare": "少用",
+          "figurative": "比喻",
+          "figuratively": "比喻",
+          "idiomatic": "习语",
+          "UK": "英式",
+          "British": "英式",
+          "US": "美式"
+        }
+      },
       "mispronounced": "你读这个词不太准",
       "mispronouncedHint": "上次跟读时这个词读得不准。听一下发音，再在例句里跟读练一练。",
       "format": {

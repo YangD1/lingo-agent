@@ -28,6 +28,8 @@ export type Card = {
   intervals: number[];
   /** Real example sentences, best first (ADR 0020); empty when no source has one. */
   sentences: SourcedExample[];
+  /** English senses in dictionary order (ADR 0062); absent or empty: show `word.definition`. */
+  senses?: WordSense[];
   /** The word and its inflections, lowercase, to pick it out of a sentence. */
   forms: string[];
   /** AI sentences already cached at the learner's level (task 44); shown without the button. */
@@ -159,6 +161,18 @@ export const lookupWord = (word: string) =>
   api<Lookup>(`/vocab/lookup?${new URLSearchParams({ word })}`);
 
 export type Example = { en: string; zh: string };
+
+/** An English sense from Simple English Wiktionary (ADR 0062); `url` is the word's page there. */
+export type WordSense = {
+  pos: string;
+  gloss: string;
+  /** Grammar and usage labels: "countable", "transitive", "slang". */
+  labels: string[];
+  examples: string[];
+  synonyms: string[];
+  source: string;
+  url: string | null;
+};
 
 /**
  * An example sentence from a dictionary source; `url` is its page there, for attribution.

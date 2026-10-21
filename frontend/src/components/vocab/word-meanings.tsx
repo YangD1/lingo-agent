@@ -10,26 +10,47 @@ import { cn } from "@/lib/utils";
 import type { Card } from "@/lib/vocab";
 
 import { WordExamples } from "./word-examples";
+import { WordSenses } from "./word-senses";
 
 /** English senses shown before "show all": the rest are mostly archaic or rare. */
 const ENGLISH_FIRST = 3;
+/** Dictionary senses shown open (Q121a), one example each; the rest wait under "more". */
+const SENSES_FIRST = 2;
 
 /**
- * The back of a flashcard (task 27.2–27.3): everyday Chinese senses by part of speech, then
- * example sentences (task 28.4); domain senses and the English definition folded under
- * "more", with the dictionary named.
+ * The back of a flashcard (task 27.2–27.3): everyday Chinese senses by part of speech,
+ * the first English senses with an example each (ADR 0062), then example sentences (task
+ * 28.4); domain senses and the other English senses folded under "more", with the
+ * dictionaries named. Without dictionary senses, ECDICT's English definition stands in.
  */
 export function WordMeanings({ card }: { card: Card }) {
   const { word } = card;
   const t = useTranslations("vocab.review.meanings");
+  const ts = useTranslations("vocab.review.senses");
   const { main, domain } = parseTranslation(word.translation);
-  const english = parseDefinition(word.definition);
+  const senses = card.senses ?? [];
+  const restSenses = senses.slice(SENSES_FIRST);
+  // Dictionary senses replace ECDICT's definition (Q121d).
+  const english = senses.length > 0 ? [] : parseDefinition(word.definition);
   const [allEnglish, setAllEnglish] = useState(false);
   const shownEnglish = allEnglish ? english : english.slice(0, ENGLISH_FIRST);
   const more = [
+    restSenses.length > 0 && ts("more", { count: restSenses.length }),
     domain.length > 0 && t("domainCount", { count: domain.length }),
     english.length > 0 && t("english"),
   ].filter(Boolean);
+  const source = senses[0]?.url ? (
+    <a
+      href={senses[0].url}
+      target="_blank"
+      rel="noreferrer"
+      className="underline-offset-2 hover:text-foreground hover:underline"
+    >
+      {ts("source")}
+    </a>
+  ) : (
+    <span>{ts("source")}</span>
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -38,6 +59,12 @@ export function WordMeanings({ card }: { card: Card }) {
           <SenseLine key={i} sense={sense} className="text-[17px] leading-[1.6]" />
         ))}
       </ul>
+      {senses.length > 0 && (
+        <section className="flex flex-col gap-1.5">
+          <WordSenses senses={senses.slice(0, SENSES_FIRST)} forms={card.forms} examples={1} />
+          {restSenses.length === 0 && <p className="text-xs text-muted-foreground">{source}</p>}
+        </section>
+      )}
       <WordExamples
         key={word.id}
         wordId={word.id}
@@ -53,6 +80,12 @@ export function WordMeanings({ card }: { card: Card }) {
             {t("more")} · {more.join(" · ")}
           </summary>
           <div className="mt-3 flex flex-col gap-4 pl-5">
+            {restSenses.length > 0 && (
+              <section className="flex flex-col gap-1.5">
+                <WordSenses senses={restSenses} forms={card.forms} examples={3} />
+                <p className="text-xs text-muted-foreground">{source}</p>
+              </section>
+            )}
             {domain.length > 0 && (
               <ul className="flex flex-col gap-1.5">
                 {domain.map((sense, i) => (

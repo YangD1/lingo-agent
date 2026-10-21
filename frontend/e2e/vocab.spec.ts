@@ -248,6 +248,20 @@ test("the back of a card shows real example sentences, and AI ones when asked", 
   await expect(links.first()).toHaveAttribute("href", "https://tatoeba.org/sentences/show/2");
   await expect(links.last()).toHaveAttribute("href", "https://tatoeba.org/sentences/show/1");
   await expect(examples).toContainText("来源：Tatoeba");
+  // English senses from Simple English Wiktionary (ADR 0062): two open with an example
+  // each, the third under "更多".
+  const senses = page.getByTestId("review-senses").first();
+  await expect(senses.getByRole("listitem")).toHaveCount(2);
+  await expect(senses.getByRole("listitem").first()).toContainText("不及物");
+  await expect(senses).toContainText("If you go somewhere, you move there.");
+  await expect(senses).toContainText("I go to school by bus.");
+  const more = page.getByTestId("review-more");
+  await expect(more.locator("summary")).toContainText("1 条英文义项");
+  await more.locator("summary").click();
+  await expect(more).toContainText("A go is a try at doing something.");
+  await expect(
+    more.getByRole("link", { name: "来源：Simple English Wiktionary（CC BY-SA）" }),
+  ).toHaveAttribute("href", "https://simple.wiktionary.org/wiki/go");
 
   await examples.getByRole("button", { name: "AI 例句" }).click();
   const ai = page.getByTestId("review-ai-examples");

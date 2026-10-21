@@ -1039,6 +1039,36 @@
         "showAll": "Show all {count}",
         "source": "Source: ECDICT"
       },
+      "senses": {
+        "more": "{count, plural, one {# English sense} other {# English senses}}",
+        "source": "Source: Simple English Wiktionary (CC BY-SA)",
+        "labels": {
+          "countable": "countable",
+          "uncountable": "uncountable",
+          "transitive": "transitive",
+          "intransitive": "intransitive",
+          "plural_only": "plural only",
+          "usually_plural": "usually plural",
+          "singular": "singular",
+          "usually_passive": "usually passive",
+          "informal": "informal",
+          "formal": "formal",
+          "slang": "slang",
+          "colloquial": "colloquial",
+          "vulgar": "vulgar",
+          "offensive": "offensive",
+          "derogatory": "derogatory",
+          "old": "old",
+          "obsolete": "obsolete",
+          "rare": "rare",
+          "figurative": "figurative",
+          "figuratively": "figurative",
+          "idiomatic": "idiomatic",
+          "UK": "UK",
+          "British": "UK",
+          "US": "US"
+        }
+      },
       "mispronounced": "You don't say this one right yet",
       "mispronouncedHint": "It was off the last time you read it aloud. Listen to it, then shadow an example sentence.",
       "format": {
