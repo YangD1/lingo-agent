@@ -1193,9 +1193,39 @@ class WordSentence(Base):
     # 0 = the best sentence for the word.
     rank: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     en: Mapped[str] = mapped_column(Text)
-    zh: Mapped[str] = mapped_column(Text)
+    # None: the sentence has no Chinese translation (ADR 0062).
+    zh: Mapped[str | None] = mapped_column(Text)
     # The sentence's id at the source, for linking back to it (Tatoeba: the English one).
     source_id: Mapped[str] = mapped_column(String(40))
+
+
+class WordSense(Base):
+    """An English sense of a word with its examples (ADR 0062).
+
+    Global read-only data like `words`, imported from Simple English Wiktionary by
+    `make senses-import`; a new import replaces all of a source's rows.
+    """
+
+    __tablename__ = "word_senses"
+
+    word_id: Mapped[int] = mapped_column(ForeignKey("words.id"), primary_key=True)
+    source: Mapped[str] = mapped_column(String(20), primary_key=True)
+    # Page order: 0 = the first sense.
+    rank: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    # "noun", "verb", ... (app.services.vocab.simplewiktionary.POS).
+    pos: Mapped[str] = mapped_column(String(20))
+    gloss: Mapped[str] = mapped_column(Text)
+    # Grammar and usage labels: "countable", "transitive", "slang", "medicine".
+    labels: Mapped[list[str]] = mapped_column(ARRAY(String(40)), default=list, server_default="{}")
+    examples: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
+    synonyms: Mapped[list[str]] = mapped_column(
+        ARRAY(String(100)), default=list, server_default="{}"
+    )
+    antonyms: Mapped[list[str]] = mapped_column(
+        ARRAY(String(100)), default=list, server_default="{}"
+    )
+    # The page the sense is from, for linking back to it.
+    source_title: Mapped[str] = mapped_column(String(200))
 
 
 class UserWordBook(TimestampMixin, Base):

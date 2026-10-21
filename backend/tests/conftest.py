@@ -103,6 +103,7 @@ BUSINESS_TABLES = (
     "users",
     "tenants",
     "word_sentences",
+    "word_senses",
     "words",
 )
 
