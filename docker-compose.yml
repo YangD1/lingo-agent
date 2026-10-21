@@ -6,8 +6,16 @@
 # localhost URLs in .env stay valid for running the backend on the host.
 #
 # Only the frontend is published on all interfaces; everything else binds to
-# 127.0.0.1 so a server doesn't expose its database or API by accident.
+# 127.0.0.1 so a server doesn't expose its database or API by accident. Behind a
+# reverse proxy, set FRONTEND_HOST_BIND=127.0.0.1 so the proxy is the only way in.
 name: lingo-agent
+
+# Docker's json-file logs grow without bound; keep at most 3 x 10MB per container.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
 
 services:
   postgres:
@@ -29,6 +37,7 @@ services:
       retries: 10
     mem_limit: 512m
     restart: unless-stopped
+    logging: *logging
 
   # Runs migrations on start, then serves the API (backend/Dockerfile).
   # Refuses to start without CREDENTIALS_ENCRYPTION_KEYS; `make env` generates one.
@@ -77,6 +86,7 @@ services:
         condition: service_healthy
     mem_limit: 768m
     restart: unless-stopped
+    logging: *logging
 
   frontend:
     build:
@@ -88,12 +98,13 @@ services:
     environment:
       BACKEND_URL: http://backend:8000
     ports:
-      - "${FRONTEND_HOST_PORT:-3000}:3000"
+      - "${FRONTEND_HOST_BIND:-0.0.0.0}:${FRONTEND_HOST_PORT:-3000}:3000"
     depends_on:
       backend:
         condition: service_healthy
     mem_limit: 384m
     restart: unless-stopped
+    logging: *logging
 
   # Local trace viewer for OpenTelemetry (ADR 0005). Dev-only, opt-in.
   # UI: http://localhost:6006  OTLP/HTTP: http://localhost:6006/v1/traces
@@ -111,6 +122,7 @@ services:
       - phoenix-data:/data
     mem_limit: 1g
     restart: unless-stopped
+    logging: *logging
 
   # Reserved for later caching / rate limiting; no code uses it yet.
   redis:
@@ -122,6 +134,7 @@ services:
       - redis-data:/data
     mem_limit: 128m
     restart: unless-stopped
+    logging: *logging
 
   # Local speech-to-text for dev (ADR 0008 §5): an OpenAI-compatible /audio/transcriptions
   # server (faster-whisper). Add it in Settings as a connection from the `speaches` preset
@@ -147,6 +160,7 @@ services:
       - asr-models:/home/ubuntu/.cache/huggingface/hub
     mem_limit: 2g
     restart: unless-stopped
+    logging: *logging
 
 volumes:
   pgdata:
