@@ -1010,6 +1010,13 @@
       "loading": "加载中…",
       "done": "这一轮完成：复习了 {reviewed} 张。刚学的词今天晚些时候还会再出现。",
       "nothing": "现在没有要复习的词。",
+      "doneShort": "这一轮完成。",
+      "refill": {
+        "marked": "你标了 {marked} 个熟记，熟记的词不占今天的新词名额，还能再学 {count} 个新词。",
+        "more": "今天还能再学 {count} 个新词。",
+        "continue": "再学 {count} 个",
+        "stop": "今天到此为止"
+      },
       "reviewsLeft": "另外还有 {count} 个词待复习。",
       "reviewNow": "去复习",
       "new": "新词",

@@ -476,21 +476,41 @@ export function ReviewDeck({
                   >
                     <LingoCat mood={session.reviewed > 0 ? "done" : "idle"} size={72} label="" />
                     <p className="text-lg font-bold">
-                      {session.reviewed > 0 ? t("done", { reviewed: session.reviewed }) : t("nothing")}
+                      {session.reviewed > 0
+                        ? t("done", { reviewed: session.reviewed })
+                        : session.marked > 0
+                          ? t("doneShort")
+                          : t("nothing")}
                     </p>
+                    {session.refill > 0 && (
+                      <p className="text-sm text-muted-foreground" data-testid="review-refill">
+                        {session.marked > 0
+                          ? t("refill.marked", { marked: session.marked, count: session.refill })
+                          : t("refill.more", { count: session.refill })}
+                      </p>
+                    )}
                     {mode === "new" && session.reviewsDue > 0 && (
                       <p className="text-sm text-muted-foreground">
                         {t("reviewsLeft", { count: session.reviewsDue })}
                       </p>
                     )}
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {session.refill > 0 && (
+                        <Button size="sm" onClick={session.continueNew}>
+                          {t("refill.continue", { count: session.refill })}
+                        </Button>
+                      )}
                       {mode === "new" && session.reviewsDue > 0 && (
-                        <Button size="sm" onClick={onReviewAll}>
+                        <Button
+                          size="sm"
+                          variant={session.refill > 0 ? "outline" : "default"}
+                          onClick={onReviewAll}
+                        >
                           {t("reviewNow")}
                         </Button>
                       )}
                       <Dialog.Close render={<Button size="sm" variant="outline" />}>
-                        {t("close")}
+                        {session.refill > 0 ? t("refill.stop") : t("close")}
                       </Dialog.Close>
                     </div>
                   </div>

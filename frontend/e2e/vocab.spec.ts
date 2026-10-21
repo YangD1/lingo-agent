@@ -107,6 +107,51 @@ test("mark a card known to skip it, undo, then add it back from known words (tas
   await expect(deck.getByRole("heading", { name: "the", exact: true })).toBeVisible();
 });
 
+test("words marked known leave room for more new ones, which wait to be asked for (task 123)", async ({
+  page,
+}) => {
+  await register(page, uniqueEmail());
+  await page.goto("/vocab");
+  await page.getByTestId(`book-${OXFORD}`).getByRole("button", { name: "学这本" }).click();
+  await page.getByRole("spinbutton", { name: "每天新词数" }).fill("2");
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page.getByTestId("today-counts")).toHaveText(
+    "待复习 0 个 · 新词还剩 2 个（今天已开始 0 / 2）",
+  );
+
+  await page.getByRole("link", { name: "开始" }).click();
+  const deck = page.getByTestId("review-deck");
+  for (const word of ["the", "go"]) {
+    await expect(deck.getByRole("heading", { name: word, exact: true })).toBeVisible();
+    await deck.getByTestId("review-known").click();
+  }
+  // The server offers two more in their place; they wait for the learner.
+  const done = deck.getByTestId("review-done");
+  await expect(done).toContainText("这一轮完成。");
+  await expect(deck.getByTestId("review-refill")).toHaveText(
+    "你标了 2 个熟记，熟记的词不占今天的新词名额，还能再学 2 个新词。",
+  );
+  await expect(deck.getByRole("heading", { name: "us", exact: true })).toHaveCount(0);
+
+  await done.getByRole("button", { name: "再学 2 个" }).click();
+  await expect(deck.getByRole("heading", { name: "us", exact: true })).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(deck.getByTestId("review-back")).toBeVisible();
+  await page.keyboard.press("4");
+  await expect(deck.getByRole("heading", { name: "run", exact: true })).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(deck.getByTestId("review-back")).toBeVisible();
+  await page.keyboard.press("4");
+
+  // Both rated: the day's limit is used up, so no more are offered.
+  await expect(done).toContainText("复习了 2 张");
+  await expect(deck.getByTestId("review-refill")).toHaveCount(0);
+  await done.getByRole("button", { name: "关闭" }).click();
+  await expect(page.getByTestId("today-counts")).toHaveText(
+    "待复习 0 个 · 新词还剩 0 个（今天已开始 2 / 2）",
+  );
+});
+
 test("reviewed words come back to be heard and picked, or spelled (task 63)", async ({ page }) => {
   await register(page, uniqueEmail());
   const chosen = await page.request.put("/api/vocab/book", { data: { book_id: OXFORD } });

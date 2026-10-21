@@ -316,6 +316,28 @@ describe("ReviewDeck", () => {
     expect(screen.queryByText("Marked known; it won't come up again")).not.toBeInTheDocument();
   });
 
+  it("asks before more new words take the place of ones marked known (task 123)", async () => {
+    api
+      .mockResolvedValueOnce(queue([], [card(1, "apple", { status: null })]))
+      .mockResolvedValueOnce(undefined) // POST known
+      .mockResolvedValueOnce(queue([], [card(2, "bread", { status: null })]));
+    show();
+    await screen.findByRole("heading", { name: "apple" });
+    await userEvent.click(screen.getByTestId("review-known"));
+
+    const done = await screen.findByTestId("review-done");
+    expect(done).toHaveTextContent("Done for now.");
+    expect(screen.getByTestId("review-refill")).toHaveTextContent(
+      "You marked 1 word known. Known words don’t use up today’s new words, so 1 more is free to learn.",
+    );
+    expect(screen.queryByRole("heading", { name: "bread" })).not.toBeInTheDocument();
+    expect(within(done).getByRole("button", { name: "That’s it for today" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Learn 1 more" }));
+    expect(await screen.findByRole("heading", { name: "bread" })).toBeInTheDocument();
+    expect(screen.queryByTestId("review-done")).not.toBeInTheDocument();
+  });
+
   it("in new-word mode, points to the reviews still due", async () => {
     api.mockResolvedValueOnce(queue([], [], 7));
     show("new");

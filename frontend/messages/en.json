@@ -1010,6 +1010,13 @@
       "loading": "Loading…",
       "done": "Done for now: {reviewed} cards reviewed. Cards you just learned come back later today.",
       "nothing": "Nothing to review right now.",
+      "doneShort": "Done for now.",
+      "refill": {
+        "marked": "You marked {marked, plural, one {# word} other {# words}} known. Known words don’t use up today’s new words, so {count, plural, one {# more is} other {# more are}} free to learn.",
+        "more": "{count, plural, one {# more new word is} other {# more new words are}} left for today.",
+        "continue": "Learn {count} more",
+        "stop": "That’s it for today"
+      },
       "reviewsLeft": "{count, plural, one {# review is} other {# reviews are}} also due.",
       "reviewNow": "Review now",
       "new": "New word",
