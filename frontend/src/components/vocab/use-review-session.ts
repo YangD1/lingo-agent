@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type Card,
   fetchQueue,
+  markKnown as markCardKnown,
   type Rating,
   rate as rateCard,
   type ReviewFormat,
@@ -27,6 +28,10 @@ export type ReviewSession = {
   busy: boolean;
   /** Cards rated in this session. */
   reviewed: number;
+  /** Cards marked known in this session, less those put back. */
+  marked: number;
+  /** Counts every card brought up, so a card back after a miss or an undo is a new turn. */
+  shown: number;
   /** Cards still waiting, counting reviews beyond the page the server sent. */
   remaining: number;
   /** When done in `new` mode: reviews that are due. */
@@ -37,6 +42,13 @@ export type ReviewSession = {
   answer: (suggested: Rating) => void;
   /** Resolves true once the rating is saved and the next card is up. */
   rate: (rating: Rating, format?: ReviewFormat) => Promise<boolean>;
+  /**
+   * Marks the current card known (task 120): it is skipped, not rated, and never comes
+   * back. Resolves to the card once saved and the next one is up, else null.
+   */
+  markKnown: () => Promise<Card | null>;
+  /** Shows a card again first, after its known mark was taken back. */
+  putBack: (card: Card) => void;
 };
 
 type Batch = { cards: Card[]; beyond: number; reviewsDue: number };
@@ -63,6 +75,8 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
   const [suggested, setSuggested] = useState<Rating | null>(null);
   const [busy, setBusy] = useState(false);
   const [reviewed, setReviewed] = useState(0);
+  const [marked, setMarked] = useState(0);
+  const [shown, setShown] = useState(0);
   const [error, setError] = useState<unknown>(null);
   // When the current card was shown: how long recall took is logged with the rating.
   const shownAt = useRef(0);
@@ -97,6 +111,22 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
     [current, flipped],
   );
 
+  // The current card is done with: the next one comes up, or the queue is asked again.
+  const advance = useCallback(async () => {
+    setFlipped(false);
+    setSuggested(null);
+    setShown((n) => n + 1);
+    const rest = cards.slice(1);
+    if (rest.length) {
+      setCards(rest);
+      shownAt.current = performance.now();
+    } else {
+      setCards([]);
+      setLoading(true);
+      apply(await nextBatch(mode));
+    }
+  }, [cards, mode, apply]);
+
   const rate = useCallback(
     async (rating: Rating, format: ReviewFormat = "recognize") => {
       if (!current || !flipped || busy) return false;
@@ -110,17 +140,7 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
           format,
         );
         setReviewed((n) => n + 1);
-        setFlipped(false);
-        setSuggested(null);
-        const rest = cards.slice(1);
-        if (rest.length) {
-          setCards(rest);
-          shownAt.current = performance.now();
-        } else {
-          setCards([]);
-          setLoading(true);
-          apply(await nextBatch(mode));
-        }
+        await advance();
         return true;
       } catch (e) {
         setError(e);
@@ -130,8 +150,36 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
         setBusy(false);
       }
     },
-    [current, flipped, busy, cards, mode, apply],
+    [current, flipped, busy, advance],
   );
+
+  const markKnown = useCallback(async () => {
+    if (!current || busy) return null;
+    setBusy(true);
+    setError(null);
+    try {
+      await markCardKnown(current.word.id);
+      setMarked((n) => n + 1);
+      await advance();
+      return current;
+    } catch (e) {
+      setError(e);
+      setLoading(false);
+      return null;
+    } finally {
+      setBusy(false);
+    }
+  }, [current, busy, advance]);
+
+  const putBack = useCallback((card: Card) => {
+    setCards((now) => [card, ...now.filter((c) => c.word.id !== card.word.id)]);
+    setMarked((n) => n - 1);
+    setShown((n) => n + 1);
+    setFlipped(false);
+    setSuggested(null);
+    setError(null);
+    shownAt.current = performance.now();
+  }, []);
 
   return {
     current,
@@ -140,11 +188,15 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
     suggested,
     busy,
     reviewed,
+    marked,
+    shown,
     remaining: cards.length + beyond,
     reviewsDue,
     error,
     flip,
     answer,
     rate,
+    markKnown,
+    putBack,
   };
 }

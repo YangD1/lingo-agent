@@ -1078,7 +1078,14 @@
       "keysSuggested": "<k>Enter</k> 按建议评分 · <k>1</k>–<k>4</k> 改评分",
       "close": "关闭",
       "title": "背单词",
-      "swipe": "左滑 {again} · 右滑 {good}"
+      "swipe": "左滑 {again} · 右滑 {good}",
+      "known": {
+        "mark": "熟记",
+        "markHint": "已经会了，跳过不再复习",
+        "marked": "已标为熟记，不再复习",
+        "whereBack": "要加回来：背单词 → 已熟记的词",
+        "undo": "撤销"
+      }
     },
     "mine": {
       "title": "我的生词本",

@@ -8,6 +8,20 @@ import type { Card, Queue } from "@/lib/vocab";
 import en from "../../../messages/en.json";
 import { ReviewDeck } from "./review-deck";
 
+// jsdom has no matchMedia; the deck's toaster asks it for the colour scheme.
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+  }));
+  // ...nor pointer capture, which a toast takes when pressed.
+  Element.prototype.setPointerCapture ??= () => {};
+});
+
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),

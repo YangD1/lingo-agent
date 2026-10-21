@@ -9,6 +9,20 @@ import en from "../../../messages/en.json";
 import { ReviewDeck } from "./review-deck";
 import { useReviewSession } from "./use-review-session";
 
+// jsdom has no matchMedia; the deck's toaster asks it for the colour scheme.
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+  }));
+  // ...nor pointer capture, which a toast takes when pressed.
+  Element.prototype.setPointerCapture ??= () => {};
+});
+
 const api = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
@@ -242,6 +256,41 @@ describe("ReviewDeck", () => {
     expect(screen.getByTestId("review-examples")).toHaveTextContent("Written by AI");
     expect(screen.queryByRole("button", { name: "AI examples" })).not.toBeInTheDocument();
     expect(api).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips a card marked known without rating it, and the toast puts it back", async () => {
+    api
+      .mockResolvedValueOnce(queue([card(1, "apple"), card(2, "bread")]))
+      .mockResolvedValueOnce(undefined) // POST known
+      .mockResolvedValueOnce(undefined); // DELETE known
+    show();
+    expect(await screen.findByRole("heading", { name: "apple" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("review-known"));
+    expect(await screen.findByRole("heading", { name: "bread" })).toBeInTheDocument();
+    expect(api).toHaveBeenCalledWith("/vocab/cards/1/known", { method: "POST" });
+    expect(rated("apple")).toBe(false);
+    expect(screen.getByTestId("review-progress")).toHaveTextContent("Reviewed 0 · 1 to go");
+    expect(await screen.findByText("Marked known; it won't come up again")).toBeInTheDocument();
+    expect(screen.getByText("To bring it back: Vocabulary → Known words")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(await screen.findByRole("heading", { name: "apple" })).toBeInTheDocument();
+    expect(api).toHaveBeenLastCalledWith("/vocab/cards/1/known", { method: "DELETE" });
+    expect(screen.getByTestId("review-progress")).toHaveTextContent("Reviewed 0 · 2 to go");
+    expect(screen.getByRole("dialog", { name: "Vocabulary review" })).toBeInTheDocument();
+  });
+
+  it("keeps the card when marking it known fails", async () => {
+    api
+      .mockResolvedValueOnce(queue([card(1, "apple"), card(2, "bread")]))
+      .mockRejectedValueOnce(new Error("offline"));
+    show();
+    await screen.findByRole("heading", { name: "apple" });
+    await userEvent.click(screen.getByTestId("review-known"));
+    await waitFor(() => expect(api).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("heading", { name: "apple" })).toBeInTheDocument();
+    expect(screen.queryByText("Marked known; it won't come up again")).not.toBeInTheDocument();
   });
 
   it("in new-word mode, points to the reviews still due", async () => {

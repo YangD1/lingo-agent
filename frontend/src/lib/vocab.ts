@@ -171,6 +171,19 @@ export const fetchExamples = (wordId: number) =>
 export const removeMine = (wordId: number) =>
   api<void>(`/vocab/mine/${wordId}`, { method: "DELETE" });
 
+/** Stops reviewing a word (task 120); idempotent. */
+export const markKnown = (wordId: number) =>
+  api<void>(`/vocab/cards/${wordId}/known`, { method: "POST" });
+
+/** Reviews a known word again, from where it left off; idempotent. */
+export const unmarkKnown = (wordId: number) =>
+  api<void>(`/vocab/cards/${wordId}/known`, { method: "DELETE" });
+
+export const fetchKnown = (q: string, limit: number, offset: number) =>
+  api<{ words: Card[]; total: number }>(
+    `/vocab/known?${new URLSearchParams({ q, limit: String(limit), offset: String(offset) })}`,
+  );
+
 /** Marking the current book's common words known from the placement test's vocabulary size. */
 export type PlacementKnown = {
   /** Why nothing is offered; null when `count` words can be marked. */

@@ -1,15 +1,17 @@
 "use client";
 
 import { Dialog } from "@base-ui/react/dialog";
-import { Bookmark, Volume2, X } from "lucide-react";
+import { Bookmark, CircleCheck, Volume2, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { type PointerEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { ReadAloudBadge } from "@/components/speech/read-aloud-badge";
 import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress";
 import { Segmented } from "@/components/ui/segmented";
+import { Toaster } from "@/components/ui/sonner";
 import { Tag } from "@/components/ui/tag";
 import { ErrorText } from "@/components/ui/error-text";
 import { isShortcut } from "@/lib/keyboard";
@@ -26,6 +28,8 @@ import {
   type Rating,
   REVIEW_CHOICES,
   SUGGESTED_RATING,
+  type Card,
+  unmarkKnown,
 } from "@/lib/vocab";
 import { CatLoading, LingoCat } from "@/components/brand/lingo-cat";
 
@@ -42,6 +46,9 @@ const RATING_DOT: Record<Rating, string> = {
   3: "bg-success",
   4: "bg-chart-4",
 };
+
+// The deck's own toaster: one outside the dialog would count as a click outside and close it.
+const DECK_TOASTER = "review-deck";
 
 const kbd = (chunks: ReactNode) => (
   <kbd className="mx-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border bg-card px-1 font-mono text-[11px]">
@@ -80,13 +87,17 @@ export function ReviewDeck({
   const describe = useDescribeError();
   const session = useReviewSession(mode);
   // Closed by the button, Esc or Back alike: the page underneath reloads its counts.
-  const reviewed = useRef(0);
+  const changed = useRef(false);
   useEffect(() => {
-    reviewed.current = session.reviewed;
-  }, [session.reviewed]);
+    if (session.reviewed > 0 || session.marked !== 0) changed.current = true;
+  }, [session.reviewed, session.marked]);
+  // Sonner keeps toasts in a global store and shows them again to the next toaster: the
+  // next round's deck would offer to undo this one's marks.
+  const toasts = useRef(new Set<string | number>());
   useEffect(
     () => () => {
-      if (reviewed.current > 0) announceReviewed();
+      if (changed.current) announceReviewed();
+      for (const id of toasts.current) toast.dismiss(id);
     },
     [],
   );
@@ -105,7 +116,7 @@ export function ReviewDeck({
   }, [roundDone]);
 
   // A card is one sitting's turn: the same word can come back after a miss.
-  const turn = current ? `${current.word.id}:${session.reviewed}` : "";
+  const turn = current ? `${current.word.id}:${session.shown}` : "";
   const seed = current ? current.word.id * 7919 + session.reviewed : 0;
   const [answered, setAnswered] = useState<{ turn: string; answer: Answer } | null>(null);
   const result = answered?.turn === turn ? answered.answer : null;
@@ -165,6 +176,41 @@ export function ReviewDeck({
       comeBack(face);
     }
   };
+  // Known (task 120): the card goes as if rated, without a rating; the toast can undo it.
+  const markKnown = async () => {
+    const face = faceRef.current;
+    if (!current || session.busy || moving.current) return;
+    const animate = canAnimate(face);
+    if (animate) {
+      moving.current = true;
+      flying.current = true;
+      flyOff(face, 1);
+    }
+    const card = await session.markKnown();
+    if (!card) {
+      if (animate && flying.current) {
+        flying.current = false;
+        moving.current = false;
+        comeBack(face);
+      }
+      return;
+    }
+    const id = toast(t("known.marked"), {
+      toasterId: DECK_TOASTER,
+      description: t("known.whereBack"),
+      action: { label: t("known.undo"), onClick: () => void undoKnown(card) },
+    });
+    toasts.current.add(id);
+  };
+  const undoKnown = async (card: Card) => {
+    try {
+      await unmarkKnown(card.word.id);
+      session.putBack(card);
+    } catch (e) {
+      toasts.current.add(toast.error(describe(e), { toasterId: DECK_TOASTER }));
+    }
+  };
+
   // The turned card is up: bring it round, then take a rating keyed meanwhile.
   useLayoutEffect(() => {
     if (!turned.current) return;
@@ -452,7 +498,7 @@ export function ReviewDeck({
 
                 {current && (
                   <div className="flex flex-1 flex-col gap-5">
-                    <div className="flex min-h-5 gap-1.5">
+                    <div className="flex min-h-5 items-center gap-1.5">
                       {isNew && <Tag>{t("new")}</Tag>}
                       {mine && (
                         <Tag>
@@ -460,6 +506,18 @@ export function ReviewDeck({
                           {t("mine")}
                         </Tag>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="-my-1 ml-auto text-muted-foreground"
+                        title={t("known.markHint")}
+                        disabled={session.busy}
+                        onClick={() => void markKnown()}
+                        data-testid="review-known"
+                      >
+                        <CircleCheck />
+                        {t("known.mark")}
+                      </Button>
                     </div>
                     {format === "listen" && !flipped ? (
                       <div className="my-auto">
@@ -616,6 +674,7 @@ export function ReviewDeck({
               )}
             </p>
           )}
+          <Toaster id={DECK_TOASTER} position="bottom-center" />
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>

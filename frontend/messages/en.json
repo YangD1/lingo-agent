@@ -1078,7 +1078,14 @@
       "keysSuggested": "<k>Enter</k> rate as suggested · <k>1</k>–<k>4</k> rate differently",
       "close": "Close",
       "title": "Vocabulary review",
-      "swipe": "Swipe left: {again} · right: {good}"
+      "swipe": "Swipe left: {again} · right: {good}",
+      "known": {
+        "mark": "Known",
+        "markHint": "I know this one: skip it and stop reviewing it",
+        "marked": "Marked known; it won't come up again",
+        "whereBack": "To bring it back: Vocabulary → Known words",
+        "undo": "Undo"
+      }
     },
     "mine": {
       "title": "My words",
