@@ -44,12 +44,12 @@ async def test_import_replaces_the_sentences_and_reports_coverage(
     write_exports(
         tmp_path,
         eng="1\teng\tI went to school today.\n2\teng\tGo to school now, please.\n"
-        "3\teng\tNo translation here at all.\n",
+        "3\teng\tNo translation here at all.\n4\teng\tThey go to a big school.\n",
         cmn="10\tcmn\t我今天去了学校。\n11\tcmn\t我們現在去學校吧。\n",
         links="10\t1\n11\t2\n",
     )
     count, books = await import_dir(TEST_DATABASE_URL, tmp_path, simplify)
-    assert count == 4  # go and school each get both; equally good, so by id
+    assert count == 6  # go and school each get all three; translated first, then by id
 
     go = await db_session.scalar(select(Word.id).where(Word.word == "go"))
     rows = (
@@ -60,8 +60,10 @@ async def test_import_replaces_the_sentences_and_reports_coverage(
     assert [(r.rank, r.source, r.source_id) for r in rows] == [
         (0, "tatoeba", "1"),
         (1, "tatoeba", "2"),
+        (2, "tatoeba", "4"),
     ]
     assert rows[1].zh == "我们現在去學校吧。"  # converted by the simplifier given
+    assert rows[2].zh is None  # no translation, kept all the same
     coverage = {book.id: (total, covered) for book, total, covered in books}
     assert coverage["zk"] == (2, 2) and coverage["gre"] == (1, 0)
 

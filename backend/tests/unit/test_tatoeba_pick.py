@@ -28,7 +28,7 @@ def ids(picked: dict[int, list[Pair]], word_id: int) -> list[int]:
     return [p.id for p in picked.get(word_id, [])]
 
 
-def test_pair_up_prefers_a_simplified_translation_and_converts_otherwise() -> None:
+def test_pair_up_prefers_a_simplified_translation_and_keeps_untranslated_ones() -> None:
     simplify = {"我們走吧。": "我们走吧。"}.get
     pairs = pair_up(
         [(11, 1), (12, 1), (13, 2)],
@@ -39,6 +39,7 @@ def test_pair_up_prefers_a_simplified_translation_and_converts_otherwise() -> No
     assert pairs == [
         Pair(1, "Let's go home now.", "咱们走吧。"),
         Pair(2, "I went to school.", "我们走吧。"),
+        Pair(3, "Untranslated.", None),
     ]
 
 
@@ -75,7 +76,7 @@ def test_names_neither_match_nor_count_and_capitalised_words_match_exactly() -> 
     assert ids(picked, 1) == [1, 3]
 
 
-def test_ranks_by_uncommon_words_then_length_keeps_two_and_drops_repeats() -> None:
+def test_ranks_by_uncommon_words_then_length_keeps_three_and_drops_repeats() -> None:
     picked = pick(
         [
             Pair(1, "I go.", ""),  # too short
@@ -89,6 +90,19 @@ def test_ranks_by_uncommon_words_then_length_keeps_two_and_drops_repeats() -> No
         VOCAB,
     )
     # 3 and 4 have no uncommon word; 4 (12 words) is closer to 9 than 3 (5 words).
-    assert ids(picked, 1) == [4, 3]
+    assert ids(picked, 1) == [4, 3, 2]
     # The word itself never counts as uncommon.
     assert ids(picked, 7) == [2]
+
+
+def test_translated_sentences_come_first() -> None:
+    picked = pick(
+        [
+            Pair(1, "I go home to the school to the home to the word.", None),
+            Pair(2, "I go to the meticulous school.", "我去一所严谨的学校。"),
+            Pair(3, "I go to the school now.", None),
+        ],
+        VOCAB,
+    )
+    # 2 has an uncommon word but a translation; the untranslated ones follow by length.
+    assert ids(picked, 1) == [2, 1, 3]

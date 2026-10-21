@@ -127,13 +127,25 @@ function ExampleLine({
   linkLabel,
   shadowing,
 }: {
-  example: Example;
+  example: { en: string; zh: string | null };
   forms: string[];
   link?: string | null;
   linkLabel?: string;
   shadowing?: { open: boolean; toggle: () => void; wordId: number };
 }) {
   const t = useTranslations("speech.shadowing");
+  const source = link && (
+    <a
+      href={link}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={linkLabel}
+      title={linkLabel}
+      className="ml-1.5 inline-flex align-[-2px] text-muted-foreground/70 hover:text-foreground"
+    >
+      <ExternalLink aria-hidden className="size-3" />
+    </a>
+  );
   return (
     <li>
       <p lang="en" className="text-[15px] leading-relaxed">
@@ -155,22 +167,15 @@ function ExampleLine({
             className="ml-1"
           />
         )}
+        {/* Untranslated (ADR 0062): no empty line under it, the link goes here. */}
+        {!example.zh && source}
       </p>
-      <p className="text-sm text-muted-foreground">
-        {example.zh}
-        {link && (
-          <a
-            href={link}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={linkLabel}
-            title={linkLabel}
-            className="ml-1.5 inline-flex align-[-2px] text-muted-foreground/70 hover:text-foreground"
-          >
-            <ExternalLink aria-hidden className="size-3" />
-          </a>
-        )}
-      </p>
+      {example.zh && (
+        <p className="text-sm text-muted-foreground">
+          {example.zh}
+          {source}
+        </p>
+      )}
       {shadowing?.open && (
         <ShadowingPanel
           sentences={[example.en]}

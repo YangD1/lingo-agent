@@ -160,8 +160,11 @@ export const lookupWord = (word: string) =>
 
 export type Example = { en: string; zh: string };
 
-/** An example sentence from a dictionary source; `url` is its page there, for attribution. */
-export type SourcedExample = Example & { source: string; url: string | null };
+/**
+ * An example sentence from a dictionary source; `url` is its page there, for attribution.
+ * `zh` is null when the source has no Chinese translation of it (ADR 0062).
+ */
+export type SourcedExample = { en: string; zh: string | null; source: string; url: string | null };
 
 /** AI example sentences at the learner's level, cached per word and level (ADR 0017 §3). */
 export const fetchExamples = (wordId: number) =>

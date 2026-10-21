@@ -1,9 +1,9 @@
 """Import example sentences from Tatoeba into `word_sentences`:
 `python -m app.services.vocab.import_tatoeba`.
 
-ADR 0020: Tatoeba's English sentences with a Mandarin translation (CC BY 2.0 FR),
-up to two per word, picked for few uncommon words and a moderate length. Traditional
-Chinese is converted to simplified. The exports change weekly and have no versioned
+ADR 0020, 0062: Tatoeba's English sentences (CC BY 2.0 FR), up to three per word,
+picked for having a Mandarin translation, then few uncommon words and a moderate
+length. Traditional Chinese is converted to simplified. The exports change weekly and have no versioned
 address, so nothing is pinned: each file's date and sha256 are printed instead, and
 `--dir` imports local copies. Downloads are cached in `data/tatoeba/` (gitignored);
 `--refresh` fetches them again. A run replaces all Tatoeba rows in one transaction.
@@ -44,7 +44,7 @@ ENG, CMN, LINKS = (
 )
 CACHE_DIR = REPO_ROOT / "data" / "tatoeba"
 
-PER_WORD = 2
+PER_WORD = 3
 MIN_WORDS, MAX_WORDS = 4, 20
 # Sentences this long read best on a card; the further off, the lower they rank.
 IDEAL_WORDS = 9
@@ -62,11 +62,12 @@ class DownloadError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class Pair:
-    """An English sentence (its Tatoeba id) and a simplified Chinese translation."""
+    """An English sentence (its Tatoeba id) and a simplified Chinese translation, or
+    None when it has none."""
 
     id: int
     en: str
-    zh: str
+    zh: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,21 +117,24 @@ def pair_up(
     cmn: Mapping[int, str],
     simplify: Callable[[str], str],
 ) -> list[Pair]:
-    """One pair per English sentence. Of several translations, one already in
-    simplified Chinese is preferred; otherwise the first is converted."""
+    """One pair per English sentence, translated or not. Of several translations, one
+    already in simplified Chinese is preferred; otherwise the first is converted."""
     found: dict[int, list[str]] = {}
     for cmn_id, eng_id in sorted(links):
         if eng_id in eng and cmn_id in cmn:
             found.setdefault(eng_id, []).append(cmn[cmn_id])
     pairs = []
-    for eng_id, translations in sorted(found.items()):
-        simplified = [simplify(t) for t in translations]
-        same = [s for s, t in zip(simplified, translations, strict=True) if s == t]
-        pairs.append(Pair(eng_id, eng[eng_id].strip(), (same or simplified)[0].strip()))
+    for eng_id, en in sorted(eng.items()):
+        zh = None
+        if translations := found.get(eng_id):
+            simplified = [simplify(t) for t in translations]
+            same = [s for s, t in zip(simplified, translations, strict=True) if s == t]
+            zh = (same or simplified)[0].strip()
+        pairs.append(Pair(eng_id, en.strip(), zh))
     return pairs
 
 
-Key = tuple[int, int, int]
+Key = tuple[int, int, int, int]
 
 
 def _wording(sentence: str) -> list[str]:
@@ -157,8 +161,9 @@ def _offer(kept: list[tuple[Key, Pair]], key: Key, pair: Pair) -> None:
 
 
 def pick(pairs: Iterable[Pair], vocab: Vocab) -> dict[int, list[Pair]]:
-    """Each word's best sentences, best first: fewest uncommon words besides the word
-    itself, then closest to IDEAL_WORDS long, then lowest id (stable across runs).
+    """Each word's best sentences, best first: translated ones, then fewest uncommon
+    words besides the word itself, then closest to IDEAL_WORDS long, then lowest id
+    (stable across runs).
 
     A capitalised word inside a sentence is a name ("Tom", "China") unless it is a
     capitalised dictionary word: it neither matches a word nor counts as uncommon.
@@ -188,7 +193,7 @@ def pick(pairs: Iterable[Pair], vocab: Vocab) -> dict[int, list[Pair]]:
         uncommon = [t for i, t in enumerate(lowered) if i not in names and t not in vocab.common]
         for word_id, forms in matched.items():
             rare = sum(1 for t in uncommon if t not in forms)
-            key = (rare, abs(len(tokens) - IDEAL_WORDS), pair.id)
+            key = (pair.zh is None, rare, abs(len(tokens) - IDEAL_WORDS), pair.id)
             _offer(best.setdefault(word_id, []), key, pair)
     return {word_id: [p for _, p in kept] for word_id, kept in best.items()}
 
@@ -210,9 +215,8 @@ def _find(directory: Path, name: str) -> Path:
 def read_pairs(directory: Path, simplify: Callable[[str], str]) -> list[Pair]:
     links = [(int(c), int(e)) for c, e, *_ in _rows(_find(directory, LINKS))]
     cmn = {int(i): t for i, _, t in _rows(_find(directory, CMN))}
-    wanted = {e for _, e in links}
-    # 2M English sentences: keep only the translated ones.
-    eng = {int(i): t for i, _, t in _rows(_find(directory, ENG)) if int(i) in wanted}
+    # 2M English sentences, most of them untranslated (ADR 0062).
+    eng = {int(i): t for i, _, t in _rows(_find(directory, ENG))}
     return pair_up(links, eng, cmn, simplify)
 
 

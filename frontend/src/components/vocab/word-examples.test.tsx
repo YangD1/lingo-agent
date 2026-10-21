@@ -50,3 +50,27 @@ describe("shadowing an example sentence", () => {
     expect(screen.queryByTestId("shadowing-panel")).not.toBeInTheDocument();
   });
 });
+
+describe("an untranslated sentence (ADR 0062)", () => {
+  it("shows the English alone, its source link beside it", () => {
+    const url = "https://tatoeba.org/sentences/show/7";
+    render(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+        <WordExamples
+          wordId={42}
+          sentences={[
+            SENTENCES[0],
+            { en: "They left at noon.", zh: null, source: "tatoeba", url },
+          ]}
+          forms={["left"]}
+        />
+      </NextIntlClientProvider>,
+    );
+    const [translated, untranslated] = screen.getAllByRole("listitem");
+    expect(translated.querySelectorAll("p")).toHaveLength(2);
+    const lines = untranslated.querySelectorAll("p");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toHaveTextContent("They left at noon.");
+    expect(lines[0].querySelector("a")).toHaveAttribute("href", url);
+  });
+});
