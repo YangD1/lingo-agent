@@ -6,7 +6,7 @@ A 5–10 minute walk through Lingo Agent, using a demo account with about two we
 
 ## Setup (once, before the demo)
 
-1. Start the stack and import the word list as in the README's Quick start: `make env`, `make up`, `make vocab-import`, `make sentences-import`.
+1. Start the stack and import the word list as in the README's Quick start: `make env`, `make up`, `make vocab-import`, `make sentences-import`, `make senses-import`.
 2. Create the demo account:
 
    ```bash
@@ -62,7 +62,7 @@ A 5–10 minute walk through Lingo Agent, using a demo account with about two we
 - **Click:** **Vocabulary**, then **Start**, and review a few cards.
 - **You should see:**
   - [ ] How many words are due and how many new words are left; the current word book is the Oxford 3000.
-  - [ ] Cards with phonetics, meanings and Tatoeba example sentences with translations. The microphone by an example starts shadowing.
+  - [ ] Cards with phonetics, Chinese meanings, English senses (Simple English Wiktionary) and Tatoeba example sentences (with translations where there are any). The microphone by an example starts shadowing.
   - [ ] Back on the **Dashboard**, fewer words are due.
 
 ### 5. Reading (about 1 min)

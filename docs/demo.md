@@ -6,7 +6,7 @@
 
 ## 准备（演示前做一次）
 
-1. 按 README 的“快速开始”起好服务并导入词表：`make env`、`make up`、`make vocab-import`、`make sentences-import`。
+1. 按 README 的“快速开始”起好服务并导入词表：`make env`、`make up`、`make vocab-import`、`make sentences-import`、`make senses-import`。
 2. 生成演示账号：
 
    ```bash
@@ -73,7 +73,7 @@
 - **点**：侧栏 **背单词** → **开始**，复习几张卡片。
 - **应该看到**：
   - [ ] 今天要复习几个词，还剩多少新词；当前词书是 Oxford 3000。
-  - [ ] 卡片上有音标、释义，以及 Tatoeba 例句（带中文翻译）；点击例句旁的麦克风可以跟读。
+  - [ ] 卡片上有音标、中文释义、英文义项（Simple English Wiktionary），以及 Tatoeba 例句（有翻译的带中文）；点击例句旁的麦克风可以跟读。
   - [ ] 回到 **看板**，今日待复习的数字变少了。
 
 ### 5. 阅读（约 1 分钟）

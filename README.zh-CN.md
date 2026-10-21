@@ -27,7 +27,7 @@
 
 - **记得你的助手**：每次回复后，后台会判断哪些值得记住（你的目标、兴趣、反复出现的问题），并给会话写摘要。**记忆**页面列出它记住的全部内容，每一条都可以修改或删除。
 - **语法跟踪**：同一个后台步骤会把你的错误标到 119 个语法点上（A1–C2）。掌握度由算法（BKT 和 Elo）根据这些证据更新，不由模型打分。**学习者模型**页面列出每个语法点和背后的证据，每条证据都可以删除。
-- **FSRS 背单词**：选一本词书（牛津 3000、中考、高考、四级、六级、考研、雅思、托福、GRE），先筛掉认识的词，再按 FSRS 安排每天的复习。卡片背面按词性列出中文释义，下面最多两句来自 Tatoeba 的真实例句（人工翻译）；没有真例句的词，接下来一天要复习或要学的会在后台预先写好 AI 例句（可以关），其余的点了才生成。对话里遇到的生词会自动收进生词本。除了翻卡片，复习还可以切到听音辨词（读出单词，从四个释义里选）、拼写（看释义、听发音，输入单词，标出拼错的字母）或混合；对错由代码判，并预选一个评分，你可以改。
+- **FSRS 背单词**：选一本词书（牛津 3000、中考、高考、四级、六级、考研、雅思、托福、GRE），先筛掉认识的词，再按 FSRS 安排每天的复习。卡片背面按词性列出中文释义，下面是来自 Simple English Wiktionary 的浅显英文义项（各带例句），再下面最多三句来自 Tatoeba 的真实例句（有人工中文翻译的排在前面）；没有真例句的词，接下来一天要复习或要学的会在后台预先写好 AI 例句（可以关），其余的点了才生成。对话里遇到的生词会自动收进生词本。除了翻卡片，复习还可以切到听音辨词（读出单词，从四个释义里选）、拼写（看释义、听发音，输入单词，标出拼错的字母）或混合；对错由代码判，并预选一个评分，你可以改。
 - **读得懂助手的话**：输入框上方可以切换“多说中文 / 多说英文”（没选过时按等级：A1–A2 或还没定级时多说中文），从下一句开始生效。助手回复里的英文单词，悬停或点按就能看音标、释义、原形和原句，还可以生成 AI 例句、一键加入生词本。每条回复都能朗读：用浏览器自带的声音，自动挑这台设备上最好的（Edge 的 Natural、Chrome 的 Google、macOS 的 Premium 声音），中英文各用各的声音，逐句读；在**设置 → 朗读**（或朗读按钮旁的齿轮）里可以自己选声音、美音或英音、英文语速，设置存在当前浏览器。部署方配了朗读路由（Azure 语音、阿里云百炼的通义千问 TTS、硅基流动或 OpenAI 等兼容 `/audio/speech` 的服务，或本地 Kokoro）时，回复、单词和复习卡片改用服务端的声音逐句朗读；读过的句子会缓存、不再计费，朗读服务出错时自动换回浏览器的声音。学习者可以在自己的浏览器里关掉服务端朗读，也可以清除为自己生成的录音；30 天没人播的录音会自动删除。部署方还可以在**设置 → 单词发音**里把整本词书的单词发音提前生成好（先看词数、字符数、预计占用和按单价估算的费用，后台分批生成，可暂停、继续，重启后接着跑），学习者点单词朗读时直接播放，不再调用模型。回复也能切换看中文版或英文版，译文保存下来，来回切换不再调用模型。
 - **跟读**：助手回复旁、阅读文章每段末尾、复习卡片例句后面都有麦克风，可以先听示范、再录自己读一遍（最长 30 秒）。部署方配了发音评测（Azure 语音，在**设置 → 发音评测**）时，能看到总分和准确度、流利度、完整度（美音还有韵律），每个词按读得好坏着色，点开一个词能看每个音的得分；读不准的词可以一键加入生词本，复习卡片上也会标出来。没配时用语音转写对比，标出漏读和读成别的词，并注明是粗略结果。录音不保存；跟读记录在学习者模型页，可以逐条删除或清空。
 - **口语练习**：在“口语”页选一个适合你等级的情景（自我介绍、面试、点餐、问路等），或者自由聊。助手扮演对方、先开口。按住麦克风说话（或点一下开始、再点一下发送；电脑上可以按住空格），说完自动转写并发送，助手的回复边生成边朗读。转写错了可以“改一下”最后一条语音，改好后重新发送。助手不逐句纠错，只顺着把对话接下去；结束后给一份小结：说得好的、说错的和改法、更地道的说法、下次可以试的表达，都可以跟读，表达可以加入生词本。说错的地方计入语法证据，太短、可能听错的语音不算。没配语音转写时可以打字练。
@@ -71,12 +71,15 @@ cd lingo-agent
 make env   # 生成 .env，并随机生成加密主密钥和 JWT 密钥
 make up    # 构建并启动 postgres + 后端 + 前端；数据库迁移自动执行
 make vocab-import   # 只需一次：下载并导入词库（约 15 秒）
-make sentences-import   # 只需一次，在 vocab-import 之后：导入复习卡片的例句（约 10 秒）
+make sentences-import   # 只需一次，在 vocab-import 之后：导入复习卡片的例句（约 3 分钟）
+make senses-import   # 只需一次，在 vocab-import 之后：导入复习卡片的英文义项（约 10 秒）
 ```
 
 词库来自 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT 许可，66 MB，固定到某个提交并校验 sha256）。文件保存在 `data/`，其中约 3.8 万个词会被导入：考试词表、牛津 3000、柯林斯星级词和词频前 3 万的词。背单词和入学测都要用到它。可以重复执行。访问不了 GitHub 时，把 `ECDICT_URL` 设为同一文件的镜像地址，或者用 `make vocab-import CSV=path/to/ecdict.csv` 导入本地文件。宿主机上没有 uv 时：先下载文件，再执行 `docker compose cp ecdict.csv backend:/tmp/` 和 `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`。
 
-复习卡片上的例句来自 [Tatoeba](https://tatoeba.org)（[CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)）：带人工中文翻译的英文句子，每个词最多两句，每句都链接到它在 Tatoeba 的页面。三个按语言拆分的导出文件（约 27 MB）保存在 `data/tatoeba/`；Tatoeba 每周更新导出，所以导入时打印每个文件的日期和 sha256，不校验固定哈希。要拉取新导出用 `make sentences-import REFRESH=1`，用本地文件用 `make sentences-import DIR=path/to/exports`。没有真例句的词仍然可以点“AI 例句”。宿主机上没有 uv 时：从 <https://downloads.tatoeba.org/exports/per_language/> 把 `eng/eng_sentences.tsv.bz2`、`cmn/cmn_sentences.tsv.bz2`、`cmn/cmn-eng_links.tsv.bz2` 下载到同一个文件夹，执行 `docker compose cp 该文件夹 backend:/tmp/tatoeba`，再执行 `docker compose exec backend python -m app.services.vocab.import_tatoeba --dir /tmp/tatoeba`。
+复习卡片上的例句来自 [Tatoeba](https://tatoeba.org)（[CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)）：每个词最多三句英文句子，有人工中文翻译的排在前面（没有翻译的只显示英文），每句都链接到它在 Tatoeba 的页面。导入约 3 分钟，内存约 800 MB。三个按语言拆分的导出文件（约 27 MB）保存在 `data/tatoeba/`；Tatoeba 每周更新导出，所以导入时打印每个文件的日期和 sha256，不校验固定哈希。要拉取新导出用 `make sentences-import REFRESH=1`，用本地文件用 `make sentences-import DIR=path/to/exports`。没有真例句的词仍然可以点“AI 例句”。宿主机上没有 uv 时：从 <https://downloads.tatoeba.org/exports/per_language/> 把 `eng/eng_sentences.tsv.bz2`、`cmn/cmn_sentences.tsv.bz2`、`cmn/cmn-eng_links.tsv.bz2` 下载到同一个文件夹，执行 `docker compose cp 该文件夹 backend:/tmp/tatoeba`，再执行 `docker compose exec backend python -m app.services.vocab.import_tatoeba --dir /tmp/tatoeba`。
+
+复习卡片上的英文义项来自 [Simple English Wiktionary](https://simple.wiktionary.org)（[CC BY-SA](https://creativecommons.org/licenses/by-sa/4.0/)）：用浅显英文写的释义，按编者给的顺序，带词性、语法标签和例句，每个词最多八个义项，链接到词条页。dump（约 9 MB）保存在 `data/simplewiktionary/`；和 Tatoeba 一样，导入时打印文件日期和 sha256。要拉取新 dump 用 `make senses-import REFRESH=1`，用本地文件用 `make senses-import FILE=path/to/dump.xml.bz2`。没有词条的词照旧显示 ECDICT 的 WordNet 英文释义。宿主机上没有 uv 时：从 <https://dumps.wikimedia.org/simplewiktionary/latest/> 下载 `simplewiktionary-latest-pages-articles.xml.bz2`，用 `docker compose cp` 复制到 `backend:/tmp/`，再执行 `docker compose exec backend python -m app.services.vocab.import_simplewiktionary --file /tmp/simplewiktionary-latest-pages-articles.xml.bz2`。
 
 然后：
 
@@ -238,6 +241,6 @@ docs/            decisions/（ADR）、agent-tools.md（全部工具和后台步
 
 [MIT](LICENSE)
 
-运行时用到的数据由导入命令下载，不包含在仓库里：词库来自 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT），例句来自 [Tatoeba](https://tatoeba.org)（[CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)）。
+运行时用到的数据由导入命令下载，不包含在仓库里：词库来自 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT），例句来自 [Tatoeba](https://tatoeba.org)（[CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)），英文义项来自 [Simple English Wiktionary](https://simple.wiktionary.org)（[CC BY-SA](https://creativecommons.org/licenses/by-sa/4.0/)）。
 
 阅读文章由后端从 RSS 抓取，只存在你自己的数据库里：[NASA 新闻](https://www.nasa.gov/news-release/feed/)（美国政府作品，公有领域；跳过“每日天文图”APOD）和 [Global Voices](https://globalvoices.org)（CC BY 3.0；跳过从合作方转载的文章）。学习者自己添加的源只在添加者所在的租户里显示。
