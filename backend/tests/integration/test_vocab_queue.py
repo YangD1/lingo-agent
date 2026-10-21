@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.rules import get_rules
 from app.db.models import User, UserCard, UserWordBook, Word
+from app.services.vocab import known
 from app.services.vocab.queue import QueueItem, daily_queue
 from app.services.vocab.scheduler import review
 
@@ -76,6 +77,20 @@ async def test_words_started_today_use_up_the_daily_limit(db_session: AsyncSessi
     # In Shanghai both were started today: nothing new is left.
     queue = await daily_queue(db_session, user_id, rules=RULES, tz=shanghai, now=NOW)
     assert queue.new_started == 2 and queue.new == []
+
+
+async def test_words_marked_known_leave_the_daily_limit_to_others(
+    db_session: AsyncSession,
+) -> None:
+    # Task 123: a new word marked known costs no learning, so the next word in the book
+    # takes its place; the review deck asks before showing such a refill.
+    user_id, ids = await setup(db_session, daily_new=2)
+    await known.mark(db_session, user_id, ids["common"])
+    await known.mark(db_session, user_id, ids["middle"])
+
+    queue = await daily_queue(db_session, user_id, rules=RULES, tz=UTC_ZONE, now=NOW)
+    assert (queue.new_limit, queue.new_started) == (2, 0)
+    assert names(queue.new) == ["less", "rare"]
 
 
 async def test_reviews_due_now_or_within_the_learning_window(db_session: AsyncSession) -> None:
