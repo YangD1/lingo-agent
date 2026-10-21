@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.adaptive.rules import get_rules
 from app.api.errors import api_error
-from app.db.models import UserCard, Word, WordSentence
+from app.db.models import UserCard, Word, WordSense, WordSentence
 from app.deps import CurrentTenant, CurrentUser, SessionDep, per_user
 from app.providers.errors import QUOTA_MESSAGE, NoModelConfiguredError
 from app.providers.tenant import load_provider_context
@@ -37,6 +37,8 @@ from app.services.vocab.scheduler import (
     preview,
     review,
 )
+from app.services.vocab.senses import for_words as senses_for
+from app.services.vocab.senses import page as sense_page
 from app.services.vocab.sentences import for_words as sentences_for
 from app.services.vocab.sentences import page as sentence_page
 
@@ -60,9 +62,24 @@ class ExampleOut(BaseModel):
     """A real example sentence from a dictionary source (ADR 0020)."""
 
     en: str
-    zh: str
+    # None: the source has no Chinese translation of it (ADR 0062).
+    zh: str | None
     source: str
     # The sentence's page at the source, linked from the card as its attribution.
+    url: str | None
+
+
+class SenseOut(BaseModel):
+    """An English sense of the word with its examples (ADR 0062)."""
+
+    pos: str
+    gloss: str
+    # Grammar and usage labels: "countable", "transitive", "slang".
+    labels: list[str]
+    examples: list[str]
+    synonyms: list[str]
+    source: str
+    # The word's page at the source, linked from the card as its attribution.
     url: str | None
 
 
@@ -80,8 +97,11 @@ class CardOut(BaseModel):
     last_review: datetime | None
     # Seconds until the next review for ratings 1-4 if rated now, for the rating buttons.
     intervals: list[int]
-    # Up to two real example sentences, best first; empty when the sources have none.
+    # Real example sentences, best first; empty when the sources have none.
     sentences: list[ExampleOut]
+    # English senses in dictionary order; empty when the dictionary has none, and the
+    # card falls back to `word.definition`.
+    senses: list[SenseOut] = []
     # The word and its inflections, lowercase, to pick the word out of a sentence.
     forms: list[str]
     # AI sentences already cached at the learner's level (queue only, Q44f); the card
@@ -226,6 +246,7 @@ def _card(
     card: UserCard | None,
     now: datetime,
     sentences: Sequence[WordSentence],
+    senses: Sequence[WordSense] = (),
     ai: Sequence[dict[str, str]] = (),
     mispronounced: bool = False,
     choices: Sequence[str] = (),
@@ -239,6 +260,18 @@ def _card(
         intervals=preview(card, get_rules(), now),
         sentences=[
             ExampleOut(en=s.en, zh=s.zh, source=s.source, url=sentence_page(s)) for s in sentences
+        ],
+        senses=[
+            SenseOut(
+                pos=s.pos,
+                gloss=s.gloss,
+                labels=s.labels,
+                examples=s.examples,
+                synonyms=s.synonyms,
+                source=s.source,
+                url=sense_page(s),
+            )
+            for s in senses
         ],
         forms=sorted(forms_of(word.word, word.exchange, lemma=False)),
         ai_examples=[Sentence(**s) for s in ai],
@@ -260,6 +293,7 @@ async def _cards(
     pairs = list(items)
     ids = [word.id for word, _ in pairs]
     found = await sentences_for(session, ids)
+    meanings = await senses_for(session, ids)
     marked = await mispronounced_words(session, user_id, ids, get_rules())
     now = datetime.now(UTC)
     return [
@@ -268,6 +302,7 @@ async def _cards(
             card,
             now,
             found.get(word.id, []),
+            meanings.get(word.id, []),
             (ai or {}).get(word.id, ()),
             mispronounced=word.id in marked,
             choices=(choices or {}).get(word.id, ()),
