@@ -133,6 +133,29 @@ describe("useReviewSession", () => {
     expect(result.current.reviewed).toBe(3);
   });
 
+  it("holds back new words the queue offers again, until asked (task 123)", async () => {
+    api
+      .mockResolvedValueOnce(queue([], [card(1, "apple", { status: null })]))
+      .mockResolvedValueOnce(undefined)
+      // Asked again: apple was marked known, so cheese takes its place; bread is due.
+      .mockResolvedValueOnce(queue([card(2, "bread")], [card(3, "cheese", { status: null })]));
+    const { result } = renderHook(() => useReviewSession("all"));
+    await waitFor(() => expect(result.current.current?.word.word).toBe("apple"));
+    expect(result.current.refill).toBe(0);
+
+    await act(() => result.current.markKnown());
+    // The review comes up; the new word waits.
+    expect(result.current.current?.word.word).toBe("bread");
+    expect(result.current.refill).toBe(1);
+    expect(result.current.remaining).toBe(1);
+
+    // Asked for: it comes after the cards still waiting.
+    act(() => result.current.continueNew());
+    expect(result.current.current?.word.word).toBe("bread");
+    expect(result.current.refill).toBe(0);
+    expect(result.current.remaining).toBe(2);
+  });
+
   it("keeps the card when saving a rating fails", async () => {
     api.mockResolvedValueOnce(queue([card(1, "apple")])).mockRejectedValueOnce(new Error("boom"));
     const { result } = renderHook(() => useReviewSession("all"));

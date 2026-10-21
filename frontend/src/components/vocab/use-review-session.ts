@@ -36,6 +36,11 @@ export type ReviewSession = {
   remaining: number;
   /** When done in `new` mode: reviews that are due. */
   reviewsDue: number;
+  /**
+   * New words the queue offered after the first batch, held back until asked for
+   * (task 123): words marked known leave the day's limit to others.
+   */
+  refill: number;
   error: unknown;
   flip: () => void;
   /** Turns the card over after an answer, suggesting a rating. */
@@ -49,15 +54,20 @@ export type ReviewSession = {
   markKnown: () => Promise<Card | null>;
   /** Shows a card again first, after its known mark was taken back. */
   putBack: (card: Card) => void;
+  /** Brings up the new words held back in `refill`. */
+  continueNew: () => void;
 };
 
-type Batch = { cards: Card[]; beyond: number; reviewsDue: number };
+type Batch = { cards: Card[]; refill: Card[]; beyond: number; reviewsDue: number };
 
-async function nextBatch(mode: ReviewMode): Promise<Batch> {
+/** The queue again; after the first batch its new words wait in `refill` (task 123). */
+async function nextBatch(mode: ReviewMode, first: boolean): Promise<Batch> {
   const queue = await fetchQueue(mode);
-  const cards = mode === "new" ? queue.new : [...queue.reviews, ...queue.new];
+  const reviews = mode === "new" ? [] : queue.reviews;
   const beyond = mode === "new" ? 0 : queue.reviews_due - queue.reviews.length;
-  return { cards, beyond, reviewsDue: queue.reviews_due };
+  return first
+    ? { cards: [...reviews, ...queue.new], refill: [], beyond, reviewsDue: queue.reviews_due }
+    : { cards: reviews, refill: queue.new, beyond, reviewsDue: queue.reviews_due };
 }
 
 /**
@@ -65,9 +75,12 @@ async function nextBatch(mode: ReviewMode): Promise<Batch> {
  * flipped, and rated; the rating goes to FSRS on the server. When the cards run out the
  * queue is asked again, since cards failed a moment ago are due again within minutes (and
  * reviews beyond the first page come then); the session ends when it comes back empty.
+ * New words it offers then (words marked known leave the day's limit to others) wait
+ * until the learner asks for them.
  */
 export function useReviewSession(mode: ReviewMode): ReviewSession {
   const [cards, setCards] = useState<Card[]>([]);
+  const [refill, setRefill] = useState<Card[]>([]);
   const [beyond, setBeyond] = useState(0);
   const [reviewsDue, setReviewsDue] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -83,6 +96,7 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
 
   const apply = useCallback((batch: Batch) => {
     setCards(batch.cards);
+    setRefill(batch.refill);
     setBeyond(batch.beyond);
     setReviewsDue(batch.reviewsDue);
     setLoading(false);
@@ -90,7 +104,7 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
   }, []);
 
   useEffect(() => {
-    nextBatch(mode).then(apply, (e: unknown) => {
+    nextBatch(mode, true).then(apply, (e: unknown) => {
       setError(e);
       setLoading(false);
     });
@@ -123,7 +137,7 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
     } else {
       setCards([]);
       setLoading(true);
-      apply(await nextBatch(mode));
+      apply(await nextBatch(mode, false));
     }
   }, [cards, mode, apply]);
 
@@ -181,6 +195,12 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
     shownAt.current = performance.now();
   }, []);
 
+  const continueNew = useCallback(() => {
+    setCards((now) => [...now, ...refill]);
+    setRefill([]);
+    shownAt.current = performance.now();
+  }, [refill]);
+
   return {
     current,
     loading,
@@ -192,11 +212,13 @@ export function useReviewSession(mode: ReviewMode): ReviewSession {
     shown,
     remaining: cards.length + beyond,
     reviewsDue,
+    refill: refill.length,
     error,
     flip,
     answer,
     rate,
     markKnown,
     putBack,
+    continueNew,
   };
 }
