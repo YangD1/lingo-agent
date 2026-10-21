@@ -1,14 +1,7 @@
 import localFont from "next/font/local";
 
-// Self-hosted so builds never reach out to Google Fonts. Latin subset only:
-// Chinese falls through to the system stack in globals.css (--font-sans).
-export const figtree = localFont({
-  src: "../fonts/figtree-latin-wght.woff2",
-  weight: "300 900",
-  variable: "--font-figtree",
-  display: "swap",
-});
-
+// Self-hosted so builds never reach out to Google Fonts. The text face, LXGW
+// WenKai, is sliced by unicode-range in wenkai.css (ADR 0059), not loaded here.
 export const geistMono = localFont({
   src: "../fonts/geist-mono-latin-wght.woff2",
   weight: "100 900",

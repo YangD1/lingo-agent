@@ -1,5 +1,7 @@
 # 字体清单
 
+> 已被 ADR 0059 替换：界面字体现在是霞鹜文楷（中英文同一套），下面是任务 26 的原始设计稿记录。
+
 | 用途 | 字体 | 字重 | 来源 | 许可证 | 体积（woff2，拉丁子集） |
 | --- | --- | --- | --- | --- | --- |
 | 英文正文与标题 | **Figtree** | 400 / 500 / 600 / 700（可变 300–900） | Google Fonts · github.com/erikdkennedy/figtree · npm `@fontsource/figtree` | SIL OFL 1.1 | 每个字重约 11 KB |

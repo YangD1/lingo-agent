@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ThemeProvider } from "next-themes";
 
-import { figtree, geistMono } from "./fonts";
+import { geistMono } from "./fonts";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,7 +17,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     // next-themes sets the class on <html> before hydration, hence suppressHydrationWarning.
     <html
       lang={locale}
-      className={`${figtree.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
