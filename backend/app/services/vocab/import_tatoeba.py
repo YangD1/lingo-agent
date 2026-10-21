@@ -3,8 +3,9 @@
 
 ADR 0020, 0062: Tatoeba's English sentences (CC BY 2.0 FR), up to three per word,
 picked for having a Mandarin translation, then few uncommon words and a moderate
-length. Traditional Chinese is converted to simplified. The exports change weekly and have no versioned
-address, so nothing is pinned: each file's date and sha256 are printed instead, and
+length. Traditional Chinese is converted to simplified. The exports change weekly and
+have no versioned address, so nothing is pinned: each file's date and sha256 are
+printed instead, and
 `--dir` imports local copies. Downloads are cached in `data/tatoeba/` (gitignored);
 `--refresh` fetches them again. A run replaces all Tatoeba rows in one transaction.
 Runs on the host (`make sentences-import`), like the ECDICT import.
