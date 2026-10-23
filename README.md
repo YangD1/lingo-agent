@@ -75,6 +75,14 @@ make sentences-import   # once, after vocab-import: example sentences for the fl
 make senses-import   # once, after vocab-import: English senses for the flashcards (about 10 seconds)
 ```
 
+**Prebuilt images.** To skip building, run the images published on Docker Hub for each release (amd64): clone that release with `git clone --branch v0.2.0 …` (the compose file and `config/` come from the checkout, so they must match the images), run `make env`, set these three lines in `.env`, then start the stack with `docker compose pull` and `docker compose up -d --no-build` instead of `make up`. The imports below work the same way.
+
+```bash
+BACKEND_IMAGE=youngdeezh/lingo-agent-backend
+FRONTEND_IMAGE=youngdeezh/lingo-agent-frontend
+IMAGE_TAG=0.2.0
+```
+
 The word list is [ECDICT](https://github.com/skywind3000/ECDICT) (MIT, 66 MB, pinned to one commit and checked by sha256). It is saved in `data/`, and about 38,000 words are imported: exam lists, the Oxford 3000, Collins-starred words and the 30,000 most frequent. The vocabulary pages and the placement test need it. You can run it again safely. If GitHub is unreachable, set `ECDICT_URL` to a mirror of the same file, or pass a local copy with `make vocab-import CSV=path/to/ecdict.csv`. Without uv on the host: download the file, then run `docker compose cp ecdict.csv backend:/tmp/` and `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`.
 
 Example sentences on the flashcards come from [Tatoeba](https://tatoeba.org) ([CC BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/)): up to three English sentences per word, those with a human Chinese translation first (the rest are shown in English only), each linked to its page on Tatoeba. The import takes about 3 minutes and 800 MB of memory. The three per-language exports (about 27 MB) are saved in `data/tatoeba/`; Tatoeba updates them weekly, so the import prints each file's date and sha256 instead of checking a fixed hash. Run `make sentences-import REFRESH=1` to fetch a newer export, or `make sentences-import DIR=path/to/exports` to use local copies. Words without a real sentence still have the "AI examples" button. Without uv on the host: download `eng/eng_sentences.tsv.bz2`, `cmn/cmn_sentences.tsv.bz2` and `cmn/cmn-eng_links.tsv.bz2` from <https://downloads.tatoeba.org/exports/per_language/> into one folder, run `docker compose cp that-folder backend:/tmp/tatoeba`, then `docker compose exec backend python -m app.services.vocab.import_tatoeba --dir /tmp/tatoeba`.
