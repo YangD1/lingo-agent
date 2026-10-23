@@ -117,7 +117,7 @@ async def test_image_turn_goes_to_the_vision_route_and_only_once(
     jpeg = (await client.get(f"/attachments/{image['id']}/content")).content
 
     first = await send_with(client, conversation, "What did I get wrong?", image["id"])
-    status, _, _ = await send(client, conversation, "Thanks! And why?")
+    status, _, _ = await send(client, conversation, "Thanks! And the second one?")
 
     assert first.status_code == 200 and status == 200
     (vision_connection, vision_input), (chat_connection, chat_input) = calls

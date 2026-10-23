@@ -138,6 +138,19 @@ class Handoff(Summary):
     coach: str
 
 
+class FollowUpWritten(Summary):
+    """`deepen`: a follow-up under the tutor's reply (ADR 0064), call_id = its number
+    this turn. `trigger`: a rule on the learner's message, or the tutor asked (`reason`,
+    its own words, kept to 120 characters). `outcome`: done, or stopped at the tenant's
+    time or length limit, or the model failed; a follow-up that wrote nothing is
+    `skipped` (nothing came in time) or `failed`, with no summary."""
+
+    segment: int
+    trigger: Literal["rule", "model"]
+    outcome: Literal["done", "timeout", "length", "failed", "no_start"]
+    reason: str | None = None
+
+
 class WritingReviewed(Summary):
     """`writing_review`: writing_coach had the learner's text reviewed (task 38.5).
     `mistakes` stays 0 while the review is still running when the reply starts."""
@@ -186,6 +199,7 @@ STEPS: dict[str, StepSpec] = {
     "quiz_reveal": StepSpec("background", AnswersRevealed),
     "tools": StepSpec("step", ToolsUnavailable),
     "handoff": StepSpec("step", Handoff),
+    "deepen": StepSpec("step", FollowUpWritten),
     "writing_review": StepSpec("step", WritingReviewed),
     "reading_context": StepSpec("step", ReadingContextRead),
     "workspace_context": StepSpec("step", WorkspaceContextRead),

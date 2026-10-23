@@ -1,4 +1,5 @@
-"""Tutor graph: START -> load_context -> tutor <-> tools -> END (ADR 0015 §1).
+"""Tutor graph: START -> load_context -> tutor <-> tools -> deepen -> END (ADR 0015 §1,
+ADR 0064).
 
 Per-run dependencies travel in LangGraph's runtime context, not in `configurable`:
 `configurable` values can be copied into checkpoint metadata, and the provider
@@ -48,6 +49,7 @@ from app.activity.service import (
     ActivityStatus,
     CardShown,
     ContextRead,
+    FollowUpWritten,
     Handoff,
     ReadingContextRead,
     SkillLoaded,
@@ -56,10 +58,21 @@ from app.activity.service import (
     timed,
 )
 from app.adaptive.rules import get_rules
+from app.agents.deepen import (
+    ACK,
+    CONTINUE_DEEPER,
+    DEEP_TASK,
+    ContinueDeeper,
+    offer,
+    trigger,
+    turn_state,
+    write_segment,
+)
 from app.agents.messages import StampedMessagesState
 from app.agents.routing import Route, classify, worth_classifying
 from app.attachments.context import AttachmentSource, render_turn, turn_content
 from app.cards.tools import TOOL_SCHEMAS, ToolOutcome, TutorTools
+from app.chat.deepen import MAX_SEGMENTS, DeepenSettings
 from app.chat.lesson import LessonBrief, LessonSource, lesson_opening_cue, render_lesson
 from app.chat.planning import PlanningBrief, PlanningSource, render_planning
 from app.chat.practice import PracticeSource, render_practice
@@ -103,6 +116,9 @@ COACH_NODES = frozenset(
     {TUTOR_NODE, GRAMMAR_COACH_NODE, WRITING_COACH_NODE, READING_COACH_NODE, SPEAKING_COACH_NODE}
 )
 TOOLS_NODE = "tools"
+# After the tutor, in the parent graph: the tutor's reply is checkpointed before its
+# follow-ups start, so stopping one never loses the reply (ADR 0064 §6).
+DEEPEN_NODE = "deepen"
 
 # Tool round trips per turn; the tutor's last call then has no tools and must answer.
 MAX_TOOL_ROUNDS = 2
@@ -111,7 +127,7 @@ MAX_TOOL_ROUNDS = 2
 MAX_SKILL_ROUNDS = 2
 # Backstop per (sub)graph run (ADR 0013): LangGraph 1.x defaults to 10,007 steps. The tutor
 # takes 2 * (MAX_TOOL_ROUNDS + MAX_SKILL_ROUNDS) + 1; the outer graph a few.
-RECURSION_LIMIT = 2 * (MAX_TOOL_ROUNDS + MAX_SKILL_ROUNDS) + 6
+RECURSION_LIMIT = 2 * (MAX_TOOL_ROUNDS + MAX_SKILL_ROUNDS) + 6 + MAX_SEGMENTS
 # Card tool calls run per round; more get an error result. load_skill calls aren't counted.
 MAX_CALLS_PER_ROUND = 3
 # What the tutor is offered: the card tools and load_skill.
@@ -169,6 +185,9 @@ class ChatContext:
     speaking: SpeakingSource | None = None
     # The document open in the workspace beside the chat (ADR 0043 §6); None when none.
     workspace: WorkspaceSource | None = None
+    # The tenant's limits on follow-ups (ADR 0064 §5); None: this turn gets none (not
+    # free chat, an opening, images, or the tenant turned them off).
+    deepen: DeepenSettings | None = None
 
 
 class ChatState(StampedMessagesState):
@@ -351,19 +370,93 @@ async def tutor(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str, An
         cue = lesson_opening_cue(await _lesson_brief(runtime.context.lesson))
     else:
         cue = load_prompt(DAILY_CUE if planning and planning.purpose == "daily" else PLAN_CUE)
+    # What the tutor is told about follow-ups (ADR 0064 §3); none with images, which
+    # the follow-up model may not see.
+    offered = None if has_images else offer(turn_state(state["messages"]), runtime.context.deepen)
     try:
-        reply = await _call(runtime, task, state, history, has_tools, bind, config, cue)
+        reply = await _call(
+            runtime, task, state, history, has_tools, bind, config, cue, deepen=offered
+        )
     except Exception as exc:
         if not (bind and getattr(exc, "status_code", None) in _REFUSED_STATUSES):
             raise
         # Some OpenAI-compatible servers reject tools; answer this turn without them.
         logger.warning("tool calling refused (%s); replying without tools", type(exc).__name__)
         await report(runtime, Step("tools", "skipped"))
-        reply = await _call(runtime, task, state, history, has_tools, False, config, cue)
+        reply = await _call(
+            runtime, task, state, history, has_tools, False, config, cue, deepen=offered
+        )
         bind = False
     if not bind:
         reply = _offered_none(reply)
     return {"messages": [reply]}
+
+
+async def deepen(state: ChatState, runtime: Runtime[ChatContext]) -> Command[str]:
+    """The tutor's follow-up (ADR 0064): when a rule fires or the tutor asked for one,
+    the chat_deep model writes it under the reply, within the tenant's limits. Each
+    follow-up is a node run of its own, so the ones before it are kept if it's stopped.
+    A failure ends the follow-ups, never the turn."""
+    settings = runtime.context.deepen
+    messages = state["messages"]
+    turn = turn_state(messages)
+    why = trigger(turn, settings)
+    if why is None or settings is None:
+        return Command(goto=END)
+    index = turn.segments + 1
+    more = index < settings.max_segments
+    history, _ = await _with_attachments(messages, runtime.context.attachments)
+    history = without_tool_calls(skills_read_earlier(history))
+    rules = load_prompt("tutor_deepen")
+    if more:
+        rules = f"{rules}\n\n{load_prompt('tutor_deepen_more')}"
+    prompt = system_prompt(
+        state.get("learner_context", ""),
+        tools=rules,
+        workspace=state.get("workspace", ""),
+        language=state.get("language") or DEFAULT_CHAT_LANGUAGE,
+        name=pick.name if (pick := runtime.context.providers.tutor) else None,
+    )
+    call = [SystemMessage(prompt), *history, HumanMessage(load_prompt("tutor_deepen_cue"))]
+    runtime.stream_writer({"segment": {"index": index, "state": "started"}})
+    with timed() as watch:
+        try:
+            providers = runtime.context.providers
+            llm: Runnable[Any, BaseMessage] = (
+                get_llm_with_tools(providers, DEEP_TASK, [ContinueDeeper])
+                if more
+                else get_llm(providers, DEEP_TASK)
+            )
+        except Exception:  # no usable model: the reply stands alone
+            logger.exception("no model for the follow-up")
+            segment = None
+        else:
+            segment = await write_segment(llm, call, get_config(), settings, index, more=more)
+    outcome = segment.outcome if segment is not None else "failed"
+    runtime.stream_writer({"segment": {"index": index, "state": "ended", "outcome": outcome}})
+    kept = segment.message if segment is not None else None
+    status: ActivityStatus = (
+        "ok" if kept is not None else "skipped" if outcome in ("done", "no_start") else "failed"
+    )
+    summary = FollowUpWritten(
+        segment=index,
+        trigger=why,
+        outcome=outcome,
+        reason=turn.asked if why == "model" and index == 1 else None,
+    )
+    await report(runtime, Step("deepen", status, summary, watch.ms, call_id=str(index)))
+    if kept is None:
+        return Command(goto=END)
+    update: list[BaseMessage] = [kept]
+    # Every tool call needs its result, or the next request on this history is refused.
+    update.extend(_ack(call) for call in kept.tool_calls)
+    return Command(update={"messages": update}, goto=DEEPEN_NODE if kept.tool_calls else END)
+
+
+def _ack(call: ToolCall) -> ToolMessage:
+    return ToolMessage(
+        ACK, tool_call_id=call.get("id") or "", name=CONTINUE_DEEPER, status="success"
+    )
 
 
 def _offered_none(reply: BaseMessage) -> BaseMessage:
@@ -531,9 +624,15 @@ async def _call(
     opening_cue: str,
     *,
     base: str = "tutor_system",
+    deepen: Literal["tool", "coming"] | None = None,
 ) -> BaseMessage:
+    # continue_deeper only with the other tools: a call past the round limit has none.
+    deeper = deepen == "tool" and bind
+    schemas: tuple[type[BaseModel], ...] = (
+        (*TUTOR_TOOL_SCHEMAS, ContinueDeeper) if deeper else TUTOR_TOOL_SCHEMAS
+    )
     llm: Runnable[Any, BaseMessage] = (
-        get_llm_with_tools(runtime.context.providers, task, TUTOR_TOOL_SCHEMAS)
+        get_llm_with_tools(runtime.context.providers, task, schemas)
         if bind
         else get_llm(runtime.context.providers, task)
     )
@@ -548,6 +647,9 @@ async def _call(
             tools_section = tools_section.replace(
                 "{workspace_rule}", workspace_rule(tutor)
             ).replace("{quiz_rule}", quiz_rule(tutor, lesson=runtime.context.lesson is not None))
+    if deeper or deepen == "coming":
+        rule = load_prompt("tutor_deepen_tool" if deeper else "tutor_deepen_coming")
+        tools_section = f"{tools_section}\n\n{rule}" if tools_section else rule
     prompt = system_prompt(
         state.get("learner_context", ""),
         state.get("practice", ""),
@@ -671,12 +773,17 @@ def after_tools(state: ChatState) -> str:
         i -= 1
     called = messages[i - 1] if i > 0 else None
     results = messages[i:]
-    if (
+    if not (
         isinstance(called, AIMessage)
-        and called.text.strip()
         and called.tool_calls
-        and all(call["name"] in SHORTCUT_TOOLS for call in called.tool_calls)
         and all(isinstance(r, ToolMessage) and r.status == "success" for r in results)
+    ):
+        return TUTOR_NODE
+    names = {call["name"] for call in called.tool_calls}
+    # continue_deeper says nothing new either: the follow-up comes next (ADR 0064 §3),
+    # and a reply that only asked for one has its text written there.
+    if names == {CONTINUE_DEEPER} or (
+        called.text.strip() and names <= SHORTCUT_TOOLS | {CONTINUE_DEEPER}
     ):
         return END
     return TUTOR_NODE
@@ -697,11 +804,18 @@ async def run_tools(state: ChatState, runtime: Runtime[ChatContext]) -> dict[str
             runs.append(_run_skill(runtime, call, frozenset(read)))
             if (key := skill_key(call["args"])) is not None:
                 read.add(key)
+        elif call["name"] == CONTINUE_DEEPER:
+            # Recorded by the deepen node, with the follow-up it starts (ADR 0064 §9).
+            runs.append(_ack_deeper(call))
         else:
             runs.append(_run_call(runtime, call, index))
             index += 1
     results = await asyncio.gather(*runs)
     return {"messages": list(results)}
+
+
+async def _ack_deeper(call: ToolCall) -> ToolMessage:
+    return _ack(call)
 
 
 def _read_this_turn(state: ChatState) -> set[SkillKey]:
@@ -905,8 +1019,9 @@ def _speaking_coach_graph() -> CompiledStateGraph[ChatState, ChatContext, ChatSt
 
 
 def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
-    """START -> load_context -> supervisor -> a coach -> END (ADR 0023 §2). Coaches are
-    subgraphs on the same thread: they read and extend one history.
+    """START -> load_context -> supervisor -> a coach -> END (ADR 0023 §2); the tutor's
+    follow-ups after it (ADR 0064). Coaches are subgraphs on the same thread: they read
+    and extend one history.
 
     Coaches never checkpoint on their own (`checkpointer=False`): a subgraph that does
     stores its input, untracked learner context and practice guidance included, which
@@ -927,7 +1042,8 @@ def build_chat_graph(checkpointer: BaseCheckpointSaver[Any]) -> ChatGraph:
     builder.add_node(SPEAKING_COACH_NODE, _speaking_coach_graph())
     builder.add_edge(START, LOAD_CONTEXT_NODE)
     builder.add_edge(LOAD_CONTEXT_NODE, SUPERVISOR_NODE)
-    builder.add_edge(TUTOR_NODE, END)
+    builder.add_node(DEEPEN_NODE, deepen, destinations=(DEEPEN_NODE, END))
+    builder.add_edge(TUTOR_NODE, DEEPEN_NODE)
     builder.add_edge(GRAMMAR_COACH_NODE, END)
     builder.add_edge(WRITING_COACH_NODE, END)
     builder.add_edge(READING_COACH_NODE, END)

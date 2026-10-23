@@ -15,11 +15,18 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.activity.service import ActivitySink
-from app.agents.chat_graph import COACH_NODES, RECURSION_LIMIT, ChatContext, ChatGraph
+from app.agents.chat_graph import (
+    COACH_NODES,
+    DEEPEN_NODE,
+    RECURSION_LIMIT,
+    ChatContext,
+    ChatGraph,
+)
 from app.agents.routing import Route
 from app.attachments.context import AttachmentSource
 from app.attachments.service import link_to_message
 from app.cards.tools import TutorTools
+from app.chat.deepen import DeepenSettings
 from app.chat.lesson import LessonSource
 from app.chat.planning import PlanningSource
 from app.chat.practice import PracticeSource
@@ -68,6 +75,18 @@ class CardEvent:
 
 
 @dataclass(frozen=True)
+class SegmentEvent:
+    """A follow-up under the reply starts or ends (ADR 0064 §7): the tokens between
+    `started` and `ended` are its text. `outcome` on `ended`: done, timeout, length,
+    failed or no_start."""
+
+    index: int
+    state: Literal["started", "ended"]
+    outcome: str | None = None
+    event: Literal["segment"] = "segment"
+
+
+@dataclass(frozen=True)
 class DoneEvent:
     message_id: str | None
     # The learner message's id: what later background activity is filed under.
@@ -83,7 +102,7 @@ class ErrorEvent:
     event: Literal["error"] = "error"
 
 
-type TurnEvent = TokenEvent | ActivityEvent | CardEvent | DoneEvent | ErrorEvent
+type TurnEvent = TokenEvent | ActivityEvent | CardEvent | SegmentEvent | DoneEvent | ErrorEvent
 
 
 # The turn id of a practice opening, which has no learner message to be named after;
@@ -140,6 +159,9 @@ async def begin_turn(
     await session.commit()
 
 
+# Nodes whose model output is the reply's text: the coaches and the tutor's follow-ups.
+TEXT_NODES = COACH_NODES | {DEEPEN_NODE}
+
 # Upper bound on waiting for LangGraph to unwind a cancelled run.
 _CANCEL_GRACE_SECONDS = 5.0
 
@@ -165,6 +187,7 @@ async def stream_reply(
     reading: ReadingSource | None = None,
     speaking: SpeakingSource | None = None,
     workspace: WorkspaceSource | None = None,
+    deepen: DeepenSettings | None = None,
 ) -> AsyncIterator[TurnEvent]:
     """Tutor tokens as they arrive, then `done`; `error` instead if the model fails.
 
@@ -206,6 +229,7 @@ async def stream_reply(
                 reading=reading,
                 speaking=speaking,
                 workspace=workspace,
+                deepen=deepen,
             ):
                 queue.put_nowait(event)
         finally:
@@ -246,6 +270,7 @@ async def _run_graph(
     reading: ReadingSource | None,
     speaking: SpeakingSource | None,
     workspace: WorkspaceSource | None,
+    deepen: DeepenSettings | None,
 ) -> AsyncIterator[TurnEvent]:
     reply_id: str | None = None
     text_id: str | None = None  # the tutor message whose text is streaming
@@ -288,6 +313,7 @@ async def _run_graph(
                 reading=reading,
                 speaking=speaking,
                 workspace=workspace,
+                deepen=deepen,
             ),
             stream_mode=["messages", "custom"],
             subgraphs=True,
@@ -297,6 +323,8 @@ async def _run_graph(
                     yield ActivityEvent(**part["activity"])
                 if isinstance(part, dict) and "card" in part:
                     yield CardEvent(part["card"])
+                if isinstance(part, dict) and "segment" in part:
+                    yield SegmentEvent(**part["segment"])
                 continue
             if not isinstance(part, tuple):
                 continue
@@ -304,7 +332,7 @@ async def _run_graph(
             if not (
                 isinstance(chunk, AIMessageChunk)
                 and isinstance(metadata, dict)
-                and metadata.get("langgraph_node") in COACH_NODES
+                and metadata.get("langgraph_node") in TEXT_NODES
             ):
                 continue
             # With tool calls a turn has several tutor messages; history shows them as

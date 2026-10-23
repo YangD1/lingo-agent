@@ -30,6 +30,7 @@ from app.cards.lesson import LessonCards
 from app.cards.quiz import QuizTools, check_reply
 from app.cards.runtime import DatabaseTutorTools
 from app.chat import service, translate
+from app.chat.deepen import DeepenSettings, deepen_settings
 from app.chat.lesson import DatabaseLesson
 from app.chat.locks import ConversationLocks
 from app.chat.planning import DatabasePlanning, PlanningPurpose
@@ -372,6 +373,9 @@ class Turn:
     workspace_doc_id: uuid.UUID | None = None
     # A lesson of the grammar course on focus_kc_id (ADR 0044 §5).
     lesson: bool = False
+    # The tenant's follow-up limits (ADR 0064 §5); None with images, which the
+    # follow-up model may not see. Used in free chat only.
+    deepen: DeepenSettings | None = None
 
     @property
     def route(self) -> Route:
@@ -458,6 +462,7 @@ async def start_turn(
             conversation.scenario_id,
             body.workspace_doc_id,
             conversation.purpose == "lesson",
+            deepen=None if task == "vision" else deepen_settings(tenant.deepen_settings),
         )
     finally:
         locks.release(conversation.id)
@@ -734,6 +739,7 @@ async def _reply(
             if turn.workspace_doc_id is not None
             else None
         ),
+        deepen=turn.deepen if turn.free_chat else None,
     ):
         if isinstance(event, CardEvent):  # the card itself, like GET .../cards items
             yield ServerSentEvent(event=event.event, data=event.card)
