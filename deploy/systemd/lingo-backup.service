@@ -1,0 +1,13 @@
+# Daily database backup of a registry deploy (docs/deploy.md). Install with the timer:
+#   sudo cp deploy/systemd/lingo-backup.* /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now lingo-backup.timer
+# Paths assume LINGO_ROOT=/srv/lingo-agent and the deploy user `deploy`.
+[Unit]
+Description=lingo-agent database backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+ExecStart=/srv/lingo-agent/current/deploy/backup.sh daily
