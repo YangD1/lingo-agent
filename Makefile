@@ -14,6 +14,9 @@ PNPM ?= pnpm
 # each, so 4 fits the 8GB WSL cap; PYTEST_WORKERS=0 runs in one process.
 PYTEST_WORKERS ?= 4
 COMPOSE ?= docker compose
+# Deploy scripts and GitHub workflows; both tools are backend dev dependencies.
+SHELL_LINT = uv run --project backend shellcheck -x deploy/*.sh deploy/deploy-entry \
+	&& uv run --project backend actionlint
 
 # Same format as `python -m app.credentials.crypto gen-key` ("id:" + urlsafe base64 of
 # 32 random bytes), via openssl so it works on a deploy host without Python tooling.
@@ -160,15 +163,28 @@ screenshots: ## Retake docs/screenshots/ from the demo account (needs dev-db; ow
 ci: ## Run what CI runs, in the same order (needs dev-db; the docker job is `make build`)
 	cd backend && uv sync --locked && uv run ruff check . && uv run ruff format --check . \
 		&& uv run mypy app evals && uv run pytest -n $(PYTEST_WORKERS)
+	$(SHELL_LINT)
 	cd frontend && $(PNPM) install --frozen-lockfile && $(PNPM) lint && $(PNPM) typecheck \
 		&& $(PNPM) test && $(PNPM) build
 	cd frontend && CI=true $(PNPM) e2e
 
 .PHONY: lint
-lint: ## ruff + mypy (backend), eslint + typecheck (frontend)
+lint: ## ruff + mypy (backend), shellcheck + actionlint (deploy/, workflows), eslint + typecheck (frontend)
 	cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy app evals
+	$(SHELL_LINT)
 	cd frontend && $(PNPM) lint && $(PNPM) typecheck
 
 .PHONY: fmt
 fmt: ## Format and autofix backend code
 	cd backend && uv run ruff format . && uv run ruff check --fix .
+
+##@ Backup (docs/deploy.md)
+
+.PHONY: backup
+backup: ## Dump the compose database to backups/ (keeps the newest 14)
+	deploy/backup.sh
+
+.PHONY: restore
+restore: ## Replace the compose database with a dump: make restore FILE=backups/<name>.dump
+	@test -n "$(FILE)" || { echo "usage: make restore FILE=backups/<name>.dump"; exit 1; }
+	deploy/restore.sh "$(FILE)"

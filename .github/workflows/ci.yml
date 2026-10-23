@@ -47,6 +47,9 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy app evals
+      - name: Lint deploy scripts and workflows
+        working-directory: .
+        run: uv run --project backend shellcheck -x deploy/*.sh deploy/deploy-entry && uv run --project backend actionlint
       # Migrations are covered here: the test session downgrades to base and upgrades to
       # head on the empty database before any test runs.
       # One database per xdist worker (lingo_test_gw0, ...), created next to lingo_test.
@@ -85,26 +88,33 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
-      # Only checks that the images build (nothing is pushed or deployed). Build args
-      # default to what docker-compose.yml passes.
+      # Builds the images (nothing is pushed or deployed) and loads them for the
+      # rehearsal below. Build args default to what docker-compose.yml passes.
       - name: Build backend image
         uses: docker/build-push-action@v7
         with:
           context: backend
-          push: false
+          load: true
+          tags: lingo-agent-backend:latest
           cache-from: type=gha,scope=backend
           cache-to: type=gha,scope=backend,mode=max
       - name: Build frontend image
         uses: docker/build-push-action@v7
         with:
           context: frontend
-          push: false
+          load: true
+          tags: lingo-agent-frontend:latest
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,scope=frontend,mode=max
+      # Deploys these images through deploy/ against a throwaway registry: upgrade,
+      # rollback and restore (docs/deploy.md). Catches a broken deploy script before
+      # it can take the site down.
+      - name: Deploy rehearsal
+        run: deploy/rehearse.sh
 
   e2e:
     runs-on: ubuntu-latest

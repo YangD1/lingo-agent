@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Entry point of a server deployed from a registry, installed as <root>/bin/deploy-entry
+# and used as the forced command of the deploy SSH key:
+#   restrict,command="/srv/lingo-agent/bin/deploy-entry" ssh-ed25519 AAAA... deploy
+# Accepts only "deploy <40-hex commit>" (from SSH_ORIGINAL_COMMAND, or the arguments
+# when run by hand). The release's files come from RELEASE_IMAGE in the registry,
+# never from the client, so the key can only deploy what CI pushed.
+# Fetches the release into releases/<commit>/ and hands over to its deploy/deploy.sh.
+set -euo pipefail
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+root=$(dirname "$(dirname "$(readlink -f "$0")")")
+request=${SSH_ORIGINAL_COMMAND:-$*}
+read -r verb commit extra <<<"$request" || true
+[[ $verb == deploy && $commit =~ ^[0-9a-f]{40}$ && -z ${extra:-} ]] ||
+  die 'only "deploy <40-hex commit>" is allowed'
+
+[[ -f $root/shared/.env ]] || die "missing $root/shared/.env"
+release_image=$(sed -n 's/^RELEASE_IMAGE=//p' "$root/shared/.env" | tail -n 1 | tr -d "\"'")
+[[ -n $release_image ]] || die "RELEASE_IMAGE is not set in shared/.env"
+
+# One deploy at a time; deploy.sh inherits the lock on fd 9.
+exec 9>"$root/.deploy.lock"
+flock -n 9 || die "another deploy is running"
+
+release=$root/releases/$commit
+# A release is immutable: deploying the same commit again reuses its directory
+# (the running backend mounts its config/).
+if [[ ! -d $release ]]; then
+  echo "==> fetching release ${commit:0:7}"
+  docker pull -q "$release_image:$commit" >/dev/null || die "can't pull $commit from the registry"
+  umask 022
+  mkdir -p "$root/releases"
+  incoming=$(mktemp -d "$root/releases/.incoming.XXXXXX")
+  container=$(docker create "$release_image:$commit" none)
+  docker cp -q "$container:/release/." "$incoming/" || { docker rm "$container" >/dev/null; die "bad release image"; }
+  docker rm "$container" >/dev/null
+  [[ -f $incoming/docker-compose.yml && -x $incoming/deploy/deploy.sh ]] || die "bad release image"
+  ln -s ../../shared/.env "$incoming/.env"
+  printf 'IMAGE_TAG=%s\n' "$commit" >"$incoming/.release.env"
+  mv "$incoming" "$release"
+fi
+
+exec "$release/deploy/deploy.sh" "$commit"

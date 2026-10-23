@@ -19,6 +19,7 @@ out/
 
 # data / models (never commit)
 data/
+backups/
 models/
 *.onnx
 *.pt

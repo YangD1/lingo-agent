@@ -29,7 +29,9 @@ services:
       - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      # Only read when the data volume is first created. A registry deploy points this
+      # at one fixed directory, so switching releases doesn't recreate postgres.
+      - ${POSTGRES_INIT_DIR:-./docker/postgres/init}:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s

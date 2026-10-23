@@ -43,6 +43,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "actionlint-py>=1.7.12,<2",
     "httpx>=0.28,<1",
     "mypy>=2.3,<3",
     "pytest>=9.1,<10",
@@ -50,6 +51,7 @@ dev = [
     "pytest-timeout>=2.3,<3",
     "pytest-xdist>=3.8,<4",
     "ruff>=0.16,<0.17",
+    "shellcheck-py>=0.11,<0.12",
     "types-pyyaml>=6.0.12.20260906",
 ]
 
