@@ -8,7 +8,7 @@
 
 **技术栈：** FastAPI · LangChain / LangGraph · PostgreSQL + pgvector · Next.js · OpenTelemetry
 
-> **状态：P4 已完成（低配服务器部署除外）。** 助手能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级；能出经过 critic 检查的语法练习、批改写作、按你的等级改写新闻，还会诊断你反复出错的语法点的根因，并按你每天的时间排好今天的计划。语音方面，能用服务端的声音朗读、给你的跟读打分、按情景练口语、实时打电话，背单词也能听音辨词和拼写。企业级打磨（P4）也已完成：与成员共享模型和额度、自选助手、用量与成本看板、限流、提示词版本与评估回归，以及可一键灌入的演示账号和[演示脚本](docs/demo.md)。见[现在能做什么](#现在能做什么)。
+> **状态：P4 已完成。** 助手能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级；能出经过 critic 检查的语法练习、批改写作、按你的等级改写新闻，还会诊断你反复出错的语法点的根因，并按你每天的时间排好今天的计划。语音方面，能用服务端的声音朗读、给你的跟读打分、按情景练口语、实时打电话，背单词也能听音辨词和拼写。企业级打磨（P4）也已完成：与成员共享模型和额度、自选助手、用量与成本看板、限流、提示词版本与评估回归，可一键灌入的演示账号和[演示脚本](docs/demo.md)，以及预构建镜像和面向低配服务器的[部署文档](docs/deploy.zh-CN.md)（HTTPS、备份、升级、可选的持续部署）。见[现在能做什么](#现在能做什么)。
 
 | | |
 |---|---|
@@ -58,8 +58,6 @@
 - **用量与成本看板**：在“设置 → 用量”里看本期合计、按天趋势图，以及按用途（助手回复、复盘、出题……）、按模型、按成员分组的调用次数、token、错误和分钟数，还有按天的明细表。不内置价格：按模型填上你的服务商单价，看板就会估算费用。学习者在学习者模型页能看到自己本月的用量和额度剩余。
 - **限流**：登录连续输错会被暂停一段时间（按 IP + 邮箱、IP、邮箱分别计数），注册和加入码按 IP 限次数，会调用模型的功能按用户限每分钟次数，防止被暴力猜密码或被脚本刷掉模型额度。超限时界面会提示还要等几秒。默认值可以在 `.env` 里改（`RATE_LIMIT_*`，见 `.env.example`）。
 - **中英文界面**。
-
-还没做：低配服务器的部署覆盖与备份脚本（P4）。
 
 ## 快速开始（Docker）
 
@@ -229,16 +227,16 @@ docs/            decisions/（ADR）、agent-tools.md（全部工具和后台步
 
 设计文档：
 
-- [docs/decisions/](docs/decisions)：架构决策记录，比如 [provider 层](docs/decisions/0002-provider-layer.md)、[租户凭据](docs/decisions/0004-tenant-credentials.md)、[附件](docs/decisions/0008-multimodal-attachments.md)、[长期记忆](docs/decisions/0009-long-term-memory.md)、[学习者模型](docs/decisions/0010-learner-model.md)、[词库与 FSRS](docs/decisions/0011-vocabulary-and-fsrs.md)、[agent 工具与公示](docs/decisions/0013-agent-tools-and-disclosure.md)、[AI 用量标记](docs/decisions/0014-ai-usage-disclosure.md)、[确认卡](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)、[练习引擎](docs/decisions/0021-exercise-engine.md)、[语法图谱](docs/decisions/0022-grammar-graph-in-postgres.md)、[supervisor 与各 coach](docs/decisions/0023-supervisor-and-coaches.md)、[阅读来源与版权](docs/decisions/0024-reading-sources-and-copyright.md)、[定时任务与后台上限](docs/decisions/0025-scheduler-and-background-budget.md)、[每日计划](docs/decisions/0027-daily-plan.md)、[语音厂商](docs/decisions/0028-speech-providers-tts-pronunciation.md)、[口语练习](docs/decisions/0029-speaking-practice.md)、[实时语音](docs/decisions/0030-realtime-voice.md)、[主账号与额度](docs/decisions/0031-org-accounts-and-quotas.md)、[用量看板与单价](docs/decisions/0034-usage-dashboard-and-prices.md)、[限流](docs/decisions/0035-rate-limiting.md)
+- [docs/decisions/](docs/decisions)：架构决策记录，比如 [provider 层](docs/decisions/0002-provider-layer.md)、[租户凭据](docs/decisions/0004-tenant-credentials.md)、[附件](docs/decisions/0008-multimodal-attachments.md)、[长期记忆](docs/decisions/0009-long-term-memory.md)、[学习者模型](docs/decisions/0010-learner-model.md)、[词库与 FSRS](docs/decisions/0011-vocabulary-and-fsrs.md)、[agent 工具与公示](docs/decisions/0013-agent-tools-and-disclosure.md)、[AI 用量标记](docs/decisions/0014-ai-usage-disclosure.md)、[确认卡](docs/decisions/0015-tutor-tools-and-confirmation-cards.md)、[练习引擎](docs/decisions/0021-exercise-engine.md)、[语法图谱](docs/decisions/0022-grammar-graph-in-postgres.md)、[supervisor 与各 coach](docs/decisions/0023-supervisor-and-coaches.md)、[阅读来源与版权](docs/decisions/0024-reading-sources-and-copyright.md)、[定时任务与后台上限](docs/decisions/0025-scheduler-and-background-budget.md)、[每日计划](docs/decisions/0027-daily-plan.md)、[语音厂商](docs/decisions/0028-speech-providers-tts-pronunciation.md)、[口语练习](docs/decisions/0029-speaking-practice.md)、[实时语音](docs/decisions/0030-realtime-voice.md)、[主账号与额度](docs/decisions/0031-org-accounts-and-quotas.md)、[用量看板与单价](docs/decisions/0034-usage-dashboard-and-prices.md)、[限流](docs/decisions/0035-rate-limiting.md)、[部署](docs/decisions/0063-deployment.md)
 
 ## 部署
 
-这套 Docker 服务的设计目标是能跑在低配服务器上。对外开放之前：
+这套 Docker 服务的设计目标是能跑在低配服务器上。**[docs/deploy.zh-CN.md](docs/deploy.zh-CN.md)** 逐步讲了怎么做：预构建镜像、生产配置、导入词库、HTTPS 的 nginx 模板、备份与恢复、升级与回滚，以及可选的 fork 后持续部署。简单说，对外开放之前：
 
 - 设置 `APP_ENV=prod` 和 `PROVIDERS_CONFIG=config/providers.prod.yaml`。prod 模式下登录 cookie 只通过 HTTPS 发送，所以要在 3000 端口前面加一个 HTTPS 反向代理。
 - 保持 `PROVIDER_ALLOW_PRIVATE_NETWORKS=false`。
 - 只有前端端口对外；Postgres 和后端只监听 127.0.0.1。
-- 按 IP 的限流从 `X-Forwarded-For` 取客户端地址。Next 会把浏览器带来的这个头原样转给后端，所以前面的反向代理必须用真实地址覆盖它（Caddy 默认就会这样做），否则按 IP 的限流可以被绕过（见 [ADR 0035](docs/decisions/0035-rate-limiting.md)）。
+- 按 IP 的限流从 `X-Forwarded-For` 取客户端地址。Next 会把浏览器带来的这个头原样转给后端，所以前面的反向代理必须用真实地址覆盖它（文档里的 nginx 模板这样做了，Caddy 默认也会），否则按 IP 的限流可以被绕过（见 [ADR 0035](docs/decisions/0035-rate-limiting.md)）。
 - 后端每两小时抓一次阅读来源。服务器网络连不上某些来源时，设置 `FEED_HTTP_PROXY`（compose 里的后端用 `COMPOSE_FEED_HTTP_PROXY`）；它只用于抓 RSS，对地址的检查比直连宽松（见 `.env.example`）。
 
 ## 参与贡献
