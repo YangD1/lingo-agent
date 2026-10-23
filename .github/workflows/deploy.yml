@@ -1,19 +1,28 @@
-# Continuous deployment (docs/deploy.md, ADR 0063): pushing a v* tag tests that commit,
-# pushes its images to the registry and has the server switch to it over SSH. To go
-# back to an earlier version, run this workflow by hand from that version's tag; its
-# images are still in the registry, so it skips straight to the deploy.
+# Release (docs/deploy.md, ADR 0063): pushing a v* tag tests that commit, builds its
+# images once and pushes them to every registry configured below, then, if a server
+# is configured, has it switch to that commit over SSH. To go back to an earlier
+# version, run this workflow by hand from that version's tag; its images are still in
+# the registry, so it skips straight to the deploy.
 #
-# The repository is public and so are these logs: secrets stay in the `production`
-# environment (usable from v* tags only), third-party actions are pinned to commits,
-# and the server prints steps and outcomes only. The SSH key can run nothing but
-# "deploy <commit>" (deploy/deploy-entry).
+# Each part runs only when its settings exist, so a fork without them just runs CI:
+#   Docker Hub (public images: <namespace>/lingo-agent-backend|frontend, tagged X.Y.Z,
+#     plus X.Y and latest unless it's a pre-release like v1.2.0-rc.1)
+#     variables: DOCKERHUB_NAMESPACE, DOCKERHUB_USERNAME (defaults to the namespace)
+#     secrets:   DOCKERHUB_TOKEN (an access token with write access)
+#   Private registry the server pulls from (images tagged with the commit and the tag)
+#     variables: ACR_REGISTRY (registry host for pushing), ACR_NAMESPACE
+#     secrets:   ACR_USERNAME, ACR_PASSWORD
+#   SSH deploy (needs the private registry)
+#     variables: DEPLOY_USER
+#     secrets:   DEPLOY_HOST, DEPLOY_PORT, DEPLOY_SSH_KEY (private key),
+#                DEPLOY_KNOWN_HOSTS (the server's host key line)
+# All of them live in the `production` environment (usable from v* tags only).
 #
-# production environment
-#   variables: ACR_REGISTRY (registry host for pushing), ACR_NAMESPACE, DEPLOY_USER
-#   secrets:   ACR_USERNAME, ACR_PASSWORD, DEPLOY_HOST, DEPLOY_PORT,
-#              DEPLOY_SSH_KEY (private key), DEPLOY_KNOWN_HOSTS (the server's host key line)
-# DEPLOY_USER is a variable: logs replace every occurrence of a secret's value with ***,
-# and a user named "deploy" would blank out that word everywhere.
+# The repository is public and so are these logs: third-party actions are pinned to
+# commits, and the server prints steps and outcomes only. The SSH key can run nothing
+# but "deploy <commit>" (deploy/deploy-entry). DEPLOY_USER is a variable: logs replace
+# every occurrence of a secret's value with ***, and a user named "deploy" would blank
+# out that word everywhere.
 name: Deploy
 
 on:
@@ -34,21 +43,43 @@ env:
   PGVECTOR_SOURCE: pgvector/pgvector:pg16@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
 
 jobs:
-  # Are this commit's images already in the registry (a redeploy or rollback)?
+  # What's configured, and are this commit's images already in the private registry
+  # (a redeploy or rollback)?
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: production
     outputs:
+      acr: ${{ steps.config.outputs.acr }}
+      dockerhub: ${{ steps.config.outputs.dockerhub }}
+      deploy: ${{ steps.config.outputs.deploy }}
       pushed: ${{ steps.registry.outputs.pushed }}
     steps:
-      - name: Log in to the registry
+      - id: config
+        env:
+          ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
+          DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          acr=false dockerhub=false deploy=false
+          [ -n "$ACR_REGISTRY" ] && acr=true
+          # Public images only get version tags, so only for a version tag.
+          if [ -n "$DOCKERHUB_NAMESPACE" ] \
+            && [[ $GITHUB_REF_NAME =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            dockerhub=true
+          fi
+          # The server pulls from the private registry.
+          [ -n "$DEPLOY_HOST" ] && [ "$acr" = true ] && deploy=true
+          printf 'acr=%s\ndockerhub=%s\ndeploy=%s\n' "$acr" "$dockerhub" "$deploy" | tee -a "$GITHUB_OUTPUT"
+      - name: Log in to the private registry
+        if: steps.config.outputs.acr == 'true'
         env:
           ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         run: printf '%s' "$ACR_PASSWORD" | docker login --username "$ACR_USERNAME" --password-stdin "$ACR_REGISTRY"
       - id: registry
+        if: steps.config.outputs.acr == 'true'
         env:
           PREFIX: ${{ vars.ACR_REGISTRY }}/${{ vars.ACR_NAMESPACE }}
         run: |
@@ -66,31 +97,60 @@ jobs:
 
   images:
     needs: [check, ci]
-    if: needs.check.outputs.pushed != 'true'
+    if: >-
+      needs.check.outputs.pushed != 'true'
+      && (needs.check.outputs.acr == 'true' || needs.check.outputs.dockerhub == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production
     env:
+      ACR: ${{ needs.check.outputs.acr }}
+      DOCKERHUB: ${{ needs.check.outputs.dockerhub }}
       PREFIX: ${{ vars.ACR_REGISTRY }}/${{ vars.ACR_NAMESPACE }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Log in to the registry
+      - name: Log in to the private registry
+        if: env.ACR == 'true'
         env:
           ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         run: printf '%s' "$ACR_PASSWORD" | docker login --username "$ACR_USERNAME" --password-stdin "$ACR_REGISTRY"
-      # Tagged with the commit (what the server deploys) and the version tag (for people).
+      - name: Log in to Docker Hub
+        if: env.DOCKERHUB == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME || vars.DOCKERHUB_NAMESPACE }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+      # Private registry: the commit (what the server deploys) and the tag (for people).
+      # Docker Hub: v1.2.3 → 1.2.3, 1.2, latest; a pre-release gets its own tag only.
+      - id: tags
+        env:
+          HUB_PREFIX: ${{ vars.DOCKERHUB_NAMESPACE }}/lingo-agent
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          for repo in backend frontend; do
+            tags=()
+            if [ "$ACR" = true ]; then
+              tags+=("$PREFIX/$repo:$GITHUB_SHA" "$PREFIX/$repo:$GITHUB_REF_NAME")
+            fi
+            if [ "$DOCKERHUB" = true ]; then
+              tags+=("$HUB_PREFIX-$repo:$version")
+              if [[ $version != *-* ]]; then
+                tags+=("$HUB_PREFIX-$repo:${version%.*}" "$HUB_PREFIX-$repo:latest")
+              fi
+            fi
+            { echo "$repo<<EOF"; printf '%s\n' "${tags[@]}"; echo EOF; } >>"$GITHUB_OUTPUT"
+            printf '%s\n' "${tags[@]}"
+          done
       - name: Backend image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: backend
           push: true
           provenance: false
-          tags: |
-            ${{ env.PREFIX }}/backend:${{ github.sha }}
-            ${{ env.PREFIX }}/backend:${{ github.ref_name }}
+          tags: ${{ steps.tags.outputs.backend }}
           cache-from: type=gha,scope=backend
       - name: Frontend image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -98,11 +158,11 @@ jobs:
           context: frontend
           push: true
           provenance: false
-          tags: |
-            ${{ env.PREFIX }}/frontend:${{ github.sha }}
-            ${{ env.PREFIX }}/frontend:${{ github.ref_name }}
+          tags: ${{ steps.tags.outputs.frontend }}
           cache-from: type=gha,scope=frontend
+      # Only the server uses these two.
       - name: Release image (compose file, config/, deploy/)
+        if: env.ACR == 'true'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -114,6 +174,7 @@ jobs:
             ${{ env.PREFIX }}/release:${{ github.ref_name }}
       # The server can't reach Docker Hub without a proxy; it pulls this copy instead.
       - name: Mirror pgvector
+        if: env.ACR == 'true'
         run: docker buildx imagetools create --tag "$PREFIX/pgvector:pg16" "$PGVECTOR_SOURCE"
 
   deploy:
@@ -121,7 +182,7 @@ jobs:
     # After a fresh build, or straight away when the images were already pushed. Not
     # when CI failed: then `images` is skipped too, so "skipped" alone means nothing.
     if: >-
-      always() && needs.check.result == 'success'
+      always() && needs.check.result == 'success' && needs.check.outputs.deploy == 'true'
       && (needs.images.result == 'success' || needs.check.outputs.pushed == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
