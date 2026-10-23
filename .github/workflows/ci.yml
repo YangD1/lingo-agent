@@ -120,7 +120,9 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The tests take about 10 minutes; `playwright install --with-deps` has taken 8 more
+    # when the Ubuntu mirror was slow (task 71e.5), and a timeout cancels the deploy.
+    timeout-minutes: 30
     services:
       postgres:
         image: pgvector/pgvector:pg16
