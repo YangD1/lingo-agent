@@ -6,6 +6,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The deploy workflow runs these checks first (.github/workflows/deploy.yml).
+  workflow_call:
 
 # A newer push to the same branch or PR cancels the run still going for the old one.
 concurrency:
