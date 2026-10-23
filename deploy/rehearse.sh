@@ -75,6 +75,7 @@ push() { # push <source image> <target repo> <commit>
 }
 
 echo "==> pushing four releases"
+docker image inspect pgvector/pgvector:pg16 >/dev/null 2>&1 || docker pull -q pgvector/pgvector:pg16 >/dev/null
 push pgvector/pgvector:pg16 pgvector pg16
 docker build -q -f "$repo/deploy/release.Dockerfile" -t rehearsal-release "$repo" >/dev/null
 head=$(docker run --rm --entrypoint alembic "$backend_src" heads | awk '{print $1}')
