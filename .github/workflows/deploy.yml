@@ -9,9 +9,11 @@
 # "deploy <commit>" (deploy/deploy-entry).
 #
 # production environment
-#   variables: ACR_REGISTRY (registry host for pushing), ACR_NAMESPACE
-#   secrets:   ACR_USERNAME, ACR_PASSWORD, DEPLOY_HOST, DEPLOY_PORT, DEPLOY_USER,
+#   variables: ACR_REGISTRY (registry host for pushing), ACR_NAMESPACE, DEPLOY_USER
+#   secrets:   ACR_USERNAME, ACR_PASSWORD, DEPLOY_HOST, DEPLOY_PORT,
 #              DEPLOY_SSH_KEY (private key), DEPLOY_KNOWN_HOSTS (the server's host key line)
+# DEPLOY_USER is a variable: logs replace every occurrence of a secret's value with ***,
+# and a user named "deploy" would blank out that word everywhere.
 name: Deploy
 
 on:
@@ -129,7 +131,7 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |

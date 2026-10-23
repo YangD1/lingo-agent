@@ -71,7 +71,9 @@ if [[ -n $previous ]]; then
   old_schema=$(schema_of "$previous") || old_schema=""
   [[ -n $new_schema && $new_schema == "$old_schema" ]] && schema_changes=false
 fi
-if $schema_changes; then
+if [[ -z $previous ]] && ! $again; then
+  step "first deploy here: no previous release to roll back to"
+elif $schema_changes; then
   step "this release migrates the database"
 fi
 
