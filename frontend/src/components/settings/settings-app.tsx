@@ -108,6 +108,7 @@ export function SettingsApp() {
                   <RouteSection task="chat" connections={connections} />
                 </div>
                 <div className="grid gap-3.5 md:grid-cols-2 md:gap-4">
+                  <RouteSection task="chat_deep" connections={connections} compact />
                   <RouteSection task="reflect" connections={connections} compact />
                   <RouteSection task="vision" connections={connections} compact />
                   <RouteSection task="exercise_generate" connections={connections} compact />

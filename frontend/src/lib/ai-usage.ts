@@ -37,6 +37,7 @@ export type AiFeature =
 const AI_TASKS = [
   "chat",
   "chat_tools",
+  "chat_deep",
   "reflect",
   "memory",
   "vision",

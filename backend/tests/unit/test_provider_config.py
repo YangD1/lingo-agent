@@ -208,6 +208,21 @@ def test_shipped_configs_give_slow_tasks_a_longer_timeout() -> None:
             assert params[task][RESILIENT_PARAM] is True, (name, task)
 
 
+def test_shipped_configs_give_follow_ups_a_thinking_route() -> None:
+    # ADR 0064 §4: a thinking model first, at medium effort, with time to think.
+    for name in ("providers.dev.yaml", "providers.prod.yaml"):
+        config = load_providers_config(REPO_ROOT / "config" / name)
+        route = config.llm.routes["chat_deep"]
+        assert route.models[0] == "deepseek:deepseek-reasoner", name
+        assert route.params == {"reasoning": "medium"}, name
+        assert config.llm.task_params["chat_deep"]["timeout"] > config.defaults["timeout"]
+        # A tenant with only a relay still gets follow-ups, on its default model.
+        ctx = make_ctx(conn("relay", "openai_compatible", default_model="relay-model"))
+        chain, source = resolve_route_with_source(config, ctx, "llm", "chat_deep")
+        assert (source, refs(chain)) == ("auto", ["relay:relay-model"])
+        assert chain[0].params["reasoning"] == "medium"
+
+
 def test_keyless_connection_is_usable() -> None:
     ctx = make_ctx(conn("openai", key=None))
     (model,) = resolve_route(make_config(), ctx, "llm", "chat")

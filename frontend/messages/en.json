@@ -1288,6 +1288,11 @@
           "description": "Models are tried in order; if one fails, the next one takes over.",
           "none": "No chat model is usable yet. Add a connection and save its default model."
         },
+        "chat_deep": {
+          "title": "Follow-up model",
+          "description": "Writes the deeper follow-up the tutor sometimes adds to a reply (see Follow-up analysis below). A thinking model explains best; it is used only on some replies.",
+          "none": "No model available: the tutor answers in one part only."
+        },
         "reflect": {
           "title": "Background memory model",
           "description": "Runs after each reply: decides what the assistant should remember about you and writes conversation summaries. A smaller, cheaper model is fine here.",
@@ -2135,6 +2140,7 @@
     "task": {
       "chat": "Reply",
       "chat_tools": "Reply after using a tool",
+      "chat_deep": "Follow-up analysis",
       "reflect": "Review the turn",
       "memory": "Index memories for search",
       "vision": "Read the image",

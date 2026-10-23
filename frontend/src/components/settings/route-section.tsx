@@ -28,13 +28,14 @@ import { useDescribeError } from "./use-describe-error";
 const MAX_ROWS = 5; // the backend's limit on a route's fallback chain
 
 /**
- * The routes the settings page edits: chat, the two that attachments need (ADR 0008 §5),
+ * The routes the settings page edits: chat and its follow-ups (ADR 0064), the two that attachments need (ADR 0008 §5),
  * the background model that keeps the tutor's memory (ADR 0009), read-aloud and
  * pronunciation assessment (ADR 0028), realtime voice calls (ADR 0030), and the read-aloud
  * route for word pronunciations made ahead of time (Q64s).
  */
 export type RouteTask =
   | "chat"
+  | "chat_deep"
   | "reflect"
   | "vision"
   | "exercise_generate"
@@ -46,6 +47,7 @@ export type RouteTask =
   | "realtime";
 const SECTION: Record<RouteTask, TaskRoute["section"]> = {
   chat: "llm",
+  chat_deep: "llm",
   reflect: "llm",
   vision: "llm",
   exercise_generate: "llm",
@@ -59,6 +61,7 @@ const SECTION: Record<RouteTask, TaskRoute["section"]> = {
 // The speech sections have a single route each, stored under the task name "default".
 const TASK_KEY: Record<RouteTask, string> = {
   chat: "chat",
+  chat_deep: "chat_deep",
   reflect: "reflect",
   vision: "vision",
   exercise_generate: "exercise_generate",
@@ -70,7 +73,13 @@ const TASK_KEY: Record<RouteTask, string> = {
   realtime: "default",
 };
 // A connection's default model is a chat model: only a good first guess for these.
-const TEXT_TASKS = new Set<RouteTask>(["chat", "reflect", "exercise_generate", "exercise_critic"]);
+const TEXT_TASKS = new Set<RouteTask>([
+  "chat",
+  "chat_deep",
+  "reflect",
+  "exercise_generate",
+  "exercise_critic",
+]);
 // How hard a chat model thinks before answering (task 89.2), per model (task 91): the
 // backend lists the levels each one takes; "default" sends nothing.
 type Reasoning = "default" | ReasoningLevel;

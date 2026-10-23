@@ -81,6 +81,11 @@ llm:
     chat:
       models: [deepseek:deepseek-chat, anthropic:claude-sonnet-5, qwen:qwen-plus]
       temperature: 0.7
+    # The tutor's follow-up segment (ADR 0064 §4): only some replies get one, so a
+    # thinking model at medium effort; the tenant's limits bound how long it may take.
+    chat_deep:
+      models: [deepseek:deepseek-reasoner, anthropic:claude-sonnet-5, qwen:qwen-plus]
+      reasoning: medium
     # Reads images and answers the turn they were sent with (ADR 0008 §5). Only models
     # known to accept images: this task never falls back to the default route.
     vision:
@@ -113,6 +118,8 @@ llm:
     article_rewrite: {timeout: 120, resilient: true}
     writing_review: {timeout: 120, resilient: true}
     diagnose: {timeout: 120}
+    # Thinking before the first word; the deepen node stops it at the tenant's limit.
+    chat_deep: {timeout: 120}
     exercise_grade: {timeout: 60}
     reflect: {timeout: 60}
     speaking_summary: {timeout: 60}
