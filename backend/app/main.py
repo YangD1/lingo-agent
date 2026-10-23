@@ -27,6 +27,7 @@ from app.api import (
     chat,
     course,
     dashboard,
+    deepen,
     health,
     learner,
     memory,
@@ -249,6 +250,7 @@ def create_app() -> FastAPI:
     app.include_router(usage.router)
     app.include_router(background.router)
     app.include_router(chat.router)
+    app.include_router(deepen.router)
     app.include_router(attachments.router)
     app.include_router(memory.router)
     app.include_router(activity.router)

@@ -1371,6 +1371,20 @@
       "reasoningExerciseHint": "出题和审题一般选“低”就够了：实测第一题出来快了一倍左右，审题拦坏题的能力和默认档没有差别。",
       "reasoningSaved": "{ref} 的思考强度已设为“{level}”。"
     },
+    "deepen": {
+      "title": "补充分析",
+      "description": "自由对话里，私教先用对话模型马上回答；学习者追问原因、问两样东西有什么区别，或者私教觉得第一段讲得不够时，会用 chat_deep 模型再补一段深入分析。每补一段多一次模型调用，通常还带思考；在这里设置最多补几段、最长多久。",
+      "enabled": "允许补充分析",
+      "enabledHint": "关闭后私教只回答一段。",
+      "fields": {
+        "max_segments": "每条回复最多补几段（1–3）",
+        "first_chunk_seconds": "等第一个字（5–60 秒）",
+        "total_seconds": "每段最长（10–300 秒）",
+        "max_tokens": "每段最多 token（256–8000）"
+      },
+      "hint": "到时间还没出字的补充会跳过；写到一半到时间的，保留已写的部分。私教的第一段不受影响。模型思考强度在 chat_deep 的模型顺序里设置。",
+      "save": "保存"
+    },
     "usage": {
       "title": "用量",
       "description": "这个账号和成员用你的连接调用模型的情况，按 UTC 天统计。不内置价格，填了单价才显示估算费用。",
@@ -1503,6 +1517,7 @@
       "title": "本页",
       "connections": "模型连接",
       "routes": "模型顺序",
+      "deepen": "补充分析",
       "display": "显示",
       "read-aloud": "朗读",
       "background": "后台任务",

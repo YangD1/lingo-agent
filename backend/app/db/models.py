@@ -29,6 +29,7 @@ from sqlalchemy.orm import Mapped, deferred, mapped_column
 from app.adaptive.exercise.formats import FORMATS
 from app.adaptive.kc.catalog import ERROR_TYPES
 from app.adaptive.rules import EVIDENCE_KINDS, INTELLIGIBILITY, SEVERITIES
+from app.chat.deepen import DEFAULT_DEEPEN
 from app.db.base import Base, TimestampMixin
 from app.org.quotas import DEFAULT_QUOTAS
 
@@ -175,6 +176,13 @@ class Tenant(TimestampMixin, Base):
     )
     # The currency of this tenant's `model_prices` (ADR 0034 §3).
     price_currency: Mapped[str] = mapped_column(String(3), default="CNY", server_default="CNY")
+    # Limits on the tutor's follow-up segments (ADR 0064 §5): an
+    # `app.chat.deepen.DeepenSettings` dump.
+    deepen_settings: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        default=lambda: DEFAULT_DEEPEN.model_dump(),
+        server_default=DEFAULT_DEEPEN.model_dump_json(),
+    )
 
 
 class User(TimestampMixin, Base):

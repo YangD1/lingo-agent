@@ -338,6 +338,15 @@ export type WordAudioEstimate = {
   seconds_per_word: number | null;
   minutes: number;
 };
+// The tenant's limits on the tutor's follow-up segments (ADR 0064 §5).
+export type DeepenSettings = {
+  enabled: boolean;
+  max_segments: number;
+  first_chunk_seconds: number;
+  total_seconds: number;
+  max_tokens: number;
+};
+
 export type RealtimeLimits = {
   session_minutes: number;
   daily_minutes: number;

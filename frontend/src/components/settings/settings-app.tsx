@@ -4,6 +4,7 @@ import {
   CalendarClock,
   ChartColumn,
   Eye,
+  Layers,
   ListOrdered,
   type LucideIcon,
   AudioLines,
@@ -29,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { BackgroundSection } from "./background-section";
 import { RouteSection } from "./route-section";
 import { ConnectionsSection } from "./connections-section";
+import { DeepenSection } from "./deepen-section";
 import { DisplaySection } from "./display-section";
 import { MembersSection } from "./members-section";
 import { MembershipSection } from "./membership-section";
@@ -41,6 +43,7 @@ import { WordAudioSection } from "./word-audio-section";
 const SECTIONS = [
   { id: "connections", icon: Plug },
   { id: "routes", icon: ListOrdered },
+  { id: "deepen", icon: Layers },
   { id: "display", icon: Eye },
   { id: "read-aloud", icon: Volume2 },
   { id: "word-audio", icon: AudioLines },
@@ -53,7 +56,7 @@ const SECTIONS = [
 
 const ALWAYS_SHOWN: ReadonlySet<string> = new Set(
   SECTIONS.map(({ id }) => id).filter(
-    (id) => id !== "word-audio" && id !== "realtime" && id !== "members",
+    (id) => id !== "deepen" && id !== "word-audio" && id !== "realtime" && id !== "members",
   ),
 );
 
@@ -117,6 +120,7 @@ export function SettingsApp() {
                 </div>
               </>
             )}
+            <DeepenSection />
             <DisplaySection />
             <ReadAloudSection />
             <WordAudioSection />

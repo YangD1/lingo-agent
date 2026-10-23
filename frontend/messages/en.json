@@ -1371,6 +1371,20 @@
       "reasoningExerciseHint": "For writing and reviewing exercises, Low is usually enough: in our tests the first exercise arrived about twice as fast, and reviews caught bad exercises as well as at the default level.",
       "reasoningSaved": "{ref}: reasoning set to {level}."
     },
+    "deepen": {
+      "title": "Follow-up analysis",
+      "description": "In free chat the tutor answers at once with the chat model, then may add a deeper follow-up written by the chat_deep model, when the learner asks why or how two things differ, or when the tutor judges its first answer too short. A follow-up costs one more model call, often with thinking; set here how many and how long.",
+      "enabled": "Allow follow-ups",
+      "enabledHint": "Off: the tutor answers in one part only.",
+      "fields": {
+        "max_segments": "Follow-ups per reply (1–3)",
+        "first_chunk_seconds": "Wait for the first word (5–60 s)",
+        "total_seconds": "Longest follow-up (10–300 s)",
+        "max_tokens": "Tokens per follow-up (256–8000)"
+      },
+      "hint": "A follow-up that writes nothing in time is skipped; one that runs out of time keeps what it wrote. The tutor's first answer is never held up. How hard the model thinks is set on the chat_deep model order.",
+      "save": "Save"
+    },
     "usage": {
       "title": "Usage",
       "description": "Model calls by this account, and by members on your connections, per UTC day. No prices are built in: enter yours to see estimated costs.",
@@ -1503,6 +1517,7 @@
       "title": "On this page",
       "connections": "Connections",
       "routes": "Model order",
+      "deepen": "Follow-up analysis",
       "display": "Display",
       "read-aloud": "Read aloud",
       "background": "Background",
