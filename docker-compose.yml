@@ -19,7 +19,7 @@ x-logging: &logging
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: ${POSTGRES_IMAGE:-pgvector/pgvector:pg16}
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-lingo}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lingo}
@@ -43,7 +43,9 @@ services:
   # Refuses to start without CREDENTIALS_ENCRYPTION_KEYS; `make env` generates one.
   backend:
     build: ./backend
-    image: lingo-agent-backend
+    # `make up` builds and tags these locally; a registry deploy sets them in .env
+    # and starts with --no-build (.env.example).
+    image: ${BACKEND_IMAGE:-lingo-agent-backend}:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: ${APP_ENV:-dev}
       PROVIDERS_CONFIG: ${PROVIDERS_CONFIG:-config/providers.dev.yaml}
@@ -94,7 +96,7 @@ services:
       args:
         # Baked into the /api rewrites at build time (frontend/Dockerfile).
         BACKEND_URL: http://backend:8000
-    image: lingo-agent-frontend
+    image: ${FRONTEND_IMAGE:-lingo-agent-frontend}:${IMAGE_TAG:-latest}
     environment:
       BACKEND_URL: http://backend:8000
     ports:
