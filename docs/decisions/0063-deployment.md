@@ -68,4 +68,5 @@ LangGraph checkpointer 自带的迁移不在 `alembic heads` 里。它只加不�
 ## 落地记录
 - 2026-10-21（71a–71c）：compose 日志轮转、`FRONTEND_HOST_BIND`；服务器加 2 GB swap、nginx 站点 + certbot；手动部署并导入词库。踩坑：服务器 umask 077 导致 postgres 读不到初始化脚本 → 文档写 `umask 022`。
 - 2026-10-23（71e）：v0.1.0 被部署演练挡下（runner 上没有 pgvector 镜像，修复后）v0.1.1 首次经 CD 上线（CI 13 分钟 + 镜像 8.5 分钟 + 部署 2 分钟）；手动从同一 tag 重新部署 36 秒；v0.1.2 真实升级成功，回滚到 v0.1.1 约 1 分 20 秒，再前进。内存：后端 209–230 MB、前端 64–113 MB、Postgres 74–81 MB。
-- 2026-10-23（71f.1–71f.3）：images job 同时推 Docker Hub；`.env.example`、README 加预构建镜像入口；`docs/deploy.md`（中英）。v0.2.0 首次推 Docker Hub 在 71f.4 验证。
+- 2026-10-23（71f.1–71f.3）：images job 同时推 Docker Hub；`.env.example`、README 加预构建镜像入口；`docs/deploy.md`（中英）。
+- 2026-10-23（71f.4）：v0.2.0（run 39979917542）从推 tag 到部署完约 16 分钟（CI 13 分钟、镜像 1 分钟、部署 45 秒），服务器照常升级；Docker Hub 的 `0.2.0` / `0.2` / `latest` 匿名可读（amd64）。本机按 `docs/deploy.md` 用一个单独的 compose 项目从零起一套：匿名拉取约 4 分钟，启动 healthy，三份数据导入（例句 3 分 44 秒），注册、备份、恢复都正常。
