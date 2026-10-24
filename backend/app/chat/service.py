@@ -1,7 +1,7 @@
 """Conversation CRUD. Messages live in the LangGraph checkpoint, not in our tables."""
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Literal
 from zoneinfo import ZoneInfo
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adaptive.kc.catalog import GrammarKC
 from app.agents.chat_graph import ChatGraph
+from app.agents.deepen import OUTCOME_KEY, SEGMENT_KEY
 from app.agents.messages import created_at
 from app.db.models import Article, Attachment, Conversation
 from app.realtime.transcript import INTERRUPTED, VOICE_CALL
@@ -25,6 +26,17 @@ class ConversationNotFoundError(Exception):
 
 
 @dataclass(frozen=True)
+class FollowUp:
+    """A follow-up joined into a tutor reply (ADR 0064 §7): its text starts at `offset`
+    in the reply's content and runs to the next one's, or the end. The offset counts
+    UTF-16 code units, the way the page's strings are indexed (an emoji is two)."""
+
+    index: int
+    outcome: str
+    offset: int
+
+
+@dataclass(frozen=True)
 class ChatMessage:
     id: str | None
     role: Literal["user", "assistant"]
@@ -33,6 +45,7 @@ class ChatMessage:
     interrupted: bool = False
     # When it joined the conversation; None for messages saved before stamps (ADR 0044 §5).
     created_at: datetime | None = None
+    follow_ups: tuple[FollowUp, ...] = field(default_factory=tuple)
 
 
 _ROLES: dict[str, Literal["user", "assistant"]] = {"human": "user", "ai": "assistant"}
@@ -255,11 +268,16 @@ async def get_owned_conversation(
 REPLY_PART_SEPARATOR = "\n\n"
 
 
+def _utf16_len(text: str) -> int:
+    return len(text.encode("utf-16-le")) // 2
+
+
 def to_chat_messages(messages: list[BaseMessage]) -> list[ChatMessage]:
     """User-visible turns only (system/tool messages are internal).
 
     A turn with tool calls has several tutor messages (ADR 0015 §5); they show as one,
-    under the last one's id, with the calls themselves left out. A realtime call's lines
+    under the last one's id, with the calls themselves left out. Its follow-ups (ADR
+    0064) are joined the same way, each with where its text starts. A realtime call's lines
     are each one reply (its tools are not messages), so they are never joined.
     """
     out: list[ChatMessage] = []
@@ -270,13 +288,20 @@ def to_chat_messages(messages: list[BaseMessage]) -> list[ChatMessage]:
         role = _ROLES[m.type]
         voice = bool(m.additional_kwargs.get(VOICE_CALL))
         if role == "assistant" and joinable and not voice:
-            parts = [p for p in (out[-1].content, m.text) if p]
+            before = out[-1].content
+            parts = [p for p in (before, m.text) if p]
+            follow_ups = out[-1].follow_ups
+            if (index := m.additional_kwargs.get(SEGMENT_KEY)) and m.text:
+                offset = _utf16_len(before + REPLY_PART_SEPARATOR) if before else 0
+                outcome = str(m.additional_kwargs.get(OUTCOME_KEY, "done"))
+                follow_ups = (*follow_ups, FollowUp(int(index), outcome, offset))
             # Kept at the reply's start: that is where the turn sits in the conversation.
             out[-1] = ChatMessage(
                 id=m.id,
                 role=role,
                 content=REPLY_PART_SEPARATOR.join(parts),
                 created_at=out[-1].created_at,
+                follow_ups=follow_ups,
             )
             continue
         interrupted = voice and bool(m.additional_kwargs.get(INTERRUPTED))

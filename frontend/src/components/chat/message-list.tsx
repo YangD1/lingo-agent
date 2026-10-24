@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 import { Markdown } from "./markdown";
 import { MessageAttachments } from "./message-attachments";
+import { ReplyParts } from "./reply-parts";
 import { ReplyTools, useReplyTranslations } from "./reply-tools";
 import { TurnActivity } from "./turn-activity";
 import { TutorCards } from "./tutor-cards";
@@ -54,6 +55,9 @@ export function MessageList({
   const scrollRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
   const translations = useReplyTranslations(conversationId);
+  /** The translation shown in place of a reply, if the learner asked for one. */
+  const translated = (m: ChatMessage): string | null =>
+    (m.id && translations.byId[m.id]?.showing && translations.byId[m.id].text) || null;
   const lastUser = messages.findLastIndex((m) => m.role === "user");
   const hasTail = Boolean(tail);
   // A lesson's test-out quiz hangs under no message (ADR 0044 §5): placed by time.
@@ -155,12 +159,13 @@ export function MessageList({
                   {m.content && hideReplyText && (
                     <p className="text-sm text-muted-foreground italic">{t("textHidden")}</p>
                   )}
-                  {m.content && !hideReplyText && (
-                    <Markdown words>
-                      {(m.id && translations.byId[m.id]?.showing && translations.byId[m.id].text) ||
-                        m.content}
-                    </Markdown>
-                  )}
+                  {m.content &&
+                    !hideReplyText &&
+                    (translated(m) !== null ? (
+                      <Markdown words>{translated(m) ?? ""}</Markdown>
+                    ) : (
+                      <ReplyParts content={m.content} followUps={m.followUps} />
+                    ))}
                   <MessageStatus message={m} />
                 </div>
               )}

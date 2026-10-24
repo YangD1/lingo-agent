@@ -1,6 +1,7 @@
 // Response shapes of the backend API (backend/app/api/*).
 
 import type { AiFeature } from "@/lib/ai-usage";
+import type { FollowUpOut } from "@/lib/follow-ups";
 import type { Capability, Limit, UNITS, Used } from "@/lib/org";
 
 export type User = {
@@ -60,6 +61,8 @@ export type HistoryMessage = {
   attachments: Attachment[];
   /** When it joined the conversation; null for messages saved before stamps (ADR 0044 §5). */
   created_at: string | null;
+  /** The tutor's follow-ups joined into this reply (ADR 0064 §7). */
+  follow_ups?: FollowUpOut[];
 };
 
 export const PROVIDER_KINDS = [

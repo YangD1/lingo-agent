@@ -7,6 +7,15 @@ import type { Activity } from "@/lib/activity";
 import { api, ApiError, isAbortError } from "@/lib/api";
 import type { TutorCard } from "@/lib/cards";
 import { type RunWatcher, stopRun, trackRun, unwatchRun, watchRun } from "@/lib/chat-runs";
+import {
+  ended,
+  type FollowUp,
+  fromHistory,
+  started,
+  stoppedWhileWriting,
+  withToken,
+  writing,
+} from "@/lib/follow-ups";
 import { type ChatEvent, OPENING_TURN_ID, streamChat, streamOpening } from "@/lib/sse";
 import type { Attachment, Conversation, HistoryMessage } from "@/lib/types";
 import { usePetHold } from "@/lib/tutor-pet";
@@ -26,6 +35,8 @@ export type ChatMessage = {
   /** When it joined the conversation (ADR 0044 §5): the backend's stamp, or this browser's
    * clock for one sent or streamed here; absent for messages saved before stamps. */
   createdAt?: string;
+  /** On replies: the tutor's follow-ups under it (ADR 0064 §7), in its `content`. */
+  followUps?: FollowUp[];
 };
 
 type Options = {
@@ -55,6 +66,10 @@ type Options = {
 const toApiErrorLike = (error: unknown): ApiErrorLike =>
   error instanceof ApiError ? error : { code: "network_error", message: String(error) };
 
+/** Retrying a send the backend refused while the reply it follows was still letting go. */
+const BUSY_RETRIES = 10;
+const BUSY_RETRY_MS = 300;
+
 const createPlain = () => api<Conversation>("/conversations", { method: "POST" });
 
 let keySeq = 0;
@@ -71,6 +86,7 @@ const toMessages = (history: HistoryMessage[]): ChatMessage[] =>
     content: m.content,
     attachments: m.attachments,
     createdAt: m.created_at ?? undefined,
+    followUps: fromHistory(m.follow_ups),
     turnId:
       m.role === "assistant" && history[i - 1]?.role === "user"
         ? (history[i - 1].id ?? undefined)
@@ -100,6 +116,13 @@ export function useChatSession(conversationId: string | null, options: Options) 
   useEffect(() => {
     optionsRef.current = options;
   });
+  const last = messages.at(-1);
+  // A follow-up being written: the learner may send meanwhile (ADR 0064 §6).
+  const followingUp = streaming && last?.role === "assistant" && writing(last.followUps) !== undefined;
+  const followingUpRef = useRef(followingUp);
+  useEffect(() => {
+    followingUpRef.current = followingUp;
+  });
 
 
   const updateLast = useCallback(
@@ -112,7 +135,11 @@ export function useChatSession(conversationId: string | null, options: Options) 
   const apply = useCallback(
     (event: ChatEvent, id: string, replay = false) => {
       if (event.event === "token") {
-        updateLast((m) => ({ ...m, content: m.content + event.text }));
+        updateLast((m) => ({
+          ...m,
+          content: m.content + event.text,
+          followUps: withToken(m.followUps, m.content, event.text),
+        }));
         // Not read aloud again when coming back to a reply already under way.
         if (!replay) optionsRef.current.onToken?.(event.text);
       } else if (event.event === "activity") {
@@ -121,6 +148,15 @@ export function useChatSession(conversationId: string | null, options: Options) 
       } else if (event.event === "card") {
         updateLast((m) => ({ ...m, turnId: event.turn_id }));
         optionsRef.current.onCard?.(event); // the card's fields, plus `event`
+      } else if (event.event === "segment") {
+        const { index } = event;
+        updateLast((m) => ({
+          ...m,
+          followUps:
+            event.state === "started"
+              ? started(m.followUps, index, Date.now())
+              : ended(m.followUps, index, event.outcome ?? "done"),
+        }));
       } else if (event.event === "done") {
         const turnId = event.turn_id ?? undefined;
         setMessages((all) =>
@@ -143,13 +179,18 @@ export function useChatSession(conversationId: string | null, options: Options) 
     [updateLast],
   );
 
-  /** Stopped or cut off mid-reply: the partial reply isn't saved (ADR 0003), say so. */
+  /**
+   * Stopped or cut off mid-reply: the partial reply isn't saved (ADR 0003), say so. Stopped
+   * while a follow-up was written, the reply stays and only that follow-up goes (ADR 0064 §6).
+   */
   const markInterrupted = useCallback(
     (e: unknown) =>
       updateLast((m) =>
-        isAbortError(e)
-          ? { ...m, status: "stopped" }
-          : { ...m, status: "error", error: toApiErrorLike(e) },
+        isAbortError(e) && m.followUps && writing(m.followUps)
+          ? { ...m, ...stoppedWhileWriting(m.content, m.followUps), status: undefined }
+          : isAbortError(e)
+            ? { ...m, status: "stopped" }
+            : { ...m, status: "error", error: toApiErrorLike(e) },
       ),
     [updateLast],
   );
@@ -298,6 +339,12 @@ export function useChatSession(conversationId: string | null, options: Options) 
   /** Returns false if nothing was sent, so the caller keeps the text in the input box. */
   const send = useCallback(
     async (text: string, attachments: Attachment[] = []): Promise<boolean> => {
+      // One reply at a time per conversation: stop the follow-up first, its reply stays.
+      const interrupted = followingUpRef.current ? watchRef.current : null;
+      if (interrupted) {
+        stopRun(interrupted.id);
+        await interrupted.left;
+      }
       const controller = new AbortController();
       abortRef.current = controller;
       setError(null);
@@ -324,12 +371,25 @@ export function useChatSession(conversationId: string | null, options: Options) 
           created = await (optionsRef.current.createConversation ?? createPlain)();
           id = createdIdRef.current = created.id;
         }
-        const stream = streamChat(id, text, {
-          signal: controller.signal,
-          attachmentIds: attachments.map((a) => a.id),
-          workspaceDocId: optionsRef.current.workspaceDocId,
-        });
-        const step = await stream.next(); // 404/409 throw here, before any reply
+        let stream: AsyncGenerator<ChatEvent, void, undefined>;
+        let step: IteratorResult<ChatEvent, void>;
+        for (let tries = 0; ; tries++) {
+          stream = streamChat(id, text, {
+            signal: controller.signal,
+            attachmentIds: attachments.map((a) => a.id),
+            workspaceDocId: optionsRef.current.workspaceDocId,
+          });
+          try {
+            step = await stream.next(); // 404/409 throw here, before any reply
+            break;
+          } catch (e) {
+            // The stopped reply holds the conversation until the backend sees it gone.
+            const busy = e instanceof ApiError && e.code === "conversation_busy";
+            if (!interrupted || !busy || tries >= BUSY_RETRIES) throw e;
+            await new Promise((resolve) => setTimeout(resolve, BUSY_RETRY_MS));
+            controller.signal.throwIfAborted();
+          }
+        }
         accepted = true;
         if (created) optionsRef.current.onConversationCreated(created);
         if (!step.done) await follow(id, "reply", controller, step.value, stream);
@@ -395,11 +455,21 @@ export function useChatSession(conversationId: string | null, options: Options) 
   }, []);
 
   // Waiting on the tutor's first words: the desk pet thinks (ADR 0032 §4a).
-  const last = messages.at(-1);
   usePetHold("thinking", streaming && last?.role === "assistant" && last.content === "");
 
   /** The conversation whose history is on screen, once it is; null before that. */
   const readyFor = loadedFor === conversationId ? conversationId : null;
 
-  return { messages, loading, streaming, error, readyFor, send, open, stop, ensureConversation };
+  return {
+    messages,
+    loading,
+    streaming,
+    followingUp,
+    error,
+    readyFor,
+    send,
+    open,
+    stop,
+    ensureConversation,
+  };
 }

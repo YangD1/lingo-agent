@@ -124,6 +124,17 @@ class ConversationIn(BaseModel):
     tz: Annotated[str | None, Field(max_length=64)] = None
 
 
+class FollowUpOut(BaseModel):
+    """A follow-up joined into a tutor reply (ADR 0064 §7): its text is `content` from
+    `offset` to the next follow-up's offset, or the end. Offsets count UTF-16 code units,
+    like JavaScript string indexes."""
+
+    index: int
+    # done, or where it stopped: timeout, length, failed.
+    outcome: str
+    offset: int
+
+
 class MessageOut(BaseModel):
     id: str | None
     role: Literal["user", "assistant"]
@@ -133,6 +144,7 @@ class MessageOut(BaseModel):
     interrupted: bool = False
     # When it joined the conversation; null for messages saved before stamps (ADR 0044 §5).
     created_at: datetime | None = None
+    follow_ups: list[FollowUpOut] = []
 
 
 def _purpose(conversation: Conversation) -> PlanningPurpose | None:
@@ -273,6 +285,9 @@ async def get_messages(
             attachments=[AttachmentOut.of(a) for a in attached.get(m.id or "", [])],
             interrupted=m.interrupted,
             created_at=m.created_at,
+            follow_ups=[
+                FollowUpOut(index=f.index, outcome=f.outcome, offset=f.offset) for f in m.follow_ups
+            ],
         )
         for m in history
     ]

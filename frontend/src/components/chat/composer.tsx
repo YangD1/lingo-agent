@@ -33,6 +33,9 @@ const MAX_LENGTH = 4000; // backend MessageIn limit
 
 type Props = {
   streaming: boolean;
+  /** While streaming, a message may still be sent: it stops the reply first (a follow-up
+   * being written, ADR 0064 §6). */
+  canInterrupt?: boolean;
   disabled?: boolean;
   tray: AttachmentTray;
   onSend: (text: string, attachments: Attachment[]) => Promise<boolean>;
@@ -59,6 +62,7 @@ const clock = (seconds: number) =>
 
 export function Composer({
   streaming,
+  canInterrupt = false,
   disabled,
   tray,
   onSend,
@@ -102,7 +106,7 @@ export function Composer({
   }, [autoFocus, disabled]);
 
   const empty = !text.trim() && tray.items.length === 0;
-  const blocked = streaming || disabled || tray.pending || recorder.recording;
+  const blocked = (streaming && !canInterrupt) || disabled || tray.pending || recorder.recording;
 
   async function submit(event?: FormEvent) {
     event?.preventDefault();
@@ -302,7 +306,7 @@ export function Composer({
                 corner): sending, attaching and recording are all listed in its details. */}
             <div className="flex items-center gap-1.5">
               <AiBadge feature={[sendFeature, "chat_image", "chat_pdf", "chat_audio"]} />
-              {streaming ? (
+              {streaming && (empty || !canInterrupt) ? (
                 <Button type="button" variant="outline" onClick={onStop}>
                   <Square className="size-3 fill-current" />
                   {t("stop")}

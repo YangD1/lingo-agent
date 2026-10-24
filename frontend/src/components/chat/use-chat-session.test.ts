@@ -433,4 +433,135 @@ describe("useChatSession", () => {
       expect(result.current.messages.map((m) => m.turnId)).toEqual(["opening", undefined, "u1"]);
     });
   });
+
+  describe("follow-ups (ADR 0064)", () => {
+    const abortable = (signal: AbortSignal) =>
+      new Promise((_, reject) =>
+        signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))),
+      );
+
+    /** "Short." then a follow-up that writes "More." and waits for the signal to abort. */
+    function stuckInFollowUp() {
+      return async function* (_id: string, _text: string, { signal }: { signal: AbortSignal }) {
+        yield { event: "token", text: "Short." } satisfies ChatEvent;
+        yield { event: "segment", index: 1, state: "started", outcome: null } satisfies ChatEvent;
+        yield { event: "token", text: "\n\n" } satisfies ChatEvent;
+        yield { event: "token", text: "More." } satisfies ChatEvent;
+        await abortable(signal);
+      };
+    }
+
+    it("marks where a streamed follow-up starts and how it ended", async () => {
+      api.mockResolvedValueOnce([]);
+      let release: () => void = () => {};
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      streamChat.mockImplementation(async function* () {
+        yield { event: "token", text: "Short." } satisfies ChatEvent;
+        yield { event: "segment", index: 1, state: "started", outcome: null } satisfies ChatEvent;
+        yield { event: "token", text: "\n\n" } satisfies ChatEvent;
+        await gate;
+        yield { event: "token", text: "More." } satisfies ChatEvent;
+        yield { event: "segment", index: 1, state: "ended", outcome: "timeout" } satisfies ChatEvent;
+        yield { event: "done", message_id: "m1", turn_id: "u1", usage: {} } as ChatEvent;
+      });
+      const { result } = setup("c1");
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      act(() => {
+        void result.current.send("Hi");
+      });
+      await waitFor(() => expect(result.current.followingUp).toBe(true));
+      expect(result.current.messages[1].followUps).toMatchObject([
+        { index: 1, offset: null, state: "writing" },
+      ]);
+
+      await act(async () => release());
+      await waitFor(() => expect(result.current.streaming).toBe(false));
+      expect(result.current.followingUp).toBe(false);
+      expect(result.current.messages[1]).toMatchObject({
+        content: "Short.\n\nMore.",
+        followUps: [{ index: 1, offset: 8, state: "ended", outcome: "timeout" }],
+      });
+    });
+
+    it("stopping while a follow-up is written keeps the reply, not the follow-up", async () => {
+      api.mockResolvedValueOnce([]);
+      streamChat.mockImplementation(stuckInFollowUp());
+      const { result } = setup("c1");
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      let sending!: Promise<boolean>;
+      act(() => {
+        sending = result.current.send("Hi");
+      });
+      await waitFor(() => expect(result.current.messages[1]?.content).toBe("Short.\n\nMore."));
+
+      await act(async () => {
+        result.current.stop();
+        await sending;
+      });
+
+      expect(result.current.messages[1]).toMatchObject({
+        content: "Short.",
+        status: undefined,
+        followUps: [{ index: 1, offset: null, state: "ended", outcome: "stopped" }],
+      });
+    });
+
+    it("sending while a follow-up is written stops it first, then sends", async () => {
+      api.mockResolvedValueOnce([]);
+      streamChat
+        .mockImplementationOnce(stuckInFollowUp())
+        // The stopped reply still holds the conversation for a moment.
+        .mockImplementationOnce(async function* () {
+          yield* [];
+          throw new ApiError(409, "conversation_busy", "busy");
+        })
+        .mockImplementationOnce(() =>
+          events(
+            { event: "token", text: "Next." },
+            { event: "done", message_id: "m2", turn_id: "u2", usage: {} } as ChatEvent,
+          ),
+        );
+      const { result } = setup("c1");
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      act(() => {
+        void result.current.send("Hi");
+      });
+      await waitFor(() => expect(result.current.followingUp).toBe(true));
+
+      let sent!: boolean;
+      await act(async () => {
+        sent = await result.current.send("And?");
+      });
+
+      expect(sent).toBe(true);
+      expect(streamChat).toHaveBeenCalledTimes(3);
+      expect(result.current.messages.map((m) => [m.role, m.content, m.status])).toEqual([
+        ["user", "Hi", undefined],
+        ["assistant", "Short.", undefined],
+        ["user", "And?", undefined],
+        ["assistant", "Next.", undefined],
+      ]);
+      expect(result.current.messages[1].followUps?.[0].outcome).toBe("stopped");
+    });
+
+    it("loads follow-ups from history", async () => {
+      api.mockResolvedValueOnce([
+        { id: "1", role: "user", content: "Hi", attachments: [] },
+        {
+          id: "2",
+          role: "assistant",
+          content: "Short.\n\nMore.",
+          attachments: [],
+          follow_ups: [{ index: 1, outcome: "done", offset: 8 }],
+        },
+      ]);
+      const { result } = setup("c1");
+      await waitFor(() => expect(result.current.messages).toHaveLength(2));
+      expect(result.current.messages[1].followUps).toEqual([
+        { index: 1, offset: 8, state: "ended", outcome: "done" },
+      ]);
+      expect(result.current.messages[0].followUps).toBeUndefined();
+    });
+  });
 });

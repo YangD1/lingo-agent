@@ -203,6 +203,7 @@ export function TutorPanel({
       )}
       <Composer
         streaming={session.streaming}
+        canInterrupt={session.followingUp}
         disabled={session.loading}
         tray={tray}
         onSend={(text, attachments) =>

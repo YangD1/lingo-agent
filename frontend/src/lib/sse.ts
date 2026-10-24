@@ -3,6 +3,7 @@ import { EventSourceParserStream } from "eventsource-parser/stream";
 import type { Activity } from "./activity";
 import { apiFetch } from "./api";
 import type { TutorCard } from "./cards";
+import type { FollowUpOutcome } from "./follow-ups";
 
 /** The chat SSE protocol (ADR 0003 §2). */
 export type ChatEvent =
@@ -11,6 +12,9 @@ export type ChatEvent =
   | ({ event: "activity" } & Omit<Activity, "created_at">)
   /** A card the tutor showed with a tool call (ADR 0015 §5), as the cards API has it. */
   | ({ event: "card" } & TutorCard)
+  /** A follow-up under the reply starts or ends (ADR 0064 §7): the tokens in between are
+   * its text. */
+  | { event: "segment"; index: number; state: "started" | "ended"; outcome: FollowUpOutcome | null }
   | {
       event: "done";
       message_id: string | null;
@@ -21,7 +25,7 @@ export type ChatEvent =
     }
   | { event: "error"; code: string; message: string };
 
-const KNOWN_EVENTS = new Set(["token", "activity", "card", "done", "error"]);
+const KNOWN_EVENTS = new Set(["token", "activity", "card", "segment", "done", "error"]);
 
 /**
  * Send a message and yield the reply's events. POST + fetch because EventSource can't

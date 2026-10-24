@@ -186,3 +186,43 @@ describe("Composer: long pastes and quotes (ADR 0043 §4)", () => {
     expect(input).toHaveFocus();
   });
 });
+
+function Streaming({
+  canInterrupt,
+  onSend,
+  onStop,
+}: {
+  canInterrupt: boolean;
+  onSend: (text: string) => Promise<boolean>;
+  onStop: () => void;
+}) {
+  const tray = useAttachments(null, async () => "c1");
+  return (
+    <NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
+      <Composer streaming canInterrupt={canInterrupt} tray={tray} onSend={onSend} onStop={onStop} />
+    </NextIntlClientProvider>
+  );
+}
+
+describe("Composer while a reply streams", () => {
+  it("only stops it", async () => {
+    const onSend = vi.fn(async () => true);
+    render(<Streaming canInterrupt={false} onSend={onSend} onStop={vi.fn()} />);
+    await userEvent.type(screen.getByRole("textbox"), "And?{Enter}");
+    expect(onSend).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  });
+
+  it("sends over a follow-up being written once there is something to send (ADR 0064 §6)", async () => {
+    const onSend = vi.fn(async () => true);
+    const onStop = vi.fn();
+    render(<Streaming canInterrupt onSend={onSend} onStop={onStop} />);
+    // Nothing typed: stopping is still what the button does.
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox"), "And?");
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(onSend).toHaveBeenCalledWith("And?", []);
+    expect(onStop).not.toHaveBeenCalled();
+  });
+});

@@ -131,6 +131,9 @@ async def test_a_why_question_gets_a_follow_up_under_the_reply(
 
     turns = await history(client, conversation)
     assert turns[-1]["content"] == "It's the present perfect.\n\nIt links a past action to now."
+    # Where the follow-up starts, for the page to show it under its own heading.
+    offset = len("It's the present perfect.\n\n")
+    assert turns[-1]["follow_ups"] == [{"index": 1, "outcome": "done", "offset": offset}]
     (done,) = kinds(events, "done")
     assert done["message_id"] == turns[-1]["id"]
     state = await app.state.chat_graph.aget_state(thread_config(uuid.UUID(conversation)))
@@ -202,6 +205,7 @@ async def test_more_follow_ups_up_to_the_tenants_limit(client: AsyncClient, mode
     assert [d["index"] for d in kinds(events, "segment") if d["state"] == "ended"] == [1, 2]
     turns = await history(client, conversation)
     assert turns[-1]["content"] == "Short.\n\nPart one.\n\nPart two."
+    assert [(f["index"], f["offset"]) for f in turns[-1]["follow_ups"]] == [(1, 8), (2, 19)]
 
     # The next turn's history has a result for the follow-up's call.
     models.tutor.replies = ["Sure."]
@@ -225,5 +229,6 @@ async def test_a_failed_follow_up_leaves_the_reply(client: AsyncClient, models: 
     assert ended["outcome"] == "failed"
     turns = await history(client, conversation)
     assert turns[-1]["content"] == "It's the present perfect."
+    assert turns[-1]["follow_ups"] == []
     (step,) = await activity(client, conversation)
     assert (step["status"], step["summary"]) == ("failed", {})

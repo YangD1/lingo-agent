@@ -268,6 +268,15 @@
     "send": "Send",
     "stop": "Stop",
     "stopped": "Stopped. This partial reply is not saved.",
+    "followUp": {
+      "heading": "More on this",
+      "writing": "Still thinking it through… {seconds} s",
+      "timeout": "Ran out of time before finishing.",
+      "length": "Reached its length limit before finishing.",
+      "failed": "Couldn't be written; skipped.",
+      "no_start": "Didn't start in time; skipped.",
+      "stopped": "Stopped."
+    },
     "goToSettings": "Go to Settings",
     "attachments": {
       "attach": "Attach images, documents or audio",

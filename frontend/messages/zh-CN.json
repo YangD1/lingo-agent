@@ -268,6 +268,15 @@
     "send": "发送",
     "stop": "停止",
     "stopped": "已停止，这段未完成的回复不会保存。",
+    "followUp": {
+      "heading": "补充",
+      "writing": "还在深入分析… {seconds} 秒",
+      "timeout": "补充分析到时间了，没写完。",
+      "length": "补充分析到长度上限了，没写完。",
+      "failed": "补充分析没写成，已跳过。",
+      "no_start": "补充分析没能及时开始，已跳过。",
+      "stopped": "补充分析已停止。"
+    },
     "goToSettings": "去设置",
     "attachments": {
       "attach": "添加图片、文档或音频",

@@ -2,6 +2,7 @@
 
 from langchain_core.messages import AIMessage, HumanMessage
 
+from app.agents.deepen import SEGMENT_KEY
 from app.chat.service import REPLY_PART_SEPARATOR, to_chat_messages
 from app.realtime.transcript import INTERRUPTED, VOICE_CALL
 
@@ -47,3 +48,19 @@ def test_chat_reply_parts_still_join() -> None:
         ("u1", "hi", False),
         ("a2", f"Part one{REPLY_PART_SEPARATOR}Part two", False),
     ]
+
+
+def test_follow_up_offsets_count_utf16_units() -> None:
+    # The page slices `content` with JavaScript indexes: an emoji there is two units.
+    messages = to_chat_messages(
+        [
+            HumanMessage("Why?", id="l1"),
+            AIMessage("Good question 👍", id="t1"),
+            AIMessage("Because.", id="t2", additional_kwargs={SEGMENT_KEY: 1}),
+        ]
+    )
+    (reply,) = [m for m in messages if m.role == "assistant"]
+    assert reply.content == "Good question 👍\n\nBecause."
+    (follow_up,) = reply.follow_ups
+    assert (follow_up.index, follow_up.outcome) == (1, "done")
+    assert follow_up.offset == len("Good question ") + 2 + 2
