@@ -358,7 +358,8 @@
         "give_quiz": "Quiz",
         "withdraw_card": "Take back a card",
         "load_skill": "Read a skill",
-        "quiz_reveal": "Check for given-away answers"
+        "quiz_reveal": "Check for given-away answers",
+        "deepen": "Follow-up"
       },
       "failed": "{step} failed; this turn was skipped.",
       "skipped": "{step} was skipped: no background model is set up yet.",
@@ -389,6 +390,7 @@
       "cards": "showed {n, plural, one {# card} other {# cards}}",
       "cardsWithdrawn": "took back {n, plural, one {# card} other {# cards}}",
       "answersRevealed": "gave away the answer to {n, plural, one {# unanswered quiz question} other {# unanswered quiz questions}}, which won't count",
+      "followUps": "wrote {n, plural, one {# follow-up} other {# follow-ups}}",
       "planning": "went through your placement result",
       "progress": "checked where you are now",
       "handedTo": "handed to the {coach}",
@@ -412,6 +414,15 @@
       },
       "toolFailed": "A card couldn't be shown ({step}); the assistant was told why.",
       "toolsUnavailable": "The model doesn't support tools, so the assistant answered with links instead of cards.",
+      "followUp": {
+        "rule": "You asked why, how two things differ, or a longer question, so a deeper follow-up was written under the reply.",
+        "model": "A short answer couldn't do it justice, so a deeper follow-up was written under the reply.",
+        "asked": "A short answer couldn't do it justice, so a deeper follow-up was written under the reply: {reason}",
+        "timeout": "It reached the time limit before finishing.",
+        "length": "It reached the length limit before finishing.",
+        "skipped": "A deeper follow-up was going to be written, but it didn't start in time; skipped.",
+        "failed": "A deeper follow-up was going to be written, but it couldn't be; skipped."
+      },
       "cardKinds": {
         "word_book": "switch word book",
         "learning_goal": "study goal",
@@ -2115,7 +2126,7 @@
   "aiBadge": {
     "label": "Uses AI: what it does and roughly how many tokens",
     "feature": {
-      "chat_message": "Your assistant's reply is written by an AI model. After it, the assistant reviews the turn in the background to update your memories, mistakes and words. A longer message (60+ English words) is first checked by an AI model to see whether it is your own writing; if so, the writing coach reviews it sentence by sentence.",
+      "chat_message": "Your assistant's reply is written by an AI model. After it, the assistant reviews the turn in the background to update your memories, mistakes and words. A longer message (60+ English words) is first checked by an AI model to see whether it is your own writing; if so, the writing coach reviews it sentence by sentence. When you ask why or how two things differ, or the assistant finds a short answer can't do it justice, a deeper follow-up is written under the reply by a slower model that thinks longer: one more call that turn.",
       "chat_image": "An AI model reads each image first, so the assistant can talk about it. The reply to that message also comes from the image-reading model.",
       "chat_pdf": "PDFs with a text layer are read without AI. Scanned pages are read by an AI model, one call per page.",
       "chat_audio": "Your recording is turned into text by a speech-to-text model.",

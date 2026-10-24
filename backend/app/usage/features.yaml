@@ -41,6 +41,13 @@ features:
         route: chat
         timing: now
         default: {input_tokens: 4200, output_tokens: 150}
+      # Only for some free-chat turns (ADR 0064): a "why" / "what's the difference" or long
+      # question, or the tutor asked for one with continue_deeper. A follow-up under the
+      # reply, by a slower model; the tenant caps how many, how long and how many tokens
+      # (default one, 60 s, ~1500). Estimate until task 124.7 measures real ones.
+      - task: chat_deep
+        timing: now
+        default: {input_tokens: 4700, output_tokens: 600}
       # Only in free chat, for a message of 60+ English words (Q38a): is it a piece of
       # writing for writing_coach? The reply waits for it (ADR 0023 §3).
       - task: route

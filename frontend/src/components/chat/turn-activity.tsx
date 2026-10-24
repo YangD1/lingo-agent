@@ -12,6 +12,7 @@ import {
   type SkillLoaded,
   type ContextRead,
   digest,
+  type FollowUpWritten,
   type GrammarTags,
   type Handoff,
   type ReadingContextRead,
@@ -55,6 +56,7 @@ const STEP_NAMES = [
   "workspace_context",
   "workspace_opened",
   "quiz_reveal",
+  "deepen",
   ...TOOL_NAMES,
   ...CALL_TOOL_NAMES,
 ] as const;
@@ -107,6 +109,7 @@ export function TurnActivity({ activities, memories, kcs, waiting, ...words }: P
     d.cardsWithdrawn > 0 && t("cardsWithdrawn", { n: d.cardsWithdrawn }),
     ...d.skillsRead.map((skill) => t("readSkill", { skill: skillName(t, skill) })),
     d.answersRevealed > 0 && t("answersRevealed", { n: d.answersRevealed }),
+    d.followUps > 0 && t("followUps", { n: d.followUps }),
     d.summaryUpdated && t("summaryUpdated"),
     d.failed.length + d.skipped.length > 0 && t("someFailed"),
     waiting && t("waiting"),
@@ -210,6 +213,7 @@ function Step({
     return <p>{t(a.name === "withdraw_card" ? "cardWithdrawn" : "cardShown", { card })}</p>;
   }
   if (a.name === "tools") return <p>{t("toolsUnavailable")}</p>;
+  if (a.name === "deepen") return <FollowUpStep activity={a} />;
   if (a.status === "failed") return <p>{t("failed", { step })}</p>;
   if (a.status === "skipped") {
     return (
@@ -389,6 +393,21 @@ function Step({
     case "workspace_opened":
       return <p>{t("workspaceOpenedStep")}</p>;
   }
+}
+
+/** `deepen`: why the follow-up was written and whether it was finished (ADR 0064). */
+function FollowUpStep({ activity: a }: { activity: Activity }) {
+  const t = useTranslations("chat.activity.followUp");
+  if (a.status !== "ok") return <p>{t(a.status === "skipped" ? "skipped" : "failed")}</p>;
+  const s = a.summary as FollowUpWritten;
+  const why = s.trigger === "model" && s.reason ? t("asked", { reason: s.reason }) : t(s.trigger);
+  const cut = s.outcome === "timeout" || s.outcome === "length" ? t(s.outcome) : null;
+  return (
+    <p>
+      {why}
+      {cut && ` ${cut}`}
+    </p>
+  );
 }
 
 function CollectedWordItem({

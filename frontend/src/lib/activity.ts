@@ -33,6 +33,13 @@ export type ReadingContextRead = { article_id: number; level: string | null; wor
 export type WorkspaceContextRead = { doc_id: string; version: number; words: number };
 /** The learner's writing, reviewed by writing_coach, opened in the workspace (ADR 0045 §4). */
 export type WorkspaceOpened = { doc_id: string };
+/** `deepen`: a follow-up under the reply (ADR 0064); a skipped or failed one has no summary. */
+export type FollowUpWritten = {
+  segment: number;
+  trigger: "rule" | "model";
+  outcome: "done" | "timeout" | "length" | "failed" | "no_start";
+  reason?: string | null;
+};
 /** A tool call of the tutor (ADR 0015): the card it showed, if any. */
 export type CardShown = { card_id: string | null; card_kind: string | null };
 /** `load_skill`: the tutor read a built-in skill, or one of its parts (ADR 0055 §6). */
@@ -133,6 +140,8 @@ export type TurnDigest = {
   skillsRead: string[];
   /** Pass-quiz items whose answer a reply gave away, so they count as wrong. */
   answersRevealed: number;
+  /** Follow-ups written under the reply (ADR 0064). */
+  followUps: number;
   profileUpdated: boolean;
   mistakes: number;
   usedCorrectly: number;
@@ -162,6 +171,7 @@ export function digest(activities: Activity[]): TurnDigest {
     cardsWithdrawn: 0,
     skillsRead: [],
     answersRevealed: 0,
+    followUps: 0,
     profileUpdated: false,
     mistakes: 0,
     usedCorrectly: 0,
@@ -172,6 +182,8 @@ export function digest(activities: Activity[]): TurnDigest {
     skipped: [],
   };
   for (const a of activities) {
+    // A follow-up not written is said under the reply itself, not as a step gone wrong.
+    if (a.name === "deepen" && a.status !== "ok") continue;
     if (a.status === "failed") d.failed.push(a.name);
     if (a.status === "skipped") d.skipped.push(a.name);
     if (a.status !== "ok") continue;
@@ -213,6 +225,8 @@ export function digest(activities: Activity[]): TurnDigest {
       d.wordsCollected += (a.summary as WordsCollected).added?.length ?? 0;
     } else if (a.name === "summarize") {
       d.summaryUpdated = true;
+    } else if (a.name === "deepen") {
+      d.followUps += 1;
     } else if (a.name === "quiz_reveal") {
       d.answersRevealed += (a.summary as AnswersRevealed).items ?? 0;
     }

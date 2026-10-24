@@ -99,6 +99,16 @@ describe("digest", () => {
     expect(digest([step("reading_context", {}, { status: "failed" })]).articleRead).toBe(false);
   });
 
+  it("counts follow-ups written, and one not written isn't a step gone wrong (ADR 0064)", () => {
+    const written = { segment: 1, trigger: "rule", outcome: "done" };
+    expect(digest([step("deepen", written, { kind: "step" })]).followUps).toBe(1);
+    const d = digest([
+      step("deepen", {}, { kind: "step", status: "skipped", call_id: "1" }),
+      step("deepen", {}, { kind: "step", status: "failed", call_id: "2" }),
+    ]);
+    expect(d).toMatchObject({ followUps: 0, failed: [], skipped: [] });
+  });
+
   it("counts nothing from failed or skipped steps", () => {
     const d = digest([
       step("reflect_memory", {}, { status: "failed" }),

@@ -10,7 +10,7 @@
 
 | 功能（清单里的 key） | 入口 | 触发的调用（task） |
 |---|---|---|
-| `chat_message` | 聊天输入框“发送”；看板和入学测结果页对话框的输入框、看板的快捷回复（ADR 0016）；桌宠对话小窗的输入框和快捷回复（ADR 0032 §4a、0041：默认是今天的对话，标题栏可开新对话） | `chat`（立即）；助手调用了工具时再加 `chat_tools`（拿到工具结果后的回复，走 `chat` 路由）；`reflect`、`memory` 向量化（回复后在后台） |
+| `chat_message` | 聊天输入框“发送”；看板和入学测结果页对话框的输入框、看板的快捷回复（ADR 0016）；桌宠对话小窗的输入框和快捷回复（ADR 0032 §4a、0041：默认是今天的对话，标题栏可开新对话） | `chat`（立即）；助手调用了工具时再加 `chat_tools`（拿到工具结果后的回复，走 `chat` 路由）；自由对话里规则命中（问为什么 / 区别、较长的问题）或私教调了 `continue_deeper` 时再加 `chat_deep`（回复下面的补充分析，走 `chat_deep` 路由；段数、时长、token 由租户在设置页限定，ADR 0064）；`reflect`、`memory` 向量化（回复后在后台） |
 | `chat_image` | 聊天输入框“附件” | `vision`（每张图；带图的那一轮回复也走 `vision`） |
 | `chat_pdf` | 同上 | `vision`（只有扫描页，每页一次） |
 | `chat_audio` | 聊天输入框“录音” | `asr`（按音频秒数） |
@@ -78,7 +78,7 @@
 | `tools` | step | 无；只在厂商拒绝工具调用、这一轮改为不带工具重答时记一行 `skipped` |
 | `lookup_word`、`add_to_vocab`、`end_session` | tool | 实时通话的工具（见“实时语音通话”）：`lookup_word` 记 `word`、`word_id`（查到的词条；没查到只有 `word`）；`add_to_vocab` 同 `vocab_collect` 的 `added` / `existing`；`end_session` 无字段。`call_id` = 厂商的 call id；挂在学习者最近一句话上（助手开口前就调用时挂在助手第一句上） |
 | `handoff` | step | `coach`：自由对话分类后转给的 coach |
-| `deepen` | step | 补充分析（ADR 0064）：`segment`（这一轮第几段，也是 `call_id`）、`trigger`（`rule` 规则命中 / `model` 私教调了 `continue_deeper`）、`outcome`（`done` / `timeout` 到总时长 / `length` 到长度上限 / `failed`，后三种保留已写的部分）、`reason`（私教调用时自己写的理由，≤120 字，只在第一段）。什么都没写出来时记 `skipped`（到首字超时还没动静）或 `failed`（模型出错），无摘要；学习者停掉的不记 |
+| `deepen` | step | 补充分析（ADR 0064）：`segment`（这一轮第几段，也是 `call_id`）、`trigger`（`rule` 规则命中 / `model` 私教调了 `continue_deeper`）、`outcome`（`done` / `timeout` 到总时长 / `length` 到长度上限 / `failed`，后三种保留已写的部分）、`reason`（私教调用时自己写的理由，≤120 字，只在第一段）。什么都没写出来时记 `skipped`（到首字超时还没动静）或 `failed`（模型出错），无摘要；学习者停掉的不记。界面：一行摘要写“做了补充分析”；没写成的不算“有步骤没完成”，回复气泡里的补充段已经写明结果 |
 | `writing_review` | step | `submission_id`、`mistakes`（错误数） |
 | `workspace_opened` | step | `doc_id`：writing_coach 批改后由代码在工作区打开的写作文档（ADR 0045 §4） |
 | `reading_context` | step | `article_id`、`level`（送的是哪个等级的改写版；原文为空）、`words`（送了多少词）；看不到文章时只记 `failed` |

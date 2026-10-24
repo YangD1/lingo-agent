@@ -31,6 +31,7 @@ def test_shipped_catalog_loads() -> None:
     assert [(c.task, c.timing) for c in chat] == [
         ("chat", "now"),
         ("chat_tools", "now"),
+        ("chat_deep", "now"),  # a follow-up under some replies (ADR 0064)
         ("route", "now"),
         ("writing_review", "now"),
         ("reflect", "background"),

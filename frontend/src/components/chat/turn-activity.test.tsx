@@ -86,6 +86,24 @@ describe("TurnActivity", () => {
     expect(screen.getByText(/looked like a piece of your writing/)).toBeInTheDocument();
   });
 
+  it("tells why a follow-up was written and how it ended (ADR 0064)", () => {
+    const deepen = (summary: Record<string, unknown>, extra: Partial<Activity> = {}) =>
+      step("deepen", summary, { kind: "step", ...extra });
+    show({
+      activities: [
+        deepen({ segment: 1, trigger: "model", outcome: "timeout", reason: "the tenses" }, { call_id: "1" }),
+        deepen({}, { call_id: "2", status: "skipped" }),
+      ],
+    });
+    const line = screen.getByRole("button", { expanded: false });
+    expect(line).toHaveTextContent("wrote 1 follow-up");
+    expect(line).not.toHaveTextContent("didn't finish"); // said under the reply instead
+    fireEvent.click(line);
+    expect(screen.getByText(/couldn't do it justice.*: the tenses It reached the time limit/)).toBeInTheDocument();
+    expect(screen.getByText(/didn't start in time; skipped/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Go to Settings" })).toBeNull();
+  });
+
   it("tells how the writing was reviewed, with a link to the review", () => {
     show({
       activities: [
