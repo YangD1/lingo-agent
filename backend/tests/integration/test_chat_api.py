@@ -91,6 +91,7 @@ async def test_history_is_read_back_from_the_checkpoint(client: AsyncClient, app
             "content": "I goed to school.",
             "attachments": [],
             "interrupted": False,
+            "follow_ups": [],
         },
         # Content blocks (e.g. from Anthropic) are flattened to plain text.
         {
@@ -99,6 +100,7 @@ async def test_history_is_read_back_from_the_checkpoint(client: AsyncClient, app
             "content": "Nice! Say *went*.",
             "attachments": [],
             "interrupted": False,
+            "follow_ups": [],
         },
         # System messages are internal and never returned.
     ]
