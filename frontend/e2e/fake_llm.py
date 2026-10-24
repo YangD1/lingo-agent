@@ -44,6 +44,9 @@ the tutor answers 'In your document: ...'; "open it in the workspace" calls
 0045), "help me understand" opens the long text just sent for reading; "close the
 workspace" calls `close_workspace`, "don't open the workspace by itself"
 `set_workspace_auto_open` off.
+Follow-ups (ADR 0064): the chat_deep model, cued for one, writes FOLLOW_UP; asked to
+"take your time", it starts only after SLOW_FOLLOW_UP seconds (past the tenant's
+first-chunk limit when that is set to its 5 s minimum).
 """
 
 import asyncio
@@ -86,6 +89,10 @@ THIRD_PERSON_KC = "g.present_simple_third_person"
 # A practice opening (backend/app/prompts/practice_opening.md) and the point it is about
 # (backend/app/chat/practice.py render_practice).
 OPENING_CUE = "(This is not from the learner.)"
+DEEPEN_CUE = f"{OPENING_CUE} Write the follow-up"
+FOLLOW_UP = "It links a past action to the present."
+SLOW = re.compile(r"take your time", re.IGNORECASE)
+SLOW_FOLLOW_UP = 7.0
 PRACTICE_POINT = re.compile(r"^- Grammar point: (.+) \(CEFR [A-C][12]\)$", re.MULTILINE)
 ASKED_WORD = re.compile(r"what does \"?([A-Za-z]+)\"? mean", re.IGNORECASE)
 FACTS_HEADING = "### Things they have told you\n"
@@ -272,6 +279,8 @@ def reply_for(messages: list[dict[str, Any]]) -> str:
     last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
     images = sum(p.get("type") == "image_url" for p in last) if isinstance(last, list) else 0
     last = text_of(last)
+    if last.startswith(DEEPEN_CUE):
+        return FOLLOW_UP
     if last.startswith(OPENING_CUE) and (point := practice_point(messages)):
         return f"Let's practise: {point}."
     if last.startswith(OPENING_CUE) and SPEAKING_OPENING in last:
@@ -742,8 +751,12 @@ async def completions(request: Request) -> StreamingResponse | JSONResponse:
         )
 
     delay = LONG_DELAY if text.startswith("word0") else DELAY
+    said = [text_of(m["content"]) for m in body.get("messages", []) if m["role"] == "user"]
+    slow = text == FOLLOW_UP and any(SLOW.search(t) for t in said)
 
     async def stream() -> AsyncIterator[str]:
+        if slow:
+            await asyncio.sleep(SLOW_FOLLOW_UP)
         yield chunk(model, {"role": "assistant", "content": ""})
         for i, word in enumerate(text.split(" ")):
             await asyncio.sleep(delay)

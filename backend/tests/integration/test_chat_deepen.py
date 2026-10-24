@@ -215,7 +215,9 @@ async def test_more_follow_ups_up_to_the_tenants_limit(client: AsyncClient, mode
     assert [m.tool_call_id for m in results] == [more["id"]]
 
 
-async def test_a_failed_follow_up_leaves_the_reply(client: AsyncClient, models: Models) -> None:
+async def test_a_failed_follow_up_leaves_the_reply(
+    client: AsyncClient, models: Models, caplog: pytest.LogCaptureFixture
+) -> None:
     conversation = await ready(client)
     models.tutor.replies = ["It's the present perfect."]
     models.deep_fails = True
@@ -232,3 +234,5 @@ async def test_a_failed_follow_up_leaves_the_reply(client: AsyncClient, models: 
     assert turns[-1]["follow_ups"] == []
     (step,) = await activity(client, conversation)
     assert (step["status"], step["summary"]) == ("failed", {})
+    # A failed step keeps no summary by design: reading it isn't a warning.
+    assert "unreadable" not in caplog.text

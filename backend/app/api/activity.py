@@ -78,6 +78,8 @@ async def get_activity(
     kc_ids: set[str] = set()
     word_ids: set[int] = set()
     for row in rows:
+        if row.status != "ok":  # failed and skipped steps keep no summary to refer to
+            continue
         try:
             summary = service.parse_summary(row)
         except ValidationError:
