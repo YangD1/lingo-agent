@@ -44,10 +44,12 @@ features:
       # Only for some free-chat turns (ADR 0064): a "why" / "what's the difference" or long
       # question, or the tutor asked for one with continue_deeper. A follow-up under the
       # reply, by a slower model; the tenant caps how many, how long and how many tokens
-      # (default one, 60 s, ~1500). Estimate until task 124.7 measures real ones.
+      # (default one, 60 s, ~1500). Measured 2026-10-24 (task 124.7, gpt-6-luna, 26
+      # follow-ups in new conversations): 1260-1360 tokens in (no tool list; grows with
+      # the conversation's history), 200-220 out, at most 440.
       - task: chat_deep
         timing: now
-        default: {input_tokens: 4700, output_tokens: 600}
+        default: {input_tokens: 1500, output_tokens: 250}
       # Only in free chat, for a message of 60+ English words (Q38a): is it a piece of
       # writing for writing_coach? The reply waits for it (ADR 0023 §3).
       - task: route

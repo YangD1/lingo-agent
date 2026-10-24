@@ -55,6 +55,13 @@ def fast(**limits: float) -> DeepenSettings:
             True,
         ),
         ("我想知道在写邮件的时候应该怎样礼貌地拒绝别人的邀请才不会显得生硬和不礼貌呢", True),
+        # Mixed: 14 English words and 27 characters, each short of its own bound.
+        (
+            '我写邮件的时候总是拿不准 "I look forward to hear from you" 和 '
+            '"I look forward to hearing from you" 哪个才是对的,能帮我仔细讲讲吗?',
+            True,
+        ),
+        ("这个句子 I have been there 对吗?", False),
         # Long, but not a question.
         (
             "I went to the park yesterday with my friends and we played football until "

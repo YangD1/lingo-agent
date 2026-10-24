@@ -74,15 +74,16 @@ _QUESTION = re.compile(
 )
 _CJK = re.compile(r"[㐀-鿿豈-﫿]")
 _WORD = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)?")
+# A long question: 15 English words, 30 Chinese characters, or a mix of both (two
+# characters count as one word; task 124.7 saw a mixed one miss both bounds).
 LONG_WORDS = 15
-LONG_CJK = 30
 
 
 def rule_fires(text: str) -> bool:
     """The learner asks why or how things differ, or asks a long question."""
     if _ASKS_WHY.search(text):
         return True
-    long = len(_WORD.findall(text)) >= LONG_WORDS or len(_CJK.findall(text)) >= LONG_CJK
+    long = len(_WORD.findall(text)) + len(_CJK.findall(text)) / 2 >= LONG_WORDS
     return long and bool(_QUESTION.search(text.strip()))
 
 
