@@ -3076,5 +3076,335 @@
       "finish": "Start learning"
     },
     "open": "Setup guide"
+  },
+  "landing": {
+    "badge": "Open source · Self-hostable · Bring your own models",
+    "title": "Your AI English assistant",
+    "subtitle": "It remembers what you know and what you keep getting wrong. Works from A1 to C2, and explanations can lean on Chinese or stay all in English.",
+    "cta": "Create an account",
+    "login": "Log in",
+    "register": "Sign up",
+    "hint": "Move the mouse to read the words, scroll to drag the wall",
+    "next": "See what Lingo can do",
+    "switchLanguage": "切换到简体中文",
+    "switchLanguageName": "简体中文",
+    "lens": {
+      "words": {
+        "vocabulary": "the words you know",
+        "grammar": "how words fit together",
+        "pronunciation": "how a word sounds · not pronounciation",
+        "thorough": "complete and careful",
+        "although": "even though",
+        "serendipity": "a happy accident",
+        "fluency": "speaking with ease",
+        "collocation": "words that go together",
+        "phrasalverbs": "give up, look into…",
+        "listening": "understanding speech",
+        "idiom": "a fixed expression",
+        "accent": "the way you sound",
+        "sentence": "a complete thought",
+        "tense": "when a verb happens",
+        "subjunctive": "if I were…",
+        "nuance": "a subtle difference",
+        "ubiquitous": "found everywhere",
+        "rhythm": "the beat of speech",
+        "spelling": "letters in the right order",
+        "synonym": "same meaning, different word",
+        "conversation": "a talk between people",
+        "meanwhile": "at the same time",
+        "resilient": "quick to recover",
+        "article": "a / an / the",
+        "preposition": "in, on, at…",
+        "eloquent": "good with words",
+        "curious": "eager to know",
+        "whisper": "speak very softly",
+        "journey": "a long trip",
+        "schedule": "a plan of times",
+        "comfortable": "only three syllables",
+        "wednesday": "the first d is silent",
+        "informations": "uncountable, no plural → information",
+        "advices": "uncountable → advice / a piece of advice",
+        "recieve": "i before e, except after c → receive",
+        "untill": "only one l → until",
+        "discussabout": "discuss takes an object directly → discuss it"
+      }
+    },
+    "more": {
+      "kicker": "What Lingo does",
+      "title": "Not just another chatbot",
+      "body": "Lingo remembers who you are, what you know and where you keep slipping, then decides what to teach at your level. Mastery and review timing are worked out by algorithms from evidence, never guessed by a model, and everything it does is there for you to see."
+    },
+    "learn": {
+      "title": "Remembers, and teaches",
+      "sub": "Every chat adds evidence about you",
+      "memory": {
+        "chip": "Memory · You enjoy the outdoors and often hike at weekends",
+        "fix": "Nice! For past events, use the past simple: <s>I go</s> → <b>I went</b> hiking. Going again this weekend?",
+        "activity": "What JOJO did · read 2 memories · saved 1 grammar note",
+        "title": "An assistant that remembers you",
+        "body": "After each reply it decides in the background what is worth keeping: goals, interests, mistakes that keep coming back. Next time it picks up where you left off, and everything it saved can be edited or deleted on the Memory page."
+      },
+      "grammar": {
+        "pastSimple": "Past simple",
+        "articles": "Articles",
+        "presentPerfect": "Present perfect",
+        "title": "Grammar tracking and mastery",
+        "body": "Mistakes are tagged to 119 grammar points (A1–C2), and BKT + Elo update mastery from the evidence. When an error keeps coming back, it looks for the root cause."
+      },
+      "vocab": {
+        "meaning": "/ˈθʌrə/ · adj. complete and careful",
+        "again": "Again",
+        "hard": "Hard",
+        "good": "Good",
+        "easy": "Easy",
+        "title": "FSRS vocabulary",
+        "body": "Oxford 3000, CET-4/6, IELTS, TOEFL and more. Words you already know are filtered out first, then FSRS schedules the reviews: flip cards, pick by sound or spell. New words from your chats are collected automatically."
+      },
+      "placement": {
+        "vocab": "~3,800 words",
+        "title": "Placement test",
+        "body": "An adaptive test of about 10 minutes gives a CEFR level and an estimated vocabulary size, without calling a model. The assistant pitches its explanations to match."
+      },
+      "speaking": {
+        "chip": "Scenario · Ordering at a restaurant · B1",
+        "title": "Speaking and live calls",
+        "body": "Practise speaking in scenarios and get a summary at the end. With realtime voice set up you can talk as if on a phone call, interrupt any time and read the captions. Shadowing is scored word by word."
+      },
+      "reading": {
+        "chip": "Rewritten for B1 · 5 questions passed the critic check",
+        "title": "Graded news reading",
+        "body": "News you subscribe to is rewritten for your level. Words due for review today are highlighted and words above your level get a dashed underline; tap any word to look it up or save it."
+      },
+      "writing": {
+        "bar": "Task · Coherence · Lexis · Grammar",
+        "title": "Writing feedback and grammar practice",
+        "body": "Essays are corrected sentence by sentence and scored on four criteria, and the errors go into your learner model. Practice questions are written by a model and checked one by one by a second call (the critic) before you see them."
+      },
+      "plan": {
+        "review": {
+          "task": "Review 24 words",
+          "time": "~8 min"
+        },
+        "learn": {
+          "task": "Learn 10 new words",
+          "time": "~6 min"
+        },
+        "practice": {
+          "task": "An articles practice set",
+          "time": "~5 min"
+        },
+        "reading": {
+          "task": "A B1 reading",
+          "time": "~7 min"
+        },
+        "title": "Today's plan",
+        "body": "An algorithm lays out today's work to fit your daily time, so opening the dashboard calls no model. Tell the assistant “I only have 10 minutes today” and it proposes a lighter plan, which replaces the old one only once you confirm."
+      }
+    },
+    "trust": {
+      "title": "Everything it does, you can see and control",
+      "activity": {
+        "title": "What JOJO did",
+        "body": "Unfold it under any reply: which memories it read, which tools it called, what it saved afterwards."
+      },
+      "usage": {
+        "title": "AI usage marks",
+        "body": "Every button that calls a model is marked AI, so before you click you know which model and roughly how many tokens."
+      },
+      "confirm": {
+        "title": "It asks before it changes",
+        "body": "Switching word books, setting goals, changing plans: it asks with a card first. Nothing changes until you confirm, and you can undo it."
+      },
+      "background": {
+        "title": "Background work you can switch off",
+        "body": "Pre-made questions, article rewrites, error diagnosis and other background jobs can be switched off one by one, and admins can set daily limits."
+      }
+    },
+    "platform": {
+      "title": "Open source, self-hosted",
+      "sub": "Your data and models stay in your hands",
+      "models": {
+        "title": "Bring your own models",
+        "body": "Add your own model connections in the app, with keys encrypted in the database. Order the models for each task; if one fails, the next takes over."
+      },
+      "server": {
+        "unit": "GB of RAM runs it all",
+        "title": "Runs on a small server",
+        "body": "One Docker command starts everything, with prebuilt images and deployment docs (HTTPS, backups, upgrades)."
+      },
+      "share": {
+        "invite": "Invite link · 7 days · up to 3 people",
+        "allowance": "Daily allowance · 50k tokens",
+        "title": "Share your models with family and friends",
+        "body": "Members use your models without seeing the keys, and you set allowances per capability. You can see their usage, never their conversations."
+      }
+    },
+    "closing": {
+      "title": "Start with one conversation.",
+      "sub": "It remembers what you know and what you keep getting wrong."
+    },
+    "footer": {
+      "tagline": "Lingo Agent · Open-source English assistant",
+      "github": "GitHub",
+      "docs": "Deployment docs",
+      "docsUrl": "https://github.com/YangD1/lingo-agent/blob/main/README.md#deploying"
+    },
+    "demo": {
+      "kicker": "See it in a chat",
+      "title": "It teaches as you chat, and shows you everything it did",
+      "tabsLabel": "Example scenes",
+      "tabs": {
+        "memory": "Memory & fixes",
+        "practice": "Practice + checks",
+        "reading": "Close reading",
+        "writing": "Essay review",
+        "deepen": "Deeper follow-up"
+      },
+      "level": "B1 · explains in English",
+      "placeholder": "Message JOJO…",
+      "loadContext": "Reading memories…",
+      "activity": "What JOJO did:",
+      "read": "Read",
+      "called": "Called",
+      "saved": "Saved",
+      "editable": "edit or delete it on the Memory page",
+      "memory": {
+        "user": "Last weekend I go hiking with my sister and it was amazing.",
+        "context": "Read 2 memories",
+        "contextDetail": "You enjoy the outdoors · you mentioned wanting to climb Huangshan",
+        "reply": "Sounds amazing! One small fix: “last weekend” needs the past tense, so <s>I go</s> → <b>I went</b> hiking. Which trail did you take?",
+        "grammar": {
+          "running": "Tagging grammar…",
+          "done": "Tagged 1 grammar mistake"
+        },
+        "grammarDetail": "<s>I go</s> → <b>I went</b> · past simple · mastery 64% → 58%",
+        "reflect": {
+          "running": "Sorting memories…",
+          "done": "Saved 1 memory"
+        },
+        "reflectDetail": "Often hikes with her sister at weekends",
+        "summary": "<b>Read 2 memories</b> · saved 1 · tagged 1 grammar mistake"
+      },
+      "practice": {
+        "user": "Can you give me some practice on the present perfect?",
+        "context": "Read 1 memory",
+        "contextDetail": "Mixed up for and since 3 times lately",
+        "reply": "Sure. You've mixed up <b>for</b> and <b>since</b> a few times lately, so this set focuses on that.",
+        "quiz": {
+          "running": "Writing questions…",
+          "done": "Wrote 5 questions"
+        },
+        "critic": {
+          "running": "Checking each question…",
+          "done": "All 5 passed the check (1 rewritten)"
+        },
+        "card": "Present perfect · 5 questions",
+        "checked": "Checked",
+        "progress": "1 / 5",
+        "why": "since is followed by a point in time; the action runs from then until now, so use the present perfect.",
+        "grade": {
+          "running": "Recording the answer…",
+          "done": "Recorded 1 piece of evidence"
+        },
+        "gradeDetail": "Present perfect · correct · mastery 58% → 63%",
+        "summary": "<b>Read 1 memory</b> · wrote 5 questions · recorded 1 answer"
+      },
+      "reading": {
+        "offer": "This is a long text. Open it in the workspace?",
+        "read": "Read closely",
+        "write": "Review as an essay",
+        "send": "No, just send",
+        "opened": "Opened in the workspace",
+        "version": "Version 1",
+        "modes": {
+          "original": "Original",
+          "parallel": "Side by side",
+          "translation": "Translation"
+        },
+        "analyse": "Analyse sentence",
+        "translating": "Translating…",
+        "word": "noun · water in the form of gas",
+        "add": "Add to my words",
+        "added": "Added to my words ✓",
+        "analysing": "Analysing this sentence…",
+        "analysis": {
+          "meaning": {
+            "label": "Meaning",
+            "text": "The water is in a disc that is still forming planets, so worlds like ours may start out with water."
+          },
+          "main": {
+            "label": "Main clause",
+            "text": "The water sits in a disc"
+          },
+          "clauses": {
+            "label": "Clauses",
+            "text": "that is still forming planets → relative clause on “disc”; which suggests… → non-defining clause about the whole finding"
+          },
+          "phrases": {
+            "label": "Phrases",
+            "text": "on board: literally “on a ship”, here “already carried along”"
+          }
+        },
+        "ask": "Ask JOJO",
+        "question": "Why “may” here?",
+        "reply": "<b>may</b> marks a possibility that isn't proven yet; the researcher adds that more observations are needed. With <b>will</b> it would read as a settled fact, which is too strong.",
+        "summary": "<b>Read the quoted sentence</b> · no tools called"
+      },
+      "writing": {
+        "reviewing": "Reviewing…",
+        "reviewed": "Reviewed: B1 · 3 suggestions",
+        "reply": "It reads smoothly and the structure is clear. I've suggested 3 changes on the right. Nothing changes until you accept one.",
+        "edits": {
+          "running": "Preparing changes…",
+          "done": "Suggested 3 changes"
+        },
+        "words": "58 words",
+        "saved": "Saved",
+        "review": "Review",
+        "versions": "Versions",
+        "heading": "JOJO's suggestions (3)",
+        "acceptAll": "Accept all",
+        "accept": "Accept",
+        "decline": "Skip",
+        "accepted": "Accepted",
+        "declined": "Skipped",
+        "why": {
+          "tense": "“three years” is a length of time, so use for; since takes a point in time.",
+          "agreement": "people is plural, so the verb is are.",
+          "style": "A more natural way to say it. Optional."
+        },
+        "history": {
+          "current": {
+            "name": "Version 3",
+            "meta": "Accepted 2 changes · just now",
+            "action": "Current"
+          },
+          "first": {
+            "name": "Version 1",
+            "meta": "Me · 2 min ago",
+            "action": "Go back"
+          }
+        },
+        "grammar": {
+          "running": "Tagging grammar…",
+          "done": "Tagged 2 grammar mistakes"
+        },
+        "grammarDetail": "Present perfect · subject–verb agreement",
+        "summary": "<b>Reviewed 1 essay</b> · suggested 3 changes · tagged 2 grammar mistakes"
+      },
+      "deepen": {
+        "user": "Make and let both mean “让” to me. What's the difference?",
+        "context": "Read 1 memory",
+        "contextDetail": "You asked for more example sentences",
+        "reply": "<b>make</b> means someone <b>has to</b> do it; <b>let</b> means they're <b>allowed</b> to: My boss made me stay late. (I had no choice) / My boss let me leave early. (I was allowed)",
+        "deepen": {
+          "running": "Writing a deeper follow-up…",
+          "done": "Added a deeper follow-up"
+        },
+        "label": "Follow-up",
+        "more": "Two more points: ① Both take a bare infinitive: make him <s>to</s> go. In the passive, make takes “to” back: He <b>was made to</b> wait, while let is rarely passive; use be allowed to. ② For causing a state only make works: The news <b>made</b> me happy, never “let me happy”.",
+        "summary": "<b>Read 1 memory</b> · added a deeper follow-up"
+      }
+    }
   }
 }

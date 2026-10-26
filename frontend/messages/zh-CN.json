@@ -3076,5 +3076,335 @@
       "finish": "开始学习"
     },
     "open": "配置引导"
+  },
+  "landing": {
+    "badge": "开源 · 可自部署 · 接入你自己的模型",
+    "title": "你的 AI 英语助手",
+    "subtitle": "记得你会什么，也记得你总在哪里出错。从 A1 到 C2 都能用，讲解可以多说中文，也可以全英文。",
+    "cta": "注册，开始练习",
+    "login": "登录",
+    "register": "注册",
+    "hint": "移动鼠标看单词，滚轮拖动单词墙",
+    "next": "看看 Lingo 能做什么",
+    "switchLanguage": "Switch to English",
+    "switchLanguageName": "English",
+    "lens": {
+      "words": {
+        "vocabulary": "词汇",
+        "grammar": "语法",
+        "pronunciation": "发音 · 不是 pronounciation",
+        "thorough": "彻底的",
+        "although": "尽管",
+        "serendipity": "意外的好运",
+        "fluency": "流利",
+        "collocation": "词语搭配",
+        "phrasalverbs": "短语动词",
+        "listening": "听力",
+        "idiom": "习语",
+        "accent": "口音",
+        "sentence": "句子",
+        "tense": "时态",
+        "subjunctive": "虚拟语气",
+        "nuance": "细微差别",
+        "ubiquitous": "无处不在的",
+        "rhythm": "节奏",
+        "spelling": "拼写",
+        "synonym": "同义词",
+        "conversation": "对话",
+        "meanwhile": "与此同时",
+        "resilient": "有韧性的",
+        "article": "冠词 · a / an / the",
+        "preposition": "介词",
+        "eloquent": "雄辩的",
+        "curious": "好奇的",
+        "whisper": "低语",
+        "journey": "旅程",
+        "schedule": "日程",
+        "comfortable": "舒服的 · 只读三个音节",
+        "wednesday": "星期三 · 第一个 d 不发音",
+        "informations": "不可数，没有复数 → information",
+        "advices": "不可数 → advice / a piece of advice",
+        "recieve": "拼写：e 在 i 前 → receive",
+        "untill": "只有一个 l → until",
+        "discussabout": "discuss 直接带宾语 → discuss it"
+      }
+    },
+    "more": {
+      "kicker": "Lingo 能做什么",
+      "title": "它和一般的聊天机器人不一样",
+      "body": "Lingo 记得你是谁、你会什么、总在哪里出错，再按你的水平决定教什么。掌握度和复习时间由算法根据证据计算，不让模型拍脑袋打分；它做过的每件事，你都看得到。"
+    },
+    "learn": {
+      "title": "会记、会教",
+      "sub": "每次对话都在积累关于你的证据",
+      "memory": {
+        "chip": "记忆 · 你喜欢户外运动，周末常去徒步",
+        "fix": "不错！说过去的事用一般过去时：<s>I go</s> → <b>I went</b> hiking. 这周末还去吗？",
+        "activity": "JOJO 做了什么 · 读取 2 条记忆 · 记下 1 条语法证据",
+        "title": "会记住你的助手",
+        "body": "每次回复后在后台判断哪些值得记：目标、兴趣、反复出现的问题。下次从你停下的地方接着聊，不用重新介绍自己；记了什么，在“记忆”页逐条可改可删。"
+      },
+      "grammar": {
+        "pastSimple": "一般过去时",
+        "articles": "冠词",
+        "presentPerfect": "现在完成时",
+        "title": "语法跟踪与掌握度",
+        "body": "错误标到 119 个语法点（A1–C2），BKT + Elo 按证据更新掌握度。反复出错时还会诊断根因。"
+      },
+      "vocab": {
+        "meaning": "/ˈθʌrə/ · adj. 彻底的；周密的",
+        "again": "重来",
+        "hard": "困难",
+        "good": "良好",
+        "easy": "简单",
+        "title": "FSRS 背单词",
+        "body": "牛津 3000、四六级、雅思、托福等词书，先筛熟词再按 FSRS 排复习；可以翻卡、听音辨词或拼写，聊天里的生词自动收进来。"
+      },
+      "placement": {
+        "vocab": "词汇量约 3,800",
+        "title": "入学测定级",
+        "body": "约 10 分钟自适应测试，给出 CEFR 等级和估计词汇量，不调用模型。助手按结果调整讲解深浅。"
+      },
+      "speaking": {
+        "chip": "情景 · 餐厅点餐 · B1",
+        "title": "口语与实时通话",
+        "body": "按情景练口语，结束给一份小结；配了实时语音还能像打电话一样聊，可以打断、有字幕。跟读会逐词打分。"
+      },
+      "reading": {
+        "chip": "按 B1 改写 · 5 道理解题已过 critic 检查",
+        "title": "分级新闻阅读",
+        "body": "订阅的新闻按你的等级改写，今天该复习的词高亮，超纲词加虚线；任何词点一下就能查、能收。"
+      },
+      "writing": {
+        "bar": "完成题目 · 连贯 · 词汇 · 语法",
+        "title": "写作批改与语法练习",
+        "body": "作文逐句批改、四项评分，错误记进学习者模型；练习题由模型出、另一次调用（critic）逐题检查后才给你。"
+      },
+      "plan": {
+        "review": {
+          "task": "复习 24 个词",
+          "time": "约 8 分钟"
+        },
+        "learn": {
+          "task": "学 10 个新词",
+          "time": "约 6 分钟"
+        },
+        "practice": {
+          "task": "一组冠词练习",
+          "time": "约 5 分钟"
+        },
+        "reading": {
+          "task": "一篇 B1 阅读",
+          "time": "约 7 分钟"
+        },
+        "title": "今天的计划",
+        "body": "算法按你每天的时间排好今天要做的事，打开看板不调用模型；跟助手说“今天只有 10 分钟”，它会提一份更轻的计划，你确认后才替换。"
+      }
+    },
+    "trust": {
+      "title": "它做的一切，你都看得见、管得住",
+      "activity": {
+        "title": "JOJO 做了什么",
+        "body": "每条回复下都能展开：读了哪些记忆、调了哪些工具、回复后记下了什么。"
+      },
+      "usage": {
+        "title": "AI 用量标记",
+        "body": "每个会调用模型的按钮都标着 AI，点之前就知道用哪个模型、每次大约多少 token。"
+      },
+      "confirm": {
+        "title": "先问你，再改",
+        "body": "换词书、设目标、改计划都先用卡片问你；确认前什么都不改，确认后也能撤销。"
+      },
+      "background": {
+        "title": "后台工作可以关",
+        "body": "预先出题、改写文章、诊断错误等后台任务能逐项关掉，管理员可以设每日上限。"
+      }
+    },
+    "platform": {
+      "title": "开源、自部署",
+      "sub": "数据和模型都在你自己手里",
+      "models": {
+        "title": "自带模型",
+        "body": "在应用里添加自己的模型连接，key 加密存库；按任务排模型顺序，一个出错自动换下一个。"
+      },
+      "server": {
+        "unit": "GB 内存跑全套",
+        "title": "低配服务器也能跑",
+        "body": "Docker 一条命令起服务，有预构建镜像和部署文档（HTTPS、备份、升级）。"
+      },
+      "share": {
+        "invite": "邀请链接 · 7 天有效 · 限 3 人",
+        "allowance": "每日额度 · 50k token",
+        "title": "把模型分给家人朋友",
+        "body": "成员用你的模型但看不到 key，你按能力设额度；你看得到用量，看不到他们的对话。"
+      }
+    },
+    "closing": {
+      "title": "从一次对话开始。",
+      "sub": "记得你会什么，也记得你总在哪里出错。"
+    },
+    "footer": {
+      "tagline": "Lingo Agent · 开源英语助手",
+      "github": "GitHub",
+      "docs": "部署文档",
+      "docsUrl": "https://github.com/YangD1/lingo-agent/blob/main/README.zh-CN.md#部署"
+    },
+    "demo": {
+      "kicker": "在对话里看看",
+      "title": "边聊边教，做了什么都摊开给你看",
+      "tabsLabel": "示例场景",
+      "tabs": {
+        "memory": "记忆和纠错",
+        "practice": "练习 + 检查",
+        "reading": "长文精读",
+        "writing": "作文批改",
+        "deepen": "补充分析"
+      },
+      "level": "B1 · 讲解多用中文",
+      "placeholder": "和 JOJO 说点什么…",
+      "loadContext": "正在读取记忆…",
+      "activity": "JOJO做了什么：",
+      "read": "读了",
+      "called": "调了",
+      "saved": "记下",
+      "editable": "在“记忆”页可以改、可以删",
+      "memory": {
+        "user": "Last weekend I go hiking with my sister and it was amazing.",
+        "context": "读取了 2 条记忆",
+        "contextDetail": "你喜欢户外运动 · 上次说想去爬黄山",
+        "reply": "Sounds amazing! 一个小地方：说上周末的事要用过去时，<s>I go</s> → <b>I went</b> hiking。你们这次走的哪条路线？",
+        "grammar": {
+          "running": "正在标注语法…",
+          "done": "标记了 1 个语法错误"
+        },
+        "grammarDetail": "<s>I go</s> → <b>I went</b> · 一般过去时 · 掌握度 64% → 58%",
+        "reflect": {
+          "running": "正在整理记忆…",
+          "done": "记下 1 条记忆"
+        },
+        "reflectDetail": "周末常和姐姐去徒步",
+        "summary": "<b>读取 2 条记忆</b> · 记下 1 条 · 标记 1 个语法错误"
+      },
+      "practice": {
+        "user": "Can you give me some practice on the present perfect?",
+        "context": "读取了 1 条记忆",
+        "contextDetail": "最近 3 次把 for 和 since 用混",
+        "reply": "好。你最近几次都把 <b>for</b> 和 <b>since</b> 用混了，这组题就盯着它出。",
+        "quiz": {
+          "running": "正在出题…",
+          "done": "出了 5 道题"
+        },
+        "critic": {
+          "running": "正在逐题检查…",
+          "done": "5 道都过了检查（1 道重写过）"
+        },
+        "card": "现在完成时 · 5 题",
+        "checked": "已检查",
+        "progress": "1 / 5",
+        "why": "since 后面接时间点，动作从过去一直持续到现在，用现在完成时。",
+        "grade": {
+          "running": "正在记录作答…",
+          "done": "记了 1 条作答证据"
+        },
+        "gradeDetail": "现在完成时 · 答对 · 掌握度 58% → 63%",
+        "summary": "<b>读取 1 条记忆</b> · 出题 5 道 · 记 1 条作答"
+      },
+      "reading": {
+        "offer": "这是一段长文，放到右侧工作区里看？",
+        "read": "在工作区精读",
+        "write": "当作文批改",
+        "send": "不用，直接发",
+        "opened": "在工作区打开了",
+        "version": "第 1 版",
+        "modes": {
+          "original": "原文",
+          "parallel": "对照",
+          "translation": "译文"
+        },
+        "analyse": "点句分析",
+        "translating": "正在翻译…",
+        "word": "名词 · 蒸气，水汽",
+        "add": "收进生词本",
+        "added": "已收进生词本 ✓",
+        "analysing": "正在分析这句话…",
+        "analysis": {
+          "meaning": {
+            "label": "意思",
+            "text": "这些水在一个还在形成行星的气体尘埃盘里，说明像地球这样的星球可能一开始就带着水。"
+          },
+          "main": {
+            "label": "主干",
+            "text": "The water sits in a disc"
+          },
+          "clauses": {
+            "label": "从句和成分",
+            "text": "that is still forming planets → 定语从句，修饰 disc；which suggests… → 非限制性定语从句，指前面整件事"
+          },
+          "phrases": {
+            "label": "难点短语",
+            "text": "on board：本义“在船上”，这里是“自带着”"
+          }
+        },
+        "ask": "问 JOJO",
+        "question": "这里为什么用 may？",
+        "reply": "<b>may</b> 表示“有可能，但还没证实”——研究员后面也说还需要进一步观测。换成 <b>will</b> 就成了确定的结论，语气太强。",
+        "summary": "<b>读了引用的句子</b> · 没有调用工具"
+      },
+      "writing": {
+        "reviewing": "正在批改…",
+        "reviewed": "批改完成：B1 · 3 处建议",
+        "reply": "整体很通顺，结构也清楚。我提了 3 处修改，在右边逐条看，你接受了才会改。",
+        "edits": {
+          "running": "正在整理修改…",
+          "done": "提了 3 处修改"
+        },
+        "words": "58 词",
+        "saved": "已保存",
+        "review": "批改",
+        "versions": "版本",
+        "heading": "JOJO 的修改建议（3）",
+        "acceptAll": "全部接受",
+        "accept": "接受",
+        "decline": "不用",
+        "accepted": "已接受",
+        "declined": "没采用",
+        "why": {
+          "tense": "three years 是一段时间，用 for；since 后面接时间点。",
+          "agreement": "people 是复数，动词用 are。",
+          "style": "更地道的说法，可选。"
+        },
+        "history": {
+          "current": {
+            "name": "第 3 版",
+            "meta": "接受 2 处修改 · 刚刚",
+            "action": "当前"
+          },
+          "first": {
+            "name": "第 1 版",
+            "meta": "我 · 2 分钟前",
+            "action": "回到这个版本"
+          }
+        },
+        "grammar": {
+          "running": "正在标注语法…",
+          "done": "标记了 2 个语法错误"
+        },
+        "grammarDetail": "现在完成时 · 主谓一致",
+        "summary": "<b>批改 1 篇作文</b> · 提了 3 处修改 · 标记 2 个语法错误"
+      },
+      "deepen": {
+        "user": "make 和 let 都是“让”，有什么区别？",
+        "context": "读取了 1 条记忆",
+        "contextDetail": "你说过想多看例句",
+        "reply": "<b>make</b> 是让人<b>不得不</b>做，<b>let</b> 是<b>允许</b>人做：My boss made me stay late.（被迫留下）/ My boss let me leave early.（被允许早走）",
+        "deepen": {
+          "running": "正在写补充分析…",
+          "done": "补充了一段深入分析"
+        },
+        "label": "补充分析",
+        "more": "再补两点：① 两个词后面都接不带 to 的动词：make him <s>to</s> go。但 make 变被动时 to 要回来：He <b>was made to</b> wait；let 一般不用被动，改说 be allowed to。② 让某物变成某种状态只能用 make：The news <b>made</b> me happy，不能说 let me happy。",
+        "summary": "<b>读取 1 条记忆</b> · 补充了一段深入分析"
+      }
+    }
   }
 }
