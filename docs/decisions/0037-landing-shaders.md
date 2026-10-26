@@ -1,6 +1,6 @@
 # 0037 · 首页（未登录）用 WebGPU shader 做动态背景
 
-- **状态**：已采纳（2026-10-14，任务 74；用户在两轮草稿 A/B/C、A2/C2 中选了 A2“流光”，Q74a–c 全部按推荐确认）
+- **状态**：~~已采纳~~ 已被 ADR 0065 取代（2026-10-26，首页改成放大镜单词墙，shader 背景和 `shaders` 依赖去掉）。原状态：已采纳（2026-10-14，任务 74；用户在两轮草稿 A/B/C、A2/C2 中选了 A2“流光”，Q74a–c 全部按推荐确认）
 - **日期**：2026-10-14
 - **影响**：前端新增依赖 `shaders`（shaders.com，MIT，4.0.4，依赖 typegpu）；`components/home/landing*.tsx` 重写；`globals.css` 新增 `.landing-silk` / `.landing-ink` 两个 CSS 底色。只影响未登录首页，其他页面不加载这个库。
 
