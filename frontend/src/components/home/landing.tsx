@@ -6,11 +6,10 @@ import { LogoMark } from "@/components/brand/logo";
 import { DemoSection } from "@/components/home/landing-demo";
 import { archivo } from "@/components/home/landing-font";
 import { LanguageButton, LensHero } from "@/components/home/landing-lens";
+import { LandingFooter, LandingMore } from "@/components/home/landing-more";
 import { cn } from "@/lib/utils";
 
 import s from "./landing.module.css";
-
-export const REPO_URL = "https://github.com/YangD1/lingo-agent";
 
 /**
  * The logged-out home page (ADR 0065): a wall of English words under a magnifying lens, then a
@@ -64,7 +63,9 @@ export async function Landing() {
       </LensHero>
       <main>
         <DemoSection copy={landing.demo} />
+        <LandingMore />
       </main>
+      <LandingFooter />
     </div>
   );
 }
