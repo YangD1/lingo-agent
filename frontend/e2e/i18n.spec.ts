@@ -16,7 +16,8 @@ test.describe("with a Chinese browser", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
     await expect(page.getByRole("heading", { name: TAGLINE.zh })).toBeVisible();
 
-    await pickOption(page.getByLabel("语言").filter({ visible: true }), "English");
+    // the home page's top bar has a single button for the other language
+    await page.getByRole("button", { name: "Switch to English" }).click();
     await expect(page.getByRole("heading", { name: TAGLINE.en })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
