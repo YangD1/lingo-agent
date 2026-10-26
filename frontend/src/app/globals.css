@@ -346,46 +346,6 @@
     @apply font-sans;
   }
 }
-/* Logged-out home page (ADR 0037). CSS fallbacks for the WebGPU backdrops in
-   components/home/landing-backdrop.tsx: they paint first, and stay when WebGPU is missing. */
-@layer components {
-  .landing-silk {
-    background:
-      repeating-linear-gradient(90deg, #ffffff1a 0 2px, transparent 2px 64px),
-      radial-gradient(55% 70% at 20% 20%, #f2a086, transparent 70%),
-      radial-gradient(45% 60% at 85% 25%, #ffd98a, transparent 70%),
-      radial-gradient(60% 70% at 70% 95%, #f25c3baa, transparent 70%),
-      radial-gradient(40% 50% at 10% 90%, #a9a5ff88, transparent 70%),
-      #fdebe4;
-  }
-  .dark .landing-silk {
-    background:
-      repeating-linear-gradient(90deg, #ffffff0a 0 2px, transparent 2px 64px),
-      radial-gradient(55% 70% at 20% 20%, #5753c9aa, transparent 70%),
-      radial-gradient(45% 60% at 85% 25%, #c8441f99, transparent 70%),
-      radial-gradient(60% 70% at 70% 95%, #f25c3b88, transparent 70%),
-      radial-gradient(40% 50% at 10% 90%, #2e2a5c, transparent 70%),
-      #17161b;
-  }
-  .landing-ink {
-    background:
-      radial-gradient(70% 90% at 15% 100%, #f25c3baa, transparent 70%),
-      radial-gradient(50% 70% at 95% 0%, #5753c999, transparent 70%),
-      #17161b;
-  }
-}
-/* The correction ticker on the home page. */
-@theme {
-  --animate-marquee: marquee 48s linear infinite;
-  @keyframes marquee {
-    from {
-      transform: translateX(0);
-    }
-    to {
-      transform: translateX(-50%);
-    }
-  }
-}
 /* The settings card the desk pet led to (ADR 0039 §1): a brief ring around it. */
 @keyframes section-flash {
   0%,
