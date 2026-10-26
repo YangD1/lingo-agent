@@ -1,0 +1,439 @@
+/* The logged-out home page (ADR 0065). Scoped: the class names (.card, .row…) are generic and a
+   global stylesheet would outlive the page on client navigation. Colours come from the app's
+   tokens (globals.css); only the lens and glass have their own. */
+
+.page {
+  --ink: var(--foreground);
+  --muted-ink: var(--muted-foreground);
+  --accent-ink: var(--primary);
+  --error-ink: var(--destructive);
+  --line: var(--border);
+  --lens-bg: #ffffff;
+  --glass: rgb(252 250 248 / 0.72);
+  --rim-a: #f4f2f0;
+  --rim-b: #9c979a;
+  --rim-c: #dad6d4;
+  --drop: rgb(28 27 34 / 0.28);
+  --glass-edge: rgb(255 255 255 / 0.5);
+  --font-wall: var(--font-archivo), "Arial Black", system-ui, sans-serif;
+
+  min-height: 100svh;
+  background: var(--background);
+  color: var(--ink);
+}
+:global(.dark) .page {
+  --lens-bg: #222027;
+  --glass: rgb(23 22 27 / 0.72);
+  --rim-a: #5a5660;
+  --rim-b: #1b1a1f;
+  --rim-c: #3a3740;
+  --drop: rgb(0 0 0 / 0.6);
+  --glass-edge: rgb(255 255 255 / 0.12);
+}
+
+/* ---------- hero ---------- */
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  height: 100vh;
+  height: 100svh;
+  min-height: 560px;
+  touch-action: pan-y;
+}
+@media (pointer: fine) {
+  .hero {
+    cursor: none;
+  }
+}
+
+/* .wall fills the hero; .wallInner is a square as wide as the hero's diagonal, rotated around
+   the centre, so the tilted rows always cover every corner. */
+.wall {
+  position: absolute;
+  inset: 0;
+  font-family: var(--font-wall);
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.wall[data-ready] {
+  opacity: 1;
+}
+/* own compositor layer: panning the wall is then a GPU move, not a repaint of every giant word */
+.wallInner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  will-change: transform;
+}
+.row {
+  display: block;
+}
+.word {
+  position: relative;
+  display: inline-block;
+  margin-right: 0.28em;
+}
+.solid {
+  font-weight: 900;
+  font-stretch: 112%;
+}
+.outline {
+  font-weight: 800;
+  font-stretch: 112%;
+  color: transparent;
+  -webkit-text-stroke: 0.022em var(--ink);
+}
+.thin {
+  font-weight: 200;
+  font-stretch: 100%;
+  letter-spacing: 0.01em;
+}
+
+.lens {
+  --r: 150px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  pointer-events: none;
+  will-change: transform;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.lens[data-ready] {
+  opacity: 1;
+}
+.lensShadow {
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  transform: translate(8%, 12%);
+  background: var(--drop);
+  filter: blur(28px);
+}
+.lensRim {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 210deg,
+    var(--rim-a),
+    var(--rim-b) 25%,
+    var(--rim-a) 45%,
+    var(--rim-c) 60%,
+    var(--rim-b) 80%,
+    var(--rim-a)
+  );
+}
+.lensView {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--lens-bg);
+}
+.lensContent {
+  position: absolute;
+  inset: 0;
+}
+.lensContent .wall {
+  right: auto;
+  bottom: auto;
+  transform-origin: 0 0;
+  color: var(--accent-ink);
+  opacity: 1;
+}
+/* the zoomed copy is painted through the SVG filter anyway; a layer here would only blur at 1.6× */
+.lensContent .wallInner {
+  will-change: auto;
+}
+.lensContent .outline {
+  -webkit-text-stroke-color: var(--accent-ink);
+}
+.lensGlass {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(60% 45% at 32% 22%, rgb(255 255 255 / 0.55), transparent 70%),
+    radial-gradient(circle at 50% 50%, transparent 58%, rgb(0 0 0 / 0.1) 88%, rgb(0 0 0 / 0.28) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.5),
+    inset 0 -10px 24px rgb(0 0 0 / 0.08);
+}
+.lensWord,
+.lensCap {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  white-space: nowrap;
+  overflow: hidden;
+  box-shadow: 0 4px 14px -6px var(--drop);
+  transition: opacity 0.15s;
+}
+.lensWord {
+  top: 13%;
+  max-width: 80%;
+  padding: 5px 12px;
+  text-overflow: ellipsis;
+  font: 800 15px/1.2 var(--font-wall);
+  font-stretch: 112%;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: var(--ink);
+  color: var(--background);
+}
+.lensWord s {
+  text-decoration-thickness: 2px;
+}
+.lensCap {
+  bottom: 13%;
+  max-width: 86%;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  background: var(--brand-soft);
+  color: var(--brand-soft-foreground);
+}
+.lensCap i {
+  font-style: normal;
+  font-weight: 400;
+}
+.lensCap b {
+  font-weight: 800;
+  color: var(--accent-ink);
+}
+.lensWord[data-mistake],
+.lensCap[data-mistake] {
+  background: var(--error-ink);
+  color: var(--background);
+}
+.lensCap[data-mistake] b {
+  color: var(--background);
+}
+.lensWord:empty,
+.lensCap:empty {
+  opacity: 0;
+}
+
+/* ---------- chrome on top of the wall ---------- */
+.top {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  pointer-events: none;
+  cursor: auto;
+}
+.top > * {
+  pointer-events: auto;
+}
+/* liquid glass: heavy blur turns the 110px words behind into soft tone; a bright top edge and
+   inner glow for the body, a soft drop shadow to lift it off the wall */
+.glassChip {
+  border: 1px solid var(--glass-edge);
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    inset 0 0 12px rgb(255 255 255 / 0.25),
+    0 6px 20px -8px var(--drop);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding-inline: 10px 16px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding-inline: 18px;
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pill:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+.solidPill {
+  background: var(--ink);
+  color: var(--background);
+  box-shadow: 0 6px 20px -8px var(--drop);
+}
+@media (max-width: 560px) {
+  .hideSm {
+    display: none;
+  }
+}
+.brand:focus-visible,
+.pill:focus-visible,
+.cta:focus-visible,
+.next:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 3px;
+}
+
+.pitch {
+  position: absolute;
+  z-index: 3;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(16px) saturate(1.2);
+  cursor: auto;
+}
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted-ink);
+}
+.pitch h1 {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 46px);
+  line-height: 1.02;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+.pitch p {
+  margin: 0;
+  color: var(--muted-ink);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding-inline: 22px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--background);
+  font-size: 15px;
+  font-weight: 600;
+}
+.actions .pill {
+  height: 46px;
+}
+
+.hint {
+  position: absolute;
+  z-index: 3;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted-ink);
+  cursor: auto;
+}
+.hint kbd {
+  font: 600 11px/1 var(--app-font);
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--glass);
+}
+/* touch screens have no lens to steer and no wheel; the wall wanders by itself there */
+@media (max-width: 720px), (hover: none) {
+  .hint {
+    display: none;
+  }
+}
+
+.next {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding-inline: 16px 14px;
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chev {
+  animation: bob 1.8s ease-in-out infinite;
+}
+@keyframes bob {
+  50% {
+    transform: translateY(3px);
+  }
+}
+/* on narrow screens the pitch card owns the bottom; swiping scrolls anyway */
+@media (max-width: 960px) {
+  .next {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chev {
+    animation: none;
+  }
+  .wall,
+  .lens {
+    transition: none;
+  }
+}
