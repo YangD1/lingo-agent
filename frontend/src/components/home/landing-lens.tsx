@@ -1,6 +1,7 @@
 "use client";
 
 import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { ChevronDown } from "lucide-react";
 
 import {
   barrelMap,
@@ -363,9 +364,7 @@ export function LensHero({
         }}
       >
         <span>{next}</span>
-        <span className={s.chev} aria-hidden>
-          ⌄
-        </span>
+        <ChevronDown className={s.chev} aria-hidden />
       </a>
     </section>
   );
