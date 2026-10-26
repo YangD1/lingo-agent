@@ -419,7 +419,7 @@
   outline: 2px solid var(--accent-ink);
   outline-offset: 3px;
 }
-/* the top bar hides its language button on phones; this one stands in for it */
+/* the top bar hides its language and GitHub buttons on phones; the footer has both */
 .footLang {
   height: 32px;
   padding-inline: 12px;

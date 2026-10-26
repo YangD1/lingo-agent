@@ -95,3 +95,15 @@ test("dashboard: guides a new learner, then charts what they did", async ({ page
   await page.getByTestId("dashboard-errors").getByRole("link", { name: new RegExp(KC_NAME) }).click();
   await expect(page).toHaveURL(/\/learner\?kc=g\.present_simple_third_person$/);
 });
+
+test("the dashboard links to the GitHub repository, in its top bar on phones", async ({ page }) => {
+  await register(page, uniqueEmail());
+  await page.goto("/dashboard");
+  const github = page.getByRole("link", { name: "GitHub" });
+  await expect(github).toHaveCount(1);
+  await expect(github).toHaveAttribute("href", /github\.com/);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("banner").getByRole("link", { name: "GitHub" })).toBeVisible();
+  await expect(github).toHaveCount(1);
+});

@@ -2,6 +2,7 @@ import { ArrowRightIcon } from "lucide-react";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import Link from "next/link";
 
+import { GitHubMark, REPO_URL } from "@/components/brand/github";
 import { LogoMark } from "@/components/brand/logo";
 import { DemoSection } from "@/components/home/landing-demo";
 import { archivo } from "@/components/home/landing-font";
@@ -31,6 +32,9 @@ export async function Landing() {
             Lingo Agent
           </Link>
           <nav className={s.topActions}>
+            <a href={REPO_URL} aria-label="GitHub" className={cn(s.pill, s.iconPill, s.glassChip, s.hideSm)}>
+              <GitHubMark className="size-[18px]" />
+            </a>
             <LanguageButton
               to={locale === "en" ? "zh-CN" : "en"}
               name={t("switchLanguageName")}

@@ -3,14 +3,13 @@ import { getLocale, getTranslations } from "next-intl/server";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 
+import { REPO_URL } from "@/components/brand/github";
 import { LanguageButton } from "@/components/home/landing-lens";
 import { RiseIn } from "@/components/home/landing-rise";
 import { cn } from "@/lib/utils";
 
 import s from "./landing.module.css";
 import m from "./landing-more.module.css";
-
-const REPO_URL = "https://github.com/YangD1/lingo-agent";
 
 /** `--v` / `--h` are read by the bar and wave CSS. */
 const v = (value: string) => ({ "--v": value }) as CSSProperties;

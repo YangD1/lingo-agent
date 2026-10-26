@@ -9,6 +9,11 @@ test("first screen: heading, links, word wall and lens", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Create an account" }).first()).toHaveAttribute("href", "/register");
   await expect(page.getByRole("link", { name: "Sign up" })).toHaveAttribute("href", "/register");
   await expect(page.getByRole("link", { name: "Log in" }).first()).toHaveAttribute("href", "/login");
+  // top right, and again in the footer
+  const github = page.getByRole("link", { name: "GitHub" });
+  await expect(github).toHaveCount(2);
+  await expect(github.first()).toBeInViewport();
+  await expect(github.first()).toHaveAttribute("href", /github\.com/);
 
   await expect(page.getByTestId("word-wall")).toBeAttached();
   await expect(page.getByTestId("lens")).toHaveAttribute("data-ready", "");
@@ -63,6 +68,9 @@ test.describe("on a phone", () => {
 
   test("the language button moves to the footer", async ({ page }) => {
     await page.goto("/");
+    // the top bar keeps only log in and sign up; GitHub is in the footer
+    await expect(page.getByRole("link", { name: "GitHub" })).toHaveCount(1);
+    await expect(page.getByRole("contentinfo").getByRole("link", { name: "GitHub" })).toBeVisible();
     const buttons = page.getByRole("button", { name: "切换到简体中文" });
     await expect(buttons).toHaveCount(1);
     await expect(page.getByRole("contentinfo").getByRole("button", { name: "切换到简体中文" })).toBeVisible();

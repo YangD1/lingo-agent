@@ -6,10 +6,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { GitHubMark, REPO_URL } from "@/components/brand/github";
 import { LogoMark } from "@/components/brand/logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { LogoutButton } from "@/components/logout-button";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
+import { buttonVariants } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +33,15 @@ export function MobileTopBar() {
         <LogoMark />
       </Link>
       <span className="truncate text-base font-semibold">{item ? t(item.key) : "Lingo Agent"}</span>
+      {isActive(pathname, "/dashboard") && (
+        <a
+          href={REPO_URL}
+          aria-label="GitHub"
+          className={buttonVariants({ variant: "ghost", size: "icon", className: "-mr-2 ml-auto text-muted-foreground" })}
+        >
+          <GitHubMark className="size-5" />
+        </a>
+      )}
     </header>
   );
 }

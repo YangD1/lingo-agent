@@ -288,6 +288,11 @@
   font-weight: 600;
   cursor: pointer;
 }
+.iconPill {
+  width: 38px;
+  padding: 0;
+  justify-content: center;
+}
 .pill:disabled {
   cursor: progress;
   opacity: 0.7;

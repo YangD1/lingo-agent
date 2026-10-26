@@ -13,6 +13,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { AiBadge } from "@/components/ai-badge";
+import { GitHubMark, REPO_URL } from "@/components/brand/github";
 import { CourseEntry } from "@/components/course/course-entry";
 import { useDescribeError } from "@/components/settings/use-describe-error";
 import { buttonVariants } from "@/components/ui/button";
@@ -106,7 +107,17 @@ export function DashboardApp() {
   return (
     <div className="pet-safe flex-1 overflow-y-auto">
       <div className="mx-auto flex max-w-5xl flex-col gap-3.5 p-4 md:gap-4 md:px-10 md:py-8">
-        <h1 className="mb-1 text-[26px] font-bold tracking-tight max-md:sr-only">{t("title")}</h1>
+        {/* phones have it in the top bar instead (MobileTopBar) */}
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <h1 className="text-[26px] font-bold tracking-tight max-md:sr-only">{t("title")}</h1>
+          <a
+            href={REPO_URL}
+            aria-label="GitHub"
+            className={buttonVariants({ variant: "ghost", size: "icon", className: "ml-auto text-muted-foreground max-md:hidden" })}
+          >
+            <GitHubMark className="size-5" />
+          </a>
+        </div>
         {error &&
           (board ? (
             <ErrorText>{error}</ErrorText>
