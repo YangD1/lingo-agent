@@ -3,22 +3,18 @@ import path from "node:path";
 
 import { expect, type Page, test } from "@playwright/test";
 
-import { FAKE_LLM_URL, PASSWORD, useFakeModel } from "./helpers";
+import { PASSWORD, useFakeModel } from "./helpers";
 
 // README screenshots (task 72.2), only run by `make screenshots`: the demo account's real,
 // engine-made history (`make demo-seed`, task 72.3); only what a model would write on the
-// spot (chat replies, the call) comes from e2e/fake_llm.py. 1280×800, overwrites
-// docs/screenshots/<page>-<zh|en>.png.
+// spot (chat replies) comes from e2e/fake_llm.py. 1280×800, overwrites
+// docs/screenshots/<page>-<zh|en>.png. Only what the README shows (task 128): the home page
+// on its own row, then chat, learner model, reading and vocabulary.
 
 const OUT = path.join(__dirname, "../../docs/screenshots");
 const DEMO = "demo@lingo.example.com";
 
-test.use({
-  viewport: { width: 1280, height: 800 },
-  launchOptions: {
-    args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"],
-  },
-});
+test.use({ viewport: { width: 1280, height: 800 } });
 
 const LOCALES = [
   { lang: "zh", locale: "zh-CN" },
@@ -31,26 +27,6 @@ function seed(lang: string) {
   });
 }
 
-async function useFakeRealtime(page: Page) {
-  const connection = await page.request.post("/api/tenant/connections", {
-    data: {
-      name: "voice",
-      kind: "openai_compatible",
-      base_url: FAKE_LLM_URL,
-      api_key: "sk-fake",
-      params: {
-        realtime_url: `${FAKE_LLM_URL.replace(/^http/, "ws")}/realtime`,
-        realtime_dialect: "ga",
-      },
-    },
-  });
-  expect(connection.status()).toBe(201);
-  const route = await page.request.put("/api/tenant/routes/realtime/default", {
-    data: { models: ["voice:fake-realtime"] },
-  });
-  expect(route.status()).toBe(200);
-}
-
 async function shoot(page: Page, name: string, lang: string) {
   // Fonts, avatars and charts settle before the picture is taken.
   await page.evaluate(() => document.fonts.ready);
@@ -58,15 +34,6 @@ async function shoot(page: Page, name: string, lang: string) {
   await page.mouse.move(0, 0); // no hover card left open from the last click
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(OUT, `${name}-${lang}.png`) });
-}
-
-/** Opens the first record linked from a list page (/writing → /writing/<id>). */
-async function openFirst(page: Page, list: string) {
-  await page.goto(list);
-  const record = page.locator(`a[href^="${list}/"]:not([href*="/call"])`).first();
-  await expect(record).toBeVisible();
-  await record.click();
-  await expect(page).toHaveURL(new RegExp(`${list}/[\\w-]+$`));
 }
 
 for (const { lang, locale } of LOCALES) {
@@ -89,10 +56,6 @@ for (const { lang, locale } of LOCALES) {
       });
       expect(login.status()).toBe(200);
       await useFakeModel(page);
-      await useFakeRealtime(page);
-
-      await page.goto("/dashboard");
-      await shoot(page, "dashboard", lang);
 
       await page.goto("/learner");
       await shoot(page, "learner", lang);
@@ -105,23 +68,11 @@ for (const { lang, locale } of LOCALES) {
       await deck.getByTestId("review-back").waitFor();
       await shoot(page, "vocab", lang);
 
-      await page.goto("/practice");
-      await shoot(page, "practice", lang);
-
-      await openFirst(page, "/writing");
-      await shoot(page, "writing", lang);
-
       // The demo's own article (run_backend's E2E feed articles are newer and filler).
       await page.goto("/reading");
       await page.getByRole("link", { name: /Volunteers plant a million trees/ }).first().click();
       await expect(page).toHaveURL(/\/reading\/\d+$/);
       await shoot(page, "reading", lang);
-
-      await openFirst(page, "/speaking");
-      await shoot(page, "speaking", lang);
-
-      await page.goto("/tutor");
-      await shoot(page, "tutor", lang);
 
       // Chat: two turns on the weak point; the replies are e2e/fake_llm.py's DEMO_CHAT.
       await page.goto("/chat");
@@ -142,15 +93,6 @@ for (const { lang, locale } of LOCALES) {
       await expect(page).toHaveURL(/\/chat\?c=/);
       await page.waitForTimeout(1500); // the reply finishes streaming
       await shoot(page, "chat", lang);
-
-      // A call: the fake vendor's script looks up and adds "serendipity".
-      await page.goto("/speaking/call?scenario=self_intro");
-      await page.getByTestId("call-connect").click();
-      const call = page.getByTestId("realtime-call");
-      await expect(call.getByTestId("call-tool").nth(1)).toBeVisible({ timeout: 20_000 });
-      await expect(call.getByText(/It means finding good things by chance/)).toBeVisible();
-      await shoot(page, "call", lang);
-      await page.getByTestId("call-hang-up").click();
     });
   });
 }

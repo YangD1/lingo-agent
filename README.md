@@ -10,16 +10,20 @@ An open-source AI English assistant agent. The goal: an assistant that remembers
 
 > **Status: P4 complete.** The assistant chats, remembers you, tracks your grammar, schedules vocabulary review and places you on the CEFR scale. It runs practice sets checked by a critic, reviews your writing, rewrites news for your level, diagnoses the root causes of your recurring grammar mistakes and drafts a daily study plan. By voice, it reads aloud with a server voice, scores your shadowing, practises speaking in scenarios, takes real-time calls and quizzes words by ear and by spelling. Enterprise polish (P4) is done too: sharing models and quotas with members, choosing your own assistant, a usage and cost dashboard, rate limits, versioned prompts with eval regression, a seedable demo account with a [demo script](docs/demo.en.md), and prebuilt images with a [deployment guide](docs/deploy.md) for small servers (HTTPS, backups, upgrades, optional continuous deployment). See [what works now](#what-works-now).
 
-| | |
-|---|---|
-| ![Home page: what the assistant does, with a sample chat](docs/screenshots/home-en.png) | ![Chat: the assistant corrects a past-tense mistake and shows what it did](docs/screenshots/chat-en.png) |
-| ![Dashboard: CEFR level, vocabulary size, words due and today's plan](docs/screenshots/dashboard-en.png) | ![Learner model: the assistant's diagnosis of a recurring mistake, and mastery of each grammar point](docs/screenshots/learner-en.png) |
-| ![Grammar practice: start a set on your weak points, with recent results](docs/screenshots/practice-en.png) | ![Writing: four scores, mistakes added to the learner model, each sentence corrected](docs/screenshots/writing-en.png) |
-| ![Reading: a news article rewritten for B1, due words highlighted, words above the level underlined, comprehension questions](docs/screenshots/reading-en.png) | ![Vocabulary: flashcards over any page, today's words scheduled by FSRS](docs/screenshots/vocab-en.png) |
-| ![Speaking practice: the summary after a scenario, with mistakes, more natural ways to say things and expressions to try](docs/screenshots/speaking-en.png) | ![A real-time call: subtitles, and the assistant looking up a word and adding it to the word list](docs/screenshots/call-en.png) |
-| ![My assistant: name, outfit, fur colour, the desk pet and the model it talks with](docs/screenshots/tutor-en.png) | |
+<p align="center"><img width="100%" src="docs/screenshots/home-en.png" alt="Home page: your AI English tutor, which remembers what you know and where you keep slipping"></p>
 
-<sub>Screenshots use a demo account's learning history (`make demo-seed`); only what a model writes on the spot (chat replies, the call) is scripted. `make screenshots` retakes them. To show the app to someone, follow the [demo script](docs/demo.en.md).</sub>
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="docs/screenshots/chat-en.png" alt="Chat: the assistant corrects a past-tense mistake and shows what it did"><br><sub>Chat that corrects you</sub></td>
+    <td align="center" width="50%"><img src="docs/screenshots/learner-en.png" alt="Learner model: the assistant's diagnosis of a recurring mistake, and mastery of each grammar point"><br><sub>Learner model</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><img src="docs/screenshots/reading-en.png" alt="Reading: a news article rewritten for B1, due words highlighted, words above the level underlined, comprehension questions"><br><sub>News graded to your level</sub></td>
+    <td align="center" width="50%"><img src="docs/screenshots/vocab-en.png" alt="Vocabulary: flashcards over any page, today's words scheduled by FSRS"><br><sub>Vocabulary with FSRS</sub></td>
+  </tr>
+</table>
+
+<sub>Screenshots use a demo account's learning history (`make demo-seed`); only the chat replies are scripted. `make screenshots` retakes them. To show the app to someone, follow the [demo script](docs/demo.en.md).</sub>
 
 ## What works now
 

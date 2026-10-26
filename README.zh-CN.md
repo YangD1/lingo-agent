@@ -10,16 +10,20 @@
 
 > **状态：P4 已完成。** 助手能对话、记住你、跟踪你的语法、安排单词复习、用 CEFR 给你定级；能出经过 critic 检查的语法练习、批改写作、按你的等级改写新闻，还会诊断你反复出错的语法点的根因，并按你每天的时间排好今天的计划。语音方面，能用服务端的声音朗读、给你的跟读打分、按情景练口语、实时打电话，背单词也能听音辨词和拼写。企业级打磨（P4）也已完成：与成员共享模型和额度、自选助手、用量与成本看板、限流、提示词版本与评估回归，可一键灌入的演示账号和[演示脚本](docs/demo.md)，以及预构建镜像和面向低配服务器的[部署文档](docs/deploy.zh-CN.md)（HTTPS、备份、升级、可选的持续部署）。见[现在能做什么](#现在能做什么)。
 
-| | |
-|---|---|
-| ![首页：助手能做什么，附一段对话示例](docs/screenshots/home-zh.png) | ![对话：助手纠正过去时的错误，并列出它做了什么](docs/screenshots/chat-zh.png) |
-| ![看板：CEFR 等级、词汇量、待复习单词和今天的学习](docs/screenshots/dashboard-zh.png) | ![学习者模型：助手对反复出错的诊断，和每个语法点的掌握度](docs/screenshots/learner-zh.png) |
-| ![语法练习：针对薄弱点开始一组练习，下面是最近的成绩](docs/screenshots/practice-zh.png) | ![写作：四项评分、错误记入学习者模型、逐句改正](docs/screenshots/writing-zh.png) |
-| ![阅读：新闻按 B1 改写，今天要复习的词高亮，超出等级的词标了下划线，附理解题](docs/screenshots/reading-zh.png) | ![背单词：在任何页面上打开的叠卡复习，FSRS 安排今天的词](docs/screenshots/vocab-zh.png) |
-| ![口语练习：一个情景结束后的小结，有说错的和改法、更地道的说法、下次可以试的表达](docs/screenshots/speaking-zh.png) | ![实时通话：有字幕，助手查了一个词并加入生词本](docs/screenshots/call-zh.png) |
-| ![我的助手：名字、装扮、毛色、桌宠和它用的对话模型](docs/screenshots/tutor-zh.png) | |
+<p align="center"><img width="100%" src="docs/screenshots/home-zh.png" alt="首页：你的 AI 英语私教，记得你会什么，也记得你总在哪里出错"></p>
 
-<sub>截图用的是演示账号的学习记录（`make demo-seed`）；只有模型当场写的内容（对话回复、通话）是预先写好的。`make screenshots` 可以重拍。要给别人演示，可以照着[演示脚本](docs/demo.md)走一遍。</sub>
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="docs/screenshots/chat-zh.png" alt="对话：助手纠正过去时的错误，并列出它做了什么"><br><sub>对话里顺手纠错</sub></td>
+    <td align="center" width="50%"><img src="docs/screenshots/learner-zh.png" alt="学习者模型：助手对反复出错的诊断，和每个语法点的掌握度"><br><sub>学习者模型</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><img src="docs/screenshots/reading-zh.png" alt="阅读：新闻按 B1 改写，今天要复习的词高亮，超出等级的词标了下划线，附理解题"><br><sub>按你的等级改写新闻</sub></td>
+    <td align="center" width="50%"><img src="docs/screenshots/vocab-zh.png" alt="背单词：在任何页面上打开的叠卡复习，FSRS 安排今天的词"><br><sub>FSRS 背单词</sub></td>
+  </tr>
+</table>
+
+<sub>截图用的是演示账号的学习记录（`make demo-seed`）；只有对话回复是预先写好的。`make screenshots` 可以重拍。要给别人演示，可以照着[演示脚本](docs/demo.md)走一遍。</sub>
 
 ## 现在能做什么
 
