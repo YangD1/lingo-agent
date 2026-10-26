@@ -3,6 +3,7 @@ import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 import { LogoMark } from "@/components/brand/logo";
+import { DemoSection } from "@/components/home/landing-demo";
 import { archivo } from "@/components/home/landing-font";
 import { LanguageButton, LensHero } from "@/components/home/landing-lens";
 import { cn } from "@/lib/utils";
@@ -62,7 +63,7 @@ export async function Landing() {
         </div>
       </LensHero>
       <main>
-        <section id="more" tabIndex={-1} />
+        <DemoSection copy={landing.demo} />
       </main>
     </div>
   );
