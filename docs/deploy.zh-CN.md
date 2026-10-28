@@ -31,7 +31,7 @@
 ```bash
 umask 022   # 原因见下
 sudo mkdir -p /opt/lingo-agent && sudo chown "$USER" /opt/lingo-agent
-git clone --branch v0.2.0 https://github.com/YangD1/lingo-agent.git /opt/lingo-agent
+git clone --branch v0.3.0 https://github.com/YangD1/lingo-agent.git /opt/lingo-agent
 cd /opt/lingo-agent
 make env    # 生成 .env（权限 600），带新的加密主密钥和 JWT 密钥
 ```
@@ -52,7 +52,7 @@ FRONTEND_HOST_BIND=127.0.0.1
 # 预构建镜像；IMAGE_TAG 是你检出的版本号，不带 “v”。
 BACKEND_IMAGE=youngdeezh/lingo-agent-backend
 FRONTEND_IMAGE=youngdeezh/lingo-agent-frontend
-IMAGE_TAG=0.2.0
+IMAGE_TAG=0.3.0
 ```
 
 只要服务器有别人在用，就保持 `PROVIDER_ALLOW_PRIVATE_NETWORKS=false`：它防止租户把模型连接指向你的内网。容器不读 `.env` 里的 `DATABASE_URL`（它们的数据库地址写死在 `docker-compose.yml` 里），这行不用改。
@@ -183,9 +183,9 @@ sudo certbot --nginx -d lingo.example.com
 
 ```bash
 cd /opt/lingo-agent
-deploy/backup.sh before_0.2.1
-git fetch --tags && git checkout v0.2.1
-sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=0.2.1/' .env
+deploy/backup.sh before_0.3.1
+git fetch --tags && git checkout v0.3.1
+sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=0.3.1/' .env
 docker compose pull
 docker compose up -d --no-build --wait
 ```
@@ -203,7 +203,7 @@ docker compose run --rm --no-deps -T --entrypoint alembic backend heads
 升级后再运行一次。输出一样的话，检出旧 tag、把 `IMAGE_TAG` 改回去，再跑同样的 `pull` 和 `up` 就行。输出变了的话，旧版本不一定能在新表结构上运行：检出旧 tag、改回 `IMAGE_TAG`、`docker compose pull`，再恢复升级前的那份备份：
 
 ```bash
-make restore FILE=backups/<时间>_before_0.2.1.dump
+make restore FILE=backups/<时间>_before_0.3.1.dump
 ```
 
 数据库和旧镜像对上之后，`restore.sh` 会用旧镜像重新启动后端和前端。升级之后、恢复之前写入的数据会丢失。
@@ -309,7 +309,7 @@ backups/  logs/  bin/deploy-entry  deployed.log
 然后推一个 tag：
 
 ```bash
-git tag v0.2.0 && git push origin v0.2.0
+git tag v0.3.0 && git push origin v0.3.0
 ```
 
 第一次运行约 25 分钟（CI 约 13 分钟、镜像约 8 分钟、部署约 2 分钟）；有构建缓存后镜像约一分钟。服务器第一次部署时没有上一个版本可以回退。要把已有的代码目录部署迁过来：在第一次运行前，到旧目录里 `docker compose down`（数据库卷会保留）。

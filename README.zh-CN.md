@@ -77,12 +77,12 @@ make sentences-import   # 只需一次，在 vocab-import 之后：导入复习�
 make senses-import   # 只需一次，在 vocab-import 之后：导入复习卡片的英文义项（约 10 秒）
 ```
 
-**用预构建镜像运行。** 不想自己构建时，可以用每个版本发布在 Docker Hub 上的镜像（amd64）：用 `git clone --branch v0.2.0 …` 克隆对应版本（compose 文件和 `config/` 来自代码目录，要和镜像版本一致），执行 `make env`，在 `.env` 里设置下面三行，再用 `docker compose pull` 和 `docker compose up -d --no-build` 代替 `make up` 启动。后面的导入步骤不变。
+**用预构建镜像运行。** 不想自己构建时，可以用每个版本发布在 Docker Hub 上的镜像（amd64）：用 `git clone --branch v0.3.0 …` 克隆对应版本（compose 文件和 `config/` 来自代码目录，要和镜像版本一致），执行 `make env`，在 `.env` 里设置下面三行，再用 `docker compose pull` 和 `docker compose up -d --no-build` 代替 `make up` 启动。后面的导入步骤不变。
 
 ```bash
 BACKEND_IMAGE=youngdeezh/lingo-agent-backend
 FRONTEND_IMAGE=youngdeezh/lingo-agent-frontend
-IMAGE_TAG=0.2.0
+IMAGE_TAG=0.3.0
 ```
 
 词库来自 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT 许可，66 MB，固定到某个提交并校验 sha256）。文件保存在 `data/`，其中约 3.8 万个词会被导入：考试词表、牛津 3000、柯林斯星级词和词频前 3 万的词。背单词和入学测都要用到它。可以重复执行。访问不了 GitHub 时，把 `ECDICT_URL` 设为同一文件的镜像地址，或者用 `make vocab-import CSV=path/to/ecdict.csv` 导入本地文件。宿主机上没有 uv 时：先下载文件，再执行 `docker compose cp ecdict.csv backend:/tmp/` 和 `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`。

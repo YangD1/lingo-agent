@@ -31,7 +31,7 @@ Check out the release you are going to run. The compose file and `config/` come 
 ```bash
 umask 022   # see below
 sudo mkdir -p /opt/lingo-agent && sudo chown "$USER" /opt/lingo-agent
-git clone --branch v0.2.0 https://github.com/YangD1/lingo-agent.git /opt/lingo-agent
+git clone --branch v0.3.0 https://github.com/YangD1/lingo-agent.git /opt/lingo-agent
 cd /opt/lingo-agent
 make env    # creates .env (mode 600) with a fresh encryption key and JWT secret
 ```
@@ -52,7 +52,7 @@ FRONTEND_HOST_BIND=127.0.0.1
 # Prebuilt images; IMAGE_TAG is the release you checked out, without the "v".
 BACKEND_IMAGE=youngdeezh/lingo-agent-backend
 FRONTEND_IMAGE=youngdeezh/lingo-agent-frontend
-IMAGE_TAG=0.2.0
+IMAGE_TAG=0.3.0
 ```
 
 Leave `PROVIDER_ALLOW_PRIVATE_NETWORKS=false` on any server other people use: it stops tenants from pointing a model connection at your internal network. The containers ignore `DATABASE_URL` in `.env` (their database address is fixed in `docker-compose.yml`), so you don't need to change it.
@@ -183,9 +183,9 @@ Read the release notes for anything that needs doing by hand, then:
 
 ```bash
 cd /opt/lingo-agent
-deploy/backup.sh before_0.2.1
-git fetch --tags && git checkout v0.2.1
-sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=0.2.1/' .env
+deploy/backup.sh before_0.3.1
+git fetch --tags && git checkout v0.3.1
+sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=0.3.1/' .env
 docker compose pull
 docker compose up -d --no-build --wait
 ```
@@ -203,7 +203,7 @@ docker compose run --rm --no-deps -T --entrypoint alembic backend heads
 Run it again after the upgrade. If the output is the same, go back by checking out the old tag, setting `IMAGE_TAG` back and running the same `pull` and `up`. If it changed, the old version may not run on the new schema: check out the old tag, set `IMAGE_TAG` back, `docker compose pull`, then restore the backup taken before the upgrade:
 
 ```bash
-make restore FILE=backups/<time>_before_0.2.1.dump
+make restore FILE=backups/<time>_before_0.3.1.dump
 ```
 
 `restore.sh` starts the backend and frontend again from the old images once the database matches them. Anything written between the upgrade and the restore is lost.
@@ -309,7 +309,7 @@ Create an environment named `production` (Settings → Environments), allow only
 Then push a tag:
 
 ```bash
-git tag v0.2.0 && git push origin v0.2.0
+git tag v0.3.0 && git push origin v0.3.0
 ```
 
 The first run takes about 25 minutes (CI about 13, images about 8, the deploy about 2); with the build cache warm, images take about a minute. The server's first deploy has no previous release to fall back on. To move an existing checkout deploy over, stop it (`docker compose down` in the old directory, which keeps the database volume) just before the first run.

@@ -77,12 +77,12 @@ make sentences-import   # once, after vocab-import: example sentences for the fl
 make senses-import   # once, after vocab-import: English senses for the flashcards (about 10 seconds)
 ```
 
-**Prebuilt images.** To skip building, run the images published on Docker Hub for each release (amd64): clone that release with `git clone --branch v0.2.0 …` (the compose file and `config/` come from the checkout, so they must match the images), run `make env`, set these three lines in `.env`, then start the stack with `docker compose pull` and `docker compose up -d --no-build` instead of `make up`. The imports below work the same way.
+**Prebuilt images.** To skip building, run the images published on Docker Hub for each release (amd64): clone that release with `git clone --branch v0.3.0 …` (the compose file and `config/` come from the checkout, so they must match the images), run `make env`, set these three lines in `.env`, then start the stack with `docker compose pull` and `docker compose up -d --no-build` instead of `make up`. The imports below work the same way.
 
 ```bash
 BACKEND_IMAGE=youngdeezh/lingo-agent-backend
 FRONTEND_IMAGE=youngdeezh/lingo-agent-frontend
-IMAGE_TAG=0.2.0
+IMAGE_TAG=0.3.0
 ```
 
 The word list is [ECDICT](https://github.com/skywind3000/ECDICT) (MIT, 66 MB, pinned to one commit and checked by sha256). It is saved in `data/`, and about 38,000 words are imported: exam lists, the Oxford 3000, Collins-starred words and the 30,000 most frequent. The vocabulary pages and the placement test need it. You can run it again safely. If GitHub is unreachable, set `ECDICT_URL` to a mirror of the same file, or pass a local copy with `make vocab-import CSV=path/to/ecdict.csv`. Without uv on the host: download the file, then run `docker compose cp ecdict.csv backend:/tmp/` and `docker compose exec backend python -m app.services.vocab.import_ecdict --csv /tmp/ecdict.csv`.
